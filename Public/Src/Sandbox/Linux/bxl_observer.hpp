@@ -217,6 +217,7 @@ private:
     int rootPid_;
     char progFullPath_[PATH_MAX];
     char detoursLibFullPath_[PATH_MAX];
+    char famPath_[PATH_MAX];
 
     std::timed_mutex cacheMtx_;
     std::unordered_map<es_event_type_t, std::unordered_set<std::string>> cache_;
@@ -243,7 +244,7 @@ private:
     void InitDetoursLibPath();
     bool Send(const char *buf, size_t bufsiz);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
-    char** ensure_env_value_with_log(char *const envp[], char const *envName);
+    char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
 
     ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t associatedPid = 0);
 
@@ -294,7 +295,7 @@ private:
     static AccessCheckResult sNotChecked;
 
 #if _DEBUG
-    #define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) bxl->LogDebug("[%s:%d] " fmt, __progname, getpid(), __VA_ARGS__);
+   #define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) bxl->LogDebug("[%s:%d] " fmt, __progname, getpid(), __VA_ARGS__);
 #else
     #define BXL_LOG_DEBUG(bxl, fmt, ...)
 #endif
@@ -382,6 +383,13 @@ public:
     
     inline bool LogDebugEnabled()
     {
+        if (pip_ == NULL)
+        {
+            // The observer isn't initialized yet. We're being defensive here,
+            // in case someone adds a LOG_DEBUG in a place where it would cause a segfault. 
+            return false;
+        }
+
         return CheckEnableLinuxSandboxLogging(pip_->GetFamExtraFlags());
     }
 

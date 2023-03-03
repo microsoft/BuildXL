@@ -43,7 +43,6 @@ void BxlObserver::InitDetoursLibPath()
     if (!is_null_or_empty(path))
     {
         strlcpy(detoursLibFullPath_, path, PATH_MAX);
-        detoursLibFullPath_[PATH_MAX-1] = '\0';
     }
     else
     {
@@ -57,15 +56,19 @@ void BxlObserver::InitFam()
     const char *famPath = getenv(BxlEnvFamPath);
     if (is_null_or_empty(famPath))
     {
-        LOG_DEBUG("[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
-        return;
+        // This environment variable is set by the sandbox before calling exec
+        // We always expect to have it on initialization of the observer
+        _fatal("[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
     }
 
+    // Store the value for future uses, as the environment might be cleared by the running process
+    strlcpy(famPath_, famPath, PATH_MAX);
+
     // read FAM
-    FILE *famFile = real_fopen(famPath, "rb");
+    FILE *famFile = real_fopen(famPath_, "rb");
     if (!famFile)
     {
-        _fatal("Could not open file '%s'; errno: %d", famPath, errno);
+        _fatal("Could not open file '%s'; errno: %d", famPath_, errno);
     }
 
     fseek(famFile, 0, SEEK_END);
@@ -892,14 +895,8 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
     }
 }
 
-char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *envName)
+char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *envName, char const *envValue)
 {
-    char *envValue = getenv(envName);
-    if (is_null_or_empty(envValue))
-    {
-        return (char**)envp;
-    }
-
     char **newEnvp = ensure_env_value(envp, envName, envValue);
     if (newEnvp != envp)
     {
@@ -927,8 +924,8 @@ char** BxlObserver::ensureEnvs(char *const envp[])
             LOG_DEBUG("envp has been modified with %s added to %s", detoursLibFullPath_, "LD_PRELOAD");
         }
 
-        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath);
-        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath);
+        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath, famPath_);
+        newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath, detoursLibFullPath_);
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
 
         return newEnvp;

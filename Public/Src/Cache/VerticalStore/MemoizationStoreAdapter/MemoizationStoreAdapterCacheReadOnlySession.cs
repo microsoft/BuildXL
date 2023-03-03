@@ -32,7 +32,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <summary>
         /// Backing ReadOnlyCacheSession for content and fingerprint calls.
         /// </summary>
-        protected readonly IReadOnlyCacheSession ReadOnlyCacheSession;
+        protected readonly MemoizationStore.Interfaces.Sessions.ICacheSession ReadOnlyCacheSession;
 
         /// <summary>
         /// The set of strong fingerprints touched by this cache session.
@@ -67,7 +67,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <param name="sessionId">Telemetry ID for the session.</param>
         /// <param name="replaceExistingOnPlaceFile">When true, replace existing file when placing file.</param>
         public MemoizationStoreAdapterCacheReadOnlySession(
-            IReadOnlyCacheSession readOnlyCacheSession,
+            MemoizationStore.Interfaces.Sessions.ICacheSession readOnlyCacheSession,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache cache,
             CacheId cacheId,
             ILogger logger,

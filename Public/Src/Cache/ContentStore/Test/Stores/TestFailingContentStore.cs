@@ -49,12 +49,6 @@ namespace ContentStoreTest.Stores
         }
 
         // <inheritdoc />
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return new CreateSessionResult<IReadOnlyContentSession>(FailureMessage);
-        }
-
-        // <inheritdoc />
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return new CreateSessionResult<IContentSession>(FailureMessage);

@@ -250,7 +250,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 testDirectory => new OneLevelCache(() => _mockContentStore, () => _mockMemoizationStore, CacheDeterminism.NewCacheGuid()));
         }
 
-        private Task RunMockReadOnlySessionTestAsync(Context context, Func<IReadOnlyCacheSession, Task> funcAsync)
+        private Task RunMockReadOnlySessionTestAsync(Context context, Func<ICacheSession, Task> funcAsync)
         {
             return RunReadOnlySessionTestAsync(
                 context,

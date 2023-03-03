@@ -183,22 +183,6 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public Task CreateReadOnlySession()
-        {
-            var context = new Context(Logger);
-            return RunTestAsync(context, async cache =>
-            {
-                var result = cache.CreateReadOnlySession(context, Name, ImplicitPin.None).ShouldBeSuccess();
-
-                using (IReadOnlyCacheSession session = result.Session)
-                {
-                    await session.StartupAsync(context).ShouldBeSuccess();
-                    await session.ShutdownAsync(context).ShouldBeSuccess();
-                }
-            });
-        }
-
-        [Fact]
         public Task CreateSession()
         {
             var context = new Context(Logger);
@@ -1119,19 +1103,19 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             return strongFingerprints;
         }
 
-        private Task RunReadOnlySessionTestAsync(Context context, Func<IReadOnlyCacheSession, Task> funcAsync)
+        private Task RunReadOnlySessionTestAsync(Context context, Func<ICacheSession, Task> funcAsync)
         {
             return RunReadOnlySessionTestAsync(context, funcAsync, CreateCache);
         }
 
         protected virtual Task RunReadOnlySessionTestAsync(
-            Context context, Func<IReadOnlyCacheSession, Task> funcAsync, Func<DisposableDirectory, ICache> createCacheFunc)
+            Context context, Func<ICacheSession, Task> funcAsync, Func<DisposableDirectory, ICache> createCacheFunc)
         {
             return RunTestAsync(
                 context,
                 async cache =>
                 {
-                    var createSessionResult = cache.CreateReadOnlySession(context, Name, ImplicitPinPolicy).ShouldBeSuccess();
+                    var createSessionResult = cache.CreateSession(context, Name, ImplicitPinPolicy).ShouldBeSuccess();
                     using (var session = createSessionResult.Session)
                     {
                         try

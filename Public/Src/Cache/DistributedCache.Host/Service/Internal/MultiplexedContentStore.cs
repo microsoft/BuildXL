@@ -107,37 +107,11 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <nodoc />
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return CreateReadOnlySessionCall.Run(StoreTracer, new OperationContext(context), name, () =>
-            {
-                var sessions = new Dictionary<string, IReadOnlyContentSession>(StringComparer.OrdinalIgnoreCase);
-                foreach (KeyValuePair<string, IContentStore> entry in DrivesWithContentStore)
-                {
-                    var result = entry.Value.CreateReadOnlySession(context, name, implicitPin);
-                    if (!result.Succeeded)
-                    {
-                        foreach (var session in sessions.Values)
-                        {
-                            session.Dispose();
-                        }
-
-                        return new CreateSessionResult<IReadOnlyContentSession>(result);
-                    }
-                    sessions.Add(entry.Key, result.Session);
-                }
-
-                var multiCacheSession = new MultiplexedReadOnlyContentSession(sessions, name, this);
-                return new CreateSessionResult<IReadOnlyContentSession>(multiCacheSession);
-            });
-        }
-
-        /// <nodoc />
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return CreateSessionCall.Run(StoreTracer, new OperationContext(context), name, () =>
             {
-                var sessions = new Dictionary<string, IReadOnlyContentSession>(StringComparer.OrdinalIgnoreCase);
+                var sessions = new Dictionary<string, IContentSession>(StringComparer.OrdinalIgnoreCase);
                 foreach (KeyValuePair<string, IContentStore> entry in DrivesWithContentStore)
                 {
                     var result = entry.Value.CreateSession(context, name, implicitPin);

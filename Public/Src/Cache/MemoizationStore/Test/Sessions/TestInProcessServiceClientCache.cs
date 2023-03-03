@@ -83,9 +83,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         public Guid Id => _client.Id;
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyCacheSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin) => _client.CreateReadOnlySession(context, name, implicitPin);
-
-        /// <inheritdoc />
         public CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin) => _client.CreateSession(context, name, implicitPin);
 
         /// <inheritdoc />

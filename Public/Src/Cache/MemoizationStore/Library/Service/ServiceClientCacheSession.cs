@@ -30,7 +30,7 @@ using BuildXL.Utilities.Tracing;
 namespace BuildXL.Cache.MemoizationStore.Service
 {
     /// <todoc />
-    public class ServiceClientCacheSession : ServiceClientContentSession, ICacheSession, IReadOnlyMemoizationSessionWithLevelSelectors
+    public class ServiceClientCacheSession : ServiceClientContentSession, ICacheSession, IMemoizationSessionWithLevelSelectors
     {
         private CounterCollection<MemoizationStoreCounters> _memoizationCounters { get; } = new CounterCollection<MemoizationStoreCounters>();
 

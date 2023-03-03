@@ -15,7 +15,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
     /// <summary>
-    /// Set of extension methods for <see cref="IReadOnlyMemoizationSession"/> interface.
+    /// Set of extension methods for <see cref="IMemoizationSession"/> interface.
     /// </summary>
     public static class ReadOnlyMemoizationSessionExtensions
     {

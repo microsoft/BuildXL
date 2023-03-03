@@ -27,11 +27,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
     public interface IContentStore : IStartupShutdown
     {
         /// <summary>
-        ///     Create a new session that can only read.
-        /// </summary>
-        CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin);
-
-        /// <summary>
         ///     Create a new session that can add content as well as read.
         /// </summary>
         CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin);

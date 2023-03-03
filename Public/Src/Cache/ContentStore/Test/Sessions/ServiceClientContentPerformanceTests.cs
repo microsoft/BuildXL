@@ -55,7 +55,7 @@ namespace ContentStoreTest.Performance.Sessions
                 serviceConfiguration);
         }
 
-        protected override Task<IReadOnlyList<ContentHash>> EnumerateContentHashesAsync(IReadOnlyContentSession session)
+        protected override Task<IReadOnlyList<ContentHash>> EnumerateContentHashesAsync(IContentSession session)
         {
             var testSession = (TestServiceClientContentSession)session;
             return testSession.EnumerateHashes();

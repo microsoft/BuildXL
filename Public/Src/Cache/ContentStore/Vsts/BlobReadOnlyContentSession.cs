@@ -42,7 +42,7 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 namespace BuildXL.Cache.ContentStore.Vsts
 {
     /// <summary>
-    ///     IReadOnlyContentSession for BlobBuildXL.ContentStore.
+    ///     IContentSession for BlobBuildXL.ContentStore.
     /// </summary>
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
     public class BlobReadOnlyContentSession : ContentSessionBase, IReadOnlyBackingContentSession

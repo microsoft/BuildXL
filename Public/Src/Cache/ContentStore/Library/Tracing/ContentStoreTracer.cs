@@ -39,22 +39,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
 
-        public void CreateReadOnlySessionStart(Context context, string name)
-        {
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.CreateReadOnlySession({name}) start");
-            }
-        }
-
-        public void CreateReadOnlySessionStop(Context context, CreateSessionResult<IReadOnlyContentSession> result)
-        {
-            if (context.IsEnabled)
-            {
-                TracerOperationFinished(context, result, $"{Name}.CreateReadOnlySession() stop {result.DurationMs}ms result=[{result}]");
-            }
-        }
-
         public void CreateSessionStart(Context context, string name)
         {
             if (context.IsEnabled)

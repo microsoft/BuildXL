@@ -48,13 +48,6 @@ namespace ContentStoreTest.Grpc
             return Task.FromResult(BoolResult.Success);
         }
 
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return new CreateSessionResult<IReadOnlyContentSession>(new TestTempFileDeletingContentSession(name, _fileSystem));
-        }
-
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return new CreateSessionResult<IContentSession>(new TestTempFileDeletingContentSession(name, _fileSystem));

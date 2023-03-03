@@ -44,19 +44,6 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <nodoc />
-        public new CreateSessionResult<IReadOnlyCacheSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            var operationContext = OperationContext(context);
-            return operationContext.PerformOperation(
-                Tracer,
-                () =>
-                {
-                    var session = new ServiceClientCacheSession(new OperationContext(context), name, implicitPin, Logger, FileSystem, SessionTracer, Configuration);
-                    return new CreateSessionResult<IReadOnlyCacheSession>(session);
-                });
-        }
-
-        /// <nodoc />
         public new virtual CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             var operationContext = OperationContext(context);
@@ -76,13 +63,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name)
-        {
-            return CreateReadOnlySession(context, name, ImplicitPin.None).Map(session => (IReadOnlyMemoizationSession)session);
-        }
-
-        /// <inheritdoc />
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
+        CreateSessionResult<IMemoizationSession> IMemoizationStore.CreateSession(Context context, string name)
         {
             return CreateSession(context, name, ImplicitPin.None).Map(session => (IMemoizationSession)session);
         }

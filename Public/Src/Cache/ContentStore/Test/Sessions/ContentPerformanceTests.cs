@@ -42,7 +42,7 @@ namespace ContentStoreTest.Performance.Sessions
         private const int SmallFileSize = 1024;
         private const int LargeFileSize = 5 * 1024 * 1024;
         private const HashType ContentHashType = HashType.Vso0;
-        private static readonly Func<IReadOnlyContentSession, Task> EmptySetupFuncAsync = session => Task.FromResult(0);
+        private static readonly Func<IContentSession, Task> EmptySetupFuncAsync = session => Task.FromResult(0);
         private static readonly CancellationToken Token = CancellationToken.None;
         private readonly Context _context;
         private readonly int _itemCount;
@@ -62,7 +62,7 @@ namespace ContentStoreTest.Performance.Sessions
 
         protected abstract IContentStore CreateStore(AbsolutePath rootPath, string cacheName, ContentStoreConfiguration configuration);
 
-        protected abstract Task<IReadOnlyList<ContentHash>> EnumerateContentHashesAsync(IReadOnlyContentSession session);
+        protected abstract Task<IReadOnlyList<ContentHash>> EnumerateContentHashesAsync(IContentSession session);
 
         protected ContentPerformanceTests
             (
@@ -118,7 +118,7 @@ namespace ContentStoreTest.Performance.Sessions
         }
 
         private async Task PinAsync(
-            IReadOnlyContentSession session, IReadOnlyCollection<ContentHash> hashes, List<PinResult> results)
+            IContentSession session, IReadOnlyCollection<ContentHash> hashes, List<PinResult> results)
         {
             var tasks = hashes.Select(contentHash => Task.Run(async () =>
                 await session.PinAsync(_context, contentHash, Token)));
@@ -164,7 +164,7 @@ namespace ContentStoreTest.Performance.Sessions
         }
 
         private async Task OpenStreamAsync(
-            IReadOnlyContentSession session, IReadOnlyCollection<ContentHash> hashes, List<OpenStreamResult> results)
+            IContentSession session, IReadOnlyCollection<ContentHash> hashes, List<OpenStreamResult> results)
         {
             var tasks = hashes.Select(contentHash => Task.Run(async () =>
                 await session.OpenStreamAsync(_context, contentHash, Token)));
@@ -223,7 +223,7 @@ namespace ContentStoreTest.Performance.Sessions
         }
 
         private async Task PlaceFileAsync(
-            IReadOnlyContentSession session, IReadOnlyCollection<Tuple<ContentHash, AbsolutePath>> args, List<PlaceFileResult> results)
+            IContentSession session, IReadOnlyCollection<Tuple<ContentHash, AbsolutePath>> args, List<PlaceFileResult> results)
         {
             var tasks = args.Select(t => Task.Run(async () => await session.PlaceFileAsync(
                 _context,
@@ -384,7 +384,7 @@ namespace ContentStoreTest.Performance.Sessions
             (
             string method,
             Func<IContentSession, Task> setupFuncAsync,
-            Func<IReadOnlyContentSession, Task> testFuncAsync
+            Func<IContentSession, Task> testFuncAsync
             )
         {
             return RunImpl(method, AccessNeeded.ReadOnly, setupFuncAsync, async session =>

@@ -203,9 +203,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             protected override Tracer Tracer { get; } = new Tracer(nameof(PublishingCacheToContentStore));
 
             public CreateSessionResult<ICacheSession> CreatePublishingSession(Context context, string name, ImplicitPin implicitPin, PublishingCacheConfiguration publishingConfig, string pat) => _inner.CreatePublishingSession(context, name, implicitPin, publishingConfig, pat);
-            public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-                => new CreateSessionResult<IReadOnlyContentSession>(_inner.CreateReadOnlySession(context, name, implicitPin).ShouldBeSuccess().Session);
-
             public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
                 => new CreateSessionResult<IContentSession>(_inner.CreateSession(context, name, implicitPin).ShouldBeSuccess().Session);
 
@@ -219,7 +216,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context) => _inner.EnumerateStrongFingerprints(context);
             public Task<GetStatsResult> GetStatsAsync(Context context) => _inner.GetStatsAsync(context);
             public void PostInitializationCompleted(Context context, BoolResult result) { }
-            CreateSessionResult<IReadOnlyCacheSession> ICache.CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin) => _inner.CreateReadOnlySession(context, name, implicitPin);
             CreateSessionResult<ICacheSession> ICache.CreateSession(Context context, string name, ImplicitPin implicitPin) => _inner.CreateSession(context, name, implicitPin);
         }
 

@@ -37,7 +37,7 @@ namespace ContentStoreTest.Performance.Sessions
             return new TestFileSystemContentStore(FileSystem, SystemClock.Instance, rootPath, configurationModel);
         }
 
-        protected override Task<IReadOnlyList<ContentHash>> EnumerateContentHashesAsync(IReadOnlyContentSession session)
+        protected override Task<IReadOnlyList<ContentHash>> EnumerateContentHashesAsync(IContentSession session)
         {
             var testSession = (TestFileSystemContentSession)session;
             return testSession.EnumerateHashes();

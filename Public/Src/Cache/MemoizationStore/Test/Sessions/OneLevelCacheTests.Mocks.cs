@@ -37,11 +37,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             _contentSession = testContentSession;
         }
 
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return new CreateSessionResult<IReadOnlyContentSession>(_contentSession);
-        }
-
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return new CreateSessionResult<IContentSession>(_contentSession);
@@ -184,11 +179,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             _memoizationSession = iMemoizationSession;
         }
 
-        public CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name)
-        {
-            return new CreateSessionResult<IReadOnlyMemoizationSession>(_memoizationSession);
-        }
-
         public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
         {
             return new CreateSessionResult<IMemoizationSession>(_memoizationSession);
@@ -224,7 +214,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
     }
 
-    internal class TestMemoizationSession : IMemoizationSession, IReadOnlyMemoizationSessionWithLevelSelectors
+    internal class TestMemoizationSession : IMemoizationSession, IMemoizationSessionWithLevelSelectors
     {
         public HashSet<Fingerprint> GetSelectorsParams = new HashSet<Fingerprint>();
         public HashSet<StrongFingerprint> GetContentHashListAsyncParams = new HashSet<StrongFingerprint>();

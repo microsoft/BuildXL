@@ -17,7 +17,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
     {
         private readonly CallCounter _statsCounter = new CallCounter("CacheTracer.Stats");
         private readonly CallCounter _sessionCounter = new CallCounter("CacheTracer.CreateSession");
-        private readonly CallCounter _readSessionCounter = new CallCounter("CacheTracer.CreateReadOnlySession");
+        private readonly CallCounter _readSessionCounter = new CallCounter("CacheTracer.CreateSession");
 
         public CacheTracer(string name)
             : base(name)
@@ -33,24 +33,6 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             _statsCounter.Completed(result.Duration.Ticks);
             base.GetStatsStop(context, result);
-        }
-
-        public void CreateReadOnlySessionStart(Context context, string name)
-        {
-            _readSessionCounter.Started();
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.CreateReadOnlySession({name}) start");
-            }
-        }
-
-        public void CreateReadOnlySessionStop(Context context, CreateSessionResult<IReadOnlyCacheSession> result)
-        {
-            _readSessionCounter.Completed(result.Duration.Ticks);
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.CreateReadOnlySession() stop {result.DurationMs}ms result=[{result}]");
-            }
         }
 
         public void CreateSessionStart(Context context, string name)

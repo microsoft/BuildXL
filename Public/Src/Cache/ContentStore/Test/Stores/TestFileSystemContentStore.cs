@@ -27,12 +27,6 @@ namespace ContentStoreTest.Stores
 
         public ContentStoreConfiguration Configuration => Store.Configuration;
 
-        public override CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            var session = new TestFileSystemContentSession(name, implicitPin, Store);
-            return new CreateSessionResult<IReadOnlyContentSession>(session);
-        }
-
         public override CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             var session = new TestFileSystemContentSession(name, implicitPin, Store);

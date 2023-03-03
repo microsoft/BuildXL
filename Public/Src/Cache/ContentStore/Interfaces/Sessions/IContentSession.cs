@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 // ReSharper disable UnusedParameter.Global
@@ -15,8 +17,60 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
     /// <summary>
     ///     A related set of accesses to a content store.
     /// </summary>
-    public interface IContentSession : IReadOnlyContentSession
+    public interface IContentSession : IName, IStartupShutdown, IConfigurablePin
     {
+        /// <summary>
+        ///     Ensure content does not get deleted.
+        /// </summary>
+        Task<PinResult> PinAsync(
+            Context context,
+            ContentHash contentHash,
+            CancellationToken cts,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal);
+
+        /// <summary>
+        ///     Open a stream to content.
+        /// </summary>
+        Task<OpenStreamResult> OpenStreamAsync(
+            Context context,
+            ContentHash contentHash,
+            CancellationToken cts,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal);
+
+        /// <summary>
+        ///     Materialize content to the filesystem.
+        /// </summary>
+        Task<PlaceFileResult> PlaceFileAsync(
+            Context context,
+            ContentHash contentHash,
+            AbsolutePath path,
+            FileAccessMode accessMode,
+            FileReplacementMode replacementMode,
+            FileRealizationMode realizationMode,
+            CancellationToken cts,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal);
+
+        /// <summary>
+        ///     Ensure content does not get deleted in bulk.
+        /// </summary>
+        Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
+            Context context,
+            IReadOnlyList<ContentHash> contentHashes,
+            CancellationToken cts,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal);
+
+        /// <summary>
+        ///     Materialize content to the filesystem in bulk.
+        /// </summary>
+        Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(
+            Context context,
+            IReadOnlyList<ContentHashWithPath> hashesWithPaths,
+            FileAccessMode accessMode,
+            FileReplacementMode replacementMode,
+            FileRealizationMode realizationMode,
+            CancellationToken cts,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal);
+
         /// <summary>
         ///     Add content from a file.
         /// </summary>

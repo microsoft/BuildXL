@@ -1009,7 +1009,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         protected async Task OpenStreamReturnsExpectedFile(
-            IReadOnlyContentSession session, Context context, ContentHash hash, byte[] expected)
+            IContentSession session, Context context, ContentHash hash, byte[] expected)
         {
             OpenStreamResult openResult = await session.OpenStreamAsync(context, hash, Token);
             _tracer.Debug(context, $"Validating stream for content hash {hash} returned result {openResult.Code} with diagnostics {openResult} with ErrorMessage {openResult.ErrorMessage} diagnostics {openResult.Diagnostics}");

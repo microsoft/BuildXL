@@ -34,7 +34,7 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 namespace BuildXL.Cache.ContentStore.Vsts
 {
     /// <summary>
-    ///     IReadOnlyContentSession for DedupContentStore.
+    ///     IContentSession for DedupContentStore.
     /// </summary>
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
     public class DedupReadOnlyContentSession : ContentSessionBase, IReadOnlyBackingContentSession

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 
@@ -14,8 +15,27 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// <summary>
     ///     A related set of accesses to a cache.
     /// </summary>
-    public interface IMemoizationSession : IReadOnlyMemoizationSession
+    public interface IMemoizationSession : IName, IStartupShutdown
     {
+        /// <summary>
+        /// Gets known selectors for a given weak fingerprint.
+        /// </summary>
+        System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(
+            Context context,
+            Fingerprint weakFingerprint,
+            CancellationToken cts,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal
+        );
+
+        /// <summary>
+        /// Load a ContentHashList.
+        /// </summary>
+        Task<GetContentHashListResult> GetContentHashListAsync(
+            Context context,
+            StrongFingerprint strongFingerprint,
+            CancellationToken cts,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal);
+
         /// <summary>
         ///     Store a ContentHashList
         /// </summary>

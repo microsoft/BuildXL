@@ -59,18 +59,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <nodoc />
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return CreateReadOnlySessionCall.Run((ContentStoreTracer)Tracer, new OperationContext(context), name, () =>
-            {
-                var localSession = _localContentStore.CreateSession(context, name, implicitPin).ThrowIfFailure();
-                var backingSession = _backingContentStore.CreateReadOnlySession(context, name, implicitPin).ThrowIfFailure();
-
-                return new CreateSessionResult<IReadOnlyContentSession>(new MultiLevelReadOnlyContentSession<IReadOnlyContentSession>(name, localSession.Session, backingSession.Session, isLocalWritable: true));
-            });
-        }
-
-        /// <nodoc />
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return CreateSessionCall.Run((ContentStoreTracer)Tracer, new OperationContext(context), name, () =>

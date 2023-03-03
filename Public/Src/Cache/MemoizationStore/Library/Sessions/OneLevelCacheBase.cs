@@ -186,35 +186,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyCacheSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            Contract.Requires(ContentStore != null);
-            Contract.Requires(MemoizationStore != null);
-
-            return Tracing.CreateReadOnlySessionCall.Run(CacheTracer, context, name, () =>
-            {
-                var createContentResult = ContentStore.CreateReadOnlySession(context, name, implicitPin);
-                if (!createContentResult.Succeeded)
-                {
-                    return new CreateSessionResult<IReadOnlyCacheSession>(createContentResult, "Content session creation failed");
-                }
-                
-                var contentReadOnlySession = createContentResult.Session;
-
-                var createMemoizationResult = MemoizationStore.CreateReadOnlySession(context, name);
-                if (!createMemoizationResult.Succeeded)
-                {
-                    return new CreateSessionResult<IReadOnlyCacheSession>(createMemoizationResult, "Memoization session creation failed");
-                }
-
-                var memoizationReadOnlySession = createMemoizationResult.Session;
-
-                var session = new ReadOnlyOneLevelCacheSession(this, name, implicitPin, memoizationReadOnlySession, contentReadOnlySession);
-                return new CreateSessionResult<IReadOnlyCacheSession>(session);
-            });
-        }
-
-        /// <inheritdoc />
         public CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             Contract.Requires(ContentStore != null);
@@ -241,7 +212,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
                 var memoizationSession = createMemoizationResult.Session;
 
-                var session = new OneLevelCacheSession(this, name, implicitPin, memoizationSession, contentSession);
+                var session = new OneLevelCacheSession(this, name, implicitPin, memoizationSession!, contentSession!);
                 return new CreateSessionResult<ICacheSession>(session);
             });
         }
@@ -337,11 +308,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             }
 
             return new BoolResult($"{ContentStore} does not implement {nameof(ICopyRequestHandler)} in {nameof(OneLevelCache)}.");
-        }
-
-        CreateSessionResult<IReadOnlyContentSession> IContentStore.CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return CreateReadOnlySession(context, name, implicitPin).Map(session => (IReadOnlyContentSession)session);
         }
 
         CreateSessionResult<IContentSession> IContentStore.CreateSession(Context context, string name, ImplicitPin implicitPin)

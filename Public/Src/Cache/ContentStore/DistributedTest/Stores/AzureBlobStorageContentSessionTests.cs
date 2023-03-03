@@ -52,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             throw new NotImplementedException();
         }
 
-        protected override async Task RunReadOnlyTestAsync(ImplicitPin implicitPin, Func<Context, IReadOnlyContentSession, Task> funcAsync)
+        protected override async Task RunReadOnlyTestAsync(ImplicitPin implicitPin, Func<Context, IContentSession, Task> funcAsync)
         {
             using var directory = new DisposableDirectory(FileSystem);
 

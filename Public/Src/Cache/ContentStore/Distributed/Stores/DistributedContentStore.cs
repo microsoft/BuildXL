@@ -99,8 +99,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly DistributedContentCopier _distributedCopier;
         private readonly DisposableDirectory _copierWorkingDirectory;
-        private Lazy<Task<Result<ReadOnlyDistributedContentSession>>>? _proactiveCopySession;
-        internal Lazy<Task<Result<ReadOnlyDistributedContentSession>>> ProactiveCopySession => NotNull(_proactiveCopySession, nameof(_proactiveCopySession));
+        private Lazy<Task<Result<DistributedContentSession>>>? _proactiveCopySession;
+        internal Lazy<Task<Result<DistributedContentSession>>> ProactiveCopySession => NotNull(_proactiveCopySession, nameof(_proactiveCopySession));
 
         private readonly DistributedContentSettings? _distributedContentSettings;
 
@@ -226,7 +226,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             return $"Origin=[{info.Origin}] IsPresentInGcs=[{isPresentInGcs}]";
         }
 
-        private Task<Result<ReadOnlyDistributedContentSession>> CreateCopySession(Context context)
+        private Task<Result<DistributedContentSession>> CreateCopySession(Context context)
         {
             var sessionId = Guid.NewGuid().ToString();
 
@@ -235,11 +235,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 async () =>
                 {
                     // NOTE: We use ImplicitPin.None so that the OpenStream calls triggered by RequestCopy will only pull the content, NOT pin it in the local store.
-                    var sessionResult = CreateReadOnlySession(operationContext, $"{sessionId}-DefaultCopy", ImplicitPin.None).ThrowIfFailure();
+                    var sessionResult = CreateSession(operationContext, $"{sessionId}-DefaultCopy", ImplicitPin.None).ThrowIfFailure();
                     var session = sessionResult.Session!;
 
                     await session.StartupAsync(context).ThrowIfFailure();
-                    return Result.Success((ReadOnlyDistributedContentSession)session);
+                    return Result.Success((DistributedContentSession)session);
                 });
         }
 
@@ -250,7 +250,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             var startupTask = base.StartupAsync(context);
 
-            _proactiveCopySession = new Lazy<Task<Result<ReadOnlyDistributedContentSession>>>(() => CreateCopySession(context));
+            _proactiveCopySession = new Lazy<Task<Result<DistributedContentSession>>>(() => CreateCopySession(context));
 
             if (_settings.SetPostInitializationCompletionAfterStartup)
             {
@@ -324,7 +324,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private Task<ProactiveReplicationResult> ProactiveReplicationIterationAsync(
             OperationContext context,
-            ReadOnlyDistributedContentSession proactiveCopySession,
+            DistributedContentSession proactiveCopySession,
             ILocalContentStore localContentStore,
             TransitioningContentLocationStore contentLocationStore)
         {
@@ -477,31 +477,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return CreateReadOnlySessionCall.Run(_tracer, OperationContext(context), name, () =>
-            {
-                CreateSessionResult<IContentSession> innerSessionResult = InnerContentStore.CreateSession(context, name, implicitPin);
-
-                if (innerSessionResult.Succeeded)
-                {
-                    var session = new ReadOnlyDistributedContentSession(
-                            name,
-                            innerSessionResult.Session,
-                            ContentLocationStore,
-                            _distributedCopier,
-                            this,
-                            LocalMachineLocation,
-                            ColdStorage,
-                            settings: _settings);
-                    return new CreateSessionResult<IReadOnlyContentSession>(session);
-                }
-
-                return new CreateSessionResult<IReadOnlyContentSession>(innerSessionResult, "Could not initialize inner content session with error");
-            });
-        }
-
-        /// <inheritdoc />
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return CreateSessionCall.Run(_tracer, OperationContext(context), name, () =>
@@ -513,7 +488,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var session = new DistributedContentSession(
                             name,
                             innerSessionResult.Session,
-                            _contentLocationStore,
+                            ContentLocationStore,
                             _distributedCopier,
                             this,
                             LocalMachineLocation,

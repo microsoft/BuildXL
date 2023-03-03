@@ -424,11 +424,11 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             }
         }
 
-        private Task RunReadOnlyTestAsync(Context context, Func<IReadOnlyMemoizationSession, Task> funcAsync)
+        private Task RunReadOnlyTestAsync(Context context, Func<IMemoizationSession, Task> funcAsync)
         {
             return RunTestAsync(context, async store =>
             {
-                var createResult = store.CreateReadOnlySession(context, Name);
+                var createResult = store.CreateSession(context, Name);
                 createResult.ShouldBeSuccess();
                 using (var session = createResult.Session)
                 {

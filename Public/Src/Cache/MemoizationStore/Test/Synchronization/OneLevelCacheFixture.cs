@@ -159,8 +159,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
         /// </summary>
         public class MockContentStore : StartupShutdownMock, IContentStore
         {
-            public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin) => null;
-
             public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin) => null;
 
             public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(new CounterSet()));
@@ -177,8 +175,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
         /// </summary>
         public class MockMemoizationStore : StartupShutdownMock, IMemoizationStore
         {
-            public CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name) => null;
-
             public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name) => null;
 
             public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession) => null;

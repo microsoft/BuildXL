@@ -88,12 +88,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public virtual CreateSessionResult<IReadOnlyCacheSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return ((ICache)_local).CreateReadOnlySession(context, name, implicitPin);
-        }
-
-        /// <inheritdoc />
         public virtual CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return ((ICache)_local).CreateSession(context, name, implicitPin);
@@ -147,12 +141,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         public Task<GetStatsResult> GetStatsAsync(Context context)
         {
             return ((ICache)_local).GetStatsAsync(context);
-        }
-
-        /// <inheritdoc />
-        CreateSessionResult<IReadOnlyContentSession> IContentStore.CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return ((IContentStore)_local).CreateReadOnlySession(context, name, implicitPin);
         }
 
         /// <inheritdoc />

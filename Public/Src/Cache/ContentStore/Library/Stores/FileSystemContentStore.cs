@@ -170,21 +170,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public virtual CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return CreateReadOnlySessionCall.Run(_tracer, OperationContext(context), name, () =>
-            {
-                var session = new ReadOnlyFileSystemContentSession(name, Store, implicitPin);
-                return new CreateSessionResult<IReadOnlyContentSession>(session);
-            });
-        }
-
-        /// <inheritdoc />
         public virtual CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return CreateSessionCall.Run(_tracer, OperationContext(context), name, () =>
             {
-                var session = new FileSystemContentSession(name, implicitPin, Store);
+                var session = new FileSystemContentSession(name, Store, implicitPin);
                 return new CreateSessionResult<IContentSession>(session);
             });
         }

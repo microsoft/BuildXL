@@ -167,13 +167,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public abstract CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(
+        public abstract CreateSessionResult<IContentSession> CreateSession(
             Context context,
             string name,
             ImplicitPin implicitPin);
-
-        /// <inheritdoc />
-        public abstract CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin);
 
         /// <inheritdoc />
         public virtual Task<GetStatsResult> GetStatsAsync(Context context)

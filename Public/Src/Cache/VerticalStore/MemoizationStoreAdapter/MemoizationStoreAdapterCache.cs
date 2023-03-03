@@ -212,7 +212,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             Contract.Requires(!IsShutdown);
 
             var context = new Context(m_logger);
-            var createSessionResult = m_cache.CreateReadOnlySession(
+            var createSessionResult = m_cache.CreateSession(
                 context,
                 $"{CacheId}-Anonymous",
                 m_implicitPin);

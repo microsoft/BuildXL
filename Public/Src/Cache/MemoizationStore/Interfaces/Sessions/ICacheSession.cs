@@ -5,10 +5,13 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
-    /// <summary>
-    ///     Writable cache session.
-    /// </summary>
-    public interface ICacheSession : IReadOnlyCacheSession, IMemoizationSession, IContentSession
+    /// <nodoc />
+    public interface ICacheSession : IMemoizationSession, IContentSession, IConfigurablePin
+    {
+    }
+
+    /// <nodoc />
+    public interface ICacheSessionWithLevelSelectors : ICacheSession, IMemoizationSessionWithLevelSelectors
     {
     }
 }

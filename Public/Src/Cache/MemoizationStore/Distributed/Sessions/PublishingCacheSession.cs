@@ -25,7 +25,7 @@ using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
 {
-    internal class PublishingCacheSession : StartupShutdownBase, ICacheSession, IReadOnlyCacheSessionWithLevelSelectors, IHibernateCacheSession, IConfigurablePin, IAsyncShutdown
+    internal class PublishingCacheSession : StartupShutdownBase, ICacheSession, ICacheSessionWithLevelSelectors, IHibernateCacheSession, IConfigurablePin, IAsyncShutdown
     {
         public string Name { get; }
         protected override Tracer Tracer { get; } = new Tracer(nameof(PublishingCacheSession));
@@ -228,7 +228,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
         /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return ((IReadOnlyContentSession)_local).PinAsync(context, contentHashes, cts, urgencyHint);
+            return ((IContentSession)_local).PinAsync(context, contentHashes, cts, urgencyHint);
         }
 
         /// <inheritdoc />
@@ -331,17 +331,17 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
 
         #endregion
 
-        #region IReadOnlyCacheSessionWithLevelSelectors
+        #region ICacheSessionWithLevelSelectors
 
         /// <inheritdoc />
         public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
-            if (_local is IReadOnlyCacheSessionWithLevelSelectors withSelectors)
+            if (_local is ICacheSessionWithLevelSelectors withSelectors)
             {
                 return withSelectors.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
             }
 
-            return Task.FromResult(new Result<LevelSelectors>($"{nameof(_local)} does not implement {nameof(IReadOnlyCacheSessionWithLevelSelectors)}."));
+            return Task.FromResult(new Result<LevelSelectors>($"{nameof(_local)} does not implement {nameof(ICacheSessionWithLevelSelectors)}."));
         }
 
         #endregion

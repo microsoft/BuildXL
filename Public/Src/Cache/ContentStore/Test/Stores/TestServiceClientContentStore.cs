@@ -117,29 +117,6 @@ namespace ContentStoreTest.Stores
             return new ServiceClientRpcConfiguration(grpcPort, _heartbeatInterval);
         }
 
-        public override CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(
-            Context context, string name, ImplicitPin implicitPin)
-        {
-            return CreateReadOnlySessionCall.Run(ExecutionTracer, OperationContext(context), name, () =>
-            {
-                var session = new TestServiceClientContentSession(
-                    new OperationContext(context),
-                    name,
-                    implicitPin,
-                    Configuration.RetryPolicy,
-                    _configuration.DataRootPath,
-                    _overrideCacheName ?? Configuration.CacheName,
-                    context.Logger,
-                    FileSystem,
-                    Configuration.Scenario,
-                    this,
-                    SessionTracer,
-                    GetRpcConfig()
-                    );
-                return new CreateSessionResult<IReadOnlyContentSession>(session);
-            });
-        }
-
         public override CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return CreateSessionCall.Run(ExecutionTracer, OperationContext(context), name, () =>

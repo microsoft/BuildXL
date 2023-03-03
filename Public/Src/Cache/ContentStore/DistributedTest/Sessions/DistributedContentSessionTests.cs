@@ -75,7 +75,7 @@ namespace ContentStoreTest.Distributed.Sessions
             }, implicitPin);
         }
 
-        protected override Task RunReadOnlyTestAsync(ImplicitPin implicitPin, Func<Context, IReadOnlyContentSession, Task> funcAsync)
+        protected override Task RunReadOnlyTestAsync(ImplicitPin implicitPin, Func<Context, IContentSession, Task> funcAsync)
         {
             return RunTestAsync(implicitPin, null, (ctx, session) => funcAsync(ctx, session));
         }

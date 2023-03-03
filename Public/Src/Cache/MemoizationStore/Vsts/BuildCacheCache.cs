@@ -322,61 +322,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public CreateSessionResult<IReadOnlyCacheSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return Tracing.CreateReadOnlySessionCall.Run(_tracer, context, name, () =>
-            {
-                var backingContentSessionResult = _backingContentStore.CreateSession(context, name);
-                if (!backingContentSessionResult.Succeeded)
-                {
-                    return new CreateSessionResult<IReadOnlyCacheSession>(backingContentSessionResult);
-                }
-
-                IContentSession writeThroughContentSession = null;
-                if (_writeThroughContentStore != null)
-                {
-                    var writeThroughContentSessionResult = _writeThroughContentStore.CreateSession(context, name, implicitPin);
-                    if (!writeThroughContentSessionResult.Succeeded)
-                    {
-                        return new CreateSessionResult<IReadOnlyCacheSession>(writeThroughContentSessionResult);
-                    }
-
-                    writeThroughContentSession = writeThroughContentSessionResult.Session;
-                }
-
-                return new CreateSessionResult<IReadOnlyCacheSession>(
-                    new BuildCacheReadOnlySession(
-                        _fileSystem,
-                        name,
-                        implicitPin,
-                        _cacheNamespace,
-                        Id,
-                        _contentHashListAdapterFactory.Create(backingContentSessionResult.Session, _includeDownloadUris),
-                        backingContentSessionResult.Session,
-                        _maxFingerprintSelectorsToFetch,
-                        _minimumTimeToKeepContentHashLists,
-                        _rangeOfTimeToKeepContentHashLists,
-                        _fingerprintIncorporationEnabled,
-                        _maxDegreeOfParallelismForIncorporateRequests,
-                        _maxFingerprintsPerIncorporateRequest,
-                        writeThroughContentSession,
-                        _sealUnbackedContentHashLists,
-                        _overrideUnixFileAccessMode,
-                        _tracer,
-                        _enableEagerFingerprintIncorporation,
-                        _inlineFingerprintIncorporationExpiry,
-                        _eagerFingerprintIncorporationNagleInterval,
-                        _eagerFingerprintIncorporationNagleBatchSize,
-                        _manuallyExtendContentLifetime,
-                        _forceUpdateOnAddContentHashList)
-                    {
-                        RequiredContentKeepUntil = _backingContentStoreConfiguration.RequiredContentKeepUntil
-                    });
-            });
-        }
-
-        /// <inheritdoc />
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return Tracing.CreateSessionCall.Run(_tracer, context, name, () =>
@@ -477,16 +422,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return AsyncEnumerable.Empty<StructResult<StrongFingerprint>>();
-        }
-
-        /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name)
-        {
-            var result = CreateReadOnlySession(context, name, ImplicitPin.None);
-
-            return result.Succeeded
-                ? new CreateSessionResult<IReadOnlyMemoizationSession>(result.Session)
-                : new CreateSessionResult<IReadOnlyMemoizationSession>(result);
         }
 
         /// <inheritdoc />

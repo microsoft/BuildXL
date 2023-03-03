@@ -122,18 +122,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return CreateReadOnlySessionCall.Run(_tracer, OperationContext(context), name, () =>
-            {
-#pragma warning disable CS8604 // Possible null reference argument.
-                var session = new RocksDbFileSystemContentSession(name, _lockSet, _fileSystem, _clock, _rootPath, _storePath, _tempDisposableDirectory, _accessor);
-#pragma warning restore CS8604 // Possible null reference argument.
-                return new CreateSessionResult<IReadOnlyContentSession>(session);
-            });
-        }
-
-        /// <inheritdoc />
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return CreateSessionCall.Run(_tracer, OperationContext(context), name, () =>

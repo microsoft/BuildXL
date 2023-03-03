@@ -126,7 +126,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
                 async c =>
                 {
                     Fingerprint fingerprint = request.WeakFingerprint.DeserializeFingerprintFromGrpc();
-                    if (c.Session is IReadOnlyMemoizationSessionWithLevelSelectors withSelectors)
+                    if (c.Session is IMemoizationSessionWithLevelSelectors withSelectors)
                     {
                         var result = await withSelectors.GetLevelSelectorsAsync(c.Context, fingerprint, c.Context.Token, request.Level).ThrowIfFailure();
                         var selectors = result.Value!.Selectors.Select(s => s.ToGrpc());

@@ -108,20 +108,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            using var guard = TrackShutdown(context, default);
-            var operationContext = guard.Context;
-
-            return operationContext.PerformOperation(Tracer, () =>
-            {
-                return new CreateSessionResult<IReadOnlyContentSession>(CreateSessionCore(name, implicitPin));
-            },
-            traceOperationStarted: false,
-            messageFactory: _ => $"Name=[{name}] ImplicitPin=[{implicitPin}]");
-        }
-
-        /// <inheritdoc />
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             using var guard = TrackShutdown(context, default);

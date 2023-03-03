@@ -12,7 +12,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 namespace BuildXL.Cache.ContentStore.Vsts
 {
     /// <nodoc />
-    public interface IReadOnlyBackingContentSession : IReadOnlyContentSession
+    public interface IReadOnlyBackingContentSession : IContentSession
     {
         /// <summary>
         /// Bulk operations for pins with a specific TTL

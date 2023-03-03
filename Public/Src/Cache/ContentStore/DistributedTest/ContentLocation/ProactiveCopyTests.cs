@@ -20,7 +20,7 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using FluentAssertions;
 using Xunit;
 
-using static BuildXL.Cache.ContentStore.Distributed.Sessions.ReadOnlyDistributedContentSession.Counters;
+using static BuildXL.Cache.ContentStore.Distributed.Sessions.DistributedContentSession.Counters;
 
 namespace ContentStoreTest.Distributed.Sessions
 {

@@ -9,28 +9,28 @@ using Xunit;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
 {
-    public class CreateSessionResultTests : ResultTests<CreateSessionResult<IReadOnlyCacheSession>>
+    public class CreateSessionResultTests : ResultTests<CreateSessionResult<ICacheSession>>
     {
-        protected override CreateSessionResult<IReadOnlyCacheSession> CreateFrom(Exception exception)
+        protected override CreateSessionResult<ICacheSession> CreateFrom(Exception exception)
         {
-            return new CreateSessionResult<IReadOnlyCacheSession>(exception);
+            return new CreateSessionResult<ICacheSession>(exception);
         }
 
-        protected override CreateSessionResult<IReadOnlyCacheSession> CreateFrom(string errorMessage)
+        protected override CreateSessionResult<ICacheSession> CreateFrom(string errorMessage)
         {
-            return new CreateSessionResult<IReadOnlyCacheSession>(errorMessage);
+            return new CreateSessionResult<ICacheSession>(errorMessage);
         }
 
-        protected override CreateSessionResult<IReadOnlyCacheSession> CreateFrom(string errorMessage, string diagnostics)
+        protected override CreateSessionResult<ICacheSession> CreateFrom(string errorMessage, string diagnostics)
         {
-            return new CreateSessionResult<IReadOnlyCacheSession>(errorMessage, diagnostics);
+            return new CreateSessionResult<ICacheSession>(errorMessage, diagnostics);
         }
 
         [Fact]
         public void ConstructFromResultBase()
         {
             var other = new BoolResult("error");
-            Assert.False(new CreateSessionResult<IReadOnlyCacheSession>(other, "message").Succeeded);
+            Assert.False(new CreateSessionResult<ICacheSession>(other, "message").Succeeded);
         }
 
         [Fact]
@@ -56,14 +56,14 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         {
             using (var session = new ThrowingCacheSession())
             {
-                Assert.True(new CreateSessionResult<IReadOnlyCacheSession>(session).Succeeded);
+                Assert.True(new CreateSessionResult<ICacheSession>(session).Succeeded);
             }
         }
 
         [Fact]
         public void CodePropertyError()
         {
-            Assert.False(new CreateSessionResult<IReadOnlyCacheSession>("error").Succeeded);
+            Assert.False(new CreateSessionResult<ICacheSession>("error").Succeeded);
         }
 
         [Fact]
@@ -71,7 +71,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         {
             using (var session = new ThrowingCacheSession())
             {
-                Assert.Equal(session, new CreateSessionResult<IReadOnlyCacheSession>(session).Session);
+                Assert.Equal(session, new CreateSessionResult<ICacheSession>(session).Session);
             }
         }
 
@@ -80,8 +80,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         {
             using (var session = new ThrowingCacheSession())
             {
-                var v1 = new CreateSessionResult<IReadOnlyCacheSession>(session);
-                var v2 = new CreateSessionResult<IReadOnlyCacheSession>(session) as object;
+                var v1 = new CreateSessionResult<ICacheSession>(session);
+                var v2 = new CreateSessionResult<ICacheSession>(session) as object;
                 Assert.True(v1.Equals(v2));
             }
         }
@@ -91,7 +91,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         {
             using (var session = new ThrowingCacheSession())
             {
-                var v1 = new CreateSessionResult<IReadOnlyCacheSession>(session);
+                var v1 = new CreateSessionResult<ICacheSession>(session);
                 var v2 = new object();
                 Assert.False(v1.Equals(v2));
             }
@@ -102,8 +102,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         {
             using (var session = new ThrowingCacheSession())
             {
-                var v1 = new CreateSessionResult<IReadOnlyCacheSession>(session);
-                var v2 = new CreateSessionResult<IReadOnlyCacheSession>(session);
+                var v1 = new CreateSessionResult<ICacheSession>(session);
+                var v2 = new CreateSessionResult<ICacheSession>(session);
                 Assert.True(v1.Equals(v2));
             }
         }
@@ -111,8 +111,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         [Fact]
         public void EqualsTrueForInvalidSessions()
         {
-            var v1 = new CreateSessionResult<IReadOnlyCacheSession>("error1");
-            var v2 = new CreateSessionResult<IReadOnlyCacheSession>("error1");
+            var v1 = new CreateSessionResult<ICacheSession>("error1");
+            var v2 = new CreateSessionResult<ICacheSession>("error1");
             Assert.True(v1.Equals(v2));
         }
 
@@ -122,8 +122,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
             using (var session1 = new ThrowingCacheSession())
             using (var session2 = new ThrowingCacheSession())
             {
-                var v1 = new CreateSessionResult<IReadOnlyCacheSession>(session1);
-                var v2 = new CreateSessionResult<IReadOnlyCacheSession>(session2);
+                var v1 = new CreateSessionResult<ICacheSession>(session1);
+                var v2 = new CreateSessionResult<ICacheSession>(session2);
                 Assert.True(v1.Equals(v2));
             }
         }
@@ -133,8 +133,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         {
             using (var session1 = new ThrowingCacheSession())
             {
-                var v1 = new CreateSessionResult<IReadOnlyCacheSession>(session1);
-                var v2 = new CreateSessionResult<IReadOnlyCacheSession>("error");
+                var v1 = new CreateSessionResult<ICacheSession>(session1);
+                var v2 = new CreateSessionResult<ICacheSession>("error");
                 Assert.False(v1.Equals(v2));
             }
         }
@@ -145,8 +145,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
             using (var session1 = new ThrowingCacheSession("session1"))
             using (var session2 = new ThrowingCacheSession("session2"))
             {
-                var v1 = new CreateSessionResult<IReadOnlyCacheSession>(session1);
-                var v2 = new CreateSessionResult<IReadOnlyCacheSession>(session2);
+                var v1 = new CreateSessionResult<ICacheSession>(session1);
+                var v2 = new CreateSessionResult<ICacheSession>(session2);
                 Assert.False(v1.Equals(v2));
             }
         }
@@ -157,8 +157,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
             using (var session1 = new ThrowingCacheSession("session1"))
             using (var session2 = new ThrowingCacheSession("session1"))
             {
-                var v1 = new CreateSessionResult<IReadOnlyCacheSession>(session1);
-                var v2 = new CreateSessionResult<IReadOnlyCacheSession>(session2);
+                var v1 = new CreateSessionResult<ICacheSession>(session1);
+                var v2 = new CreateSessionResult<ICacheSession>(session2);
                 Assert.Equal(v1.GetHashCode(), v2.GetHashCode());
             }
         }
@@ -169,8 +169,8 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
             using (var session1 = new ThrowingCacheSession("session1"))
             using (var session2 = new ThrowingCacheSession("session2"))
             {
-                var v1 = new CreateSessionResult<IReadOnlyCacheSession>(session1);
-                var v2 = new CreateSessionResult<IReadOnlyCacheSession>(session2);
+                var v1 = new CreateSessionResult<ICacheSession>(session1);
+                var v2 = new CreateSessionResult<ICacheSession>(session2);
                 Assert.NotEqual(v1.GetHashCode(), v2.GetHashCode());
             }
         }
@@ -179,7 +179,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         public void ToStringWithError()
         {
             Assert.Contains(
-                "something", new CreateSessionResult<IReadOnlyCacheSession>("something").ToString(), StringComparison.OrdinalIgnoreCase);
+                "something", new CreateSessionResult<ICacheSession>("something").ToString(), StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -187,7 +187,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         {
             using (var session = new ThrowingCacheSession())
             {
-                var result = new CreateSessionResult<IReadOnlyCacheSession>(session);
+                var result = new CreateSessionResult<ICacheSession>(session);
                 Assert.Contains("Success", result.ToString(), StringComparison.OrdinalIgnoreCase);
             }
         }

@@ -22,24 +22,21 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// <summary>
     /// ContentStore that is empty and does not accept content. Useful when we want to disable content; specifically, to bypass talking to VSTS/CASaaS when unnecessary.
     /// </summary>
-    public class ReadOnlyEmptyContentStore : StartupShutdownBase, IContentStore
+    public class EmptyContentStore : StartupShutdownBase, IContentStore
     {
-        private readonly ContentStoreTracer _tracer = new ContentStoreTracer(nameof(ReadOnlyEmptyContentStore));
+        private readonly ContentStoreTracer _tracer = new ContentStoreTracer(nameof(EmptyContentStore));
 
         /// <inheritdoc />
         protected override Tracer Tracer => _tracer;
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin) => new CreateSessionResult<IReadOnlyContentSession>(new ReadOnlyEmptyContentSession(name));
-
-        /// <inheritdoc />
-        public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin) => new CreateSessionResult<IContentSession>(new ReadOnlyEmptyContentSession(name));
+        public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin) => new CreateSessionResult<IContentSession>(new EmptyContentSession(name));
 
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(_tracer.GetCounters()));
 
         /// <inheritdoc />
-        Task<DeleteResult> IContentStore.DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions) => Task.FromResult(new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, $"{nameof(ReadOnlyEmptyContentStore)} cannot contain any content to delete"));
+        Task<DeleteResult> IContentStore.DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions) => Task.FromResult(new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, $"{nameof(EmptyContentStore)} cannot contain any content to delete"));
 
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result) { }
@@ -48,10 +45,10 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// <summary>
     /// ContentSession is empty and does not accept content. Useful when we want to disable content; specifically, to bypass talking to VSTS/CASaaS when unnecessary.
     /// </summary>
-    public class ReadOnlyEmptyContentSession : ContentSessionBase
+    public class EmptyContentSession : ContentSessionBase
     {
         /// <nodoc />
-        public ReadOnlyEmptyContentSession(string name)
+        public EmptyContentSession(string name)
             : base(name)
         {
         }
@@ -59,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private const string ErrorMessage = "Unsupported operation.";
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ReadOnlyEmptyContentSession));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(EmptyContentSession));
 
         /// <inheritdoc />
         protected override Task<OpenStreamResult> OpenStreamCoreAsync(OperationContext operationContext, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)

@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
 
         protected abstract IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration);
 
-        protected virtual async Task RunReadOnlyTestAsync(ImplicitPin implicitPin, Func<Context, IReadOnlyContentSession, Task> funcAsync)
+        protected virtual async Task RunReadOnlyTestAsync(ImplicitPin implicitPin, Func<Context, IContentSession, Task> funcAsync)
         {
             var context = new Context(Logger);
             using (var directory = new DisposableDirectory(FileSystem))
@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
                     {
                         await store.StartupAsync(context).ShouldBeSuccess();
 
-                        var createResult = store.CreateReadOnlySession(context, Name, implicitPin).ShouldBeSuccess();
+                        var createResult = store.CreateSession(context, Name, implicitPin).ShouldBeSuccess();
                         using (var session = createResult.Session)
                         {
                             try

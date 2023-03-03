@@ -26,11 +26,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Caches
         Guid Id { get; }
 
         /// <summary>
-        ///     Create a new session that can only read.
-        /// </summary>
-        CreateSessionResult<IReadOnlyCacheSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin);
-
-        /// <summary>
         ///     Create a new session that can change the cache.
         /// </summary>
         CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin);

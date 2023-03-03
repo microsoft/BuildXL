@@ -55,35 +55,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         protected override ContentStoreTracer Tracer => _tracer;
 
         /// <inheritdoc />
-        public override CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(
-            Context context,
-            string name,
-            ImplicitPin implicitPin)
-        {
-            return CreateReadOnlySessionCall.Run(_tracer, new OperationContext(context), name, () =>
-            {
-                var sessionForStream = ContentStoreForStream.CreateSession(context, name, implicitPin);
-                if (!sessionForStream.Succeeded)
-                {
-                    return new CreateSessionResult<IReadOnlyContentSession>(sessionForStream, "creation of stream content session failed");
-                }
-
-                var sessionForPath = ContentStoreForPath.CreateSession(context, name, implicitPin);
-                if (!sessionForPath.Succeeded)
-                {
-                    return new CreateSessionResult<IReadOnlyContentSession>(sessionForPath, "creation of path content session failed");
-                }
-
-                var session = new StreamPathContentSession(
-                    name,
-                    sessionForStream.Session,
-                    sessionForPath.Session);
-
-                return new CreateSessionResult<IReadOnlyContentSession>(session);
-            });
-        }
-
-        /// <inheritdoc />
         public override CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return CreateSessionCall.Run(_tracer, new OperationContext(context), name, () =>

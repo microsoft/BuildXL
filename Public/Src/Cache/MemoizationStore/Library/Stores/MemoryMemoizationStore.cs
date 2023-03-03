@@ -61,13 +61,6 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name)
-        {
-            var session = new ReadOnlyMemoryMemoizationSession(name, this);
-            return new CreateSessionResult<IReadOnlyMemoizationSession>(session);
-        }
-
-        /// <inheritdoc />
         public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
         {
             var session = new MemoryMemoizationSession(name, this);

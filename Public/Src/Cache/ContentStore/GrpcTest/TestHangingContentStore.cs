@@ -51,12 +51,6 @@ namespace ContentStoreTest.Grpc
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return new CreateSessionResult<IReadOnlyContentSession>(new TestHangingContentSession(name, _useCancellationToken, _hangHasStartedSemaphore));
-        }
-
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return new CreateSessionResult<IContentSession>(new TestHangingContentSession(name, _useCancellationToken, _hangHasStartedSemaphore));

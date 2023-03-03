@@ -57,12 +57,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name)
-        {
-            return _cache.CreateReadOnlySession(context, name, ImplicitPin.None).Map<IReadOnlyMemoizationSession>(s => s);
-        }
-
-        /// <inheritdoc />
         public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
         {
             return _cache.CreateSession(context, name, ImplicitPin.None).Map<IMemoizationSession>(s => s);

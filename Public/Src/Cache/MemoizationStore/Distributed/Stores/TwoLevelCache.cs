@@ -3,7 +3,6 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -11,7 +10,6 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Tracing;
-using CreateReadOnlySessionCall = BuildXL.Cache.MemoizationStore.Tracing.CreateReadOnlySessionCall;
 using CreateSessionCall = BuildXL.Cache.MemoizationStore.Tracing.CreateSessionCall;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
@@ -148,12 +146,12 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         public bool ShutdownStarted { get; private set; }
 
         /// <inheritdoc />
-        public CreateSessionResult<IReadOnlyCacheSession> CreateReadOnlySession(
+        public CreateSessionResult<ICacheSession> CreateSession(
             Context context,
             string name,
             ImplicitPin implicitPin)
         {
-            return CreateReadOnlySessionCall.Run(
+            return CreateSessionCall.Run(
                 _tracer,
                 context,
                 name,
@@ -162,32 +160,22 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     CreateSessionResult<ICacheSession> localSession = _localCache.CreateSession(context, name, implicitPin);
                     if (!localSession.Succeeded)
                     {
-                        return new CreateSessionResult<IReadOnlyCacheSession>(localSession);
+                        return new CreateSessionResult<ICacheSession>(localSession);
                     }
 
                     CreateSessionResult<ICacheSession> remoteSession = _remoteCache.CreateSession(context, name, implicitPin);
                     if (!remoteSession.Succeeded)
                     {
-                        return new CreateSessionResult<IReadOnlyCacheSession>(remoteSession);
+                        return new CreateSessionResult<ICacheSession>(remoteSession);
                     }
 
-                    IReadOnlyCacheSession cacheSession = new TwoLevelCacheSession(
+                    ICacheSession cacheSession = new TwoLevelCacheSession(
                         name,
                         localSession.Session,
                         remoteSession.Session,
                         _config);
-                    return new CreateSessionResult<IReadOnlyCacheSession>(cacheSession);
+                    return new CreateSessionResult<ICacheSession>(cacheSession);
                 });
-        }
-
-        /// <inheritdoc />
-        public CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
-        {
-            return CreateSessionCall.Run(
-                _tracer,
-                context,
-                name,
-                () => CreateSessionAsync(context, name, implicitPin).GetAwaiter().GetResult());
         }
 
         private async Task<CreateSessionResult<ICacheSession>> CreateSessionAsync(Context context, string name, ImplicitPin implicitPin)

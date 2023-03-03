@@ -17,11 +17,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Stores
     public interface IMemoizationStore : IStartupShutdown
     {
         /// <summary>
-        ///     Create a new session that can only read.
-        /// </summary>
-        CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name);
-
-        /// <summary>
         ///     Create a new session that can add as well as read.
         /// </summary>
         /// <remarks>

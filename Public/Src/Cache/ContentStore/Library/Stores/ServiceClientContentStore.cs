@@ -195,25 +195,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public virtual CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(
-            Context context, string name, ImplicitPin implicitPin)
-        {
-            return CreateReadOnlySessionCall.Run(ExecutionTracer, OperationContext(context), name, () =>
-            {
-                var session = new ReadOnlyServiceClientContentSession(
-                    // Its fine to re-create an operation context without cancellation tokens because its only used for tracing purposes.
-                    new OperationContext(context),
-                    name,
-                    implicitPin,
-                    Logger,
-                    FileSystem,
-                    SessionTracer,
-                    Configuration);
-                return new CreateSessionResult<IReadOnlyContentSession>(session);
-            });
-        }
-
-        /// <inheritdoc />
         public virtual CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             return CreateSessionCall.Run(ExecutionTracer, OperationContext(context), name, () =>

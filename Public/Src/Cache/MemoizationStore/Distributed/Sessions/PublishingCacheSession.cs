@@ -25,7 +25,7 @@ using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
 {
-    internal class PublishingCacheSession : StartupShutdownBase, ICacheSession, ICacheSessionWithLevelSelectors, IHibernateCacheSession, IConfigurablePin, IAsyncShutdown
+    internal class PublishingCacheSession : StartupShutdownBase, ICacheSession, ICacheSessionWithLevelSelectors, IHibernateCacheSession, IAsyncShutdown
     {
         public string Name { get; }
         protected override Tracer Tracer { get; } = new Tracer(nameof(PublishingCacheSession));
@@ -214,6 +214,12 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
         }
 
         /// <inheritdoc />
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
+        {
+            return _local.PinAsync(context, contentHashes, config);
+        }
+
+        /// <inheritdoc />
         public Task<OpenStreamResult> OpenStreamAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return _local.OpenStreamAsync(context, contentHash, cts, urgencyHint);
@@ -260,15 +266,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
         public Task<PutResult> PutStreamAsync(Context context, ContentHash contentHash, Stream stream, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return ((IContentSession)_local).PutStreamAsync(context, contentHash, stream, cts, urgencyHint);
-        }
-        #endregion
-
-        #region IConfigurablePin implementation
-
-        /// <inheritdoc />
-        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
-        {
-            return _local.PinAsync(context, contentHashes, config);
         }
         #endregion
 

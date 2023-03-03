@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -17,44 +16,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// <summary>
     /// Set of extension methods for <see cref="IMemoizationSession"/> interface.
     /// </summary>
-    public static class ReadOnlyMemoizationSessionExtensions
+    public static class MemoizationSessionExtensions
     {
-        /// <summary>
-        /// Returns all the selectors for a given <paramref name="weakFingerprint"/>.
-        /// </summary>
-        public static async Task<Result<Selector[]>> GetAllSelectorsAsync(
-            this ILevelSelectorsProvider session,
-            Context context,
-            Fingerprint weakFingerprint,
-            CancellationToken cts)
-        {
-            var selectors = new List<Selector>();
-            int level = 0;
-            while (true)
-            {
-                var levelResult = await session.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
-
-                if (!levelResult)
-                {
-                    return Result.FromError<Selector[]>(levelResult);
-                }
-
-                selectors.AddRange(levelResult.Value.Selectors);
-
-                level++;
-                if (!levelResult.Value.HasMore)
-                {
-                    break;
-                }
-            }
-
-            return Result.Success(selectors.ToArray());
-        }
-
         /// <summary>
         /// Enumerate known selectors for a given weak fingerprint.
         /// </summary>
-        public static System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectorsAsAsyncEnumerable(
+        public static IAsyncEnumerable<GetSelectorResult> GetSelectorsAsAsyncEnumerable(
             this ILevelSelectorsProvider session,
             Context context,
             Fingerprint weakFingerprint,
@@ -71,7 +38,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         /// Enumerates a given <paramref name="enumerable"/> until the predicate <paramref name="predicate"/> returns true.
         /// </summary>
-        private static System.Collections.Generic.IAsyncEnumerable<T> StopAfter<T>(this System.Collections.Generic.IAsyncEnumerable<T> enumerable, Func<T, bool> predicate)
+        private static IAsyncEnumerable<T> StopAfter<T>(
+            this IAsyncEnumerable<T> enumerable,
+            Func<T, bool> predicate)
         {
             return AsyncEnumerable.Create(
                 token =>
@@ -103,12 +72,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 });
         }
 
-        private static System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> ToSelectorResults(Result<LevelSelectors> levelResult)
+        private static IAsyncEnumerable<GetSelectorResult> ToSelectorResults(Result<LevelSelectors> levelResult)
         {
             IEnumerable<GetSelectorResult> selectorResults;
             if (!levelResult)
             {
-                selectorResults = new[] {new GetSelectorResult(levelResult)};
+                selectorResults = new[] { new GetSelectorResult(levelResult) };
             }
             else
             {
@@ -118,7 +87,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             return selectorResults.ToAsyncEnumerable();
         }
 
-        private static System.Collections.Generic.IAsyncEnumerable<Result<LevelSelectors>> GetLevelSelectorsEnumerableAsync(
+        private static IAsyncEnumerable<Result<LevelSelectors>> GetLevelSelectorsEnumerableAsync(
             this ILevelSelectorsProvider session,
             Context context,
             Fingerprint weakFingerprint,
@@ -129,8 +98,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 async () =>
                 {
                     var result = await session.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
-                    return new[] {result};
+                    return new[] { result };
                 });
         }
     }
 }
+

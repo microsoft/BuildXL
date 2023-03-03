@@ -20,7 +20,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         /// Gets known selectors for a given weak fingerprint.
         /// </summary>
-        System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(
+        IAsyncEnumerable<GetSelectorResult> GetSelectors(
             Context context,
             Fingerprint weakFingerprint,
             CancellationToken cts,

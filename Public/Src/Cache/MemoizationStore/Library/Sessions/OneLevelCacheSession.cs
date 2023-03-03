@@ -213,7 +213,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return ReadOnlyMemoizationSessionExtensions.GetSelectorsAsAsyncEnumerable(this, context, weakFingerprint, cts, urgencyHint);
+            return MemoizationSessionExtensions.GetSelectorsAsAsyncEnumerable(this, context, weakFingerprint, cts, urgencyHint);
         }
 
         /// <inheritdoc />

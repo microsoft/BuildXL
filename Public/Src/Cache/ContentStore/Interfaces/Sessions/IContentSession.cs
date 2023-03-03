@@ -17,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
     /// <summary>
     ///     A related set of accesses to a content store.
     /// </summary>
-    public interface IContentSession : IName, IStartupShutdown, IConfigurablePin
+    public interface IContentSession : IName, IStartupShutdown
     {
         /// <summary>
         ///     Ensure content does not get deleted.
@@ -27,6 +27,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             ContentHash contentHash,
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal);
+
+        /// <summary>
+        /// Pin in a configurable way.
+        /// </summary>
+        Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
+            Context context,
+            IReadOnlyList<ContentHash> contentHashes,
+            PinOperationConfiguration config);
 
         /// <summary>
         ///     Open a stream to content.
@@ -95,15 +103,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         /// <returns>
         ///     Result providing the call's completion status.
         /// </returns>
-        Task<PutResult> PutFileAsync
-            (
+        Task<PutResult> PutFileAsync(
             Context context,
             HashType hashType,
             AbsolutePath path,
             FileRealizationMode realizationMode,
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal
-            );
+        );
 
         /// <summary>
         ///     Add content from a file.
@@ -129,15 +136,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         /// <returns>
         ///     Result providing the call's completion status.
         /// </returns>
-        Task<PutResult> PutFileAsync
-            (
+        Task<PutResult> PutFileAsync(
             Context context,
             ContentHash contentHash,
             AbsolutePath path,
             FileRealizationMode realizationMode,
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal
-            );
+        );
 
         /// <summary>
         ///     Add content from a stream.
@@ -166,7 +172,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             Stream stream,
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal
-            );
+        );
 
         /// <summary>
         ///     Add content from a stream.
@@ -195,6 +201,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             Stream stream,
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal
-            );
+        );
     }
 }

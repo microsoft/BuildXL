@@ -39,7 +39,7 @@ using BlobIdentifier = BuildXL.Cache.ContentStore.Hashing.BlobIdentifier;
 namespace BuildXL.Cache.MemoizationStore.Vsts
 {
     /// <nodoc />
-    public class BuildCacheSession : StartupShutdownSlimBase, ICacheSessionWithLevelSelectors, ICacheSession
+    public class BuildCacheSession : StartupShutdownSlimBase, ICacheSessionWithLevelSelectors
     {
         /// <inheritdoc />
         protected override Tracer Tracer => CacheTracer;

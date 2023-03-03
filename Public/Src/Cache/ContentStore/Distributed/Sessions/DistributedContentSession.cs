@@ -39,7 +39,7 @@ using ResultsExtensions = BuildXL.Cache.ContentStore.Interfaces.Results.ResultsE
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
-    public class DistributedContentSession : ContentSessionBase, IContentSession, IHibernateContentSession, IConfigurablePin
+    public class DistributedContentSession : ContentSessionBase, IContentSession, IHibernateContentSession
     {
         internal enum Counters
         {
@@ -370,7 +370,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <inheritdoc />
-        Task<IEnumerable<Task<Indexed<PinResult>>>> IConfigurablePin.PinAsync(
+        public override Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
             Context context,
             IReadOnlyList<ContentHash> contentHashes,
             PinOperationConfiguration pinOperationConfiguration)

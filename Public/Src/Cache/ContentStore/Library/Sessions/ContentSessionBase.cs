@@ -147,7 +147,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
+        public virtual Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
             Context context, 
             IReadOnlyList<ContentHash> contentHashes, 
             PinOperationConfiguration configuration)
@@ -158,7 +158,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformNonResultOperationAsync(
                     Tracer,
                     () => PinAsync(operationContext, contentHashes, configuration.CancellationToken, configuration.UrgencyHint),
-                    extraStartMessage: $"{nameof(ContentSessionBase)} subtype {GetType().FullName} does not implement its own {nameof(IConfigurablePin)}.{nameof(IConfigurablePin.PinAsync)}. Falling back on {nameof(ContentSessionBase)}.{nameof(ContentSessionBase.PinAsync)}"));
+                    extraStartMessage: $"{nameof(ContentSessionBase)} subtype {GetType().FullName} does not implement its own configurable {nameof(PinAsync)}. Falling back on {nameof(ContentSessionBase)}.{nameof(ContentSessionBase.PinAsync)}"));
         }
 
         /// <nodoc />

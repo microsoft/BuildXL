@@ -32,12 +32,9 @@ namespace BuildXL.Pips.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.CredentialsDetectedInEnvVar,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            // TODO Promote CredScan violations to an error. Bug #2034799
-            // EventLevel = Level.Error,
-            // Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
-            Message = "[{pipDescription}] Capturing secrets in the build graph is insecure. The following environment variables - '{envVarName}' either need to be removed or made passthrough. For false positives, specify the variable name in /credentialScanEnvironmentVariablesAllowList on the command line.")]
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            Message = "[{pipDescription}] Capturing secrets in the build graph is insecure. The following environment variables - '{envVarName}' either need to be removed or made passthrough. For false positives, specify the variable name in /credScanEnvironmentVariablesAllowList on the command line.")]
         public abstract void CredScanDetection(LoggingContext context, string pipDescription, string envVarName);
 
         [GeneratedEvent(

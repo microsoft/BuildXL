@@ -322,7 +322,7 @@ namespace BuildXL
                             "cpuResourceAware",
                             sign => schedulingConfiguration.CpuResourceAware = sign),
                         OptionHandlerFactory.CreateOption(
-                            "credScanEnvironmentVariablesAllowList",
+                            "credentialScanEnvironmentVariablesAllowList",
                             opt => frontEndConfiguration.CredScanEnvironmentVariablesAllowList.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v.Trim()))),
                         OptionHandlerFactory.CreateOption(
                             "criticalCommitUtilizationPercentage",

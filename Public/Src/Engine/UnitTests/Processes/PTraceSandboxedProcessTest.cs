@@ -19,6 +19,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using FileUtilities = BuildXL.Native.IO.FileUtilities;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
@@ -80,6 +81,8 @@ namespace Test.BuildXL.Processes
             staticProcessInfo.FileAccessManifest.ReportUnexpectedFileAccesses = true;
 
             var result = await RunProcess(staticProcessInfo);
+
+            AllowWarningEventMaybeLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary);
 
             var expectedAccesses = new List<(string, ReportedFileOperation)>()
             {

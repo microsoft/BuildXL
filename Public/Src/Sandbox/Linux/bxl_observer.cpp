@@ -22,7 +22,6 @@ BxlObserver* BxlObserver::GetInstance()
 
 BxlObserver::BxlObserver()
 {
-    empty_str_ = "";
     real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
 
     disposed_ = false;
@@ -317,22 +316,46 @@ void BxlObserver::report_exec(const char *syscallName, const char *procName, con
     if (IsMonitoringChildProcesses())
     {
         // first report 'procName' as is (without trying to resolve it) to ensure that a process name is reported before anything else
-        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str_, mode, error);
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, procName, empty_str_, mode, error);
         report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file, mode, /*flags*/ 0, error);
     }
 }
 
-void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode, int error, bool checkCache)
+void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode, int error, bool checkCache)
+{
+    if (reportPath == nullptr || secondPath == nullptr) 
+    {
+        // If we're given null paths, we can't really build a report. Just return.
+        LOG_DEBUG("Can't report an access for syscall %s with a null path. reportPath = %p, secondPath %p", syscallName, reportPath, secondPath); 
+        return;
+    }
+    
+    report_access_internal(syscallName, eventType, reportPath, secondPath, mode, error, checkCache);
+}
+
+void BxlObserver::report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode, int error, bool checkCache)
 {
     AccessReportGroup report;
-    create_access(syscallName, eventType, reportPath, secondPath, report, mode, checkCache);
+    create_access_internal(syscallName, eventType, reportPath, secondPath, report, mode, checkCache);
     report.SetErrno(error);
     SendReport(report);
 }
 
-AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache)
+AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache)
 {
-    if (checkCache && IsCacheHit(eventType, reportPath, secondPath))
+    if (reportPath == nullptr || secondPath == nullptr)
+    {
+        LOG_DEBUG("Can't create an access for syscall %s with a null path. reportPath = %p, secondPath %p", syscallName, reportPath, secondPath); 
+        return sNotChecked;
+    }
+
+    return create_access_internal(syscallName, eventType, reportPath, secondPath, reportGroup, mode, checkCache);
+}
+
+AccessCheckResult BxlObserver::create_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache)
+{
+    secondPath = secondPath == nullptr ? empty_str_ : secondPath;  
+    if (checkCache && IsCacheHit(eventType, std::move(std::string(reportPath)), std::move(std::string(secondPath))))
     {
         return sNotChecked;
     }
@@ -340,7 +363,7 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_t
     if (mode == 0)
     {
         // Mode hasn't been computed yet. Let's do it here.
-        mode = get_mode(reportPath.c_str());
+        mode = get_mode(reportPath);
     }
 
     // If this file descriptor is a non-file (e.g., a pipe, or socket, etc.) then we don't care about it
@@ -350,10 +373,10 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_t
     }
 
     std::string execPath = eventType == ES_EVENT_TYPE_NOTIFY_EXEC
-        ? reportPath
+        ? std::string(reportPath)
         : std::string(progFullPath_);
 
-    IOEvent event(getpid(), 0, getppid(), eventType, ES_ACTION_TYPE_NOTIFY, reportPath, secondPath, execPath, mode, false);
+    IOEvent event(getpid(), 0, getppid(), eventType, ES_ACTION_TYPE_NOTIFY, std::move(std::string(reportPath)), std::move(std::string(secondPath)), std::move(execPath), mode, false);
     return create_access(syscallName, event, reportGroup, /* checkCache */ false /* because already checked cache above */);
 }
 
@@ -389,14 +412,40 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, IOEvent &e
     return result;
 }
 
-void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode, int flags, int error)
+void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode, int flags, int error, bool checkCache)
 {
-    report_access(syscallName, eventType, normalize_path(pathname, flags), "", mode, error);
+    // If the path is null or if we can't normalize it, we have no meaningful way of reporting this access
+    if (pathname == nullptr)
+    {
+        LOG_DEBUG("Can't report an access for syscall %s with a null path.", syscallName); 
+        return;
+    }
+
+    auto normalized = normalize_path(pathname, flags);
+    if (normalized.length() == 0) 
+    {
+        LOG_DEBUG("Couldn't normalize path %s", pathname);
+        return;
+    }
+
+    report_access_internal(syscallName, eventType, normalized.c_str(), /*secondPath*/ nullptr , mode, error, checkCache);
 }
 
 AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &reportGroup, mode_t mode, int flags, bool checkCache)
 {
-    return create_access(syscallName, eventType, normalize_path(pathname, flags), "", reportGroup, mode, checkCache);
+    // If the path is null or if we can't normalize it, we have no meaningful way of reporting this access
+    if (pathname == nullptr) 
+    {
+        return sNotChecked;
+    }
+
+    auto normalized = normalize_path(pathname, flags);
+    if (normalized.length() == 0)
+    {
+        return sNotChecked;
+    }
+
+    return create_access_internal(syscallName, eventType, normalize_path(pathname, flags).c_str(), nullptr, reportGroup, mode, checkCache);
 }
 
 void BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error)
@@ -421,7 +470,7 @@ AccessCheckResult BxlObserver::create_access_fd(const char *syscallName, es_even
 
     // Only reports when fd_to_path succeeded.
     return fullpath.length() > 0
-        ? create_access(syscallName, eventType, fullpath, empty_str_, report, mode)
+        ? create_access_internal(syscallName, eventType, fullpath.c_str(), /* secondPath */ nullptr, report, mode)
         : sNotChecked;
 }
 
@@ -433,6 +482,12 @@ bool BxlObserver::is_non_file(const mode_t mode)
 
 AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &report, int flags, bool getModeWithFd, pid_t associatedPid)
 {
+    if (pathname == nullptr)
+    {
+        LOG_DEBUG("Can't create an access for syscall %s with a null path.", syscallName); 
+        return sNotChecked;
+    }
+
     if (pathname[0] == '/')
     {
         return create_access(syscallName, eventType, pathname, report, /* mode */0, flags);
@@ -738,7 +793,7 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
     // descriptor for which we could end up not invalidating it properly.
 
     // no pathname given --> read path for dirfd
-    if (pathname == NULL)
+    if (pathname == nullptr)
     {
         return fd_to_path(dirfd, associatedPid);
     }
@@ -800,9 +855,9 @@ static char* find_prev_slash(char *pStr)
 // resolve any intermediate directory symlinks
 void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
 {
-    if (fullpath == NULL || fullpath[0] != '/')
+    if (fullpath == nullptr || fullpath[0] != '/')
     {
-        LOG_DEBUG("Not an absolute path: %s", fullpath);
+        LOG_DEBUG("Tried to resolve a string that is not an absolute path: %s", fullpath == nullptr ? "<NULL>" : fullpath);
         return;
     }
 
@@ -873,7 +928,7 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
         *pFullpath = '\0';
         // break if the same symlink has already been visited (breaks symlink loops)
         if (!visited.insert(fullpath).second) break;
-        report_access("_readlink", ES_EVENT_TYPE_NOTIFY_READLINK, std::string(fullpath), empty_str_);
+        report_access_internal("_readlink", ES_EVENT_TYPE_NOTIFY_READLINK, fullpath);
         *pFullpath = ch;
 
         // append the rest of the original path to the readlink target

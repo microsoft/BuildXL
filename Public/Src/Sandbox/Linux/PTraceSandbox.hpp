@@ -39,7 +39,7 @@ public:
 private:
     BxlObserver *m_bxl;
     pid_t m_traceePid;
-    std::string m_emptyStr;
+    const char* const m_emptyStr = "";
     std::vector<std::tuple<pid_t, pid_t, std::string>> m_traceeTable; // tracee pid, parent pid, tracee exe path
 
     /*

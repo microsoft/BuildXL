@@ -113,7 +113,8 @@ INTERPOSE(int, readdir64_r, DIR *dirp, struct dirent64 *entry, struct dirent64 *
 })
 
 INTERPOSE(void, _exit, int status)({
-    bxl->report_access("_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
+    char emptystr[1] = {'\0'};
+    bxl->report_access("_exit", ES_EVENT_TYPE_NOTIFY_EXIT, emptystr, emptystr);
     bxl->real__exit(status);
     _exit(status);
 })
@@ -825,8 +826,8 @@ INTERPOSE(int, link, const char *path1, const char *path2)({
     auto check = bxl->create_access(
         __func__,
         ES_EVENT_TYPE_NOTIFY_LINK,
-        bxl->normalize_path(path1, O_NOFOLLOW),
-        bxl->normalize_path(path2, O_NOFOLLOW),
+        bxl->normalize_path(path1, O_NOFOLLOW).c_str(),
+        bxl->normalize_path(path2, O_NOFOLLOW).c_str(),
         report);
     return bxl->check_fwd_and_report_link(report, check, ERROR_RETURN_VALUE, path1, path2);
 })
@@ -836,8 +837,8 @@ INTERPOSE(int, linkat, int fd1, const char *name1, int fd2, const char *name2, i
     auto check = bxl->create_access(
         __func__,
         ES_EVENT_TYPE_NOTIFY_LINK,
-        bxl->normalize_path_at(fd1, name1, O_NOFOLLOW),
-        bxl->normalize_path_at(fd2, name2, O_NOFOLLOW),
+        bxl->normalize_path_at(fd1, name1, O_NOFOLLOW).c_str(),
+        bxl->normalize_path_at(fd2, name2, O_NOFOLLOW).c_str(),
         report);
     return bxl->check_fwd_and_report_linkat(report, check, ERROR_RETURN_VALUE, fd1, name1, fd2, name2, flag);
 })

@@ -40,7 +40,6 @@
 PTraceSandbox::PTraceSandbox(BxlObserver *bxl)
 {
     m_bxl = bxl;
-    m_emptyStr = "";
 }
 
 PTraceSandbox::~PTraceSandbox()
@@ -628,7 +627,7 @@ void PTraceSandbox::HandleReportAccessFd(const char *syscall, int fd, es_event_t
     // Readlink returns type:[inode] if the path is not a file (files will return absolute paths)
     if (path[0] == '/')
     {
-        m_bxl->report_access(syscall, event, path, m_emptyStr, /*mode*/0, /* error */ 0);
+        m_bxl->report_access(syscall, event, path.c_str(), m_emptyStr, /*mode*/0, /* error */ 0);
     }
 }
 
@@ -665,7 +664,7 @@ HANDLER_FUNCTION(pwrite64)
 HANDLER_FUNCTION(truncate)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str(), "", /* mode */ 0, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str());
 }
 
 HANDLER_FUNCTION(ftruncate)
@@ -685,8 +684,9 @@ HANDLER_FUNCTION(rmdir)
 
     long returnValue = ReadArgumentLong(0);
 
+    BXL_LOG_DEBUG(m_bxl, "[PTrace] rmdir %s", path.c_str());
     // We don't want to use the cache since we want to distinguish between creation and deletion of directories
-    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), "", S_IFDIR, returnValue, /* checkCache */ false);
+    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), m_emptyStr, /*mode*/ S_IFDIR, /* error */ returnValue, /*checkCache */ false);
 }
 
 HANDLER_FUNCTION(rename)
@@ -751,8 +751,8 @@ HANDLER_FUNCTION(link)
     m_bxl->report_access(
         SYSCALL_NAME_STRING(link),
         ES_EVENT_TYPE_NOTIFY_LINK,
-        m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_traceePid),
-        m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_traceePid), 
+        m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
+        m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(), 
         0, /* error */ 0);
 }
 
@@ -766,8 +766,8 @@ HANDLER_FUNCTION(linkat)
     m_bxl->report_access(
         SYSCALL_NAME_STRING(linkat),
         ES_EVENT_TYPE_NOTIFY_LINK,
-        m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid),
-        m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid),
+        m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
+        m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
         0, /* error */ 0);
 }
 

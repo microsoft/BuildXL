@@ -230,7 +230,7 @@ private:
     // File descriptors can be greater than 1024, and if that happens we just won't cache their paths.
     static const int MAX_FD = 1024;
     std::string fdTable_[MAX_FD];
-    std::string empty_str_;
+    const char* const empty_str_ = "";
     bool useFdTable_ = true;
 
     std::shared_ptr<SandboxedPip> pip_;
@@ -245,7 +245,8 @@ private:
     bool Send(const char *buf, size_t bufsiz);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
     char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
-
+    void report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath = nullptr, mode_t mode = 0, int error = 0, bool checkCache = true);
+    AccessCheckResult create_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true);
     ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t associatedPid = 0);
 
     bool IsMonitoringChildProcesses() const { return !pip_ || CheckMonitorChildProcesses(pip_->GetFamFlags()); }
@@ -338,14 +339,14 @@ public:
     // In this method (and immediately below) 'mode' is provided on a best effort basis. If 0 is passed for mode, it will be
     // explicitly computed
     AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &report, mode_t mode = 0, int oflags = 0, bool checkCache = true);
-    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true);
+    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true);
     AccessCheckResult create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &reportGroup);
     AccessCheckResult create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &reportGroup, int oflags = 0, bool getModeWithFd = true, pid_t associatedPid = 0);
 
     // The following functions are the create_* equivalent of the ones above but the access is reported to managed BuildXL
     void report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
-    void report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0, int error = 0);
-    void report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath, mode_t mode = 0, int error = 0, bool checkCache = true);
+    void report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0, int error = 0, bool checkCache = true);
+    void report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode = 0, int error = 0, bool checkCache = true);
     void report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error);
     void report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags, bool getModeWithFd = true, pid_t associatedPid = 0, int error = 0);
 
@@ -427,6 +428,11 @@ public:
 
     std::string normalize_path(const char *pathname, int oflags = 0, pid_t associatedPid = 0)
     {
+        if (pathname == nullptr)
+        {
+            return empty_str_;
+        }
+
         return normalize_path_at(AT_FDCWD, pathname, oflags, associatedPid);
     }
 

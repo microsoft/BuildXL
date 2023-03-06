@@ -103,6 +103,12 @@ inline void handle_xpc_setup()
     }
 }
 
+inline mode_t get_mode(const char *path) 
+{
+    struct stat s;
+    return stat(path, &s) == 0 ? s.st_mode : 0;    
+}
+
 inline void send_to_sandbox(IOEvent &event, es_event_type_t type = ES_EVENT_TYPE_LAST, bool force_xpc_init = false, bool resolve_paths = true)
 {
     if (event.IsPlistEvent() || event.IsDirectorySpecialCharacterEvent())
@@ -357,7 +363,7 @@ int bxl_open(const char *path, int oflag)
 
         std::shared_ptr<PathCacheEntry> entry(new PathCacheEntry(path, 0));
         openedPaths_->insert(path, entry);
-        IOEvent event(getpid(), 0, getppid(), type, ES_ACTION_TYPE_NOTIFY, path, "", get_executable_path(getpid()), true);
+        IOEvent event(getpid(), 0, getppid(), type, ES_ACTION_TYPE_NOTIFY, path, "", get_executable_path(getpid()), get_mode(path));
         send_to_sandbox(event);
     }
 

@@ -90,33 +90,6 @@ public:
             pid_t ppid,
             es_event_type_t type,
             es_action_type_t action,
-            const char *src, const char *dst,
-            const std::string exec,
-            bool get_mode = true,
-            bool modified = false,
-            uint error = 0)
-    : pid_(pid), cpid_(cpid), ppid_(ppid), eventType_(type), actionType_(action), modified_(modified), error_(error)
-    {
-        assert(!exec.empty());
-        executable_ = exec;
-
-        src_path_ = src != nullptr ? std::string(src) : std::string("");
-        dst_path_ = dst != nullptr ? std::string(dst) : std::string("");
-
-        oppid_ = ppid_;
-
-        if (get_mode)
-        {
-            struct stat s;
-            mode_ = stat(src_path_.c_str(), &s) == 0 ? s.st_mode : 0;
-        }
-    }
-
-    IOEvent(pid_t pid,
-            pid_t cpid,
-            pid_t ppid,
-            es_event_type_t type,
-            es_action_type_t action,
             std::string src,
             std::string dst,
             const std::string exec,

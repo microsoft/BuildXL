@@ -624,7 +624,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                         contentAlreadyExistsInCache = true;
                     }
 
-                    return new PutResult(contentHash, (int)contentSize, contentAlreadyExistsInCache);
+                    return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache);
                 },
                 traceOperationStarted: false,
                 timeout: _configuration.StorageInteractionTimeout);

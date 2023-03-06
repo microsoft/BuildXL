@@ -59,6 +59,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// </summary>
         [DataMember]
         public bool SkipRemotePutIfAlreadyExistsInLocal { get; set; } = false;
+
+        /// <summary>
+        /// If the remote fails fast and graciously when trying to put some content that already exists, it makes little
+        /// sense to pin first. Instead, let the put operation run and return "ContentAlreadyExistsInCache=true"
+        /// </summary>
+        [DataMember]
+        public bool SkipRemotePinOnPut { get; set; } = false;
     }
 
     /// <summary>
@@ -488,14 +495,17 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                         return localResult;
                     }
 
-                    var pinResult = _config.BatchRemotePinsOnPut
-                        ? await _batchSinglePinNagleQueue.EnqueueAsync((context, localResult.ContentHash))
-                        : await _remoteCacheSession.PinAsync(context, localResult.ContentHash, cancellationToken, urgencyHint);
-
-                    if (pinResult.Code == PinResult.ResultCode.Success)
+                    if (!_config.SkipRemotePinOnPut)
                     {
-                        // content was found in the remote - simply return local result at this point.
-                        return localResult;
+                        var pinResult = _config.BatchRemotePinsOnPut
+                            ? await _batchSinglePinNagleQueue.EnqueueAsync((context, localResult.ContentHash))
+                            : await _remoteCacheSession.PinAsync(context, localResult.ContentHash, cancellationToken, urgencyHint);
+
+                        if (pinResult.Code == PinResult.ResultCode.Success)
+                        {
+                            // content was found in the remote - simply return local result at this point.
+                            return localResult;
+                        }
                     }
 
                     return await remotePut(localResult);

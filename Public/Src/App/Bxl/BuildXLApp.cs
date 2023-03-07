@@ -48,10 +48,9 @@ using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
 using Strings = bxl.Strings;
 #pragma warning disable SA1649 // File name must match first type name
 using BuildXL.Utilities.CrashReporting;
-
-using static BuildXL.Utilities.Core.FormattableStringEx;
 using System.Runtime.InteropServices;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL
 {
@@ -224,6 +223,7 @@ namespace BuildXL
             }
 
             ConfigureDistributionLogging(pathTable, mutableConfig);
+            ConfigureDefaultDevLog(mutableConfig);
             ConfigureCloudBuildLogging(pathTable, mutableConfig);
             if (mutableConfig.Logging.CacheMissAnalysisOption.Mode != CacheMissMode.Disabled)
             {
@@ -305,28 +305,15 @@ namespace BuildXL
             }
         }
 
-        private static void ConfigureCloudBuildLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
+        private static void ConfigureDefaultDevLog(BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
         {
-            if (mutableConfig.InCloudBuild())
+            // If a dev log is not configured already via cli args, configure it here
+            if (mutableConfig.Logging.CustomLog.ContainsKey(mutableConfig.Logging.DevLog))
             {
-                // Unless explicitly specified, async logging is enabled by default in CloudBuild
-                if (!mutableConfig.Logging.EnableAsyncLogging.HasValue)
-                {
-                    mutableConfig.Logging.EnableAsyncLogging = true;
-                }
+                return;
+            }
 
-                if (!mutableConfig.Logging.SaveFingerprintStoreToLogs.HasValue)
-                {
-                    mutableConfig.Logging.SaveFingerprintStoreToLogs = true;
-                }
-
-                var logPath = mutableConfig.Logging.Log;
-
-                // NOTE: We rely on explicit exclusion of pip output messages in CloudBuild rather than turning them off by default.
-                mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.PipOutputLog, (new[] { (int)ProcessesLogEventId.PipProcessOutput }, null));
-
-                mutableConfig.Logging.CustomLog.Add(
+            mutableConfig.Logging.CustomLog.Add(
                     mutableConfig.Logging.DevLog,
                     (new List<int>(FrontEndControllerFactory.DevLogEvents)
                     {
@@ -390,6 +377,26 @@ namespace BuildXL
                     },
                     // all warning/errors should be included in a dev log
                     EventLevel.Warning));
+        }
+
+        private static void ConfigureCloudBuildLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
+        {
+            if (mutableConfig.InCloudBuild())
+            {
+                // Unless explicitly specified, async logging is enabled by default in CloudBuild
+                if (!mutableConfig.Logging.EnableAsyncLogging.HasValue)
+                {
+                    mutableConfig.Logging.EnableAsyncLogging = true;
+                }
+
+                if (!mutableConfig.Logging.SaveFingerprintStoreToLogs.HasValue)
+                {
+                    mutableConfig.Logging.SaveFingerprintStoreToLogs = true;
+                }
+
+                // NOTE: in CB we add duplicate pip outputs to an additional log.
+                mutableConfig.Logging.CustomLog.Add(
+                    mutableConfig.Logging.PipOutputLog, (new[] { (int)ProcessesLogEventId.PipProcessOutput }, null));
 
                 // Distribution related messages are disabled in default text log and routed to special log file
                 mutableConfig.Logging.NoLog.AddRange(DistributionHelpers.DistributionInfoMessages);

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Logging
 {
@@ -33,24 +34,21 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void Always(string messageFormat, params object[] messageArgs);
+        void Always([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string messageFormat, params object[] messageArgs);
 
         /// <summary>
         ///     Log a message if current severity is set to Fatal.
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void Fatal(string messageFormat, params object[] messageArgs);
+        void Fatal([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string messageFormat, params object[] messageArgs);
 
         /// <summary>
         ///     Log a message if current severity is set to at least Error.
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void Error(string messageFormat, params object[] messageArgs);
+        void Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string messageFormat, params object[] messageArgs);
 
         /// <summary>
         ///     Log an exception and message if current severity is set to at least Error.
@@ -58,8 +56,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <param name="exception">Captured exception to be logged</param>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void Error(Exception exception, string messageFormat, params object[] messageArgs);
+        void Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] Exception exception, string messageFormat, params object[] messageArgs);
 
         /// <summary>
         ///     Log an exception and message if current severity is set to at least Error and throw unconditionally.
@@ -67,32 +64,28 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <param name="exception">Captured exception to be logged</param>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void ErrorThrow(Exception exception, string messageFormat, params object[] messageArgs);
+        void ErrorThrow(Exception exception, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string messageFormat, params object[] messageArgs);
 
         /// <summary>
         ///     Log a message if current severity is set to at least Warning.
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void Warning(string messageFormat, params object[] messageArgs);
+        void Warning([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string messageFormat, params object[] messageArgs);
 
         /// <summary>
         ///     Log a message if current severity is set to at least Info.
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void Info(string messageFormat, params object[] messageArgs);
+        void Info([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string messageFormat, params object[] messageArgs);
 
         /// <summary>
         ///     Log a message if current severity is set to at least Debug.
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void Debug(string messageFormat, params object[] messageArgs);
+        void Debug([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string messageFormat, params object[] messageArgs);
 
         /// <summary>
         ///     Log an exception if current severity is set to at least Debug.
@@ -105,8 +98,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void Diagnostic(string messageFormat, params object[] messageArgs);
+        void Diagnostic([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string messageFormat, params object[] messageArgs);
 
         /// <summary>
         ///     Log a message with the given severity if it is at least as high as the current severity.
@@ -121,7 +113,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <param name="severity">Severity to attach to this log message.</param>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
-        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
-        void LogFormat(Severity severity, string messageFormat, params object[] messageArgs);
+        void LogFormat(Severity severity, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string messageFormat, params object[] messageArgs);
     }
 }

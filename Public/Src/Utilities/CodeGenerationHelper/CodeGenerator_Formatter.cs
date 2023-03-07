@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
-using JetBrains.Annotations;
 
 #pragma warning disable 1709
 
@@ -182,8 +181,7 @@ namespace BuildXL.Utilities.CodeGenerationHelper
         /// <param name="condition">condition used to determine if line should be written</param>
         /// <param name="format">format string</param>
         /// <param name="args">args of format string</param>
-        [StringFormatMethod("format")]
-        public void Ln(bool condition, string format, params object[] args)
+        public void Ln(bool condition, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Contract.Requires(!string.IsNullOrEmpty(format));
             Contract.Requires(args != null);
@@ -198,8 +196,7 @@ namespace BuildXL.Utilities.CodeGenerationHelper
         /// </summary>
         /// <param name="format">format string</param>
         /// <param name="args">args of format string</param>
-        [StringFormatMethod("format")]
-        public void Ln(string format, params object[] args)
+        public void Ln([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Contract.Requires(!string.IsNullOrEmpty(format));
             Contract.Requires(args != null);
@@ -213,8 +210,7 @@ namespace BuildXL.Utilities.CodeGenerationHelper
         /// </summary>
         /// <param name="format">format string</param>
         /// <param name="args">args of format string.</param>
-        [StringFormatMethod("format")]
-        public void Lns(string format, params object[] args)
+        public void Lns([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Contract.Requires(!string.IsNullOrEmpty(format));
             Contract.Requires(args != null);
@@ -226,8 +222,7 @@ namespace BuildXL.Utilities.CodeGenerationHelper
         /// <summary>
         /// Renders an indented Line
         /// </summary>
-        [StringFormatMethod("format")]
-        public void IndentLn(string format, params object[] args)
+        public void IndentLn([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             using (Indent)
             {
@@ -239,8 +234,7 @@ namespace BuildXL.Utilities.CodeGenerationHelper
         /// Generates a getter
         /// </summary>
         [SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "string")]
-        [StringFormatMethod("bodyFormatString")]
-        public void Get(string bodyFormatString, params object[] args)
+        public void Get([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string bodyFormatString, params object[] args)
         {
             Output("get { ");
             StringFormat(bodyFormatString, args);
@@ -252,8 +246,7 @@ namespace BuildXL.Utilities.CodeGenerationHelper
         /// Generates a setter
         /// </summary>
         [SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "string")]
-        [StringFormatMethod("bodyFormatString")]
-        public void Set(string bodyFormatString, params object[] args)
+        public void Set([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string bodyFormatString, params object[] args)
         {
             Output("set { ");
             StringFormat(bodyFormatString, args);

@@ -3,13 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using Xunit;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
@@ -80,8 +80,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void AreEqual<T>(T expected, T actual, string format, params object[] args)
+        public static void AreEqual<T>(T expected, T actual, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             if (expected == null)
             {
@@ -163,8 +162,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void AreEqual(object expected, object actual, string format, params object[] args)
+        public static void AreEqual(object expected, object actual, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             if (expected == null)
             {
@@ -179,19 +177,15 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
         public static void ArrayEqual<T>(T[] expected, T[] actual) => AreArraysEqual(expected, actual, true);
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
         public static void ArrayNotEqual<T>(T[] expected, T[] actual) => AreArraysEqual(expected, actual, false);
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
         public static void SetEqual<T>(IEnumerable<T> expected, IEnumerable<T> actual, IEqualityComparer<T> comparer = null) => AreSetsEqual(expected, actual, true, comparer);
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
         public static void SetNotEqual<T>(IEnumerable<T> expected, IEnumerable<T> actual, IEqualityComparer<T> comparer = null) => AreSetsEqual(expected, actual, false, comparer);
 
         /// <nodoc/>
@@ -213,8 +207,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void IsEmpty<T>(IEnumerable<T> actual, string format = null, params object[] args)
+        public static void IsEmpty<T>(IEnumerable<T> actual, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format = null, params object[] args)
         {
             AreSetsEqual(new T[0], actual, true, format: format, args: args);
         }
@@ -309,8 +302,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void AreNotEqual<T>(T expected, T actual, string format, params object[] args)
+        public static void AreNotEqual<T>(T expected, T actual, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Assert.False(
                 expected.Equals(actual),
@@ -319,8 +311,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void AreNotEqual(object expected, object actual, string format, params object[] args)
+        public static void AreNotEqual(object expected, object actual, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Assert.False(
                 expected.Equals(actual),
@@ -466,8 +457,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void Fail(string format, params object[] args)
+        public static void Fail([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Assert.True(
                 false,
@@ -487,8 +477,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void AreSame(object expected, object actual, string format, params object[] args)
+        public static void AreSame(object expected, object actual, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Assert.True(
                 object.ReferenceEquals(expected, actual),
@@ -503,8 +492,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void AreNotSame(object expected, object actual, string format, params object[] args)
+        public static void AreNotSame(object expected, object actual, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Assert.True(
                 !object.ReferenceEquals(expected, actual),
@@ -519,8 +507,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void IsNotNull(object value, string format, params object[] args)
+        public static void IsNotNull(object value, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Assert.True(
                 value != null,
@@ -535,8 +522,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        [StringFormatMethod("format")]
-        public static void IsNull(object value, string format, params object[] args)
+        public static void IsNull(object value, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
             Assert.True(
                 value == null,

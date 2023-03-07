@@ -17,7 +17,7 @@ namespace Common {
         references: [
             ...addIf(BuildXLSdk.isDotNetCore,
                 importFrom("Microsoft.Applications.Events.Server").pkg),
-            importFrom("BuildXL.Utilities").Utilities.Core.dll
+                importFrom("BuildXL.Utilities").Utilities.Core.dll
         ],
         runtimeContent: [
             ...addIf(qualifier.targetRuntime === "win-x64",

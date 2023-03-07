@@ -15,7 +15,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json;
-using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -338,7 +337,7 @@ namespace BuildXL.Execution.Analyzer
                     () => m_newCacheLookupReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
                     CacheMissDiffFormat);
                 analysisResult = resultAndDetail.Result;
-                m_writer?.WriteLine(JsonConvert.SerializeObject(resultAndDetail.Detail));
+                m_writer?.WriteLine(JsonConvert.SerializeObject(resultAndDetail.Detail, Formatting.Indented));
             }
             else
             {
@@ -348,7 +347,7 @@ namespace BuildXL.Execution.Analyzer
                     () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
                     CacheMissDiffFormat);
                 analysisResult = resultAndDetail.Result;
-                m_writer?.WriteLine(JsonConvert.SerializeObject(resultAndDetail.Detail));
+                m_writer?.WriteLine(JsonConvert.SerializeObject(resultAndDetail.Detail, Formatting.Indented));
             }
           
             if (analysisResult == CacheMissAnalysisResult.MissingFromOldBuild)

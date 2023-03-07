@@ -106,7 +106,7 @@ namespace DistributedTest {
                 ] 
                 : [
                     importFrom("System.IO.Pipelines").pkg,            
-                    ...(BuildXLSdk.isDotNetCoreApp ? [] : [
+                    ...(BuildXLSdk.isDotNetCore ? [] : [
                         importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
                     ]),
                     importFrom("Pipelines.Sockets.Unofficial").pkg,

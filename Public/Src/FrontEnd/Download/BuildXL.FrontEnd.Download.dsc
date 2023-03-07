@@ -38,7 +38,7 @@ namespace Download {
         runtimeContent:[
             // We don't actually need to deploy the downloader for full framework
             // (it causes some deployment issues, and the full framework packages we generate don't need it anyway)
-            ...addIfLazy(BuildXLSdk.isDotNetCoreApp,
+            ...addIfLazy(BuildXLSdk.isDotNetCore,
                 () => [importFrom("BuildXL.Tools").FileDownloader.withQualifier({
                     configuration : qualifier.configuration, 
                     targetFramework: qualifier.targetFramework,

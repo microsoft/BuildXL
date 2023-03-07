@@ -12,6 +12,7 @@ namespace Interfaces {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.ContentStore.Interfaces",
         sources: globR(d`.`, "*.cs"),
+        addStackTraceHiddenAttribute: true,
         references: [
             Hashing.dll,
             UtilitiesCore.dll,

@@ -7,7 +7,7 @@ import * as Managed from "Sdk.Managed";
 export const systemThreadingChannelsPackages : Managed.ManagedNugetPackage[] = 
     // System.Threading.Channels comes bundled with .NET Core, so we don't need to provide it. If we do,
     // the version we provide will likely conflict with the official one
-    isFullFramework || !isDotNetCoreApp
+    isFullFramework || !isDotNetCore
         // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.    
         ? [importFrom("System.Threading.Channels").withQualifier({ targetFramework: "netstandard2.0" }).pkg]
         : [];
@@ -15,7 +15,7 @@ export const systemThreadingChannelsPackages : Managed.ManagedNugetPackage[] =
 @@public
 export const asyncInterfacesPackage : Managed.ManagedNugetPackage = 
     // .NET Core version is tricky, because there are some crucial differences between .netcoreapp and netstandard
-    (isDotNetCoreApp 
+    (isDotNetCore 
     ? importFrom("Microsoft.Bcl.AsyncInterfaces").withQualifier({targetFramework: "netstandard2.1"}).pkg
     : importFrom("Microsoft.Bcl.AsyncInterfaces").pkg);
 
@@ -28,7 +28,7 @@ export const bclAsyncPackages : Managed.ManagedNugetPackage[] = [
 
 @@public
 export const systemThreadingTasksDataflowPackageReference : Managed.ManagedNugetPackage[] = 
-    isDotNetCoreApp ? [] : [
+    isDotNetCore ? [] : [
             importFrom("System.Threading.Tasks.Dataflow").pkg,
         ];
 
@@ -40,7 +40,7 @@ export const systemMemoryDeployment = getSystemMemoryPackages(true);
 @@public 
 export function getSystemMemoryPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
-        ...(!isDotNetCoreApp && includeNetStandard ? [
+        ...(!isDotNetCore && includeNetStandard ? [
             $.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
         ] : []),
         ...getSystemMemoryPackagesWithoutNetStandard()
@@ -50,7 +50,7 @@ export function getSystemMemoryPackages(includeNetStandard: boolean) : (Managed.
 @@public 
 export function getSystemMemoryPackagesWithoutNetStandard() : Managed.ManagedNugetPackage[] {
     return [
-        ...(isDotNetCoreApp ? [] : [
+        ...(isDotNetCore ? [] : [
             importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("System.Buffers").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,

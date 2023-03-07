@@ -62,7 +62,7 @@ export function getSystemTextJson(includeNetStandard: boolean) : (Managed.Manage
 export function getSystemTextJsonWithoutNetStandard() : Managed.ManagedNugetPackage[] {
     return [
         ...addIf(
-            !BuildXLSdk.isDotNetCoreApp,
+            !BuildXLSdk.isDotNetCore,
             importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg),
     ];
 }
@@ -98,7 +98,7 @@ export function getGrpcPackagesWithoutNetStandard() : Managed.ManagedNugetPackag
     return [
         ...getProtobufPackages(),
         importFrom("Grpc.Core").pkg,
-         BuildXLSdk.isDotNetCoreApp
+         BuildXLSdk.isDotNetCore
             ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg
             : importFrom("Grpc.Core.Api").pkg,
         ...BuildXLSdk.bclAsyncPackages,
@@ -123,7 +123,7 @@ export function getGrpcDotNetPackages() : (Managed.ManagedNugetPackage | Managed
 export function getGrpcAspNetCorePackages() : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
         ...getGrpcDotNetPackages(),
-        ...addIfLazy(BuildXLSdk.isDotNetCoreApp, () => [
+        ...addIfLazy(BuildXLSdk.isDotNetCore, () => [
                   importFrom("Grpc.Net.Client.Web").pkg,
                   importFrom("Grpc.Net.ClientFactory").pkg,
                  

@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#if !NET6_0_OR_GREATER
 namespace System.Diagnostics
 {
     /// <summary>
@@ -17,5 +16,3 @@ namespace System.Diagnostics
         public StackTraceHiddenAttribute() { }
     }
 }
-
-#endif

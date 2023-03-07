@@ -18,7 +18,7 @@ namespace Scheduler {
                 importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
                 importFrom("System.Collections.Immutable").pkg
             ]),
-            ...addIfLazy(BuildXLSdk.isDotNetCoreApp, () => [
+            ...addIfLazy(BuildXLSdk.isDotNetCore, () => [
                 importFrom("BuildXL.Utilities").PackedTable.dll,
                 importFrom("BuildXL.Utilities").PackedExecution.dll
             ]),

@@ -66,7 +66,7 @@ namespace Main {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
             
-            BuildXLSdk.isDotNetCoreApp
+            BuildXLSdk.isDotNetCore
                 ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg
                 : importFrom("Grpc.Core.Api").pkg,
         ],

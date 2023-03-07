@@ -15,7 +15,7 @@ namespace Common {
         nullable: true,
         skipDefaultReferences: true,
         references: [
-            ...addIf(BuildXLSdk.isDotNetCoreApp,
+            ...addIf(BuildXLSdk.isDotNetCore,
                 importFrom("Microsoft.Applications.Events.Server").pkg),
             importFrom("BuildXL.Utilities").Utilities.Core.dll
         ],

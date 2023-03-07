@@ -128,12 +128,6 @@ export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "n
  * Returns true if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCoreApp : boolean = qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0";
-
-/**
- * Returns true if the current qualifier is targeting .NET Core
- */
-@@public
 export const isDotNetCore : boolean = qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0";
 
 @@public
@@ -459,12 +453,30 @@ export function test(args: TestArguments) : TestResult {
     return result;
 }
 
-@@public
-export const notNullAttributesFile = f`NotNullAttributes.cs`;
+const codeAnalysis = p`PolySharpAttributes/System.Diagnostics.CodeAnalysis`;
+const compilerServices = p`PolySharpAttributes/System.Runtime.CompilerServices`;
 
-const callerArgumentExpressionAttributeFile = f`CallerArgumentExpressionAttribute.cs`;
-const requiredAttributeFile = f`RequiredAttribute.cs`;
-const isExternalInit = f`IsExternalInit.cs`;
+// Needed for .net standard and full framework
+@@public
+export const notNullAttributesFile = f`${codeAnalysis}/NotNullAttributes.cs`;
+
+@@public
+export const polySharpAttributes = {
+    // Needed for .net standard and full framework
+    notNull: notNullAttributesFile,
+    isExternalInit: f`${compilerServices}/IsExternalInit.cs`,
+    skipLocalInit: f`${compilerServices}/SkipLocalInitAttribute.cs`,
+    moduleInitializer: f`${compilerServices}/ModuleInitializerAttribute.cs`,
+    callerArgumentExpression: f`${compilerServices}/CallerArgumentExpressionAttribute.cs`,
+    interpolatedStringHandlerArgument: f`${compilerServices}/InterpolatedStringHandlerArgumentAttribute.cs`,
+    interpolatedStringHandler: f`${compilerServices}/InterpolatedStringHandlerAttribute.cs`,
+    stackTraceHidden: f`PolySharpAttributes/System.Diagnostics/StackTraceHiddenAttribute.cs`,
+
+    // Needed for pre .net 7
+    required: f`${compilerServices}/RequiredAttribute.cs`,
+    compilerFeatureRequired: f`${compilerServices}/CompilerFeatureRequiredAttribute.cs`,
+    stringSyntax: f`${codeAnalysis}/StringSyntaxAttribute.cs`
+};
 
 /**
  * Builds and runs an xunit test
@@ -831,37 +843,43 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     }
 
+    let polySharpAttributeFiles : File[] = [];
+
     // Add the file with non-nullable attributes for non-dotnet core projects
     // if nullable flag is set, but a special flag is false.
     if (args.addNotNullAttributeFile !== false && !isDotNetCore) {
         if ( (args.nullable || args.addNotNullAttributeFile === true)) {
-            args = args.merge({
-                sources: [notNullAttributesFile],
-            });
+            polySharpAttributeFiles = polySharpAttributeFiles.push(polySharpAttributes.notNull);
         }
     }
 
-    // Adding 'IsExternalInit.cs' file but only for the older .net versions.
+    // Adding attributes required for pre .net6
     if (!isDotNetCore) {
-        args = args.merge({
-            sources: [isExternalInit],
-        });
+        // Adding 'CallerArgumentExpressionAttribute' unless specified not to.
+        if (args.addCallerArgumentExpressionAttribute !== false) {
+            polySharpAttributeFiles = polySharpAttributeFiles.push(polySharpAttributes.callerArgumentExpression);
+        }
+
+        if (args.addStackTraceHiddenAttribute) {
+            polySharpAttributeFiles = polySharpAttributeFiles.push(polySharpAttributes.stackTraceHidden);
+        }
+
+        // New interpolated string attributes.
+        polySharpAttributeFiles = polySharpAttributeFiles.concat([
+            polySharpAttributes.interpolatedStringHandlerArgument,
+            polySharpAttributes.interpolatedStringHandler,
+            polySharpAttributes.isExternalInit,
+            polySharpAttributes.skipLocalInit,
+            polySharpAttributes.moduleInitializer]);
     }
 
     // Required members is needed for non .net7 target frameworks.
     // Uncomment once the .net7 PR is in.
-    // if (qualifier.targetFramework !== "net7.0") {
-        args = args.merge({
-            sources: [requiredAttributeFile]
-        });
-    // }
-
-    // Adding 'CallerArgumentExpressionAttribute' unless spcified not to.
-    if (!isDotNetCoreApp && args.addCallerArgumentExpressionAttribute !== false) {
-        args = args.merge({
-            sources: [callerArgumentExpressionAttributeFile],
-        });
+    if (qualifier.targetFramework !== "net7.0") {
+        polySharpAttributeFiles = polySharpAttributeFiles.concat([polySharpAttributes.required, polySharpAttributes.compilerFeatureRequired, polySharpAttributes.stringSyntax]);
     }
+
+    args = args.merge({sources: polySharpAttributeFiles});
 
     // Handle internalsVisibleTo
     if (args.internalsVisibleTo) {

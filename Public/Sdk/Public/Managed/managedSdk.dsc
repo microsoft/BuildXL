@@ -482,6 +482,11 @@ export interface Arguments {
     */
     addCallerArgumentExpressionAttribute?: boolean;
 
+    /*
+    * If true then the file with 'StackTraceHiddenAttribute.cs' will be added to the project that allows hiding a stack trace from a string representation of a stacktrace.
+    */
+    addStackTraceHiddenAttribute?: boolean;
+
     /** Specify nullable context option enable|disable|safeonly|warnings|safeonlywarnings.*/
     nullabilityContext?: Csc.NullabilityContext;
 

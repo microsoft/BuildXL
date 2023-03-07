@@ -6,7 +6,7 @@ namespace WebFramework {
 
     @@public
     export function getFrameworkPackage() : Shared.ManagedNugetPackage {
-        Contract.assert(isDotNetCoreApp);
+        Contract.assert(isDotNetCore);
         return Shared.Factory.createFrameworkPackage(
             importPackage(
                 () => importFrom("Microsoft.AspNetCore.App.Ref.6.0.0").pkg, 

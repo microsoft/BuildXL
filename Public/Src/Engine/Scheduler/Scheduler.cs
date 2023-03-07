@@ -2896,6 +2896,14 @@ namespace BuildXL.Scheduler
                 LocalWorker.TotalRamMb = m_perfInfo.AvailableRamMb + m_perfInfo.ProcessWorkingSetMB;
             }
 
+            // Allow increases to the worker's total installed ram over the course of the build. This may happen if the build
+            // is running on a virtual machine with dynamic memory. We do not model shrinking of installed ram during the build
+            // because that will interfere with the process working set adjustment above.
+            if (m_perfInfo.TotalRamMb.HasValue && LocalWorker.TotalRamMb.HasValue && LocalWorker.TotalRamMb.Value < m_perfInfo.TotalRamMb.Value)
+            {
+                LocalWorker.TotalRamMb = m_perfInfo.TotalRamMb;
+            }
+
             if (perfInfo.RamUsagePercentage != null)
             {
                 // This is the calculation for the low memory perf smell. This is somewhat of a check against how effective

@@ -101,9 +101,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
         }
 
-        /// <summary>
-        /// Converts a BlobIdentifier to its corresponding ContentHash.
-        /// </summary>
+        /// <nodoc/>
+        [Obsolete]
         public static ContentHash ToContentHash(this BlobIdentifier blobId)
         {
             switch(blobId.AlgorithmId)
@@ -121,6 +120,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 default:
                     throw new ArgumentException($"BlobIdentifier has an unrecognized AlgorithmId: {blobId.AlgorithmId}");
             }
+        }
+
+        /// <summary>
+        /// Converts a BlobIdentifier to its corresponding ContentHash.
+        /// </summary>
+        public static ContentHash ToContentHash(this BlobIdentifier blobId, HashType hashType)
+        {
+            return new ContentHash(hashType,blobId.Bytes);
         }
     }
 }

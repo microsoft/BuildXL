@@ -12,6 +12,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public readonly struct ChunkerConfiguration
     {
+        // DEVNOTE: COMPATIBILITY
         private static readonly IReadOnlyDictionary<int, NodeAlgorithmId> ChunkSizeToAlgorithmId =
             new Dictionary<int, NodeAlgorithmId>()
         {
@@ -83,7 +84,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             MaxChunkSize = maxChunkSize;
         }
 
-        /// <nodoc />
+        /// <nodoc/>
+        [Obsolete]
         public static NodeAlgorithmId GetNodeAlgorithmId(ChunkerConfiguration chunkerConfiguration)
         {
             var hit = ChunkSizeToAlgorithmId.TryGetValue(chunkerConfiguration.AvgChunkSize, out var nodeAlgorithmId);

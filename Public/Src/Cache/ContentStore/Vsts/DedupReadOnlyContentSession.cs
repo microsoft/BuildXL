@@ -182,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             BlobIdentifier blobId = contentHash.ToBlobIdentifier();
             DedupIdentifier dedupId = blobId.ToDedupIdentifier();
 
-            if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
+            if (dedupId.AlgorithmId == AlgorithmId.Chunk)
             {
                 // No need to optimize since pinning a chunk is always a fast operation.
                 return await PinImplAsync(context, contentHash, keepUntil);
@@ -240,11 +240,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 PinResult pinResult;
                 var dedupId = contentHash.ToBlobIdentifier().ToDedupIdentifier();
-                if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
+                if (dedupId.AlgorithmId == AlgorithmId.Chunk)
                 {
                     pinResult = await TryPinChunkAsync(context, dedupId, keepUntil);
                 }
-                else if (((NodeAlgorithmId)dedupId.AlgorithmId).IsValidNode())
+                else if (dedupId.AlgorithmId == AlgorithmId.Node)
                 {
                     pinResult = await TryPinNodeAsync(context, dedupId, keepUntil);
                 }
@@ -582,11 +582,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             foreach (var id in dedupIdentifiers)
             {
-                if (id.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
+                if (id.AlgorithmId == AlgorithmId.Chunk)
                 {
                     chunks.Add(id);
                 }
-                else if (((NodeAlgorithmId)id.AlgorithmId).IsValidNode())
+                else if (id.AlgorithmId == AlgorithmId.Node)
                 {
                     nodes.Add(id);
                 }

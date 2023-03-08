@@ -524,8 +524,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
             foreach (var blobDownloadUri in blobDownloadUris)
             {
+                BlobIdentifier id = BlobIdentifier.Deserialize(blobDownloadUri.Key);
                 BackingContentSession.UriCache.AddDownloadUri(
-                    BlobIdentifier.Deserialize(blobDownloadUri.Key).ToContentHash(),
+                    id.ToContentHash(BlobIdentifier.ConvertCompatibleIdToHashType(id.AlgorithmId)),
                     new PreauthenticatedUri(blobDownloadUri.Value, EdgeType.Unknown)); // EdgeType value shouldn't matter because we don't use it.
             }
         }

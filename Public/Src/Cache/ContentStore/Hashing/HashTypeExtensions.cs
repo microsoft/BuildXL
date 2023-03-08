@@ -29,6 +29,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static readonly Dictionary<HashType, string> ValueToName = NameToValue.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
+        // DEVNOTE: COMPATIBILITY - this will be deleted when we remove obsolete methods:
         private static readonly Dictionary<HashType, NodeAlgorithmId> TypeToAlgorithmId =
             new Dictionary<HashType, NodeAlgorithmId>()
             {
@@ -121,8 +122,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
             if (!hit) {throw new NotImplementedException($"{nameof(GetAvgChunkSize)}: No average chunk size found for hash type {hashType.Serialize()}.");}
             return avgChunkSize;
         }
-
-        /// <nodoc />
+        
+        /// <nodoc/>        
+        [Obsolete]
         public static NodeAlgorithmId GetNodeAlgorithmId(this HashType hashType)
         {
             if (!hashType.IsValidDedup()) {throw new NotImplementedException($"{hashType.Serialize()} doesn't support chunking.");}

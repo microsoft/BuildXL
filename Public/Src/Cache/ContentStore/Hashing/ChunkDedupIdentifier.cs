@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         public ChunkDedupIdentifier(byte[] hashResult)
-            : base(hashResult, ChunkAlgorithmId)
+            : base(hashResult, Hashing.AlgorithmId.Chunk)
         {
             Contract.Requires(hashResult != null);
             Validate();
@@ -52,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void Validate()
         {
-            Contract.Assert(AlgorithmId == ChunkAlgorithmId, $"The given algorithm does not represent a {nameof(ChunkDedupIdentifier)}. Actual: {AlgorithmId} Expected: {ChunkAlgorithmId}");
+            Contract.Assert(AlgorithmId == Hashing.AlgorithmId.Chunk, $"The given algorithm does not represent a {nameof(ChunkDedupIdentifier)}. Actual: {AlgorithmId} Expected: {Hashing.AlgorithmId.Chunk}");
         }
     }
 }

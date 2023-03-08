@@ -19,13 +19,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private int AlgorithmIdIndex => _value.Length - 1;
 
         /// <nodoc />
-        protected DedupIdentifier(byte[] algorithmResult, byte algorithmId)
+        protected DedupIdentifier(byte[] algorithmResult,byte algorithmId)
         {
             Contract.Requires(algorithmResult != null);
             Contract.Requires(algorithmResult.Length == 32);
 
             _value = new byte[algorithmResult.Length + 1];
             algorithmResult.CopyTo(_value, 0);
+
             _value[algorithmResult.Length] = algorithmId;
         }
 
@@ -56,43 +57,38 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             return Create(
                 node.Hash,
-                (node.Type == DedupNode.NodeType.ChunkLeaf) ?
-                    ChunkDedupIdentifier.ChunkAlgorithmId :
-                    (byte)NodeAlgorithmId.Node64K); // TODO: We need to fix this.
+                node.Type == DedupNode.NodeType.ChunkLeaf ? Hashing.AlgorithmId.Chunk 
+                    : Hashing.AlgorithmId.Node); 
         }
 
+        /// <nodoc/>
         public static DedupIdentifier Create(byte[] algorithmResult, byte algorithmId)
         {
             Contract.Requires(algorithmResult != null);
 
-            if (algorithmId == ChunkDedupIdentifier.ChunkAlgorithmId)
+            switch(algorithmId)
             {
-                return new ChunkDedupIdentifier(algorithmResult);
+                case Hashing.AlgorithmId.Chunk:
+                    return new ChunkDedupIdentifier(algorithmResult);
+                case Hashing.AlgorithmId.Node:
+                    return new NodeDedupIdentifier(algorithmResult);
+                default:
+                    throw new NotSupportedException($"{algorithmId} is not a known chunked algorithm.");
             }
-            else if (((NodeAlgorithmId)algorithmId).IsValidNode())
-            {
-                return new NodeDedupIdentifier(algorithmResult, (NodeAlgorithmId)algorithmId);
-            }
-
-            throw new NotSupportedException($"Unknown algorithm {algorithmId}");
         }
 
         public static DedupIdentifier Create(HashAndAlgorithm hashAndAlgorithm)
         {
             Contract.Requires(hashAndAlgorithm.Bytes != null);
 
-            byte algorithmId = hashAndAlgorithm.AlgorithmId;
-            if (algorithmId == ChunkDedupIdentifier.ChunkAlgorithmId)
+            switch(hashAndAlgorithm.AlgorithmId)
             {
-                return new ChunkDedupIdentifier(hashAndAlgorithm);
-            }
-            else if (((NodeAlgorithmId)algorithmId).IsValidNode())
-            {
-                return new NodeDedupIdentifier(hashAndAlgorithm);
-            }
-            else
-            {
-                throw new NotSupportedException($"Unknown algorithm {algorithmId}");
+                case Hashing.AlgorithmId.Chunk:
+                    return new ChunkDedupIdentifier(hashAndAlgorithm);
+                case Hashing.AlgorithmId.Node:
+                    return new NodeDedupIdentifier(hashAndAlgorithm);
+                default:
+                    throw new NotSupportedException($"Unknown algorithm {hashAndAlgorithm.AlgorithmId}");
             }
         }
 
@@ -216,7 +212,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return ByteArrayComparer.Instance.Compare(_value, other._value);
         }
     }
-
     public readonly struct HashAndAlgorithm
     {
         public readonly byte[] Bytes;

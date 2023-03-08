@@ -36,13 +36,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <nodoc />
         public static BlobIdentifier TestInstance() => new BlobIdentifier();
 
+        public static ContentHash IdStringToContentHash(string blobId) {
+            return IdToContentHash(BlobIdentifier.Deserialize(blobId));
+        }
+
+        public static ContentHash IdToContentHash(BlobIdentifier id) {
+            return id.ToContentHash(ConvertCompatibleIdToHashType(id.AlgorithmId));
+        }
+
         // Default constructor for test ONLY usage in the ADO repo.
         private BlobIdentifier()
         {
             _identifierValue = null!; // CS8618 - Nullable value initialize, suppressing since the usage is test only.
         }
 
-        public BlobIdentifier(byte[] algorithmResult, byte algorithmId)
+        /// <nodoc/>
+        public BlobIdentifier(byte[] algorithmResult, byte algorithmId) 
         {
             Contract.Requires(algorithmResult != null);
 
@@ -95,7 +104,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// Gets the (single byte) algorithm id used to generate the blob identifier (hash).
         /// </summary>
         public byte AlgorithmId => _identifierValue[AlgorithmIdIndex];
-
+        
         /// <summary>
         /// Gets the unique identifier for binary content computed when the
         /// class instance was created
@@ -150,12 +159,35 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public long GetLongHashCode()
         {
-            return BitConverter.ToInt64(_identifierValue, 0);
+            return BitConverter.ToInt64(_identifierValue, 0);            
         }
 
+        // DEVNOTE: COMPATIBILITY
+        public static HashType ConvertCompatibleIdToHashType(byte algorithmId)
+        {
+            switch(algorithmId)
+            {
+                case VsoHash.VsoAlgorithmId: return HashType.Vso0;
+                // DEVNOTE: this is a bit of a hack, but for chunks all 64k chunks are valid 
+                // 1024k chunks, so this works for both sizes without needing additional information
+                case ChunkDedupIdentifier.ChunkAlgorithmId: return HashType.Dedup1024K; 
+                case (byte)NodeAlgorithmId.Node1024K: return HashType.Dedup1024K;
+                case (byte)NodeAlgorithmId.Node64K: return HashType.Dedup64K;
+                default:
+                    throw new InvalidOperationException("Invalid algorithm");
+            }
+        }
+
+        /// <nodoc/>
+        [Obsolete]
         public ContentHash ToContentHash()
         {
-            return BlobIdentifierHelperExtensions.ToContentHash(this);
+            return BlobIdentifierHelperExtensions.ToContentHash(this, ConvertCompatibleIdToHashType(AlgorithmId));
+        }
+
+        public ContentHash ToContentHash(HashType hashType)
+        {
+            return BlobIdentifierHelperExtensions.ToContentHash(this, hashType);
         }
 
         /// <summary>
@@ -163,14 +195,28 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// when it is required that the result can't be predicted.
         /// </summary>
         [CLSCompliant(false)]
-        public static BlobIdentifier Random(HashType hashType = HashType.Vso0)
+        public static BlobIdentifier Random(byte dedupType = Hashing.AlgorithmId.File)
         {
             var randomBlob = new byte[32];
             ThreadSafeRandom.Generator.NextBytes(randomBlob);
-            return CreateFromAlgorithmResult(randomBlob, AlgorithmIdLookup.Find(hashType));
+            return CreateFromAlgorithmResult(randomBlob, dedupType);
         }
 
-        public static BlobIdentifier CreateFromAlgorithmResult(string algorithmResult, byte algorithmId = VsoHash.VsoAlgorithmId)
+        // DEVNOTE: COMPATIBILITY
+        public static byte ConvertCompatibleAlgorithmId(byte oldId)
+        {
+            switch(oldId) {
+                case VsoHash.VsoAlgorithmId: return Hashing.AlgorithmId.File;
+                case ChunkDedupIdentifier.ChunkAlgorithmId: return Hashing.AlgorithmId.Chunk;
+                case (byte)NodeAlgorithmId.Node1024K: return Hashing.AlgorithmId.Node;
+                case (byte)NodeAlgorithmId.Node64K: return Hashing.AlgorithmId.Node;
+                default:
+                    throw new InvalidOperationException("Invalid algorithm");
+            }
+        }
+
+        /// <nodoc/>
+        public static BlobIdentifier CreateFromAlgorithmResult(string algorithmResult, byte algorithmId = Hashing.AlgorithmId.File)
         {
             if (!HexUtilities.TryToByteArray(algorithmResult, out var identifier))
             {
@@ -180,7 +226,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return new BlobIdentifier(identifier, algorithmId);
         }
 
-        public static BlobIdentifier CreateFromAlgorithmResult(byte[] algorithmResult, byte algorithmId = VsoHash.VsoAlgorithmId)
+        /// <nodoc/>
+        public static BlobIdentifier CreateFromAlgorithmResult(byte[] algorithmResult, byte algorithmId = Hashing.AlgorithmId.File)
         {
             return new BlobIdentifier(algorithmResult, algorithmId);
         }

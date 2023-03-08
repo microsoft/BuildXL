@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     break;
                 case HashType.Dedup64K:
                 case HashType.Dedup1024K:
-                    hash = node.GetDedupIdentifier(hashType).ToBlobIdentifier().Bytes;
+                    hash = node.GetDedupIdentifier().ToBlobIdentifier().Bytes;
                     break;
                 default:
                     throw new NotImplementedException($"Unexpected HashType '{hashType}' for DedupNode.");
@@ -31,33 +31,54 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return new ContentHash(hashType, hash);
         }
 
-        /// <nodoc />
+        /// <nodoc/>
+        [Obsolete]
         public static NodeDedupIdentifier CalculateNodeDedupIdentifier(this DedupNode node, HashType hashType)
         {
-            return new NodeDedupIdentifier(ChunkHasher.GetContentHash(node.Serialize()).ToHashByteArray(), hashType.GetNodeAlgorithmId());
+            return new NodeDedupIdentifier(ChunkHasher.GetContentHash(node.Serialize()).ToHashByteArray());
         }
 
         /// <nodoc />
+        public static NodeDedupIdentifier CalculateNodeDedupIdentifier(this DedupNode node)
+        {
+            return NodeDedupIdentifier.CalculateIdentifierFromSerializedNode(node.Serialize());
+        }
+
+        /// <nodoc/>
+        [Obsolete]
         public static DedupIdentifier GetDedupIdentifier(this DedupNode node, HashType hashType)
+        {
+            return GetDedupIdentifier(node);
+        }
+
+        /// <nodoc />
+        public static DedupIdentifier GetDedupIdentifier(this DedupNode node)
         {
             if (node.Type == DedupNode.NodeType.InnerNode)
             {
-                return node.GetNodeIdentifier(hashType);
+                return node.GetNodeIdentifier();
             }
             else
             {
                 return node.GetChunkIdentifier();
             }
         }
+        
+        /// <nodoc />
+        [Obsolete]
+        public static NodeDedupIdentifier GetNodeIdentifier(this DedupNode node, HashType hashType)
+        {
+            return GetNodeIdentifier(node);
+        }
 
         /// <nodoc />
-        public static NodeDedupIdentifier GetNodeIdentifier(this DedupNode node, HashType hashType)
+        public static NodeDedupIdentifier GetNodeIdentifier(this DedupNode node)
         {
             if (node.Type != DedupNode.NodeType.InnerNode)
             {
                 throw new ArgumentException($"The given hash does not represent a {nameof(NodeDedupIdentifier)}");
             }
-            return new NodeDedupIdentifier(node.Hash, hashType.GetNodeAlgorithmId());
+            return new NodeDedupIdentifier(node.Hash);
         }
 
         /// <nodoc />

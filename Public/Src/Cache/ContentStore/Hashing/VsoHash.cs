@@ -19,7 +19,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 {
     public static class VsoHash
     {
+        /// DEVNOTE: COMPATIBILITY
         public const byte VsoAlgorithmId = 0;
+
         private const int PagesPerBlock = 32;
         public const int PageSize = 64 * 1024;
         public const int BlockSize = PagesPerBlock * PageSize; // 32 * 64 * 1024 = 2MB
@@ -696,7 +698,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 //     throw new InvalidOperationException("Blocks cannot be bigger than BlockSize.");
                 // }
                 UpdateInternal(currentBlockIdentifier, true);
-                return new BlobIdentifier(_rollingId, VsoAlgorithmId);
+                return new BlobIdentifier(_rollingId, AlgorithmId.File);
             }
 
             private void UpdateInternal(byte[] currentBlockIdentifier, bool isFinalBlock)
@@ -801,7 +803,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 #else
                 UpdateInternal(currentBlockIdentifier, true);
 #endif
-                return new BlobIdentifier(_rollingId, VsoAlgorithmId);
+                return new BlobIdentifier(_rollingId, AlgorithmId.File);
             }
         }
     }

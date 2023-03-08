@@ -57,7 +57,11 @@ namespace BuildXL.Engine.Distribution.Grpc
                 m_counters, 
                 async (callOptions) => await m_client.HeartbeatAsync(GrpcUtils.EmptyResponse, callOptions));
             m_connectionManager.OnConnectionFailureAsync += onConnectionFailureAsync;
+#if NET6_0_OR_GREATER
             m_client = new Orchestrator.OrchestratorClient(m_connectionManager.Channel);
+#else
+            m_client = null;
+#endif
             m_initialized = true;
         }
 

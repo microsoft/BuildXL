@@ -292,22 +292,6 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int> GrpcMaxAttempts = CreateSetting("BuildXLGrpcMaxAttempts", value => ParseInt32(value) ?? 2);
 
         /// <summary>
-        /// Whether new .Net client is enabled for grpc
-        /// </summary>
-        /// <remarks>
-        /// Default enabled
-        /// </remarks>
-        public static readonly Setting<bool> GrpcDotNetClientEnabled = CreateSetting("BuildXLGrpcDotNetClientEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
-
-        /// <summary>
-        /// Whether MonitorConnections enabled for grpc.net
-        /// </summary>
-        /// <remarks>
-        /// Default enabled
-        /// </remarks>
-        public static readonly Setting<bool> GrpcDotNetMonitorConnectionsEnabled = CreateSetting("BuildXLGrpcDotNetMonitorConnectionsEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
-
-        /// <summary>
         /// Whether streaming is enabled for grpc calls
         /// </summary>
         /// <remarks>

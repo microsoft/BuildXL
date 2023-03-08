@@ -12,7 +12,6 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 using NuGet.Versioning;
 using Moniker = BuildXL.Utilities.Core.PathAtom;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -163,7 +162,7 @@ namespace BuildXL.FrontEnd.Nuget
         public static NugetAnalyzedPackage TryAnalyzeNugetPackage(
             FrontEndContext context,
             NugetFrameworkMonikers nugetFrameworkMonikers,
-            [CanBeNull] XDocument nuSpec,
+            [AllowNull] XDocument nuSpec,
             PackageOnDisk packageOnDisk,
             Dictionary<string, INugetPackage> packagesOnConfig,
             bool doNotEnforceDependencyVersions,

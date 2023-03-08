@@ -6,7 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 
 #nullable enable
 

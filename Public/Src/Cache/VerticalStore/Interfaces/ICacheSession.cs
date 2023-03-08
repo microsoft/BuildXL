@@ -3,11 +3,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Cache.Interfaces
 {

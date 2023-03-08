@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Cache.Interfaces
 {

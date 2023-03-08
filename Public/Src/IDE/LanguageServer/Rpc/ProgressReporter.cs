@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ide.LanguageServer;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Ide.JsonRpc
 {

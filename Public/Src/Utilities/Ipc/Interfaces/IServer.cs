@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Ipc.Interfaces
 {

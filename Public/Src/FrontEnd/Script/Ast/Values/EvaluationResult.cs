@@ -3,10 +3,10 @@
 
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using BuildXL.FrontEnd.Script.Literals;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script.Values
 {

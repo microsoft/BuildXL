@@ -48,7 +48,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
-using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.Core.BuildParameters;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -236,7 +235,7 @@ namespace BuildXL.Engine
         /// <remarks>
         /// This is only populate on official builds, on developer builds this null
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         private readonly string m_commitId;
 
         /// <summary>
@@ -245,7 +244,7 @@ namespace BuildXL.Engine
         /// <remarks>
         /// This is only populate on official builds, on developer builds this null
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         private readonly string m_buildVersion;
 
         private bool IsDistributedOrchestrator => Configuration.Distribution.BuildRole.IsOrchestrator();
@@ -267,8 +266,8 @@ namespace BuildXL.Engine
             DateTime? processStartTimeUtc,
             TrackingEventListener trackingEventListener,
             bool rememberAllChangedTrackedInputs,
-            [CanBeNull] string commitId,
-            [CanBeNull] string buildVersion)
+            [AllowNull] string commitId,
+            [AllowNull] string buildVersion)
         {
             Contract.Requires(context != null);
             Contract.Requires(configuration != null);

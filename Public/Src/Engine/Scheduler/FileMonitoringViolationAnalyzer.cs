@@ -21,7 +21,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -302,12 +301,12 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         public AnalyzePipViolationsResult AnalyzePipViolations(
             Process pip,
-            [CanBeNull] IReadOnlyCollection<ReportedFileAccess> violations,
-            [CanBeNull] IReadOnlyCollection<ReportedFileAccess> allowlistedAccesses,
-            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
-            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
-            [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
+            [AllowNull] IReadOnlyCollection<ReportedFileAccess> violations,
+            [AllowNull] IReadOnlyCollection<ReportedFileAccess> allowlistedAccesses,
+            [AllowNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
+            [AllowNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+            [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
             out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
         {
@@ -530,9 +529,9 @@ namespace BuildXL.Scheduler
         public bool AnalyzeDynamicViolations(
             Process pip,
             IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
-            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
-            [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
+            [AllowNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+            [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent)
         {
             Contract.Requires(pip != null);
@@ -564,12 +563,12 @@ namespace BuildXL.Scheduler
 
         private List<ReportedViolation> ReportDynamicViolations(
             Process pip,
-            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectories,
-            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
-            [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
+            [AllowNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectories,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
+            [AllowNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+            [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactInfo,
-            [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             List<ReportedViolation> dynamicViolations = new List<ReportedViolation>();
             var absentPathProbesUnderOutputDirectories = dynamicObservations?
@@ -762,7 +761,7 @@ namespace BuildXL.Scheduler
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             List<ReportedViolation> reportedViolations,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo,
-            [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             foreach (var kvp in sharedOpaqueDirectoryWriteAccesses)
             {
@@ -907,7 +906,7 @@ namespace BuildXL.Scheduler
             List<ReportedViolation> reportedViolations, 
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo,
             FileArtifactWithAttributes access,
-            [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             // The access in an opaque has always rewrite count 1
             Contract.Assert(access.RewriteCount == 1);
@@ -1333,7 +1332,7 @@ namespace BuildXL.Scheduler
             Process pip,
             IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
             List<ReportedViolation> reportedViolations,
-            [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             foreach (var undeclaredRead in allowedUndeclaredReads)
             {

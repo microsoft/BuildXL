@@ -527,7 +527,7 @@ namespace BuildXL.FrontEnd.Core
             }
         }
 
-        internal ConversionResult DoPhaseConvert([JetBrains.Annotations.CanBeNull] EvaluationFilter evaluationFilter)
+        internal ConversionResult DoPhaseConvert([AllowNull] EvaluationFilter evaluationFilter)
         {
             Contract.Requires(evaluationFilter != null || Workspace != null, "Evaluation filter may be null if workspace is enabled");
 

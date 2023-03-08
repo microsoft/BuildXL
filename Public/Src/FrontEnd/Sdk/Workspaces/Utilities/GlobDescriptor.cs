@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {

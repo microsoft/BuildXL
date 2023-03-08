@@ -12,7 +12,7 @@ using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values
@@ -53,7 +53,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Captured template reference in the context of the thunk position. Can be null if we are in V1.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public Expression CapturedTemplateReference { get; }
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace BuildXL.FrontEnd.Script.Values
         }
 
         /// <nodoc />
-        public Thunk(Expression expression, [CanBeNull]Expression capturedTemplateReference)
+        public Thunk(Expression expression, [AllowNull]Expression capturedTemplateReference)
         {
             Contract.Requires(expression != null);
 

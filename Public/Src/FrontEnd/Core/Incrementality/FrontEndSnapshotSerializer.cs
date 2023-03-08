@@ -2,11 +2,11 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using TypeScript.Net.Incrementality;
 
 namespace BuildXL.FrontEnd.Core.Incrementality
@@ -44,7 +44,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Deserializes the state of all specs from the given reader.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         public static SpecBindingState[] DeserializeSpecStates([NotNull] BuildXLReader reader, PathTable pathTable, int? length = null)
         {
             if (length == null)
@@ -114,7 +114,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Deserializes the spec fingerprint from the given reader.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         public static SpecBindingSymbols DeserializeBindingFingerprint([NotNull] BuildXLReader reader)
         {
             var declaredSymbols = ReadBindingSymbols(reader);
@@ -156,7 +156,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Deserializes the <see cref="RoaringBitSet"/> from the given reader.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         public static RoaringBitSet DeserializeBitVector([NotNull]BuildXLReader reader)
         {
             var size = reader.ReadInt32Compact();

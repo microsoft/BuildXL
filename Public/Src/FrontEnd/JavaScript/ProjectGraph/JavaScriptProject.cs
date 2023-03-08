@@ -8,7 +8,7 @@ using System.Linq;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 {
@@ -26,7 +26,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             string name,
             AbsolutePath projectFolder,
             string scriptCommandName,
-            [CanBeNull] string scriptCommand,
+            [AllowNull] string scriptCommand,
             AbsolutePath tempFolder,
             IReadOnlyCollection<AbsolutePath> outputDirectories,
             IEnumerable<FileArtifact> inputFiles,

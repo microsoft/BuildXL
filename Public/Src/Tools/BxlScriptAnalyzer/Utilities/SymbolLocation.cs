@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 using TypeScript.Net.Types;
 
 namespace TypeScript.Net.DScript
@@ -50,6 +50,6 @@ namespace TypeScript.Net.DScript
         /// <summary>
         /// Creates a file-local location of a symbol.
         /// </summary>
-        public static SymbolLocation LocalLocation(string path, TextRange range, [CanBeNull]ISymbol symbol) => new SymbolLocation(SymbolLocationKind.LocalLocation, path: path, symbol: symbol, range: range);
+        public static SymbolLocation LocalLocation(string path, TextRange range, [AllowNull]ISymbol symbol) => new SymbolLocation(SymbolLocationKind.LocalLocation, path: path, symbol: symbol, range: range);
     }
 }

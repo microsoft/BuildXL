@@ -2,13 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Core;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

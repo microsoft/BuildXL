@@ -11,10 +11,8 @@ using System.Text;
 using System.Threading;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.TypeChecking;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -184,7 +182,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        public TemplateSpanNodeArray([CanBeNull]ITemplateSpan firstElement, [CanBeNull]ITemplateSpan secondElement, int pos, int end)
+        public TemplateSpanNodeArray([AllowNull]ITemplateSpan firstElement, [AllowNull]ITemplateSpan secondElement, int pos, int end)
         {
             m_firstElement = firstElement;
             m_secondElement = secondElement;
@@ -284,13 +282,13 @@ namespace TypeScript.Net.Types
         public static NodeArray<T> Empty<T>() => NodeArray<T>.Empty;
 
         /// <nodoc/>
-        public static NodeArrayEnumerable<T> AsStructEnumerable<T>([CanBeNull]this INodeArray<T> @this)
+        public static NodeArrayEnumerable<T> AsStructEnumerable<T>([AllowNull]this INodeArray<T> @this)
         {
             return new NodeArrayEnumerable<T>(@this);
         }
 
         /// <nodoc/>
-        public static bool Any<T>([CanBeNull]this INodeArray<T> @this, Func<T, bool> predicate)
+        public static bool Any<T>([AllowNull]this INodeArray<T> @this, Func<T, bool> predicate)
         {
             foreach (var e in @this.AsStructEnumerable())
             {
@@ -304,7 +302,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        public static bool All<T>([CanBeNull]this INodeArray<T> @this, Func<T, bool> predicate)
+        public static bool All<T>([AllowNull]this INodeArray<T> @this, Func<T, bool> predicate)
         {
             foreach (var e in @this.AsStructEnumerable())
             {
@@ -342,7 +340,7 @@ namespace TypeScript.Net.Types
             private int m_index;
 
             /// <nodoc />
-            public NodeEnumerator([CanBeNull]INodeArray<T> array)
+            public NodeEnumerator([AllowNull]INodeArray<T> array)
             {
                 m_array = array;
                 m_index = -1;
@@ -386,7 +384,7 @@ namespace TypeScript.Net.Types
             private readonly Func<TSource, TResult> m_selector;
 
             /// <nodoc />
-            public NodeArraySelectorEnumerable([CanBeNull]INodeArray<TSource> array, Func<TSource, TResult> selector)
+            public NodeArraySelectorEnumerable([AllowNull]INodeArray<TSource> array, Func<TSource, TResult> selector)
             {
                 m_array = array;
                 m_selector = selector;
@@ -410,7 +408,7 @@ namespace TypeScript.Net.Types
             private int m_index;
 
             /// <nodoc />
-            public NodeSelectorEnumerator([CanBeNull]INodeArray<TSource> array, Func<TSource, TResult> selector)
+            public NodeSelectorEnumerator([AllowNull]INodeArray<TSource> array, Func<TSource, TResult> selector)
             {
                 m_array = array;
                 m_index = -1;
@@ -1177,7 +1175,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns a file name that corresponds to a module referenced by <paramref name="sourceFile"/>.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         string TryGetResolvedModulePath(ISourceFile sourceFile, string moduleName, HashSet<ISourceFile> filteredSpecs);
 
         /// <summary>
@@ -1919,19 +1917,19 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// First value declaration of the symbol
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         IDeclaration ValueDeclaration { get; }
 
         /// <summary>
         /// Class, interface or literal instance members
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         ISymbolTable Members { get; }
 
         /// <summary>
         /// Module exports
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         ISymbolTable Exports { get; }
 
         /// <summary>
@@ -2419,13 +2417,13 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Symbol associated with type (if any)
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         ISymbol Symbol { get; }
 
         /// <summary>
         /// Destructuring pattern represented by type (if any)
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         DestructuringPattern Pattern { get; set; }
 
         /// <summary>
@@ -2477,7 +2475,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Resolve object type.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IResolvedType Resolve([NotNull]ResolvedTypeData resolvedTypeData);
     }
 
@@ -3408,7 +3406,7 @@ namespace TypeScript.Net.Types
     public interface IResolvedModuleWithFailedLookupLocations
     {
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         IResolvedModule ResolvedModule { get; }
 
         /// <nodoc/>
@@ -3583,7 +3581,7 @@ namespace TypeScript.Net.Types
             private readonly StringBuilder m_builder = new StringBuilder();
             private bool m_inaccessibleErrorReported;
 
-            public SymbolWriter([CanBeNull]ITypeChecker checker)
+            public SymbolWriter([AllowNull]ITypeChecker checker)
             {
                 m_checker = checker;
                 m_inaccessibleErrorReported = false;
@@ -3674,7 +3672,7 @@ namespace TypeScript.Net.Types
 
         /// <nodoc/>
         // TODO:ST: use actual pool!
-        public static IStringSymbolWriter GetSingleLineStringWriter([CanBeNull]ITypeChecker checker = null)
+        public static IStringSymbolWriter GetSingleLineStringWriter([AllowNull]ITypeChecker checker = null)
         {
             return new SymbolWriter(checker);
         }

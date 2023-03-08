@@ -2,13 +2,13 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using BuildXL.FrontEnd.Core.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Core.Incrementality
@@ -46,7 +46,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
             m_cacheFileName = Path.Combine(outputFolder, CacheFileName);
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         public WorkspaceBindingSnapshot TryLoadFrontEndSnapshot(int expectedSpecCount)
         {
             try

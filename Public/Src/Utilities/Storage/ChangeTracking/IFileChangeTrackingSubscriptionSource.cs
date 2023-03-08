@@ -3,9 +3,9 @@
 
 using System;
 using System.IO;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Storage.ChangeTracking

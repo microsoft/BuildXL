@@ -17,7 +17,6 @@ using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using LanguageServer;
 using LanguageServer.Json;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
@@ -53,7 +52,7 @@ namespace BuildXL.Ide.LanguageServer
 
         private LoggingContext LoggingContext => m_tracer.LoggingContext;
 
-        [CanBeNull]
+        [AllowNull]
         private ProjectManagementProvider m_projectManagementProvider;
 
         private Uri m_rootUri;

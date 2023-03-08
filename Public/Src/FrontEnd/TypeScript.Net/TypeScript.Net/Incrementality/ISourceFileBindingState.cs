@@ -1,9 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace TypeScript.Net.Incrementality
 {
@@ -22,20 +22,20 @@ namespace TypeScript.Net.Incrementality
         /// Bit vector that represents files that the current file depend on.
         /// If the bit is set then the current file depends on file with a given index.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         RoaringBitSet FileDependents { get; }
 
         /// <summary>
         /// Set of files that depend on the current file.
         /// If the bit is set then the current file depends on file with a given index.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         RoaringBitSet FileDependencies { get; }
 
         /// <summary>
         /// Returns binding symbols for the current file.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         ISpecBindingSymbols BindingSymbols { get; }
     }
 }

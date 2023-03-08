@@ -9,7 +9,7 @@ using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -31,7 +31,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Parses the configuration
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         IConfiguration ParseConfig([NotNull] FrontEndEngineAbstraction engineAbstraction, [NotNull]ICommandLineConfiguration configuration);
 
         /// <summary>
@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// </remarks>
         bool PopulateGraph(
             [NotNull]Task<Possible<EngineCache>> cache,
-            [CanBeNull]IMutablePipGraph graph,
+            [AllowNull]IMutablePipGraph graph,
             [NotNull]FrontEndEngineAbstraction engineAbstraction,
             [NotNull]EvaluationFilter evaluationFilter,
             [NotNull]IConfiguration configuration,
@@ -58,7 +58,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// Returns the list of paths that shouldn't be scrubbed by the engine
         /// </summary>
         /// <remarks>This method is assumed to be called after InitializeHost and ParseConfig</remarks>
-        [NotNull]
+        [return: NotNull]
         IReadOnlyList<string> GetNonScrubbablePaths();
 
         /// <summary>

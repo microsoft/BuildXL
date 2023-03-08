@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
@@ -10,7 +11,6 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Statements
@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Script.Statements
         public IReadOnlyList<CaseClause> CaseClauses { get; }
 
         /// <nodoc />
-        [CanBeNull]
+        [AllowNull]
         public DefaultClause DefaultClause { get; }
 
         private Dictionary<EvaluationResult, int> m_caseTable;

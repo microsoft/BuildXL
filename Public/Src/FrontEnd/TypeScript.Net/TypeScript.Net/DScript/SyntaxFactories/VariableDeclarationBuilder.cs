@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 
@@ -67,7 +67,7 @@ namespace TypeScript.Net.DScript
         }
 
         /// <nodoc />
-        [NotNull]
+        [return: NotNull]
         public IVariableStatement Build()
         {
             if (m_expression == null)

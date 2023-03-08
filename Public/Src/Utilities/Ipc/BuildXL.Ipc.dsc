@@ -8,6 +8,7 @@ namespace Ipc {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Ipc",
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             $.dll,
             $.Storage.dll,

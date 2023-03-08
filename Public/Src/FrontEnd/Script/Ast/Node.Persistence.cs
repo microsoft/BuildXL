@@ -16,7 +16,6 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
@@ -25,22 +24,22 @@ namespace BuildXL.FrontEnd.Script
     public partial class Node
     {
         /// <nodoc />
-        [CanBeNull]
+        [return: MaybeNull]
         public static Expression ReadExpression(DeserializationContext context) => Read<Expression>(context);
 
         /// <nodoc />
-        [CanBeNull]
+        [return: MaybeNull]
         public static Types.Type ReadType(DeserializationContext context) => Read<Types.Type>(context);
 
         /// <nodoc />
-        [CanBeNull]
+        [return: MaybeNull]
         public static TNode Read<TNode>(DeserializationContext context) where TNode : Node
         {
             return (TNode)Read(context);
         }
 
         /// <nodoc />
-        [CanBeNull]
+        [return: MaybeNull]
         [SuppressMessage("Microsoft.Maintainability", "CA1505", Justification = "Method is still maintainable because it is comprised of one switch statement with a single line of code for each case.")]
         public static Node Read(DeserializationContext context)
         {
@@ -443,7 +442,7 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// Helper method that serializes a given node or writes 'null node' if the <paramref name="node"/> is null.
         /// </summary>
-        public static void Serialize([CanBeNull]Node node, BuildXLWriter writer)
+        public static void Serialize([AllowNull]Node node, BuildXLWriter writer)
         {
             (node ?? NullNode.Instance).Serialize(writer);
         }

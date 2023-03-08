@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace TypeScript.Net.Types
 {
@@ -14,7 +14,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns the first declaration of a given symbol skipping DScript injected nodes.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         public static IDeclaration GetFirstDeclarationOrDefault([NotNull]this ISymbol symbol)
         {
             foreach (var d in symbol.DeclarationList)
@@ -31,7 +31,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns the declarations of a given symbol skipping DScript injected nodes.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         public static IEnumerable<IDeclaration> GetDeclarations([NotNull]this ISymbol symbol)
         {
             foreach (var d in symbol.DeclarationList)
@@ -43,7 +43,7 @@ namespace TypeScript.Net.Types
             }
         }
 
-        [NotNull]
+        [return: NotNull]
         internal static ISymbolTable GetMembers(this ISymbol symbol)
         {
             // This trick allows to leave ISymbol.Members to be readonly.
@@ -64,7 +64,7 @@ namespace TypeScript.Net.Types
             return @this.Members;
         }
 
-        [NotNull]
+        [return: NotNull]
         internal static ISymbolTable GetExports(this ISymbol symbol)
         {
             // This trick allows to leave ISymbol.Members to be readonly.
@@ -85,7 +85,7 @@ namespace TypeScript.Net.Types
             return @this.Exports;
         }
 
-        [NotNull]
+        [return: NotNull]
         internal static ISymbol GetOriginalSymbolOrSelf(this ISymbol symbol)
         {
             return symbol.OriginalSymbol ?? symbol;

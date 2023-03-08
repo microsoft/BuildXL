@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Text;
@@ -10,7 +11,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration.Resolvers;
 using BuildXL.Utilities.Configuration.Resolvers.Mutable;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -102,7 +102,7 @@ namespace BuildXL.Utilities.Configuration
             passthroughEnv = passthroughList;
         }
 
-        private static string ProcessEnvironmentData([CanBeNull] EnvironmentData environmentData, PathTable pathTable, StringBuilder s)
+        private static string ProcessEnvironmentData([MaybeNull] EnvironmentData environmentData, PathTable pathTable, StringBuilder s)
         {
             if (environmentData == null)
             {

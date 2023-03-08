@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Expressions
@@ -23,7 +23,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
         /// <remarks>
         /// If null, then this is a shorthand property assignment.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         public Expression Expression { get; private set; }
 
         /// <nodoc />

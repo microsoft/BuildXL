@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values
@@ -52,17 +52,17 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Applies ambient.
         /// </summary>
-        public abstract EvaluationResult Apply(Context context, [CanBeNull]EvaluationResult arg, [NotNull]EvaluationStackFrame captures);
+        public abstract EvaluationResult Apply(Context context, [AllowNull]EvaluationResult arg, [NotNull]EvaluationStackFrame captures);
 
         /// <summary>
         /// Applies ambient.
         /// </summary>
-        public abstract EvaluationResult Apply([NotNull]Context context, [CanBeNull]EvaluationResult arg1, [CanBeNull]EvaluationResult arg2, [NotNull]EvaluationStackFrame captures);
+        public abstract EvaluationResult Apply([NotNull]Context context, [AllowNull]EvaluationResult arg1, [AllowNull]EvaluationResult arg2, [NotNull]EvaluationStackFrame captures);
 
         /// <summary>
         /// Applies ambient.
         /// </summary>
-        public abstract EvaluationResult Apply([NotNull]Context context, [CanBeNull]EvaluationResult[] args, [NotNull]EvaluationStackFrame captures);
+        public abstract EvaluationResult Apply([NotNull]Context context, [AllowNull]EvaluationResult[] args, [NotNull]EvaluationStackFrame captures);
     }
 
     /// <summary>

@@ -13,7 +13,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Sdk
 {

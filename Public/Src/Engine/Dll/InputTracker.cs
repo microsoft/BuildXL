@@ -23,7 +23,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.Core.BuildParameters;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -566,7 +565,7 @@ namespace BuildXL.Engine
             BinaryWriter writer,
             PathTable pathTable,
             IReadOnlyDictionary<string, string> buildParametersImpactingBuild,
-            [CanBeNull] IReadOnlyDictionary<string, IMount> mountsImpactingBuild,
+            [AllowNull] IReadOnlyDictionary<string, IMount> mountsImpactingBuild,
             string changeTrackingStatePath)
         {
             Contract.Requires(writer != null);
@@ -1467,14 +1466,14 @@ namespace BuildXL.Engine
             /// Paths and hashes of files that did not change from the previous run. These files are guaranteed
             /// to already have been tracked with the associated FileChangeTracker.
             /// </summary>
-            [CanBeNull]
+            [AllowNull]
             public ConcurrentDictionary<string, ContentHash> UnchangedPaths;
 
             /// <summary>
             /// Paths of files that definitely changed since the previous run, or <code>null</code>
             /// if no such information is available.
             /// </summary>
-            [CanBeNull]
+            [AllowNull]
             public ConcurrentQueue<string> ChangedPaths;
 
             /// <summary>

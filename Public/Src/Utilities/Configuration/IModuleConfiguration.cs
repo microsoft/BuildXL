@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -20,7 +20,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The module name
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         string Name { get; }
 
         /// <summary>

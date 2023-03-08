@@ -6,6 +6,7 @@ namespace Interfaces {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.Interfaces",
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Dynamic.Runtime.dll,

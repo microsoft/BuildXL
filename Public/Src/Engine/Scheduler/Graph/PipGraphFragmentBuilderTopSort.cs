@@ -7,7 +7,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Scheduler.Graph
 {

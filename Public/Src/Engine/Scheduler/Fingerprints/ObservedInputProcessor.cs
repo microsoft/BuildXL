@@ -17,13 +17,12 @@ using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using System.Diagnostics.CodeAnalysis;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -105,7 +104,7 @@ namespace BuildXL.Scheduler.Fingerprints
             TTarget target,
             CacheablePipInfo pip,
             ReadOnlyArray<ObservedFileAccess> accesses,
-            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
             bool trackFileChanges = true)
             where TTarget : struct, IObservedInputProcessingTarget<ObservedFileAccess>
         {
@@ -136,7 +135,7 @@ namespace BuildXL.Scheduler.Fingerprints
             TTarget target,
             CacheablePipInfo pip,
             ReadOnlyArray<TObservation> observations,
-            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> unPopulatedSharedOpaqueOutputs,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> unPopulatedSharedOpaqueOutputs,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
             bool isCacheLookup,
             bool trackFileChanges = true)
@@ -1456,7 +1455,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// Projects the set of paths (from <see cref="ObservedInputs"/>) into an <see cref="ObservedPathSet"/>.
         /// Note that this field may only be performed for a successful result.
         /// </summary>
-        public ObservedPathSet GetPathSet([CanBeNull]UnsafeOptions unsafeOptions)
+        public ObservedPathSet GetPathSet([AllowNull]UnsafeOptions unsafeOptions)
         {
             Contract.Requires(Status == ObservedInputProcessingStatus.Success);
 

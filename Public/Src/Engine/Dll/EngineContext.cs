@@ -14,8 +14,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Qualifier;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Engine
 {

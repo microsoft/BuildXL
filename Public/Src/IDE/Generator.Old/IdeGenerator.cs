@@ -24,7 +24,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -332,7 +331,7 @@ namespace BuildXL.Ide.Generator.Old
         /// Writes the build.cmd file that is the snapshot of the environment variables and BuildXL commandline when user calling BuildXL with /vs argument.
         /// </summary>
         [SuppressMessage("Microsoft.Globalization", "CA1305")]
-        public static void WriteCmd(string commandLine, IIdeConfiguration config, AbsolutePath configFile, PathTable pathTable, [CanBeNull] PathTranslator translator)
+        public static void WriteCmd(string commandLine, IIdeConfiguration config, AbsolutePath configFile, PathTable pathTable, [AllowNull] PathTranslator translator)
         {
             var enlistmentRoot = configFile.GetParent(pathTable).ToString(pathTable);
 

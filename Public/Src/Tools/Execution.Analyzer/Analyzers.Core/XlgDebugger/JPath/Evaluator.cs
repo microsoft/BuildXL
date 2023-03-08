@@ -11,7 +11,7 @@ using Antlr4.Runtime;
 using BuildXL.FrontEnd.Script.Debugger;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Execution.Analyzer.JPath
 {
@@ -232,10 +232,10 @@ namespace BuildXL.Execution.Analyzer.JPath
         public class Arg
         {
             /// <summary>Name of the argument.  May be null, in which case <see cref="Value"/> must be non-null</summary>
-            [CanBeNull] public string Name { get; }
+            [AllowNull] public string Name { get; }
 
             /// <summary>Value of the argument.  Maybe be null, in which case <see cref="Name"/> must be non-null</summary>
-            [CanBeNull] public Result Value { get; }
+            [AllowNull] public Result Value { get; }
 
             /// <nodoc />
             public bool HasName => Name != null;

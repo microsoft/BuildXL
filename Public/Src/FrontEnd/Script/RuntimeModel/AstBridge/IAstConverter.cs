@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using BuildXL.FrontEnd.Script.Declarations;
-using JetBrains.Annotations;
 using TypeScript.Net;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
@@ -132,7 +132,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <returns>
         /// Returns processed configuration or null in case of error.
         /// </returns>
-        [CanBeNull]
+        [return: MaybeNull]
         ConfigurationDeclaration ConvertConfiguration();
 
         /// <summary>
@@ -141,13 +141,13 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <returns>
         /// Returns processed configuration or null in case of error.
         /// </returns>
-        [CanBeNull]
+        [return: MaybeNull]
         PackageDeclaration ConvertPackageConfiguration();
 
         /// <summary>
         /// Converts source file.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         SourceFileParseResult ConvertSourceFile();
 
         /// <summary>
@@ -161,7 +161,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// This method is used in two places: by tests and by debugger.
         /// The tests are relying on semantic-based resolution, but the debugging requires different approach.
         /// </remarks>
-        [CanBeNull]
+        [return: MaybeNull]
         Expression ConvertExpression(ICallExpression node, FunctionScope localScope, bool useSemanticNameResolution);
     }
 }

@@ -2,12 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Common.Connectivity;
 using BuildXL.Ipc.Interfaces;
-using JetBrains.Annotations;
 
 namespace BuildXL.Ipc.Common.Multiplexing
 {
@@ -28,7 +28,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
         public string Name { get; }
 
         /// <nodoc/>
-        public NonMultiplexingServer([CanBeNull]string name, IServerConfig config, IConnectivityProvider<TClient> connectivityProvider)
+        public NonMultiplexingServer([MaybeNull]string name, IServerConfig config, IConnectivityProvider<TClient> connectivityProvider)
         {
             Contract.Requires(config != null);
             Contract.Requires(connectivityProvider != null);

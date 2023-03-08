@@ -1,13 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Evaluator
@@ -17,7 +16,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
     /// </summary>
     public sealed class StackEntry
     {
-        [CanBeNull]
+        [AllowNull]
         private ApplyExpression m_ambientCall;
 
         /// <summary>
@@ -28,7 +27,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <summary>
         /// Method that is called.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public FunctionLikeExpression Lambda { get; private set; }
 
         /// <summary>
@@ -53,7 +52,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <summary>
         /// Environment of the <see cref="Closure"/> (if any).
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public ModuleLiteral Env { get; private set; }
 
         /// <summary>

@@ -8,7 +8,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
@@ -92,7 +92,7 @@ namespace BuildXL.Scheduler.Fingerprints
         public ObservedPathSet(
             SortedReadOnlyArray<ObservedPathEntry, ObservedPathEntryExpandedPathComparer> paths,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
-            [CanBeNull]UnsafeOptions unsafeOptions)
+            [AllowNull]UnsafeOptions unsafeOptions)
         {
             Contract.Requires(paths.IsValid);
             Paths = paths;

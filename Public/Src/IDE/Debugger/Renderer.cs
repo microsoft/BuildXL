@@ -19,7 +19,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
 
@@ -291,7 +290,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// <summary>
         ///     Returns public properties of a type.
         /// </summary>
-        public static PropertyInfo[] GetPublicProperties([CanBeNull]Type objType)
+        public static PropertyInfo[] GetPublicProperties([AllowNull]Type objType)
         {
             return objType?.GetProperties(BindingFlags.Instance | BindingFlags.Public) ?? new PropertyInfo[0];
         }
@@ -299,7 +298,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// <summary>
         ///     Returns public fields of a type.
         /// </summary>
-        public static FieldInfo[] GetPublicFields([CanBeNull]Type objType)
+        public static FieldInfo[] GetPublicFields([AllowNull]Type objType)
         {
             return objType?.GetFields(BindingFlags.Instance | BindingFlags.Public) ?? new FieldInfo[0];
         }

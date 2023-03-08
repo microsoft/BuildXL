@@ -1,13 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
-using Pure = System.Diagnostics.Contracts.PureAttribute;
 
 namespace Tool.DropDaemon
 {
@@ -32,7 +30,7 @@ namespace Tool.DropDaemon
         /// <summary>
         /// (Optional) Pre-computed blob identifier.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         BlobIdentifier BlobIdentifier { get; }
 
         /// <summary>
@@ -49,7 +47,7 @@ namespace Tool.DropDaemon
         /// <summary>
         /// (Optional) File id.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         FileArtifact? Artifact { get; }
 
         /// <summary>
@@ -57,13 +55,13 @@ namespace Tool.DropDaemon
         /// of the returned task, the file must exist on disk.  The returned file info must also
         /// match the full file path returned by the <see cref="FullFilePath"/> property.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         Task<FileInfo> EnsureMaterialized();
 
         /// <summary>
         /// (Optional) ContentHash.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         ContentHash? ContentHash { get; }
     }
 }

@@ -7,6 +7,7 @@ namespace Configuration {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Utilities.Configuration",
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         embeddedResources: [
             {
                 resX: f`Strings.resx`,

@@ -2,11 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Storage;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Pips.Operations
@@ -61,13 +61,13 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Function used to look up <see cref="BuildXL.Cache.ContentStore.Hashing.ContentHash"/> of a given <see cref="BuildXL.Utilities.Core.FileArtifact"/>.
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         private ContentHashLookup HashLookup { get; }
 
         /// <summary>
         /// Takes a moniker ID (<see cref="BuildXL.Ipc.Common.IpcMoniker.Id"/>) and renders its value.
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         private Func<string, string> IpcMonikerRenderer { get; }
 
         /// <summary>

@@ -14,19 +14,17 @@ using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Binder = TypeScript.Net.Binding.Binder;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -76,7 +74,7 @@ namespace BuildXL.FrontEnd.Script
 
         /// <nodoc />
         public ConfigurationConversionHelper(
-            [CanBeNull] FrontEndEngineAbstraction engine,
+            [AllowNull] FrontEndEngineAbstraction engine,
             ConfigurationKind kind,
             Logger logger,
             FrontEndHost host,

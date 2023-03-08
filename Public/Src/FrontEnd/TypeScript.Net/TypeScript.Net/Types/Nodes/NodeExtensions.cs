@@ -4,10 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Scanning;
@@ -266,9 +266,9 @@ namespace TypeScript.Net.Types
         /// regular conversion from it to target type.
         /// </remarks>
         [DebuggerStepThrough]
-        [CanBeNull]
+        [return: MaybeNull]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T As<T>([CanBeNull] this INode node) where T : class, INode
+        public static T As<T>([AllowNull] this INode node) where T : class, INode
         {
             // Currently, As and TryCast are implemented in a different way.
             // As method doesn't try to convert node to a given type if a node is a union type.
@@ -293,7 +293,7 @@ namespace TypeScript.Net.Types
         /// regular conversion from it to target type.
         /// </remarks>
         [DebuggerStepThrough]
-        [NotNull]
+        [return: NotNull]
         public static T Cast<T>([NotNull]this INode node) where T : class, INode
         {
             // Even that this method is very small, it won't be inlined by the CLR,
@@ -336,7 +336,7 @@ namespace TypeScript.Net.Types
         /// <returns>
         /// Returns module specifier (i.e. the right most part of the import/export declaration) or null for 'export {a}' case.
         /// </returns>
-        [CanBeNull]
+        [return: MaybeNull]
         public static IExpression GetModuleSpecifier([NotNull]this INode node)
         {
             var importDeclaration = node.As<IImportDeclaration>();
@@ -473,7 +473,7 @@ namespace TypeScript.Net.Types
         /// <param name="variableStatement">A variable statement</param>
         /// <param name="typeChecker">A typechecker</param>
         /// <returns>The type of the first variable declaration within the statement or null if no variable exists</returns>
-        [CanBeNull]
+        [return: MaybeNull]
         public static IType GetTypeOfFirstVariableDeclarationOrDefault(this IVariableStatement variableStatement, ITypeChecker typeChecker)
         {
             var firstDeclaration = GetFirstDeclarationOrDefault(variableStatement);
@@ -526,7 +526,7 @@ namespace TypeScript.Net.Types
         /// Namespace declaration like 'namespace A.B {}' has two nested declaration, first of it
         /// will have another declaration inside.
         /// </remarks>
-        [NotNull]
+        [return: NotNull]
         public static IModuleBlock GetModuleBlock(this IModuleDeclaration moduleDeclaration)
         {
             var resultCandidate = moduleDeclaration.Body.AsModuleBlock();

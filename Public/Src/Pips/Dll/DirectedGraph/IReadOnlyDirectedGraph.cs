@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Pips.DirectedGraph
 {
@@ -17,14 +17,14 @@ namespace BuildXL.Pips.DirectedGraph
         /// Gets edges pointing to successor nodes.
         /// </summary>
         /// <remarks>This method returns an empty enumerable if node doesn't exist</remarks>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<Edge> GetOutgoingEdges(NodeId node);
 
         /// <summary>
         /// Gets edges pointing to predecessor nodes.
         /// </summary>
         /// <remarks>This method returns an empty enumerable if node doesn't exist</remarks>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<Edge> GetIncomingEdges(NodeId node);
 
         /// <summary>

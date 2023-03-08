@@ -9,10 +9,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Incrementality;
 using TypeScript.Net.Types;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -110,7 +108,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         }
 
         /// <nodoc />
-        [CanBeNull]
+        [return: MaybeNull]
         public ISpecBindingState TryGetSpecState(AbsolutePath fullPath)
         {
             m_stateByPath.TryGetValue(fullPath, out var result);

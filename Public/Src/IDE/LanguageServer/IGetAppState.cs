@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Ide.LanguageServer
 {
@@ -22,6 +22,6 @@ namespace BuildXL.Ide.LanguageServer
     /// 
     /// The provider is reponsible for checking for null before use.
     /// </remarks>
-    [CanBeNull]
+    [return: MaybeNull]
     public delegate AppState GetAppState();
 }

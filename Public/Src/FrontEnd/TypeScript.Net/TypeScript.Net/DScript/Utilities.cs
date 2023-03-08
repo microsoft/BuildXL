@@ -7,7 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Constants;
-using JetBrains.Annotations;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Scanning;
@@ -702,7 +701,7 @@ namespace TypeScript.Net.DScript
         /// <summary>
         /// Finds a word-like node at <paramref name="position"/>.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         public static INode GetTouchingWord(ISourceFile sourceFile, int position, System.Threading.CancellationToken token)
         {
             NodeExtensions.TryGetNodeAtPosition(
@@ -718,14 +717,14 @@ namespace TypeScript.Net.DScript
         /// <summary>
         /// Finds a word-like node at <paramref name="position"/>.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         public static INode GetTouchingWord(ISourceFile sourceFile, int position) =>
             GetTouchingWord(sourceFile, position, System.Threading.CancellationToken.None);
 
         /// <summary>
         /// Finds all word-like nodes at the given <paramref name="positions"/>.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         public static INode[] GetTouchingWords(ISourceFile sourceFile, IReadOnlyList<int> positions, System.Threading.CancellationToken token)
         {
             return NodeExtensions.TryGetNodesAtPositions(
@@ -738,7 +737,7 @@ namespace TypeScript.Net.DScript
         /// <summary>
         /// Finds a path-like nodes at <paramref name="positions"/>.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         public static INode[] GetTouchingPaths(ISourceFile sourceFile, IReadOnlyList<int> positions, System.Threading.CancellationToken token)
         {
             return NodeExtensions.TryGetNodesAtPositions(
@@ -751,7 +750,7 @@ namespace TypeScript.Net.DScript
         /// <summary>
         /// Returns whether the node passed in represents the "merge", "override" or "overrideKey" template expressions.
         /// </summary>
-        public static bool IsMergeOrOverrideCallExpression([CanBeNull] INode node)
+        public static bool IsMergeOrOverrideCallExpression([AllowNull] INode node)
         {
             string calledFunction = string.Empty;
             if (node?.Kind == SyntaxKind.CallExpression)

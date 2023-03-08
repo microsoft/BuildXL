@@ -11,9 +11,7 @@ using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Script.Values
 {
@@ -263,7 +261,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// a uniform way to retrieve the custom merge function. Each subclass should
         /// reimplement this if needed
         /// </remarks>
-        [CanBeNull]
+        [return: MaybeNull]
         protected virtual MergeFunction TryGetCustomMergeFunction(Context context, EvaluationStackFrame captures)
         {
             var customMerge = this[context.ContextTree.CommonConstants.CustomMergeFunction];
@@ -290,7 +288,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <remarks>
         /// Handles the left-wins-over-right behavior when custom functions are specified
         /// </remarks>
-        [NotNull]
+        [return: NotNull]
         protected MergeFunction GetMergeFunction(Context context, EvaluationStackFrame captures, ObjectLiteral leftObject, EvaluationResult rightObject)
         {
             // If the left object has a custom merge, that trumps the other cases

@@ -63,7 +63,6 @@ using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
 using BuildXL.ViewModel;
-using JetBrains.Annotations;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
@@ -239,7 +238,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// A kernel extension connection object for macOS sandboxing
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         protected ISandboxConnection SandboxConnection;
 
         /// <summary>
@@ -517,16 +516,16 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// External API server.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         private ApiServer m_apiServer;
 
-        [CanBeNull]
+        [AllowNull]
         private PluginManager m_pluginManager;
 
         /// <summary>
         /// Tracker for service pips.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         private readonly ServicePipTracker m_servicePipTracker;
 
         /// <summary>
@@ -1874,7 +1873,7 @@ namespace BuildXL.Scheduler
         /// This is called after all pips have been added and the pip queue has emptied.
         /// Warning: Some variables may be null if scheduler's Init() is not called.
         /// </remarks>
-        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext, [CanBeNull] BuildSummary buildSummary)
+        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext, [AllowNull] BuildSummary buildSummary)
         {
             Dictionary<string, long> statistics = new Dictionary<string, long>();
             LocalWorkerWithRemoting localWorkerWithRemoting = LocalWorker as LocalWorkerWithRemoting;
@@ -5429,7 +5428,7 @@ namespace BuildXL.Scheduler
 
         #region Critical Path Logging
 
-        private void LogCriticalPath(Dictionary<string, long> statistics, [CanBeNull] BuildSummary buildSummary)
+        private void LogCriticalPath(Dictionary<string, long> statistics, [AllowNull] BuildSummary buildSummary)
         {
             int currentCriticalPathTailPipIdValue;
             PipRuntimeInfo criticalPathRuntimeInfo;

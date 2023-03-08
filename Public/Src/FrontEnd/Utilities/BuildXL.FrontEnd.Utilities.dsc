@@ -7,6 +7,7 @@ namespace Utilities {
         assemblyName: "BuildXL.FrontEnd.Utilities",
         generateLogs: false,
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             ...BuildXLSdk.tplPackages,
             importFrom("BuildXL.Pips").dll,

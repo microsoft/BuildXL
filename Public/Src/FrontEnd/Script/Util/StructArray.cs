@@ -6,7 +6,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using JetBrains.Annotations;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -38,7 +37,7 @@ namespace BuildXL.FrontEnd.Script.Util
         /// This is possible, but it will require other changes in the entire codebase.
         /// So current solution with exposing underlying array is not perfect, but not worst.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         [SuppressMessage("Microsoft.Performance", "CA1819")]
         T[] UnderlyingArrayUnsafe { get; }
     }

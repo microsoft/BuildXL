@@ -11,9 +11,9 @@ using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using SymbolTable = BuildXL.Utilities.Core.SymbolTable;
+using System.Diagnostics.CodeAnalysis;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -149,7 +149,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc/>
         public static bool TryCreate(
-            [CanBeNull]Workspace mainConfigurationWorkspace,
+            [AllowNull]Workspace mainConfigurationWorkspace,
             IWorkspaceStatistics workspaceStatistics,
             FrontEndFactory frontEndFactory,
             PathTable pathTable,
@@ -287,7 +287,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             IEnumerable<ParsedModule> parsedModules,
             ModuleUnderConstruction moduleUnderConstruction,
             IEnumerable<Failure> failures,
-            [CanBeNull]ParsedModule preludeModule)
+            [AllowNull]ParsedModule preludeModule)
         {
             var maybeModuleDefinitions = await GetModuleDefinitionsForAllResolversAsync();
             if (!maybeModuleDefinitions.Succeeded)

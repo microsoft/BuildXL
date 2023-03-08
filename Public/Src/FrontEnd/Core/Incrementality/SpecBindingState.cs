@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Incrementality;
 
 namespace BuildXL.FrontEnd.Core.Incrementality
@@ -47,7 +47,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         public ISpecBindingSymbols BindingSymbols { get; }
 
         /// <inheritdoc />
-        [JetBrains.Annotations.Pure]
+        [System.Diagnostics.Contracts.Pure]
         public ISpecBindingState WithBindingFingerprint(string referencedSymbolsFingerprint, string declaredSymbolsFingerprint)
         {
             return new SpecBindingState(m_fullPath, referencedSymbolsFingerprint, declaredSymbolsFingerprint, FileDependencies, FileDependents);

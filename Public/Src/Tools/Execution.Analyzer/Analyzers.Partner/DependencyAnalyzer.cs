@@ -15,7 +15,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -98,7 +98,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly CachedGraph m_cachedGraph;
         private readonly uint m_graphVersion;
         private readonly IReadOnlyCollection<AbsolutePath> m_files;
-        [CanBeNull] private readonly IReadOnlyCollection<AbsolutePath> m_dirs;
+        [AllowNull] private readonly IReadOnlyCollection<AbsolutePath> m_dirs;
         private readonly IReadOnlyList<DependencyAnalyzerPip> m_pips;
         private readonly IReadOnlyDictionary<string, string> m_pathMappings;
 

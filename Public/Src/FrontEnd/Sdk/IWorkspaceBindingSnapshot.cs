@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Incrementality;
 
 namespace BuildXL.FrontEnd.Sdk

@@ -3,10 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
 using TypeScript.Net.Parsing;
 
 namespace TypeScript.Net.Types
@@ -67,9 +67,9 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns the source file that contains the node or null.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ISourceFile GetSourceFile([CanBeNull] this INode node)
+        public static ISourceFile GetSourceFile([AllowNull] this INode node)
         {
             return node?.SourceFile ?? GetSourceFileSlow(node);
         }
@@ -77,7 +77,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns the source file for the given node by traversing node's parents.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         internal static ISourceFile GetSourceFileSlow(this INode node)
         {
             while (node != null && node.Kind != SyntaxKind.SourceFile)

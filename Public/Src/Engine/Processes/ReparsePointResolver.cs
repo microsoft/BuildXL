@@ -1,11 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 
 namespace BuildXL.Processes
 {
@@ -23,7 +23,7 @@ namespace BuildXL.Processes
         private readonly ConcurrentBigMap<AbsolutePath, AbsolutePath> m_resolvedPathCache = new ConcurrentBigMap<AbsolutePath, AbsolutePath>();
         
         /// <nodoc/>
-        public ReparsePointResolver(PipExecutionContext context, [CanBeNull] DirectoryTranslator directoryTranslator)
+        public ReparsePointResolver(PipExecutionContext context, [MaybeNull] DirectoryTranslator directoryTranslator)
         {
             Contract.RequiresNotNull(context);
             m_context = context;

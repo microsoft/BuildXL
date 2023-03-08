@@ -9,6 +9,7 @@ namespace Download {
         assemblyName: "BuildXL.FrontEnd.Download",
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Net.Http.dll,

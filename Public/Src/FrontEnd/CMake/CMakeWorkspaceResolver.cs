@@ -29,7 +29,6 @@ using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.CMake
 {

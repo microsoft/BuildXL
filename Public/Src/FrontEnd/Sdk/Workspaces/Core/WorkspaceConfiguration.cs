@@ -2,11 +2,11 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
@@ -80,7 +80,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public bool ShouldIncludePrelude => !string.IsNullOrEmpty(PreludeName);
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         public string PreludeName { get; }
 
         /// <nodoc/>
@@ -95,7 +95,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public bool TrackFileToFileDependencies { get; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         public ParsingOptions ParsingOptions { get; }
 
         /// <summary>
@@ -130,7 +130,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         }
 
         /// <nodoc />
-        public WorkspaceConfiguration WithPreludeName([CanBeNull] string preludeName)
+        public WorkspaceConfiguration WithPreludeName([AllowNull] string preludeName)
         {
             return new WorkspaceConfiguration(
                 ResolverSettings,

@@ -8,7 +8,6 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.Utilities.Core;
 using TypeScript.Net.Types;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Script.Values
 {

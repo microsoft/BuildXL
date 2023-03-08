@@ -15,7 +15,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Pips
 {
@@ -321,8 +321,8 @@ namespace BuildXL.Pips
             IReadOnlyList<DirectoryArtifact> contents,
             SealDirectoryCompositionActionKind actionKind,
             SealDirectoryContentFilter? contentFilter,
-            [CanBeNull] string description,
-            [CanBeNull] string[] tags,
+            [MaybeNull] string description,
+            [MaybeNull] string[] tags,
             out DirectoryArtifact sharedOpaqueDirectory)
         {
             Contract.Requires(directoryRoot.IsValid);

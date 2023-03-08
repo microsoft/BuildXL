@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using JetBrains.Annotations;
 
 namespace TypeScript.Net.ModuleResolution
 {

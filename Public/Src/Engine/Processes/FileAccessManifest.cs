@@ -13,7 +13,6 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 
 namespace BuildXL.Processes
 {
@@ -591,7 +590,7 @@ namespace BuildXL.Processes
         /// Internal since this is set as a side effect of initializing a FileAccessManifest
         /// in <see cref="SandboxedProcessInfo"/>.
         /// </remarks>
-        [CanBeNull]
+        [MaybeNull]
         public SubstituteProcessExecutionInfo SubstituteProcessExecutionInfo { get; set; }
 
         /// <nodoc/>

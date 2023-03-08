@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
@@ -12,7 +13,6 @@ using BuildXL.Ipc.Common.Connectivity;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Ipc.Common.Multiplexing
@@ -74,7 +74,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
         private IIpcOperationExecutor m_executor;
 
         /// <nodoc/>
-        public MultiplexingServer([CanBeNull]string name, [CanBeNull]IIpcLogger logger, IConnectivityProvider<TClient> connectivityProvider, int maxConcurrentClients, int maxConcurrentRequestsPerClient)
+        public MultiplexingServer([MaybeNull]string name, [MaybeNull]IIpcLogger logger, IConnectivityProvider<TClient> connectivityProvider, int maxConcurrentClients, int maxConcurrentRequestsPerClient)
         {
             Contract.Requires(connectivityProvider != null);
             Contract.Requires(maxConcurrentClients > 0);

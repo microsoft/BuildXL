@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
@@ -24,15 +24,15 @@ namespace BuildXL.FrontEnd.Script.Statements
         /// <remarks>
         /// An initializer can either be an assignment statement or a variable statement (with initializer).
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         public Statement Initializer { get; }
 
         /// <nodoc />
-        [CanBeNull]
+        [AllowNull]
         public Expression Condition { get; }
 
         /// <nodoc />
-        [CanBeNull]
+        [AllowNull]
         public AssignmentOrIncrementDecrementExpression Incrementor { get; }
 
         /// <nodoc />
@@ -40,9 +40,9 @@ namespace BuildXL.FrontEnd.Script.Statements
 
         /// <nodoc />
         public ForStatement(
-            [CanBeNull]Statement initializer,
-            [CanBeNull]Expression condition,
-            [CanBeNull]AssignmentOrIncrementDecrementExpression incrementor,
+            [AllowNull]Statement initializer,
+            [AllowNull]Expression condition,
+            [AllowNull]AssignmentOrIncrementDecrementExpression incrementor,
             Statement body,
             LineInfo location)
             : base(location)

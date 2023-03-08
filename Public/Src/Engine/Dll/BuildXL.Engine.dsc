@@ -8,6 +8,7 @@ namespace Engine {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Engine",
         generateLogs: true,
+        addNotNullAttributeFile: true,
         sources: [
             ...globR(d`.`, "*.cs"),
         ],
@@ -54,7 +55,6 @@ namespace Engine {
             importFrom("Newtonsoft.Json").pkg,
         ],
         internalsVisibleTo: [
-            "bxlScriptAnalyzer",
             "BxlPipGraphFragmentGenerator",
             "IntegrationTest.BuildXL.Scheduler",
             "Test.BuildXL.Engine",

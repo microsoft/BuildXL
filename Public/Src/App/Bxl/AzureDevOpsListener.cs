@@ -15,7 +15,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL
 {
@@ -59,7 +59,7 @@ namespace BuildXL
             DateTime baseTime,
             BuildViewModel buildViewModel,
             bool useCustomPipDescription,
-            [CanBeNull] WarningMapper warningMapper,
+            [AllowNull] WarningMapper warningMapper,
             int initialFrequencyMs,
             int adoConsoleMaxIssuesToLog)
             : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)

@@ -3,11 +3,11 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Ipc.Interfaces;
-using JetBrains.Annotations;
 
 namespace BuildXL.Ipc.Common.Multiplexing
 {
@@ -45,7 +45,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
         internal ConcurrentQueue<Exception> Diagnostics => m_diagnostics;
 
         /// <nodoc/>
-        public GenericServer([CanBeNull]string name, IServerConfig config, ListenerSourceBlock<TClient>.CancellableListener listener, bool clientFailuresAreFatal = false)
+        public GenericServer([MaybeNull]string name, IServerConfig config, ListenerSourceBlock<TClient>.CancellableListener listener, bool clientFailuresAreFatal = false)
         {
             Contract.Requires(config != null);
 

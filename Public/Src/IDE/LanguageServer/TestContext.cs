@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using JetBrains.Annotations;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 
 namespace BuildXL.Ide.LanguageServer
@@ -43,7 +43,7 @@ namespace BuildXL.Ide.LanguageServer
         /// <summary>
         /// Optional action that gets notified of an error.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public Action<string> ErrorReporter { get; }
     }
 }

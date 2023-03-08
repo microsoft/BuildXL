@@ -2,13 +2,13 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Storage;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 
 namespace BuildXL.Scheduler
 {
@@ -33,12 +33,12 @@ namespace BuildXL.Scheduler
         /// </remarks>
         AnalyzePipViolationsResult AnalyzePipViolations(
             Process pip,
-            [CanBeNull] IReadOnlyCollection<ReportedFileAccess> violations,
-            [CanBeNull] IReadOnlyCollection<ReportedFileAccess> allowlistedAccesses,
-            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
-            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
-            [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
+            [AllowNull] IReadOnlyCollection<ReportedFileAccess> violations,
+            [AllowNull] IReadOnlyCollection<ReportedFileAccess> allowlistedAccesses,
+            [AllowNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
+            [AllowNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+            [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
             out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations);
 
@@ -47,10 +47,10 @@ namespace BuildXL.Scheduler
         /// </summary>
         bool AnalyzeDynamicViolations(
             Process pip,
-            [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
-            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
-            [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
+            [AllowNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
+            [AllowNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+            [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent);
 
         /// <summary>

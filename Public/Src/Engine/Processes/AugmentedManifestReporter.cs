@@ -4,13 +4,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Text;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Processes
@@ -32,7 +32,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// We shouldn't try to close this handle. Detours takes care of that.
         /// </summary>
-        [CanBeNull] 
+        [MaybeNull] 
         private readonly SafeFileHandle m_detoursReportHandle;
         private readonly UnicodeEncoding m_encoding;
 
@@ -79,8 +79,8 @@ namespace BuildXL.Processes
             FlagsAndAttributes flagsAndAttributes,
             FlagsAndAttributes openedFileOrDirectoryAttributes,
             string path,
-            [CanBeNull]string enumeratePattern = null,
-            [CanBeNull]string processArgs = null)
+            [MaybeNull]string enumeratePattern = null,
+            [MaybeNull]string processArgs = null)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
 

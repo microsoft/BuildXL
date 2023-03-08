@@ -4,9 +4,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// Configuration as a package, which is only created for the default source resolver. Null otherwise.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public Package ConfigAsPackage { get; }
 
         /// <nodoc/>
@@ -56,7 +56,7 @@ namespace BuildXL.FrontEnd.Script
         public static ModuleResolutionResult CreateModuleResolutionResult(
             [NotNull] ConcurrentDictionary<AbsolutePath, List<Package>> packageDirectories,
             [NotNull] ConcurrentDictionary<PackageId, Package> packages,
-            [CanBeNull] Package configAsPackage)
+            [AllowNull] Package configAsPackage)
         {
             return new ModuleResolutionResult(packages: packages, configAsPackage: configAsPackage, success: true);
         }

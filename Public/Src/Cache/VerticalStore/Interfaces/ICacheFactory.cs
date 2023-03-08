@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.Interfaces
 {

@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 
 namespace BuildXL.Pips.Filter
 {
@@ -33,7 +33,7 @@ namespace BuildXL.Pips.Filter
         /// Materializes pip (expensive)
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [return: NotNull]
         Pip HydratePip(PipId pipId);
 
         /// <summary>
@@ -52,14 +52,14 @@ namespace BuildXL.Pips.Filter
         /// Gets all dependencies of a pip
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [return: NotNull]
         IEnumerable<PipId> GetDependencies(PipId pipId);
 
         /// <summary>
         /// Gets all dependents of a pip
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [return: NotNull]
         IEnumerable<PipId> GetDependents(PipId pipId);
 
         /// <summary>

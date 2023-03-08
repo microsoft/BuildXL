@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Api;
 using TypeScript.Net.Reformatter;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -220,7 +220,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Helper method that returns a path table associated with a current file.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         internal static PathTable GetSourceFilePathTable(INode node)
         {
             var sourceFile = (SourceFile)node.GetSourceFile();

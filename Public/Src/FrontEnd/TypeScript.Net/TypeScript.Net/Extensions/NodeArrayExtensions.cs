@@ -3,10 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 
 namespace TypeScript.Net.Extensions
@@ -17,7 +17,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Returns true when <paramref name="array"/> is null or empty.
         /// </summary>
-        public static bool IsNullOrEmpty<T>([CanBeNull]this INodeArray<T> array)
+        public static bool IsNullOrEmpty<T>([AllowNull]this INodeArray<T> array)
         {
             return array == null || array.Count == 0;
         }
@@ -26,7 +26,7 @@ namespace TypeScript.Net.Extensions
         /// Custom implementation for 'Any' LINQ-like method that accepts <code>null</code> as a collection value
         /// and avoid allocations during collection enumeration.
         /// </summary>
-        public static bool Any<TElement>([CanBeNull]INodeArray<TElement> sequence, Func<TElement, bool> callback)
+        public static bool Any<TElement>([AllowNull]INodeArray<TElement> sequence, Func<TElement, bool> callback)
         {
             if (sequence == null)
             {
@@ -49,7 +49,7 @@ namespace TypeScript.Net.Extensions
         /// Custom implementation for 'Any' LINQ-like method that accepts <code>null</code> as a collection value
         /// and avoid allocations during collection enumeration.
         /// </summary>
-        public static bool Any<TElement>([CanBeNull]IReadOnlyList<TElement> array, Func<TElement /*element*/, bool> callback)
+        public static bool Any<TElement>([AllowNull]IReadOnlyList<TElement> array, Func<TElement /*element*/, bool> callback)
         {
             if (array != null)
             {
@@ -70,7 +70,7 @@ namespace TypeScript.Net.Extensions
         /// Custom implementation for 'Any' LINQ-like method that accepts <code>null</code> as a collection value
         /// and avoid allocations during collection enumeration.
         /// </summary>
-        public static bool Any<TElement, TState>([CanBeNull]IReadOnlyList<TElement> array, TState state, Func<TElement, TState, bool> callback)
+        public static bool Any<TElement, TState>([AllowNull]IReadOnlyList<TElement> array, TState state, Func<TElement, TState, bool> callback)
         {
             if (array != null)
             {
@@ -92,7 +92,7 @@ namespace TypeScript.Net.Extensions
         /// returns a truthy value, then returns that value.
         /// If no such value is found, the callback is applied to each element of array and default(T) is returned.
         /// </summary>
-        public static TResult ForEachUntil<TElement, TResult>([CanBeNull]INodeArray<TElement> array, Func<TElement, TResult> callback)
+        public static TResult ForEachUntil<TElement, TResult>([AllowNull]INodeArray<TElement> array, Func<TElement, TResult> callback)
         {
             if (array != null)
             {
@@ -114,7 +114,7 @@ namespace TypeScript.Net.Extensions
         /// returns a truthy value, then returns that value.
         /// If no such value is found, the callback is applied to each element of array and default(T) is returned.
         /// </summary>
-        public static TResult ForEachUntil<TElement, TResult>([CanBeNull]IReadOnlyList<TElement> array, Func<TElement, TResult> callback)
+        public static TResult ForEachUntil<TElement, TResult>([AllowNull]IReadOnlyList<TElement> array, Func<TElement, TResult> callback)
         {
             if (array != null)
             {
@@ -132,7 +132,7 @@ namespace TypeScript.Net.Extensions
         }
 
         /// <nodoc />
-        public static TResult ForEachUntil<TElement, TResult, TState>([CanBeNull]IReadOnlyList<TElement> array, TState state, Func<TElement, TState, TResult> callback)
+        public static TResult ForEachUntil<TElement, TResult, TState>([AllowNull]IReadOnlyList<TElement> array, TState state, Func<TElement, TState, TResult> callback)
         {
             if (array != null)
             {
@@ -152,7 +152,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Calls a given callback for every element in a <paramref name="sequence"/>.
         /// </summary>
-        public static void ForEach<TElement>([CanBeNull]INodeArray<TElement> sequence, Action<TElement> callback)
+        public static void ForEach<TElement>([AllowNull]INodeArray<TElement> sequence, Action<TElement> callback)
         {
             if (sequence == null)
             {
@@ -168,7 +168,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Calls a given callback for every element in a <paramref name="sequence"/>.
         /// </summary>
-        public static void ForEach<TElement, TState>([CanBeNull]INodeArray<TElement> sequence, TState state, Action<TElement, TState> callback)
+        public static void ForEach<TElement, TState>([AllowNull]INodeArray<TElement> sequence, TState state, Action<TElement, TState> callback)
         {
             if (sequence == null)
             {
@@ -184,7 +184,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Calls a given callback for every element in a <paramref name="sequence"/>.
         /// </summary>
-        public static void ForEach<TElement>([CanBeNull]IReadOnlyList<TElement> sequence, Action<TElement> callback)
+        public static void ForEach<TElement>([AllowNull]IReadOnlyList<TElement> sequence, Action<TElement> callback)
         {
             if (sequence == null)
             {
@@ -200,7 +200,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Calls a given callback for every element in a <paramref name="sequence"/>.
         /// </summary>
-        public static void ForEach<TElement, TState>([CanBeNull]IReadOnlyList<TElement> sequence, TState state, Action<TElement, TState> callback)
+        public static void ForEach<TElement, TState>([AllowNull]IReadOnlyList<TElement> sequence, TState state, Action<TElement, TState> callback)
         {
             if (sequence == null)
             {
@@ -216,7 +216,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Calls a given callback for every element in a <paramref name="sequence"/>.
         /// </summary>
-        public static void ForEach<TElement>([CanBeNull]TElement[] sequence, Action<TElement> callback, int degreeOfParallelism)
+        public static void ForEach<TElement>([AllowNull]TElement[] sequence, Action<TElement> callback, int degreeOfParallelism)
         {
             if (sequence == null)
             {
@@ -245,7 +245,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Calls a given callback for every element in a <paramref name="sequence"/>.
         /// </summary>
-        public static void ForEach<TElement>([CanBeNull]TElement[] sequence, Action<int, TElement> callback, int degreeOfParallelism)
+        public static void ForEach<TElement>([AllowNull]TElement[] sequence, Action<int, TElement> callback, int degreeOfParallelism)
         {
             if (sequence == null)
             {
@@ -280,7 +280,7 @@ namespace TypeScript.Net.Extensions
         }
 
         /// <nodoc />
-        [NotNull]
+        [return: NotNull]
         public static IReadOnlyList<TResult> ToList<TSource, TResult>(this NodeArray.NodeArraySelectorEnumerable<TSource, TResult> selectEnumerable)
         {
             var result = new List<TResult>(selectEnumerable.ArraySize);
@@ -309,7 +309,7 @@ namespace TypeScript.Net.Extensions
         }
 
         /// <nodoc />
-        [NotNull]
+        [return: NotNull]
         public static IReadOnlyList<TResult> ToList<TSource, TResult>(this NodeArray.NodeArraySelectorEnumerable<TSource, TResult>? selectEnumerable)
         {
             if (selectEnumerable == null)
@@ -369,7 +369,7 @@ namespace TypeScript.Net.Extensions
         }
 
         /// <nodoc />
-        [NotNull]
+        [return: NotNull]
         public static T First<T>(this INodeArray<T> @this)
         {
             if (@this.Count == 0)

@@ -2,11 +2,11 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Sdk.FileSystem

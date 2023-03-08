@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -40,7 +40,7 @@ namespace BuildXL.Utilities.Configuration
         /// /f:(tag='csc.exe'and~(tag='test'))
         /// Selects all pips marked with tag 'csc.exe' and not marked with tag 'test'. Runs them and their dependencies
         /// </remarks>
-        [CanBeNull]
+        [MaybeNull]
         string DefaultFilter { get; }
 
         /// <summary>
@@ -113,7 +113,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Before executing, scrubs (deletes) files and directories not marked as inputs or outputs of the current build in the specified directories.
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         IReadOnlyList<AbsolutePath> ScrubDirectories { get; }
 
         /// <summary>
@@ -158,7 +158,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Allows users to specify directory translations.
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         IReadOnlyList<TranslateDirectoryData> DirectoriesToTranslate { get; }
 
         /// <summary>

@@ -13,6 +13,7 @@ namespace Execution.Analyzer {
         generateLogs: true,
         rootNamespace: "BuildXL.Execution.Analyzer",
         skipDocumentationGeneration: true,
+        addNotNullAttributeFile: true,
         sources: globR(d`.`, "*.cs"),
         
         references: [

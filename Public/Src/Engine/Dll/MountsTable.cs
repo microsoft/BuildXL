@@ -18,7 +18,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 
 namespace BuildXL.Engine
 {
@@ -87,7 +86,7 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             BuildXLContext context,
             IConfiguration configuration,
-            [CanBeNull] IReadOnlyDictionary<string, string> properties)
+            [AllowNull] IReadOnlyDictionary<string, string> properties)
         {
             Contract.Requires(context != null);
             Contract.Requires(configuration != null);

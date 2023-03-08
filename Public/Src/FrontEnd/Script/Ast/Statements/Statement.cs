@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
-using JetBrains.Annotations;
 using TypeScript.Net.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Statements

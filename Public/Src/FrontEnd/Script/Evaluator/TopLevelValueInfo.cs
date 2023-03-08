@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Evaluator
@@ -40,7 +40,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <summary>
         /// The template value implicitly captured by the active thunk. Can be null if we are in V1 mode.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public object CapturedTemplateValue { get; }
 
         /// <nodoc />

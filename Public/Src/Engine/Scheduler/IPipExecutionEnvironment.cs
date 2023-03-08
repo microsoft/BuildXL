@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
@@ -20,7 +21,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
-using JetBrains.Annotations;
 
 namespace BuildXL.Scheduler
 {
@@ -238,7 +238,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Resolves file accesses containing symlinked paths
         /// </summary>
-        [CanBeNull] ReparsePointResolver ReparsePointAccessResolver { get; }
+        [AllowNull] ReparsePointResolver ReparsePointAccessResolver { get; }
 
         /// <summary>
         /// Indicates if inputs are lazily materialized via MaterializeInput step.

@@ -12,6 +12,7 @@ namespace Nuget {
         assemblyName: "BuildXL.FrontEnd.Nuget",
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.Netstandard.dll,

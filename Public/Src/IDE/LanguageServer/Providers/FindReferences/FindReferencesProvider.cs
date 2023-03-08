@@ -442,7 +442,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             throw new NotImplementedException();
         }
 
-        [JetBrains.Annotations.NotNull]
+        [return: NotNull]
         private static List<int> GetPossibleSymbolReferencePositions(
             ISourceFile sourceFile,
             string symbolName,

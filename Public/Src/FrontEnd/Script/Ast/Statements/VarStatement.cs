@@ -8,7 +8,6 @@ using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
@@ -29,11 +28,11 @@ namespace BuildXL.FrontEnd.Script.Statements
         /// Declared type.
         /// </summary>
         [SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
-        [CanBeNull]
+        [AllowNull]
         public Type Type { get; }
 
         /// <nodoc />
-        [CanBeNull]
+        [AllowNull]
         public Expression Initializer { get; }
 
         /// <nodoc />

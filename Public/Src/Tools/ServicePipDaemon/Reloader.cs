@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using JetBrains.Annotations;
 
 namespace Tool.ServicePipDaemon
 {
@@ -43,7 +43,7 @@ namespace Tool.ServicePipDaemon
         public int CurrentVersion => m_stackOfValues.Count;
 
         /// <summary>Current versioned value or <code>null</code> if <see cref="Reload(int)"/> or <see cref="EnsureLoaded"/> has not been called yet.</summary>
-        [CanBeNull]
+        [AllowNull]
         public VersionedValue CurrentVersionedValue => m_stackOfValues.Any() ? m_stackOfValues.Peek() : null;
 
         /// <summary>Constructor.</summary>

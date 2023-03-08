@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Tracing;
@@ -9,7 +10,6 @@ using BuildXL.Scheduler.Distribution;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 
 namespace BuildXL
 {
@@ -25,7 +25,7 @@ namespace BuildXL
             Events eventSource,
             DateTime baseTime,
             bool useCustomPipDescription,
-            [CanBeNull] WarningMapper warningMapper)
+            [AllowNull] WarningMapper warningMapper)
             : base(
                   eventSource,
                   baseTime,

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 {
@@ -15,7 +15,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
     public sealed class PathWithTargets
     {
         /// <nodoc/>
-        public PathWithTargets(AbsolutePath path, [CanBeNull] IReadOnlyList<string> targetScripts)
+        public PathWithTargets(AbsolutePath path, [AllowNull] IReadOnlyList<string> targetScripts)
         {
             Path = path;
             TargetScripts = targetScripts?.ToReadOnlySet();
@@ -25,7 +25,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
         public AbsolutePath Path { get; }
 
         /// <nodoc/>
-        [CanBeNull]  
+        [AllowNull]  
         public IReadOnlySet<string> TargetScripts { get; }
 
         /// <summary>

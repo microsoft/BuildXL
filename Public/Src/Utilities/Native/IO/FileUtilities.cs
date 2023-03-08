@@ -3,14 +3,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Text;
-using BuildXL.Tracing;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO.Windows;
@@ -18,7 +16,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using UnixIO = BuildXL.Interop.Unix.IO;
@@ -55,8 +52,8 @@ namespace BuildXL.Native.IO
         /// as the vanilla BuildXL build for Windows and skip Unix implementations completely
         /// </remarks>
         private static readonly IFileUtilities s_fileUtilities = OperatingSystemHelper.IsUnixOS
-            ? (IFileUtilities) new Unix.FileUtilitiesUnix()
-            : (IFileUtilities) new Windows.FileUtilitiesWin(LoggingContext);
+            ? (IFileUtilities)new Unix.FileUtilitiesUnix()
+            : (IFileUtilities)new Windows.FileUtilitiesWin(LoggingContext);
 
         /// <summary>
         /// A platform specific concrete implementation of the file system layer functions
@@ -65,7 +62,7 @@ namespace BuildXL.Native.IO
         /// When running on Windows but inside the CoreCLR, we use the same concrete implementation
         /// as the vanilla BuildXL build for Windows and skip Unix implementations completely
         /// </remarks>
-        private static readonly IFileSystem s_fileSystem =  OperatingSystemHelper.IsUnixOS
+        private static readonly IFileSystem s_fileSystem = OperatingSystemHelper.IsUnixOS
             ? ((Unix.FileUtilitiesUnix)s_fileUtilities).FileSystem
             : ((Windows.FileUtilitiesWin)s_fileUtilities).FileSystem;
 
@@ -294,7 +291,7 @@ namespace BuildXL.Native.IO
             }
             catch (NativeWin32Exception ex)
             {
-               return NativeFailure.CreateFromException(ex);
+                return NativeFailure.CreateFromException(ex);
             }
             catch (Exception ex)
             {
@@ -396,7 +393,7 @@ namespace BuildXL.Native.IO
         /// <summary>
         /// Returns true if given file attributes denote a reparse point that points to a directory.
         /// </summary>
-        public static bool IsDirectorySymlinkOrJunction(FileAttributes attributes) 
+        public static bool IsDirectorySymlinkOrJunction(FileAttributes attributes)
         {
             return
                     ((attributes & FileAttributes.Directory) == FileAttributes.Directory) &&
@@ -862,7 +859,7 @@ namespace BuildXL.Native.IO
         /// </summary>
         /// <param name="handle">Handle to the source path. Can be null, in which case is not used</param>
         /// <param name="sourcePath">Path to the artifact</param>
-        public static Possible<string> TryGetLastReparsePointTargetInChain([CanBeNull]SafeFileHandle handle, string sourcePath)
+        public static Possible<string> TryGetLastReparsePointTargetInChain([MaybeNull]SafeFileHandle handle, string sourcePath)
         {
             Contract.RequiresNotNullOrEmpty(sourcePath);
 
@@ -877,7 +874,7 @@ namespace BuildXL.Native.IO
                 if (!openResult.Succeeded)
                 {
                     return openResult.CreateFailureForError();
-                } 
+                }
             }
 
             using (handle)
@@ -1071,7 +1068,7 @@ namespace BuildXL.Native.IO
         {
             return s_fileSystem.GetFinalPathNameByHandle(handle, volumeGuidPath);
         }
-        
+
         /// <see cref="IFileSystem.TryGetFinalPathNameByPath(string, out string, out int, bool)"/>
         public static bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false)
         {
@@ -1189,7 +1186,7 @@ namespace BuildXL.Native.IO
 
             return Path.GetFullPath(Path.Combine(parent, relativeTarget));
         }
-        
+
         /// <summary>
         /// Splits path into atoms and push it into the stack such that the top stack contains the last atom.
         /// </summary>
@@ -1337,7 +1334,7 @@ namespace BuildXL.Native.IO
                 if (!filePermissions.HasFlag(UnixIO.FilePermissions.S_IXUSR))
                 {
                     var result = UnixIO.SetFilePermissionsForFilePath(fileName, (filePermissions | UnixIO.FilePermissions.S_IXUSR));
-                    
+
                     if (result < 0)
                     {
                         return new NativeFailure(result, $"Could not set file permissions: File '{fileName}'.");

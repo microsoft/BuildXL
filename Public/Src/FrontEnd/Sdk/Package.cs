@@ -3,9 +3,9 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -44,7 +44,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <remarks>
         /// Can be null if there is no explicit projects listed in the package configuration.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         public HashSet<AbsolutePath> DescriptorProjects { get; }
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <remarks>
         /// This property is called when the object construction is finished. So no synchronization is needed.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         public IEnumerable<AbsolutePath> ParsedProjects => m_parsedProjects;
 
         /// <summary>

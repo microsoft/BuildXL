@@ -23,8 +23,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using TypeScript.Net.DScript;
@@ -32,6 +30,7 @@ using TypeScript.Net.Types;
 using ConfigurationConverter = BuildXL.FrontEnd.Script.Util.ConfigurationConverter;
 using SourceFile = TypeScript.Net.Types.SourceFile;
 using SyntaxKind = TypeScript.Net.Types.SyntaxKind;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.JavaScript
 {
@@ -117,20 +116,20 @@ namespace BuildXL.FrontEnd.JavaScript
         /// <summary>
         /// Mapping between the ILazyEval instance specified in the resolver configuration with its corresponding statement in the lazy expression source file
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public IReadOnlyDictionary<IVariableStatement, ILazyEval> LazyEvaluationStatementMapping { get; private set; }
 
         /// <summary>
         /// Mapping between JavaScript projects and the additional lazy evaluation artifacts
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public IReadOnlyDictionary<JavaScriptProject, IReadOnlySet<ILazyEval>> AdditionalLazyArtifactsPerProject { get; private set; }
 
         /// <summary>
         /// If a custom scheduling callback is specified, this is the variable declaration (with function type) that has to be evaluated
         /// to get the result of the custom scheduling
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public VariableDeclaration CustomSchedulingCallback { get; private set; }
 
         /// <inheritdoc/>
@@ -186,7 +185,7 @@ namespace BuildXL.FrontEnd.JavaScript
         protected bool TryResolveExports(
             IReadOnlyCollection<JavaScriptProject> projects,
             IReadOnlyCollection<DeserializedJavaScriptProject> deserializedProjects,
-            [CanBeNull] JavaScriptProjectSelector projectSelector,
+            [AllowNull] JavaScriptProjectSelector projectSelector,
             out IReadOnlyCollection<ResolvedJavaScriptExport> resolvedExports)
         {
             // Build dictionaries to speed up subsequent look-ups

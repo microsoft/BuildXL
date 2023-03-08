@@ -3,14 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips.Graph;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using VSCode.DebugProtocol;
 
 #pragma warning disable SA1649 // File name must match first type name
@@ -183,15 +182,15 @@ namespace BuildXL.FrontEnd.Script.Debugger
             : this(preview, null, null) { }
 
         /// <nodoc />
-        public ObjectInfo([CanBeNull] IEnumerable<Property> properties)
+        public ObjectInfo([AllowNull] IEnumerable<Property> properties)
             : this(preview: "", properties: properties) { }
 
         /// <nodoc />
-        public ObjectInfo(string preview, [CanBeNull] IEnumerable<Property> properties)
+        public ObjectInfo(string preview, [AllowNull] IEnumerable<Property> properties)
             : this(preview, properties?.ToDictionary(p => p.Name, p => p)) { }
 
         /// <nodoc />
-        public ObjectInfo(string preview, [CanBeNull] IDictionary<string, Property> properties)
+        public ObjectInfo(string preview, [AllowNull] IDictionary<string, Property> properties)
             : this(preview, null, Lazy.Create(() => properties ?? new Dictionary<string, Property>(0))) { }
 
         /// <nodoc />

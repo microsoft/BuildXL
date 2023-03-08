@@ -6,10 +6,10 @@ using System.Collections.Generic;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
+using System.Diagnostics.CodeAnalysis;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -54,7 +54,7 @@ namespace TypeScript.Net.Incrementality
 
     internal static class DeclarationFlagsExtensions
     {
-        [NotNull]
+        [return: NotNull]
         public static string ToDisplayModifier(this DeclarationFlags flags)
         {
             string result = string.Empty;
@@ -82,7 +82,7 @@ namespace TypeScript.Net.Incrementality
             return result;
         }
 
-        [NotNull]
+        [return: NotNull]
         public static string GetModifierAsSuffix(this DeclarationFlags flags)
         {
             var modifier = flags.ToDisplayModifier();
@@ -152,10 +152,10 @@ namespace TypeScript.Net.Incrementality
             AnalyzeDeclarationStatements(m_sourceFile.Statements);
         }
 
-        [CanBeNull]
+        [AllowNull]
         public IReadOnlySet<InteractionSymbol> DeclaredSymbols => m_declaredSymbols?.ToReadOnlySet();
 
-        [CanBeNull]
+        [AllowNull]
         public IReadOnlySet<InteractionSymbol> ReferencedSymbols => m_referencedSymbols?.ToReadOnlySet();
 
         private void AnalyzeDeclarationStatements(NodeArray<IStatement> statements)
@@ -266,7 +266,7 @@ namespace TypeScript.Net.Incrementality
             AnalyzeTypeReference(source.Type);
         }
 
-        private void AnalyzeStatements([CanBeNull]NodeArray<IStatement> statements)
+        private void AnalyzeStatements([AllowNull]NodeArray<IStatement> statements)
         {
             int i = 0;
             foreach (var statement in statements.AsStructEnumerable())
@@ -276,7 +276,7 @@ namespace TypeScript.Net.Incrementality
             }
         }
 
-        private void AnalyzeStatement([CanBeNull]IStatement statement, int idx)
+        private void AnalyzeStatement([AllowNull]IStatement statement, int idx)
         {
             if (statement == null)
             {
@@ -322,7 +322,7 @@ namespace TypeScript.Net.Incrementality
             }
         }
 
-        private void AnalyzeVariableStatement([CanBeNull]IVariableDeclarationList source, int idx)
+        private void AnalyzeVariableStatement([AllowNull]IVariableDeclarationList source, int idx)
         {
             if (source != null)
             {
@@ -435,7 +435,7 @@ namespace TypeScript.Net.Incrementality
         /// That's why for those two cases this function is called recursively for the left hand side
         /// with <paramref name="saveIdentifierOnStack"/> argument equals to true.
         /// </remarks>
-        private void AnalyzeExpression([CanBeNull]IExpression expression, int idx, bool saveIdentifierOnStack = false)
+        private void AnalyzeExpression([AllowNull]IExpression expression, int idx, bool saveIdentifierOnStack = false)
         {
             if (expression == null)
             {
@@ -933,7 +933,7 @@ namespace TypeScript.Net.Incrementality
             }
         }
 
-        private void AnalyzeTypeReference([CanBeNull]ITypeNode type)
+        private void AnalyzeTypeReference([AllowNull]ITypeNode type)
         {
             if (type == null || type.IsPredefinedType())
             {
@@ -1026,7 +1026,7 @@ namespace TypeScript.Net.Incrementality
             }
         }
 
-        private void AnalyzeTypeArguments([CanBeNull]NodeArray<ITypeNode> typeArguments)
+        private void AnalyzeTypeArguments([AllowNull]NodeArray<ITypeNode> typeArguments)
         {
             foreach (var t in typeArguments.AsStructEnumerable())
             {
@@ -1152,7 +1152,7 @@ namespace TypeScript.Net.Incrementality
             }
         }
 
-        private static DeclarationFlags GetModifiers([CanBeNull]INode source, bool isOptional = false)
+        private static DeclarationFlags GetModifiers([AllowNull]INode source, bool isOptional = false)
         {
             if (source == null)
             {
@@ -1206,7 +1206,7 @@ namespace TypeScript.Net.Incrementality
             return UnwrapIdentifier(decorator.Expression)?.Text == Names.ObsoleteAttributeName;
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private static IIdentifier UnwrapIdentifier(IExpression expression)
         {
             var identifier = expression.As<IIdentifier>();

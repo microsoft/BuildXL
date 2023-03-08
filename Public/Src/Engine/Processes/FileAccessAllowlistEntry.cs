@@ -6,7 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Processes
 {
@@ -33,7 +32,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Protected constructor
         /// </summary>
-        protected FileAccessAllowlistEntry([NotNull]SerializableRegex pathRegex, bool allowsCaching, string name)
+        protected FileAccessAllowlistEntry([NotNull] SerializableRegex pathRegex, bool allowsCaching, string name)
         {
             Contract.Requires(pathRegex != null);
 
@@ -46,7 +45,7 @@ namespace BuildXL.Processes
         /// Determine whether a ReportedFileAccess matches the allowlist rules.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011", Justification = "Only a Process can have unknown file accesses.")]
-        public abstract FileAccessAllowlist.MatchType Matches(ReportedFileAccess reportedFileAccess, [NotNull]Process pip, [NotNull]PathTable pathTable);
+        public abstract FileAccessAllowlist.MatchType Matches(ReportedFileAccess reportedFileAccess, [NotNull] Process pip, [NotNull] PathTable pathTable);
 
         #region Serialization
 

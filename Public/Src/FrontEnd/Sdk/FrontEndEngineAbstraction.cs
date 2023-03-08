@@ -12,7 +12,7 @@ using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -151,13 +151,13 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Returns files that did not changed since the previous run, or <code>null</code> if no such information is available.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         public abstract IEnumerable<string> GetUnchangedFiles();
 
         /// <summary>
         /// Returns files that changed since the previous run, or <code>null</code> if no such information is available.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         public abstract IEnumerable<string> GetChangedFiles();
 
         /// <summary>

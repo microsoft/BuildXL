@@ -17,12 +17,10 @@ using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Qualifier;
 using BuildXL.Utilities.Core.Tasks;
-using JetBrains.Annotations;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using BindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.Core.SymbolAtom, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 using NsBindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.Core.FullSymbol, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 
 // Enable below code for testing specialized dictionaries.
@@ -73,7 +71,7 @@ namespace BuildXL.FrontEnd.Script.Values
         ///
         /// Visibility should be internal, because File module reads/writes this field.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         [SuppressMessage("Microsoft.StyleCop.CSharp.NamingRules", "SA1307:AccessibleFieldsMustBeginWithUpperCaseLetter")]
         protected internal BindingDictionary m_bindings;
 
@@ -84,7 +82,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// These bindings are the bindings for namespaces.
         /// Valid only for file modules and globals only. Shared between the uninstantiated module and its module instance.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         protected NsBindingDictionary m_nsBindings;
 
         /// <summary>
@@ -124,14 +122,14 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <remarks>
         /// For types and namespaces this property returns owning file module, for file module - globals, and null for globals.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         public ModuleLiteral OuterScope { get; }
 
         /// <summary>
         /// Returns file module for this module instance.
         /// Null for globals, 'this' for file module and owning file for type or namespace.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public abstract FileModuleLiteral CurrentFileModule { get; }
 
         /// <summary>
@@ -149,7 +147,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <remarks>
         /// Null for <see cref="GlobalModuleLiteral"/> or not-null for other kind of module literals.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         public abstract Package Package { get; }
 
         /// <summary>

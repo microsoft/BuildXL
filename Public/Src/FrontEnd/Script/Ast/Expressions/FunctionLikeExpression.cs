@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Evaluator;
@@ -8,7 +9,6 @@ using BuildXL.FrontEnd.Script.Statements;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
@@ -48,7 +48,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
         /// <summary>
         /// Function body. Null for ambients.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public Statement Body { get; }
 
         /// <summary>

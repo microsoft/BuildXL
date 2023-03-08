@@ -5,7 +5,7 @@ using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Pips.Graph
 {

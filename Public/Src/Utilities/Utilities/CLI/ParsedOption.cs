@@ -3,11 +3,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.CLI.Utils;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
@@ -70,22 +70,22 @@ namespace BuildXL.Utilities.CLI
         /// <remarks>
         ///     <b>Mutates <paramref name="args"/></b> (by dequeuing elements from it).
         /// </remarks>
-        [NotNull]
+        [return: NotNull]
         ParsedOption Parse(Queue<string> args);
 
         /// <summary>
         ///     Produces a single-line string rendered option values from <paramref name="conf"/>.
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [return: NotNull]
         string Render([NotNull]Config conf);
 
         /// <summary>
         ///     Renders a single option name/value pair with a given prefix.
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
-        string RenderSingleOption(PrefixKind prefixKind, [NotNull]string name, [CanBeNull]string value);
+        [return: NotNull]
+        string RenderSingleOption(PrefixKind prefixKind, [NotNull]string name, [AllowNull]string value);
 
         /// <summary>
         ///     Splits a given non-null string into command-line args, following conventions for
@@ -98,7 +98,7 @@ namespace BuildXL.Utilities.CLI
         ///         - arg1 "this \"is\" arg2" arg3 --> [ "arg1", "this \"is\" arg2", "arg3" ]
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [return: NotNull]
         string[] SplitArgs([NotNull]string args);
     }
 

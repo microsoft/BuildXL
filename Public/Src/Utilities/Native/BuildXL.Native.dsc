@@ -61,6 +61,7 @@ namespace Native {
         assemblyName: "BuildXL.Native",
         sources: globR(d`.`, "*.cs"),
         generateLogs: true,
+        addNotNullAttributeFile: true,
         references: [
             $.dll,
             Interop.dll,

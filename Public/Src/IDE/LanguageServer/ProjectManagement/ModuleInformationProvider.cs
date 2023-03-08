@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Ide.JsonRpc;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using LanguageServer;
 using Newtonsoft.Json.Linq;
 using StreamJsonRpc;

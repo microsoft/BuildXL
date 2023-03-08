@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <remarks>
         /// If this is not the first time specs in this workspace are type checked, the semantic model that resulted in a previous check is expected to be passed
         /// </remarks>
-        public async Task<Workspace> ComputeSemanticWorkspaceAsync(PathTable pathTable, Workspace workspace, [CanBeNull] ISemanticModel originalSemanticModel = null, bool incrementalMode = false)
+        public async Task<Workspace> ComputeSemanticWorkspaceAsync(PathTable pathTable, Workspace workspace, [AllowNull] ISemanticModel originalSemanticModel = null, bool incrementalMode = false)
         {
             Contract.Requires(workspace != null);
 
@@ -65,7 +65,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             }
         }
 
-        private ITypeChecker TypeCheckWorkspace(PathTable pathTable, Workspace workspace, int degreeOfParallelism, [CanBeNull]ISemanticModel originalSemanticModel, bool interactiveMode)
+        private ITypeChecker TypeCheckWorkspace(PathTable pathTable, Workspace workspace, int degreeOfParallelism, [AllowNull]ISemanticModel originalSemanticModel, bool interactiveMode)
         {
             // TODO: This is temporary and should be removed!!!
             // The checker needs to be split into symbol binding and type checking. Only symbol binding should happen here!

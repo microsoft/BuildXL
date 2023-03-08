@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
 
 namespace TypeScript.Net.Types
 {
@@ -19,7 +19,7 @@ namespace TypeScript.Net.Types
         /// Each node could be wrapped into the union type that makes reference identity invalid by default.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static INode ResolveUnionType([CanBeNull]this INode node)
+        public static INode ResolveUnionType([AllowNull]this INode node)
         {
             return node?.GetActualNode();
 

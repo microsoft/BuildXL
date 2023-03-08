@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Core;
@@ -9,7 +10,6 @@ using BuildXL.FrontEnd.Download.Tracing;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Download
 {

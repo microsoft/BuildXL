@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Native.IO
 {
@@ -32,7 +32,7 @@ namespace BuildXL.Native.IO
         /// When <see cref="Succeeded"/> is <code>false</code>, this property
         /// can optionally contain the exception that caused the error.
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         public Exception ErrorCause { get; }
 
         /// <summary>

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Util;
@@ -10,7 +11,6 @@ using BuildXL.FrontEnd.Sdk.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Qualifier;
-using JetBrains.Annotations;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values
@@ -28,7 +28,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Object literal representing a qualifier.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public ObjectLiteral Qualifier { get; }
 
         /// <summary>

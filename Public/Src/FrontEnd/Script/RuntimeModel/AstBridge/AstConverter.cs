@@ -21,7 +21,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core.Qualifier;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Parsing;
@@ -46,7 +45,6 @@ using ISymbol = TypeScript.Net.Types.ISymbol;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 using ModuleDeclaration = BuildXL.FrontEnd.Script.Declarations.ModuleDeclaration;
 using NamespaceImport = BuildXL.FrontEnd.Script.Declarations.NamespaceImport;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 using ObjectType = BuildXL.FrontEnd.Script.Types.ObjectType;
 using PropertySignature = BuildXL.FrontEnd.Script.Types.PropertySignature;
 using ReturnStatement = BuildXL.FrontEnd.Script.Statements.ReturnStatement;
@@ -113,7 +111,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private readonly StringId m_lazyExpression;
 
-        private AstConverter(QualifierTable qualifierTable, AstConversionContext conversionContext, AstConversionConfiguration conversionConfiguration, [CanBeNull]Workspace workspace)
+        private AstConverter(QualifierTable qualifierTable, AstConversionContext conversionContext, AstConversionConfiguration conversionConfiguration, [AllowNull]Workspace workspace)
         {
             Contract.Requires(conversionContext != null);
             Contract.Requires(conversionConfiguration != null);
@@ -878,7 +876,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return ConvertedStatement.FlattenStatements(convertedStatements).ToArray();
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private ConvertedStatement ConvertStatement(IStatement statement, ConversionContext context)
         {
             Contract.Requires(statement != null);
@@ -1024,14 +1022,14 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return new ReturnStatement(expression, Location(returnStatement));
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private ExpressionStatement ConvertExpressionStatement(IExpressionStatement expressionStatement, ConversionContext context)
         {
             Expression expression = ConvertExpression(expressionStatement.Expression, context);
             return expression != null ? new ExpressionStatement(expression, Location(expressionStatement)) : null;
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private ForStatement ConvertForStatement(IForStatement forStatement, ConversionContext context)
         {
             context.Scope.PushBlockScope(forStatement.Locals);
@@ -1184,7 +1182,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Determines whether a template is in scope of the current node. Creates a template reference to the template in scope or the empty object literal otherwise.
         /// </summary>
-        private bool TryLookUpTemplateAndCreateReference([CanBeNull]INode currentNode, LineInfo referenceLocation, out Expression templateReference)
+        private bool TryLookUpTemplateAndCreateReference([AllowNull]INode currentNode, LineInfo referenceLocation, out Expression templateReference)
         {
             // This means we are probably out of scopes and we reached a null parent. In that case, there is definitively not a template in scope
             if (currentNode == null)
@@ -1331,7 +1329,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return ParameterKind.Required;
         }
 
-        [NotNull]
+        [return: NotNull]
         private IReadOnlyList<TypeParameter> ConvertTypeParameters(NodeArray<ITypeParameterDeclaration> typeParameters, QualifierSpaceId currentQualifierSpaceId)
         {
             // This method is useful because typeParameters in most cases are empty, so this special case could be covered in one place!
@@ -1804,7 +1802,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// Returns <code>null</code> if the semantic resolution is enabled but target spec is not part of the workspace.
         /// This means that there is no references for the alias and we can freely ignore this node.
         /// </returns>
-        [CanBeNull]
+        [return: MaybeNull]
         private Expression ConvertPathSpecifier(IStringLiteral stringLiteral)
         {
             Contract.Requires(stringLiteral != null);
@@ -1813,7 +1811,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return ConvertPathSpecifier(stringLiteral.Text, Location(stringLiteral));
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private Expression ConvertPathSpecifier(string text, in UniversalLocation location)
         {
             Contract.Requires(text != null);
@@ -2690,7 +2688,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// Returns <code>null</code> if the semantic resolution is enabled but target spec is not part of the workspace.
         /// This means that there is no references for the alias and we can freely ignore this node.
         /// </returns>
-        [CanBeNull]
+        [return: MaybeNull]
         private ImportAliasExpression CreateImportAliasExpression(Expression pathSpecifier, in UniversalLocation location)
         {
             var absolutePathSpecifier = pathSpecifier as PathLiteral;
@@ -2723,7 +2721,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return (left != null && right != null && @operator.HasValue) ? new BinaryExpression(left, @operator.Value, right, Location(source)) : null;
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private AssignmentExpression ConvertAssignmentExpression(IBinaryExpression source, AssignmentOperator assignmentOperator, ConversionContext context)
         {
             // left hand side of the assignment should be an identifier
@@ -2746,7 +2744,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return rightExpression != null ? new AssignmentExpression(local.Value.Name, local.Value.Index, assignmentOperator, rightExpression, Location(source)) : null;
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private IncrementDecrementExpression ConvertAssignmentExpression(IUnaryExpression source, IExpression operand, FunctionScope escapes, IncrementDecrementOperator incrementDecrementOperator)
         {
             // operand should be an identifier
@@ -2940,7 +2938,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return result;
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private Expression ConvertIdentifier(IIdentifier source, ConversionContext context)
         {
             if (source is SymbolAtomBasedIdentifier identifier)
@@ -2951,7 +2949,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return ConvertIdentifier(source.Text, ResolveSymbolAtPositionAndReportWarningIfObsolete(source), Location(source), context);
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private ISymbol ResolveSymbolAtPositionAndReportWarningIfObsolete(INode node)
         {
             if (node.Kind == TypeScript.Net.Types.SyntaxKind.CallExpression)
@@ -2983,14 +2981,14 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return result;
         }
 
-        [CanBeNull]
-        private Expression ConvertIdentifier(string text, [CanBeNull]ISymbol identifierSymbol, in UniversalLocation location, ConversionContext context)
+        [return: MaybeNull]
+        private Expression ConvertIdentifier(string text, [AllowNull]ISymbol identifierSymbol, in UniversalLocation location, ConversionContext context)
         {
             return ConvertIdentifier2(SymbolAtom.Create(StringTable, text), identifierSymbol, location, context);
         }
 
-        [CanBeNull]
-        private Expression ConvertIdentifier2(SymbolAtom nameAtom, [CanBeNull]ISymbol identifierSymbol, in UniversalLocation location, ConversionContext context)
+        [return: MaybeNull]
+        private Expression ConvertIdentifier2(SymbolAtom nameAtom, [AllowNull]ISymbol identifierSymbol, in UniversalLocation location, ConversionContext context)
         {
             // TODO: do we really need to do that?!?!?
             // Because of this check the result of this function can't be SymbolReferenceExpression!
@@ -3148,7 +3146,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Returns an enclosing namespace name or a special <see cref="BuildXL.FrontEnd.Script.Constants.Names.RuntimeRootNamespaceAlias"/>.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         private static INode FindEnclosingNamespaceName(INode node, out string name)
         {
             INode currentNode = node.ResolveUnionType();
@@ -3179,7 +3177,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private Expression CreateSymbolReferenceExpression(
             SymbolAtom name,
-            [CanBeNull] ISymbol resolvedSymbol,
+            [AllowNull] ISymbol resolvedSymbol,
             LineInfo location)
         {
             // In this case it is save to get the first declaration of the symbol,
@@ -3190,7 +3188,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private Expression CreateSymbolReferenceExpression(
             SymbolAtom name,
-            [CanBeNull] ISymbol resolvedSymbol,
+            [AllowNull] ISymbol resolvedSymbol,
             LineInfo location,
             IDeclaration symbolDeclaration)
         {
@@ -3251,7 +3249,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return node.Location(CurrentSourceFile, CurrentSpecPath, RuntimeModelContext.PathTable);
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private Expression ConvertLiteral(ILiteralExpression literal, bool isNegative)
         {
             var location = Location(literal);

@@ -6,6 +6,7 @@ namespace StorageTestUtilities {
     export const dll = BuildXLSdk.library({
         assemblyName: "Test.BuildXL.StorageTestUtilities",
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             TestUtilities.dll,
             TestUtilities.XUnit.dll,

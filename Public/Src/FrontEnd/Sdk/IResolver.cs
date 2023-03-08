@@ -7,7 +7,7 @@ using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Sdk
 {

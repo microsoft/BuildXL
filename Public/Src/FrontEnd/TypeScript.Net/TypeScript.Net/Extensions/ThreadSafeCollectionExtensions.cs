@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 using TypeScript.Net.Types;
 
 namespace TypeScript.Net.Extensions
@@ -21,7 +21,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Adds or updates a value in the list at a given index.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         public static List<T> AddOrUpdateAtomic<T>(this List<T> list, T value, int index)
         {
             lock (list)
@@ -33,7 +33,7 @@ namespace TypeScript.Net.Extensions
             return list;
         }
 
-        [NotNull]
+        [return: NotNull]
         public static List<T> AddAtomic<T>(this List<T> list, T value)
         {
             lock (list)
@@ -137,7 +137,7 @@ namespace TypeScript.Net.Extensions
             }
         }
 
-        [NotNull]
+        [return: NotNull]
         public static ISymbolTable GetOrCreateSymbolTable([NotNull]this Map<ISymbolTable> map, [NotNull]string key)
         {
             ISymbolTable result;

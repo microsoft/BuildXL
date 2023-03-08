@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 using TypeScript.Net.Types;
 
 namespace TypeScript.Net.Parsing
@@ -273,7 +273,7 @@ namespace TypeScript.Net.Parsing
             return wrapper;
         }
 
-        private static NodeOrNodeArray Node([CanBeNull]INode node)
+        private static NodeOrNodeArray Node([AllowNull]INode node)
         {
             return new NodeOrNodeArray(node);
         }
@@ -934,7 +934,7 @@ namespace TypeScript.Net.Parsing
                 }
 
                 /// <nodoc />
-                [CanBeNull]
+                [AllowNull]
                 public INode Current
                 {
                     get { return m_parent.Nodes != null ? m_parent.Nodes[m_index - 1] : m_parent.Node; }

@@ -18,7 +18,6 @@ using BuildXL.Utilities.Core.Qualifier;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Core;
@@ -32,6 +31,7 @@ using Test.DScript.Workspaces;
 using Test.DScript.Workspaces.Utilities;
 using Test.BuildXL.FrontEnd.Core;
 using Interpreter = BuildXL.FrontEnd.Core.FrontEndHostController;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Test.DScript.Ast.PartialEvaluation
 {
@@ -111,7 +111,7 @@ namespace Test.DScript.Ast.PartialEvaluation
         /// <summary>
         /// Calls <see cref="ConvertNoErrorCheckAsync(Workspace, PipGraph)"/> then asserts that no errors have been recorded.
         /// </summary>
-        public async Task<Interpreter> ConvertAsync(Workspace workspace, [CanBeNull] PipGraph oldPipGraph)
+        public async Task<Interpreter> ConvertAsync(Workspace workspace, [AllowNull] PipGraph oldPipGraph)
         {
             var result = await ConvertNoErrorCheckAsync(workspace, oldPipGraph);
             XAssert.IsFalse(result.HasError, "Conversion failed: " + result);
@@ -130,7 +130,7 @@ namespace Test.DScript.Ast.PartialEvaluation
         ///
         /// Any errors can be retrieved via the <see cref="CreateTestResult"/> method.
         /// </summary>
-        public async Task<TestResult<Interpreter>> ConvertNoErrorCheckAsync(Workspace workspace, [CanBeNull] PipGraph oldPipGraph)
+        public async Task<TestResult<Interpreter>> ConvertNoErrorCheckAsync(Workspace workspace, [AllowNull] PipGraph oldPipGraph)
         {
             var nonPreludeModules = NonPreludeModules(workspace).ToArray();
             var moduleRegistry = new ModuleRegistry(SymbolTable);
@@ -230,7 +230,7 @@ namespace Test.DScript.Ast.PartialEvaluation
         /// patches the graph between the <see cref="ConvertAsync"/> and <see cref="EvaluateAsync"/> steps.
         /// </summary>
         public async Task<PipGraph> EvaluateWithGraphPatchingAsync(ModuleRepository repo, PipGraph oldPipGraph,
-            IEnumerable<AbsolutePath> changedSpecs, [CanBeNull] IEnumerable<AbsolutePath> specsToIgnore)
+            IEnumerable<AbsolutePath> changedSpecs, [AllowNull] IEnumerable<AbsolutePath> specsToIgnore)
         {
             var workspace = await ParseAsync(repo);
             var semanticModel = Typecheck(workspace);

@@ -16,10 +16,10 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using ValueTaskFactory = BuildXL.Utilities.Core.Tasks.ValueTaskFactory;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Download
 {

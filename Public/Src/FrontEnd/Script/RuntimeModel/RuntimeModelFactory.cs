@@ -18,11 +18,11 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
 using Diagnostic = TypeScript.Net.Diagnostics.Diagnostic;
 using Expression = BuildXL.FrontEnd.Script.Expressions.Expression;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 {
@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             LoggingContext loggingContext,
             IFrontEndStatistics statistics,
             AstConversionConfiguration conversionConfiguration,
-            [CanBeNull]Workspace workspace)
+            [AllowNull]Workspace workspace)
             : this(
                 statistics,
                 conversionConfiguration,

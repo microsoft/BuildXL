@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 using TypeScript.Net.Core;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Extensions;
@@ -26,7 +26,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Source file that a current node belongs to.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         ISourceFile SourceFile { get; set; }
 
         /// <nodoc/>
@@ -79,7 +79,7 @@ namespace TypeScript.Net.Types
         /// if the node itself doesn't keep this information.
         /// So in the IDE mode, the checker will store the symbol in <see cref="INodeLinks"/> and in the batch mode it will keep it on the node.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         ISymbol ResolvedSymbol { get; set; }
 
         /// <nodoc/>
@@ -219,7 +219,7 @@ namespace TypeScript.Net.Types
         new PropertyName Name { get; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         NodeArray<ITypeParameterDeclaration> TypeParameters { get; set; }
 
         /// <nodoc/>
@@ -265,13 +265,13 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Optional type annotation
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         ITypeNode Type { get; set; }
 
         /// <summary>
         /// Optional initializer
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         IExpression Initializer { get; set; }
     }
 
@@ -305,13 +305,13 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Optional type annotation
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         ITypeNode Type { get; set; }
 
         /// <summary>
         /// Optional initializer
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         IExpression Initializer { get; set; }
     }
 
@@ -601,7 +601,7 @@ namespace TypeScript.Net.Types
         EntityName TypeName { get; set; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         NodeArray<ITypeNode> TypeArguments { get; set; }
     }
 
@@ -1028,7 +1028,7 @@ namespace TypeScript.Net.Types
         ILeftHandSideExpression Expression { get; set; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         IExpression ArgumentExpression { get; set; }
     }
 
@@ -1228,15 +1228,15 @@ namespace TypeScript.Net.Types
     public interface IForStatement : IIterationStatement
     {
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         VariableDeclarationListOrExpression Initializer { get; set; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         IExpression Condition { get; set; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         IExpression Incrementor { get; set; }
     }
 
@@ -1281,7 +1281,7 @@ namespace TypeScript.Net.Types
     public interface IBreakOrContinueStatement : IStatement
     {
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         IIdentifier Label { get; set; }
     }
 

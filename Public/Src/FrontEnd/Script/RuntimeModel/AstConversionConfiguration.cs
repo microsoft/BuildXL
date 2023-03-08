@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 {
@@ -15,7 +15,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
     {
         /// <nodoc/>
         public AstConversionConfiguration(
-            [CanBeNull]IEnumerable<string> policyRules,
+            [AllowNull]IEnumerable<string> policyRules,
             bool disableLanguagePolicies,
             bool disableIsObsoleteCheck,
             bool unsafeOptimized = false)

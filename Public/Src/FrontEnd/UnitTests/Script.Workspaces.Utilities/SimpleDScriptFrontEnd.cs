@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Sdk;
-using JetBrains.Annotations;
 using Test.DScript.Workspaces.Utilities;
 
 namespace Test.BuildXL.FrontEnd.Workspaces.Utilities

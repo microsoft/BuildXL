@@ -9,6 +9,7 @@ namespace Sdk {
         assemblyName: "BuildXL.FrontEnd.Sdk",
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             TypeScript.Net.dll,
 

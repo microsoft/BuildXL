@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -41,7 +41,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Delegate that will be invoked for workspace computation progress reporting.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         EventHandler<WorkspaceProgressEventArgs> WorkspaceProgress { get; }
 
         /// <summary>

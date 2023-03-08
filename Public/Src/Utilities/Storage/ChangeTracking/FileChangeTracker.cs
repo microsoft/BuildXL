@@ -17,7 +17,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Storage.ChangeTracking
 {
@@ -917,7 +916,7 @@ namespace BuildXL.Storage.ChangeTracking
             return new FileChangeTrackerUnsubscriber(
                 m_observers,
                 observer,
-                new List<IDisposable> { Subscribe((IObserver<ChangedFileIdInfo>) observer), Subscribe((IObserver<ChangedPathInfo>) observer) });
+                new List<IDisposable> { Subscribe((IObserver<ChangedFileIdInfo>)observer), Subscribe((IObserver<ChangedPathInfo>)observer) });
         }
 
         private void ReportProcessChangesCompletion(ScanningJournalResult result)

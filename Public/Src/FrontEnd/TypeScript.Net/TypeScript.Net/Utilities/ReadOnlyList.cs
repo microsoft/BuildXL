@@ -4,8 +4,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Collections.CollectionUtilities;
 
 namespace TypeScript.Net
@@ -17,7 +17,7 @@ namespace TypeScript.Net
     {
         private readonly T m_instance;
 
-        [CanBeNull]
+        [AllowNull]
         private readonly IReadOnlyList<T> m_list;
 
         /// <nodoc />
@@ -29,7 +29,7 @@ namespace TypeScript.Net
         }
 
         /// <nodoc />
-        public ReadOnlyList([CanBeNull]IReadOnlyList<T> list)
+        public ReadOnlyList([AllowNull]IReadOnlyList<T> list)
             : this()
         {
             m_list = list;
@@ -63,14 +63,14 @@ namespace TypeScript.Net
         public T this[int index] => SingleItem ? m_instance : m_list?[index];
 
         /// <nodoc />
-        [CanBeNull]
+        [return: MaybeNull]
         public T FirstOrDefault()
         {
             return SingleItem ? m_instance : FirstOrDefault(m_list);
         }
 
         /// <nodoc />
-        [NotNull]
+        [return: NotNull]
         public T First()
         {
             var result = FirstOrDefault();

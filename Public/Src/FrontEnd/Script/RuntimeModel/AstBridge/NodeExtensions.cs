@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -122,7 +121,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// Checks if this expression is a <see cref="ICallExpression"/> and if so returns
         /// the name of the called function; otherwise returns <code>null</code>.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         internal static string TryGetFunctionNameInCallExpression(this IStatement statement)
         {
             Contract.Requires(statement != null);

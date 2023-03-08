@@ -5,8 +5,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using JetBrains.Annotations;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using TypeScript.Net.Types;
@@ -752,7 +752,7 @@ export const root = 42";
 
             public AnalyzedSourceFile Spec3 { get; }
 
-            public ThreeFiles(PathTable pathTable, ITypeChecker checker, [NotNull]ISourceFile spec1, [NotNull]ISourceFile spec2, [CanBeNull]ISourceFile spec3, ISourceFile[] files)
+            public ThreeFiles(PathTable pathTable, ITypeChecker checker, [NotNull]ISourceFile spec1, [NotNull]ISourceFile spec2, [AllowNull]ISourceFile spec3, ISourceFile[] files)
                 : this()
             {
                 Spec1 = new AnalyzedSourceFile(checker, spec1, files, pathTable);

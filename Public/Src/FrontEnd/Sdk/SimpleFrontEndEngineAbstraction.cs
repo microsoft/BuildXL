@@ -14,9 +14,9 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using IFileSystem = BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Mount names defined in the configuration (populated during construction).
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         protected Dictionary<string, IMount> m_customMountsTable;
 
         /// <nodoc />
@@ -262,7 +262,7 @@ namespace BuildXL.FrontEnd.Sdk
             return EnumerateEntriesHelper(m_pathTable, path, pattern, recursive, directories, m_fileSystem);
         }
 
-        private static Dictionary<string, IMount> ConstructMountsTable([CanBeNull] IConfiguration configuration, StringTable stringTable)
+        private static Dictionary<string, IMount> ConstructMountsTable([AllowNull] IConfiguration configuration, StringTable stringTable)
         {
             if (configuration == null)
             {

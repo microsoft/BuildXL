@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Ide.LanguageServer.Utilities;
-using JetBrains.Annotations;
 using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Reformatter;
@@ -269,7 +269,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
         /// <summary>
         /// Creates a string representation of a type to display in hover.
         /// </summary>
-        private static string CreateStringFromType([CanBeNull] IType type)
+        private static string CreateStringFromType([AllowNull] IType type)
         {
             if (type == null)
             {

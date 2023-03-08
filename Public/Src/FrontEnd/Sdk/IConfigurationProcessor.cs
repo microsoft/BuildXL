@@ -4,7 +4,7 @@
 using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -28,7 +28,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// Applies all defaults and the command line overrides.
         /// If the primaryConfiguration is invalid, a default instance should be used.
         /// </remarks>
-        [CanBeNull]
+        [return: MaybeNull]
         IConfiguration InterpretConfiguration(
             AbsolutePath primaryConfiguration,
             [NotNull] ICommandLineConfiguration startupConfiguration);

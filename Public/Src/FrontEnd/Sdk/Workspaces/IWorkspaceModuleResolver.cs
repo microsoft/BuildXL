@@ -7,9 +7,9 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Workspaces
 {
@@ -62,7 +62,7 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Returns a user-facing description of the resolver extent (e.g. what modules the resolver owns, or what directories are looked up)
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         string DescribeExtent();
 
         /// <summary>

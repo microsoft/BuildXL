@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using JetBrains.Annotations;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 
@@ -25,11 +25,11 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
                 TypeScript.Net.Types.SyntaxKind.CallExpression);
         }
 
-        protected abstract void ValidateImportFrom(IExpression argument, [CanBeNull]ILiteralExpression stringLiteral, DiagnosticContext context);
+        protected abstract void ValidateImportFrom(IExpression argument, [AllowNull]ILiteralExpression stringLiteral, DiagnosticContext context);
 
-        protected abstract void DoValidateImportFile(IExpression argument, [CanBeNull]ILiteralExpression stringLiteral, DiagnosticContext context);
+        protected abstract void DoValidateImportFile(IExpression argument, [AllowNull]ILiteralExpression stringLiteral, DiagnosticContext context);
 
-        protected void ValidateImportFile(IExpression argument, [CanBeNull] ILiteralExpression stringLiteral, DiagnosticContext context)
+        protected void ValidateImportFile(IExpression argument, [AllowNull] ILiteralExpression stringLiteral, DiagnosticContext context)
         {
             DoValidateImportFile(argument, stringLiteral, context);
 

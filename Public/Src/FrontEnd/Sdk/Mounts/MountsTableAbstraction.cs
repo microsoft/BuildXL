@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -16,7 +16,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Returns the list of mount names available in the current package
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         public abstract IEnumerable<string> GetMountNames(ModuleId currentPackage);
 
         /// <summary>

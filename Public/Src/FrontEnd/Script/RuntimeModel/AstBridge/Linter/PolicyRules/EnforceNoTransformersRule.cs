@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
@@ -73,7 +73,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
             }
         }
 
-        private static bool IsPrelude([CanBeNull]ISourceFile sourceFile, DiagnosticContext context)
+        private static bool IsPrelude([AllowNull]ISourceFile sourceFile, DiagnosticContext context)
         {
             return sourceFile != null && context.Workspace.PreludeModule?.Specs.ContainsKey(sourceFile.GetAbsolutePath(context.PathTable)) == true;
         }

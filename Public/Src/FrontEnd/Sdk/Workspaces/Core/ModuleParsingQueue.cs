@@ -12,11 +12,9 @@ using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.ParallelAlgorithms;
-using JetBrains.Annotations;
 using TypeScript.Net.Binding;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {
@@ -42,7 +40,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         private readonly IModuleReferenceResolver m_moduleReferenceResolver;
 
         // A designated prelude module. May be null if there is not one
-        [CanBeNull]
+        [AllowNull]
         private readonly ModuleDefinition m_designatedPrelude;
 
         // Special module that has all configuration files.
@@ -179,8 +177,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             [NotNull]WorkspaceProvider workspaceProvider,
             [NotNull]WorkspaceConfiguration workspaceConfiguration,
             [NotNull]IModuleReferenceResolver moduleReferenceResolver,
-            [CanBeNull]ModuleDefinition designatedPrelude,
-            [CanBeNull]ParsedModule configurationModule)
+            [AllowNull]ModuleDefinition designatedPrelude,
+            [AllowNull]ParsedModule configurationModule)
         {
             Contract.Requires(workspaceProvider != null);
 

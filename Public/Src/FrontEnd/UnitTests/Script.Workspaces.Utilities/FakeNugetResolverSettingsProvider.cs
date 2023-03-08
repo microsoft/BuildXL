@@ -2,15 +2,14 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Workspaces.Core;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
-
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.DScript.Workspaces.Utilities
@@ -69,7 +68,7 @@ namespace Test.DScript.Workspaces.Utilities
         }
 
         private Possible<INugetConfiguration> ParseNugetConfigurationFrom(
-            [CanBeNull] IObjectLiteralExpression configurationExpression)
+            [AllowNull] IObjectLiteralExpression configurationExpression)
         {
             IExpression expression;
 
@@ -171,7 +170,7 @@ namespace Test.DScript.Workspaces.Utilities
         }
 
         private static Possible<INugetPackage> ParseNugetPackageFrom(
-            [CanBeNull] IObjectLiteralExpression packageExpression)
+            [AllowNull] IObjectLiteralExpression packageExpression)
         {
             if (packageExpression == null)
             {

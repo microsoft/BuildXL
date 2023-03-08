@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// This is the configuration where the settings apply.
         /// </remarks>
-        [CanBeNull]
+        [MaybeNull]
         IReadOnlyList<IResolverSettings> Resolvers { get; }
 
         /// <summary>
@@ -113,7 +113,7 @@ namespace BuildXL.Utilities.Configuration
         /// This field can be used to restrict the set of orphan projects that the configuration owns.
         /// All projects mentioned in this field must be orphan and must be in the cone of the configuration.
         /// </remarks>
-        [CanBeNull]
+        [MaybeNull]
         IReadOnlyList<AbsolutePath> Projects { get; }
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// Obsolete but kept for back-compat reasons. See <see cref="Modules"/>.
         /// </remarks>
-        [CanBeNull]
+        [MaybeNull]
         IReadOnlyList<AbsolutePath> Packages { get; }
 
         /// <summary>

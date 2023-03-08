@@ -20,7 +20,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
+
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
 using Pure = System.Diagnostics.Contracts.PureAttribute;
@@ -39,7 +39,7 @@ namespace BuildXL.Engine
             CacheInitializationTask engineCacheTask,
             MountsTable mountsTable,
             EvaluationFilter evaluationFilter,
-            [CanBeNull] GraphReuseResult reuseResult,
+            [AllowNull] GraphReuseResult reuseResult,
             out PipGraph pipGraph)
         {
             Contract.Requires(frontEndEngineAbstration != null);
@@ -129,7 +129,7 @@ namespace BuildXL.Engine
         private IPipGraphBuilder CreatePipGraphBuilder(
             LoggingContext loggingContext,
             MountsTable mountsTable,
-            [CanBeNull] GraphReuseResult reuseResult)
+            [AllowNull] GraphReuseResult reuseResult)
         {
             var searchPathToolsHash = new Scheduler.DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable).ComputeSearchPathToolsHash();
             var builder = new PipGraph.Builder(
@@ -684,7 +684,7 @@ namespace BuildXL.Engine
         /// Factory method for the case when nothing can be reused.
         /// Input changes may still optionally be provided.
         /// </summary>
-        internal static GraphReuseResult CreateForNoReuse([CanBeNull] InputTracker.InputChanges inputChanges)
+        internal static GraphReuseResult CreateForNoReuse([AllowNull] InputTracker.InputChanges inputChanges)
         {
             return new GraphReuseResult(
                 pipGraph: null,
@@ -696,7 +696,7 @@ namespace BuildXL.Engine
         /// Factory method for the case when everything can be reused.
         /// A non-null engine schedule must be provided; input changes may optionally be provided too.
         /// </summary>
-        internal static GraphReuseResult CreateForFullReuse(EngineSchedule engineSchedule, [CanBeNull] InputTracker.InputChanges inputChanges)
+        internal static GraphReuseResult CreateForFullReuse(EngineSchedule engineSchedule, [AllowNull] InputTracker.InputChanges inputChanges)
         {
             Contract.Requires(engineSchedule != null);
 

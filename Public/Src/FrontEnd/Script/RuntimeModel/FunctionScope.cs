@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
@@ -37,7 +37,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
         /// <summary>
         ///     Parent scope.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         private readonly FunctionScope m_parent;
 
         /// <summary>
@@ -54,18 +54,18 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
         /// </remarks>
         private int m_nextIndex;
 
-        [CanBeNull]
+        [AllowNull]
         private readonly StringTable m_stringTable;
 
-        [CanBeNull]
+        [AllowNull]
         private readonly PathTable m_pathTable;
 
         private readonly AbsolutePath m_sourceFilePath;
 
-        [CanBeNull]
+        [AllowNull]
         private readonly ISourceFile m_sourceFile;
 
-        [CanBeNull]
+        [AllowNull]
         private readonly NamespaceScope m_namespaceScope;
 
         /// <summary>
@@ -138,7 +138,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
         /// <summary>
         /// Populates current scope with a given <paramref name="symbolTable"/>.
         /// </summary>
-        internal void PopulateFromSymbolTable([CanBeNull] ISymbolTable symbolTable)
+        internal void PopulateFromSymbolTable([AllowNull] ISymbolTable symbolTable)
         {
             // The binder in some cases optimizes the local table block and does not create a symbol table at all
             if (symbolTable == null)
@@ -298,7 +298,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
         /// <summary>
         ///     Pushes a new scope, i.e., a new block.
         /// </summary>
-        public void PushBlockScope([CanBeNull] ISymbolTable symbolTable)
+        public void PushBlockScope([AllowNull] ISymbolTable symbolTable)
         {
             m_scopedVarsStack.Push(new BlockScope(this));
             PopulateFromSymbolTable(symbolTable);

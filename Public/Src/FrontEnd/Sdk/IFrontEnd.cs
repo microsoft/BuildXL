@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -37,7 +36,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// Creates a resolver for a given kind. The resolver must be part of the front end
         /// supported resolvers.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IResolver CreateResolver([NotNull]string kind);
 
         /// <summary>

@@ -2,10 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 
 namespace BuildXL.Pips.Graph
 {
@@ -17,19 +16,19 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Retrieves all pips that have been scheduled
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<Pip> RetrieveScheduledPips();
 
         /// <summary>
         /// Retrieves the immediate dependencies of a pip
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip);
 
         /// <summary>
         /// Retrieves the immediate dependents of a pip
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip);
 
         /// <summary>

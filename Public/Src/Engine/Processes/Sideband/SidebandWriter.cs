@@ -8,10 +8,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Processes.Sideband
 {
@@ -74,7 +73,7 @@ namespace BuildXL.Processes.Sideband
         /// 
         /// When <code>null</code>, all paths are recorded.
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         public IReadOnlyList<string> RootDirectories { get; }
 
         /// <summary>
@@ -105,7 +104,7 @@ namespace BuildXL.Processes.Sideband
         /// <param name="metadata">Metadata</param>
         /// <param name="sidebandLogFile">File to which to save the log.</param>
         /// <param name="rootDirectories">Only paths under one of these root directories will be recorded.</param>
-        public SidebandWriter(SidebandMetadata metadata, string sidebandLogFile, [CanBeNull] IReadOnlyList<string> rootDirectories)
+        public SidebandWriter(SidebandMetadata metadata, string sidebandLogFile, [MaybeNull] IReadOnlyList<string> rootDirectories)
         {
             Metadata = metadata;
             SidebandLogFile = sidebandLogFile;

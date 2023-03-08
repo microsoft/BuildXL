@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using JetBrains.Annotations;
 using TypeScript.Net.Core;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.DScript;
@@ -1729,7 +1729,7 @@ namespace TypeScript.Net.Parsing
         }
 
         /// <nodoc />
-        protected virtual ILiteralExpression ParseLiteralNodeFactory([CanBeNull]string factoryName)
+        protected virtual ILiteralExpression ParseLiteralNodeFactory([AllowNull]string factoryName)
         {
             return ParseLiteralNode();
         }
@@ -4996,7 +4996,7 @@ namespace TypeScript.Net.Parsing
             SetContextFlag(val, ParserContextFlags.Decorator);
         }
 
-        [NotNull]
+        [return: NotNull]
         private static T AllowInAnd<T>(Parser parser, Func<Parser, T> func)
         {
             return parser.DoOutsideOfContext(parser, ParserContextFlags.DisallowIn, func);
@@ -6058,7 +6058,7 @@ namespace TypeScript.Net.Parsing
             return requireCompleteParameterList ? null : CreateMissingList<IParameterDeclaration>();
         }
 
-        [CanBeNull]
+        [return: MaybeNull]
         private NodeArray<ITypeParameterDeclaration> ParseTypeParameters()
         {
             // There is a sublte difference between empty array and null, even that violates common .NET idiom of not using nulls as a collections.

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -25,11 +25,11 @@ namespace BuildXL.FrontEnd.Sdk
         public string Version { get; }
 
         /// <nodoc />
-        [CanBeNull]
+        [AllowNull]
         public string Alias { get; }
 
         /// <nodoc />
-        public PackageIdentity(string protocol, string id, string version, [CanBeNull]string alias)
+        public PackageIdentity(string protocol, string id, string version, [AllowNull]string alias)
         {
             Contract.Requires(protocol != null);
             Contract.Requires(id != null);

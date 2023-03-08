@@ -2,11 +2,11 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Constants;
-using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 
 namespace TypeScript.Net.Types
@@ -65,7 +65,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        [CanBeNull]
+        [return: MaybeNull]
         public static IResolvedModule GetResolvedModule([NotNull]ISourceFile sourceFile, string moduleNameText)
         {
             return HasResolvedModule(sourceFile, moduleNameText) ? sourceFile.ResolvedModules[moduleNameText] : null;

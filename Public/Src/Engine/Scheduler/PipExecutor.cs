@@ -44,7 +44,6 @@ using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
@@ -4061,7 +4060,7 @@ namespace BuildXL.Scheduler
             CacheablePip pip,
             FileAccessReportingContext fileAccessReportingContext,
             SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedFileAccesses,
-            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
             bool trackFileChanges = true)
         {
             Contract.Requires(environment != null);

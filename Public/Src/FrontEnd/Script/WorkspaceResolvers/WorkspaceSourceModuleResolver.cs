@@ -22,12 +22,11 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -102,13 +101,13 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// A projection of m_packages with all module descriptors. It is cached here by DoResolveModuleAsync so we don't have to re-compute it every time.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         private HashSet<ModuleDescriptor> m_allModuleDescriptors;
 
         /// <summary>
         /// Map of module names to module descriptors. Populated by DoResolveModuleAsync.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         private MultiValueDictionary<string, ModuleDescriptor> m_moduleDescriptorByName;
 
         private ModuleResolutionState m_moduleResolutionState;

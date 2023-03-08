@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using JetBrains.Annotations;
 using TypeScript.Net.Core;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Parsing;

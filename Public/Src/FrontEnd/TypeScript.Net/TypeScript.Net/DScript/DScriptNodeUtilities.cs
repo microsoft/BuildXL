@@ -3,11 +3,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Constants;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
@@ -204,7 +204,7 @@ namespace TypeScript.Net.Parsing
         /// 2. Template expression case like <code>p`{foo}</code> (in this case <paramref name="head"/> and <paramref name="templateSpans"/> are not null).
         /// </remarks>
         public static void Deconstruct(
-            [CanBeNull]this ITaggedTemplateExpression node,
+            [AllowNull]this ITaggedTemplateExpression node,
             out InterpolationKind kind,
             out ILiteralExpression literal,
             out ITemplateLiteralFragment head,

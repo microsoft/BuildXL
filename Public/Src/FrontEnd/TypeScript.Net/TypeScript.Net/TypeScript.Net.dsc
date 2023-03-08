@@ -7,6 +7,7 @@ namespace TypeScript.Net {
     export const dll = BuildXLSdk.library({
         assemblyName: "TypeScript.Net",
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
              ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Numerics.dll,

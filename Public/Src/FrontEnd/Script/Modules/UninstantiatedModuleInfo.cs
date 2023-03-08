@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.Utilities.Core.Qualifier;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -16,11 +16,11 @@ namespace BuildXL.FrontEnd.Script
     public sealed class UninstantiatedModuleInfo : IUninstantiatedModuleInfo
     {
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         public FileModuleLiteral FileModuleLiteral { get; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         public TypeOrNamespaceModuleLiteral TypeOrNamespaceTypeOrNamespaceLiteral { get; }
 
         /// <nodoc/>

@@ -22,9 +22,9 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 using Newtonsoft.Json.Linq;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Tool.ServicePipDaemon
 {
@@ -59,7 +59,7 @@ namespace Tool.ServicePipDaemon
         protected Task Completion => m_server.Completion;
 
         /// <summary>Client for talking to BuildXL.</summary>
-        [CanBeNull]
+        [AllowNull]
         protected Client ApiClient { get; }
 
         /// <nodoc />

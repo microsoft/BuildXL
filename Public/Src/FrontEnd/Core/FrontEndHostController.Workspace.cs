@@ -19,14 +19,12 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using CancellationToken = System.Threading.CancellationToken;
 using Diagnostic = TypeScript.Net.Diagnostics.Diagnostic;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Core
 {
@@ -448,13 +446,13 @@ namespace BuildXL.FrontEnd.Core
             /// <summary>
             /// The workspace definition that was filtered based on the spec-2-spec map from the previous invocation.
             /// </summary>
-            [CanBeNull]
+            [AllowNull]
             public WorkspaceDefinition FilteredDefinition { get; }
 
             /// <summary>
             /// Failure that occur during workspace filtering.
             /// </summary>
-            [CanBeNull]
+            [AllowNull]
             public Failure Failure { get; }
 
             /// <summary>

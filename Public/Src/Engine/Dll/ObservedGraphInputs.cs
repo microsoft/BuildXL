@@ -10,7 +10,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Engine
 {
@@ -293,13 +293,13 @@ namespace BuildXL.Engine
         /// <summary>
         /// Environment variable value.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public readonly string Value;
 
         /// <summary>
         /// Creates an instance of <see cref="EnvironmentVariableInput"/>.
         /// </summary>
-        public EnvironmentVariableInput(string name, [CanBeNull] string value)
+        public EnvironmentVariableInput(string name, [AllowNull] string value)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(name));
 

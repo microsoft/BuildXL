@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -12,7 +13,6 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.Pips;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using Closure = BuildXL.FrontEnd.Script.Values.Closure;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

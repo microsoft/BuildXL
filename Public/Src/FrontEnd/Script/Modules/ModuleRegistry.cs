@@ -3,13 +3,13 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Ambients;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Evaluator
@@ -64,7 +64,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <nodoc/>
-        [NotNull]
+        [return: NotNull]
         public UninstantiatedModuleInfo GetUninstantiatedModuleInfoByModuleId(ModuleLiteralId moduleId)
         {
             Contract.Requires(moduleId.IsValid);
@@ -130,7 +130,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <nodoc/>
-        [NotNull]
+        [return: NotNull]
         public UninstantiatedModuleInfo GetUninstantiatedModuleInfoByPath(AbsolutePath path)
         {
             Contract.Requires(path.IsValid, "path.IsValid");

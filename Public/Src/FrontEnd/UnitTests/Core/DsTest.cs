@@ -35,7 +35,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.ViewModel;
-using JetBrains.Annotations;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.Utilities;
@@ -670,7 +669,7 @@ namespace Test.BuildXL.FrontEnd.Core
 
         protected ModuleRegistry CreateFrontEndHost(
             DsTestWriter testWriter,
-            [CanBeNull]string specRelativePath,
+            [AllowNull]string specRelativePath,
             bool isDebugged,
             out IConfiguration finalConfig,
             out AbsolutePath specFullPath,

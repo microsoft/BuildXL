@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
@@ -15,7 +16,6 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Graph
@@ -178,7 +178,7 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public void SetSpecsToIgnore([CanBeNull] IEnumerable<AbsolutePath> specsToIgnore)
+        public void SetSpecsToIgnore([AllowNull] IEnumerable<AbsolutePath> specsToIgnore)
         {
             m_specsToIgnore = specsToIgnore != null
                 ? new HashSet<AbsolutePath>(specsToIgnore)

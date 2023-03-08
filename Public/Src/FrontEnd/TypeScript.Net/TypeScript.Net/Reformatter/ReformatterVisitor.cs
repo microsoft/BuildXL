@@ -4,10 +4,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using JetBrains.Annotations;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Reformatter
 {
@@ -1346,7 +1344,7 @@ namespace TypeScript.Net.Reformatter
         }
 
         /// <nodoc />
-        public virtual void AppendTypeParameters([CanBeNull] INodeArray<ITypeParameterDeclaration> typeParameters)
+        public virtual void AppendTypeParameters([AllowNull] INodeArray<ITypeParameterDeclaration> typeParameters)
         {
             if (!typeParameters.IsNullOrEmpty())
             {
@@ -1357,7 +1355,7 @@ namespace TypeScript.Net.Reformatter
         }
 
         /// <nodoc />
-        public virtual void AppendTypeArguments([CanBeNull] INodeArray<ITypeNode> typeParameters)
+        public virtual void AppendTypeArguments([AllowNull] INodeArray<ITypeNode> typeParameters)
         {
             if (!typeParameters.IsNullOrEmpty())
             {
@@ -1369,7 +1367,7 @@ namespace TypeScript.Net.Reformatter
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Performance", "CA1801")]
-        public virtual void AppendStatements([CanBeNull] INodeArray<IStatement> members, Block block)
+        public virtual void AppendStatements([AllowNull] INodeArray<IStatement> members, Block block)
         {
             using (Writer.Block())
             {
@@ -1417,7 +1415,7 @@ namespace TypeScript.Net.Reformatter
         }
 
         /// <nodoc />
-        public virtual void AppendBlock([CanBeNull] INodeArray<INode> members)
+        public virtual void AppendBlock([AllowNull] INodeArray<INode> members)
         {
             AppendList(
                 members,
@@ -1431,7 +1429,7 @@ namespace TypeScript.Net.Reformatter
         }
 
         /// <nodoc />
-        public virtual void AppendArgumentsOrParameters([CanBeNull] INodeArray<INode> members)
+        public virtual void AppendArgumentsOrParameters([AllowNull] INodeArray<INode> members)
         {
             AppendList(
                 members,
@@ -1446,7 +1444,7 @@ namespace TypeScript.Net.Reformatter
 
         /// <nodoc />
         public virtual void AppendList(
-            [CanBeNull] INodeArray<INode> members,
+            [AllowNull] INodeArray<INode> members,
             string separatorToken,
             string startBlockToken,
             string endBlockToken,

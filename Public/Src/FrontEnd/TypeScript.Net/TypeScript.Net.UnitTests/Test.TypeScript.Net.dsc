@@ -9,6 +9,7 @@ namespace TypeScript.Net.UnitTests {
         assemblyName: "Test.TypeScript.Net",
         rootNamespace: "TypeScript.Net.UnitTests",
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,

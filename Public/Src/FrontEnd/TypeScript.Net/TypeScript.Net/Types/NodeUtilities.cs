@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using JetBrains.Annotations;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Scanning;
@@ -86,7 +86,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        public static bool IsCatchClauseVariableDeclaration([CanBeNull] IDeclaration declaration)
+        public static bool IsCatchClauseVariableDeclaration([AllowNull] IDeclaration declaration)
         {
             // C# 6 syntax:
             return declaration?.Kind == SyntaxKind.VariableDeclaration && declaration?.Parent?.Kind == SyntaxKind.CatchClause;
@@ -571,7 +571,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        [CanBeNull]
+        [return: MaybeNull]
         public static IIdentifierTypePredicate IsIdentifierTypePredicate(ITypePredicate predicate) // predicate is IdentifierTypePredicate
         {
             return
@@ -581,7 +581,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        [CanBeNull]
+        [return: MaybeNull]
         public static IFunctionLikeDeclaration GetContainingFunction(INode node)
         {
             while (node != null)
@@ -602,7 +602,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        [CanBeNull]
+        [return: MaybeNull]
         public static IClassLikeDeclaration GetContainingClass(INode node)
         {
             while (node != null)
@@ -618,7 +618,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        [CanBeNull]
+        [return: MaybeNull]
         public static INode GetThisContainer(INode node, bool includeArrowFunctions)
         {
             while (node != null)
@@ -697,7 +697,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        [CanBeNull]
+        [return: MaybeNull]
         public static INode GetSuperContainer(INode node, bool includeFunctions)
         {
             while (true)
@@ -768,7 +768,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        [CanBeNull]
+        [return: MaybeNull]
         public static /* EntityName | Expression */ INode GetEntityNameFromTypeNode(ITypeNode node)
         {
             if (node != null)

@@ -8,9 +8,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
-using CanBeNullAttribute = JetBrains.Annotations.CanBeNullAttribute;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
-
 
 namespace BuildXL.Utilities
 {
@@ -25,13 +22,13 @@ namespace BuildXL.Utilities
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
     public sealed class RoaringBitSet : IEnumerable<int>
     {
-        [CanBeNull]
+        [AllowNull]
         private readonly ConcurrentBitArray m_bitArray;
 
-        [CanBeNull]
+        [AllowNull]
         private HashSet<int> m_set;
 
-        [CanBeNull]
+        [AllowNull]
         private HashSet<AbsolutePath> m_pathSet;
 
         /// <nodoc />

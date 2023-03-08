@@ -13,6 +13,7 @@ namespace CMake {
         assemblyName: "BuildXL.FrontEnd.CMake",
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             ...BuildXLSdk.tplPackages,
             importFrom("BuildXL.Engine").Cache.dll,

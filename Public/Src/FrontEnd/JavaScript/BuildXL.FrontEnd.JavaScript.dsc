@@ -13,6 +13,7 @@ namespace JavaScript {
         assemblyName: "BuildXL.FrontEnd.JavaScript",
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             ...BuildXLSdk.tplPackages,
             importFrom("BuildXL.Engine").Cache.dll,

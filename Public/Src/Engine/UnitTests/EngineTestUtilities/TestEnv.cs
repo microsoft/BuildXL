@@ -22,7 +22,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using Test.BuildXL.EngineTestUtilities;
 
 namespace Test.BuildXL.TestUtilities
@@ -375,7 +374,7 @@ namespace Test.BuildXL.TestUtilities
             }
 
             /// <inheritdoc />
-            public void SetSpecsToIgnore([CanBeNull] IEnumerable<AbsolutePath> specsToIgnore)
+            public void SetSpecsToIgnore([AllowNull] IEnumerable<AbsolutePath> specsToIgnore)
             {
                 throw new NotImplementedException();
             }

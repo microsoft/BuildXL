@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using BuildXL.Utilities;
-using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
 using ISymbol = TypeScript.Net.Types.ISymbol;
@@ -30,55 +30,55 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Returns all diagnostics that occurred during type checking for a given file.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<Diagnostic> GetTypeCheckingDiagnosticsForFile([NotNull]ISourceFile file);
 
         /// <summary>
         /// Returns all diagnostics that occurred during semantic binding and type checking.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<Diagnostic> GetAllSemanticDiagnostics();
 
         /// <summary>
         /// Returns a file name that corresponds to a module referenced by <paramref name="sourceFile"/>.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         string TryGetResolvedModulePath([NotNull] ISourceFile sourceFile, [NotNull]string referencedModuleName);
 
         /// <summary>
         /// Returns a set of file indices that depend on the current one.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         RoaringBitSet GetFileDependentFilesOf([NotNull]ISourceFile sourceFile);
 
         /// <summary>
         /// Returns a set of file indices that the current file depend on.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         RoaringBitSet GetFileDependenciesOf([NotNull]ISourceFile sourceFile);
 
         /// <summary>
         /// Returns a set of modules that the current file depends on.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         HashSet<string> GetModuleDependentsOf([NotNull]ISourceFile sourceFile);
 
         /// <summary>
         /// Returns a qualifier type for a given node.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         IType GetCurrentQualifierType([NotNull]INode currentNode);
 
         /// <summary>
         /// Returns the qualifier declaration for a given node.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         INode GetCurrentQualifierDeclaration([NotNull]INode currentNode);
 
         /// <summary>
         /// Returns the template symbol in a scope with respect to the given given node, or null if the template is not found.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         ISymbol GetTemplateAtLocation([NotNull]INode node);
 
         /// <summary>
@@ -94,7 +94,7 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Returns the fully qualified name of a symbol.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         string GetFullyQualifiedName([NotNull]ISymbol symbol);
 
         /// <summary>
@@ -148,8 +148,8 @@ namespace BuildXL.FrontEnd.Workspaces
         /// Unlike <code>resolvedSymbol.Declarations.FirstOrDefault()</code> this method knows about declarations that were filtered out and will never
         /// return one of it.
         /// </remarks>
-        [CanBeNull]
-        IDeclaration GetFirstNotFilteredDeclarationOrDefault([CanBeNull]ISymbol resolvedSymbol);
+        [return: MaybeNull]
+        IDeclaration GetFirstNotFilteredDeclarationOrDefault([AllowNull]ISymbol resolvedSymbol);
     }
 
     /// <summary>

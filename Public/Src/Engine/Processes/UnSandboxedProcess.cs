@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.ComponentModel;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
@@ -10,11 +9,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
 #else
@@ -484,7 +482,7 @@ namespace BuildXL.Processes
         }
 
         /// <nodoc/>
-        [NotNull]
+        [return: NotNull]
         internal virtual CpuTimes GetCpuTimes()
         {
             // 'Dispatch.GetProcessResourceUsage()' doesn't work because the process has already exited

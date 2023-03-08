@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Text.RegularExpressions;
-using JetBrains.Annotations;
 
 namespace TypeScript.Net.Types
 {
@@ -63,7 +63,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        [CanBeNull]
+        [return: MaybeNull]
         public static ITextSpan TextSpanOverlap(ITextSpan span1, ITextSpan span2)
         {
             var overlapStart = Math.Max(span1.Start, span2.Start);
@@ -104,7 +104,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        [CanBeNull]
+        [return: MaybeNull]
         public static ITextSpan TextSpanIntersection(ITextSpan span1, ITextSpan span2)
         {
             var intersectStart = Math.Max(span1.Start, span2.Start);

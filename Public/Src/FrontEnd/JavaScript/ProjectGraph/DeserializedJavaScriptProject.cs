@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 {
@@ -25,7 +25,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             string name,
             AbsolutePath projectFolder,
             IReadOnlyCollection<string> dependencies,
-            [CanBeNull] IReadOnlyDictionary<string, string> availableScriptCommands,
+            [AllowNull] IReadOnlyDictionary<string, string> availableScriptCommands,
             AbsolutePath tempFolder,
             IReadOnlyCollection<PathWithTargets> outputDirectories,
             IReadOnlyCollection<PathWithTargets> sourceFiles) : base(name, projectFolder, dependencies, tempFolder)

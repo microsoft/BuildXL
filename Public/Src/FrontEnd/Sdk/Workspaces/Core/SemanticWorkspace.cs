@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {
@@ -20,8 +20,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             IWorkspaceProvider workspaceProvider,
             WorkspaceConfiguration workspaceConfiguration,
             IEnumerable<ParsedModule> modules,
-            [CanBeNull] ParsedModule preludeModule,
-            [CanBeNull] ParsedModule configurationModule,
+            [AllowNull] ParsedModule preludeModule,
+            [AllowNull] ParsedModule configurationModule,
             ISemanticModel semanticModel,
             IReadOnlyCollection<Failure> failures)
             : base(workspaceProvider, workspaceConfiguration, modules, failures, preludeModule, configurationModule)

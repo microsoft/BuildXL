@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Workspaces;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
@@ -17,13 +17,13 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         /// This implementation is naive and based on a type name.
         /// We know that there is no 'mutable' types in the prelude except some special one that should be restricted on top-level declarations.
         /// </remarks>
-        public static bool IsMutable([CanBeNull]string name)
+        public static bool IsMutable([AllowNull]string name)
         {
             return name?.Contains("Mutable") == true || name?.Contains("StringBuilder") == true;
         }
 
         /// <nodoc />
-        public static bool IsMutable([CanBeNull]this IType type)
+        public static bool IsMutable([AllowNull]this IType type)
         {
             if (IsMutable(type?.Symbol?.Name))
             {
@@ -41,7 +41,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         }
 
         /// <nodoc />
-        public static bool IsReturnTypeMutable([CanBeNull]this IFunctionDeclaration function, ISemanticModel semanticModel)
+        public static bool IsReturnTypeMutable([AllowNull]this IFunctionDeclaration function, ISemanticModel semanticModel)
         {
             if (function == null)
             {
@@ -69,7 +69,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         }
 
         /// <nodoc />
-        public static bool HasMutableParameterType([CanBeNull]this IFunctionDeclaration function, ISemanticModel semanticModel)
+        public static bool HasMutableParameterType([AllowNull]this IFunctionDeclaration function, ISemanticModel semanticModel)
         {
             if (function == null)
             {
@@ -89,7 +89,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         }
 
         /// <nodoc />
-        public static bool IsExported([CanBeNull] this IDeclaration declaration)
+        public static bool IsExported([AllowNull] this IDeclaration declaration)
         {
             return (declaration?.Flags & NodeFlags.Export) == NodeFlags.Export;
         }

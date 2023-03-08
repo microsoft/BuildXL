@@ -14,10 +14,10 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core.Tasks;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Test.DScript.Workspaces.Utilities
 {

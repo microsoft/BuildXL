@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration
@@ -15,20 +15,20 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The defined modules
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         IReadOnlyDictionary<ModuleId, IModuleConfiguration> ModulePolicies { get; }
 
         /// <summary>
         /// List of path fragments of tools using search path directory enumeration whereby only files with accessed file names
         /// are important for directory membership fingerprinting.
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         IReadOnlyList<RelativePath> SearchPathEnumerationTools { get; }
 
         /// <summary>
         /// List of path fragments of tools using its own incrementality
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         IReadOnlyList<RelativePath> IncrementalTools { get; }
     }
 }

@@ -4,11 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Antlr4.Runtime;
-using JetBrains.Annotations;
 
 namespace BuildXL.Execution.Analyzer.JPath
 {
@@ -171,10 +171,10 @@ namespace BuildXL.Execution.Analyzer.JPath
 
     public sealed class PropVal : Expr
     {
-        [CanBeNull] public string Name { get; }
+        [AllowNull] public string Name { get; }
         public Expr Value { get; }
 
-        public PropVal([CanBeNull] string name, Expr value)
+        public PropVal([AllowNull] string name, Expr value)
         {
             Contract.Requires(value != null);
             Name = name;

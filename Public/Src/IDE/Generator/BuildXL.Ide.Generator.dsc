@@ -7,6 +7,7 @@ namespace Generator {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Ide.Generator",
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,

@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
-using JetBrains.Annotations;
 
 namespace BuildXL.Ipc.Interfaces
 {
@@ -57,7 +57,7 @@ namespace BuildXL.Ipc.Interfaces
         ///
         /// Otherwise, the result is what is received from the server.
         /// </returns>
-        [NotNull]
+        [return: NotNull]
         Task<IIpcResult> Send([NotNull]IIpcOperation operation);
     }
 }

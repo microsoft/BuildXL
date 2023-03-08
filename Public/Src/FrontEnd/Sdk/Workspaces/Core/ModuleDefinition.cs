@@ -9,7 +9,7 @@ using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {
@@ -69,15 +69,15 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public NameResolutionSemantics ResolutionSemantics { get; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         public IEnumerable<ModuleReferenceWithProvenance> AllowedModuleDependencies { get; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         public IEnumerable<ModuleReferenceWithProvenance> CyclicalFriendModules { get; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         public IEnumerable<IMount> Mounts { get; }
 
         /// <nodoc/>
@@ -89,9 +89,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             IEnumerable<AbsolutePath> specs,
             NameResolutionSemantics resolutionSemantics,
             int v1QualifierSpaceId,
-            [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> allowedModuleDependencies,
-            [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules,
-            [CanBeNull] IEnumerable<IMount> mounts)
+            [AllowNull] IEnumerable<ModuleReferenceWithProvenance> allowedModuleDependencies,
+            [AllowNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules,
+            [AllowNull] IEnumerable<IMount> mounts)
         {
             Contract.Requires(specs != null);
             Contract.Requires(root.IsValid);
@@ -124,9 +124,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             AbsolutePath moduleRootDirectory,
             AbsolutePath moduleConfigFile,
             IEnumerable<AbsolutePath> specs,
-            [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> allowedModuleDependencies,
-            [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules,
-            [CanBeNull] IEnumerable<IMount> mounts)
+            [AllowNull] IEnumerable<ModuleReferenceWithProvenance> allowedModuleDependencies,
+            [AllowNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules,
+            [AllowNull] IEnumerable<IMount> mounts)
         {
             return new ModuleDefinition(
                 descriptor,

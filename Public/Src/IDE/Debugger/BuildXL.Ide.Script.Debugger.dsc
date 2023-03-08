@@ -8,6 +8,7 @@ namespace Script.Debugger {
         rootNamespace: "BuildXL.FrontEnd.Script.Debugger",
         sources: globR(d`.`, "*.cs"),
         generateLogs: true,
+        addNotNullAttributeFile: true,
         references: [
             VSCode.DebugAdapter.dll,
             VSCode.DebugProtocol.dll,

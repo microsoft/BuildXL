@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using JetBrains.Annotations;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -149,7 +148,7 @@ namespace TypeScript.Net.Types
     /// <nodoc/>
     public class InterfaceType : ObjectType, IInterfaceTypeWithDeclaredMembers, ITypeParameter
     {
-        [CanBeNull]
+        [AllowNull]
         private InterfaceDeclaredMembersData m_declaredMembersData;
 
         /// <inheritdoc/>
@@ -296,7 +295,7 @@ namespace TypeScript.Net.Types
     /// <nodoc/>
     public class GenericType : ResolvedType, IGenericType, IInterfaceTypeWithDeclaredMembers, ITypeParameter
     {
-        [CanBeNull]
+        [AllowNull]
         private InterfaceDeclaredMembersData m_declaredMembersData;
 
         /// <inheritdoc/>

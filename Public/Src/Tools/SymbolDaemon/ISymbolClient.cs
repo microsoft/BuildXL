@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
-using JetBrains.Annotations;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
 
 namespace Tool.SymbolDaemon
@@ -33,7 +33,7 @@ namespace Tool.SymbolDaemon
         /// <summary>
         /// A variety of statistics.
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IDictionary<string, long> GetStats();
     }
 }

@@ -11,7 +11,6 @@ using System.Linq;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using TypeScript.Net.Core;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Extensions;
@@ -19,7 +18,6 @@ using TypeScript.Net.Incrementality;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Types
 {
@@ -326,7 +324,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Potentially unmaterialized extra state for a symbol.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         protected TExtraState m_extraState;
 
         /// <summary>
@@ -703,7 +701,7 @@ namespace TypeScript.Net.Types
         public IIdentifier Name { get; set; }
 
         /// <nodoc/>
-        [CanBeNull]
+        [AllowNull]
         public IBlock Body { get; set; }
 
         /// <inheritdoc/>
@@ -3152,7 +3150,7 @@ namespace TypeScript.Net.Types
     public sealed partial class InterfaceDeclaration : Node, IInterfaceDeclaration
     {
         /// <inheritdoc/>
-        [CanBeNull]
+        [AllowNull]
         public NodeArray<ITypeParameterDeclaration> TypeParameters { get; set; }
 
         /// <inheritdoc/>

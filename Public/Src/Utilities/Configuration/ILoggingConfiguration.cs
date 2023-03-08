@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -148,7 +148,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Specifies the ETW log kind for custom logs by path. Normal text log kind is 'default'.
         /// </summary>
-        [CanBeNull]
+        [MaybeNull]
         IReadOnlyDictionary<AbsolutePath, string> CustomLogEtwKinds { get; }
 
         /// <summary>

@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 
 #pragma warning disable SA1649 // File name must match first type name
 

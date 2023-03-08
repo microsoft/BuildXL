@@ -18,10 +18,10 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
-using JetBrains.Annotations;
 using static BuildXL.Interop.Unix.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using System.Diagnostics.CodeAnalysis;
 
 #nullable enable
 
@@ -633,7 +633,7 @@ namespace BuildXL.Processes
         }
 
         /// <nodoc />
-        [NotNull]
+        [return: NotNull]
         internal override CpuTimes GetCpuTimes()
         {
             return m_processResourceUsage is null

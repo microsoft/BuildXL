@@ -2,12 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.JsonRpc;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Newtonsoft.Json.Linq;

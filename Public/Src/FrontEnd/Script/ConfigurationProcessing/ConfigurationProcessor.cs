@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -14,8 +15,6 @@ using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -34,7 +33,7 @@ namespace BuildXL.FrontEnd.Script
         /// <remarks>
         /// Not null if the configuration is processed successfully.
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         public IWorkspace PrimaryConfigurationWorkspace { get; private set; }
 
         /// <inheritdoc />

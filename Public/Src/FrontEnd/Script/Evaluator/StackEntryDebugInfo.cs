@@ -7,7 +7,7 @@ using System.Linq;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -54,7 +54,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// Creates a helper class with information about locals.
         /// Returns null if not under the debugger.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         internal static DebugInfo Create(Context context, ModuleLiteral env, EvaluationStackFrame locals)
         {
             return context.IsBeingDebugged

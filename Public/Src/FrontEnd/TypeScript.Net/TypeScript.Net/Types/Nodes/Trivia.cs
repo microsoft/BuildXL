@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace TypeScript.Net.Types
 {
@@ -21,7 +21,7 @@ namespace TypeScript.Net.Types
         /// <remarks>
         /// When None are present this is null
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         public Comment[] LeadingComments { get; set; }
 
         /// <summary>
@@ -30,7 +30,7 @@ namespace TypeScript.Net.Types
         /// <remarks>
         /// When None are present this is null
         /// </remarks>
-        [CanBeNull]
+        [AllowNull]
         public Comment[] TrailingComments { get; set; }
 
         /// <summary>

@@ -7,9 +7,7 @@ using System.Linq;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Engine.Tracing;
 using BuildXL.Pips.Operations;
-using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
-using BuildXL.Scheduler.Graph;
 using Test.BuildXL.EngineTestUtilities;
 using Xunit;
 using Xunit.Abstractions;
@@ -17,11 +15,10 @@ using System;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using System.Reflection;
-using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
 using Test.BuildXL.TestUtilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Native.IO;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -249,7 +246,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         // This case should not finish successfully if csc was called directly, but the csc task implementation always 
         // makes sure the output file is specified (and picks the first source file on absence)
         [InlineData("Program.cs", "exe", null)]
-        public void ValidateSharedCompilation(string sourceFilename, [CanBeNull]string targetType, [CanBeNull] string outputAssembly)
+        public void ValidateSharedCompilation(string sourceFilename, [AllowNull]string targetType, [AllowNull] string outputAssembly)
         {
             var managedProject = GetCscProject(sourceFilename, targetType, outputAssembly);
             var program = GetHelloWorldProgram();

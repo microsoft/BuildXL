@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
@@ -16,7 +16,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// Returns a collection of external module names from  <param name="sourceFile"/>
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<ModuleReferenceWithProvenance> GetExternalModuleReferences([NotNull]ISourceFile sourceFile);
 
         /// <summary>

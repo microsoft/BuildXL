@@ -21,11 +21,9 @@ using BuildXL.Pips.Graph;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Performance;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
@@ -40,7 +38,6 @@ using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
 using BuildXL.ViewModel;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
 using SchedulerLogger = BuildXL.Scheduler.Tracing.Logger;
@@ -760,7 +757,7 @@ namespace BuildXL.Engine
         }
 
         internal static void ScrubExtraneousFilesAndDirectories(
-            [CanBeNull] MountPathExpander mountPathExpander,
+            [AllowNull] MountPathExpander mountPathExpander,
             Scheduler.Scheduler scheduler,
             LoggingContext loggingContext,
             IConfiguration configuration,
@@ -910,7 +907,7 @@ namespace BuildXL.Engine
             PathTable pathTable,
             IConfiguration configuration,
             IEnumerable<string> extraNonScrubbablePaths,
-            [CanBeNull] ITempCleaner tempCleaner)
+            [AllowNull] ITempCleaner tempCleaner)
         {
             var nonScrubbablePaths = new List<string>(new[]
             {
@@ -1497,7 +1494,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// At the end of the build this logs some important stats about the build
         /// </summary>
-        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext, [CanBeNull] BuildSummary buildSummary)
+        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext, [AllowNull] BuildSummary buildSummary)
         {
 #pragma warning disable SA1114 // Parameter list must follow declaration
 

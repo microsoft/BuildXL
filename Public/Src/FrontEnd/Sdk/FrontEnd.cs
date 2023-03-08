@@ -3,9 +3,9 @@
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Sdk
 {

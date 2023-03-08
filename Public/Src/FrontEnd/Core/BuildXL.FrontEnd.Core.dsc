@@ -11,6 +11,7 @@ namespace Core {
         assemblyName: "BuildXL.FrontEnd.Core",
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
+        addNotNullAttributeFile: true,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Net.Http.dll,

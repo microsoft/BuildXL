@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 
 namespace TypeScript.Net.Types
 {
@@ -33,7 +33,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <inheritdoc/>
-        [CanBeNull]
+        [AllowNull]
         public ISymbol this[string index]
         {
             get
@@ -99,7 +99,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        [NotNull]
+        [return: NotNull]
         internal static ISymbolTable Create()
         {
             return new SymbolTable();

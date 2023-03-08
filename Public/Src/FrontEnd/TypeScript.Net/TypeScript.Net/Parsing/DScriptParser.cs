@@ -1,13 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace TypeScript.Net.Parsing
 {
@@ -37,7 +36,7 @@ namespace TypeScript.Net.Parsing
         }
 
         /// <inheritdoc/>
-        protected override ILiteralExpression ParseLiteralNodeFactory([CanBeNull]string factoryName)
+        protected override ILiteralExpression ParseLiteralNodeFactory([AllowNull]string factoryName)
         {
             if (string.IsNullOrEmpty(factoryName))
             {

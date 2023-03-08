@@ -10,9 +10,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Incrementality
 {
@@ -29,19 +27,19 @@ namespace TypeScript.Net.Incrementality
         /// <summary>
         /// Declarations and references for a given file.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public IReadOnlySet<InteractionSymbol> Symbols { get; }
 
         /// <summary>
         /// Set of symbols declared in the file.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public IReadOnlySet<InteractionSymbol> DeclaredSymbols { get; }
 
         /// <summary>
         /// Set of symbols referenced by the file.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public IReadOnlySet<InteractionSymbol> ReferencedSymbols { get; }
 
         /// <inheritdoc />
@@ -51,7 +49,7 @@ namespace TypeScript.Net.Incrementality
         public string ReferencedSymbolsFingerprint { get; }
 
         /// <nodoc />
-        public SpecBindingSymbols([CanBeNull]IReadOnlySet<InteractionSymbol> declaredSymbols, [CanBeNull]IReadOnlySet<InteractionSymbol> referencedSymbols, [NotNull]string declaredSymbolsFingerpint, [NotNull]string referencedSymbolsFingerprint)
+        public SpecBindingSymbols([AllowNull]IReadOnlySet<InteractionSymbol> declaredSymbols, [AllowNull]IReadOnlySet<InteractionSymbol> referencedSymbols, [NotNull]string declaredSymbolsFingerpint, [NotNull]string referencedSymbolsFingerprint)
             : this(declaredSymbolsFingerpint, referencedSymbolsFingerprint)
         {
             if (declaredSymbols != null && referencedSymbols != null)

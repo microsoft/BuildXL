@@ -2,11 +2,11 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities;
-using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
 using ISymbol = TypeScript.Net.Types.ISymbol;
@@ -18,7 +18,7 @@ namespace BuildXL.FrontEnd.Workspaces
     /// </summary>
     public sealed class SemanticModel : ISemanticModel
     {
-        [CanBeNull]
+        [AllowNull]
         private HashSet<ISourceFile> m_filteredOutSpecs;
 
         /// <nodoc/>

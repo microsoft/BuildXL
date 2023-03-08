@@ -14,7 +14,6 @@ using BuildXL.Processes.Sideband;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using static BuildXL.Processes.IDetoursEventListener;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
@@ -43,10 +42,10 @@ namespace BuildXL.Processes
         private readonly Dictionary<string, string> m_pathCache = new Dictionary<string, string>(OperatingSystemHelper.PathComparer);
         private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new Dictionary<AbsolutePath, bool>();
 
-        [CanBeNull]
+        [MaybeNull]
         private readonly IDetoursEventListener m_detoursEventListener;
 
-        [CanBeNull]
+        [MaybeNull]
         private readonly SidebandWriter m_sharedOpaqueOutputLogger;
 
         public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
@@ -124,10 +123,10 @@ namespace BuildXL.Processes
             long pipSemiStableHash,
             string pipDescription,
             LoggingContext loggingContext,
-            [CanBeNull] IDetoursEventListener detoursEventListener,
-            [CanBeNull] SidebandWriter sharedOpaqueOutputLogger,
-            [CanBeNull] ISandboxFileSystemView fileSystemView,
-            [CanBeNull] SandboxedProcessTraceBuilder traceBuilder = null)
+            [MaybeNull] IDetoursEventListener detoursEventListener,
+            [MaybeNull] SidebandWriter sharedOpaqueOutputLogger,
+            [MaybeNull] ISandboxFileSystemView fileSystemView,
+            [MaybeNull] SandboxedProcessTraceBuilder traceBuilder = null)
         {
             Contract.RequiresNotNull(manifest);
             Contract.RequiresNotNull(pathTable);

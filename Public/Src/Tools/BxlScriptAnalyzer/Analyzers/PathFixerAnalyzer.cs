@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.ToolSupport;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
@@ -75,7 +75,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         /// <summary>
         /// Fix Path handler
         /// </summary>
-        public bool PathFix(INode node, [CanBeNull] DiagnosticsContext context)
+        public bool PathFix(INode node, [AllowNull] DiagnosticsContext context)
         {
             var taggedTemplateExpression = node.Cast<ITaggedTemplateExpression>();
 

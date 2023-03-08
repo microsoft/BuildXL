@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
@@ -15,7 +15,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
     public readonly struct SpecWithOwningModule : IEquatable<SpecWithOwningModule>
     {
         /// <nodoc />
-        public SpecWithOwningModule(AbsolutePath path, [CanBeNull]ModuleDefinition owningModule)
+        public SpecWithOwningModule(AbsolutePath path, [AllowNull]ModuleDefinition owningModule)
         {
             Contract.Requires(path.IsValid, "path.IsValid");
 
@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public AbsolutePath Path { get; }
 
         /// <nodoc />
-        [CanBeNull]
+        [AllowNull]
         public ModuleDefinition OwningModule { get; }
 
         /// <nodoc />

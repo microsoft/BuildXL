@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Sdk.FileSystem
 {
@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         /// <remarks>
         /// The path must point to an existing file
         /// </remarks>
-        [NotNull]
+        [return: NotNull]
         StreamReader OpenText(AbsolutePath path);
 
         /// <summary>
@@ -52,14 +52,14 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         /// The path must point to an existing file or directory.
         /// </remarks>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [return: NotNull]
         string GetBaseName(AbsolutePath path);
 
         /// <summary>
         /// Path table where the AbsolutePaths handled by this file system are based on
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [return: NotNull]
         PathTable GetPathTable();
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         /// <param name="path">Path to the directory to search.</param>
         /// <param name="pattern">The search string to match against the names of directories (allows path literals, wildcards * and ?, but not regexes).</param>
         /// <param name="recursive">Whether to search recursively.</param>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<AbsolutePath> EnumerateDirectories(AbsolutePath path, [NotNull]string pattern = "*", bool recursive = false);
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         /// <param name="path">Path to the directory to search.</param>
         /// <param name="pattern">The search string to match against the names of files (allows path literals, wildcards * and ?, but not regexes).</param>
         /// <param name="recursive">Whether to search recursively.</param>
-        [NotNull]
+        [return: NotNull]
         IEnumerable<AbsolutePath> EnumerateFiles(AbsolutePath path, [NotNull]string pattern = "*", bool recursive = false);
 
         /// <nodoc/>

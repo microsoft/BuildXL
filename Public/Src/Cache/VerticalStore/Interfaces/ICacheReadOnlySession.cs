@@ -3,12 +3,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Utilities.Core;
-using JetBrains.Annotations;
 
 namespace BuildXL.Cache.Interfaces
 {
@@ -97,7 +97,7 @@ namespace BuildXL.Cache.Interfaces
         /// next request for more in the enumeration may be to obtain L2
         /// data.
         /// </remarks>
-        IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints([CanBeNull]WeakFingerprintHash weak, OperationHints hints = default, Guid activityId = default(Guid));
+        IEnumerable<Task<Possible<StrongFingerprint, Failure>>> EnumerateStrongFingerprints([MaybeNull]WeakFingerprintHash weak, OperationHints hints = default, Guid activityId = default(Guid));
 
         /// <summary>
         /// Get the unique cache entry that matches the Strong Fingerprint

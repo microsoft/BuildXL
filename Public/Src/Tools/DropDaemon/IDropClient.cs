@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
-using JetBrains.Annotations;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 
 namespace Tool.DropDaemon
@@ -46,7 +46,7 @@ namespace Tool.DropDaemon
         /// <summary>
         /// Arbitrary statistics to report;
         /// </summary>
-        [NotNull]
+        [return: NotNull]
         IDictionary<string, long> GetStats(bool reportSizeInMegabytes);
     }
 

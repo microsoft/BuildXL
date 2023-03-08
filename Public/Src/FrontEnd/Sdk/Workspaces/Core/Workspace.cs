@@ -7,10 +7,10 @@ using System.Linq;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {
@@ -56,13 +56,13 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// Returns the module that was designated as the prelude module, if a prelude was specified. Null otherwise.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public ParsedModule PreludeModule { get; }
 
         /// <summary>
         /// Returns a special module that contains all configuration files in parsed form.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public ParsedModule ConfigurationModule { get; }
 
         /// <summary>
@@ -107,7 +107,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// <see cref="IWorkspaceProvider"/> that was used to construct the workspace.
         /// </summary>
-        [CanBeNull]
+        [AllowNull]
         public IWorkspaceProvider WorkspaceProvider { get; }
 
         /// <nodoc/>
@@ -121,12 +121,12 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc/>
         public Workspace(
-            [CanBeNull]IWorkspaceProvider provider,
+            [AllowNull]IWorkspaceProvider provider,
             WorkspaceConfiguration workspaceConfiguration,
             IEnumerable<ParsedModule> modules,
             IEnumerable<Failure> failures,
-            [CanBeNull] ParsedModule preludeModule,
-            [CanBeNull] ParsedModule configurationModule)
+            [AllowNull] ParsedModule preludeModule,
+            [AllowNull] ParsedModule configurationModule)
         {
             Contract.Requires(workspaceConfiguration != null);
             Contract.Requires(modules != null);
@@ -320,7 +320,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc/>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [return: NotNull]
         public ParsedModule GetModuleBySpecFileName(AbsolutePath specPath)
         {
             Contract.Requires(specPath.IsValid);
@@ -336,7 +336,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc/>
         [System.Diagnostics.Contracts.Pure]
-        [CanBeNull]
+        [return: MaybeNull]
         public ParsedModule TryGetModuleBySpecFileName(AbsolutePath specPath)
         {
             Contract.Requires(specPath.IsValid);
@@ -376,7 +376,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc/>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [return: NotNull]
         public ISourceFile GetSourceFile(AbsolutePath specPath)
         {
             Contract.Requires(ContainsSpec(specPath), "ContainsSpec(specPath)");

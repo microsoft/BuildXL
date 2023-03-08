@@ -25,11 +25,11 @@ using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 using TypeScript.Net.Binding;
 using TypeScript.Net.BuildXLScript;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Utilities
 {
@@ -347,7 +347,7 @@ namespace BuildXL.FrontEnd.Utilities
         /// </summary>
         public static void SetProcessEnvironmentVariables(
             IReadOnlyDictionary<string, string> userDefinedEnvironment,
-            [CanBeNull] IEnumerable<string> userDefinedPassthroughVariables,
+            [AllowNull] IEnumerable<string> userDefinedPassthroughVariables,
             ProcessBuilder processBuilder,
             PathTable pathTable)
         {

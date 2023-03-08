@@ -3,10 +3,9 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 {
@@ -20,7 +19,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
         public GenericJavaScriptProject(
             string name,
             AbsolutePath projectFolder,
-            [CanBeNull] IReadOnlyCollection<TDependency> dependencies,
+            [AllowNull] IReadOnlyCollection<TDependency> dependencies,
             AbsolutePath tempFolder)
         {   
             Contract.RequiresNotNullOrEmpty(name);

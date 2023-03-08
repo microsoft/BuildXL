@@ -3,11 +3,11 @@
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script.Values
 {
@@ -25,7 +25,7 @@ namespace BuildXL.FrontEnd.Script.Values
 
         private readonly TrackingKind m_trackingKind;
 
-        [CanBeNull]
+        [AllowNull]
         private ConcurrentDictionary<ModuleLiteral, ImmutableContextBase> m_visitedModules;
 
         [NotNull]

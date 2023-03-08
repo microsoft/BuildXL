@@ -24,10 +24,10 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
-using JetBrains.Annotations;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 using static BuildXL.Cache.Host.Service.DeploymentUtilities;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -663,7 +663,7 @@ namespace BuildXL.Cache.Host.Service
                 AccessToken = ContentHash.Random().ToHex();
             }
 
-            internal string GetUrl(Context context, string hash, [CanBeNull] string proxyBaseAddress)
+            internal string GetUrl(Context context, string hash, [MaybeNull] string proxyBaseAddress)
             {
                 if (proxyBaseAddress == null)
                 {

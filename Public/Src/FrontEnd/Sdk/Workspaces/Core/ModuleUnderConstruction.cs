@@ -9,10 +9,9 @@ using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {
@@ -116,7 +115,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// Returns a special source file that could be potentially modified for DScript specific purposes.
         /// </summary>
-        [CanBeNull]
+        [return: MaybeNull]
         public ISourceFile GetSourceFileForInjectingQualifiers()
         {
             return m_parsedSpecs.Values.FirstOrDefault();

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using BuildXL.FrontEnd.Script.Expressions;
@@ -9,7 +10,6 @@ using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script
 {

@@ -10,6 +10,7 @@ namespace Storage {
         assemblyName: "BuildXL.Storage",
         sources: globR(d`.`, "*.cs"),
         generateLogs: true,
+        addNotNullAttributeFile: true,
         references: [
             $.dll,
             Native.dll,

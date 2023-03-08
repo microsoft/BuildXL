@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using BuildXL.Pips.Filter;
 using BuildXL.Processes;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
 
 namespace BuildXL.Scheduler
 {

@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities;
-using NotNullAttribute=JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Scheduler
 {

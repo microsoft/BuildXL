@@ -14,6 +14,7 @@ namespace LanguageService.Server {
         assemblyName: "BuildXL.Ide.LanguageServer",
         rootNamespace: "BuildXL.Ide.LanguageServer",
         appConfig: f`App.config`,
+        addNotNullAttributeFile: true,
         tools: {
             csc: {
                 noWarnings: [1591] // Missing XML comment 

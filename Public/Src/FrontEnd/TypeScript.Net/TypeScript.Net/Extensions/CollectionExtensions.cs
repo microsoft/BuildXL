@@ -3,10 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using TypeScript.Net.Types;
 
 namespace TypeScript.Net.Extensions
@@ -105,7 +104,7 @@ namespace TypeScript.Net.Extensions
         }
 
         /// <nodoc />
-        public static bool Contains<T>([CanBeNull] this IReadOnlyList<T> list, T item)
+        public static bool Contains<T>([AllowNull] this IReadOnlyList<T> list, T item)
         {
             if (list == null)
             {

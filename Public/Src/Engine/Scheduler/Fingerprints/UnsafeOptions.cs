@@ -5,7 +5,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
@@ -119,7 +119,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 
         /// If an exception is caught, <code>null</code> is returned.
         /// </summary>
-        public static UnsafeOptions TryDeserialize([CanBeNull]BuildXLReader reader)
+        public static UnsafeOptions TryDeserialize([AllowNull]BuildXLReader reader)
         {
             if (reader == null)
             {

@@ -84,6 +84,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
+        public void CanJsonSerializeSequencePoints()
+        {
+            var test1 = new EventSequencePoint(42);
+            TestJsonRoundtrip(test1);
+
+            var test2 = new EventSequencePoint(eventStartCursorTimeUtc: DateTime.Now);
+            TestJsonRoundtrip(test2);
+
+            var test3 = EventSequencePoint.Invalid;
+            TestJsonRoundtrip(test3);
+
+            var test4 = new EventSequencePoint();
+            TestJsonRoundtrip(test4);
+
+            var test5 = new EventSequencePoint(42);
+            var test5Serialized = @"{
+    ""SequenceNumber"": 42,
+    ""EventStartCursorTimeUtc"": null
+  }";
+            var test5ds = JsonSerializer.Deserialize<EventSequencePoint>(test5Serialized);
+            Assert.Equal(test5, test5ds);
+            var test5ds2 = JsonUtilities.JsonDeserialize<EventSequencePoint>(test5Serialized);
+            Assert.Equal(test5, test5ds2);
+        }
+
+        [Fact]
         public void CanJsonSerializeCheckpointState()
         {
             var test1 = new CheckpointState(new EventSequencePoint(42));

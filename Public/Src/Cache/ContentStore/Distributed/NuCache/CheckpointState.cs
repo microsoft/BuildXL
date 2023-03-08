@@ -22,7 +22,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         [JsonIgnore]
         public bool IsValid => !string.IsNullOrEmpty(CheckpointId);
 
-
         /// <summary>
         /// This constructor is required for <see cref="AzureBlobStorageCheckpointRegistry"/>
         /// </summary>

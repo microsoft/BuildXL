@@ -119,10 +119,12 @@ INTERPOSE(void, _exit, int status)({
     _exit(status);
 })
 
-static void report_child_process(const char *syscall, BxlObserver *bxl, pid_t childPid)
+static void report_child_process(const char *syscall, BxlObserver *bxl, pid_t childPid, pid_t parentPid)
 {
     string exePath(bxl->GetProgramPath());
-    IOEvent event(getpid(), childPid, getppid(), ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, 0, false);
+    // Events of type ES_EVENT_TYPE_NOTIFY_FORK are expected to contain the spawned child process id in its cpid field (the parent pid 
+    // is actually ignored and not sent as part of the report, we pass it here for consistency only).
+    IOEvent event(parentPid, childPid, 0, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, 0, false);
     bxl->report_access(syscall, event);
 }
 
@@ -142,11 +144,9 @@ INTERPOSE(pid_t, fork, void)({
         // Clear the file descriptor table when we are in the child process
         // File descriptors are unique to a process, so this cache needs to be invalidated on the child
         bxl->reset_fd_table();
-    }
-    else
-    {
-        // report fork only when we are in the parent process
-        report_child_process(__func__, bxl, childPid.get());
+        // Process creation is reported on the child to guarantee that we see the process creation arriving as a report line before
+        // any other access report coming from the child
+        report_child_process(__func__, bxl, getpid(), getppid());
     }
 
     return childPid.restore();
@@ -167,11 +167,9 @@ INTERPOSE(int, clone, int (*fn)(void *), void *child_stack, int flags, void *arg
         // Clear the file descriptor table when we are in the child process
         // File descriptors are unique to a process, so this cache needs to be invalidated on the child
         bxl->reset_fd_table();
-    }
-    else
-    {
-        // report clone only when we are in the parent process
-        report_child_process(__func__, bxl, result.get());
+        // Process creation is reported on the child to guarantee that we see the process creation arriving as a report line before
+        // any other access report coming from the child
+        report_child_process(__func__, bxl, getpid(), getppid());
     }
 
     return result.restore();

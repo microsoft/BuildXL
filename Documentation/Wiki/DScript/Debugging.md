@@ -2,6 +2,7 @@ Currently, the best way to debug DScript is to strategically sprinkle writeline 
 Here are a few functions that might be useful
 
 ```ts
+namespace Debug {
     /** Prints out (to stdout) each given object on its own line. */
     export declare function writeLine(...strings: any[]);
 
@@ -16,4 +17,5 @@ Here are a few functions that might be useful
 
     /** Returns string representation of given command-line arguments. This does not print to console*/
     export declare function dumpArgs(args: Argument[]): string;
+}
 ```

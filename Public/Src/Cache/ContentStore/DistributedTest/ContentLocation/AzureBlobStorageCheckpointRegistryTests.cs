@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             return RunTest(async (context, registry, clock) =>
             {
                 var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
-                checkpointState.CheckpointAvailable.Should().BeFalse();
+                checkpointState.IsValid.Should().BeFalse();
             });
         }
 
@@ -104,7 +104,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 ContainerName = "checkpoints",
                 FolderName = "checkpointRegistry",
             };
-            var registry = new AzureBlobStorageCheckpointRegistry(configuration, M1, clock);
+            var registry = new AzureBlobStorageCheckpointRegistry(configuration, clock);
 
             await registry.StartupAsync(context).ThrowIfFailureAsync();
             await registry.GarbageCollectAsync(context, retentionLimit: 0).ThrowIfFailureAsync();

@@ -189,7 +189,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
             var storageRegistry = new AzureBlobStorageCheckpointRegistry(
                 storageRegistryConfiguration,
-                ContentLocationStoreConfiguration.PrimaryMachineLocation,
                 clock);
             storageRegistry.WorkaroundTracer = new Tracer("ContentMetadataAzureBlobStorageCheckpointRegistry");
 

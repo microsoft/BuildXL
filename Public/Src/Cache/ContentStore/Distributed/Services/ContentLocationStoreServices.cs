@@ -173,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         private AzureBlobStorageCheckpointRegistry CreateCheckpointRegistry()
         {
             Contract.RequiresNotNull(Configuration.AzureBlobStorageCheckpointRegistryConfiguration);
-            return new AzureBlobStorageCheckpointRegistry(Configuration.AzureBlobStorageCheckpointRegistryConfiguration, Configuration.PrimaryMachineLocation, Clock);
+            return new AzureBlobStorageCheckpointRegistry(Configuration.AzureBlobStorageCheckpointRegistryConfiguration, Clock);
         }
 
         private IGlobalCacheStore CreateGlobalCacheStore()

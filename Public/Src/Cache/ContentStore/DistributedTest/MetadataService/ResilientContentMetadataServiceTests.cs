@@ -168,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
                     var r = await service.CheckpointManager.CheckpointRegistry.GetCheckpointStateAsync(context);
                     r.Succeeded.Should().BeTrue();
-                    r.Value!.CheckpointAvailable.Should().BeTrue();
+                    r.Value!.IsValid.Should().BeTrue();
                 }
                 else if (iteration == 1)
                 {
@@ -179,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
                     var r = await service.CheckpointManager.CheckpointRegistry.GetCheckpointStateAsync(context);
                     r.Succeeded.Should().BeTrue();
-                    r.Value!.CheckpointAvailable.Should().BeTrue();
+                    r.Value!.IsValid.Should().BeTrue();
                 }
                 else
                 {
@@ -190,7 +190,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
                     var r = await service.CheckpointManager.CheckpointRegistry.GetCheckpointStateAsync(context);
                     r.Succeeded.Should().BeTrue();
-                    r.Value!.CheckpointAvailable.Should().BeFalse();
+                    r.Value!.IsValid.Should().BeFalse();
                 }
             },
             clock: clock,
@@ -268,7 +268,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                     ContainerName = "gcsregistry",
                     FolderName = "checkpointregistry",
                 };
-                var blobCheckpointRegistry = new AzureBlobStorageCheckpointRegistry(azureBlobStorageCheckpointRegistryConfiguration, default(MachineLocation), clock);
+                var blobCheckpointRegistry = new AzureBlobStorageCheckpointRegistry(azureBlobStorageCheckpointRegistryConfiguration, clock);
 
                 var blobCentralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(new AzureBlobStorageCredentials(azureStorage.ConnectionString), "gcscheckpoints", "key"));
 

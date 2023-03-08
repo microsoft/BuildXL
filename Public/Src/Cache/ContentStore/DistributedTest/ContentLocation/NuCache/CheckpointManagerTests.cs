@@ -2,10 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
-using System.IO;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Utilities;
 using FluentAssertions;
 using System.Text.Json;
 using Xunit;
@@ -19,7 +17,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         [Fact]
         public void RocksDbCorruptionRegexMatchesSlot1()
         {
-            var error = @"RocksDbSharp.RocksDbException: Corruption: block checksum mismatch: expected 1142279158, got 647716707  in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot1/1089482.sst offset 69135151 size 19421748
+            var error =
+                @"RocksDbSharp.RocksDbException: Corruption: block checksum mismatch: expected 1142279158, got 647716707  in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot1/1089482.sst offset 69135151 size 19421748
    at RocksDbSharp.Native.rocksdb_open_for_read_only_column_families(IntPtr options, String name, Int32 num_column_families, String[] column_family_names, IntPtr[] column_family_options, IntPtr[] column_family_handles, Boolean error_if_log_file_exist)
    at RocksDbSharp.RocksDb.OpenReadOnly(DbOptions options, String path, ColumnFamilies columnFamilies, Boolean errIfLogFileExists)
    at BuildXL.Engine.Cache.KeyValueStores.RocksDbStore..ctor(RocksDbStoreConfiguration configuration) in \.\Public\Src\Utilities\KeyValueStore\RocksDb\RocksDbStore.cs:line 246
@@ -33,7 +32,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         [Fact]
         public void RocksDbCorruptionRegexMatchesSlot2()
         {
-            var error = @"RocksDbSharp.RocksDbException: Corruption: block checksum mismatch: expected 1142279158, got 647716707  in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot2/1482.sst offset 69135151 size 19421748
+            var error =
+                @"RocksDbSharp.RocksDbException: Corruption: block checksum mismatch: expected 1142279158, got 647716707  in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot2/1482.sst offset 69135151 size 19421748
    at RocksDbSharp.Native.rocksdb_open_for_read_only_column_families(IntPtr options, String name, Int32 num_column_families, String[] column_family_names, IntPtr[] column_family_options, IntPtr[] column_family_handles, Boolean error_if_log_file_exist)
    at RocksDbSharp.RocksDb.OpenReadOnly(DbOptions options, String path, ColumnFamilies columnFamilies, Boolean errIfLogFileExists)
    at BuildXL.Engine.Cache.KeyValueStores.RocksDbStore..ctor(RocksDbStoreConfiguration configuration) in \.\Public\Src\Utilities\KeyValueStore\RocksDb\RocksDbStore.cs:line 246
@@ -47,7 +47,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         [Fact]
         public void RocksDbCorruptionRegexMatchesBackwardSlash()
         {
-            var error = @"RocksDbSharp.RocksDbException: Corruption: block checksum mismatch: expected 1142279158, got 647716707  in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot2\1482.sst offset 69135151 size 19421748
+            var error =
+                @"RocksDbSharp.RocksDbException: Corruption: block checksum mismatch: expected 1142279158, got 647716707  in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot2\1482.sst offset 69135151 size 19421748
    at RocksDbSharp.Native.rocksdb_open_for_read_only_column_families(IntPtr options, String name, Int32 num_column_families, String[] column_family_names, IntPtr[] column_family_options, IntPtr[] column_family_handles, Boolean error_if_log_file_exist)
    at RocksDbSharp.RocksDb.OpenReadOnly(DbOptions options, String path, ColumnFamilies columnFamilies, Boolean errIfLogFileExists)
    at BuildXL.Engine.Cache.KeyValueStores.RocksDbStore..ctor(RocksDbStoreConfiguration configuration) in \.\Public\Src\Utilities\KeyValueStore\RocksDb\RocksDbStore.cs:line 246
@@ -61,7 +62,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         [Fact]
         public void RocksDbCorruptionRegexMatchesBadTableMagicNumber()
         {
-            var error = @"RocksDbSharp.RocksDbException: Corruption: Bad table magic number: expected 9863518390377041911, found 0 in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot2/1709103.sst
+            var error =
+                @"RocksDbSharp.RocksDbException: Corruption: Bad table magic number: expected 9863518390377041911, found 0 in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot2/1709103.sst
    at RocksDbSharp.Native.rocksdb_open_for_read_only_column_families(IntPtr options, String name, Int32 num_column_families, String[] column_family_names, IntPtr[] column_family_options, IntPtr[] column_family_handles, Boolean error_if_log_file_exist)
    at RocksDbSharp.RocksDb.OpenReadOnly(DbOptions options, String path, ColumnFamilies columnFamilies, Boolean errIfLogFileExists)
    at BuildXL.Engine.Cache.KeyValueStores.RocksDbStore..ctor(RocksDbStoreConfiguration configuration) in \.\Public\Src\Utilities\KeyValueStore\RocksDb\RocksDbStore.cs:line 246
@@ -87,10 +89,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var test1 = new CheckpointState(new EventSequencePoint(42));
             TestJsonRoundtrip(test1);
 
-            var test2 = new CheckpointState(new EventSequencePoint(42), checkpointId: "TestCheckpointId");
+            var test2 = new CheckpointState(new EventSequencePoint(42), CheckpointId: "TestCheckpointId");
             TestJsonRoundtrip(test2);
 
-            var test3 = new CheckpointState(new EventSequencePoint(42), checkpointId: "TestCheckpointId", producer: new MachineLocation("This is a machine loc"));
+            var test3 = new CheckpointState(
+                new EventSequencePoint(42),
+                CheckpointId: "TestCheckpointId",
+                Producer: new MachineLocation("This is a machine loc"));
             TestJsonRoundtrip(test3);
         }
 
@@ -98,33 +103,64 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         public void CanJsonSerializeCheckpointManifest()
         {
             var test1 = new CheckpointManifest();
-            test1.Add(new CheckpointManifest.ContentEntry()
-            {
-                Hash = ContentHash.Random(),
-                Size = 2032,
-                StorageId = "stoId",
-                RelativePath = "/path/to/file"
-            });
-
-            TestJsonRoundtrip(test1, (t0, t1, legacySerialized) =>
-            {
-                Assert.Equal(t0.ContentByPath.Count, t1.ContentByPath.Count);
-                if (!legacySerialized)
+            test1.Add(
+                new CheckpointManifest.ContentEntry()
                 {
-                    Assert.Equal(t0.ContentByPath[0], t1.ContentByPath[0]);
-                }
-            });
+                    Hash = ContentHash.Random(), Size = 2032, StorageId = "stoId", RelativePath = "/path/to/file"
+                });
+
+            TestJsonRoundtrip(
+                test1,
+                (t0, t1, legacySerialized) =>
+                {
+                    Assert.Equal(t0.ContentByPath.Count, t1.ContentByPath.Count);
+                    if (!legacySerialized)
+                    {
+                        Assert.Equal(t0.ContentByPath[0], t1.ContentByPath[0]);
+                    }
+                });
         }
 
         [Fact]
         public void CanBackwardCompatJsonSerializeCheckpointState()
         {
-            var test = new CheckpointState(new EventSequencePoint(42), checkpointId: "TestCheckpointId", producer: new MachineLocation("This is a machine loc"));
+            var test = new CheckpointState(
+                new EventSequencePoint(42),
+                CheckpointId: "TestCheckpointId",
+                Producer: new MachineLocation("This is a machine loc"));
             var serialized = JsonSerializer.Serialize(test);
             var deserialized = JsonUtilities.JsonDeserialize<CheckpointState>(serialized);
 
             Assert.Equal(test.CheckpointId, deserialized.CheckpointId);
             Assert.Equal(test.Producer, deserialized.Producer);
+        }
+
+        [Fact]
+        public void CanBackwardsCompatDeserialize()
+        {
+            var test = new CheckpointState(
+                new EventSequencePoint(334869783),
+                CheckpointId:
+                @"MD5:80B764AD2DC6B24F7EFFE7EBA3D6E412||DCS||incrementalCheckpoints/334869783.4fbf7c06-b361-4a89-9d10-a5d294bc48bf/checkpointInfo.txt.MD5.80B764AD2DC6B24F7EFFE7EBA3D6E412|Incremental",
+                Producer: new MachineLocation(@"DM3APS197CDADE"),
+                CheckpointTime: new DateTime(2023, 03, 08, 00, 25, 55, DateTimeKind.Utc));
+            var serialized = @"{
+  ""StartSequencePoint"": {
+    ""SequenceNumber"": 334869783,
+    ""EventStartCursorTimeUtc"": null
+  },
+  ""CheckpointId"": ""MD5:80B764AD2DC6B24F7EFFE7EBA3D6E412||DCS||incrementalCheckpoints/334869783.4fbf7c06-b361-4a89-9d10-a5d294bc48bf/checkpointInfo.txt.MD5.80B764AD2DC6B24F7EFFE7EBA3D6E412|Incremental"",
+  ""CheckpointTime"": ""2023-03-08T00:25:55.0000000Z"",
+  ""Producer"": ""DM3APS197CDADE"",
+  ""Consumers"": [],
+  ""CreationTimeUtc"": ""2023-03-08T00:25:55.0000000Z""
+}";
+            var deserialized = JsonUtilities.JsonDeserialize<CheckpointState>(serialized);
+
+            Assert.Equal(test.CheckpointId, deserialized.CheckpointId);
+            Assert.Equal(test.Producer, deserialized.Producer);
+            Assert.Equal(test.CheckpointTime, deserialized.CheckpointTime);
+            Assert.Equal(test.StartSequencePoint, deserialized.StartSequencePoint);
         }
 
         private void TestJsonRoundtrip<T>(T expected, Action<T, T, bool> assertEqual = null)

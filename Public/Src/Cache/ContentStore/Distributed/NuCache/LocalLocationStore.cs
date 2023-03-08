@@ -781,7 +781,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Debug(context, $"First checkpoint {checkpointState} will not be skipped. LatestCheckpointId={latestCheckpointId}, LatestCheckpointAge={latestCheckpointAge}, Threshold=[{Configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
             }
 
-            if (checkpointState.CheckpointAvailable)
+            if (checkpointState.IsValid)
             {
                 if (_lastCheckpointId != checkpointState.CheckpointId)
                 {

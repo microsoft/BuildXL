@@ -8,8 +8,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Azure;
-using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -90,21 +88,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly IClock _clock;
 
         private readonly Regex _blobNameRegex;
-
         private readonly BlobPath _latestBlobPath;
-
-        private readonly MachineLocation _primaryMachineLocation;
 
         private readonly SemaphoreSlim _gcGate = TaskUtilities.CreateMutex();
 
         public AzureBlobStorageCheckpointRegistry(
             AzureBlobStorageCheckpointRegistryConfiguration configuration,
-            MachineLocation primaryMachineLocation,
             IClock? clock = null)
         {
             _configuration = configuration;
             _clock = clock ?? SystemClock.Instance;
-            _primaryMachineLocation = primaryMachineLocation;
 
             _storage = new BlobFolderStorage(Tracer, configuration);
             _blobNameRegex = new Regex(@$"{Regex.Escape(_configuration.KeySpacePrefix)}_(?<timestampUtc>[0-9]+)\.json", RegexOptions.Compiled);
@@ -127,7 +120,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         try
                         {
                             var checkpointState = await _storage.ReadAsync<CheckpointState>(context, blob).ThrowIfFailureAsync();
-                            checkpointState.FileName = blob;
 
                             return Result.Success(checkpointState);
                         }

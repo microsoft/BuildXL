@@ -3,17 +3,7 @@
 This document describes an IPC-based API that BuildXL provides so that external processes can use to it explicitly request that a file be materialized on disk.
 
 ## Background
-
-### Caching
-
-In the presence of caching, not every build task (i.e., process invocation that is a part of the build) needs be executed every time. The cache stores a mapping from a process invocation (including the process executable and all of its input parameters) to a set of output files the process produced.  Assuming that build tasks are deterministic (which BuildXL does), if a process invocation is found in the cache, its outputs can be fetched straight from the cache, without re-running the process.
-
-### Lab Builds and Lazy Materialization
-
-Builds are often times used mainly to validate the correctness of a build, i.e., ensure that all projects successfully compile and all tests (and any other validations) pass.  In such a setting, producing every build file artifact and ensuring that it is materialized to disk and placed in its designated output folder becomes unnecessary.  For that reason, BuildXL implements a feature called *lazy materialization*, which allows the user to precisely specify which files must be materialized by the end of the build.  With lazy materialization turned on, upon a cache hit BuildXL does not eagerly bring process' output files from cache to disk; instead, each output file is materialized only if
-
-  1. it was explicitly requested by the user, or
-  1. a build task that depends on it (i.e., explicitly specifies that file as an input dependency) is scheduled for execution.
+See [File Materialization](File-Materialization.md) for background on how BuildXL handles file materialization.
      
 ## Problem
 

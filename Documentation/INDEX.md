@@ -51,6 +51,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Timestamp Faking](Wiki/Advanced-Features/Timestamp-Faking.md)
 * [Symlinks and Junctions](Wiki/Advanced-Features/Symlinks-and-Junctions.md)
 * [Service Pips](Wiki/Service-Pips.md)
+* [File Materialization](Wiki/File-Materialization.md)
 * [Pip requested file materialization](Wiki/External-OnDemand-File-Materialization-API.md)
 * [Determinism Probe](Wiki/Advanced-Features/Determinism-Probe.md)
 * [Source Change Affected Inputs](Wiki/Advanced-Features/Source-Change-Affected-Inputs.md)

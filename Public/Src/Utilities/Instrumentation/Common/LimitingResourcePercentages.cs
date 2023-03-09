@@ -30,9 +30,6 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public int Semaphore;
 
         /// <nodoc/>
-        public int UnavailableSlots;
-
-        /// <nodoc/>
         public int Other;
 
         /// <nodoc/>
@@ -47,7 +44,6 @@ namespace BuildXL.Utilities.Instrumentation.Common
             stats.Add($"{prefix}{nameof(ConcurrencyLimit)}", ConcurrencyLimit);
             stats.Add($"{prefix}{nameof(ProjectedMemory)}", ProjectedMemory);
             stats.Add($"{prefix}{nameof(Semaphore)}", Semaphore);
-            stats.Add($"{prefix}{nameof(UnavailableSlots)}", UnavailableSlots);
             stats.Add($"{prefix}{nameof(Other)}", Other);
         }
     }

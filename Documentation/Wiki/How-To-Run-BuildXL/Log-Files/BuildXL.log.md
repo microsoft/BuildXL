@@ -1,20 +1,13 @@
 This is the main log file produced during a build. It contains deep diagnostic data that can be useful when debugging build issues. In particular, the following sections may be interesting:
 
-### Pip execution information
+## Pip execution information
 This section shows a list of all the pips that executed in the build. Use the PipId (`PipE06EEADA7311885E`) to search for all messages associated with a pip.
 ```
 [1:00.089] verbose DX0235: [PipE06EEADA7311885E, build.exe, MsWin.OnecoreUap.Minkernel.Crts.Crtw32.Heap.Dll_PrePass, Disabled-Release-X86] Cache miss (fingerprint '0014BC3B035CDC436F6B18A8CE1A702F76CD243C'): Process will be executed.
 [1:00.647] verbose DX0223: [PipE06EEADA7311885E, build.exe, MsWin.OnecoreUap.Minkernel.Crts.Crtw32.Heap.Dll_PrePass, Disabled-Release-X86] Produced output 'e:\os\src.obj.x86fre\minkernel\crts\crtw32\heap\dll\objfre\i386\_objects.mac' hash: '8D01EC2B020C680FE95E80771FE317D51654620308826E19C4F5CC3467E5815D00'
 ```
 
-### Factors limiting Build Time
-In non-distributed builds, BuildXL will log a message at the end of the execute phase showing what percentage of the build was spent limited on various factors. In the below example, 72% of the 89 seconds in the execute phase was spent limited by the machine's CPU.
-```
-[2:15.190] -- Done executing pips in 89349 ms.
-Factors limiting concurrency by build time: CPU:72%, Graph shape:0%, Disk:2%, Concurrency limit:22%, Other:4%
-```
-
-### Critical path
+## Critical path
 This section shows the longest critical path of total pip durations during the build. Total pip duration is calculated as the sum of pip and queue duration. We include queue durations when calculating the critical path to prevent any time gap between consecutive pips on the critical path. If we only use pip durations, there might be longer critical paths due to higher waiting time on the scheduler queues. Assuming sufficient parallelism, the pip duration (excluding queue duration) would be the lower bound to what the build time could be.
 
 During schedule phase, we also assign priorities to pips based on the weight of their chain. When computing critical paths during schedule phase, we use historical pip duration (excluding queue duration) and the pips on the critical path get higher priorities. By doing so, BuildXL reduces the queue time for those pips.
@@ -35,7 +28,7 @@ Pip Duration(ms) | Exe Duration(ms)| Queue Duration(ms) | Pip Result   | Schedul
             3840 |            2325 |                  3 |     Executed |       00:00:12 |       00:00:15 | Pip1FC84BBAC24D0F71 ...
               11 |               0 |                  0 |       Cached |       00:00:12 |       00:00:12 | Pip4814212D6E796253 ...
 ```
-### Performance Summary
+## Performance Summary
 This section contains a performance summary of the BuildXL run broken down by phases. This is currently only available for single machine builds.
 ```
 [0:16.842] verbose DX0408: Performance Summary:
@@ -64,7 +57,23 @@ Process pip cache hits: 99% (360/361)
 Incremental scheduling up to date rate: 20% (73/361)
 Server mode used: False
 Execute phase utilization: Avg CPU:14% Min Available Ram MB:17249 Avg Disk Active:C:30% D:0% E:4% 
-Factors limiting concurrency by build time: CPU:0%, Graph shape:61%, Disk:0%, Memory:0%, ProjectedMemory:0%, Semaphore:0%, Concurrency limit:0%, Other:39%
+Factors limiting concurrency by build time: CPU:25%, Graph Shape:61%, Disk:4%, Memory:0%, Projected Memory:0%, Semaphore:0%, Concurrency limit:8%, Other:2%
+```
+
+### Factors limiting concurrency by build time
+BuildXL logs a message at the end of the execute phase showing what percentage of the build's wall clock time was spent limited on various factors. This is based on a heuristic that runs every few seconds during the course of a build.
+
+Definitions:
+* CPU - The observed CPU was at or near maximum
+* Graph shape - The machine had sufficient resources to run more processes concurrently but the build graph did not allow it
+* Disk - The disk was at or near maximum active time
+* Memory - The physical memory was at or near maximum
+* Projected Memory - More processes could have been run concurrently, but concurrency was reduced to prevent running out of memory. This is based on projecting data from historical memory usage from past builds
+* Semaphore - Machine resources and build graph would have allowed for more concurrency, but it was limited based on user configured semaphore
+* Concurrency limit - The machine had available resources and the graph allowed for greater concurrency, but a configured concurrency limit prevented more processes from being run
+* Other - The runtime heuristic was not able to classify the sample period. Inspection of counters in the status.csv log file is needed.
+```
+Factors limiting concurrency by build time: CPU:25%, Graph Shape:61%, Disk:4%, Memory:0%, Projected Memory:0%, Semaphore:0%, Concurrency limit:8%, Other:2%
 ```
 
 ### Performance Smells

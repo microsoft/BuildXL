@@ -84,7 +84,7 @@ namespace BuildXL.Scheduler
                     lastConcurrencyLimiter.Value == WorkerResource.AvailableIpcSlots ||
                     lastConcurrencyLimiter.Value == WorkerResource.ModuleAffinity)
                 {
-                    return LimitingResource.UnavailableSlots;
+                    return LimitingResource.ConcurrencyLimit;
                 }
             }    
             
@@ -118,13 +118,6 @@ namespace BuildXL.Scheduler
             if (readyProcessPips < 3)
             {
                 return LimitingResource.GraphShape;
-            }
-
-            // If the number of running pips is what the queue maximum is, and no machine resources are constrained, the
-            // pips are probably contending with themselves. There may be headroom to add more pips
-            if (!m_isDistributed && (((1.0 * executingProcessPips) / m_maxProcessPips) > .95))
-            {
-                return LimitingResource.ConcurrencyLimit;
             }
 
             // We really don't expect to fall through to this case. But track it separately so we know if the heuristic
@@ -163,10 +156,7 @@ namespace BuildXL.Scheduler
                         m_blockedOnSemaphoreMs += time;
                         break;
                     case LimitingResource.ConcurrencyLimit:
-                        m_blockedOnPipSynchronization += time;
-                        break;
-                    case LimitingResource.UnavailableSlots:
-                        m_blockedOnUnavailableSlotsMs += time;
+                        m_blockedOnConcurrencyLimit += time;
                         break;
                     case LimitingResource.Other:
                         m_blockedOnUnknownMs += time;
@@ -204,8 +194,8 @@ namespace BuildXL.Scheduler
             Memory,
 
             /// <summary>
-            /// CPU and Disk are not maxed out even though many pips are being run concurrently. The pips may be
-            /// synchronizing internally
+            /// There is more work that can be done and more resources to do it but concurrentcy limits have been
+            /// reached. This is based on unavailability of dispatcher slots for several steps: MaterializeInput, ExecuteProcess, CacheLookup
             /// </summary>
             ConcurrencyLimit,
 
@@ -221,29 +211,23 @@ namespace BuildXL.Scheduler
             Semaphore,
 
             /// <summary>
-            /// Unavailability of dispatcher slots for several steps: MaterializeInput, ExecuteProcess, CacheLookup
-            /// </summary>
-            UnavailableSlots,
-
-            /// <summary>
             /// Don't know what the limiting factor is
             /// </summary>
             Other,
         }
 
-        private int m_blockedOnUnavailableSlotsMs = 0;
         private int m_blockedOnGraphMs = 0;
         private int m_blockedOnCpuMs = 0;
         private int m_blockedOnDiskMs = 0;
         private int m_blockedOnMemoryMs = 0;
-        private int m_blockedOnPipSynchronization = 0;
+        private int m_blockedOnConcurrencyLimit = 0;
         private int m_blockedOnProjectedMemoryMs = 0;
         private int m_blockedOnSemaphoreMs = 0;
         private int m_blockedOnUnknownMs = 0;
 
         private int GetPercentage(int numerator)
         {
-            int totalTime = m_blockedOnGraphMs + m_blockedOnCpuMs + m_blockedOnDiskMs + m_blockedOnMemoryMs + m_blockedOnPipSynchronization + m_blockedOnProjectedMemoryMs + m_blockedOnSemaphoreMs + m_blockedOnUnknownMs + m_blockedOnUnavailableSlotsMs;
+            int totalTime = m_blockedOnGraphMs + m_blockedOnCpuMs + m_blockedOnDiskMs + m_blockedOnMemoryMs + m_blockedOnConcurrencyLimit + m_blockedOnProjectedMemoryMs + m_blockedOnSemaphoreMs + m_blockedOnUnknownMs;
             if (totalTime > 0)
             {
                 // We intentionally return the floor to make sure we don't add up to more than 100
@@ -268,13 +252,12 @@ namespace BuildXL.Scheduler
                     Memory = GetPercentage(m_blockedOnMemoryMs),
                     ProjectedMemory = GetPercentage(m_blockedOnProjectedMemoryMs),
                     Semaphore = GetPercentage(m_blockedOnSemaphoreMs),
-                    ConcurrencyLimit = GetPercentage(m_blockedOnPipSynchronization),
-                    UnavailableSlots = GetPercentage(m_blockedOnUnavailableSlotsMs),
+                    ConcurrencyLimit = GetPercentage(m_blockedOnConcurrencyLimit),
                 };
 
                 // It's possible these percentages don't add up to 100%. So we'll round everything down
                 // and use "Other" as our fudge factor to make sure we add up to 100.
-                result.Other = 100 - result.GraphShape - result.CPU - result.Disk - result.Memory - result.ProjectedMemory - result.Semaphore - result.ConcurrencyLimit - result.UnavailableSlots;
+                result.Other = 100 - result.GraphShape - result.CPU - result.Disk - result.Memory - result.ProjectedMemory - result.Semaphore - result.ConcurrencyLimit;
 
                 return result;
             }

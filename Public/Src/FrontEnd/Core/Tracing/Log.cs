@@ -603,7 +603,9 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.CanNotRestorePackagesDueToCacheError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            // Treat this as a user error because the preceeding cache initialization error would have already been
+            // classified as internal or user error as appropriate.
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.Parser,
             Message = "Can't restore NuGet packages because there was a failure initializing the cache: {message}")]
         public abstract void CanNotRestorePackagesDueToCacheError(LoggingContext loggingContext, string message);

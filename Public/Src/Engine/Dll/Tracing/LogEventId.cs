@@ -378,7 +378,7 @@ namespace BuildXL.Engine.Tracing
         FailedToAcquireDirectoryLock = 7116,
         UsingRedirectedUserProfile = 7117,
         FailedToRedirectUserProfile = 7118,
-        // was: ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent = 7119,
+        FailedToAuthorizeVSTSCache = 7119,
         BusyOrUnavailableOutputDirectoriesException = 7120,
         GrpcSettings = 7121,
 

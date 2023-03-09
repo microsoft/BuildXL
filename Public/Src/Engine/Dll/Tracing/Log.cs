@@ -1586,6 +1586,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void FailedToAcquireDirectoryLock(LoggingContext context, string innerException);
 
         [GeneratedEvent(
+            (int)LogEventId.FailedToAuthorizeVSTSCache,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Engine,
+            Message = "Failed to initialize Azure DevOps Artifact cache. Check that your VPN is connected. Error: {0}")]
+        public abstract void FailedToAuthorizeVSTSCache(LoggingContext context, string innerException);
+
+        [GeneratedEvent(
             (int)LogEventId.CacheSessionCloseFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

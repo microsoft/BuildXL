@@ -38,6 +38,8 @@ namespace BuildXL.Engine
         // Must be kept in sync with the error message defined in LockAcquisitionResult.cs
         private const string LockAcquisitionFailureMessagePrefix = "Failed to acquire single instance lock for";
 
+        private const string VssUnauthorizedExceptionPattern = "VssUnauthorizedException";
+
         /// <nodoc />
         protected CacheInitializer(
             LoggingContext loggingContext,
@@ -118,6 +120,12 @@ namespace BuildXL.Engine
                                 Tracing.Logger.Log.FailedToAcquireDirectoryLock(
                                     loggingContext,
                                     maybeCacheCoreEngineCache.Failure.DescribeIncludingInnerFailures());
+                            }
+                            else if(errorMessage.Contains(VssUnauthorizedExceptionPattern))
+                            {
+                                Tracing.Logger.Log.FailedToAuthorizeVSTSCache(
+                                    loggingContext,
+                                    maybeCacheCoreEngineCache.Failure.DescribeIncludingInnerFailures());                                
                             }
                             else
                             {

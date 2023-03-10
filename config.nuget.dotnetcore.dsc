@@ -122,7 +122,7 @@ export const pkgs = [
     // Packages
     { id: "Microsoft.CSharp", version: pkgVersion },
     { id: "Microsoft.Win32.Primitives", version: pkgVersion },
-    { id: "Microsoft.Win32.Registry", version: pkgVersion },
+    { id: "Microsoft.Win32.Registry", version: "4.4.0" }, // This is the version Artifact Services relies on.
     { id: "System.AppContext", version: pkgVersion },
     { id: "System.Collections", version: pkgVersion },
     { id: "System.Collections.Concurrent", version: pkgVersion },

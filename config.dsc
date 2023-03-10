@@ -625,6 +625,7 @@ config({
             trackSourceFileChanges: true,
             isWritable: true,
             isReadable: true,
+            isScrubbable: true,
         },
         {
             name: a`CgNpmRoot`,

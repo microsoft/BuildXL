@@ -745,7 +745,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             await sendErrorResponseFunc(
                                 ResponseHeader.Failure(
                                     startTime,
-                                    $"Unknown error occurred processing hash {contentHash.ToShortString()}",
+                                    $"Unknown error occurred processing hash {contentHash}",
                                     diagnostics: errorDetails));
 
                             return new BoolResult(e);

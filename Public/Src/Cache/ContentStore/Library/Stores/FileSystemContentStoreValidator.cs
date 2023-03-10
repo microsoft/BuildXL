@@ -186,7 +186,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                                                                          contentDirectoryMismatchCount++;
                                                                                          _tracer.Always(
                                                                                              context,
-                                                                                             $"Directory for hash {fileSystemHash.ToShortString()} describes {fileInfo.ReplicaCount} replicas, but {fileSystemHashReplicaCount} replicas exist on disk.");
+                                                                                             $"Directory for hash {fileSystemHash} describes {fileInfo.ReplicaCount} replicas, but {fileSystemHashReplicaCount} replicas exist on disk.");
                                                                                      }
 
                                                                                      return null;
@@ -204,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                                                                   {
                                                                                       _tracer.Always(
                                                                                           context,
-                                                                                          $"Directory for hash {missingHash.ToShortString()} describes {fileInfo.ReplicaCount} replicas, but no replicas exist on disk.");
+                                                                                          $"Directory for hash {missingHash} describes {fileInfo.ReplicaCount} replicas, but no replicas exist on disk.");
                                                                                   }
 
                                                                                   return null;

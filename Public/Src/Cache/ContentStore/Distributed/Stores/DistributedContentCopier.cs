@@ -218,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                     if (!shouldRetry)
                     {
-                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount)} Cannot place {hashInfo.ContentHash.ToShortString()} due to error: {putResult.ErrorMessage}. Not retrying for hash {hashInfo.ContentHash.ToShortString()}.");
+                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount)} Cannot place {hashInfo.ContentHash} due to error: {putResult.ErrorMessage}. Not retrying for hash {hashInfo.ContentHash}.");
                         break;
                     }
 
@@ -235,7 +235,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         // Log with the original attempt count
                         // Trace time remaining under trying to copy the first location of the next attempt.
                         TimeSpan waitedTime = _clock.UtcNow - lastFailureTimes[0];
-                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {maxReplicaCount} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in { (waitedTime < waitDelay ? (waitDelay - waitedTime).TotalMilliseconds : 0)}ms...");
+                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {maxReplicaCount} failed. Retrying for hash {hashInfo.ContentHash} in { (waitedTime < waitDelay ? (waitDelay - waitedTime).TotalMilliseconds : 0)}ms...");
                     }
                     else
                     {
@@ -586,31 +586,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             break;
                         case CopyResultCode.FileNotFoundError:
                             lastErrorMessage =
-                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
+                                $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                             missingContentLocations.Add(location);
                             request.Host.ReportReputation(context, location, MachineReputation.Missing);
                             break;
                         case CopyResultCode.ServerUnavailable:
                         case CopyResultCode.UnknownServerError:
                             lastErrorMessage =
-                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
+                                $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                             request.Host.ReportReputation(context, location, MachineReputation.Bad);
                             badContentLocations.Add(location);
                             break;
                         case CopyResultCode.ConnectionTimeoutError:
                             lastErrorMessage =
-                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to a grpc connection timeout: {copyFileResult}";
+                                $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to a grpc connection timeout: {copyFileResult}";
                             request.Host.ReportReputation(context, location, MachineReputation.Timeout);
                             badContentLocations.Add(location);
                             break;
                         case CopyResultCode.TimeToFirstByteTimeoutError:
                             lastErrorMessage =
-                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to timeout receiving the first bytes: {copyFileResult}";
+                                $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to timeout receiving the first bytes: {copyFileResult}";
                             request.Host.ReportReputation(context, location, MachineReputation.Timeout);
                             badContentLocations.Add(location);
                             break;
                         case CopyResultCode.DestinationPathError:
-                            var errorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path";
+                            var errorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path";
                             lastErrorMessage = $"{errorMessage}: {copyFileResult}";
                             Tracer.Warning(
                                 context,
@@ -619,26 +619,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             return new (Result: new ErrorResult(copyFileResult, errorMessage).AsResult<PutResult>(), AttemptedRetries: replicaIndex + 1, ShouldRetry: !IsOutOfDiskSpaceError(lastErrorMessage));
                         case CopyResultCode.CopyTimeoutError:
                             lastErrorMessage =
-                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
+                                $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
                             request.Host.ReportReputation(context, location, MachineReputation.Timeout);
                             break;
                         case CopyResultCode.CopyBandwidthTimeoutError:
                             lastErrorMessage =
-                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
+                                $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
                             request.Host.ReportReputation(context, location, MachineReputation.Timeout);
                             break;
                         case CopyResultCode.InvalidHash:
                             lastErrorMessage =
-                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
+                                $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
                             break;
                         case CopyResultCode.RpcError:
                             lastErrorMessage =
-                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to communication error: {copyFileResult}";
+                                $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to communication error: {copyFileResult}";
                             request.Host.ReportReputation(context, location, MachineReputation.Bad);
                             break;
                         case CopyResultCode.Unknown:
                             lastErrorMessage =
-                                $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
+                                $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
                             request.Host.ReportReputation(context, location, MachineReputation.Bad);
                             break;
                         default:
@@ -654,7 +654,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         if (hashInfo.Size != -1 && copyFileResult.Size != null && hashInfo.Size != copyFileResult.Size.Value)
                         {
                             lastErrorMessage =
-                                $"ContentHash {hashInfo.ContentHash.ToShortString()} at location {location} has content size {copyFileResult.Size.Value} mismatch from {hashInfo.Size}";
+                                $"ContentHash {hashInfo.ContentHash} at location {location} has content size {copyFileResult.Size.Value} mismatch from {hashInfo.Size}";
                             Tracer.Warning(
                                 context,
                                 $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
@@ -672,7 +672,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             if (putResult.ContentHash != hashInfo.ContentHash)
                             {
                                 lastErrorMessage =
-                                    $"ContentHash at location {location} has ContentHash {putResult.ContentHash.ToShortString()} mismatch from {hashInfo.ContentHash.ToShortString()}";
+                                    $"ContentHash at location {location} has ContentHash {putResult.ContentHash} mismatch from {hashInfo.ContentHash}";
                                 // If PutFileAsync re-hashed the file, then it could have found a content hash which differs from the expected content hash.
                                 // If this happens, we should fail this copy and move to the next location.
                                 Tracer.Warning(
@@ -694,7 +694,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             // Nothing is known about the put's failure. Give up on all locations, do not retry.
                             // An example of a failure requiring this: Failed to reserve space for content
                             var errorMessage =
-                                $"Put file for content hash {hashInfo.ContentHash.ToShortString()} failed with error {putResult.ErrorMessage} ";
+                                $"Put file for content hash {hashInfo.ContentHash} failed with error {putResult.ErrorMessage} ";
                             Tracer.Warning(
                                 context,
                                 $"{AttemptTracePrefix(attemptCount)} {errorMessage} diagnostics {putResult.Diagnostics}");
@@ -775,7 +775,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 var foundHash = await hashingStream.GetContentHashAsync();
                                 if (foundHash != hashInfo.ContentHash)
                                 {
-                                    return new CopyFileResult(CopyResultCode.InvalidHash, $"{nameof(CopyFileAsync)} unsuccessful with different hash. Found {foundHash.ToShortString()}, expected {hashInfo.ContentHash.ToShortString()}. Found size {copyFileResult.Size}, expected size {hashInfo.Size}." + (copyFileResult.MinimumSpeedInMbPerSec.HasValue ? $" minBandwidthSpeed={copyFileResult.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty));
+                                    return new CopyFileResult(CopyResultCode.InvalidHash, $"{nameof(CopyFileAsync)} unsuccessful with different hash. Found {foundHash}, expected {hashInfo.ContentHash}. Found size {copyFileResult.Size}, expected size {hashInfo.Size}." + (copyFileResult.MinimumSpeedInMbPerSec.HasValue ? $" minBandwidthSpeed={copyFileResult.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty));
                                 }
 
                                 return copyFileResult;

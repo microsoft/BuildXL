@@ -673,7 +673,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private void TraceException(OperationContext context, ContentHash hash, Uri? azureBlobUri, Exception e, [CallerMemberName] string? operation = null)
         {
-            string errorMessage = $"{operation} failed. ContentHash=[{hash.ToShortString()}], BaseAddress=[{BlobStoreHttpClient.BaseAddress}], BlobUri=[{getBlobUri(azureBlobUri)}]";
+            string errorMessage = $"{operation} failed. ContentHash=[{hash}], BaseAddress=[{BlobStoreHttpClient.BaseAddress}], BlobUri=[{getBlobUri(azureBlobUri)}]";
 
             // Explicitly trace all the failures here to simplify errors analysis.
             Tracer.Debug(context, $"{errorMessage}. Error=[{e}]");

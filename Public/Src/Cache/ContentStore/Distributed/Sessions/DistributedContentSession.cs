@@ -941,13 +941,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Null represents no replicas were ever registered, where as empty list implies content is missing from all replicas
                 if (result.Locations == null)
                 {
-                    errorMessage = $"No replicas registered for hash {result.ContentHash.ToShortString()}";
+                    errorMessage = $"No replicas registered for hash {result.ContentHash}";
                     return false;
                 }
 
                 if (!result.Locations.Any())
                 {
-                    errorMessage = $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}";
+                    errorMessage = $"No replicas currently exist in content tracker for hash {result.ContentHash}";
                     return false;
                 }
 
@@ -1153,7 +1153,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     Tracer.Warning(
                         operationContext,
-                        $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
+                        $"Pin failed for hash {hash}: directory query failed with error {pageLookup.ErrorMessage}");
                     RemotePinning pinning = new RemotePinning(new ContentHashWithSizeAndLocations(hash, -1L)) { Result = new PinResult(pageLookup) };
                     pinnings.Add(pinning);
                 }
@@ -1186,7 +1186,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (!updated.Succeeded)
             {
                 // We failed to update the tracker. Need to update the results.
-                string hashesAsString = string.Join(", ", localCopies.Select(lc => lc.result.Record.ContentHash.ToShortString()));
+                string hashesAsString = string.Join(", ", localCopies.Select(lc => lc.result.Record.ContentHash));
                 Tracer.Warning(
                     operationContext,
                     $"Pin failed for hashes {hashesAsString}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
@@ -1256,7 +1256,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 if (!isLocal)
                 {
                     // Trace only when pin failed based on the data from the global store.
-                    Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: no remote records.");
+                    Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash}: no remote records.");
                 }
 
                 return DistributedPinResult.ContentNotFound(replicaCount: 0, "No locations found");
@@ -1351,14 +1351,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     // Tracing the error separately.
                     Tracer.Warning(
                         operationContext,
-                        $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
+                        $"Pin failed for hash {remote.ContentHash}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
                     return new DistributedPinResult(locations.Count, updated);
                 }
             }
             else
             {
                 // Tracing the error separately.
-                Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy failed with {copy}.");
+                Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash}: local copy failed with {copy}.");
                 return DistributedPinResult.ContentNotFound(locations.Count);
             }
         }

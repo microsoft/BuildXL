@@ -691,7 +691,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (realizationMode != FileRealizationMode.CopyNoVerify && result.ContentHash != contentHash && result.Succeeded)
                 {
-                    return new PutResult(result.ContentHash, $"Content at {path} had actual content hash {result.ContentHash.ToShortString()} and did not match expected value of {contentHash.ToShortString()}");
+                    return new PutResult(result.ContentHash, $"Content at {path} had actual content hash {result.ContentHash} and did not match expected value of {contentHash}");
                 }
 
                 return result;
@@ -1212,7 +1212,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         });
                     if (!putInternalSucceeded)
                     {
-                        return new PutResult(contentHash, $"{nameof(PutStreamAsync)} failed to put {pathToTempContent} with hash {contentHash.ToShortString()} with an unknown error");
+                        return new PutResult(contentHash, $"{nameof(PutStreamAsync)} failed to put {pathToTempContent} with hash {contentHash} with an unknown error");
                     }
 
                     return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache)
@@ -1280,7 +1280,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 _tracer.Warning(
                     context,
-                    $"Unable to delete temp content at '{path.Path}' for {contentHash.ToShortString()} due to exception: {exception}");
+                    $"Unable to delete temp content at '{path.Path}' for {contentHash} due to exception: {exception}");
             }
         }
 
@@ -2164,7 +2164,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         }
                         else
                         {
-                            return new (e, $"Failed to place hash=[{contentHash.ToShortString()}] to path=[{destinationPath}]");
+                            return new (e, $"Failed to place hash=[{contentHash}] to path=[{destinationPath}]");
                         }
                     }
 
@@ -2228,7 +2228,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             }
                             else
                             {
-                                return new (e, $"Failed to place hash=[{contentHash.ToShortString()}] to path=[{destinationPath}]");
+                                return new (e, $"Failed to place hash=[{contentHash}] to path=[{destinationPath}]");
                             }
                         }
                     }
@@ -2821,13 +2821,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 if (!pinned)
                 {
-                    throw new CacheException("Expected content with hash {0} to be pinned, but it was not.", contentHash.ToShortString());
+                    throw new CacheException("Expected content with hash {0} to be pinned, but it was not.", contentHash);
                 }
 
                 if (verifyPinContext != null && !verifyPinContext.Contains(contentHash))
                 {
                     throw new CacheException(
-                        "Expected content with hash {0} was pinned, but not to the expected pin context.", contentHash.ToShortString());
+                        "Expected content with hash {0} was pinned, but not to the expected pin context.", contentHash);
                 }
             }
 

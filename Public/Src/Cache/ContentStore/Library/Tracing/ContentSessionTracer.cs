@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                         $"{Name}.{PinBulkCallName}() failed for hashes",
                         results.Select((result, index) => (result, hash: contentHashes[index])),
                         contentHashes.Count,
-                        itemPrinter: tpl => $"{tpl.hash.ToShortString()}={tpl.result.Item}",
+                        itemPrinter: tpl => $"{tpl.hash}={tpl.result.Item}",
                         printAction: message => Debug(context, message));
                 }
 

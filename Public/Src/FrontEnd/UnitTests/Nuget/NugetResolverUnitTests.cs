@@ -97,7 +97,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
             var generatedContent = result.Result.GetParent(pathTable).ToString(pathTable);
             var expectedGeneratedSpecCount = 2;
             var expectedGeneratedMetataFileCount = 1;
-            XAssert.AreEqual(expectedGeneratedSpecCount + expectedGeneratedMetataFileCount, Directory.EnumerateFiles(generatedContent, "*.*", SearchOption.AllDirectories).Count());
+            XAssert.AreEqual(expectedGeneratedSpecCount + expectedGeneratedMetataFileCount, Directory.EnumerateFiles(generatedContent, "*", SearchOption.AllDirectories).Count());
 
             // package file is tested already
             var packageDsc = Path.Combine(generatedContent, "package.dsc");

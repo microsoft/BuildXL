@@ -1976,6 +1976,8 @@ namespace BuildXL.Scheduler.Fingerprints
                     case DirectoryEnumerationMode.FullGraph:
                         using (Counters.StartStopwatch(PipExecutorCounter.FullGraphDirectoryEnumerationsDuration))
                         {
+                            Contract.Assert(rule == null, $"{DirectoryEnumerationMode.FullGraph} does not enumerate file system, so {nameof(rule)} must be null");
+
                             eventData.IsStatic = true;
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
@@ -1991,8 +1993,9 @@ namespace BuildXL.Scheduler.Fingerprints
                     case DirectoryEnumerationMode.MinimalGraph:
                         using (Counters.StartStopwatch(PipExecutorCounter.MinimalGraphDirectoryEnumerationsDuration))
                         {
-                            eventData.IsStatic = true;
+                            Contract.Assert(rule == null, $"{DirectoryEnumerationMode.MinimalGraph} does not enumerate file system, so {nameof(rule)} must be null");
 
+                            eventData.IsStatic = true;
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
@@ -2020,7 +2023,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             break;
                         }
                     default:
-                        Contract.Assume(enumerationMode == DirectoryEnumerationMode.RealFilesystem);
+                        Contract.Assert(enumerationMode == DirectoryEnumerationMode.RealFilesystem);
 
                         var enumerateFunc = trackPathExistence ? (Func<EnumerationRequest, PathExistence?>) TryEnumerateAndTrackDirectoryWithFilesystem : TryEnumerateDirectoryWithFilesystem;
                         using (Counters.StartStopwatch(PipExecutorCounter.RealFilesystemDirectoryEnumerationsDuration))

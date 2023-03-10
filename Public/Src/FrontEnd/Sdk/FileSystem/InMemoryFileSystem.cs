@@ -235,7 +235,7 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         // in test code, with the assumption being that no other wildcards are specified in the pattern.
         private static Regex CreateRegexFromPattern(string pattern)
         {
-            if (pattern == "*.*")
+            if (pattern == "*.*" && OperatingSystemHelper.IsWindowsOS)
             {
                 pattern = "*";
             }

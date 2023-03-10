@@ -9,6 +9,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
+using System.Collections.Generic;
 
 namespace Test.DScript.Ast.Interpretation
 {
@@ -24,21 +25,42 @@ namespace Test.DScript.Ast.Interpretation
         [InlineData(@"glob(d`.`, '*.txt')", "a.txt", "b.txt")]
         [InlineData(@"glob(d`.`, 'a.*')", "a.cs", "a.txt")]
         [InlineData(@"glob(d`.`, '*')", "a.cs", "a.txt", "b.cs", "b.txt", "other", "project.dsc")]
-        [InlineData(@"glob(d`.`, '*.*')", "a.cs", "a.txt", "b.cs", "b.txt", "other", "project.dsc")]
         private void GlobCurrentFolder(string globFunction, params string[] expectedPaths)
         {
             TestGlob(globFunction, expectedPaths);
         }
+
+        [Fact]
+        private void GlobCurrentFolderWithWinLegacyPattern()
+        {
+            // On Windows, the legacy pattern "*.*" matches all.
+            TestGlob(
+                @"glob(d`.`, '*.*')", 
+                OperatingSystemHelper.IsWindowsOS
+                    ? new []{ "a.cs", "a.txt", "b.cs", "b.txt", "other", "project.dsc" }
+                    : new[] { "a.cs", "a.txt", "b.cs", "b.txt", "project.dsc" });
+        }
+
 
         [Theory]
         [InlineData(@"glob(d`f1`, 'a.txt')", @"f1\a.txt")]
         [InlineData(@"glob(d`f1`, '*.txt')", @"f1\a.txt", @"f1\b.txt")]
         [InlineData(@"glob(d`f1`, 'a.*')", @"f1\a.cs", @"f1\a.txt")]
         [InlineData(@"glob(d`f1`, '*')", @"f1\a.cs", @"f1\a.txt", @"f1\b.cs", @"f1\b.txt", @"f1\other")]
-        [InlineData(@"glob(d`f1`, '*.*')", @"f1\a.cs", @"f1\a.txt", @"f1\b.cs", @"f1\b.txt", @"f1\other")]
         private void GlobF1Folder(string globFunction, params string[] expectedPaths)
         {
             TestGlob(globFunction, expectedPaths);
+        }
+
+        [Fact]
+        private void GlobF1FolderWithWinLegacyPattern()
+        {
+            // On Windows, the legacy pattern "*.*" matches all.
+            TestGlob(
+                @"glob(d`f1`, '*.*')",
+                OperatingSystemHelper.IsWindowsOS
+                    ? new[] { @"f1\a.cs", @"f1\a.txt", @"f1\b.cs", @"f1\b.txt", @"f1\other" }
+                    : new[] { @"f1\a.cs", @"f1\a.txt", @"f1\b.cs", @"f1\b.txt" });
         }
 
         [Theory]
@@ -46,14 +68,23 @@ namespace Test.DScript.Ast.Interpretation
         [InlineData(@"glob(d`.`, '*/*.txt')", @"f1\a.txt", @"f1\b.txt", @"f2\a.txt", @"f2\b.txt")]
         [InlineData(@"glob(d`.`, '*\\a.*')", @"f1\a.cs", @"f1\a.txt", @"f2\a.cs", @"f2\a.txt")]
         [InlineData(@"glob(d`.`, '*/other')", @"f1\other", @"f3\other", @"f4\other")]
-        [InlineData(@"glob(d`.`, '*\\*.*')",
-            @"f1\a.cs", @"f1\a.txt", @"f1\b.cs", @"f1\b.txt", @"f1\other",
-            @"f2\a.cs", @"f2\a.txt", @"f2\b.cs", @"f2\b.txt",
-            @"f3\other",
-            @"f4\other")]
         private void GlobSkippingFolder(string globFunction, params string[] expectedPaths)
         {
             TestGlob(globFunction, expectedPaths);
+        }
+
+        [Fact]
+        private void GlobSkippingFolderWithWinLegacyPattern()
+        {
+            // On Windows, the legacy pattern "*.*" matches all.
+            TestGlob(
+                @"glob(d`.`, '*\\*.*')",
+                OperatingSystemHelper.IsWindowsOS
+                    ? new[] { @"f1\a.cs",  @"f1\a.txt", @"f1\b.cs", @"f1\b.txt", @"f1\other",
+                              @"f2\a.cs",  @"f2\a.txt", @"f2\b.cs", @"f2\b.txt",
+                              @"f3\other", @"f4\other" }
+                    : new[] { @"f1\a.cs",  @"f1\a.txt", @"f1\b.cs", @"f1\b.txt",
+                              @"f2\a.cs",  @"f2\a.txt", @"f2\b.cs", @"f2\b.txt" });
         }
 
         [Theory]

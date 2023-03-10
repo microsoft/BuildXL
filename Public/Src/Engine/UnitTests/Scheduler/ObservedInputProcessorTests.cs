@@ -439,7 +439,7 @@ namespace Test.BuildXL.Scheduler
 
             public TestObservation AddDirectoryEnumeration(string path, bool isSearchPath = false, string[] members = null, bool addDependency = true, string[] enumeratePatterns = null)
             {
-                members = members ?? new[] { "test.txt" };
+                members ??= new[] { "test.txt" };
                 var root = Path(path);
                 var contents = members
                     .Select(m => root.Combine(Context.PathTable, RelativePath.Create(Context.StringTable, m)))
@@ -458,7 +458,7 @@ namespace Test.BuildXL.Scheduler
                 }
 
                 var observation = TestObservation.ExpectDirectoryEnumeration(Path(path), CreateFakeContentHash(2));
-                observation.EnumeratePatternRegex = RegexDirectoryMembershipFilter.ConvertWildcardsToRegex(enumeratePatterns ?? new string[] { });
+                observation.EnumeratePatternRegex = RegexDirectoryMembershipFilter.ConvertWildcardsToRegex(enumeratePatterns ?? Array.Empty<string>());
                 observation.IsSearchPathEnumeration = isSearchPath;
                 AddEnumerableDirectory(observation.Path, new DirectoryFingerprint(observation.ExpectedHash));
                 m_observations.Add(observation);
@@ -1157,6 +1157,42 @@ namespace Test.BuildXL.Scheduler
             foreach (var fileName in unexpectedFileNames)
             {
                 Assert.False(filter1.Include(PathAtom.Create(stringTable, fileName), fileName));
+            }
+        }
+
+        [Fact]
+        public void DirectoryEnumerationsWithLegacyAllowedAllFilters()
+        {
+            var harness = new Harness();
+
+            // Enumerations
+            var members = new[] { "foo.hpp", "bar", ".gitignore" };
+            var enumeration = harness.AddDirectoryEnumeration(A("X", "Dir1", ""), isSearchPath: false, members: members, enumeratePatterns: new[] { "*.*" });
+
+            harness.Process(ObservedInputProcessingStatus.Success, true);
+
+            var filter = harness.TrackedDirectoryFilters[enumeration.Path];
+
+            // On Windows, the pattern "*.*" matches all, so the filter would be the allow-all filter.
+            XAssert.AreEqual(OperatingSystemHelper.IsWindowsOS, filter == DirectoryMembershipFilter.AllowAllFilter);
+
+            // On non-Windows, the pattern "*.*" matches names that have '.', and so the pattern is turned into a regex filter.
+            if (!OperatingSystemHelper.IsWindowsOS)
+            {
+                Assert.IsType(typeof(RegexDirectoryMembershipFilter), filter);
+            }
+
+            var stringTable = harness.Context.StringTable;
+            var includedMembers = members.Where(m => filter.Include(PathAtom.Create(stringTable, m), m));
+            if (OperatingSystemHelper.IsWindowsOS) 
+            {
+                // On Windows, the pattern "*.*" matches all, so all members will be included.
+                XAssert.SetEqual(members, includedMembers, OperatingSystemHelper.PathComparer); 
+            }
+            else
+            {
+                // On non-Windows, only members whose names have '.' will be included.
+                XAssert.SetEqual(new[] { "foo.hpp", ".gitignore" }, includedMembers, OperatingSystemHelper.PathComparer);
             }
         }
 

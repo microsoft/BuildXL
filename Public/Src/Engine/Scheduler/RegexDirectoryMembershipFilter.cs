@@ -14,12 +14,17 @@ namespace BuildXL.Scheduler
     public class RegexDirectoryMembershipFilter : DirectoryMembershipFilter
     {
         /// <nodoc/>
-        public static readonly ObjectCache<string, RegexDirectoryMembershipFilter> RegexCache = new ObjectCache<string, RegexDirectoryMembershipFilter>(1000);
+        public static readonly ObjectCache<string, RegexDirectoryMembershipFilter> RegexCache = new(1000);
 
         /// <summary>
         /// Regex that allows all.
         /// </summary>
         public const string AllowAllRegex = "^.*$";
+
+        /// <summary>
+        /// Win32 legacy regex that allows all, i.e., '*.*';
+        /// </summary>
+        public const string Win32LegacyAllowAllRegex = @"^(.*\..*)$";
 
         private readonly Regex m_regex;
 
@@ -50,6 +55,12 @@ namespace BuildXL.Scheduler
                     return AllowAllRegex;
                 }
 
+                if (OperatingSystemHelper.IsWindowsOS && string.Equals(pattern, "*.*"))
+                {
+                    // On Windows, the pattern "*.*" matches all (legacy behavior), so we simply returns the regex that matches all.
+                    return AllowAllRegex;
+                }
+
                 sb.Append(isAdded ? "|" : string.Empty);
                 var regexStr = Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".");
                 sb.Append("(" + regexStr + ")");
@@ -76,7 +87,8 @@ namespace BuildXL.Scheduler
         /// </summary>
         public static DirectoryMembershipFilter Create(string enumeratePatternRegex)
         {
-            if (enumeratePatternRegex == AllowAllRegex)
+            if (enumeratePatternRegex == AllowAllRegex
+                || (OperatingSystemHelper.IsWindowsOS && enumeratePatternRegex == Win32LegacyAllowAllRegex))
             {
                 // If the regex allows all, then returns an efficient AllowAllFilter.
                 return AllowAllFilter;

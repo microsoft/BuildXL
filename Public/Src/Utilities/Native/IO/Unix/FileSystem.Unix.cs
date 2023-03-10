@@ -67,8 +67,7 @@ namespace BuildXL.Native.IO.Unix
             var matchEverythingRegex = TranslatePattern("*");
             m_patternRegexes = new ConcurrentDictionary<string, Regex>
             {
-                [ "*" ]   = matchEverythingRegex,
-                [ "*.*" ] = matchEverythingRegex // legacy Win32 behavior
+                [ "*" ]   = matchEverythingRegex
             };
         }
 

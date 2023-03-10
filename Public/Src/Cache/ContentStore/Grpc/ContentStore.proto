@@ -161,6 +161,7 @@ message PutFileResponse {
     int32 HashType = 2;
     bytes ContentHash = 3;
     int64 ContentSize = 4;
+    optional bool AlreadyInCache = 5;
 }
 
 // Shutdown

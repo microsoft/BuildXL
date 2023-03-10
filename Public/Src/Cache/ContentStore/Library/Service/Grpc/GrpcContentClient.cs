@@ -339,7 +339,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
                     else
                     {
-                        return new PutResult(response.ContentHash.ToContentHash((HashType)response.HashType), response.ContentSize);
+                        return new PutResult(response.ContentHash.ToContentHash((HashType)response.HashType), response.ContentSize, response.AlreadyInCache);
                     }
                 });
         }

@@ -83,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public class GrpcContentServer : StartupShutdownSlimBase, IDistributedStreamStore, IGrpcServiceEndpoint
     {
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcContentServer));
+        protected override Tracer Tracer { get; }
 
         private readonly Capabilities _serviceCapabilities;
         private readonly IReadOnlyDictionary<string, IContentStore> _contentStoreByCacheName;
@@ -154,6 +154,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             Contract.Requires(storesByName != null);
 
+            Tracer = new Tracer(GetType().Name);
             _serviceCapabilities = serviceCapabilities;
             _contentStoreByCacheName = storesByName;
             _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.GrpcConstants.DefaultBufferSizeBytes;
@@ -1009,7 +1010,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                                        putResult.Diagnostics),
                         ContentSize = putResult.ContentSize,
                         ContentHash = putResult.ContentHash.ToByteString(),
-                        HashType = (int)putResult.ContentHash.HashType
+                        HashType = (int)putResult.ContentHash.HashType,
+                        AlreadyInCache = putResult.ContentAlreadyExistsInCache,
                     };
                 },
                 (context, errorMessage) => new PutFileResponse { Header = ResponseHeader.Failure(context.StartTime, errorMessage) },

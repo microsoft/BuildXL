@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace BuildXL.Utilities.VmCommandProxy
+namespace BuildXL.Processes.VmCommandProxy
 {
     /// <summary>
     /// Commands used by VmCommandProxy.

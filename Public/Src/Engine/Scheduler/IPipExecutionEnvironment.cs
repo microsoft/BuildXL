@@ -16,11 +16,11 @@ using BuildXL.Plugin;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Remoting;
+using BuildXL.Processes.VmCommandProxy;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.VmCommandProxy;
 
 namespace BuildXL.Scheduler
 {

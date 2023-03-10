@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
 
-namespace BuildXL.Utilities.VmCommandProxy
+namespace BuildXL.Processes.VmCommandProxy
 {
     /// <summary>
     /// VM initializer.

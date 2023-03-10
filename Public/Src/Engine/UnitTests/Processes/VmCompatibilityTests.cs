@@ -7,11 +7,11 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.Processes.VmCommandProxy;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
-namespace Test.BuildXL.Utilities
+namespace Test.BuildXL.Processes
 {
     /// <summary>
     /// This test class checks if the assumptions about VM execution in BuildXL are valid.

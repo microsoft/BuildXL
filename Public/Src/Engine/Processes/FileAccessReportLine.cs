@@ -3,12 +3,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;

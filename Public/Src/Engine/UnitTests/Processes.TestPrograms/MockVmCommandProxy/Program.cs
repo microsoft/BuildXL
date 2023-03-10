@@ -5,8 +5,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using BuildXL.Utilities;
-using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.Utilities.Core;
+using BuildXL.Processes.VmCommandProxy;
 
 namespace Test.BuildXL.Executables.MockVmCommandProxy
 {

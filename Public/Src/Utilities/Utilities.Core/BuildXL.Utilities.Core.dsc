@@ -10,16 +10,17 @@ namespace Utilities.Core {
         addNotNullAttributeFile: true,
         addCallerArgumentExpressionAttribute: false,
         references: [
-            // IMPORTANT!!! Do not add non-bxl dependencies into this project, any non-bxl dependencies should go to BuildXL.Utilities instead
+            // IMPORTANT!!! Do not add non-bxl dependencies or any bxl projects with external dependencies into this project
+            //              any non-bxl dependencies should go to BuildXL.Utilities instead
 
-            ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.Xml.dll
-            ),
+            ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
+                NetFx.System.Xml.dll,
+                $.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
+                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+                importFrom("System.Threading.Tasks.Extensions").pkg,
+            ]),
             Collections.dll,
             Interop.dll,
-
-            ...BuildXLSdk.tplPackages,
-            ...BuildXLSdk.systemMemoryDeployment,
         ],
         internalsVisibleTo: [
             "BuildXL.FrontEnd.Script",

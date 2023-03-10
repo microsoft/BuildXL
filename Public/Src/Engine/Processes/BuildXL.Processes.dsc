@@ -20,6 +20,10 @@ namespace Processes {
             ],
         generateLogs: true,
         references: [
+            ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
+                importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            ]),
+
             ...addIf(BuildXLSdk.isFullFramework,
                 BuildXLSdk.NetFx.System.IO.Compression.dll,
                 BuildXLSdk.NetFx.System.Management.dll,

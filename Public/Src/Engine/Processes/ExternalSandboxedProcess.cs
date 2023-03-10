@@ -9,7 +9,6 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Processes

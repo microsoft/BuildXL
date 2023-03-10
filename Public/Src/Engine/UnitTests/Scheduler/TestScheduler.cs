@@ -12,6 +12,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Processes.VmCommandProxy;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
@@ -19,7 +20,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.VmCommandProxy;
 using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.Scheduler

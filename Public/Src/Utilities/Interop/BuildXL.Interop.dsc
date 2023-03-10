@@ -7,6 +7,7 @@ import {Transformer} from "Sdk.Transformers";
 namespace Interop {
     @@public
     export const dll = BuildXLSdk.library({
+        // IMPORTANT!!! Do not add non-bxl dependencies into this project, any non-bxl dependencies should go to BuildXL.Utilities instead
         assemblyName: "BuildXL.Interop",
         sources: [
             ...globR(d`.`, "*.cs"),

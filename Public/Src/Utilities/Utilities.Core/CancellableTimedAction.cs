@@ -4,7 +4,7 @@
 using System;
 using System.Threading;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Action that fires repeatedly according to the specified interval on a cancellable dedicated thread.

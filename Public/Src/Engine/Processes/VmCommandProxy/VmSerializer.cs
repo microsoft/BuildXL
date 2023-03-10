@@ -3,9 +3,9 @@
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using Newtonsoft.Json;
+using System.Text.Json;
 
-namespace BuildXL.Utilities.VmCommandProxy
+namespace BuildXL.Processes.VmCommandProxy
 {
     /// <summary>
     /// Class for serializing/deserializing VmCommandProxy input and output.
@@ -20,18 +20,9 @@ namespace BuildXL.Utilities.VmCommandProxy
             Contract.RequiresNotNullOrWhiteSpace(file);
             Contract.RequiresNotNull(vmObject);
 
-            var jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings
-            {
-                NullValueHandling = NullValueHandling.Include
-            });
-
             Directory.CreateDirectory(Path.GetDirectoryName(file));
-
-            using (var streamWriter = new StreamWriter(file))
-            using (var jsonTextWriter = new JsonTextWriter(streamWriter))
-            {
-                jsonSerializer.Serialize(jsonTextWriter, vmObject);
-            }
+            var jsonString = JsonSerializer.Serialize(vmObject);
+            File.WriteAllText(file, jsonString);
         }
 
         /// <summary>
@@ -40,7 +31,7 @@ namespace BuildXL.Utilities.VmCommandProxy
         public static T DeserializeFromFile<T>(string file)
         {
             Contract.RequiresNotNullOrWhiteSpace(file);
-            return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
+            return JsonSerializer.Deserialize<T>(File.ReadAllText(file));
         }
     }
 }

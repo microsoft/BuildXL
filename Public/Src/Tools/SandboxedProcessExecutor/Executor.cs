@@ -12,12 +12,12 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Processes.Remoting;
+using BuildXL.Processes.VmCommandProxy;
 using BuildXL.SandboxedProcessExecutor.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.VmCommandProxy;
 
 #nullable enable
 

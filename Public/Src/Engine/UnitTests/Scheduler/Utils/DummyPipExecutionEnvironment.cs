@@ -23,6 +23,7 @@ using BuildXL.Plugin;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Remoting;
+using BuildXL.Processes.VmCommandProxy;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
@@ -38,7 +39,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.VmCommandProxy;
 using Test.BuildXL.TestUtilities;
 
 namespace Test.BuildXL.Scheduler.Utils

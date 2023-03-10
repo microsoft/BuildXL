@@ -2,13 +2,12 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.Processes.VmCommandProxy;
 
 namespace Test.BuildXL.TestUtilities.Xunit
 {

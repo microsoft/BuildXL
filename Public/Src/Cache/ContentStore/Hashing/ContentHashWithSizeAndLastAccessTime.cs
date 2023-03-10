@@ -1,39 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#nullable enable
+
 using System;
 
-namespace BuildXL.Cache.ContentStore.Hashing
-{
-    /// <summary>
-    ///     Pairing of content hash, size, and last access time.
-    /// </summary>
-    [StructGenerators.StructRecord]
-    public readonly partial struct ContentHashWithSizeAndLastAccessTime
-    {
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="ContentHashWithSize"/> struct.
-        /// </summary>
-        public ContentHashWithSizeAndLastAccessTime(ContentHash contentHash, long size, DateTime lastAccessTime)
-        {
-            Hash = contentHash;
-            Size = size;
-            LastAccessTime = lastAccessTime;
-        }
+namespace BuildXL.Cache.ContentStore.Hashing;
 
-        /// <summary>
-        ///     Gets the content hash member.
-        /// </summary>
-        public ContentHash Hash { get; }
-
-        /// <summary>
-        ///     Gets the content size member.
-        /// </summary>
-        public long Size { get; }
-
-        /// <summary>
-        ///     Gets the last time the content was accessed.
-        /// </summary>
-        public DateTime LastAccessTime { get; }
-    }
-}
+/// <summary>
+/// Pairing of content hash, size, and last access time.
+/// </summary>
+public readonly record struct ContentHashWithSizeAndLastAccessTime(ContentHash Hash, long Size, DateTime LastAccessTime);

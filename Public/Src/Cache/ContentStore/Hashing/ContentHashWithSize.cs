@@ -1,75 +1,24 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
+#nullable enable
 
-namespace BuildXL.Cache.ContentStore.Hashing
+namespace BuildXL.Cache.ContentStore.Hashing;
+
+/// <summary>
+/// Pairing of content hash and size of the corresponding content.
+/// </summary>
+public readonly record struct ContentHashWithSize(ContentHash Hash, long Size)
 {
-    /// <summary>
-    ///     Pairing of content hash and size of the corresponding content.
-    /// </summary>
-    public readonly struct ContentHashWithSize : IEquatable<ContentHashWithSize>
+    /// <nodoc />
+    public static implicit operator ContentHash(ContentHashWithSize hashWithSize)
     {
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="ContentHashWithSize"/> struct.
-        /// </summary>
-        public ContentHashWithSize(ContentHash contentHash, long size)
-        {
-            Hash = contentHash;
-            Size = size;
-        }
+        return hashWithSize.Hash;
+    }
 
-        /// <summary>
-        ///     Gets the content hash member.
-        /// </summary>
-        public ContentHash Hash { get; }
-
-        /// <summary>
-        ///     Gets the content size member.
-        /// </summary>
-        public long Size { get; }
-
-        /// <inheritdoc />
-        public bool Equals(ContentHashWithSize other)
-        {
-            return Hash.Equals(other.Hash) && Size == other.Size;
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj)
-        {
-            return StructUtilities.Equals(this, obj);
-        }
-
-        /// <inheritdoc />
-        public override int GetHashCode()
-        {
-            return Hash.GetHashCode() ^ Size.GetHashCode();
-        }
-
-        /// <nodoc />
-        public static bool operator ==(ContentHashWithSize left, ContentHashWithSize right)
-        {
-            return left.Equals(right);
-        }
-
-        /// <nodoc />
-        public static bool operator !=(ContentHashWithSize left, ContentHashWithSize right)
-        {
-            return !left.Equals(right);
-        }
-
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return $"[ContentHash={Hash} Size={Size}]";
-        }
-
-        /// <nodoc />
-        public static implicit operator ContentHash(ContentHashWithSize hashWithSize)
-        {
-            return hashWithSize.Hash;
-        }
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        return $"[ContentHash={Hash} Size={Size}]";
     }
 }

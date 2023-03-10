@@ -399,7 +399,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     new ContentHashList(
                         contentHashes: new ContentHash[] { ContentHash.Random() },
                         payload: ContentHash.Random().ToByteArray()),
-                    determinism: CacheDeterminism.SinglePhaseNonDeterministic),
+                    CacheDeterminism.SinglePhaseNonDeterministic),
                 lastAccessTimeUtc: eventTime);
             var message = new UpdateMetadataEntryEventData(42.AsMachineId(), StrongFingerprint.Random(), metadataEntry);
 

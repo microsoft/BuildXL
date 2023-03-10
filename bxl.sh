@@ -9,11 +9,12 @@ declare arg_Positional=()
 # stores user-specified args that are not used by this script; added to the end of command line
 declare arg_UserProvidedBxlArguments=()
 declare arg_DeployDev=""
-declare arg_DeployDevRelease=""
 declare arg_UseDev=""
 declare arg_Minimal=""
 declare arg_Internal=""
 declare arg_Cgmanifest=""
+# default configuration is debug
+declare configuration="Debug"
 
 if [[ "${OSTYPE}" == "linux-gnu" ]]; then
     readonly HostQualifier=Linux
@@ -67,7 +68,7 @@ function getLkg() {
 }
 
 function setMinimal() {
-    arg_Positional+=(/q:Debug${HostQualifier} "/f:output='$MY_DIR/Out/Bin/debug/${DeploymentFolder}/*'")
+    arg_Positional+=(/q:${configuration}${HostQualifier} "/f:output='$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}/*'")
 }
 
 function setInternal() {
@@ -105,7 +106,7 @@ function compileWithBxl() {
 }
 
 function printHelp() {
-    echo "${BASH_SOURCE[0]} [--deploy-dev[-release]] [--use-dev] [--minimal] [--internal] [--shared-comp] [--cgmanifest] [--vs] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
+    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--cgmanifest] [--vs] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
 }
 
 function parseArgs() {
@@ -123,16 +124,16 @@ function parseArgs() {
             arg_DeployDev="1"
             shift
             ;;
-        --deploy-dev-release)
-            arg_DeployDevRelease="1"
-            shift
-            ;;
         --use-dev)
             arg_UseDev="1"
             shift
             ;;
         --minimal)
             arg_Minimal="1"
+            shift
+            ;;
+        --release)
+            configuration="Release"
             shift
             ;;
         --internal)
@@ -252,6 +253,8 @@ pushd "$MY_DIR"
 
 parseArgs "$@"
 
+outputConfiguration=`printf '%s' "$configuration" | awk '{ print tolower($0) }'`
+
 if [[ -n "$arg_Internal" && -n "$TF_BUILD" ]]; then
     readonly ADOBuild="1"
 fi
@@ -260,10 +263,6 @@ findMono
 
 if [[ -n "$arg_DeployDev" || -n "$arg_Minimal" ]]; then
     setMinimal
-fi
-
-if [[ -n "$arg_DeployDevRelease" ]]; then
-    arg_Positional+=(/q:Release${HostQualifier} "/f:output='$MY_DIR/Out/Bin/release/${DeploymentFolder}/*'")
 fi
 
 if [[ -n "$arg_Internal" ]]; then
@@ -335,11 +334,7 @@ fi
 compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}
 
 if [[ -n "$arg_DeployDev" ]]; then
-    deployBxl "$MY_DIR/Out/Bin/debug/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
-fi
-
-if [[ -n "$arg_DeployDevRelease" ]]; then
-    deployBxl "$MY_DIR/Out/Bin/release/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
+    deployBxl "$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
 fi
 
 popd

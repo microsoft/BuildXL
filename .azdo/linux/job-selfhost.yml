@@ -102,7 +102,7 @@ jobs:
 
   - bash: |
       set -eu
-      bash bxl.sh ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev-release
+      bash bxl.sh ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev --release
     displayName: Build
     workingDirectory: /home/subst
     env:

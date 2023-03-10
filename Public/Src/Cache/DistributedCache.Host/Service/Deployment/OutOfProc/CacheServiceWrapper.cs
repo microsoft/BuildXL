@@ -6,11 +6,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
@@ -31,7 +35,7 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
     /// <summary>
     /// A helper class that "wraps" an out-of-proc cache service.
     /// </summary>
-    public class CacheServiceWrapper : StartupShutdownBase
+    public class CacheServiceWrapper : StartupShutdownBase, ICacheServer
     {
         private readonly CacheServiceWrapperConfiguration _configuration;
         private readonly ServiceLifetimeManager _serviceLifetimeManager;
@@ -45,6 +49,22 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
 
         private LauncherManagedProcess? _runningProcess;
 
+        /// <inheritdoc />
+        bool ICacheServer.IsProxy => true;
+
+        /// <inheritdoc />
+        TStore ICacheServer.GetDefaultStore<TStore>() => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        IPushFileHandler? ICacheServer.PushFileHandler => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        IDistributedStreamStore ICacheServer.StreamStore => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        IEnumerable<IGrpcServiceEndpoint> ICacheServer.GrpcEndpoints => throw new NotSupportedException();
+
+        /// <nodoc />
         public CacheServiceWrapper(
             CacheServiceWrapperConfiguration configuration,
             ServiceLifetimeManager serviceLifetimeManager,

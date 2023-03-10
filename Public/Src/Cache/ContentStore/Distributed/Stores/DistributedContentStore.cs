@@ -262,10 +262,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result)
+        public void PostInitializationCompleted(Context context)
         {
-            _tracer.Debug(context, $"Setting result for post-initialization completion task to '{result}'.");
-            _postInitializationCompletion.TrySetResult(result);
+            _tracer.Debug(context, "Setting result for post-initialization completion task.");
+            _postInitializationCompletion.TrySetResult(BoolResult.Success);
         }
 
         /// <inheritdoc />

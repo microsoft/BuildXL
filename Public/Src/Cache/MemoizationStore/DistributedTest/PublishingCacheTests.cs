@@ -231,7 +231,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         public void Dispose() => _inner.Dispose();
         public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context) => _inner.EnumerateStrongFingerprints(context);
         public Task<GetStatsResult> GetStatsAsync(Context context) => _inner.GetStatsAsync(context);
-        public void PostInitializationCompleted(Context context, BoolResult result) { }
+        public void PostInitializationCompleted(Context context) { }
         CreateSessionResult<ICacheSession> ICache.CreateSession(Context context, string name, ImplicitPin implicitPin) => _inner.CreateSession(context, name, implicitPin);
     }
 }

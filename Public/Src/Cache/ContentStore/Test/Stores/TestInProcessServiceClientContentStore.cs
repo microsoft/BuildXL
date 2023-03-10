@@ -68,11 +68,13 @@ namespace ContentStoreTest.Stores
             _heartbeatInterval = heartbeatInterval;
             _configuration = serviceConfiguration;
             Server = new LocalContentServer(
-                _fileSystem,
                 _logger,
+                _fileSystem,
+                grpcHost: null,
                 Configuration.Scenario,
                 contentStoreFactory ?? (path => new FileSystemContentStore(FileSystem, SystemClock.Instance, path)),
-                localContentServerConfiguration?.OverrideServiceConfiguration(_configuration) ?? TestConfigurationHelper.CreateLocalContentServerConfiguration(_configuration));
+                localContentServerConfiguration?.OverrideServiceConfiguration(_configuration) ??
+                TestConfigurationHelper.CreateLocalContentServerConfiguration(_configuration));
             SetThreadPoolSizes();
         }
 
@@ -110,7 +112,11 @@ namespace ContentStoreTest.Stores
             Server.Dispose();
 
             Server = new LocalContentServer(
-                _fileSystem, _logger, Configuration.Scenario, path => new FileSystemContentStore(FileSystem, SystemClock.Instance, path),
+                _logger,
+                _fileSystem,
+                grpcHost: null,
+                Configuration.Scenario,
+                path => new FileSystemContentStore(FileSystem, SystemClock.Instance, path),
                 TestConfigurationHelper.CreateLocalContentServerConfiguration(_configuration));
 
             var startupResult = await Server.StartupAsync(context);

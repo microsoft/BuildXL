@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO.Compression;
 using System.Text;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -12,7 +13,7 @@ using GrpcConstants = BuildXL.Cache.ContentStore.Grpc.GrpcConstants;
 namespace BuildXL.Cache.ContentStore.Service
 {
     /// <summary>
-    /// Configuration properties for <see cref="LocalContentServer"/>
+    /// Configuration properties for <see cref="LocalContentServer"/> or LocalCacheServer.
     /// </summary>
     public sealed class LocalServerConfiguration
     {
@@ -90,10 +91,16 @@ namespace BuildXL.Cache.ContentStore.Service
         public IReadOnlyDictionary<string, AbsolutePath> NamedCacheRoots { get; private set; }
 
         /// <summary>
-        /// Indicates whether to disable the internal gprc server. Presumably, to allow external GPRC server creation
-        /// (i.e. via ASP.Net Core)
+        /// Indicates whether to disable the internal gRPC server to allow external gPRC server creation
+        /// (i.e. via gRPC.NET which is initialized globally by a host).
         /// </summary>
-        public bool DisableGrpcServer { get; set; }
+        public bool DisableGrpcCoreServer { get; set; }
+
+        /// <summary>
+        /// Returns true if the gRPC.Core server should be initialized.
+        /// If the property is false, then gRPC.NET implementation is used and in this case the initialization is happening in the host.
+        /// </summary>
+        public bool InitializeGrpcCoreServer => !DisableGrpcCoreServer || UseGrpcDotNet;
 
         /// <summary>
         /// Gets or sets the duration of inactivity after which a session will be timed out.
@@ -132,6 +139,14 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         public GrpcEnvironmentOptions? GrpcEnvironmentOptions { get; set; }
+
+        /// <summary>
+        /// If true, then gRPC.NET server is used and not gRPC.Core.
+        /// </summary>
+        public bool UseGrpcDotNet { get; set; }
+
+        /// <nodoc />
+        public GrpcDotNetServerOptions GrpcDotNetServerOptions { get; set; } = GrpcDotNetServerOptions.Default;
 
         #endregion
 
@@ -215,6 +230,7 @@ namespace BuildXL.Cache.ContentStore.Service
             sb.Append($", GrpcPortFileName={GrpcPortFileName}");
             sb.Append($", BufferSizeForGrpcCopies={BufferSizeForGrpcCopies}");
             sb.Append($", TraceGrpcOperations={TraceGrpcOperations}");
+            sb.Append($", InitializeGrpcCoreServer={InitializeGrpcCoreServer}");
 
             return sb.ToString();
         }

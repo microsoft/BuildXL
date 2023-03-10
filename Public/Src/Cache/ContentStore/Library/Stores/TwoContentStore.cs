@@ -286,10 +286,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result)
+        public void PostInitializationCompleted(Context context)
         {
-            ContentStore1.PostInitializationCompleted(context, result);
-            ContentStore2.PostInitializationCompleted(context, result);
+            ContentStore1.PostInitializationCompleted(context);
+            ContentStore2.PostInitializationCompleted(context);
         }
     }
 }

@@ -1,17 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
-using Grpc.Core;
 using ProtoBuf.Grpc.Server;
 using static Grpc.Core.Server;
 
@@ -28,6 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private readonly TServiceImpl _service;
 
+        /// <nodoc />
         public ProtobufNetGrpcServiceEndpoint(string name, TServiceImpl service)
         {
             Tracer = new Tracer(name + ".Endpoint");
@@ -46,11 +41,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             services.AddCodeFirst<TService>(_service, MetadataServiceSerializer.BinderConfiguration, textWriterAdapter);
         }
 
+        /// <inheritdoc />
         public void MapServices(IGrpcServiceEndpointCollection endpoints)
         {
             endpoints.MapService<TService>();
         }
 
+        /// <inheritdoc />
         public void AddServices(IGrpcServiceCollection services)
         {
             services.AddService<TService>(_service);

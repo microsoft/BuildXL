@@ -44,6 +44,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <summary>
         /// Notifies that the post initialization step of the outer component is finished.
         /// </summary>
-        void PostInitializationCompleted(Context context, BoolResult result);
+        void PostInitializationCompleted(Context context);
     }
 }

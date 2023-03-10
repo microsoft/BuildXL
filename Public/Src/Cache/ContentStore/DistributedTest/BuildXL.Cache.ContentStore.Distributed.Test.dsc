@@ -79,6 +79,10 @@ namespace DistributedTest {
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+
+            // Using gRPC.NET hosting implementation from the launcher.
+            ...addIfLazy(!BuildXLSdk.isFullFramework, () => [importFrom("BuildXL.Cache.DistributedCache.Host").LauncherServer.exe]),
+
             Grpc.dll,
             ...getGrpcPackages(true),
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,

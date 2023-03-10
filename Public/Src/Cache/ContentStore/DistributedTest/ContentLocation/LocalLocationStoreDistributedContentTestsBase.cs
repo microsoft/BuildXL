@@ -34,6 +34,7 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Launcher.Server;
 using BuildXL.Utilities.Collections;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
@@ -74,7 +75,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
     public abstract class LocalLocationStoreDistributedContentTestsBase<TStore, TSession> : DistributedContentTests<TStore, TSession>
         where TSession : IContentSession
-        where TStore : IStartupShutdown
+        where TStore : class, IStartupShutdown
     {
         protected static readonly Tracer Tracer = new Tracer(nameof(LocalLocationStoreDistributedContentTestsBase));
 
@@ -85,8 +86,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected readonly LocalRedisFixture _redis;
         protected Action<TestDistributedContentSettings> _overrideDistributed = null;
-        protected readonly ConcurrentDictionary<int, LocalLocationStoreConfiguration> _configurations
-            = new();
+        protected readonly ConcurrentDictionary<int, LocalLocationStoreConfiguration> _configurations = new();
 
         private const int InfiniteHeartbeatMinutes = 10_000;
 
@@ -102,8 +102,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected bool UseSeparateContentMetadataStorage { get; set; }
 
-        protected AbsolutePath _redirectedSourcePath = new AbsolutePath(BuildXL.Utilities.Core.OperatingSystemHelper.IsUnixOS ? "/X/cache" : @"X:\cache");
-        protected AbsolutePath _redirectedTargetPath = new AbsolutePath(BuildXL.Utilities.Core.OperatingSystemHelper.IsUnixOS ? "/X/cache" : @"X:\cache");
+        protected AbsolutePath _redirectedSourcePath = new AbsolutePath(global::BuildXL.Utilities.Core.OperatingSystemHelper.IsUnixOS ? "/X/cache" : @"X:\cache");
+        protected AbsolutePath _redirectedTargetPath = new AbsolutePath(global::BuildXL.Utilities.Core.OperatingSystemHelper.IsUnixOS ? "/X/cache" : @"X:\cache");
 
         protected bool EnableProactiveCopy { get; set; } = false;
 
@@ -120,6 +120,9 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool UseRealEventHub { get; set; } = false;
 
         protected bool EnablePublishingCache { get; set; } = false;
+
+        protected virtual bool UseGrpcDotNet => false;
+        protected virtual ICacheServerGrpcHost GrpcHost => null;
 
         public string MaxSize { get; set; } = "50 MB";
 
@@ -157,6 +160,23 @@ namespace ContentStoreTest.Distributed.Sessions
                                        overrideDistributed?.Invoke(s);
                                    };
             _overrideLocationStore = overrideRedis;
+        }
+
+        internal TestServerProvider CreateStoreForDistributedContentTests(
+            Context context,
+            IRemoteFileCopier fileCopier,
+            DisposableDirectory testDirectory,
+            int index,
+            int iteration,
+            uint grpcPort)
+        {
+            return CreateStore(
+                context,
+                fileCopier,
+                testDirectory,
+                index,
+                iteration,
+                grpcPort);
         }
 
         protected override TestServerProvider CreateStore(
@@ -284,6 +304,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     GrpcPortFileName = Guid.NewGuid().ToString(),
                     ScenarioName = $"{_overrideScenarioName}_{index}",
                     MaxProactivePushRequestHandlers = ProactivePushCountLimit,
+                    UseGrpcDotNet = UseGrpcDotNet,
                 }
             };
 
@@ -314,7 +335,8 @@ namespace ContentStoreTest.Distributed.Sessions
                             {
                                 // The configuration makes the tests output less readable. Not printing it in tests.
                                 TraceConfiguration = false,
-                                Overrides = TestInfos[index].Overrides
+                                Overrides = TestInfos[index].Overrides,
+                                GrpcHost = GrpcHost
                             };
 
             arguments = ModifyArguments(arguments);
@@ -332,14 +354,13 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             if (UseGrpcServer)
             {
-                var server = (ILocalContentServer<TStore>)new CacheServerFactory(arguments).CreateAsync(new OperationContext(context)).GetAwaiter().GetResult();
-                TStore store = server.StoresByName["Default"];
-                return new TestServerProvider(arguments, server, () => store);
+                var server = new CacheServerFactory(arguments).CreateAsync(new OperationContext(context)).GetAwaiter().GetResult();
+                TStore store = server.GetDefaultStore<TStore>();
+                return new TestServerProvider(arguments, server, store);
             }
             else
             {
-                var store = CreateFromArguments(arguments);
-                return new TestServerProvider(arguments, store, () => store);
+                return new TestServerProvider(arguments, server: null, CreateFromArguments(arguments));
             }
         }
 
@@ -493,7 +514,8 @@ namespace ContentStoreTest.Distributed.Sessions
             public void OnStartedService() { }
             public Task OnStartingServiceAsync() => Task.CompletedTask;
             public void OnTeardownCompleted() { }
-            public Task OnStartedServiceAsync(OperationContext context, ICacheServerServices services) => Task.CompletedTask;
+            public Task OnStartedServiceAsync(OperationContext context, ICacheServer services) => Task.CompletedTask;
+
             public Task OnStoppingServiceAsync(OperationContext context) => Task.CompletedTask;
         }
 

@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -31,6 +32,8 @@ namespace BuildXL.Cache.Host.Service
     /// </summary>
     public static class DistributedCacheServiceFacade
     {
+        private static Tracer _tracer = new Tracer(nameof(DistributedCacheServiceFacade));
+
         /// <summary>
         /// Creates and runs a distributed cache service
         /// </summary>
@@ -42,7 +45,24 @@ namespace BuildXL.Cache.Host.Service
             ITelemetryFieldsProvider telemetryFieldsProvider,
             DistributedCacheServiceConfiguration config,
             CancellationToken token,
-            string? keyspace = null)
+            string? keySpace = null)
+        {
+            return RunWithConfigurationAsync(tracingContext, host, grpcHost: null, hostInfo, telemetryFieldsProvider, config, token, keySpace);
+        }
+
+        /// <summary>
+        /// Creates and runs a distributed cache service
+        /// </summary>
+        /// <exception cref="CacheException">thrown when cache startup fails</exception>
+        public static Task RunWithConfigurationAsync(
+            Context tracingContext,
+            IDistributedCacheServiceHost host,
+            ICacheServerGrpcHost? grpcHost,
+            HostInfo hostInfo,
+            ITelemetryFieldsProvider telemetryFieldsProvider,
+            DistributedCacheServiceConfiguration config,
+            CancellationToken token,
+            string? keySpace = null)
         {
             tracingContext.Logger.Info($"CAS log severity set to {config.MinimumLogSeverity}");
            
@@ -56,9 +76,10 @@ namespace BuildXL.Cache.Host.Service
                 cancellation: token,
                 dataRootPath: config.DataRootPath,
                 configuration: config,
-                keyspace: keyspace)
+                keyspace: keySpace)
             {
                 BuildCopyInfrastructure = logger => BuildCopyInfrastructure(logger, config),
+                GrpcHost = grpcHost,
             };
 
             return RunAsync(arguments);
@@ -162,11 +183,11 @@ namespace BuildXL.Cache.Host.Service
         /// </remarks>
         private static DistributedCacheServiceArguments AdjustLoggingConfigurationIfNeeded(DistributedCacheServiceArguments arguments)
         {
-            bool isLaunchee = isLauncheeProcess();
-            var logFileReplacements = arguments.Configuration?.DistributedContentSettings?.OutOfProcCacheSettings?.NLogConfigurationReplacements;
+            bool isLauncher = arguments.Configuration.DistributedContentSettings?.OutOfProcChildProcess != true;
+            var logFileReplacements = arguments.Configuration.DistributedContentSettings?.OutOfProcCacheSettings?.NLogConfigurationReplacements;
             var count = arguments.LoggingSettings?.NLogConfigurationReplacements.Count;
 
-            if (isLaunchee
+            if (isLauncher
                 && logFileReplacements?.Count > 0
                 && count is null or 0)
             {
@@ -179,13 +200,6 @@ namespace BuildXL.Cache.Host.Service
             }
 
             return arguments;
-
-            static bool isLauncheeProcess()
-            {
-                // There is no simple way to separate if the current process is a launcher or a launchee.
-                // But we know that if the current process targeted the full framework, this is not a child process.
-                return OperatingSystemHelperExtension.GetRuntimeFrameworkNameAndVersion().Contains("NETFramework");
-            }
         }
 
         private static void AdjustCopyInfrastructure(DistributedCacheServiceArguments arguments)
@@ -212,10 +226,13 @@ namespace BuildXL.Cache.Host.Service
             var logIntervalSeconds = configuration.DistributedContentSettings.ServiceRunningLogInSeconds;
             var logInterval = logIntervalSeconds != null ? (TimeSpan?)TimeSpan.FromSeconds(logIntervalSeconds.Value) : null;
 
-            context.TracingContext.Debug(
-                JsonUtilities.JsonSerialize(new ConfigurationDescriptor(arguments.HostInfo.Parameters, arguments.Configuration), indent: true),
-                nameof(DistributedCacheServiceFacade),
-                operation: "StartupConfiguration");
+            if (arguments.TraceConfiguration)
+            {
+                context.TracingContext.Debug(
+                    JsonUtilities.JsonSerialize(new ConfigurationDescriptor(arguments.HostInfo.Parameters, arguments.Configuration), indent: true),
+                    nameof(DistributedCacheServiceFacade),
+                    operation: "StartupConfiguration");
+            }
             
             var logFilePath = GetPathForLifetimeTracking(configuration);
             
@@ -230,21 +247,20 @@ namespace BuildXL.Cache.Host.Service
 
         private static async Task ReportServiceStartedAsync(
             OperationContext context,
-            StartupShutdownSlimBase server,
+            ICacheServer server,
             IDistributedCacheServiceHost host,
             DistributedContentSettings distributedContentSettings)
         {
             LifetimeTracker.ServiceStarted(context);
             host.OnStartedService();
 
-            if (
-                // Don't need to call the following callback for out-of-proc cache
-                distributedContentSettings.OutOfProcCacheSettings is null &&
-                host is IDistributedCacheServiceHostInternal hostInternal
-                && server is IServicesProvider sp
-                && sp.TryGetService<ICacheServerServices>(out var services))
+            // Calling the internal host callback for the launcher case only
+            // in order to initialize the gRPC.NET services and controllers.
+            if (distributedContentSettings.OutOfProcCacheSettings is null
+                && host is IDistributedCacheServiceHostInternal hostInternal)
             {
-                await hostInternal.OnStartedServiceAsync(context, services);
+                _tracer.Debug(context, $"Reporting OnStartedServiceAsync on {hostInternal.GetType().Name}");
+                await hostInternal.OnStartedServiceAsync(context, server);
             }
         }
 

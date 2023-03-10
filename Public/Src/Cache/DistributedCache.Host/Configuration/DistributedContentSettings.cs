@@ -82,6 +82,13 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? RunCacheOutOfProc { get; set; }
 
+        /// <summary>
+        /// This setting must not be set by the config!
+        /// If true, then the current cache instance is a process started by a parent .net472 process or by the launcher.
+        /// </summary>
+        [DataMember]
+        public bool OutOfProcChildProcess { get; set; }
+
         [DataMember]
         public LogManagerConfiguration LogManager { get; set; } = null;
 
@@ -423,7 +430,39 @@ namespace BuildXL.Cache.Host.Configuration
         public GrpcDotNetClientOptions GrpcCopyClientGrpcDotNetClientOptions { get; set; }
 
         [DataMember]
-        public bool GrpcCopyClientUseGrpcDotNetClient { get; set; }
+        public bool? GrpcCopyClientUseGrpcDotNetClient { get; set; }
+
+        /// <summary>
+        /// A single flag that sets both <see cref="GrpcCopyClientUseGrpcDotNetClient"/> and <see cref="ContentMetadataClientUseGrpcDotNet"/>.
+        /// </summary>
+        [DataMember]
+        public bool? UseGrpcDotNetClient { get; set; }
+
+        /// <summary>
+        /// Returns true if gRPC.NET should be used for metadata operations.
+        /// </summary>
+        public bool UseGrpcDotForMetadata()
+        {
+            if (ContentMetadataClientUseGrpcDotNet == false)
+            {
+                return false;
+            }
+
+            return ContentMetadataClientUseGrpcDotNet == true || UseGrpcDotNetClient == true;
+        }
+
+        /// <summary>
+        /// Returns true if gRPC.NET should be used for copies.
+        /// </summary>
+        public bool UseGrpcDotNetForCopies()
+        {
+            if (GrpcCopyClientUseGrpcDotNetClient == false)
+            {
+                return false;
+            }
+
+            return GrpcCopyClientUseGrpcDotNetClient == true || UseGrpcDotNetClient == true;
+        }
 
         #endregion
 
@@ -957,7 +996,7 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting ContentMetadataClientConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         [DataMember]
-        public bool ContentMetadataClientUseGrpcDotNet { get; set; }
+        public bool? ContentMetadataClientUseGrpcDotNet { get; set; }
 
         [DataMember]
         public GrpcDotNetClientOptions ContentMetadataClientGrpcDotNetClientOptions { get; set; }

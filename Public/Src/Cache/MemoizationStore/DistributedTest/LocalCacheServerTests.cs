@@ -67,8 +67,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             }
 
             var server = new LocalCacheServer(
-                FileSystem,
                 TestGlobal.Logger,
+                FileSystem,
+                grpcHost: null,
                 scenario,
                 cacheFactory: createBlockingCache,
                 serverConfiguration,
@@ -113,8 +114,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             server.Dispose();
 
             server = new LocalCacheServer(
-                FileSystem,
                 TestGlobal.Logger,
+                FileSystem,
+                grpcHost: null,
                 scenario: scenario,
                 cacheFactory: createBlockingCache,
                 serverConfiguration,
@@ -215,7 +217,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             public void Dispose() => _inner.Dispose();
             public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context) => _inner.EnumerateStrongFingerprints(context);
             public Task<GetStatsResult> GetStatsAsync(Context context) => _inner.GetStatsAsync(context);
-            public void PostInitializationCompleted(Context context, BoolResult result) { }
+            public void PostInitializationCompleted(Context context) { }
             CreateSessionResult<ICacheSession> ICache.CreateSession(Context context, string name, ImplicitPin implicitPin) => _inner.CreateSession(context, name, implicitPin);
         }
 

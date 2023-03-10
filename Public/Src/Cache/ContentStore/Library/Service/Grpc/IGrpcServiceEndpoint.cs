@@ -1,10 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Utils;
-using Grpc.Core;
 using static Grpc.Core.Server;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
@@ -15,24 +12,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public interface IGrpcServiceEndpoint : IStartupShutdownSlim
     {
         /// <summary>
-        /// Binds service methods for use in GRPC core server.
+        /// Binds service methods for use in gRPC.Core server.
         /// </summary>
         /// <param name="services"></param>
         void BindServices(ServiceDefinitionCollection services);
 
         /// <summary>
-        /// Used for ASP.Net Core. Maps service endpoint so it can be found when routing incoming requests.
+        /// Used for gRPC.NET version. Maps service endpoint so it can be found when routing incoming requests.
         /// </summary>
         void MapServices(IGrpcServiceEndpointCollection endpoints);
 
         /// <summary>
-        /// Used for ASP.Net Core. Exposes service in service collection.
+        /// Used for gRPC.NET version. Exposes service in service collection.
         /// </summary>
         void AddServices(IGrpcServiceCollection services);
     }
 
     /// <summary>
-    /// Allows adding a service to ASP.Net core service collection.
+    /// Allows adding a service to gRPC.Net core service collection.
     /// </summary>
     public interface IGrpcServiceCollection
     {
@@ -40,10 +37,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     }
 
     /// <summary>
-    /// Allows mapping a service for use when routing
+    /// Allows mapping a gRPC.NET service for use when routing
     /// </summary>
     public interface IGrpcServiceEndpointCollection
     {
+        /// <summary>
+        /// Maps the service endpoint so it can be found when routing incoming requests.
+        /// </summary>
         void MapService<TService>() where TService : class;
     }
 }

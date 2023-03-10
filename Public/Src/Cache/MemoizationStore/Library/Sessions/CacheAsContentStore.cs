@@ -78,11 +78,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result)
+        public void PostInitializationCompleted(Context context)
         {
             if (_cache is IContentStore contentStore)
             {
-                contentStore.PostInitializationCompleted(context, result);
+                contentStore.PostInitializationCompleted(context);
             }
         }
     }

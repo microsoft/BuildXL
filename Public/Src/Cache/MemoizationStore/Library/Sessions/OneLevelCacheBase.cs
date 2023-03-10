@@ -322,10 +322,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result)
+        public void PostInitializationCompleted(Context context)
         {
             Contract.Requires(ContentStore != null, "ContentStore must be initialized here.");
-            ContentStore.PostInitializationCompleted(context, result);
+            ContentStore.PostInitializationCompleted(context);
         }
 
         /// <inheritdoc />

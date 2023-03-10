@@ -45,11 +45,13 @@ using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 
+#nullable enable annotations
+
 namespace ContentStoreTest.Distributed.Sessions
 {
     public abstract class DistributedContentTests<TStore, TSession> : TestBase
         where TSession : IContentSession
-        where TStore : IStartupShutdown
+        where TStore : class, IStartupShutdown
     {
         private static readonly Tracer _tracer = new Tracer(nameof(DistributedContentTests<TStore, TSession>));
 
@@ -94,12 +96,14 @@ namespace ContentStoreTest.Distributed.Sessions
         public class TestServerProvider
         {
             private readonly Func<TStore> _getStore;
-
-            public DistributedCacheServiceArguments Arguments { get; }
-
             public IStartupShutdownSlim Server { get; }
-
+            public DistributedCacheServiceArguments Arguments { get; }
             public TStore Store => _getStore();
+
+            public TestServerProvider(DistributedCacheServiceArguments arguments, IStartupShutdownSlim? server, TStore store)
+                : this(arguments, server ?? store, () => store)
+            {
+            }
 
             public TestServerProvider(DistributedCacheServiceArguments arguments, IStartupShutdownSlim server, Func<TStore> getStore)
             {
@@ -119,7 +123,7 @@ namespace ContentStoreTest.Distributed.Sessions
             private readonly bool _traceStoreStatistics;
             public readonly Context Context;
             public readonly OperationContext[] StoreContexts;
-            public readonly TestFileCopier TestFileCopier;
+            public readonly TestFileCopier? TestFileCopier;
             public readonly IRemoteFileCopier FileCopier;
             public readonly IList<AbsolutePath> Directories;
             public IList<TSession> Sessions { get; protected set; }
@@ -883,11 +887,11 @@ namespace ContentStoreTest.Distributed.Sessions
             Func<TestContext, Task> testFunc,
             ImplicitPin implicitPin = ImplicitPin.PutAndGet,
             int iterations = 1,
-            TestContext outerContext = null,
+            TestContext? outerContext = null,
             bool ensureLiveness = true,
             int? storeToStartupLast = null,
-            TestFileCopier testCopier = null,
-            string buildId = null,
+            TestFileCopier? testCopier = null,
+            string? buildId = null,
             int? insideRingBuilderCount = null)
         {
 
@@ -901,7 +905,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             try
             {
-                var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort()).ToArray() : new int[storeCount];
+                var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort(context)).ToArray() : new int[storeCount];
 
                 for (int iteration = 0; iteration < iterations; iteration++)
                 {

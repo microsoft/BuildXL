@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         Task<DeleteResult> IContentStore.DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions) => Task.FromResult(new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, $"{nameof(EmptyContentStore)} cannot contain any content to delete"));
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result) { }
+        public void PostInitializationCompleted(Context context) { }
     }
 
     /// <summary>

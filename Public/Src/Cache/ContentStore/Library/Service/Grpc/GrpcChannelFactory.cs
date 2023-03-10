@@ -54,9 +54,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     {
         private static Tracer Tracer { get; } = new Tracer(nameof(GrpcChannelFactory));
 
-        public static ChannelBase CreateChannel(OperationContext context, ChannelCreationOptions channelOptions)
+        public static ChannelBase CreateChannel(OperationContext context, ChannelCreationOptions channelOptions, string channelType)
         {
-            Tracer.Info(context, $"Grpc Encryption Enabled: {channelOptions.EncryptionEnabled}, GRPC Port: {channelOptions.GrpcPort}, GrpcDotNet: {channelOptions.UseGrpcDotNet}.");
+            Tracer.Info(context, $"Grpc Encryption Enabled: {channelOptions.EncryptionEnabled}, GRPC Port: {channelOptions.GrpcPort}, GrpcDotNet: {channelOptions.UseGrpcDotNet}, ChannelType: {channelType}.");
             if (!channelOptions.UseGrpcDotNet)
             {
                 return CreateGrpcCoreChannel(context, channelOptions);

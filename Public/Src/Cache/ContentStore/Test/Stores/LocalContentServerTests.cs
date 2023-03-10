@@ -17,6 +17,7 @@ using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace ContentStoreTest.Stores
 {
@@ -30,8 +31,8 @@ namespace ContentStoreTest.Stores
         private const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
         private const int TimeoutSecs = 5;
 
-        public LocalContentServerTests()
-            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
+        public LocalContentServerTests(ITestOutputHelper output)
+            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
         {
         }
 
@@ -72,7 +73,7 @@ namespace ContentStoreTest.Stores
                     RequestCallTokensPerCompletionQueue = 10,
                 };
 
-                using (var server = new LocalContentServer(FileSystem, Logger, scenario, contentStoreFactory, localContentServerConfiguration))
+                using (var server = CreateServer(scenario, contentStoreFactory, localContentServerConfiguration))
                 {
                     var r1 = await server.StartupAsync(context);
                     r1.ShouldBeSuccess();
@@ -130,7 +131,7 @@ namespace ContentStoreTest.Stores
                     RequestCallTokensPerCompletionQueue = 10,
                 };
 
-                using (var server = new LocalContentServer(FileSystem, Logger, scenario, contentStoreFactory, localContentServerConfiguration))
+                using (var server = CreateServer(scenario, contentStoreFactory, localContentServerConfiguration))
                 {
                     var r1 = await server.StartupAsync(context);
                     r1.ShouldBeSuccess();
@@ -190,7 +191,7 @@ namespace ContentStoreTest.Stores
                     RequestCallTokensPerCompletionQueue = 10,
                 };
 
-                using (var server = new LocalContentServer(FileSystem, Logger, scenario, contentStoreFactory, localContentServerConfiguration))
+                using (var server = CreateServer(scenario, contentStoreFactory, localContentServerConfiguration))
                 {
                     var r = await server.StartupAsync(context);
 
@@ -198,6 +199,17 @@ namespace ContentStoreTest.Stores
                     FileSystem.HibernatedSessionsExists(rootPath, fileName).Should().BeTrue("The hibernation data should not have been read/deleted");
                 }
             }
+        }
+
+        // TODO ST: add derived type
+        protected virtual ICacheServerGrpcHost GrpcHost => null;
+
+        private LocalContentServer CreateServer(
+            string scenario,
+            Func<AbsolutePath, IContentStore> contentStoreFactory,
+            LocalServerConfiguration configuration)
+        {
+            return new LocalContentServer(Logger, FileSystem, GrpcHost, scenario, contentStoreFactory, configuration);
         }
     }
 }

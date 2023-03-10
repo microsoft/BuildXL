@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service.Internal;
 using Microsoft.WindowsAzure.Storage;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;

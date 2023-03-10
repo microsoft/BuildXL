@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Reflection;
+using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Cache.Host.Service;
 using BuildXL.Launcher.Server.Controllers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -93,18 +93,17 @@ namespace BuildXL.Launcher.Server
             }
 
             app.UseRouting();
-
             app.UseEndpoints(endpoints =>
             {
                 var sp = endpoints.ServiceProvider;
                 var configuration = sp.GetService<DistributedCacheServiceConfiguration>();
                 if (configuration != null && configuration.DistributedContentSettings.EnableAspNetCoreGrpc)
                 {
-                    var cacheServices = endpoints.ServiceProvider.GetRequiredService<ICacheServerServices>();
-                    var endpointsWrapper = new GrpcEndpointCollectionWrapper(endpoints);
+                    var cacheServices = endpoints.ServiceProvider.GetRequiredService<ICacheServer>();
+                    var endpointsAdapter = new GrpcEndpointCollectionAdapter(endpoints);
                     foreach (var endpoint in cacheServices.GrpcEndpoints)
                     {
-                        endpoint.MapServices(endpointsWrapper);
+                        endpoint.MapServices(endpointsAdapter);
                     }
                 }
 
@@ -113,8 +112,9 @@ namespace BuildXL.Launcher.Server
 
         }
 
-        private record GrpcEndpointCollectionWrapper(IEndpointRouteBuilder Endpoints) : IGrpcServiceEndpointCollection
+        private record GrpcEndpointCollectionAdapter(IEndpointRouteBuilder Endpoints) : IGrpcServiceEndpointCollection
         {
+            /// <inheritdoc />
             public void MapService<TService>() where TService : class
             {
                 Endpoints.MapGrpcService<TService>();

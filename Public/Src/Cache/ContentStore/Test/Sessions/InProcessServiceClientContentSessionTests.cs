@@ -52,8 +52,14 @@ namespace ContentStoreTest.Sessions
 
         protected override IStartupShutdown CreateServer(ServiceConfiguration serviceConfiguration)
         {
-            return new LocalContentServer(FileSystem, Logger, Scenario, path =>
-                new FileSystemContentStore(FileSystem, SystemClock.Instance, path), TestConfigurationHelper.CreateLocalContentServerConfiguration(serviceConfiguration));
+            return new LocalContentServer(
+                Logger,
+                FileSystem,
+                grpcHost: null,
+                Scenario,
+                path =>
+                    new FileSystemContentStore(FileSystem, SystemClock.Instance, path),
+                TestConfigurationHelper.CreateLocalContentServerConfiguration(serviceConfiguration));
         }
     }
 }

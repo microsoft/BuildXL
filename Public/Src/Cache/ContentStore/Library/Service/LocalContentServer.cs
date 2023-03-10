@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.Extensions; // Do not remove. Used for deconstruction for key-value pairs.
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -18,8 +18,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.Host.Service;
-using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -45,15 +43,17 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         public LocalContentServer(
-            IAbsFileSystem fileSystem,
             ILogger logger,
+            IAbsFileSystem fileSystem,
+            ICacheServerGrpcHost? grpcHost,
             string scenario,
             Func<AbsolutePath, IContentStore> contentStoreFactory,
             LocalServerConfiguration localContentServerConfiguration,
             IGrpcServiceEndpoint[]? additionalEndpoints = null,
             IColdStorage? coldStorage = null)
-        : base(logger, fileSystem, scenario, contentStoreFactory, localContentServerConfiguration, additionalEndpoints)
+        : base(logger, fileSystem, grpcHost, scenario, contentStoreFactory, localContentServerConfiguration, additionalEndpoints)
         {
+            // System.Diagnostics.Debugger.Launch();
             GrpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName, localContentServerConfiguration, coldStorage);
         }
 

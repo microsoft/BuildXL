@@ -92,7 +92,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             throw new NotImplementedException();
         }
 
-        public void PostInitializationCompleted(Context context, BoolResult result)
+        public void PostInitializationCompleted(Context context)
         {
         }
     }

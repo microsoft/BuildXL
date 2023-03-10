@@ -52,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// </remarks>
         public int? MinLogLevelVerbosity { get; init; }
 
-        public static GrpcDotNetClientOptions Default { get; } = new GrpcDotNetClientOptions() { MinLogLevelVerbosity = 4 }; // Using error logging severity by default.
+        public static GrpcDotNetClientOptions Default { get; } = new GrpcDotNetClientOptions() { MinLogLevelVerbosity = GrpcConstants.DefaultGrpcDotNetMinLogLevel }; // Using error logging severity by default.
     }
 
 }

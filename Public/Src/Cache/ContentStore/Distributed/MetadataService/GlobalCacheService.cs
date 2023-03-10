@@ -19,15 +19,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// <summary>
     /// Interface that represents a global cache service backed by a <see cref="IContentMetadataStore"/>
     /// </summary>
-    public class GlobalCacheService : StartupShutdownComponentBase, IGlobalCacheService
+    public abstract class GlobalCacheService : StartupShutdownComponentBase, IGlobalCacheService
     {
+        /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(GlobalCacheService));
 
+        /// <inheritdoc />
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         internal IContentMetadataStore Store { get; }
 
-        public GlobalCacheService(IContentMetadataStore store)
+        /// <nodoc />
+        protected GlobalCacheService(IContentMetadataStore store)
         {
             Store = store;
             LinkLifetime(store);
@@ -36,27 +39,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// <inheritdoc />
         public Task<GetContentLocationsResponse> GetContentLocationsAsync(GetContentLocationsRequest request, CallContext callContext = default)
         {
-            return ExecuteAsync(request, callContext, context =>
-            {
-                return Store.GetBulkAsync(context, request.Hashes)
-                    .AsAsync(entries => new GetContentLocationsResponse()
+            return ExecuteAsync(
+                request,
+                callContext,
+                executeAsync:
+                    context =>
                     {
-                        Entries = entries
-                    });
-            },
-            extraEndMessage: r => {
-                if (!r.Succeeded)
-                {
-                    var csv = string.Join(",", request.Hashes);
-                    return $"Hashes=[{csv}]";
-                }
-                else
-                {
-                    var entries = r.Value.Entries;
-                    var csv = string.Join(",", request.Hashes.Zip(entries, (hash, entry) => $"{hash}:{entry.Locations.Count}"));
-                    return $"Hashes=[{csv}]";
-                }
-            });
+                        return Store.GetBulkAsync(context, request.Hashes)
+                            .AsAsync(entries => new GetContentLocationsResponse() {Entries = entries});
+                    },
+                extraEndMessage:
+                    r =>
+                    {
+                        if (!r.Succeeded)
+                        {
+                            var csv = string.Join(",", request.Hashes);
+                            return $"Hashes=[{csv}]";
+                        }
+                        else
+                        {
+                            var entries = r.Value.Entries;
+                            var csv = string.Join(",", request.Hashes.Zip(entries, (hash, entry) => $"{hash}:{entry.Locations.Count}"));
+                            return $"Hashes=[{csv}]";
+                        }
+                    }
+                );
         }
 
         /// <summary>

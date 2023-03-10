@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var hostInfo = location.ExtractHostInfo();
             Host = hostInfo.host;
             Port = hostInfo.port ?? _configuration.DefaultPort;
-            Channel = GrpcChannelFactory.CreateChannel(context, GetChannelCreationOptions(Host, Port));
+            Channel = GrpcChannelFactory.CreateChannel(context, GetChannelCreationOptions(Host, Port), channelType: nameof(ConnectionHandle));
         }
 
         private ChannelCreationOptions GetChannelCreationOptions(string host, int port) =>
@@ -126,12 +126,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
     public class ConnectionPoolConfiguration : ResourcePoolConfiguration
     {
-        public int DefaultPort { get; set; }
+        public required int DefaultPort { get; set; }
 
-        public TimeSpan ConnectTimeout { get; set; } = ContentStore.Grpc.GrpcConstants.DefaultTimeout;
+        public required TimeSpan ConnectTimeout { get; set; }
 
-        public bool UseGrpcDotNet { get; set; }
+        public required bool UseGrpcDotNet { get; set; }
 
-        public GrpcDotNetClientOptions GrpcDotNetOptions { get; set; } = GrpcDotNetClientOptions.Default;
+        public required GrpcDotNetClientOptions GrpcDotNetOptions { get; set; }
     }
 }

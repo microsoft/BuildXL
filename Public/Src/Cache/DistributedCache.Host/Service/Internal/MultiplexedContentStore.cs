@@ -323,11 +323,11 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result)
+        public void PostInitializationCompleted(Context context)
         {
             foreach (var kvp in DrivesWithContentStore)
             {
-                kvp.Value.PostInitializationCompleted(context, result);
+                kvp.Value.PostInitializationCompleted(context);
             }
         }
 

@@ -24,6 +24,8 @@ namespace BuildXL.Cache.ContentStore.Utils
         private static int GetCurrentInstanceId() => Interlocked.Increment(ref CurrentInstanceId);
         private readonly int _instanceId = GetCurrentInstanceId();
 
+        protected int InstanceId => _instanceId;
+
         private readonly CancellationTokenSource _shutdownStartedCancellationTokenSource = new CancellationTokenSource();
 
         /// <nodoc />

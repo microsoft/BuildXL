@@ -9,19 +9,16 @@ using Microsoft.Extensions.Logging;
 
 namespace BuildXL.Cache.Host.Service
 {
-    using Severity = ContentStore.Interfaces.Logging.Severity;
+    using Severity = BuildXL.Cache.ContentStore.Interfaces.Logging.Severity;
 
     public sealed class LoggingAdapter : ILogger, ILoggerProvider
     {
         private readonly string _name;
         private readonly Context _context;
+        private readonly LogLevel _minLogLevel;
 
-        public LoggingAdapter(
-            string name,
-            Context context)
-        {
-            (_name, _context) = (name, context);
-        }
+        public LoggingAdapter(string name, Context context, LogLevel minLogLevel = LogLevel.Error) =>
+            (_name, _context, _minLogLevel) = (name, context, minLogLevel);
 
         public IDisposable BeginScope<TState>(TState state) 
 #if NET7_0_OR_GREATER
@@ -38,7 +35,7 @@ namespace BuildXL.Cache.Host.Service
         {
         }
 
-        public bool IsEnabled(LogLevel logLevel) => true;
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= _minLogLevel;
 
         public void Log<TState>(
             LogLevel logLevel,

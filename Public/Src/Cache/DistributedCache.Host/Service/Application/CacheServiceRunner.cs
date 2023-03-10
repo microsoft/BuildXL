@@ -3,30 +3,32 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Cache.Host.Service;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 // ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.Host.Service
 {
+    /// <summary>
+    /// A factory method used for creating <see cref="IDistributedCacheServiceHost"/> and <see cref="ICacheServerGrpcHost"/>.
+    /// </summary>
+    public delegate (IDistributedCacheServiceHost serviceHost, ICacheServerGrpcHost grpcHost) CreateHostsDelegate(HostParameters hostParameters, DistributedCacheServiceConfiguration configuration, CancellationToken token);
+
+    /// <summary>
+    /// A facade for running the cache service.
+    /// </summary>
     public static class CacheServiceRunner
     {
         /// <summary>
@@ -43,7 +45,7 @@ namespace BuildXL.Cache.Host.Service
             TimeSpan? pollingInterval = null,
             string overlayConfigurationPath = null)
         {
-            requestTeardown ??= (context, reason) => LifetimeManager.RequestTeardown(context, reason);
+            requestTeardown ??= LifetimeManager.RequestTeardown;
             pollingInterval ??= TimeSpan.FromSeconds(5);
 
             var config = LoadPreprocessedConfig<TConfig>(context, configurationPath, out configHash, hostParameters, overlayConfigurationPath);
@@ -70,7 +72,7 @@ namespace BuildXL.Cache.Host.Service
 
                     // Compare the json serialized representation of the old and new configuration
                     // in order to detect changes. NOTE: This post preprocessing and overlay
-                    // to ensure that final configuration matches. We also load and reserialize
+                    // to ensure that final configuration matches. We also load and deserialize
                     // to ensure the final value returned is what is compared.
                     if (newResultConfigString != oldResultConfigString)
                     {
@@ -84,7 +86,7 @@ namespace BuildXL.Cache.Host.Service
                 },
                 onError: ex =>
                 {
-                    requestTeardown(context, "Error: " + ex.ToString());
+                    requestTeardown(context, "Error: " + ex.ToStringDemystified());
                 });
 
             return resultConfig;
@@ -119,14 +121,6 @@ namespace BuildXL.Cache.Host.Service
             return config;
         }
 
-        private class ConfigInfo<TConfig>
-        {
-            public string ConfigurationPath { get; init; }
-            public string OverlayPath { get; init; }
-            public HostParameters Parameters { get; init; }
-            public TConfig Configuration { get; init; }
-        }
-
         /// <summary>
         /// Run the cache service verb.
         ///
@@ -137,7 +131,7 @@ namespace BuildXL.Cache.Host.Service
         public static async Task RunCacheServiceAsync(
             OperationContext context,
             string configurationPath,
-            Func<HostParameters, DistributedCacheServiceConfiguration, CancellationToken, IDistributedCacheServiceHost> createHost,
+            CreateHostsDelegate createHosts,
             HostParameters hostParameters = null,
             bool requireServiceInterruptable = true,
             string overlayConfigurationPath = null)
@@ -172,11 +166,11 @@ namespace BuildXL.Cache.Host.Service
                 {
                     var hostInfo = new HostInfo(hostParameters);
 
-                    var host = createHost(hostParameters, config, token);
-
+                    var (serviceHost, grpcHost) = createHosts(hostParameters, config, token);
                     await DistributedCacheServiceFacade.RunWithConfigurationAsync(
                         tracingContext: context,
-                        host: host,
+                        host: serviceHost,
+                        grpcHost: grpcHost,
                         hostInfo: hostInfo,
                         telemetryFieldsProvider: new HostTelemetryFieldsProvider(hostParameters),
                         config,

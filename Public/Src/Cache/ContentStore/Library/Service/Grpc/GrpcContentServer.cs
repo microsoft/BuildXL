@@ -28,12 +28,13 @@ using BuildXL.Utilities.Core.Tracing;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
-using PinRequest = ContentStore.Grpc.PinRequest;
-using BuildXL.Cache.Host.Service;
 using BuildXL.Utilities.Core;
+
 using static BuildXL.Utilities.ConfigurationHelper;
+
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using CompressionLevel = System.IO.Compression.CompressionLevel;
+using PinRequest = ContentStore.Grpc.PinRequest;
 
 #nullable enable
 
@@ -78,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     }
 
     /// <summary>
-    /// A CAS server implementation based on GRPC.
+    /// A CAS server implementation based on gRPC.
     /// </summary>
     public class GrpcContentServer : StartupShutdownSlimBase, IDistributedStreamStore, IGrpcServiceEndpoint
     {
@@ -100,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public CounterCollection<GrpcContentServerCounters> Counters { get; } = new CounterCollection<GrpcContentServerCounters>();
 
         /// <summary>
-        /// This adapter routes messages from Grpc to the current class.
+        /// This adapter routes messages from gRPC to the current class.
         /// </summary>
         /// <remarks>
         /// Expected to be read-only after construction. Child classes may overwrite the field in their constructor,

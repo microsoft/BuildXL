@@ -156,9 +156,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result)
+        public void PostInitializationCompleted(Context context)
         {
-            _local.PostInitializationCompleted(context, result);
+            _local.PostInitializationCompleted(context);
         }
 
         /// <inheritdoc />

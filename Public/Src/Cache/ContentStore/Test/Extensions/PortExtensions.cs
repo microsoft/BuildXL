@@ -4,12 +4,18 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using FluentAssertions;
+
+#nullable enable
 
 namespace ContentStoreTest.Extensions
 {
     public static class PortExtensions
     {
+        private static readonly Tracer _tracer = new Tracer(nameof(PortExtensions));
+
         private static readonly ConcurrentDictionary<int, bool> PortCollection = new ConcurrentDictionary<int, bool>();
 
         static PortExtensions()
@@ -17,7 +23,7 @@ namespace ContentStoreTest.Extensions
             PortCollection.GetOrAdd(0, true);
         }
 
-        public static int GetNextAvailablePort()
+        public static int GetNextAvailablePort(Context? context = null)
         {
             int portNumber = 0;
             while (PortCollection.ContainsKey(portNumber))
@@ -31,6 +37,11 @@ namespace ContentStoreTest.Extensions
 
                     if (PortCollection.TryAdd(portNumber, true))
                     {
+                        if (context != null)
+                        {
+                            _tracer.Debug(context, $"Obtained next available port {portNumber}.");
+                        }
+
                         return portNumber;
                     }
                 }

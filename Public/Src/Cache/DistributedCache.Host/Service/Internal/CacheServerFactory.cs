@@ -46,6 +46,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         private readonly ILogger _logger;
         private readonly DistributedCacheServiceArguments _arguments;
 
+        /// <nodoc />
         public CacheServerFactory(DistributedCacheServiceArguments arguments)
         {
             _arguments = arguments;
@@ -66,13 +67,13 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// * In-proc distributed cache service.
         /// * In-proc local cache service.
         /// </remarks>
-        public async Task<StartupShutdownBase> CreateAsync(OperationContext operationContext)
+        public async Task<ICacheServer> CreateAsync(OperationContext operationContext)
         {
             var cacheConfig = _arguments.Configuration;
 
             if (IsLauncherEnabled(cacheConfig))
             {
-                _tracer.Debug(operationContext, $"Creating a launcher.");
+                _tracer.Debug(operationContext, "Creating a launcher.");
                 return await CreateLauncherAsync(cacheConfig);
             }
 
@@ -80,7 +81,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (IsOutOfProcCacheEnabled(cacheConfig))
             {
-                _tracer.Debug(operationContext, $"Creating an out-of-proc cache service.");
+                _tracer.Debug(operationContext, "Creating an out-of-proc cache service.");
                 var outOfProcCache = await CacheServiceWrapper.CreateAsync(
                     _arguments,
                     DeploymentLauncherHost.Instance,
@@ -114,12 +115,15 @@ namespace BuildXL.Cache.Host.Service.Internal
                 isDistributed: !isLocal);
             var localServerConfiguration = CreateLocalServerConfiguration(cacheConfig.LocalCasSettings.ServiceSettings, serviceConfiguration, distributedSettings);
 
-            // Initialization of the GrpcEnvironment is nasty business: we have a wrapper class around the internal
-            // state. The internal state has a flag inside that marks whether it's been initialized or not. If we do
-            // any Grpc activity, the internal state will be initialized, and all further attempts to change things
-            // will throw. Since we may need to initialize a Grpc client before we do a Grpc server, this means we
-            // need to call this early, even if it doesn't have anything to do with what's going on here.
-            GrpcEnvironment.Initialize(_logger, localServerConfiguration.GrpcEnvironmentOptions, overwriteSafeOptions: true);
+            if (localServerConfiguration.InitializeGrpcCoreServer)
+            {
+                // Initialization of the GrpcEnvironment is nasty business: we have a wrapper class around the internal
+                // state. The internal state has a flag inside that marks whether it's been initialized or not. If we do
+                // any Grpc activity, the internal state will be initialized, and all further attempts to change things
+                // will throw. Since we may need to initialize a Grpc client before we do a Grpc server, this means we
+                // need to call this early, even if it doesn't have anything to do with what's going on here.
+                GrpcEnvironment.Initialize(_logger, localServerConfiguration.GrpcEnvironmentOptions, overwriteSafeOptions: true);
+            }
 
             if (isLocal)
             {
@@ -128,17 +132,15 @@ namespace BuildXL.Cache.Host.Service.Internal
                 // verb doesn't change the defaults.
                 return CreateLocalServer(localServerConfiguration, distributedSettings);
             }
-            else
-            {
-                return CreateDistributedServer(localServerConfiguration, distributedSettings);
-            }
+
+            return CreateDistributedServer(localServerConfiguration, distributedSettings);
         }
 
         private bool IsLauncherEnabled(DistributedCacheServiceConfiguration cacheConfig) =>
             cacheConfig.DistributedContentSettings.LauncherSettings != null;
 
         private bool IsOutOfProcCacheEnabled(DistributedCacheServiceConfiguration cacheConfig) =>
-            cacheConfig.DistributedContentSettings.RunCacheOutOfProc == true;
+            cacheConfig.DistributedContentSettings.RunCacheOutOfProc == true && !cacheConfig.DistributedContentSettings.OutOfProcChildProcess;
 
         private async Task<DeploymentLauncher> CreateLauncherAsync(DistributedCacheServiceConfiguration cacheConfig)
         {
@@ -152,20 +154,18 @@ namespace BuildXL.Cache.Host.Service.Internal
             return new DeploymentLauncher(launcherSettings, _fileSystem);
         }
 
-        private StartupShutdownBase CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
+        private ICacheServer CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
         {
             var resolvedCacheSettings = DistributedContentStoreFactory.ResolveCacheSettingsInPrecedenceOrder(_arguments);
 
             Func<AbsolutePath, IContentStore> contentStoreFactory = path => DistributedContentStoreFactory.CreateLocalContentStore(
                 distributedSettings,
                 _arguments,
-                resolvedCacheSettings.Where(s => s.ResolvedCacheRootPath == path || s.ResolvedCacheRootPath.Path.StartsWith(path.Path, StringComparison.OrdinalIgnoreCase)).Single());
+                resolvedCacheSettings.Single(s => s.ResolvedCacheRootPath == path || s.ResolvedCacheRootPath.Path.StartsWith(path.Path, StringComparison.OrdinalIgnoreCase)));
 
             if (distributedSettings?.EnableMetadataStore == true)
             {
                 _logger.Always("Creating local server with content and metadata store");
-
-                var factory = CreateDistributedContentStoreFactory();
 
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
@@ -187,8 +187,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 };
 
                 return new LocalCacheServer(
-                    _fileSystem,
                     _logger,
+                    _fileSystem,
+                    _arguments.GrpcHost,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
                     localServerConfiguration,
@@ -199,8 +200,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _logger.Always("Creating local server with content store only");
 
                 return new LocalContentServer(
-                    _fileSystem,
                     _logger,
+                    _fileSystem,
+                    _arguments.GrpcHost,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     contentStoreFactory,
                     localServerConfiguration);
@@ -235,7 +237,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             return new DistributedContentStoreFactory(_arguments);
         }
 
-        private StartupShutdownBase CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
+        private ICacheServer CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
         {
             var cacheConfig = _arguments.Configuration;
             var factory = CreateDistributedContentStoreFactory();
@@ -287,8 +289,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 // a single MultiplexedContentStore and MemoizationStore. The latter will be located in the last cache
                 // root listed as per production configuration, which currently (8/27/2019) points to the SSD drives.
                 return new LocalCacheServer(
-                    _fileSystem,
                     _logger,
+                    _fileSystem,
+                    _arguments.GrpcHost,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
                     localServerConfiguration,
@@ -301,10 +304,11 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _logger.Always("Creating distributed server with content store only");
 
                 return new LocalContentServer(
-                    _fileSystem,
                     _logger,
+                    _fileSystem,
+                    _arguments.GrpcHost,
                     cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName,
-                    path => topLevelAndPrimaryStore.topLevelStore,
+                    _ => topLevelAndPrimaryStore.topLevelStore,
                     localServerConfiguration,
                     factory.GetAdditionalEndpoints(),
                     coldStorage);
@@ -341,14 +345,15 @@ namespace BuildXL.Cache.Host.Service.Internal
             var localContentServerConfiguration = new LocalServerConfiguration(serviceConfiguration);
 
             // Need to disable the Grpc server when asp.net core gprc server is used.
-            localContentServerConfiguration.DisableGrpcServer = distributedSettings.EnableAspNetCoreGrpc;
+            localContentServerConfiguration.DisableGrpcCoreServer = distributedSettings.EnableAspNetCoreGrpc || localContentServerConfiguration.UseGrpcDotNet;
 
             localCasServiceSettings.UnusedSessionTimeoutMinutes.ApplyIfNotNull(value => localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromMinutes(value));
             localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes.ApplyIfNotNull(value => localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(value));
             localCasServiceSettings.GrpcCoreServerOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcCoreServerOptions = value);
             localCasServiceSettings.GrpcEnvironmentOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcEnvironmentOptions = value);
             localCasServiceSettings.DoNotShutdownSessionsInUse.ApplyIfNotNull(value => localContentServerConfiguration.DoNotShutdownSessionsInUse = value);
-
+            localCasServiceSettings.UseGrpcDotNet.ApplyIfNotNull(value => localContentServerConfiguration.UseGrpcDotNet = value);
+            localCasServiceSettings.GrpcDotNetServerOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcDotNetServerOptions = value);
             return localContentServerConfiguration;
         }
 

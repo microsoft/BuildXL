@@ -37,6 +37,9 @@ namespace ContentStoreTest.Grpc
         {
         }
 
+        // TODO ST: add derived type
+        protected virtual ICacheServerGrpcHost GrpcHost => null;
+
         [Theory]
         [InlineData(DeleteResult.ResultCode.ContentNotFound, true)]
         [InlineData(DeleteResult.ResultCode.Success, true)]
@@ -125,7 +128,7 @@ namespace ContentStoreTest.Grpc
                         TraceGrpcOperation = true
                     };
 
-                using (var server = new LocalContentServer(FileSystem, Logger, scenario, path => new FileSystemContentStore(FileSystem, SystemClock.Instance, path), new LocalServerConfiguration(serviceConfig)))
+                using (var server = new LocalContentServer(Logger, FileSystem, grpcHost: GrpcHost, scenario, path => new FileSystemContentStore(FileSystem, SystemClock.Instance, path), new LocalServerConfiguration(serviceConfig)))
                 {
                     BoolResult r = await server.StartupAsync(context).ConfigureAwait(false);
                     r.ShouldBeSuccess();

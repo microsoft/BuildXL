@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.Host.Service
@@ -38,7 +39,7 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Notifies host immediately after cache service is started.
         /// </summary>
-        Task OnStartedServiceAsync(OperationContext context, ICacheServerServices services);
+        Task OnStartedServiceAsync(OperationContext context, ICacheServer cacheServer);
 
         /// <summary>
         /// Notifies host immediately before cache service is stopped.

@@ -77,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ApplyIfNotNull(dcs.GrpcCopyClientGrpcCoreClientOptions, v => grpcCopyClientConfiguration.GrpcCoreClientOptions = v);
             ApplyIfNotNull(dcs.GrpcCopyClientGrpcDotNetClientOptions, v => grpcCopyClientConfiguration.GrpcDotNetClientOptions = v);
             grpcCopyClientConfiguration.BandwidthCheckerConfiguration = BandwidthChecker.Configuration.FromDistributedContentSettings(dcs);
-            grpcCopyClientConfiguration.UseGrpcDotNetVersion = dcs.GrpcCopyClientUseGrpcDotNetClient;
+            grpcCopyClientConfiguration.UseGrpcDotNetVersion = dcs.UseGrpcDotNetForCopies();
             return grpcCopyClientConfiguration;
         }
     }

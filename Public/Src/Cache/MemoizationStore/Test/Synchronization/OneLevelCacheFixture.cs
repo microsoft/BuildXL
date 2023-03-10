@@ -165,7 +165,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
 
             public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions) => null;
 
-            public void PostInitializationCompleted(Context context, BoolResult result)
+            public void PostInitializationCompleted(Context context)
             {
             }
         }

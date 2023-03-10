@@ -16,11 +16,9 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Sessions.Grpc;
-using Grpc.Core;
 
 #nullable enable
 
@@ -46,15 +44,16 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
         /// <nodoc />
         public LocalCacheServer(
-            IAbsFileSystem fileSystem,
             ILogger logger,
+            IAbsFileSystem fileSystem,
+            ICacheServerGrpcHost? grpcHost,
             string scenario,
             Func<AbsolutePath, ICache> cacheFactory,
             LocalServerConfiguration localContentServerConfiguration,
             Capabilities capabilities,
             IGrpcServiceEndpoint[]? additionalEndpoints = null,
             IColdStorage? coldStorage = null)
-        : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration, additionalEndpoints)
+        : base(logger, fileSystem, grpcHost, scenario, cacheFactory, localContentServerConfiguration, additionalEndpoints)
         {
             // This must agree with the base class' StoresByName to avoid "missing content store" errors from Grpc, and
             // to make sure everything is initialized properly when we expect it to.

@@ -145,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
         }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result)
+        public void PostInitializationCompleted(Context context)
         {
             // Unused on purpose
         }

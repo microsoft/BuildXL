@@ -9,7 +9,7 @@ using Grpc.Core;
 namespace BuildXL.Cache.ContentStore.Grpc
 {
     /// <summary>
-    /// Grpc options that apply only to servers
+    /// gRPC options that apply only to servers
     /// </summary>
     public class GrpcCoreServerOptions : GrpcCoreOptionsCommon
     {

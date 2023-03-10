@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -38,7 +39,7 @@ namespace BuildXL.Cache.Host.Service
     /// Deploys drops/files from a given deployment configuration to a CAS store and writes manifests describing contents
     /// so that subsequent process (i.e. Deployment Service) can read files and proffer deployments to clients.
     /// </summary>
-    public class DeploymentLauncher : StartupShutdownBase
+    public class DeploymentLauncher : StartupShutdownBase, ICacheServer
     {
         /// <summary>
         /// For testing purposes only.
@@ -88,6 +89,21 @@ namespace BuildXL.Cache.Host.Service
         private readonly IDeploymentLauncherHost _host;
 
         private readonly ISecretsProvider _secretsProvider;
+
+        /// <inheritdoc />
+        bool ICacheServer.IsProxy => true;
+
+        /// <inheritdoc />
+        TStore ICacheServer.GetDefaultStore<TStore>() => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        IPushFileHandler ICacheServer.PushFileHandler => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        IDistributedStreamStore ICacheServer.StreamStore => throw new NotSupportedException();
+
+        /// <inheritdoc />
+        IEnumerable<IGrpcServiceEndpoint> ICacheServer.GrpcEndpoints => throw new NotSupportedException();
 
         /// <nodoc />
         public DeploymentLauncher(

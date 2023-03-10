@@ -142,6 +142,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private Role _role = Role.Worker;
         private bool _hasRestoredCheckpoint;
 
+        /// <nodoc />
         public ResilientGlobalCacheService(
             GlobalCacheServiceConfiguration configuration,
             CheckpointManager checkpointManager,
@@ -172,6 +173,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             LifetimeManager.RequestTeardown(context, "GCS database has been invalidated");
         }
 
+        /// <inheritdoc />
         protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
             if (_configuration?.MaxOperationConcurrency != null)
@@ -185,6 +187,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return BoolResult.SuccessTask;
         }
 
+        /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             if (!ShouldRetry(out var retryReason, out var errorMessage, isShutdown: true))
@@ -203,6 +206,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return BoolResult.Success;
         }
 
+        /// <inheritdoc />
         public async Task OnRoleUpdatedAsync(OperationContext context, MasterElectionState electionState)
         {
             var role = electionState.Role;

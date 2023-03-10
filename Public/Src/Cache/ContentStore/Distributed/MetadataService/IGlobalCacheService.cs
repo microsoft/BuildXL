@@ -10,7 +10,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// <summary>
     /// Public interface provided via gRPC by the content metadata service.
     /// </summary>
-    [ServiceContract]
+    [ServiceContract] // This annotation is used by code first protobuf-net.
     public interface IGlobalCacheService
     {
         /// <nodoc />

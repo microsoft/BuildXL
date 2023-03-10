@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
@@ -63,7 +62,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
         [Fact]
         public Task SimpleRegisterAndGetTest()
         {
-
             return RunTest(async (context, service, iteration) =>
             {
                 // First heartbeat lets the service know its master, so it's willing to process requests
@@ -224,8 +222,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 Checkpoint = new CheckpointManagerConfiguration(TestRootDirectoryPath / "CheckpointManager", primaryMachineLocation),
                 EventStream = new ContentMetadataEventStreamConfiguration(),
             };
-            modifyConfig?.Invoke(contentMetadataServiceConfiguration);
 
+            modifyConfig?.Invoke(contentMetadataServiceConfiguration);
 
             var centralStorage = new Dictionary<string, byte[]>();
 
@@ -260,7 +258,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 {
                     Database = rocksdbContentMetadataDatabaseConfiguration,
                 });
-
 
                 var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
                 {

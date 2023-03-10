@@ -26,20 +26,69 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using Grpc.Core;
 using BuildXL.Cache.ContentStore.Grpc;
-using BuildXL.Cache.Host.Service;
-using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Core.Tasks;
+using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
+
+using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Service
 {
-    /// <nodoc />
-    public interface ILocalContentServer<TStore> : IStartupShutdown
+    /// <summary>
+    /// A marker interface for a type that represents a real or a proxy content server.
+    /// </summary>
+    public interface ICacheServer : IStartupShutdown
     {
-        /// <nodoc />
-        IReadOnlyDictionary<string, TStore> StoresByName { get; }
+        /// <summary>
+        /// Returns true if the current instance is not a real content server but rather a proxy for creating one
+        /// in a separate process (like a generic launcher or an out-of-proc launcher).
+        /// </summary>
+        bool IsProxy { get; }
+
+        /// <summary>
+        /// Gets the default store used by the cache server.
+        /// </summary>
+        TStore GetDefaultStore<TStore>() where TStore : class, IStartupShutdown;
+
+        /// <summary>
+        /// An optional push file handler for handling incoming file requests.
+        /// </summary>
+        /// <remarks>
+        /// Currently only used by the launcher.
+        /// </remarks>
+        IPushFileHandler? PushFileHandler { get; }
+
+        /// <summary>
+        /// A stream file store used for streaming the file content.
+        /// </summary>
+        /// <remarks>
+        /// Currently only used by the launcher.
+        /// </remarks>
+        IDistributedStreamStore StreamStore { get; }
+
+        /// <summary>
+        /// Returns a list of gRPC.NET endpoints.
+        /// </summary>
+        IEnumerable<IGrpcServiceEndpoint> GrpcEndpoints { get; }
+    }
+
+    /// <summary>
+    /// A special host for initializing and stopping gRPC.NET environment.
+    /// </summary>
+    public interface ICacheServerGrpcHost
+    {
+        /// <summary>
+        /// Notifies the host immediately before the cache service is started in order to start the gRPC infrastructure.
+        /// </summary>
+        Task<BoolResult> StartAsync(OperationContext context, LocalServerConfiguration configuration, ICacheServer cacheServer);
+
+        /// <summary>
+        /// Notifies the host immediately before cache service is stopped in order to stop the gRPC infrastructure.
+        /// </summary>
+        Task<BoolResult> StopAsync(OperationContext context, LocalServerConfiguration configuration);
     }
 
     /// <summary>
@@ -55,9 +104,10 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <typeparam name="TSessionData">
     ///     Type of data associated with sessions.
     /// </typeparam>
-    public abstract class LocalContentServerBase<TStore, TSession, TSessionData> : StartupShutdownBase, ISessionHandler<TSession, TSessionData>, ILocalContentServer<TStore>, IServicesProvider, ICacheServerServices
+    public abstract class LocalContentServerBase<TStore, TSession, TSessionData>
+        : StartupShutdownBase, ISessionHandler<TSession, TSessionData>, ICacheServer
         where TSession : IContentSession
-        where TStore : IStartupShutdown
+        where TStore : class, IStartupShutdown
         where TSessionData : ISessionData
     {
         private const string Name = nameof(LocalContentServerBase<TStore, TSession, TSessionData>);
@@ -78,6 +128,8 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private int _lastSessionId;
 
+        private readonly ICacheServerGrpcHost _grpcHost;
+
         /// <nodoc />
         protected readonly LocalServerConfiguration Config;
 
@@ -90,63 +142,80 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <nodoc />
         protected abstract GrpcContentServer GrpcServer { get; }
 
-        /// <summary>
-        /// Collection of stores by name.
-        /// </summary>
+        /// <nodoc />
         public IReadOnlyDictionary<string, TStore> StoresByName { get; }
 
-        public IPushFileHandler? PushFileHandler => GrpcServer.PushFileHandler;
+        /// <inheritdoc />
+        bool ICacheServer.IsProxy => false;
 
-        public IDistributedStreamStore StreamStore => GrpcServer.StreamStore;
+        /// <inheritdoc />
+        // We have to use TStore2 to avoid having a conflict with TStore.
+        // Technically, these two types could be different, but in practice they're the same.
+        public TStore2 GetDefaultStore<TStore2>() where TStore2 : class, IStartupShutdown => (StoresByName["Default"] as TStore2)!;
 
+        /// <inheritdoc />
+        IPushFileHandler? ICacheServer.PushFileHandler => GrpcServer.PushFileHandler;
+
+        /// <inheritdoc />
+        IDistributedStreamStore ICacheServer.StreamStore => GrpcServer.StreamStore;
+
+        /// <inheritdoc />
         public IEnumerable<IGrpcServiceEndpoint> GrpcEndpoints => new IGrpcServiceEndpoint[] { GrpcServer }.Concat(_additionalEndpoints);
 
         /// <nodoc />
         protected LocalContentServerBase(
             ILogger logger,
             IAbsFileSystem fileSystem,
+            ICacheServerGrpcHost? grpcHost,
             string scenario,
             Func<AbsolutePath, TStore> contentStoreFactory,
-            LocalServerConfiguration localContentServerConfiguration,
+            LocalServerConfiguration configuration,
             IGrpcServiceEndpoint[]? additionalEndpoints)
         {
             Contract.Requires(logger != null);
             Contract.Requires(fileSystem != null);
-            Contract.Requires(localContentServerConfiguration != null);
-            Contract.Requires(localContentServerConfiguration.GrpcPort > 0, "GrpcPort must be provided");
+            Contract.Requires(configuration != null);
+            Contract.Requires(configuration.GrpcPort > 0, "GrpcPort must be provided");
+
+            Contract.Requires(configuration.InitializeGrpcCoreServer || grpcHost != null, "grpcHost must be provided if 'InitializeGrpcCoreServer' is false.");
+            _grpcHost = grpcHost ?? new GrpcCoreHost(Tracer, this);
 
             logger.Debug($"{Name} process id {Process.GetCurrentProcess().Id}");
-            logger.Debug($"{Name} constructing {nameof(ServiceConfiguration)}: {localContentServerConfiguration}");
+            logger.Debug($"{Name} constructing {nameof(ServiceConfiguration)}: {configuration}");
 
-            GrpcEnvironment.Initialize(logger, localContentServerConfiguration.GrpcEnvironmentOptions, overwriteSafeOptions: true);
+            if (configuration.InitializeGrpcCoreServer)
+            {
+                GrpcEnvironment.Initialize(logger, configuration.GrpcEnvironmentOptions, overwriteSafeOptions: true);
+            }
 
             FileSystem = fileSystem;
             Logger = logger;
-            Config = localContentServerConfiguration;
+            Config = configuration;
 
             _additionalEndpoints = additionalEndpoints ?? Array.Empty<IGrpcServiceEndpoint>();
             _serviceReadinessChecker = new ServiceReadinessChecker(logger, scenario);
             _sessionHandles = new ConcurrentDictionary<int, ISessionHandle<TSession, TSessionData>>();
 
             var storesByName = new Dictionary<string, TStore>();
-            foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
+            foreach (var kvp in configuration.NamedCacheRoots)
             {
                 fileSystem.CreateDirectory(kvp.Value);
                 var store = contentStoreFactory(kvp.Value);
                 storesByName.Add(kvp.Key, store);
             }
+
             StoresByName = new ReadOnlyDictionary<string, TStore>(storesByName);
 
-            foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
+            foreach (var kvp in configuration.NamedCacheRoots)
             {
                 _tempFolderForStreamsByCacheName[kvp.Key] = kvp.Value / "TempFolder";
             }
 
-            if (!string.IsNullOrEmpty(localContentServerConfiguration.GrpcPortFileName))
+            if (!string.IsNullOrEmpty(configuration.GrpcPortFileName))
             {
-                var portSharingFactory = new MemoryMappedFileGrpcPortSharingFactory(logger, localContentServerConfiguration.GrpcPortFileName);
+                var portSharingFactory = new MemoryMappedFileGrpcPortSharingFactory(logger, configuration.GrpcPortFileName);
                 var portExposer = portSharingFactory.GetPortExposer();
-                _portDisposer = portExposer.Expose(localContentServerConfiguration.GrpcPort);
+                _portDisposer = portExposer.Expose(configuration.GrpcPort);
             }
         }
 
@@ -246,59 +315,47 @@ namespace BuildXL.Cache.ContentStore.Service
             // the special stores that the initialization has finished.
             // This is a workaround to make sure hibernated sessions are fully restored
             // before FileSystemContentStore can evict the content.
-            var result = await tryStartupCoreAsync();
-            if (!result)
-            {
-                // We should not be running post initialization operation if the startup operation failed.
-                return result;
-            }
+
+            // The following method might fail with an exception and in that case we should not be calling post initialization completion.
+            await tryStartupCoreAsync();
 
             foreach (var store in StoresByName.Values)
             {
                 if (store is IContentStore contentStore)
                 {
-                    contentStore.PostInitializationCompleted(context, result);
+                    contentStore.PostInitializationCompleted(context);
                 }
             }
 
-            return result;
+            return BoolResult.Success;
 
-            async Task<BoolResult> tryStartupCoreAsync()
+            async Task tryStartupCoreAsync()
             {
-                try
+
+                if (!FileSystem.DirectoryExists(Config.DataRootPath))
                 {
-                    if (!FileSystem.DirectoryExists(Config.DataRootPath))
-                    {
-                        FileSystem.CreateDirectory(Config.DataRootPath);
-                    }
-
-                    await StartupStoresAsync(context).ThrowIfFailure();
-
-                    foreach (var endpoint in GrpcEndpoints)
-                    {
-                        await endpoint.StartupAsync(context).ThrowIfFailure();
-                    }
-
-                    await LoadHibernatedSessionsAsync(context);
-
-                    if (!Config.DisableGrpcServer)
-                    {
-                        InitializeAndStartGrpcServer(context, Config);
-                    }
-
-                    _serviceReadinessChecker.Ready(context);
-
-                    _sessionExpirationCheckTimer = new IntervalTimer(
-                        () => CheckForExpiredSessionsAsync(context),
-                        MinTimeSpan(Config.UnusedSessionHeartbeatTimeout, TimeSpan.FromMinutes(CheckForExpiredSessionsPeriodMinutes)),
-                        logAction: message => Tracer.Debug(context, $"{CheckForExpiredSessionsName}: {message}"));
-
-                    return BoolResult.Success;
+                    FileSystem.CreateDirectory(Config.DataRootPath);
                 }
-                catch (Exception e)
+
+                await StartupStoresAsync(context).ThrowIfFailure();
+
+                foreach (var endpoint in GrpcEndpoints)
                 {
-                    return new BoolResult(e);
+                    await endpoint.StartupAsync(context).ThrowIfFailure();
                 }
+
+                await LoadHibernatedSessionsAsync(context);
+
+                Tracer.Debug(context, $"Initializing gRPC Host at {Config.GrpcPort}. Id={InstanceId}");
+                // The error is traced already, ignoring it.
+                await _grpcHost.StartAsync(context, Config, this).IgnoreFailure();
+
+                _serviceReadinessChecker.Ready(context);
+
+                _sessionExpirationCheckTimer = new IntervalTimer(
+                    () => CheckForExpiredSessionsAsync(context),
+                    MinTimeSpan(Config.UnusedSessionHeartbeatTimeout, TimeSpan.FromMinutes(CheckForExpiredSessionsPeriodMinutes)),
+                    logAction: message => Tracer.Debug(context, $"{CheckForExpiredSessionsName}: {message}"));
             }
         }
 
@@ -321,7 +378,37 @@ namespace BuildXL.Cache.ContentStore.Service
             return null;
         }
 
-        private void InitializeAndStartGrpcServer(Context context, LocalServerConfiguration config)
+        /// <summary>
+        /// A host for gRPC.Core infrastructure.
+        /// </summary>
+        private class GrpcCoreHost : ICacheServerGrpcHost
+        {
+            private readonly Tracer _tracer;
+            private readonly LocalContentServerBase<TStore, TSession, TSessionData> _this;
+
+            /// <nodoc />
+            public GrpcCoreHost(Tracer tracer, LocalContentServerBase<TStore, TSession, TSessionData> @this)
+            {
+                _tracer = tracer;
+                _this = @this;
+            }
+
+            public Task<BoolResult> StartAsync(OperationContext context, LocalServerConfiguration configuration, ICacheServer cacheServer)
+            {
+                _tracer.Debug(context, "Initializing gRPC.Core infrastructure");
+
+                _this.InitializeAndStartGrpcCoreServer(context, configuration);
+                return BoolResult.SuccessTask;
+            }
+
+            public Task<BoolResult> StopAsync(OperationContext context, LocalServerConfiguration configuration)
+            {
+                _tracer.Debug(context, "Stopping gRPC.Core infrastructure");
+                return BoolResult.SuccessTask;
+            }
+        }
+
+        private void InitializeAndStartGrpcCoreServer(Context context, LocalServerConfiguration config)
         {
             GrpcCoreServerOptions? grpcCoreServerOptions = config.GrpcCoreServerOptions;
             GrpcEnvironment.WaitUntilInitialized();
@@ -347,12 +434,12 @@ namespace BuildXL.Cache.ContentStore.Service
                     }
                     else
                     {
-                        Tracer.Error(context, message: $"Failed to get SSL Credentials. Not creating encrypted Grpc channel.");
+                        Tracer.Error(context, message: "Failed to get SSL Credentials. Not creating encrypted Grpc channel.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Tracer.Error(context, ex, $"Creating SSL Secured Grpc Channel Failed.");
+                    Tracer.Error(context, ex, "Creating SSL Secured Grpc Channel Failed.");
                 }
             }
 
@@ -363,7 +450,6 @@ namespace BuildXL.Cache.ContentStore.Service
 
             _grpcServer.Start();
         }
-
 
         private async Task CheckForExpiredSessionsAsync(Context context)
         {
@@ -528,6 +614,10 @@ namespace BuildXL.Cache.ContentStore.Service
             // Stop the session expiration timer.
             _sessionExpirationCheckTimer?.Dispose();
 
+            Tracer.Debug(context, $"Stopping gRPC Host at {Config.GrpcPort}. Id={InstanceId}");
+            // If the stop fails, the error would be traced.
+            await _grpcHost.StopAsync(context, Config).IgnoreFailure();
+
             // Hibernate dangling sessions in case we are shutdown unexpectedly to live clients.
             await HandleShutdownDanglingSessionsAsync(context);
 
@@ -589,9 +679,9 @@ namespace BuildXL.Cache.ContentStore.Service
 
             _portDisposer?.Dispose();
 
-            foreach (var storeAndCount in StoresByName.Values)
+            foreach (var store in StoresByName.Values)
             {
-                storeAndCount.Dispose();
+                store.Dispose();
             }
 
             _sessionExpirationCheckTimer?.Dispose();

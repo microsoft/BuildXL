@@ -119,5 +119,15 @@ namespace BuildXL.Cache.Host.Configuration
         /// <nodoc />
         [DataMember]
         public GrpcEnvironmentOptions GrpcEnvironmentOptions { get; set; }
+
+        /// <summary>
+        /// Returns true if gRPC.NET is used instead of gRPC.Core on the server side.
+        /// </summary>
+        [DataMember]
+        public bool? UseGrpcDotNet { get; set; }
+
+        /// <nodoc />
+        [DataMember]
+        public GrpcDotNetServerOptions GrpcDotNetServerOptions { get; set; }
     }
 }

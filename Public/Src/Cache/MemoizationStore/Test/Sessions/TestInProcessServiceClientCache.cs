@@ -11,7 +11,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -46,7 +45,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             LocalServerConfiguration contentServerConfiguration,
             ServiceClientContentStoreConfiguration clientConfiguration)
         {
-            _server = new LocalCacheServer(fileSystem, logger, clientConfiguration.Scenario, contentStoreFactory, contentServerConfiguration, Capabilities.All);
+            _server = new LocalCacheServer(logger, fileSystem, grpcHost: null, clientConfiguration.Scenario, contentStoreFactory, contentServerConfiguration, Capabilities.All);
             _client = new ServiceClientCache(logger, fileSystem, clientConfiguration);
             SetThreadPoolSizes();
         }

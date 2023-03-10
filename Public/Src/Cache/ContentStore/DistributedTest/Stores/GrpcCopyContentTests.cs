@@ -23,6 +23,7 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Launcher.Server;
 using BuildXL.Utilities.Core.Tasks;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
@@ -35,9 +36,12 @@ namespace ContentStoreTest.Distributed.Stores
 #if NET6_0_OR_GREATER
     public class GrpcDotNetContentTests : GrpcCopyContentTests
     {
-        public GrpcDotNetContentTests(ITestOutputHelper output) : base(output, useGrpcDotNet: true)
+        public GrpcDotNetContentTests(ITestOutputHelper output) : base(output, useGrpcDotNetClient: true)
         {
         }
+
+        protected override ICacheServerGrpcHost GrpcHost { get; } = new GrpcDotNetInitializer();
+        protected override bool UseGrpcDotNetServer => true;
     }
 #endif
 
@@ -52,9 +56,17 @@ namespace ContentStoreTest.Distributed.Stores
         private int? _copyToLimit = null;
         private int? _proactivePushCountLimit = null;
 
-        public GrpcCopyContentTests(ITestOutputHelper output, bool useGrpcDotNet = false)
+        private readonly bool _useGrpcDotNetClient;
+        
+
+        protected virtual ICacheServerGrpcHost GrpcHost => null;
+
+        protected virtual bool UseGrpcDotNetServer => false;
+
+        public GrpcCopyContentTests(ITestOutputHelper output, bool useGrpcDotNetClient = false)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
         {
+            _useGrpcDotNetClient = useGrpcDotNetClient;
             _context = new Context(Logger);
             _clientCache = new GrpcCopyClientCache(_context, new GrpcCopyClientCacheConfiguration()
             {
@@ -64,7 +76,7 @@ namespace ContentStoreTest.Distributed.Stores
                 },
                 GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
                 {
-                    UseGrpcDotNetVersion = useGrpcDotNet,
+                    UseGrpcDotNetVersion = useGrpcDotNetClient,
                 }
             });
         }
@@ -84,13 +96,13 @@ namespace ContentStoreTest.Distributed.Stores
                 GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
                 {
                     ConnectOnStartup = true,
+                    UseGrpcDotNetVersion = _useGrpcDotNetClient,
                 },
                 ResourcePoolEnabled = true,
             });
 
             await CopyExistingFile();
         }
-
 
         [Fact]
         public Task CopyFailWithUnknownError()
@@ -403,7 +415,9 @@ namespace ContentStoreTest.Distributed.Stores
                                         ServiceConfiguration.DefaultGracefulShutdownSeconds,
                                         grpcPort,
                                         grpcPortFileName)
-                { CopyRequestHandlingCountLimit = _copyToLimit, ProactivePushCountLimit = _proactivePushCountLimit};
+                                    {
+                                        CopyRequestHandlingCountLimit = _copyToLimit, ProactivePushCountLimit = _proactivePushCountLimit
+                                    };
 
                 var storeConfig = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
                 Func<AbsolutePath, IContentStore> contentStoreFactory = (path) =>
@@ -413,7 +427,13 @@ namespace ContentStoreTest.Distributed.Stores
                         directory.Path,
                         new ConfigurationModel(storeConfig));
 
-                var server = new LocalContentServer(FileSystem, Logger, testName, contentStoreFactory, new LocalServerConfiguration(configuration));
+                var server = new LocalContentServer(
+                    Logger,
+                    FileSystem,
+                    GrpcHost,
+                    testName,
+                    contentStoreFactory,
+                    new LocalServerConfiguration(configuration) { UseGrpcDotNet = UseGrpcDotNetServer });
 
                 await server.StartupAsync(_context).ShouldBeSuccess();
                 var sessionData = new LocalContentServerSessionData(testName, Capabilities.ContentOnly, ImplicitPin.PutAndGet, pins: null);

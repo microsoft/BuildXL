@@ -75,7 +75,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Scenario = scenario;
             _clientCapabilities = clientCapabilities;
 
-            GrpcEnvironment.WaitUntilInitialized();
+            if (!configuration.UseGrpcDotNetClient)
+            {
+                GrpcEnvironment.WaitUntilInitialized();
+            }
 
             var port = configuration.EncryptionEnabled ? configuration.EncryptedGrpcPort : configuration.GrpcPort;
             var channelCreationOptions = new ChannelCreationOptions(
@@ -84,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 port,
                 GrpcEnvironment.GetClientOptions(configuration.GrpcCoreClientOptions),
                 configuration.GrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default);
-            Channel = GrpcChannelFactory.CreateChannel(context, channelCreationOptions);
+            Channel = GrpcChannelFactory.CreateChannel(context, channelCreationOptions, channelType: GetType().Name);
         }
 
         /// <nodoc />

@@ -70,8 +70,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _configuration = configuration;
             _clock = clock ?? SystemClock.Instance;
 
-            GrpcEnvironment.WaitUntilInitialized();
-            _channel = GrpcChannelFactory.CreateChannel(new OperationContext(context), ToChannelCreationOptions(key, configuration));
+            if (!configuration.UseGrpcDotNetVersion)
+            {
+                GrpcEnvironment.WaitUntilInitialized();
+            }
+
+            _channel = GrpcChannelFactory.CreateChannel(new OperationContext(context), ToChannelCreationOptions(key, configuration), channelType: nameof(GrpcCopyClient));
             _client = new ContentServer.ContentServerClient(_channel);
             
             _bandwidthChecker = new BandwidthChecker(_configuration.BandwidthCheckerConfiguration);

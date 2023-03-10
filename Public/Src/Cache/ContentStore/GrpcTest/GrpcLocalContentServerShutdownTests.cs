@@ -24,6 +24,7 @@ using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
+using Grpc.Core;
 
 namespace ContentStoreTest.Grpc
 {
@@ -155,7 +156,7 @@ namespace ContentStoreTest.Grpc
 
                 IRpcClient rpcClient;
                 Task<T> unresponsiveTask;
-                using (var server = new LocalContentServer(FileSystem, Logger, scenario, contentStoreFactory, new LocalServerConfiguration(configuration)))
+                using (var server = CreateServer(scenario, contentStoreFactory, configuration))
                 {
                     var tracer = new ServiceClientContentSessionTracer("TestTracerForRpcClient");
                     await server.StartupAsync(context).ShouldBeSuccess();
@@ -219,7 +220,7 @@ namespace ContentStoreTest.Grpc
                             rootPath,
                             new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota("1MB"))));
 
-                using (var server = new LocalContentServer(FileSystem, Logger, scenario, contentStoreFactory, new LocalServerConfiguration(configuration)))
+                using (var server = CreateServer(scenario, contentStoreFactory, configuration))
                 {
                     var tracer = new ServiceClientContentSessionTracer("TestTracerForRpcClient");
                     await server.StartupAsync(context).ShouldBeSuccess();
@@ -282,7 +283,7 @@ namespace ContentStoreTest.Grpc
                             new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota("1KB"))));
 
                 IRpcClient rpcClient;
-                using (var server = new LocalContentServer(FileSystem, Logger, scenario, contentStoreFactory, new LocalServerConfiguration(configuration)))
+                using (var server = CreateServer(scenario, contentStoreFactory, configuration))
                 {
                     var tracer = new ServiceClientContentSessionTracer("TestTracerForRpcClient");
                     BoolResult r = await server.StartupAsync(context).ConfigureAwait(false);
@@ -323,7 +324,7 @@ namespace ContentStoreTest.Grpc
                     grpcPortFileName);
                 Func<AbsolutePath, IContentStore> contentStoreFactory = path => new TestTempFileDeletingContentStore(FileSystem);
 
-                using (var server = new LocalContentServer(FileSystem, Logger, scenario, contentStoreFactory, new LocalServerConfiguration(configuration)))
+                using (var server = CreateServer(scenario, contentStoreFactory, configuration))
                 {
                     var tracer = new ServiceClientContentSessionTracer("TestTracerForRpcClient");
                     await server.StartupAsync(context).ShouldBeSuccess();
@@ -369,7 +370,7 @@ namespace ContentStoreTest.Grpc
                     grpcPortFileName);
                 Func<AbsolutePath,  IContentStore> contentStoreFactory = path => new TestTempFileDeletingContentStore(FileSystem);
 
-                using (var server = new LocalContentServer(FileSystem, Logger, scenario, contentStoreFactory, new LocalServerConfiguration(configuration)))
+                using (var server = CreateServer(scenario, contentStoreFactory, configuration))
                 {
                     var tracer = new ServiceClientContentSessionTracer("TestTracerForRpcClient");
                     await server.StartupAsync(context).ShouldBeSuccess();
@@ -389,6 +390,17 @@ namespace ContentStoreTest.Grpc
                     await server.ShutdownAsync(context).ShouldBeSuccess();
                 }
             }
+        }
+
+        // TODO ST: add derived type
+        protected virtual ICacheServerGrpcHost GrpcHost => null;
+
+        private LocalContentServer CreateServer(
+            string scenario,
+            Func<AbsolutePath, IContentStore> contentStoreFactory,
+            ServiceConfiguration configuration)
+        {
+            return new LocalContentServer(Logger, FileSystem, GrpcHost, scenario, contentStoreFactory, new LocalServerConfiguration(configuration));
         }
     }
 }

@@ -67,7 +67,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result) { }
+        public void PostInitializationCompleted(Context context) { }
     }
 
     internal class TestContentSession : IContentSession

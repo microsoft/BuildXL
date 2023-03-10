@@ -107,7 +107,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 DefaultPort = (int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort,
                 ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
-                UseGrpcDotNet = _distributedSettings.ContentMetadataClientUseGrpcDotNet,
+                UseGrpcDotNet = _distributedSettings.UseGrpcDotForMetadata(),
                 GrpcDotNetOptions = _distributedSettings.ContentMetadataClientGrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default,
             },
             context: new OperationContext(arguments.TracingContext.CreateNested(componentName: nameof(GrpcConnectionPool))));

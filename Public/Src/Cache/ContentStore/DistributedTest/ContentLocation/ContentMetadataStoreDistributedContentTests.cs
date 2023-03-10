@@ -11,13 +11,34 @@ using BuildXL.Cache.ContentStore.Distributed.Test.MetadataService;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Launcher.Server;
 using ContentStoreTest.Distributed.Redis;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
+#if NET6_0_OR_GREATER
+    [Trait("Category", "Integration")]
+    [Trait("Category", "LongRunningTest")]
+    [Collection("Redis-based tests")]
+    [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
+    public class ContentMetadataStoreDistributedContentTestsGrpcDotNet : ContentMetadataStoreDistributedContentTests
+    {
+        public ContentMetadataStoreDistributedContentTestsGrpcDotNet(LocalRedisFixture redis, ITestOutputHelper output) : base(redis, output)
+        {
+            UseGrpcServer = true;
+        }
+
+        /// <inheritdoc />
+        protected override bool UseGrpcDotNet => true;
+        /// <inheritdoc />
+        protected override ICacheServerGrpcHost GrpcHost { get; } = new GrpcDotNetInitializer();
+    }
+#endif
+
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]

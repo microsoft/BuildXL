@@ -67,6 +67,6 @@ namespace ContentStoreTest.Stores
         }
 
         /// <inheritdoc />
-        public void PostInitializationCompleted(Context context, BoolResult result) { }
+        public void PostInitializationCompleted(Context context) { }
     }
 }

@@ -6,20 +6,15 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Distributed.MetadataService;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -37,49 +32,50 @@ namespace ContentStoreTest.Distributed.Sessions
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
     [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
-    public partial class CacheServerDistributedContentTests : ContentMetadataStoreDistributedContentTests, IClassFixture<LocalRedisFixture>
+    public class CacheServerDistributedContentTests : ContentMetadataStoreDistributedContentTests, IClassFixture<LocalRedisFixture>
     {
+        protected override bool UseGrpcDotNet => true;
+
         public CacheServerDistributedContentTests(
             LocalRedisFixture redis,
             ITestOutputHelper output)
             : base(redis, output)
         {
             UseGrpcServer = true;
+            
             GrpcEnvironment.Initialize(TestGlobal.Logger, new BuildXL.Cache.ContentStore.Grpc.GrpcEnvironmentOptions()
             {
                 LoggingVerbosity = BuildXL.Cache.ContentStore.Grpc.GrpcEnvironmentOptions.GrpcVerbosity.Info
             });
         }
 
+        /// <inheritdoc />
+        protected override ICacheServerGrpcHost GrpcHost { get; } = new GrpcDotNetInitializer();
+
         protected override TestServerProvider CreateStore(Context context, DistributedCacheServiceArguments arguments)
         {
-            // Need to enable ASP.Net Core GRPC
+            // Need to enable gRPC.NET
             arguments.Configuration.DistributedContentSettings.EnableAspNetCoreGrpc = true;
             arguments.Configuration.DistributedContentSettings.EnableAspNetCoreLogging = true;
 
             var server = new TestCacheServerWrapper(Host, arguments);
 
-            return new TestServerProvider(arguments, server, new Func<IContentStore>(() =>
-            {
-                return server.Host.Store.Task.Result;
-            }));
+            return new TestServerProvider(arguments, server, () => server.Host.Store.Task.Result);
         }
 
         private class TestServiceHost : IDistributedCacheServiceHost, IDistributedCacheServiceHostInternal
         {
             private readonly TestHost _testHost;
             private readonly IDistributedCacheServiceHost _host;
-            private readonly IDistributedCacheServiceHostInternal _hostInternal;
 
             public TaskCompletionSource<bool> StartupStartedSignal { get; } = new TaskCompletionSource<bool>();
-            public TaskCompletionSource<ICacheServerServices> StartupCompletedSignal { get; } = new TaskCompletionSource<ICacheServerServices>();
+            public TaskCompletionSource<ICacheServer> StartupCompletedSignal { get; } = new TaskCompletionSource<ICacheServer>();
             public TaskCompletionSource<IContentStore> Store { get; } = new TaskCompletionSource<IContentStore>();
 
             public TestServiceHost(TestHost testHost, IDistributedCacheServiceHost host = null)
             {
                 _testHost = testHost;
                 _host = host ?? _testHost;
-                _hostInternal = (host as IDistributedCacheServiceHostInternal) ?? _testHost;
             }
 
             public void OnStartedService()
@@ -87,14 +83,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 _host.OnStartedService();
             }
 
-            public async Task OnStartedServiceAsync(OperationContext context, ICacheServerServices services)
+            public Task OnStartedServiceAsync(OperationContext context, ICacheServer services)
             {
                 try
                 {
-                    await _hostInternal.OnStartedServiceAsync(context, services);
-
-                    var contentServer = (ILocalContentServer<IContentStore>)services;
-                    Store.SetResult(contentServer.StoresByName["Default"]);
+                    Store.SetResult(services.GetDefaultStore<IContentStore>());
                     StartupCompletedSignal.SetResult(services);
                 }
                 catch (Exception ex)
@@ -102,6 +95,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     Store.SetException(ex);
                     StartupCompletedSignal.SetException(ex);
                 }
+
+                return Task.CompletedTask;
             }
 
             public Task OnStartingServiceAsync()
@@ -111,7 +106,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public Task OnStoppingServiceAsync(OperationContext context)
             {
-                return _hostInternal.OnStoppingServiceAsync(context);
+                return Task.CompletedTask;
             }
 
             public void OnTeardownCompleted()
@@ -130,9 +125,24 @@ namespace ContentStoreTest.Distributed.Sessions
             }
         }
 
-        private class TestCacheServerWrapper : StartupShutdownComponentBase
+        private class TestCacheServerWrapper : StartupShutdownComponentBase, ICacheServer
         {
             public TestServiceHost Host { get; }
+
+            /// <inheritdoc />
+            bool ICacheServer.IsProxy => true;
+
+            /// <inheritdoc />
+            TStore ICacheServer.GetDefaultStore<TStore>() => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            IPushFileHandler ICacheServer.PushFileHandler => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            IDistributedStreamStore ICacheServer.StreamStore => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            IEnumerable<IGrpcServiceEndpoint> ICacheServer.GrpcEndpoints => throw new NotSupportedException();
 
             public TestCacheServerWrapper(TestHost testHost, DistributedCacheServiceArguments arguments)
             {
@@ -142,7 +152,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 var hostInfo = new HostInfo(hostParameters.Stamp, hostParameters.Ring, new List<string>());
 
                 var serviceHost = new CacheServiceStartup.ServiceHost(
-                    new string[0],
+                    Array.Empty<string>(),
                     arguments.Configuration,
                     hostParameters,
                     new Context(TestGlobal.Logger));

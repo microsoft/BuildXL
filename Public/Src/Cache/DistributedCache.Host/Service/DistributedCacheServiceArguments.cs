@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.Host.Configuration;
 
 #nullable enable
@@ -47,6 +48,11 @@ namespace BuildXL.Cache.Host.Service
 
         /// <nodoc />
         public IDistributedCacheServiceHost Host { get; init;  }
+
+        /// <summary>
+        /// A special host responsible for initializing gRPC environment.
+        /// </summary>
+        public ICacheServerGrpcHost? GrpcHost { get; init; }
 
         /// <nodoc />
         public IAbsFileSystem FileSystem { get; }

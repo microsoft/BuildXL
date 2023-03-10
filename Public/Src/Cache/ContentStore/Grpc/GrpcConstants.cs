@@ -19,5 +19,10 @@ namespace BuildXL.Cache.ContentStore.Grpc
 
         /// <nodoc />
         public const int DefaultEncryptedGrpcPort = 7090;
+
+        /// <summary>
+        /// Default minimal logging verbosity. Error by default.
+        /// </summary>
+        public const int DefaultGrpcDotNetMinLogLevel = 2;
     }
 }

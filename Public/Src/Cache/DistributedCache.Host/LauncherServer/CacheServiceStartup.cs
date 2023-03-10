@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -25,6 +26,7 @@ using Microsoft.Extensions.Logging;
 using ProtoBuf.Grpc.Configuration;
 using ProtoBuf.Grpc.Server;
 using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
+using LoggingAdapter = BuildXL.Cache.Host.Service.LoggingAdapter;
 
 namespace BuildXL.Launcher.Server
 {
@@ -83,17 +85,21 @@ namespace BuildXL.Launcher.Server
             return CacheServiceRunner.RunCacheServiceAsync(
                 new OperationContext(context, token),
                 cacheConfigurationPath,
-                createHost: (hostParameters, config, token) =>
+                createHosts: (hostParameters, config, _) =>
                 {
                     // If this process was started as a standalone cache service, we need to change the mode
                     // this time to avoid trying to start the cache service process again.
                     config.DistributedContentSettings.RunCacheOutOfProc = false;
+                    config.DistributedContentSettings.OutOfProcChildProcess = true;
+
                     config.DataRootPath = configuration.GetValue("DataRootPath", config.DataRootPath);
                     Contract.Assert(config.DataRootPath != null,
                         "The required property (DataRootPath) is not set, so it should be passed through the command line options by the parent process.");
 
                     var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, secretsProviderKind, exposedSecretsFileName);
-                    return serviceHost;
+                    bool useGrpcDotNet = config.LocalCasSettings?.ServiceSettings?.UseGrpcDotNet == true;
+                    var grpcHost = useGrpcDotNet ? new GrpcDotNetInitializer() : null;
+                    return (serviceHost, grpcHost);
                 },
                 requireServiceInterruptable: !standalone,
                 overlayConfigurationPath: overlayConfigurationPath);
@@ -213,7 +219,7 @@ namespace BuildXL.Launcher.Server
 
             /// <summary>
             /// Constructs the service host and takes command line arguments because
-            /// ASP.Net core application host is used to parse command line.
+            /// gRPC.NET application host is used to parse command line.
             /// </summary>
             public ServiceHost(string[] commandLineArgs,
                                DistributedCacheServiceConfiguration configuration,
@@ -269,9 +275,9 @@ namespace BuildXL.Launcher.Server
                     });
             }
 
-            public async Task OnStartedServiceAsync(OperationContext context, ICacheServerServices cacheServices)
+            public async Task OnStartedServiceAsync(OperationContext context, ICacheServer cacheService)
             {
-                CacheServiceStartup.UseExternalServices(WebHostBuilder, context, HostParameters);
+                UseExternalServices(WebHostBuilder, context, HostParameters);
 
                 WebHostBuilder.ConfigureServices(services =>
                 {
@@ -279,25 +285,25 @@ namespace BuildXL.Launcher.Server
 
                     if (ServiceConfiguration.ContentCache != null)
                     {
-                        if (cacheServices.PushFileHandler != null && cacheServices.StreamStore != null)
+                        if (cacheService.PushFileHandler != null && cacheService.StreamStore != null)
                         {
-                            services.AddSingleton<ContentCacheService>(sp =>
+                            services.AddSingleton(sp =>
                             {
                                 return new ContentCacheService(
                                     ServiceConfiguration.ContentCache,
-                                    cacheServices.PushFileHandler,
-                                    cacheServices.StreamStore);
+                                    cacheService.PushFileHandler,
+                                    cacheService.StreamStore);
                             });
                         }
                     }
 
                     if (UseGrpc)
                     {
-                        services.AddSingleton(cacheServices);
+                        services.AddSingleton(cacheService);
 
-                        var grpcServiceCollection = new ServiceCollectionWrapper(services);
+                        var grpcServiceCollection = new ServiceCollectionAdapter(services);
 
-                        foreach (var grpcEndpoint in cacheServices.GrpcEndpoints)
+                        foreach (var grpcEndpoint in cacheService.GrpcEndpoints)
                         {
                             grpcEndpoint.AddServices(grpcServiceCollection);
                         }
@@ -326,8 +332,9 @@ namespace BuildXL.Launcher.Server
                 await WebHost.StartAsync(context.Token);
             }
 
-            private record ServiceCollectionWrapper(IServiceCollection Services) : IGrpcServiceCollection
+            private record ServiceCollectionAdapter(IServiceCollection Services) : IGrpcServiceCollection
             {
+                /// <inheritdoc />
                 public void AddService<TService>(TService service) where TService : class
                 {
                     Services.AddSingleton<TService>(service);

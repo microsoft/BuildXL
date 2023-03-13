@@ -3,10 +3,13 @@
 
 trigger: none #Explicitly schedule while testing
 
+parameters:
+  - name: PreReleaseTag
+    displayName: PreReleaseTag
+    type: string
+    default: "public.rolling"
+
 variables:
-  - name: BuildXL.PreReleaseTag
-    # Externally override this in a real release with the dated version number to come after the SemanticVersion
-    value: pr.public.win
   - name: BuildXL.SemanticVersion
     value: 0.1.0
 
@@ -35,14 +38,14 @@ steps:
 - task: CmdLine@2
   displayName: Build bxl.exe and deploy to Dev
   inputs:
-    script: 'bxl.cmd -deploy Dev -deployconfig Release -minimal /p:[Sdk.BuildXL]microsoftInternal=0 /p:MSVC_VERSION=14.20.27508 /server- /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /ado /scrubDirectory:Out\objects /logsDirectory:$(Build.SourcesDirectory)\Out\Logs\DeployDev'
+    script: 'bxl.cmd -deploy Dev -deployconfig Release -minimal /p:[Sdk.BuildXL]microsoftInternal=0 /p:MSVC_VERSION=14.20.27508 /server- /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=${{parameters.PreReleaseTag}} /logOutput:FullOutputOnWarningOrError /ado /scrubDirectory:Out\objects /logsDirectory:$(Build.SourcesDirectory)\Out\Logs\DeployDev'
 
 - task: CmdLine@2
   displayName: Build full repo using Dev
   inputs:
     # MSVC_VERSION corresponds to whatever version is installed on the agent running this job
     # maxMaterialize increased to speed up local cache replay
-    script: 'bxl.cmd -use Dev /p:[Sdk.BuildXL]microsoftInternal=0 /p:MSVC_VERSION=14.20.27508 /server- /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /q:Release /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /p:xunitSemaphoreCount=20 /logsDirectory:$(Build.SourcesDirectory)\Out\Logs\UseDev /scrubDirectory:Out\objects /maxMaterialize:64'
+    script: 'bxl.cmd -use Dev /p:[Sdk.BuildXL]microsoftInternal=0 /p:MSVC_VERSION=14.20.27508 /server- /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=${{parameters.PreReleaseTag}} /q:Release /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /p:xunitSemaphoreCount=20 /logsDirectory:$(Build.SourcesDirectory)\Out\Logs\UseDev /scrubDirectory:Out\objects /maxMaterialize:64'
 
 - task: CmdLine@2
   displayName: Clean up junction that breaks ADO cache

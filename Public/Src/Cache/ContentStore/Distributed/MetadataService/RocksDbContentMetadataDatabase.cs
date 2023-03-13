@@ -232,10 +232,50 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return result;
         }
 
-        private MergeOperator MergeContentMergeOperator { get; } = MergeOperators.CreateAssociative(
-                        "MergeContent",
-                        merge: RocksDbOperations.MergeLocations,
-                        transformSingle: RocksDbOperations.ProcessSingleLocationEntry);
+        private MergeOperator CreateMergeContentOperator(OperationContext context)
+        {
+            return MergeOperators.CreateAssociative(
+                "MergeContent",
+                merge: (key, value1, value2, result) => MergeLocations(context, key, value1, value2, result),
+                transformSingle: (key, value, result) => MergeSingleLocation(context, key, value, result));
+        }
+
+        private bool MergeLocations(OperationContext context, ReadOnlySpan<byte> key, ReadOnlySpan<byte> value1, ReadOnlySpan<byte> value2, MergeResult result)
+        {
+            using var c = Counters[ContentLocationDatabaseCounters.MergeMultipleLocations].Start();
+
+            try
+            {
+                RocksDbOperations.MergeLocations(key, value1, value2, result);
+            }
+            catch (Exception e)
+            {
+                var errorResult = new ErrorResult(e);
+                errorResult.MakeCritical();
+                Tracer.OperationFinished(context, errorResult, c.Elapsed, message: $"Failed merging multiple locations. key.Length={key.Length}, value1.Length={value1.Length}, value2.Length={value2.Length}");
+            }
+
+            return true;
+        }
+
+        private bool MergeSingleLocation(OperationContext context, ReadOnlySpan<byte> key, ReadOnlySpan<byte> value, MergeResult result)
+        {
+            using var c = Counters[ContentLocationDatabaseCounters.MergeSingleLocation].Start();
+
+            try
+            {
+                RocksDbOperations.ProcessSingleLocationEntry(key, value, result);
+            }
+            catch (Exception e)
+            {
+                var errorResult = new ErrorResult(e);
+                errorResult.MakeCritical();
+                Tracer.OperationFinished(context, errorResult, c.Elapsed, message: $"Failed merging a single location. key.Length={key.Length}, value.Length={value.Length}");
+            }
+
+            return true;
+        }
+
 
         private bool IsStoredEpochInvalid([NotNullWhen(true)] out string? epoch)
         {
@@ -243,20 +283,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return _configuration.Epoch != epoch;
         }
 
-        private Dictionary<string, MergeOperator> GetMergeOperators()
+        private Dictionary<string, MergeOperator> GetMergeOperators(OperationContext operationContext)
         {
             IEnumerable<(Columns column, MergeOperator merger)> enumerate()
             {
+                var mergeOperator = CreateMergeContentOperator(operationContext);
                 yield return
                 (
                     Columns.MergeContent,
-                    MergeContentMergeOperator
+                    mergeOperator
                 );
 
                 yield return
                 (
                     Columns.SstMergeContent,
-                    MergeContentMergeOperator
+                    mergeOperator
                 );
             }
 
@@ -295,7 +336,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                                    Compression = Compression.Zstd,
                                    UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = true,
                                    UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = true,
-                                   MergeOperators = GetMergeOperators()
+                                   MergeOperators = GetMergeOperators(context)
                                };
 
                 RocksDbUtilities.ConfigureRocksDbTracingIfNeeded(context, _configuration, settings, Tracer, componentName: nameof(RocksDbContentMetadataDatabase));

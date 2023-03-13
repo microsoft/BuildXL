@@ -168,5 +168,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         MergeRemove,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        MergeSingleLocation,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        MergeMultipleLocations,
     }
 }

@@ -163,7 +163,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// </summary>
         public static bool MergeLocations(ReadOnlySpan<byte> key, ReadOnlySpan<byte> value1, ReadOnlySpan<byte> value2, MergeResult result)
         {
-            result.ValueBuffer.Resize(value1.Length + value2.Length);
+            // Increasing a target size just in case we need more space during merge.
+            result.ValueBuffer.Resize((value1.Length + value2.Length) * 2);
             SpanWriter mergedValue = result.ValueBuffer.Value;
 
             // Full merge excludes removes since it is guaranteed that there are no prior entries to merge

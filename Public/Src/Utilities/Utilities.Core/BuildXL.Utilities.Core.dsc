@@ -8,7 +8,7 @@ namespace Utilities.Core {
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
         addNotNullAttributeFile: true,
-        addCallerArgumentExpressionAttribute: false,
+        addPolySharpAttributes: false,
         references: [
             // IMPORTANT!!! Do not add non-bxl dependencies or any bxl projects with external dependencies into this project
             //              any non-bxl dependencies should go to BuildXL.Utilities instead

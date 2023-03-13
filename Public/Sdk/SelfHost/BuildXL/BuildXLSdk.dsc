@@ -474,6 +474,7 @@ export const polySharpAttributes = {
 
     // Needed for pre .net 7
     required: f`${compilerServices}/RequiredAttribute.cs`,
+    setsRequiredMembers: f`${codeAnalysis}/SetsRequiredMembersAttribute.cs`,
     compilerFeatureRequired: f`${compilerServices}/CompilerFeatureRequiredAttribute.cs`,
     stringSyntax: f`${codeAnalysis}/StringSyntaxAttribute.cs`
 };
@@ -856,7 +857,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     // Adding attributes required for pre .net6
     if (!isDotNetCore) {
         // Adding 'CallerArgumentExpressionAttribute' unless specified not to.
-        if (args.addCallerArgumentExpressionAttribute !== false) {
+        if (args.addPolySharpAttributes !== false) {
             polySharpAttributeFiles = polySharpAttributeFiles.push(polySharpAttributes.callerArgumentExpression);
         }
 
@@ -864,19 +865,21 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             polySharpAttributeFiles = polySharpAttributeFiles.push(polySharpAttributes.stackTraceHidden);
         }
 
-        // New interpolated string attributes.
-        polySharpAttributeFiles = polySharpAttributeFiles.concat([
-            polySharpAttributes.interpolatedStringHandlerArgument,
-            polySharpAttributes.interpolatedStringHandler,
-            polySharpAttributes.isExternalInit,
-            polySharpAttributes.skipLocalInit,
-            polySharpAttributes.moduleInitializer]);
+        if (args.addPolySharpAttributes !== false) {
+            // New interpolated string attributes.
+            polySharpAttributeFiles = polySharpAttributeFiles.concat([
+                polySharpAttributes.interpolatedStringHandlerArgument,
+                polySharpAttributes.interpolatedStringHandler,
+                polySharpAttributes.isExternalInit,
+                polySharpAttributes.skipLocalInit,
+                polySharpAttributes.moduleInitializer]);
+        }
     }
 
     // Required members is needed for non .net7 target frameworks.
     // Uncomment once the .net7 PR is in.
-    if (qualifier.targetFramework !== "net7.0") {
-        polySharpAttributeFiles = polySharpAttributeFiles.concat([polySharpAttributes.required, polySharpAttributes.compilerFeatureRequired, polySharpAttributes.stringSyntax]);
+    if (qualifier.targetFramework !== "net7.0" && args.addPolySharpAttributes !== false) {
+        polySharpAttributeFiles = polySharpAttributeFiles.concat([polySharpAttributes.required, polySharpAttributes.setsRequiredMembers, polySharpAttributes.compilerFeatureRequired, polySharpAttributes.stringSyntax]);
     }
 
     args = args.merge({sources: polySharpAttributeFiles});

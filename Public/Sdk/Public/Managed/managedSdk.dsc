@@ -477,10 +477,11 @@ export interface Arguments {
      */
     addNotNullAttributeFile?: boolean;
 
-    /*
-    * If false then the file with 'CallerArgumentExpressionAttribute.cs' won't be added to the project.
-    */
-    addCallerArgumentExpressionAttribute?: boolean;
+    /**
+     * If false then the attributes like 'CallerArgumentExpressionAttribute', 'SetsRequiredMembersAttribute' and others won't be added to the project.
+     * This is needed when a project depends on another project with InternalsVisibleTo attribute.
+     */
+    addPolySharpAttributes?: boolean;
 
     /*
     * If true then the file with 'StackTraceHiddenAttribute.cs' will be added to the project that allows hiding a stack trace from a string representation of a stacktrace.

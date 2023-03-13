@@ -8,7 +8,7 @@ export const dll = BuildXLSdk.library({
     assemblyName: "BuildXL.Pips",
     generateLogs: true,
     sources: globR(d`.`, "*.cs"),
-    addCallerArgumentExpressionAttribute: false,
+    addPolySharpAttributes: false,
     embeddedResources: [
         {
             resX: f`Filter/ErrorMessages.resx`

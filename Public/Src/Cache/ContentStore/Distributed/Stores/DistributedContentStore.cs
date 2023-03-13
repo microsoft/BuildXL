@@ -425,7 +425,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         }
                     }
 
-                    return new ProactiveReplicationResult(succeeded, failed, skipped, rejected, localContent.Length, scanned, lastVisited);
+                    return new ProactiveReplicationResult
+                           {
+                               SuccessCount = succeeded,
+                               FailCount = failed,
+                               SkippedCount = skipped,
+                               RejectedCount = rejected,
+                               TotalLocalContent = localContent.Length,
+                               TotalContentScanned = scanned,
+                               LastVisited = lastVisited,
+                           };
                 },
                 counter: CounterCollection[Counters.ProactiveReplication]);
         }

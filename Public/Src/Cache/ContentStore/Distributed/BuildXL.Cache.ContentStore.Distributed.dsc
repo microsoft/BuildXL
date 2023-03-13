@@ -27,6 +27,7 @@ namespace Distributed {
         assemblyName: "BuildXL.Cache.ContentStore.Distributed",
         sources: globR(d`.`,"*.cs"),
         allowUnsafeBlocks: true,
+        addPolySharpAttributes: false,
         references: [
             ...eventHubPackages,
             // Intentionally using different Azure storage package

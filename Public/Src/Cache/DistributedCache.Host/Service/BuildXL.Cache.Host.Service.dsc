@@ -9,6 +9,7 @@ namespace Service {
         assemblyName: "BuildXL.Cache.Host.Service",
         sources: globR(d`.`, "*.cs"),
         skipDocumentationGeneration: true,
+        addPolySharpAttributes: true,
         references: [
             Configuration.dll,
             ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),

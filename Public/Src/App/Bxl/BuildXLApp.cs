@@ -2542,20 +2542,18 @@ namespace BuildXL
                 var elapsedTimesByTelemetryTag = schedulerInfo.ProcessPipCountersByTelemetryTag.GetElapsedTimes(PipCountersByGroup.ExecuteProcessDuration);
 
                 // TelemetryTag counters get incremented when a pip is cancelled due to ctrl-c or resource exhaustion. Make sure to include the total
-                // cancelled time in the denomenator when calculating the time percentage
+                // cancelled time in the denominator when calculating the time percentage.
+                // 
+                // Note: Pips may have more than one telemetry tag. So we don't expect adding each percentage up to equal 100%. Because of this
+                // we don't have an "Other" category at the end
                 var executeAndCancelledExecuteDuration = schedulerInfo.ExecuteProcessDurationMs + schedulerInfo.CanceledProcessExecuteDurationMs;
 
-                int percentagesTotal = 0;
                 telemetryTagPerformanceSummary = string.Join(Environment.NewLine, elapsedTimesByTelemetryTag.OrderByDescending(tag => tag.Value.Ticks).Select(
                     elapedTime =>
                     {
                         var computedPercentages = ComputeTimePercentage((long)elapedTime.Value.TotalMilliseconds, executeAndCancelledExecuteDuration);
-                        percentagesTotal += computedPercentages.Item1;
                         return string.Format("{0,-12}{1,-39}{2}%", string.Empty, elapedTime.Key, computedPercentages.Item1);
                     }));
-
-                // Humans are picky about percentages adding up neatly to 100%. Make sure other accounts for any rounding slop
-                telemetryTagPerformanceSummary += string.Format("{0}{1,-12}{2,-39}{3}%{0}", Environment.NewLine, string.Empty, "Other:", 100 - percentagesTotal);
             }
 
             return telemetryTagPerformanceSummary;

@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
@@ -738,7 +737,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void OpenReadOnlyFileForWriteThrows()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))

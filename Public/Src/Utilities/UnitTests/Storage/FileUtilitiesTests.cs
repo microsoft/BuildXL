@@ -236,7 +236,7 @@ namespace Test.BuildXL.Storage
         /// This test checks the error handling scope of CreateDirectory when one of the parent directories is a dangling symlink.
         /// Checks if the BuildXLException has been thrown when directory creation has failed.
         /// </summary>
-        [FactIfSupported(requiresSymlinkPermission: true, requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresSymlinkPermission: true, requiresAdmin: true)]
         public void CreateDirectoryWithDanglingIntermediateSymlinkTest()
         {
             // create root directory 'a'

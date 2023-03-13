@@ -97,7 +97,7 @@ namespace BuildXL.Cache.Tests
         // Some tests for read-only cache construction
         // One with asking for read-only and one with getting read-only due to
         // not being able to write to the marker file.
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public async Task CacheAutoReadOnly()
         {
             string testName = "CacheAutoReadOnly";

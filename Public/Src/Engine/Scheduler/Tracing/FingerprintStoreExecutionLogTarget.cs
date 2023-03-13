@@ -788,14 +788,24 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private string JsonSerialize(Process pip)
         {
-            using (Counters.StartStopwatch(FingerprintStoreCounters.JsonSerializationWeakFingerprintTime))
+            try
             {
-                return JsonSerializeHelper((writer) =>
+                using (Counters.StartStopwatch(FingerprintStoreCounters.JsonSerializationWeakFingerprintTime))
                 {
-                    // Use same logic as fingerprint computation
-                    PipContentFingerprinter.AddWeakFingerprint(writer, pip);
-                },
-                pathExpander: PipContentFingerprinter.PathExpander);
+                    return JsonSerializeHelper((writer) =>
+                    {
+                        // Use same logic as fingerprint computation
+                        PipContentFingerprinter.AddWeakFingerprint(writer, pip);
+                    },
+                    pathExpander: PipContentFingerprinter.PathExpander);
+                }
+            }
+            catch (OutOfMemoryException)
+            {
+                // In extreme cases, a pip's definition has been so large it could not be serialized. Log a warning and
+                // allow the build to continue
+                Logger.Log.FingerprintStoreWarning(LoggingContext, $"Failed to serialize FingerprintStore entry for pip {pip.FormattedSemiStableHash}. Ran out of memory");
+                return string.Empty;
             }
         }
 

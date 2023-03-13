@@ -3546,6 +3546,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void GettingFingerprintStoreTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
+            (int)LogEventId.FingerprintStoreWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
+            Message = "{message}")]
+        public abstract void FingerprintStoreWarning(LoggingContext context, string message);
+
+        [GeneratedEvent(
             (int)LogEventId.FingerprintStoreDirectoryDeletionFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

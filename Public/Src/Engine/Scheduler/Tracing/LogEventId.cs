@@ -448,6 +448,7 @@ namespace BuildXL.Scheduler.Tracing
         FingerprintStoreToCompareTrace = 13302,
         SuccessLoadFingerprintStoreToCompare = 13303,
         FingerprintStoreDirectoryDeletionFailed = 13304,
+        FingerprintStoreWarning = 13305,
 
         LowRamMemory = 14007,
         LowCommitMemory = 14014,

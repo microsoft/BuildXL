@@ -1554,8 +1554,10 @@ namespace BuildXL.Scheduler
                     else
                     {
                         // The Pip itself did not fail, but we are marking it as a failure because we could not handle the post processing.
+                        // If a build is terminating, we do not wait for post processing to finish (i.e., the operation is aborted and
+                        // content is not stored to cache).
                         Contract.Assume(
-                            operationContext.LoggingContext.ErrorWasLogged,
+                            operationContext.LoggingContext.ErrorWasLogged || environment.Context.CancellationToken.IsCancellationRequested,
                             "Error should have been logged for StoreContentForProcessAndCreateCacheEntry() failure");
                     }
                 }

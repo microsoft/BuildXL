@@ -1761,35 +1761,33 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             {
                 return new Failure<string>(I($"File '{incrementalSchedulingStatePath}' not found"));
             }
-
-            using (FileStream stream = FileUtilities.CreateFileStream(
-                incrementalSchedulingStatePath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read | FileShare.Delete,
-                // Ok to evict the file from standby since the file will be overwritten and never reread from disk after this point.
-                FileOptions.SequentialScan))
+            try
             {
-                try
+                using (FileStream stream = FileUtilities.CreateFileStream(
+                    incrementalSchedulingStatePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read | FileShare.Delete,
+                    // Ok to evict the file from standby since the file will be overwritten and never reread from disk after this point.
+                    FileOptions.SequentialScan))
                 {
                     Analysis.IgnoreResult(s_fileEnvelope.ReadHeader(stream));
-                }
-                catch (BuildXLException ex)
-                {
-                    return new Failure<string>(ex.Message);
-                }
-
-                try
-                {
-                    using (var reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true))
+                    try
                     {
-                        load(reader);
+                        using (var reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true))
+                        {
+                            load(reader);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return new Failure<string>(ex.GetLogEventMessage());
                     }
                 }
-                catch (Exception ex)
-                {
-                    return new Failure<string>(ex.GetLogEventMessage());
-                }
+            }
+            catch (BuildXLException ex)
+            {
+                return new Failure<string>(ex.Message);
             }
 
             return Unit.Void;

@@ -309,7 +309,7 @@ namespace BuildXL.Processes
                     string path = parts[7];
 
                     // ignore accesses to libDetours.so, because we injected that library
-                    if (path == DetoursLibFile)
+                    if (path == s_detoursLibFile)
                     {
                         return;
                     }
@@ -448,6 +448,20 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public bool IsInTestMode { get; }
 
+        /// <summary>
+        /// Path to the ptracedaemon
+        /// </summary>
+        public static readonly string PTraceDaemonFile = SandboxedProcessUnix.EnsureDeploymentFile("ptracedaemon");
+        /// <summary>
+        /// Path to the ptracerunner
+        /// </summary>
+        public static readonly string PTraceRunnerFile = SandboxedProcessUnix.EnsureDeploymentFile("ptracerunner");
+
+        /// <summary>
+        /// Message queue name used for communication with the ptrace daemon process
+        /// </summary>
+        public static readonly string LinuxSandboxPTraceMqName = "/BUILDXLPTRACEMQ";
+
         private static readonly string s_buildXLBin = Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetLocation());
 
         private readonly ConcurrentDictionary<long, Info> m_pipProcesses = new ConcurrentDictionary<long, Info>();
@@ -487,16 +501,16 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private static readonly string DetoursLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libDetours.so");
-        private static readonly string AuditLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libBxlAudit.so");
+        private static readonly string s_detoursLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libDetours.so");
+        private static readonly string s_auditLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libBxlAudit.so");
 
         /// <inheritdoc />
         public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
-            var detoursLibPath = info.RootJailInfo.CopyToRootJailIfNeeded(DetoursLibFile);
+            var detoursLibPath = info.RootJailInfo.CopyToRootJailIfNeeded(s_detoursLibFile);
             (string fifoPath, string famPath) = GetPaths(info.RootJailInfo, uniqueName);
 
-            yield return ("__BUILDXL_ROOT_PID", "1"); // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.hpp (temp solution for breakaway processes)
+            yield return ("__BUILDXL_ROOT_PID", "1"); // CODESYNC: Public/Src/Sandbox/Linux/common.h (temp solution for breakaway processes)
             yield return ("__BUILDXL_FAM_PATH", info.RootJailInfo.ToPathInsideRootJail(famPath));
             yield return ("__BUILDXL_DETOURS_PATH", detoursLibPath);
 
@@ -513,8 +527,12 @@ namespace BuildXL.Processes
             // on e2e builds when LD_AUDIT is on).
             if (info.RootJailInfo?.DisableAuditing == false)
             {
-                yield return ("LD_AUDIT", info.RootJailInfo.CopyToRootJailIfNeeded(AuditLibFile) + ":" + info.EnvironmentVariables.TryGetValue("LD_AUDIT", string.Empty));
+                yield return ("LD_AUDIT", info.RootJailInfo.CopyToRootJailIfNeeded(s_auditLibFile) + ":" + info.EnvironmentVariables.TryGetValue("LD_AUDIT", string.Empty));
             }
+
+            // CODESYNC: Public/Src/Engine/Scheduler/PTraceDaemon.cs
+            yield return ("__BUILDXL_PTRACE_MQ_NAME", LinuxSandboxPTraceMqName);
+            yield return ("__BUILDXL_PTRACE_RUNNER_PATH", info.RootJailInfo.CopyToRootJailIfNeeded(PTraceRunnerFile));
         }
 
         private (string fifo, string fam) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)

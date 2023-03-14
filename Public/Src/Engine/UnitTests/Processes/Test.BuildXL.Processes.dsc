@@ -51,6 +51,7 @@ namespace Processes {
             Scheduler.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Collections.dll,

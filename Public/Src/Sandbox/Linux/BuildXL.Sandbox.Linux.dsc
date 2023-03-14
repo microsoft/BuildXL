@@ -31,6 +31,8 @@ namespace Sandbox {
     const bxlEnvSrc  = [ f`bxl-env.c` ];
     const auditSrc   = [ f`bxl_observer.cpp`, f`audit.cpp`, f`observer_utilities.cpp` ];
     const detoursSrc = [ f`bxl_observer.cpp`, f`detours.cpp`, f`PTraceSandbox.cpp`, f`observer_utilities.cpp` ];
+    const ptraceRunnerSrc = [ f`ptracerunner.cpp`, f`bxl_observer.cpp`, f`PTraceSandbox.cpp`, f`observer_utilities.cpp` ];
+    const ptraceDaemonSrc = [ f`ptracedaemon.cpp` ];
     const incDirs    = [
         d`./`,
         d`../MacOs/Interop/Sandbox`,
@@ -48,6 +50,8 @@ namespace Sandbox {
     export const bxlEnvObj  = bxlEnvSrc.map(compile);
     export const auditObj   = auditSrc.map(compile);
     export const detoursObj = detoursSrc.map(f => _compile(f, [ "ENABLE_INTERPOSING" ]));
+    export const ptraceRunnerObj = ptraceRunnerSrc.map(f => _compile(f, [ "ENABLE_INTERPOSING" ]));
+    export const ptraceDaemonObj = ptraceDaemonSrc.map(compile);
 
     @@public
     export const libBxlUtils = link(a`libBxlUtils.so`, gccTool, utilsObj, []);
@@ -56,7 +60,11 @@ namespace Sandbox {
     @@public
     export const libBxlAudit = link(a`libBxlAudit.so`, gxxTool, [...commonObj, ...utilsObj, ...auditObj], [ "dl" ]);
     @@public
-    export const libDetours  = link(a`libDetours.so`, gxxTool, [...commonObj, ...utilsObj, ...detoursObj], [ "dl", "pthread" ]);
+    export const libDetours  = link(a`libDetours.so`, gxxTool, [...commonObj, ...utilsObj, ...detoursObj], [ "dl", "pthread", "rt" ]);
+    @@public
+    export const ptraceDaemon = link(a`ptracedaemon`, gxxTool, [...ptraceDaemonObj], [ "rt" ]);
+    @@public
+    export const ptraceRunner = link(a`ptracerunner`, gxxTool, [...commonObj, ...utilsObj, ...ptraceRunnerObj], [ "dl", "rt" ]);
 
     function compile(srcFile: File) { return _compile(srcFile, []); }
     function _compile(srcFile: File, defines: string[]): DerivedFile {

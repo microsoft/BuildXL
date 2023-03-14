@@ -175,34 +175,29 @@ INTERPOSE(int, clone, int (*fn)(void *), void *child_stack, int flags, void *arg
     return result.restore();
 })
 
-static int handle_exec_with_ptrace(int fd, char *const argv[], char *const envp[], BxlObserver *bxl)
-{
-    // fdtable will not longer be valid because the process will be forked for ptrace
-    bxl->reset_fd_table();
-
-    // Before we enable the ptrace sandbox, make sure we disable the interposed sandbox
-    // This shouldn't make a difference for real builds (we are enabling the ptrace sanxbo because
-    // we are about to run a statically linked process, and therefore libc is not there) but for tests
-    // we may use the ptrace sandbox even for dynamically linked processes.
-    envp = bxl->RemoveLDPreloadFromEnv(envp);
-
-    PTraceSandbox ptraceSandbox(bxl);
-    return ptraceSandbox.ExecuteWithPTraceSandbox("", fd, argv, envp);
-}
-
 static int handle_exec_with_ptrace(const char *file, char *const argv[], char *const envp[], BxlObserver *bxl)
 {
     // fdtable will not longer be valid because the process will be forked for ptrace
     bxl->reset_fd_table();
     
     // Before we enable the ptrace sandbox, make sure we disable the interposed sandbox
-    // This shouldn't make a difference for real builds (we are enabling the ptrace sanxbo because
+    // This shouldn't make a difference for real builds (we are enabling the ptrace sandbox because
     // we are about to run a statically linked process, and therefore libc is not there) but for tests
     // we may use the ptrace sandbox even for dynamically linked processes.
     envp = bxl->RemoveLDPreloadFromEnv(envp);
 
     PTraceSandbox ptraceSandbox(bxl);
-    return ptraceSandbox.ExecuteWithPTraceSandbox(file, -1, argv, envp);
+    auto result = ptraceSandbox.ExecuteWithPTraceSandbox(file, argv, envp, bxl->getPTraceMqName(), bxl->getFamPath());
+
+    bxl->report_exec("execve", argv[0], file, /* error */ errno);
+
+    return result;
+}
+
+static int handle_exec_with_ptrace(int fd, char *const argv[], char *const envp[], BxlObserver *bxl)
+{
+    auto resolvedPath = bxl->fd_to_path(fd).c_str();
+    handle_exec_with_ptrace(resolvedPath, argv, envp, bxl);
 }
 
 INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({

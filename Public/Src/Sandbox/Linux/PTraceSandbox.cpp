@@ -5,6 +5,7 @@
 #include "PTraceSandbox.hpp"
 #include <linux/filter.h>
 #include <linux/seccomp.h>
+#include <mqueue.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/reg.h>
@@ -46,50 +47,11 @@ PTraceSandbox::~PTraceSandbox()
 {
 }
 
-int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, int fd, char *const argv[], char *const envp[])
+int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, char *const argv[], char *const envp[], const char *mq, const char *fam)
 {
-    // If an fd was provided, we need to translate it here first because the child won't be able to
-    // exec directly on the fd from a different process
-    auto resolvedPath = fd == -1 ? file : m_bxl->fd_to_path(fd).c_str();
-
-    // Using ptrace requires a separate process
-    // The forked child process will continue to do the exec, while the parent process will become the tracee
-    // The child process will register itself as the tracee by using PTRACE_TRACEME
-    // The parent process will pause until it is invoked by the tracee by using waitpid
-    m_traceePid = m_bxl->real_fork();
-
-    // a return value of 0 from fork() indicates that this is the child process
-    if (m_traceePid == 0)
-    {
-        ChildProcess(resolvedPath, argv, envp);
-
-        BXL_LOG_DEBUG(m_bxl, "[PTrace] Failed to start tracee '%s' with error %d: '%s'", resolvedPath, errno, strerror(errno));
-
-        // Child process failed
-        m_bxl->real__exit(errno);
-    }
-    else
-    {
-        // The bxl_observer FD table doesn't make sense for ptrace because the tracer can have multiple tracees
-        // TODO: [pgunasekara] Re-implement the fd table inside the ptrace sandbox to have a set of per process fd tables
-        m_bxl->disable_fd_table();
-
-        m_traceeTable.push_back(std::make_tuple(m_traceePid, getppid(), resolvedPath));
-
-        auto status = ParentProcess();
-
-        // Since the process called exec, once the forked process exits the main process can exit as well
-        // The exit of the child should have already been reported, so we can directly call _exit here
-        // Since this is the parent process theres nothing to report when exiting here.
-        m_bxl->real__exit(status);
-    }
-
-    // We should never hit this unless the fork call failed for some reason
-    return -1;
-}
-
-int PTraceSandbox::ChildProcess(const char *file, char *const argv[], char *const envp[])
-{
+    // Allow this process to be traced by the daemon process
+    prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
+    
     // Filter for the syscalls that BXL is interested in tracing
     // Only the syscalls in here will be signalled to the main process by seccomp
     // List of available syscalls to ptrace: https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl
@@ -157,33 +119,63 @@ int PTraceSandbox::ChildProcess(const char *file, char *const argv[], char *cons
         .filter = filter,
     };
 
-    // Indicate to ptrace that this child process is the tracee
-    ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-
     // This prctl call prevents the child process from having a higher privilege than its parent
     // It is necessary to make the next PR_SET_SECCOMP call work (or else the parent process would need to run as root)
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
+        BXL_LOG_DEBUG(m_bxl, "prctl(PR_SET_NO_NEW_PRIVS) failed %d\n", 1);
         m_bxl->real_printf("prctl(PR_SET_NO_NEW_PRIVS) failed\n");
         m_bxl->real__exit(1);
     }
 
     // Sets the seccomp filter
     if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == -1) {
+        BXL_LOG_DEBUG(m_bxl, "PR_SET_SECCOMP with SECCOMP_MODE_FILTER failed %d\n", 1);
         m_bxl->real_printf("PR_SET_SECCOMP with SECCOMP_MODE_FILTER failed\n");
         m_bxl->real__exit(1);
     }
 
-    // Send the initial SIGSTOP signal so that the parent process is unblocked on waitpid to set the PTRACE_O_TRACESECCOMP option
-    kill(getpid(), SIGSTOP);
+    // Send message to ptrace daemon to start tracing this process
+    char buffer[PTRACED_MQ_MSG_SIZE];
+    mqd_t mqdes = mq_open(mq, O_WRONLY);
+
+    // null termination not necessary here, messages are sent based on the provided length
+    auto size = snprintf(
+        buffer,
+        PTRACED_MQ_MSG_SIZE,
+        "%d|%d|%d|%s|%s", run, getpid(), getppid(), file, fam
+    );
+
+    auto res = mq_send(mqdes, buffer, size, /* msg_prio */ 0);
+    mq_close(mqdes);
+
+    if (res == -1)
+    {
+        // Failed to send a message to start the tracer, write to stderr to allow the user to know why the process died
+        m_bxl->real_fprintf(stderr, "[BuildXL] Failed to send request to ptrace daemon with error: '%s'\n", strerror(errno));
+        _exit(-1);
+    }
+
+    // Sleep here to allow for the tracer to attach
+    sleep(2);
 
     // Finally perform the exec syscall, this call to exec along with the syscalls from the child process should be filtered and reported to the tracer by seccomp
     return m_bxl->real_execvpe(file, argv, envp);
 }
 
-int PTraceSandbox::ParentProcess()
+void PTraceSandbox::AttachToProcess(pid_t traceePid, pid_t parentPid, std::string exe, std::string mq)
 {
-    BXL_LOG_DEBUG(m_bxl, "[PTrace] Starting trace for PID %d", m_traceePid);
+    BXL_LOG_DEBUG(m_bxl, "[PTrace] Starting tracer PID '%d' to trace PID '%d'", getpid(), traceePid);
+
     int status;
+    if (ptrace(PTRACE_ATTACH, traceePid, 0L, 0L) == -1)
+    {
+        BXL_LOG_DEBUG(m_bxl, "[PTrace] PTRACE_ATTACH failed with error: '%s'", strerror(errno));
+        _exit(-1);
+    }
+
+    m_traceePid = traceePid;
+    m_traceeTable.push_back(std::make_tuple(traceePid, parentPid, exe));
+    m_bxl->disable_fd_table();
 
     // Wait for initial SIGSTOP from child
     waitpid(m_traceePid, &status, 0);
@@ -191,11 +183,15 @@ int PTraceSandbox::ParentProcess()
     // PTRACE_O_TRACESECCOMP: Enables ptrace events from seccomp on the child
     // PTRACE_O_TRACECLONE/FORK/VFORK: Ptrace will signal on clone/fork/vfork before the syscall returns back to the caller
     // PTRACE_O_TRACEEXIT: ptrace will signal before exit() returns back to the caller.
-    ptrace(
+    if(ptrace(
         PTRACE_SETOPTIONS,
         m_traceePid,
-        0,
-        PTRACE_O_TRACESECCOMP | PTRACE_O_TRACECLONE | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEEXIT);
+        NULL,
+        PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACESECCOMP | PTRACE_O_TRACECLONE | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEEXIT) == -1)
+    {
+        BXL_LOG_DEBUG(m_bxl, "[PTrace] PTRACE_SETOPTIONS failed with error: '%s'", strerror(errno));
+        _exit(-1);
+    }
 
     // Resume child
     ptrace(PTRACE_SYSCALL, m_traceePid, 0, 0);
@@ -279,13 +275,19 @@ int PTraceSandbox::ParentProcess()
         }
         else
         {
-            BXL_LOG_DEBUG(m_bxl, "[PTrace] Tracee %d returned an unexpected status '%d'", m_traceePid, status);
-            // This shouldn't happen, but we'll continue here to avoid stalling the tracee
+            // We can ignore the ptrace-exit-stop for fork/vfork/clone/exit events here
             ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
         }
     }
 
-    return WEXITSTATUS(status);
+    // Send exit notification to daemon, this will have it collect our exit status
+    char buffer[PTRACED_MQ_MSG_SIZE];
+    mqd_t mqdes = mq_open(mq.c_str(), O_WRONLY);
+    auto size = snprintf(buffer, PTRACED_MQ_MSG_SIZE, "%d|%d", exitnotification, getpid());
+    auto mqres = mq_send(mqdes, buffer, size, /* msg_prio */ 0);
+    mq_close(mqdes);
+
+    BXL_LOG_DEBUG(m_bxl, "[PTrace] Exit notification result '%d', errno '%d'", mqres, errno);
 }
 
 bool PTraceSandbox::AllTraceesHaveExited()
@@ -523,8 +525,8 @@ void PTraceSandbox::HandleChildProcess(const char *syscall)
 
     // Resume the tracee and the tracees child
     // NOTE: We don't want to call PTRACE_CONT here because we want to receive future clone/fork/vfork notifications
-    ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
     ptrace(PTRACE_SYSCALL, newPid, NULL, NULL);
+    ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
 }
 
 HANDLER_FUNCTION(execveat)

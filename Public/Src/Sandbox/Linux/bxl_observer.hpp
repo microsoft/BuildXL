@@ -34,6 +34,7 @@
 #include "Sandbox.hpp"
 #include "SandboxedPip.hpp"
 #include "utils.h"
+#include "common.h"
 
 /*
  * This header is compiled into two different libraries: libDetours.so and libAudit.so.
@@ -70,11 +71,6 @@
 using namespace std;
 
 extern const char *__progname;
-
-// CODESYNC: Public/Src/Engine/Processes/SandboxConnectionLinuxDetours.cs
-#define BxlEnvFamPath "__BUILDXL_FAM_PATH"
-#define BxlEnvRootPid "__BUILDXL_ROOT_PID"
-#define BxlEnvDetoursPath "__BUILDXL_DETOURS_PATH"
 
 static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
 
@@ -218,6 +214,7 @@ private:
     char progFullPath_[PATH_MAX];
     char detoursLibFullPath_[PATH_MAX];
     char famPath_[PATH_MAX];
+    char ptraceMqName_[NAME_MAX];
 
     std::timed_mutex cacheMtx_;
     std::unordered_map<es_event_type_t, std::unordered_set<std::string>> cache_;
@@ -242,6 +239,7 @@ private:
 
     void InitFam();
     void InitDetoursLibPath();
+    void InitPTraceMq();
     bool Send(const char *buf, size_t bufsiz);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
     char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
@@ -381,6 +379,9 @@ public:
 
     // Enumerates a specified directory
     bool EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);
+
+    const char* getPTraceMqName();
+    const char* getFamPath();
     
     inline bool LogDebugEnabled()
     {

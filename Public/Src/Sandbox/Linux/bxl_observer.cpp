@@ -34,6 +34,8 @@ BxlObserver::BxlObserver()
 
     InitFam();
     InitDetoursLibPath();
+    // NOTE: this needs to be called after InitFam() because it relies on the flags from the file access manifest.
+    InitPTraceMq();
 }
 
 void BxlObserver::InitDetoursLibPath()
@@ -47,6 +49,17 @@ void BxlObserver::InitDetoursLibPath()
     {
         detoursLibFullPath_[0] = '\0';
     }
+}
+
+void BxlObserver::InitPTraceMq()
+{
+    const char *mqname = getenv(BxlPTraceMqName);
+    if (is_null_or_empty(mqname) && CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
+    {
+        _fatal("[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
+    }
+
+    strlcpy(ptraceMqName_, mqname, NAME_MAX);
 }
 
 void BxlObserver::InitFam()
@@ -1037,4 +1050,14 @@ bool BxlObserver::EnumerateDirectory(std::string rootDirectory, bool recursive, 
     }
 
     return true;
+}
+
+const char* BxlObserver::getPTraceMqName()
+{
+    return ptraceMqName_;
+}
+
+const char* BxlObserver::getFamPath()
+{
+    return famPath_;
 }

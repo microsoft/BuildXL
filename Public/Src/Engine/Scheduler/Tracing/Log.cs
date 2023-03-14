@@ -3972,6 +3972,25 @@ namespace BuildXL.Scheduler.Tracing
                     EventTask = (ushort)Tasks.Scheduler,
                     Message = "File creation time retrieval is not supported by the underlying operating system. Some optimizations will be disabled.")]
         internal abstract void CreationTimeNotSupported(LoggingContext loggingContext);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PTraceDaemonVerbose,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[PTraceDaemon] {content}")]
+        internal abstract void PTraceDaemonVerbose(LoggingContext loggingContext, string content);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PTraceDaemonError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[PTraceDaemon] {content}")]
+        internal abstract void PTraceDaemonError(LoggingContext loggingContext, string content);
+
     }
 }
 #pragma warning restore CA1823 // Unused field

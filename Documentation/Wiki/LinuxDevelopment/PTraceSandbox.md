@@ -1,6 +1,6 @@
 # Linux PTrace Sandbox
 
-Source code: `Public/Src/Sandbox/Linux/PTraceSandbox.[ch]pp`
+Source code: `Public/Src/Sandbox/Linux/PTraceSandbox.[ch]pp`, `Public/Src/Sandbox/Linux/ptracedaemon.cpp`, `Public/Src/Sandbox/Linux/ptracerunner.cpp`
 
 ## Background
 The ptrace based sandbox exists due the Linux function interpose based sandbox not being able to detect file accesses from binaries that statically link libc.
@@ -11,12 +11,17 @@ If statically linked, then the ptrace sandbox will be used, and the binary being
 The ptrace based sandbox works in the following way:
 1. Whenever exec is called, detect whether a binary that is being executed statically links libc by using objdump. This should always work because the BuildXL sandbox will execute the parent process through a bash script, and /bin/bash does not statically link libc.
 2. If the binary is statically linked, the `PTraceSandbox` class is used to run the binary with ptrace attached.
-3. The main process will be forked, the child process will execute the binary using exec, and the parent process will observe the child process.
-4. The child process will run `PTraceSandbox::ChildProcess` which will create a seccomp filter, set `PTRACE_TRACEME`, and finally execute the binary.
-5. The parent process will run `PTraceSandbox::ParentProcess`. This function will have the main loop which will pause the main process until it is signalled by the tracee.
+3. The tracer process will be spawned, while the main process will execute the binary using exec.
+4. The child process will run `PTraceSandbox::ExecuteWithPTraceSandbox` which will create a seccomp filter, set `prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY)` to allow it to be traced, and finally execute the binary.
+5. The tracer process will run `PTraceSandbox::AttachToProcess`. This function will have the main loop which will pause the main process until it is signalled by the tracee.
 6. When the tracer is invoked, the syscall number can be found by reading `ORIG_RAX`.
 7. Based on the syscall number, the appropriate handler function is invoked to report the access.
 8. Arguments can be read by reading the values of the stack on the appropriate registers. Get the address of the register using `PTraceSandbox::GetArgumentAddr`, and call `PTraceSandbox::ReadArgumentString` for a string argument or `PTraceSandbox::ReadArgumentLong` for an integer argument.
+
+## Daemon process
+- When a statically linked binary is detected, the executing process will send a message to the daemon process.
+- The daemon process will spawn a runner process which will become the tracer for the statically linked process.
+- When the statically linked process finishes execution and the tracer dies, the daemon will call waitpid on it to ensure that it does not turn into a zombie process.
 
 ## Notes
 ### Reading string arguments

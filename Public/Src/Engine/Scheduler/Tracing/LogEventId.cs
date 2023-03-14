@@ -517,7 +517,10 @@ namespace BuildXL.Scheduler.Tracing
         SchedulerCompleteExceptMaterializeOutputs = 14535,
         FailedToDeserializeLRUMap = 14536,
 
-        CreationTimeNotSupported = 14537
+        CreationTimeNotSupported = 14537,
+
+        PTraceDaemonVerbose = 14538,
+        PTraceDaemonError = 14539,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

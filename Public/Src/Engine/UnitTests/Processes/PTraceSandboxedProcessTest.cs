@@ -1,23 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Processes;
-using BuildXL.Utilities;
+using BuildXL.Scheduler;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
-using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using static BuildXL.Utilities.Core.FormattableStringEx;
 using FileUtilities = BuildXL.Native.IO.FileUtilities;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
@@ -29,12 +23,16 @@ namespace Test.BuildXL.Processes
     public sealed class PTraceSandboxedProcessTest : SandboxedProcessTestBase
     {
         private ITestOutputHelper TestOutput { get; }
+        private readonly PTraceDaemon m_pTraceDaemon;
 
         public PTraceSandboxedProcessTest(ITestOutputHelper output)
             : base(output)
         {
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             TestOutput = output;
+            // Since this test runs the sandbox on its own, it will also need to start the daemon process
+            m_pTraceDaemon = new PTraceDaemon(LoggingContext);
+            m_pTraceDaemon.Start();
         }
 
         [Fact]
@@ -108,9 +106,12 @@ namespace Test.BuildXL.Processes
                 .Where(i => (i.Operation == ReportedFileOperation.Process || i.Operation == ReportedFileOperation.ProcessExit) && i.GetPath(Context.PathTable) == staticProcessArtifact.Path.ToString(Context.PathTable))
                 .Select(i => $"{i.Operation}: '{i.GetPath(Context.PathTable)}'")
                 .ToList();
-            var expectedForkAndExitCount = 10;
+            var expectedForkAndExitCount = 9;
 
-            // We should get 10 here because we call fork 4 times (8 create/exit), and the main process will have one create and exit
+            // We should get 8 here because we call fork 4 times (8 create/exit), and the main process will have one create and exit
+            // Right now this number is 9 because the bxl observer layer will report the ptracerunner process as a process creation as well because it does not expect the tracing process to be external
+            // This will require more changes to the sandbox in upcoming changes to ensure that the sandbox only reports fork/clone/exit.
+            // TODO [pgunasekara]: Update the expected fork/exit count back to 8
             XAssert.IsTrue(forksAndExits.Count() == expectedForkAndExitCount, $"Mismatch in the number of process creations and exits. Expected {expectedForkAndExitCount}, got {forksAndExits.Count()}. Process creations and exits:\n{string.Join("\n", forksAndExits)}");
 
             XAssert.IsTrue(intersection.Count == expectedAccesses.Count, $"Ptrace sandbox did not report the following accesses: {string.Join("\n", expectedAccesses.Except(intersection).ToList())}");

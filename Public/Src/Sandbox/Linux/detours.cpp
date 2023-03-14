@@ -748,7 +748,8 @@ INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const 
         bool enumerateResult = bxl->EnumerateDirectory(oldStr, /*recursive*/true, filesAndDirectories);
         if (enumerateResult)
         {
-            accessesToReport.reserve(filesAndDirectories.size());
+            // reserve all the content for both source and destination
+            accessesToReport.reserve(filesAndDirectories.size() * 2);
 
             for (auto fileOrDirectory : filesAndDirectories)
             {
@@ -760,7 +761,7 @@ INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const 
                 // Access check for the destination file
                 fileOrDirectory.replace(0, oldStr.length(), newStr);
                 AccessReportGroup targetReport;
-                check = AccessCheckResult::Combine(check, CreateFileOpen(bxl, fileOrDirectory, O_CREAT, targetReport));
+                check = AccessCheckResult::Combine(check, CreateFileOpen(bxl, fileOrDirectory, O_CREAT | O_WRONLY, targetReport));
                 accessesToReport.emplace_back(targetReport);
 
                 // If access is denied to any of the files in the enumeration, we can break the loop right away here because check_and_fwd_renameat will also fail
@@ -785,7 +786,7 @@ INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const 
         check = bxl->create_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, oldStr.c_str(), sourceReport, /*mode*/0, O_NOFOLLOW);
         accessesToReport.emplace_back(sourceReport);
         AccessReportGroup destReport;
-        check = AccessCheckResult::Combine(check, CreateFileOpen(bxl, newStr, O_CREAT, destReport));
+        check = AccessCheckResult::Combine(check, CreateFileOpen(bxl, newStr, O_CREAT | O_WRONLY, destReport));
         accessesToReport.emplace_back(destReport);
     }
 

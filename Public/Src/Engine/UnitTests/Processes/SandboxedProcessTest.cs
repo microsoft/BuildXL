@@ -32,6 +32,7 @@ namespace Test.BuildXL.Processes
             : base(output)
         {
             TestOutput = output;
+            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
         }
 
         private sealed class MyListener : IDetoursEventListener
@@ -1299,6 +1300,69 @@ namespace Test.BuildXL.Processes
                     .ToList();
                 XAssert.SetEqual(accessesToTempFile, new[] { "touch" });
             }
+        }
+
+        [Fact]
+        public async Task TrackRenameFileAsync()
+        {
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.FailUnexpectedFileAccesses = false;
+
+            var source = CreateSourceFile();
+            // Create the artifact without the backing file
+            var dest = FileArtifact.CreateSourceFile(CreateUniqueSourcePath(SourceRootPrefix));
+
+
+            var info = ToProcessInfo(
+                ToProcess(new Operation[]
+                    {
+                        Operation.Rename(source, dest),
+                    }),
+                fileAccessManifest: fam);
+
+            var result = await RunProcess(info);
+
+            // We should get two writes, for source and destination
+            result.AllUnexpectedFileAccesses.Single(fa => fa.RequestedAccess.HasFlag(RequestedAccess.Write) && fa.GetPath(Context.PathTable) == source.Path.ToString(Context.PathTable));
+            result.AllUnexpectedFileAccesses.Single(fa => fa.RequestedAccess.HasFlag(RequestedAccess.Write) && fa.GetPath(Context.PathTable) == dest.Path.ToString(Context.PathTable));
+        }
+
+        [Fact]
+        public async Task TrackRenameDirectoryAsync()
+        {
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.FailUnexpectedFileAccesses = false;
+            fam.EnforceAccessPoliciesOnDirectoryCreation = true;
+
+            // Create two files under a directory
+            var sourceDir = CreateUniqueDirectory();
+            var nestedFileA = sourceDir.Combine(Context.PathTable, "fileA");
+            var nestedFileB = sourceDir.Combine(Context.PathTable, "fileB");
+            File.WriteAllText(nestedFileA.ToString(Context.PathTable), "fileA");
+            File.WriteAllText(nestedFileB.ToString(Context.PathTable), "fileB");
+
+            var dest = FileArtifact.CreateSourceFile(CreateUniqueSourcePath(SourceRootPrefix));
+
+            var info = ToProcessInfo(
+                ToProcess(new Operation[]
+                    {
+                        Operation.Rename(DirectoryArtifact.CreateWithZeroPartialSealId(sourceDir), dest),
+                    }),
+                fileAccessManifest: fam);
+
+            var result = await RunProcess(info);
+
+            // We should get writes for all sources, since they are being removed
+            result.AllUnexpectedFileAccesses.Single(fa => fa.RequestedAccess.HasFlag(RequestedAccess.Write) && fa.GetPath(Context.PathTable) == nestedFileA.ToString(Context.PathTable));
+            result.AllUnexpectedFileAccesses.Single(fa => fa.RequestedAccess.HasFlag(RequestedAccess.Write) && fa.GetPath(Context.PathTable) == nestedFileB.ToString(Context.PathTable));
+
+            // And we should also get writes for all the destination paths
+            var destA = dest.Path.Combine(Context.PathTable, nestedFileA.GetName(Context.PathTable));
+            var destB = dest.Path.Combine(Context.PathTable, nestedFileB.GetName(Context.PathTable));
+            result.AllUnexpectedFileAccesses.Single(fa => fa.RequestedAccess.HasFlag(RequestedAccess.Write) && fa.GetPath(Context.PathTable) == destA.ToString(Context.PathTable));
+            result.AllUnexpectedFileAccesses.Single(fa => fa.RequestedAccess.HasFlag(RequestedAccess.Write) && fa.GetPath(Context.PathTable) == destB.ToString(Context.PathTable));
         }
 
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]

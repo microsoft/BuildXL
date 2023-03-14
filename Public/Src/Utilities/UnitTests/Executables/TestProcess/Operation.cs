@@ -263,6 +263,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Does a chmod u+x on the given file
             /// </summary>
             SetExecutionPermissions,
+
+            /// <summary>
+            /// Renames a file or directory
+            /// </summary>
+            Rename,
         }
 
         /// <summary>
@@ -557,6 +562,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.SetExecutionPermissions:
                         DoSetExecutionPermissions();
+                        return;
+                    case Type.Rename:
+                        DoRename();
                         return;
                 }
             }
@@ -1031,6 +1039,14 @@ namespace Test.BuildXL.Executables.TestProcess
             return new Operation(Type.SetExecutionPermissions, path, doNotInfer: doNotInfer);
         }
 
+        /// <summary>
+        /// Renames a file or directory
+        /// </summary>
+        public static Operation Rename(FileOrDirectoryArtifact fileOrDirectorySource, FileOrDirectoryArtifact fileOrDirectoryDestination)
+        {
+            return new Operation(Type.Rename, path: fileOrDirectorySource, linkPath: fileOrDirectoryDestination);
+        }
+
         /*** FILESYSTEM OPERATION FUNCTIONS ***/
 
         private void DoCreateDir()
@@ -1284,6 +1300,20 @@ namespace Test.BuildXL.Executables.TestProcess
             }
         }
 
+        private void DoRename()
+        {
+            var source = PathAsString;
+            var destination = LinkPathAsString;
+
+            if ((File.GetAttributes(source) & FileAttributes.Directory) !=0)
+            {
+                Directory.Move(source, destination);
+            }
+            else
+            {
+                File.Move(source, destination);
+            }
+        }
 
         private string DoReadRequiredFile()
         {

@@ -1299,6 +1299,7 @@ namespace BuildXL.Scheduler
                             start); 
                     });
 
+            start = DateTime.UtcNow;
             processExecutionResult.ReportSandboxedExecutionResult(executionResult);
             LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseReportingExeResult, DateTime.UtcNow.Subtract(start));
 

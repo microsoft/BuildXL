@@ -2213,6 +2213,8 @@ namespace BuildXL.Scheduler
             {
                 PipExecutionStepCounters = m_pipExecutionStepCounters,
                 ExecuteProcessDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.ExecuteProcessDuration).TotalMilliseconds),
+                ProcessOutputsObservedInputValidationDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.ProcessOutputsObservedInputValidationDuration).TotalMilliseconds),
+                ProcessOutputsStoreContentForProcessAndCreateCacheEntryDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.ProcessOutputsStoreContentForProcessAndCreateCacheEntryDuration).TotalMilliseconds),
                 CanceledProcessExecuteDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.CanceledProcessExecuteDuration).TotalMilliseconds),
                 ProcessPipCacheHits = m_numProcessPipsSatisfiedFromCache,
                 ProcessPipIncrementalSchedulingPruned = m_numProcessesIncrementalSchedulingPruned,

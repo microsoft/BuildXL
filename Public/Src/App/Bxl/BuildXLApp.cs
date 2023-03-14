@@ -2395,8 +2395,13 @@ namespace BuildXL
                     }
                 }
 
-                // ExecuteProcessDuration comes from the PipExecutionCounters and is a bit tighter around the actual external
-                // process invocation than the corresponding counter in PipExecutionStepCounters;
+                // schedulerInfo.ExecuteProcessDuration comes from the PipExecutionsCounters and is very tight around the
+                // lifetime of the child process.
+                // PipExecutionStep.ExecuteProcess is the entire pip step, which includes the lifetime of the child process
+                // as well as various other pip processing before and after launching the child process (for example
+                // hashing output files and saving them to the cache).
+                // We explicitly don't want to use PipExecutionStep.ExecuteProcess here because we want any lost time discrepencies
+                // between the two values to be visible.
                 long allStepsMinusPipExecution = allStepsDuration - schedulerInfo.ExecuteProcessDurationMs;
 
                 var hashingInputs = ComputeTimePercentage(
@@ -2407,6 +2412,11 @@ namespace BuildXL
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.CheckIncrementalSkip).TotalMilliseconds,
                     allStepsMinusPipExecution);
                 var processOutputs = ComputeTimePercentage(
+                    // For simplicity, we abstract away details of which phase output processing happens from end users.
+                    // Some of it happens in these counters which are in the PipExecutionStep.ExecuteProcess step
+                    schedulerInfo.ProcessOutputsObservedInputValidationDurationMs + 
+                    schedulerInfo.ProcessOutputsStoreContentForProcessAndCreateCacheEntryDurationMs +
+                    // And the remainder happens in PipExecutionStep.PostProcess
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.PostProcess).TotalMilliseconds,
                     allStepsMinusPipExecution);
                 var replayFromCache = ComputeTimePercentage(

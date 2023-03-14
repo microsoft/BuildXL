@@ -16,6 +16,12 @@ namespace BuildXL.Scheduler
         public long ExecuteProcessDurationMs;
 
         /// <nodoc/>
+        public long ProcessOutputsObservedInputValidationDurationMs;
+
+        /// <nodoc/>
+        public long ProcessOutputsStoreContentForProcessAndCreateCacheEntryDurationMs;
+
+        /// <nodoc/>
         public long CanceledProcessExecuteDurationMs;
 
         /// <nodoc/>

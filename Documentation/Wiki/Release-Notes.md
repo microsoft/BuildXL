@@ -1,12 +1,40 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230310.5 (Release [283306](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=283306) Released 3/15/2023)
+-	Fix directory enumeration with legacy Win32 pattern *.*
+-	Merge ConcurrencyLimit and UnavailableSlots in build summary reporting
+-	Log specific user level error on VSTS cache startup failure.
+-	Remove grpc.core support for client
+-	Promoting credential scanner warnings to errors fix
+-	Enable dev logs across the board
+-	Pretty print result of Fingerprint store analyzer
+-	Allow machine total ram to dynamically increase for ram forecasting
+
+# 0.1.0-20230303.6 (Release [281691](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=281691) Released 3/8/2023)
+-	Remove non-merge logic from RocksDb Databases.
+-	Fix PipsExecuting counter in Batmon.
+-	Clean up linux sandbox logs in release mode.
+-	Infer default output file for DumpProcess Analyzer.
+-	Add /ado argument to single machine builds.
+-	Ensure latest file path in consisten in Azureblobstoragecheckpointregistry.
+-	Break Instrumentation.Common dependency from BuildXl.Utilties.Core.
+-	Enable remote injection from 32-bit process by default.
+
+# 0.1.0-20230227.0 (Release [280708](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=280708) Released 3/1/2023)
+-	Fix mistargeted directory symlinks in opaque directories when using preserved outputs
+-	Linux file monitoring sandbox reliability improvements
+-	Handle newlines in process command lines in windows sandbox
+-	NetCore security update
+-	Fix for some long DX0064 errors missing on CloudBuild UI
+-	Make environment variable CredScan violations verbose level until promoted to errors in a future release
+-	Address crash when failing to create Windows Error Reporting event
+
 # 0.1.0-20230209.1 (Release [276369](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=276369) Released 2/15/2023)
 -	Allow BuildXL to run without enabling the change journal
 -	Added some missing interposed methods in the Linux sandbox
 -	Enable heartbeats by default
 -	Improvements on distributed builds handshaking
-
 
 # 0.1.0-20221209.1.11 (Release [256361](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=252305) Released 12/15/2022)
 -	Reenable Ninja tests

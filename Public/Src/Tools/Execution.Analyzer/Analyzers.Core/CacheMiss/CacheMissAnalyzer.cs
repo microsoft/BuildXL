@@ -696,7 +696,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 Reset(data.PipId);
 
-                if (data.Kind == FingerprintComputationKind.Execution)
+                if (data.Kind != FingerprintComputationKind.CacheCheck)
                 {
                     ProcessFingerprintComputedForExecution(data);
                 }

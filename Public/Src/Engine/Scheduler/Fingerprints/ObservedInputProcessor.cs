@@ -782,10 +782,18 @@ namespace BuildXL.Scheduler.Fingerprints
                         allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet());
                 }
                 else
-                {
+                { 
+                    if (valid != observedInputs.Length)
+                    {
+                        Array.Resize(ref observedInputs, valid);
+                    }
                     Contract.Assume(invalid > 0);
                     return ObservedInputProcessingResult.CreateForFailure(
                         status: status,
+                        observedInputs: SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer>.FromSortedArrayUnsafe(
+                            ReadOnlyArray<ObservedInput>.FromWithoutCopy(observedInputs),
+                            new ObservedInputExpandedPathComparer(pathComparer)),
+                        observedAccessedFileNames: observedAccessedFileNames,
                         numberOfValidEntries: valid,
                         numberOfInvalidEntries: invalid,
                         dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.From(dynamicObservations),
@@ -1386,6 +1394,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <nodoc />
         public static ObservedInputProcessingResult CreateForFailure(
             ObservedInputProcessingStatus status,
+            SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer> observedInputs,
+            SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
             int numberOfValidEntries,
             int numberOfInvalidEntries,
             ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
@@ -1397,8 +1407,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
             return new ObservedInputProcessingResult(
                 status,
-                default(SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer>),
-                default(SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>),
+                observedInputs,
+                observedAccessedFileNames,
                 numberOfValidEntires: numberOfValidEntries,
                 numberOfInvalidEntries: numberOfInvalidEntries,
                 dynamicObservations: dynamicObservations,
@@ -1427,37 +1437,31 @@ namespace BuildXL.Scheduler.Fingerprints
 
         /// <summary>
         /// Individual <see cref="ObservedInputs"/> corresponding to the provided operations.
-        /// Note that this field may only be accessed for a successful result.
         /// </summary>
         public SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer> ObservedInputs
         {
             get
             {
-                Contract.Requires(Status == ObservedInputProcessingStatus.Success);
                 return m_observedInputs;
             }
         }
 
         /// <summary>
         /// Individual <see cref="ObservedAccessFileNames"/> corresponding to the provided operations.
-        /// Note that this field may only be accessed for a successful result.
         /// </summary>
         public SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> ObservedAccessFileNames
         {
             get
             {
-                Contract.Requires(Status == ObservedInputProcessingStatus.Success);
                 return m_observedAccessFileNames;
             }
         }
 
         /// <summary>
         /// Projects the set of paths (from <see cref="ObservedInputs"/>) into an <see cref="ObservedPathSet"/>.
-        /// Note that this field may only be performed for a successful result.
         /// </summary>
         public ObservedPathSet GetPathSet([AllowNull]UnsafeOptions unsafeOptions)
         {
-            Contract.Requires(Status == ObservedInputProcessingStatus.Success);
 
             // Note that we don't deduplicate identical paths here. ObservedPathSet allows duplicates on construction,
             // though it reserves the right to canonicalize them away at any time.
@@ -1477,12 +1481,9 @@ namespace BuildXL.Scheduler.Fingerprints
 
         /// <summary>
         /// Computes a strong fingerprint from <see cref="ObservedInputs"/>.
-        /// Note that this field may only be performed for a successful result.
         /// </summary>
         public StrongContentFingerprint ComputeStrongFingerprint(PathTable pathTable, WeakContentFingerprint weakFingerprint, ContentHash pathSetHash)
         {
-            Contract.Requires(Status == ObservedInputProcessingStatus.Success);
-
             using (var hasher = StrongContentFingerprint.CreateHashingHelper(
                 pathTable,
                 recordFingerprintString: false))

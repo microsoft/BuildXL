@@ -96,6 +96,16 @@ namespace BuildXL.Scheduler.Tracing
         /// Indicates the fingerprint was computed to check whether pip could be run from cache
         /// </summary>
         CacheCheck,
+
+        /// <summary>
+        /// Indicates the fingerprint was computed but not for post execution caching (non cacheable successful pips)
+        /// </summary>
+        ExecutionNotCacheable,
+
+        /// <summary>
+        /// Indicates the fingerprint was computed but not for post execution caching (failed pips)
+        /// </summary>
+        ExecutionFailed,
     }
 
     /// <summary>

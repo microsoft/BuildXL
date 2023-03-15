@@ -554,9 +554,9 @@ namespace BuildXL.Execution.Analyzer
             {
                 return PipGraph.ListSealedDirectoryContents(directoryArtifact);
             }
-            else if (sealKind.IsOpaqueOutput())
+            else if (sealKind.IsOpaqueOutput() && m_dynamicContents.TryGetValue(directoryArtifact, out ReadOnlyArray<FileArtifact>  contents))
             {
-                return m_dynamicContents[directoryArtifact];
+                return contents;
             }
 
             return ReadOnlyArray<FileArtifact>.Empty;
@@ -609,7 +609,7 @@ namespace BuildXL.Execution.Analyzer
 
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
         {
-            if (data.Kind == FingerprintComputationKind.Execution)
+            if (data.Kind == FingerprintComputationKind.Execution || data.Kind == FingerprintComputationKind.ExecutionNotCacheable)
             {
                 m_block.Post(() =>
                 {
@@ -832,7 +832,7 @@ namespace BuildXL.Execution.Analyzer
 
             public void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
             {
-                if (data.Kind != FingerprintComputationKind.Execution)
+                if (data.Kind == FingerprintComputationKind.CacheCheck)
                 {
                     return;
                 }

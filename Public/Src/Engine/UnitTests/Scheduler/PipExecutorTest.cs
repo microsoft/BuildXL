@@ -1130,6 +1130,103 @@ namespace Test.BuildXL.Scheduler
             return log.Substring(startIndex, endIndex - startIndex);
         }
 
+        /// <summary>
+        /// Test ObservedInputs are logged for failed pips
+        /// </summary>
+        [Fact]
+        public Task ObservedInputsLogedForFailedProcess()
+        {
+            return WithCachingExecutionEnvironment(
+                GetFullPath(".cache"),
+                act: async env =>
+                {
+                    env.RecordExecution();
+                    var pathTable = env.Context.PathTable;
+
+                    string sourceDir = GetFullPath("inc");
+                    AbsolutePath sourceDirAbsolutePath = AbsolutePath.Create(pathTable, sourceDir);
+
+                    string destination = GetFullPath("out");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(pathTable, destination);
+
+                    var dummyContents = new List<AbsolutePath>
+                                        {
+                                            sourceDirAbsolutePath.Combine(pathTable, "a"),
+                                            sourceDirAbsolutePath.Combine(pathTable, "b"),
+                                            sourceDirAbsolutePath.Combine(pathTable, "echo"),
+                                            sourceDirAbsolutePath.Combine(pathTable, "CFolder").Combine(pathTable, "c"),
+                                        };
+
+
+                    var script = OperatingSystemHelper.IsUnixOS ?
+                            "if [ -f a ]; then /bin/cat a; else /bin/cat b; fi; if [ -f CFolder/c ]; then /bin/cat CFolder/c; fi; echo." :
+                            "( if exist a (type a) else (type b) ) & ( if exist CFolder\\c (type CFolder\\c) )";
+
+                    DirectoryArtifact directoryArtifact = SealSourceDirectoryWithProbeTargets(env, sourceDirAbsolutePath, true, dummyContents.ToArray());
+                    Process pip = CreateDirectoryProbingProcess(env.Context, directoryArtifact, destinationAbsolutePath, script: script);
+
+                    var testRunChecker = new TestRunChecker(destination);
+                    testRunChecker.ExpectedContentsSuffix = Environment.NewLine;
+
+                    // Let pip fail.
+                    // On Windows, add a echo file to fail the echo invocation
+                    // On Linux, just use 'echo.' at the end of script
+                    CreateDirectoryWithProbeTargets(pathTable, sourceDirAbsolutePath, fileBContents: "B", fileCContents: "C");
+                    File.WriteAllText(sourceDirAbsolutePath.Combine(pathTable, "echo").ToString(pathTable), "FAIL ECHO INVOCATION");
+
+                    await testRunChecker.VerifyFailed(env, pip, "BC");
+                    VerifyExecutionObservedFingerprintComputationAndClear(env, pathTable, pip.PipId, FingerprintComputationKind.ExecutionFailed, 5);
+                    SetExpectedFailures(1, 0, OperatingSystemHelper.IsUnixOS ? "/bin/sh: 1: echo.: not found" : "'echo.' is not recognized as an internal or external command");
+                },
+                null,
+                pathTable => GetConfiguration(pathTable, fileAccessIgnoreCodeCoverage: true, failUnexpectedFileAccesses: false, unexpectedFileAccessesAreErrors: false));
+        }
+
+        /// <summary>
+        /// Test ObservedInputs are logged for file monitoring pips
+        /// </summary>
+        [Fact]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task ObservedInputsLogedForFileMonitoringViolationsProcess(bool unexpectedFileAccessesAreErrors)
+        {
+            return WithCachingExecutionEnvironment(
+                GetFullPath(".cache"),
+
+                config: pathTable => GetConfiguration(pathTable, fileAccessIgnoreCodeCoverage: true, failUnexpectedFileAccesses: false, unexpectedFileAccessesAreErrors: unexpectedFileAccessesAreErrors),
+                act: async env =>
+                {
+                    env.RecordExecution();
+
+                    string source = GetFullPath("source");
+                    AbsolutePath sourceAbsolutePath = AbsolutePath.Create(env.Context.PathTable, source);
+
+                    string destination = GetFullPath("dest");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
+
+                    var script = OperatingSystemHelper.IsUnixOS ? "if [ -f a ]; then /bin/cat a; fi; if [ -f b ]; then /bin/cat b; fi;" : "if exist a (type a) & if exist b (type b)";
+
+                    var directoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sourceAbsolutePath);
+                    AbsolutePath fileA = sourceAbsolutePath.Combine(env.Context.PathTable, PathAtom.Create(env.Context.StringTable, "a"));
+                    AbsolutePath fileB = sourceAbsolutePath.Combine(env.Context.PathTable, PathAtom.Create(env.Context.StringTable, "b"));
+                    FileArtifact fileArtifactB = FileArtifact.CreateSourceFile(fileB);
+                    env.SetSealedDirectoryContents(directoryArtifact, FileArtifact.CreateSourceFile(fileA));
+
+                    Process pip = CreateDirectoryProbingProcess(env.Context, directoryArtifact, destinationAbsolutePath, script: script);
+                    var testRunChecker = new TestRunChecker(destination);
+
+                    string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
+                    await testRunChecker.VerifySucceeded(env, pip, "AB2" + Environment.NewLine, expectMarkedPerpetuallyDirty: true);
+
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+
+                    // On linux there is no observed inputs for echo
+                    VerifyExecutionObservedFingerprintComputationAndClear(env, env.Context.PathTable, pip.PipId, FingerprintComputationKind.ExecutionNotCacheable, OperatingSystemHelper.IsUnixOS ? 1 : 2);
+                });
+        }
+
 
         [Trait(BuildXL.TestUtilities.Features.Feature, BuildXL.TestUtilities.Features.NonStandardOptions)]
         [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
@@ -1717,6 +1814,33 @@ namespace Test.BuildXL.Scheduler
                         });
                     return mounts;
                 });
+        }
+
+        private void VerifyExecutionObservedFingerprintComputationAndClear(
+            DummyPipExecutionEnvironment env,
+            PathTable pathTable,
+            PipId pipId,
+            FingerprintComputationKind kind,
+            int expectedObservedInputsCount)
+        {
+            var fingerprintData = env.ExecutionLogRecorder
+                .GetEvents<ProcessFingerprintComputationEventData>()
+                .Where(pf => pf.PipId.Equals(pipId))
+                .Where(pf => kind == pf.Kind);
+
+            XAssert.AreEqual(1, fingerprintData.Count());
+
+            var fingerprint = fingerprintData.SingleOrDefault();
+
+            int count = 0;
+            if (fingerprint.StrongFingerprintComputations.Count >= 1)
+            {
+                count += fingerprint.StrongFingerprintComputations[0].ObservedInputs.Count();
+            }
+
+            XAssert.AreEqual(expectedObservedInputsCount, count);
+
+            env.ExecutionLogRecorder.Clear();
         }
 
         private void VerifyExecutionObservedEnumerationsAndClear(

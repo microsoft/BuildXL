@@ -802,12 +802,16 @@ namespace Test.BuildXL.FingerprintStore
 
         /// <summary>
         /// Verifies that when a pip fails and exits the build, the observed inputs for the
-        /// pip are still logged to execution log targets.
+        /// pip are not logged to fingerprintStore. 
+        /// Two run for same pip. First run success, fingerprintstore will have observed inputs fingerprint
+        /// Second run fails. observed inputs will not store into fingerprint store
+        /// Get fingerprints from fingerprintstore instance (same instance for two runs) and compare them
+        /// Two fingerprints are same because failed pips doesn't get logged
         /// </summary>
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public virtual void EntryExistsForFailedPip(bool readOnlyMount)
+        public virtual void EntryNotStoredForFailedPip(bool readOnlyMount)
         {
             var testRoot = readOnlyMount ? ReadonlyRoot : ObjectRoot;
 
@@ -869,15 +873,13 @@ namespace Test.BuildXL.FingerprintStore
 
             upstreamPip = CreateAndSchedulePipBuilder(upstreamOps).Process;
 
-            // Schedule a new pip with the same dynamically observed inputs, but an extra fail operation
-            // This will fail the pip without adding any new file system operations
-            // Note, the command line is altered which will impact the weak and strong fingerprint, but not the path set
-            passingOps.Add(Operation.Fail());
-
-            // Add miscellaneous dynamically observed operations that will be cut
-            // off due to pip failure and should not appear in the resulting path set
+            // Add miscellaneous dynamically observed operations 
             passingOps.Add(Operation.Probe(nestedSealDirFileForProbe, doNotInfer: true));
             passingOps.Add(Operation.EnumerateDir(dir));
+
+            // Schedule a new pip with the extra dynamically observed inputs, but an extra fail operation
+            // Observed inputs from a failed pip will not be stored into fingerprint store. 
+            passingOps.Add(Operation.Fail());
 
             sealDir = CreateAndScheduleSealDirectoryArtifact(sealDirPath, SealDirectoryKind.SourceAllDirectories);
             var failingPipBuilder = CreatePipBuilder(passingOps);
@@ -902,7 +904,7 @@ namespace Test.BuildXL.FingerprintStore
             passSfInputs = passSfInputs.Replace(passEntry.PipToFingerprintKeys.Value.WeakFingerprint, "");
             failSfInputs = failSfInputs.Replace(failEntry.PipToFingerprintKeys.Value.WeakFingerprint, "");
 
-            // If all the observed inputs from the failed pip were recorded,
+            // If all the observed inputs from the failed pip were not recorded,
             // the strong fingerprint inputs (path set hash + observed inputs) should match
             XAssert.AreEqual(passSfInputs, failSfInputs);
         }

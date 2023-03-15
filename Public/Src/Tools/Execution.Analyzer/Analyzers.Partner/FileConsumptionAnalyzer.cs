@@ -210,7 +210,7 @@ namespace BuildXL.Execution.Analyzer
         {
             m_statistics.ProcessFingerprintComputedEventCount++;
 
-            if (data.Kind == FingerprintComputationKind.Execution)
+            if (data.Kind != FingerprintComputationKind.CacheCheck)
             {
                 if ((m_processedPips++ % 1000) == 0)
                 {
@@ -657,7 +657,7 @@ namespace BuildXL.Execution.Analyzer
 
                 // only interested in the events generated after a corresponding pip was executed
                 // however, we still need to save pip description so there would be no missing entries in pips.csv
-                if (data.Kind != FingerprintComputationKind.Execution)
+                if (data.Kind == FingerprintComputationKind.CacheCheck)
                 {
                     m_analyzer.m_executedProcessPips.TryAdd(
                         data.PipId,

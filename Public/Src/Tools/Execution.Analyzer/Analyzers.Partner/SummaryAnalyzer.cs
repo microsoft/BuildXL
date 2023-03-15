@@ -1841,14 +1841,12 @@ namespace BuildXL.Execution.Analyzer
                     }
                 }
             }
-            else if (data.Kind == FingerprintComputationKind.Execution)
+            else
             {
                 // Kind = Execution, means the pip executed and there is expected to have one ProcessStrongFingerprintComputationData,
-                //         unless the pip is un-cacheable or failed
-                //   a.Take the ObservedInputs for this pips when doing comparisons
+                // Kind = ExecutionNotCacheable | ExecutionFailed, means the pip is not cacheable or execution failed, but it probably still has observed inputs
                 if (data.StrongFingerprintComputations == null || data.StrongFingerprintComputations.Count == 0)
                 {
-                    // un-cacheable pips do not get OI
                     return;
                 }
 

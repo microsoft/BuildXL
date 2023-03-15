@@ -666,9 +666,9 @@ namespace BuildXL.Scheduler.Tracing
             FingerprintStoreEntry newEntry = null;
             Process pip = GetProcess(data.PipId);
 
-            if (maybeStrongFingerprintData == null)
+            if (data.Kind == FingerprintComputationKind.ExecutionNotCacheable || maybeStrongFingerprintData == null)
             {
-                // If an executed pip doesn't have a fingerprint computation, don't put it in the fingerprint store
+                // If an executed pip doesn't have a fingerprint computation or is a non cacheable pip, don't put it in the fingerprint store
                 Counters.IncrementCounter(FingerprintStoreCounters.NumFingerprintComputationSkippedNonCacheablePip);
             }
             else
@@ -697,6 +697,11 @@ namespace BuildXL.Scheduler.Tracing
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
         {
             if (ExecutionFingerprintStore.Disabled)
+            {
+                return;
+            }
+
+            if (data.Kind == FingerprintComputationKind.ExecutionFailed)
             {
                 return;
             }

@@ -1481,6 +1481,8 @@ namespace BuildXL.Scheduler
 
                 bool outputHashSuccess = false;
 
+                bool skipCaching = true;
+
                 if (succeeded)
                 {
                     // We are now be able to store a descriptor and content for this process to cache if we wish.
@@ -1490,7 +1492,6 @@ namespace BuildXL.Scheduler
                     // Of course, if the allowlist was configured to explicitly allow caching for those violations, we allow it.
                     //
                     // N.B. fileAccessReportingContext / unexpectedFilesAccesses accounts for violations from the execution itself as well as violations added by ValidateObservedAccesses
-                    bool skipCaching = true;
                     ObservedInputProcessingResult? observedInputProcessingResultForCaching = null;
 
                     if (unexpectedFilesAccesses.HasUncacheableFileAccesses)
@@ -1524,6 +1525,7 @@ namespace BuildXL.Scheduler
                         counters.IncrementCounter(PipExecutorCounter.ProcessPipsExecutedButUncacheable);
                     }
 
+                    // Even though we call StoreContentForProcessAndCreateCacheEntgryAsync here, the observed inputs are actually not stored when skipCaching = true
                     using (operationContext.StartOperation(PipExecutorCounter.ProcessOutputsStoreContentForProcessAndCreateCacheEntryDuration))
                     {
                         start = DateTime.UtcNow;
@@ -1563,18 +1565,17 @@ namespace BuildXL.Scheduler
                 }
 
                 // If there were any failures, attempt to log partial information to execution log.
-                // Only do this if the ObservedInputProcessor was able to process changes successfully. This will exclude
-                // both the Aborted and Mismatch states, which means builds with file access violations won't get their
-                // StrongFingerprint information logged. Ideally it could be logged, but there are a number of paths in
-                // the ObservedInputProcessor where the final result has invalid state if the statups wasn't Success.
-                if (!succeeded && observedInputValidationResult.Status == ObservedInputProcessingStatus.Success)
+                // In order to log information for failed pip, removed the limition of successful ObservedInputProcessorResult
+                // Also log fingerprintComputations for non cachable successful pips completed with (warning level) file monitoring violations (suppressed or not)
+                // This will include the Aborted and Mismatch states, which means builds with file access violations will get their StrongFingerprint information logged too.
+                // There are a number of paths in the ObservedInputProcessor where the final result has invalid state if the status wasn't Success.
+                if (!succeeded || skipCaching)
                 {
                     start = DateTime.UtcNow;
                     var pathSet = observedInputValidationResult.GetPathSet(state.UnsafeOptions);
                     var pathSetHash = await environment.State.Cache.SerializePathSetAsync(pathSet, pip.PreservePathSetCasing);
 
-                    // This strong fingerprint is meaningless and not-cached, but compute it for the sake of
-                    // execution analyzer logic that rely on having a successful strong fingerprint
+                    // This strong fingerprint is meaningless and not-cached, compute it for execution analyzer logic that rely on having a successful strong fingerprint and log into xlg
                     var strongFingerprint = observedInputValidationResult.ComputeStrongFingerprint(
                         pathTable,
                         fingerprintComputation.Value.WeakFingerprint,
@@ -1588,15 +1589,13 @@ namespace BuildXL.Scheduler
                             observedInputValidationResult.ObservedInputs,
                             strongFingerprint),
                     };
+                    fingerprintComputation.Value.Kind = !succeeded ? FingerprintComputationKind.ExecutionFailed : FingerprintComputationKind.ExecutionNotCacheable;
                     LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingStrongFingerprint, DateTime.UtcNow.Subtract(start), $"(ps: {pathSet.Paths.Length})");
                 }
 
                 // Log the fingerprint computation
                 start = DateTime.UtcNow;
-                if (succeeded)
-                {
-                    environment.State.ExecutionLog?.ProcessFingerprintComputation(fingerprintComputation.Value);
-                }
+                environment.State.ExecutionLog?.ProcessFingerprintComputation(fingerprintComputation.Value);
 
                 LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringStrongFingerprintToXlg, DateTime.UtcNow.Subtract(start));
 

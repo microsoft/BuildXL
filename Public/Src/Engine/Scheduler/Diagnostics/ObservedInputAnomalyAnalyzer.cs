@@ -60,10 +60,8 @@ namespace BuildXL.Scheduler.Diagnostics
                     }
                 }
             }
-            else
+            else if (data.Kind == FingerprintComputationKind.Execution)
             {
-                Contract.Assert(data.Kind == FingerprintComputationKind.Execution);
-
                 if (((data.StrongFingerprintComputations?.Count ?? 0) != 0) && data.StrongFingerprintComputations[0].Succeeded)
                 {
                     ObservedInputCounts cacheMaxCounts;

@@ -73,6 +73,8 @@ namespace BuildXL.Scheduler
 
         internal long InputMaterializationCostMbForChosenWorker { get; private set; }
 
+        internal long PushOutputsToCacheDurationMs { get; private set; }
+
         /// <summary>
         /// Number of retries attempted due to stopped worker 
         /// </summary>
@@ -135,6 +137,11 @@ namespace BuildXL.Scheduler
         internal void Suspended(long suspendedDurationMs)
         {
             SuspendedDurationMs += suspendedDurationMs;
+        }
+
+        internal void SetPushOutputsToCacheDurationMs(long pushOutputsToCacheDurationMs)
+        {
+            PushOutputsToCacheDurationMs = pushOutputsToCacheDurationMs;
         }
 
         internal void Enqueued(DispatcherKind kind)

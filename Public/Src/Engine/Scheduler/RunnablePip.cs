@@ -362,6 +362,7 @@ namespace BuildXL.Scheduler
         public PipExecutionStep SetPipResult(in PipResult result)
         {
             Performance.Suspended(ExecutionResult?.PerformanceInformation?.SuspendedDurationMs ?? 0);
+            Performance.SetPushOutputsToCacheDurationMs(ExecutionResult?.PerformanceInformation?.PushOutputsToCacheDurationMs ?? 0);
 
             if (Environment.IsTerminating)
             {
@@ -619,7 +620,8 @@ namespace BuildXL.Scheduler
                         memoryCounters: performanceInformation.MemoryCounters,
                         numberOfProcesses: performanceInformation.NumberOfProcesses,
                         workerId: performanceInformation.WorkerId,
-                        suspendedDurationMs: performanceInformation.SuspendedDurationMs);
+                        suspendedDurationMs: performanceInformation.SuspendedDurationMs,
+                        pushOutputsToCacheDurationMs: performanceInformation.PushOutputsToCacheDurationMs);
                 }
                 else
                 {
@@ -639,7 +641,8 @@ namespace BuildXL.Scheduler
                             memoryCounters: ProcessMemoryCounters.CreateFromMb(0, 0, 0, 0),
                             numberOfProcesses: 0,
                             workerId: 0,
-                            suspendedDurationMs: 0);
+                            suspendedDurationMs: 0,
+                            pushOutputsToCacheDurationMs: 0);
                 }
             }
             else

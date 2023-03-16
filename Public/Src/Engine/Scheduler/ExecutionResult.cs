@@ -628,6 +628,14 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Records the time it took to push the pip outputs to the cache
+        /// </summary>
+        public void ReportPushOutputsToCacheDurationMs(long durationMs)
+        {
+            InnerUnsealedState.PushOutputsToCacheDurationMs = durationMs;
+        }
+
+        /// <summary>
         /// Record unexpected file access counters
         /// </summary>
         public void ReportUnexpectedFileAccesses(UnexpectedFileAccessCounters unexpectedFileAccessCounters)
@@ -785,7 +793,8 @@ namespace BuildXL.Scheduler
                             memoryCounters: jobAccounting.MemoryCounters,
                             numberOfProcesses: jobAccounting.NumberOfProcesses,
                             workerId: 0,
-                            suspendedDurationMs: processResult.SuspendedDurationMs);
+                            suspendedDurationMs: processResult.SuspendedDurationMs,
+                            pushOutputsToCacheDurationMs: m_unsealedState.PushOutputsToCacheDurationMs);
                     }
                 }
                 else
@@ -841,6 +850,11 @@ namespace BuildXL.Scheduler
             public bool MustBeConsideredPerpetuallyDirty;
             public ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)> DynamicObservations = ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty;
             public IReadOnlySet<AbsolutePath> AllowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
+
+            /// <summary>
+            /// How long it took to push the process outputs to the cache
+            /// </summary>
+            public long PushOutputsToCacheDurationMs;
 
             public readonly List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> OutputContent =
                 new List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>();

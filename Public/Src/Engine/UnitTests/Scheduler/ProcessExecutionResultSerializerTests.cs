@@ -54,7 +54,8 @@ namespace Test.BuildXL.Scheduler
                     ProcessMemoryCounters.CreateFromBytes(12324, 12325, 12326, 12326),
                     33,
                     7,
-                    0),
+                    0,
+                    42),
                 fingerprint: new WeakContentFingerprint(fingerprint), 
                 fileAccessViolationsNotAllowlisted: new[]
                 {
@@ -140,6 +141,7 @@ namespace Test.BuildXL.Scheduler
                 r => r.PerformanceInformation.MemoryCounters.AverageWorkingSetMb,
                 r => r.PerformanceInformation.MemoryCounters.PeakCommitSizeMb,
                 r => r.PerformanceInformation.MemoryCounters.AverageCommitSizeMb,
+                r => r.PerformanceInformation.PushOutputsToCacheDurationMs,
 
                 r => r.PerformanceInformation.NumberOfProcesses,
 

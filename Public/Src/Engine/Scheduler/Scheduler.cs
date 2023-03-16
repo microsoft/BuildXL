@@ -5856,6 +5856,7 @@ namespace BuildXL.Scheduler
                     long inputMaterializationExtraCostMbDueToUnavailability = performanceInfo.InputMaterializationCostMbForChosenWorker - performanceInfo.InputMaterializationCostMbForBestWorker;
                     stringBuilder.AppendLine(I($"\t\t  {"InputMaterializationExtraCostMbDueToUnavailability",-88}: {inputMaterializationExtraCostMbDueToUnavailability,10}"));
                     stringBuilder.AppendLine(I($"\t\t  {"InputMaterializationCostMbForChosenWorker",-88}: {performanceInfo.InputMaterializationCostMbForChosenWorker,10}"));
+                    stringBuilder.AppendLine(I($"\t\t  {"PushOutputsToCacheDurationMs",-88}: {performanceInfo.PushOutputsToCacheDurationMs,10}"));
 
                     if (performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds != 0)
                     {

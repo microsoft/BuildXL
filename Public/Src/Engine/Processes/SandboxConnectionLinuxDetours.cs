@@ -34,6 +34,11 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class SandboxConnectionLinuxDetours : ISandboxConnection
     {
+        // Used to signal the end of reports through the FIFO. The value -21 is arbitrary,
+        // it could be any negative value, as it will be read in place of a value representing
+        // a length, which could take any positive value.
+        private const int EndOfReportsSentinel = -21;
+
         internal sealed class PathCacheRecord
         {
             internal RequestedAccess RequestedAccess { get; set; }
@@ -179,8 +184,8 @@ namespace BuildXL.Processes
             }
 
             /// <summary>
-            /// Request to stop receiving access reports.  This method returns immediately;
-            /// any currently pending reports will be processed asynchronously.
+            /// Request to stop receiving access reports. 
+            /// Any currently pending reports will be processed asynchronously.
             /// </summary>
             internal void RequestStop()
             {
@@ -189,15 +194,30 @@ namespace BuildXL.Processes
                     return; // already stopped
                 }
 
-                Process.LogDebug($"Closing the write handle for FIFO '{ReportsFifoPath}'");
-                // this will cause read() on the other end of the FIFO to return EOF once all native writers are done writing
-                m_lazyWriteHandle.Value.Dispose();
-                m_activeProcessesChecker.Cancel();
-
-                // There are no more active processes and RequestStop() was called. This means
-                // we are done processing reports, since both reads and writes on the FIFO are blocking, so
-                // in order for processes to exit, we should have drained the corresponding reports already on managed side
-                CompleteAccessReportProcessing();
+                // If RequestStop was called, it means there are no more active processes, so all the sandbox reports  
+                // should have been already writen to the FIFO. However, the thread consuming the FIFO might still be
+                // running, as it reads the FIFO message-by-message, and the pipe might still hold some reports at this point.
+                // To signal to that thread that the reports have finished, we push a sentinel value through the pipe. 
+                // Just closing the write handle would be enough to produce an EOF on the FIFO, which we could use as
+                // the termination signal: in practice, the reception of EOF was observed to happen with a considerable
+                // delay after calling Dispose on the handle, and communicating the sentinel was immediate, so this approach
+                // was preferred.
+                try
+                {
+                    using var fileStream = new FileStream(m_lazyWriteHandle.Value, FileAccess.Write);
+                    using var binaryWriter = new BinaryWriter(fileStream);
+                    binaryWriter.Write(EndOfReportsSentinel);
+                }
+                catch (Exception e)
+                {
+                    LogError($"An exception ocurred while writing EndOfReportsSentinel to the FIFO. Details: {e}");
+                }
+                finally 
+                { 
+                    Process.LogDebug($"Closing the write handle for FIFO '{ReportsFifoPath}'");
+                    m_lazyWriteHandle.Value.Dispose();
+                    m_activeProcessesChecker.Cancel();
+                }
             }
 
             /// <summary>Adds <paramref name="pid" /> to the set of active processes</summary>
@@ -407,7 +427,8 @@ namespace BuildXL.Processes
                     var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
                     if (numRead == 0) // EOF
                     {
-                        Process.LogDebug("Exiting 'receive reports' loop.");
+                        // We don't expect EOF before reading the EndOfReportsSentinel (see below)
+                        LogError("Exiting 'receive reports' loop on EOF without observing the end of reports sentinel value.");
                         break;
                     }
 
@@ -419,6 +440,15 @@ namespace BuildXL.Processes
 
                     // decode length
                     int messageLength = BitConverter.ToInt32(messageLengthBytes, startIndex: 0);
+
+                    // if 'length' corresponds to this special (negative) value that is pumped 
+                    // to the FIFO after the process tree has completed, then we have drained all reports
+                    // (see 'RequestStop' for more details).
+                    if (messageLength == EndOfReportsSentinel)
+                    {
+                        Process.LogDebug("Exiting 'receive reports' loop.");
+                        break;
+                    }
 
                     // read a message of that length
                     PooledObjectWrapper<byte[]> messageBytes = ByteArrayPool.GetInstance(messageLength);

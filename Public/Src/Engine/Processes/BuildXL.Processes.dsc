@@ -63,6 +63,7 @@ namespace Processes {
             "Test.BuildXL.Processes.Detours",
             "Test.BuildXL.Scheduler",
             "ExternalToolTest.BuildXL.Scheduler",
+            "BuildXL.ProcessPipExecutor",
         ],
         runtimeContent: [
             ...addIfLazy(Context.getCurrentHost().os === "win" && qualifier.targetRuntime === "win-x64", () => [

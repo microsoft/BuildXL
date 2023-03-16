@@ -9,6 +9,7 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;

@@ -5,9 +5,8 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text.RegularExpressions;
-using BuildXL.Utilities.Instrumentation.Common;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     internal readonly struct OutputFilter
     {
@@ -88,7 +87,7 @@ namespace BuildXL.Processes
         /// (to be used later to match individual lines from the input string).
         /// </summary>
         /// <remarks>
-        /// The errRegex must be initialized prior to calling this, which means after TryInitializeErrorRegexAsync in <see cref="SandboxedProcessPipExecutor"/>
+        /// The errRegex must be initialized prior to calling this, which means after TryInitializeErrorRegexAsync in <see href="SandboxedProcessPipExecutor"/>
         /// </remarks>
         internal static OutputFilter GetErrorFilter(Regex errRegex, bool enableMultiLineScanning)
         {

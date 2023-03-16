@@ -30,6 +30,7 @@ using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;

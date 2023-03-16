@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;

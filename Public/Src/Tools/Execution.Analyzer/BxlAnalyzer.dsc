@@ -42,6 +42,7 @@ namespace Execution.Analyzer {
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Engine.dll,
+            importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Ide").Generator.dll,

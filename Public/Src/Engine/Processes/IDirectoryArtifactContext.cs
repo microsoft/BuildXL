@@ -12,7 +12,7 @@ namespace BuildXL.Processes
     /// Provides context information for directory artifacts
     /// </summary>
     /// <remarks>
-    /// Used by the PipExecutor to pass directory artifact related information to <see cref="SandboxedProcessPipExecutor"/>
+    /// Used by the PipExecutor to pass directory artifact related information to (see "SandboxedProcessPipExecutor")
     /// </remarks>
     public interface IDirectoryArtifactContext
     {

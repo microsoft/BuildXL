@@ -5,11 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Text;
+using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Overall completion status of a sandboxed process.

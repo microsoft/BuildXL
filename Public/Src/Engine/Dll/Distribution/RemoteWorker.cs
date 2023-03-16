@@ -19,6 +19,7 @@ using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Pips;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;

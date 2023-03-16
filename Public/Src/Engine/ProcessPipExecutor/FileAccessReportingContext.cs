@@ -1,15 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Facilities for classifying and reporting the <see cref="ReportedFileAccess"/>es for a <see cref="Process"/> pip.
@@ -223,7 +223,7 @@ namespace BuildXL.Processes
 
             if (path.StartsWith(PipEnvironment.RestrictedTemp, OperatingSystemHelper.PathComparison))
             {
-                Tracing.Logger.Log.PipProcessDisallowedTempFileAccess(
+                Processes.Tracing.Logger.Log.PipProcessDisallowedTempFileAccess(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
@@ -232,7 +232,7 @@ namespace BuildXL.Processes
             }
             else
             {
-                Tracing.Logger.Log.PipProcessDisallowedFileAccess(
+                Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccess(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
@@ -248,7 +248,7 @@ namespace BuildXL.Processes
                     // Since there will be no error or warning for the ignored NtCreateFile violations in the FileMonitoringViolationAnalyzer, 
                     // this is the only place for us to log a warning for those.
                     // We also need to emit a dx09 verbose above for those violations due to WrapItUp. 
-                    Tracing.Logger.Log.PipProcessDisallowedNtCreateFileAccessWarning(
+                    Processes.Tracing.Logger.Log.PipProcessDisallowedNtCreateFileAccessWarning(
                         m_loggingContext,
                         m_pip.SemiStableHash,
                         m_pip.GetDescription(m_context),
@@ -267,7 +267,7 @@ namespace BuildXL.Processes
 
             if (m_reportAllowlistedAccesses)
             {
-                Tracing.Logger.Log.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
+                Processes.Tracing.Logger.Log.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
@@ -278,7 +278,7 @@ namespace BuildXL.Processes
             }
             else
             {
-                Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedNonCacheable(
+                Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedNonCacheable(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
@@ -292,7 +292,7 @@ namespace BuildXL.Processes
             string path = reportedFileAccess.GetPath(m_context.PathTable);
             string description = reportedFileAccess.Describe();
 
-            Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedCacheable(
+            Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedCacheable(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),

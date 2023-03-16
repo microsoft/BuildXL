@@ -6,7 +6,7 @@ using BuildXL.Utilities.Core;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// File system view exposed to <see cref="SandboxedProcessPipExecutor"/>
+    /// File system view exposed to (see "SandboxedProcessPipExecutor")
     /// </summary>
     public interface ISandboxFileSystemView
     {

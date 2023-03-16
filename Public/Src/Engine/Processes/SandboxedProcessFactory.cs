@@ -2,17 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
-using BuildXL.Pips.Operations;
-using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Tracing.Diagnostics;
 
 #nullable enable
 
@@ -29,6 +24,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Counter types for sandboxed process execution
         /// </summary>
+        // TODO: Some of these are ProcessPipExecutor specific and should be moved there instead
         public enum SandboxedProcessCounters
         {
             /// <summary>
@@ -106,7 +102,7 @@ namespace BuildXL.Processes
             SandboxedPipExecutorPhaseDeletingSharedOpaqueOutputs,
 
             /// <summary>
-            /// Duration of <see cref="SandboxedProcessPipExecutor.ProcessSandboxedProcessResultAsync"/>.
+            /// Duration of (see "SandboxedProcessPipExecutor.ProcessSandboxedProcessResultAsync").
             /// </summary>
             [CounterType(CounterType.Stopwatch)]
             SandboxedPipExecutorPhaseProcessingSandboxProcessResult,
@@ -118,7 +114,7 @@ namespace BuildXL.Processes
             SandboxedPipExecutorPhaseProcessingStandardOutputs,
 
             /// <summary>
-            /// Duration of <see cref="SandboxedProcessPipExecutor.TryGetObservedFileAccesses"/>
+            /// Duration of (see "SandboxedProcessPipExecutor.TryGetObservedFileAccesses")
             /// </summary>
             [CounterType(CounterType.Stopwatch)]
             SandboxedPipExecutorPhaseGettingObservedFileAccesses,
@@ -130,7 +126,7 @@ namespace BuildXL.Processes
             SandboxedPipExecutorPhaseLoggingOutputs,
 
             /// <summary>
-            /// Duration of <see cref="SandboxedProcessPipExecutor.RunAsync"/> inside of PipExecutor
+            /// Duration of (see "SandboxedProcessPipExecutor.RunAsync") inside of PipExecutor
             /// </summary>
             [CounterType(CounterType.Stopwatch)]
             PipExecutorPhaseRunningPip,
@@ -232,7 +228,6 @@ namespace BuildXL.Processes
         /// Thrown if the process creation fails in a recoverable manner due do some obscure problem detected by the underlying
         /// ProcessCreate call.
         /// </exception>
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "Object lives on via task result.")]
         public static Task<ISandboxedProcess> StartAsync(SandboxedProcessInfo info, bool forceSandboxing)
         {
             string cmdLine = info.GetCommandLine();
@@ -305,18 +300,6 @@ namespace BuildXL.Processes
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// Logs a process sub phase and ensures the time is recored in the Counters
-        /// </summary>
-        public static void LogSubPhaseDuration(LoggingContext context, Pip pip, SandboxedProcessCounters counter, TimeSpan duration, string extraInfo = "")
-        {
-            Counters.AddToCounter(counter, duration);
-            if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
-            {
-                Logger.Log.LogPhaseDuration(context, pip.FormattedSemiStableHash, counter.ToString(), duration.ToString(), extraInfo);
-            }
         }
     }
 }

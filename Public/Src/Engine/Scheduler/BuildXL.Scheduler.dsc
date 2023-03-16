@@ -23,6 +23,7 @@ namespace Scheduler {
                 importFrom("BuildXL.Utilities").PackedExecution.dll
             ]),
             Cache.dll,
+            ProcessPipExecutor.dll,
             Processes.dll,
             Distribution.Grpc.dll,
             ViewModel.dll,

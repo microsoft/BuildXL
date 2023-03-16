@@ -22,6 +22,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
@@ -1301,7 +1302,7 @@ namespace BuildXL.Scheduler
 
             start = DateTime.UtcNow;
             processExecutionResult.ReportSandboxedExecutionResult(executionResult);
-            LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseReportingExeResult, DateTime.UtcNow.Subtract(start));
+            SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseReportingExeResult, DateTime.UtcNow.Subtract(start));
 
             counters.AddToCounter(PipExecutorCounter.SandboxedProcessPrepDurationMs, executionResult.SandboxPrepMs);
             counters.AddToCounter(
@@ -1419,7 +1420,7 @@ namespace BuildXL.Scheduler
                             executionResult.ObservedFileAccesses,
                             executionResult.SharedDynamicDirectoryWriteAccesses,
                             trackFileChanges: succeeded);
-                    LogSubPhaseDuration(
+                    SandboxedProcessPipExecutor.LogSubPhaseDuration(
                         operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseValidateObservedFileAccesses, DateTime.UtcNow.Subtract(start),
                         $"(DynObs: {observedInputValidationResult.DynamicObservations.Length})");
                 }
@@ -1454,7 +1455,7 @@ namespace BuildXL.Scheduler
                             }
                         }
 
-                        LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingIsDirty, DateTime.UtcNow.Subtract(start));
+                        SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingIsDirty, DateTime.UtcNow.Subtract(start));
                         processExecutionResult.MustBeConsideredPerpetuallyDirty = isDirty;
                     }
                 }
@@ -1545,9 +1546,9 @@ namespace BuildXL.Scheduler
                             enableCaching: !skipCaching,
                             fingerprintComputation: fingerprintComputation,
                             executionResult.ContainerConfiguration);
-                        
+          
                         var pushOutputsToCache = DateTime.UtcNow.Subtract(start);
-                        LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringCacheContent, pushOutputsToCache);
+                        SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringCacheContent, pushOutputsToCache);
                         processExecutionResult.ReportPushOutputsToCacheDurationMs(pushOutputsToCache.ToMilliseconds());
                     }
 
@@ -1592,15 +1593,16 @@ namespace BuildXL.Scheduler
                             observedInputValidationResult.ObservedInputs,
                             strongFingerprint),
                     };
+
                     fingerprintComputation.Value.Kind = !succeeded ? FingerprintComputationKind.ExecutionFailed : FingerprintComputationKind.ExecutionNotCacheable;
-                    LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingStrongFingerprint, DateTime.UtcNow.Subtract(start), $"(ps: {pathSet.Paths.Length})");
+                    SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingStrongFingerprint, DateTime.UtcNow.Subtract(start), $"(ps: {pathSet.Paths.Length})");
                 }
 
                 // Log the fingerprint computation
                 start = DateTime.UtcNow;
                 environment.State.ExecutionLog?.ProcessFingerprintComputation(fingerprintComputation.Value);
 
-                LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringStrongFingerprintToXlg, DateTime.UtcNow.Subtract(start));
+                SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringStrongFingerprintToXlg, DateTime.UtcNow.Subtract(start));
 
                 if (!outputHashSuccess)
                 {
@@ -1891,7 +1893,7 @@ namespace BuildXL.Scheduler
                             sandboxConnection: environment.SandboxConnection, 
                             sidebandWriter: sidebandWriter, 
                             fileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null);
-                        LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
+                        SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
                         staleDynamicOutputs = result.SharedDynamicDirectoryWriteAccesses;
                     }
 

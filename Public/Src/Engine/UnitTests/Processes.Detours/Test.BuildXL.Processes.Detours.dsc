@@ -40,6 +40,7 @@ namespace Processes.Detours {
             ],
             references: [
                 EngineTestUtilities.dll,
+                importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
                 importFrom("BuildXL.Engine").Processes.dll,
                 importFrom("BuildXL.Pips").dll,
                 importFrom("BuildXL.Utilities").dll,

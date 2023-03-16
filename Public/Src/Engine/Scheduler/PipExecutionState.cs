@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler.Artifacts;

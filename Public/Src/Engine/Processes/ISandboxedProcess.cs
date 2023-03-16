@@ -10,7 +10,7 @@ using BuildXL.Interop;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Interface for <see cref="SandboxedProcessPipExecutor"/> to use to start/kill/manage processes.
+    /// Interface for sandboxed processes
     ///
     /// To create an instance of this interface and start executing the created process use
     /// <see cref="SandboxedProcessFactory.StartAsync"/>.

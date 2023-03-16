@@ -15,7 +15,7 @@ namespace BuildXL.Scheduler
     public static partial class PipExecutor
     {
         /// <summary>
-        /// Directory-related information to be passed to <see cref="SandboxedProcessPipExecutor"/>
+        /// Directory-related information to be passed to <see cref="ProcessPipExecutor.SandboxedProcessPipExecutor"/>
         /// </summary>
         private sealed class DirectoryArtifactContext : IDirectoryArtifactContext
         {

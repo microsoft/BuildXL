@@ -3,7 +3,7 @@
 
 using System;
 using System.Text.RegularExpressions;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

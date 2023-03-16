@@ -12,7 +12,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.BuildParameters;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Helper class that defines the environment variables used when executing pips
@@ -169,7 +169,7 @@ namespace BuildXL.Processes
         /// </summary>
         public static void ReportDuplicateVariable(LoggingContext loggingContext, string key, string existingValue, string ignoredValue)
         {
-            Tracing.Logger.Log.DuplicateWindowsEnvironmentVariableEncountered(
+            Processes.Tracing.Logger.Log.DuplicateWindowsEnvironmentVariableEncountered(
                 loggingContext,
                 key,
                 existingValue,

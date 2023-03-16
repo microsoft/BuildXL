@@ -682,7 +682,7 @@ namespace BuildXL.Engine
         internal static IBuildParameters PopulateFromEnvironmentAndApplyOverrides(LoggingContext loggingContext, IReadOnlyDictionary<string, string> overrideVariables)
         {
             return BuildParameters
-                .GetFactory((key, existingValue, ignoredValue) =>  BuildXL.Processes.PipEnvironment.ReportDuplicateVariable(loggingContext, key, existingValue, ignoredValue))
+                .GetFactory((key, existingValue, ignoredValue) =>  ProcessPipExecutor.PipEnvironment.ReportDuplicateVariable(loggingContext, key, existingValue, ignoredValue))
                 .PopulateFromEnvironment()
                 .Override(overrideVariables);
         }

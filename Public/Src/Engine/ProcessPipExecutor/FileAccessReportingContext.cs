@@ -8,6 +8,7 @@ using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using System.Linq;
 
 namespace BuildXL.ProcessPipExecutor
 {
@@ -24,7 +25,6 @@ namespace BuildXL.ProcessPipExecutor
         private readonly PipExecutionContext m_context;
         private readonly ISandboxConfiguration m_config;
         private readonly Process m_pip;
-        private readonly bool m_reportAllowlistedAccesses;
         private readonly FileAccessAllowlist m_fileAccessAllowlist;
 
         private List<ReportedFileAccess> m_violations;
@@ -34,9 +34,25 @@ namespace BuildXL.ProcessPipExecutor
         private int m_numFileExistenceAccessViolationsNotAllowlisted;
 
         /// <summary>
+        /// Whether to report allowlisted accesses as disallowed accesses. This is used for validating distributed builds.
+        /// </summary>
+        /// <remarks>
+        /// Uncacheable accesses are not allowed in distributed build settings, and thus such accesses need to be turned into disallowed accesses.
+        /// </remarks>
+        private readonly bool m_uncacheableAllowedAccessAsNotAllowedAccess;
+
+        private readonly MatchComparer m_matchComparer;
+
+        /// <summary>
         /// Creates a context. All <see cref="Counters"/> are initially zero and will increase as accesses are reported.
         /// </summary>
-        public FileAccessReportingContext(LoggingContext loggingContext, PipExecutionContext context, ISandboxConfiguration config, Process pip, bool reportAllowlistedAccesses, FileAccessAllowlist allowlist = null)
+        public FileAccessReportingContext(
+            LoggingContext loggingContext,
+            PipExecutionContext context,
+            ISandboxConfiguration config,
+            Process pip,
+            bool uncacheableAllowedAccessAsNotAllowedAccess,
+            FileAccessAllowlist allowlist = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(context != null);
@@ -47,8 +63,9 @@ namespace BuildXL.ProcessPipExecutor
             m_context = context;
             m_config = config;
             m_pip = pip;
-            m_reportAllowlistedAccesses = reportAllowlistedAccesses;
+            m_uncacheableAllowedAccessAsNotAllowedAccess = uncacheableAllowedAccessAsNotAllowedAccess;
             m_fileAccessAllowlist = allowlist;
+            m_matchComparer = new MatchComparer(m_context.PathTable);
         }
 
         /// <summary>
@@ -96,7 +113,7 @@ namespace BuildXL.ProcessPipExecutor
             var aggregateMatch = FileAccessAllowlist.MatchType.MatchesAndCacheable;
             var rfas = new (ReportedFileAccess, FileAccessAllowlist.MatchType)[observedFileAccess.Accesses.Count];
             int index = 0;
-            foreach (ReportedFileAccess reportedAccess in observedFileAccess.Accesses)
+            foreach (ReportedFileAccess reportedAccess in GetFileAccessesToMatch(observedFileAccess))
             {
                 FileAccessAllowlist.MatchType thisMatch = MatchReportedFileAccess(reportedAccess);
                 rfas[index++] = (reportedAccess, thisMatch);
@@ -114,7 +131,7 @@ namespace BuildXL.ProcessPipExecutor
         public FileAccessAllowlist.MatchType MatchAndReportUnexpectedObservedFileAccess(ObservedFileAccess unexpectedObservedFileAccess)
         {
             var aggregateMatch = FileAccessAllowlist.MatchType.MatchesAndCacheable;
-            foreach (ReportedFileAccess reportedAccess in unexpectedObservedFileAccess.Accesses)
+            foreach (ReportedFileAccess reportedAccess in GetFileAccessesToMatch(unexpectedObservedFileAccess))
             {
                 FileAccessAllowlist.MatchType thisMatch = MatchAndReportUnexpectedFileAccess(reportedAccess);
                 aggregateMatch = AggregateMatchType(aggregateMatch, thisMatch);
@@ -122,6 +139,8 @@ namespace BuildXL.ProcessPipExecutor
 
             return aggregateMatch;
         }
+
+        private IEnumerable<ReportedFileAccess> GetFileAccessesToMatch(ObservedFileAccess observedFileAccess) => observedFileAccess.Accesses.Distinct(m_matchComparer);
 
         private static FileAccessAllowlist.MatchType AggregateMatchType(FileAccessAllowlist.MatchType aggregateType, FileAccessAllowlist.MatchType currentType) 
         {
@@ -161,14 +180,14 @@ namespace BuildXL.ProcessPipExecutor
                 matchType = m_fileAccessAllowlist.Matches(m_loggingContext, unexpectedFileAccess, m_pip);
             }
 
-            ReportFileAccess(unexpectedFileAccess, matchType);
+            AddAndReportFileAccess(unexpectedFileAccess, matchType);
             return matchType;
         }
 
         /// <summary>
         /// Reports file access to this reporting context.
         /// </summary>
-        public void ReportFileAccess(ReportedFileAccess fileAccess, FileAccessAllowlist.MatchType matchType)
+        public void AddAndReportFileAccess(ReportedFileAccess fileAccess, FileAccessAllowlist.MatchType matchType)
         {
             switch (matchType)
             {
@@ -179,12 +198,48 @@ namespace BuildXL.ProcessPipExecutor
                 case FileAccessAllowlist.MatchType.MatchesButNotCacheable:
                     AddUnexpectedFileAccessAllowlisted(fileAccess);
                     m_numAllowlistedButNotCacheableFileAccessViolations++;
-                    ReportAllowlistedFileAccessNonCacheable(fileAccess);
+                    if (m_uncacheableAllowedAccessAsNotAllowedAccess)
+                    { 
+                        AddAndReportUncachableAllowlistAsNotAllowed(fileAccess);
+                    }
+                    else
+                    {
+                        ReportAllowlistedFileAccessNonCacheable(fileAccess);
+                    }
+
                     break;
                 case FileAccessAllowlist.MatchType.MatchesAndCacheable:
                     AddUnexpectedFileAccessAllowlisted(fileAccess);
                     m_numAllowlistedAndCacheableFileAccessViolations++;
                     ReportAllowlistedFileAccessCacheable(fileAccess);
+                    break;
+                default:
+                    throw Contract.AssertFailure("Unknown allowlist-match type.");
+            }
+        }
+
+        /// <summary>
+        /// Reports uncacheable file access to this reporting context.
+        /// </summary>
+        /// <remarks>
+        /// In some scenario, the file accesses that need to be reported is the uncacheable ones, for example,
+        /// file accesses resulting from undeclared file accesses or from outputs in shared opaque directories.
+        /// In the undeclared file access scenario, the removal of the allow list will not create a violation on the file access;
+        /// the file access is considered a legit undeclared file access.
+        /// In the case of shared opaque outputs, the outputs are simply omitted from the shared opaque folder.
+        /// The uncacheable file access still needs to be reported because the user will be interested in the reason why
+        /// the pip is uncacheable. Moreover, in the distributed build setting, uncacheable pip should raise an error.
+        /// </remarks>
+        public void AddAndReportUncacheableFileAccess(ReportedFileAccess fileAccess, FileAccessAllowlist.MatchType matchType)
+        {
+            switch (matchType)
+            {
+                case FileAccessAllowlist.MatchType.NoMatch:
+                case FileAccessAllowlist.MatchType.MatchesAndCacheable:
+                    break;
+
+                case FileAccessAllowlist.MatchType.MatchesButNotCacheable:
+                    AddAndReportFileAccess(fileAccess, matchType);
                     break;
                 default:
                     throw Contract.AssertFailure("Unknown allowlist-match type.");
@@ -219,15 +274,15 @@ namespace BuildXL.ProcessPipExecutor
         private void ReportUnexpectedFileAccessNotAllowlisted(ReportedFileAccess reportedFileAccess)
         {
             string path = reportedFileAccess.GetPath(m_context.PathTable);
-            string description = reportedFileAccess.Describe();
+            string fileAccessDescription = reportedFileAccess.Describe();
 
             if (path.StartsWith(PipEnvironment.RestrictedTemp, OperatingSystemHelper.PathComparison))
             {
                 Processes.Tracing.Logger.Log.PipProcessDisallowedTempFileAccess(
                     m_loggingContext,
                     m_pip.SemiStableHash,
-                    m_pip.GetDescription(m_context),
-                    description,
+                    m_pip.FormattedSemiStableHash,
+                    fileAccessDescription,
                     path);
             }
             else
@@ -235,10 +290,10 @@ namespace BuildXL.ProcessPipExecutor
                 Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccess(
                     m_loggingContext,
                     m_pip.SemiStableHash,
-                    m_pip.GetDescription(m_context),
+                    m_pip.FormattedSemiStableHash,
                     m_pip.Provenance.Token.Path.ToString(m_context.PathTable),
                     m_pip.WorkingDirectory.ToString(m_context.PathTable),
-                    description,
+                    fileAccessDescription,
                     path);
 
                 if (reportedFileAccess.Operation == ReportedFileOperation.NtCreateFile &&
@@ -251,10 +306,10 @@ namespace BuildXL.ProcessPipExecutor
                     Processes.Tracing.Logger.Log.PipProcessDisallowedNtCreateFileAccessWarning(
                         m_loggingContext,
                         m_pip.SemiStableHash,
-                        m_pip.GetDescription(m_context),
+                        m_pip.FormattedSemiStableHash,
                         m_pip.Provenance.Token.Path.ToString(m_context.PathTable),
                         m_pip.WorkingDirectory.ToString(m_context.PathTable),
-                        description,
+                        fileAccessDescription,
                         path);
                 }
             }
@@ -262,42 +317,61 @@ namespace BuildXL.ProcessPipExecutor
 
         private void ReportAllowlistedFileAccessNonCacheable(ReportedFileAccess reportedFileAccess)
         {
+            Contract.Requires(!m_uncacheableAllowedAccessAsNotAllowedAccess);
+
             string path = reportedFileAccess.GetPath(m_context.PathTable);
-            string description = reportedFileAccess.Describe();
+            string process = reportedFileAccess.Process.Path;
 
-            if (m_reportAllowlistedAccesses)
-            {
-                Processes.Tracing.Logger.Log.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
-                    m_loggingContext,
-                    m_pip.SemiStableHash,
-                    m_pip.GetDescription(m_context),
-                    description,
-                    path);
+            Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedNonCacheable(
+                m_loggingContext,
+                m_pip.SemiStableHash,
+                m_pip.GetDescription(m_context),
+                process,
+                path);
+        }
 
-                AddUnexpectedFileAccessNotAllowlisted(reportedFileAccess);
-            }
-            else
-            {
-                Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedNonCacheable(
-                    m_loggingContext,
-                    m_pip.SemiStableHash,
-                    m_pip.GetDescription(m_context),
-                    description,
-                    path);
-            }
+        private void AddAndReportUncachableAllowlistAsNotAllowed(ReportedFileAccess reportedFileAccess)
+        {
+            Contract.Requires(m_uncacheableAllowedAccessAsNotAllowedAccess);
+
+            string path = reportedFileAccess.GetPath(m_context.PathTable);
+            string process = reportedFileAccess.Process.Path;
+
+            AddUnexpectedFileAccessNotAllowlisted(reportedFileAccess);
+            Processes.Tracing.Logger.Log.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
+                m_loggingContext,
+                m_pip.SemiStableHash,
+                m_pip.FormattedSemiStableHash,
+                process,
+                path);
         }
 
         private void ReportAllowlistedFileAccessCacheable(ReportedFileAccess reportedFileAccess)
         {
             string path = reportedFileAccess.GetPath(m_context.PathTable);
-            string description = reportedFileAccess.Describe();
+            string process = reportedFileAccess.Process.Path;
 
             Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedCacheable(
                 m_loggingContext,
                 m_pip.SemiStableHash,
-                m_pip.GetDescription(m_context),
-                description,
+                m_pip.FormattedSemiStableHash,
+                process,
                 path);
+        }
+
+        private class MatchComparer : IEqualityComparer<ReportedFileAccess>
+        {
+            private readonly PathTable m_pathTable;
+
+            public MatchComparer(PathTable pathTable) => m_pathTable = pathTable;
+
+            /// <inheritdoc/>
+            public bool Equals(ReportedFileAccess x, ReportedFileAccess y) =>
+                string.Equals(x.GetPath(m_pathTable), y.GetPath(m_pathTable), OperatingSystemHelper.PathComparison)
+                && string.Equals(x.Process.Path, y.Process.Path, OperatingSystemHelper.PathComparison);
+
+            /// <inheritdoc/>
+            public int GetHashCode(ReportedFileAccess obj) => (obj.GetPath(m_pathTable), obj.Process.Path ?? string.Empty).GetHashCode();
         }
     }
 

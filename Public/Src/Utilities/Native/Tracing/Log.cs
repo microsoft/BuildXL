@@ -36,7 +36,7 @@ namespace BuildXL.Native.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Storage,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics),
             Message = "Diagnostic for '{path}': {description}")]
         public abstract void FileUtilitiesDiagnostic(LoggingContext context, string path, string description);
 
@@ -45,7 +45,7 @@ namespace BuildXL.Native.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Storage,
-            Keywords = (int)((Keywords.UserMessage) | Keywords.Diagnostics),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics),
             Message = "Retry attempt failed with exception. {exception}")]
         public abstract void RetryOnFailureException(LoggingContext context, string exception);
 

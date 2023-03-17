@@ -276,7 +276,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(pip != null);
 
-            IEnumerable<FileAccessAllowlistEntry> possibleEntries = new List<FileAccessAllowlistEntry>();
+            IEnumerable<FileAccessAllowlistEntry> possibleEntries = Enumerable.Empty<FileAccessAllowlistEntry>();;
 
             ConcatPossibleEntries(loggingContext, reportedFileAccess, pip, ref possibleEntries);
 
@@ -323,11 +323,11 @@ namespace BuildXL.Processes
             int characterWithError;
             if (AbsolutePath.TryCreate(m_context.PathTable, reportedFileAccess.Process.Path, out toolPath, out characterWithError) != AbsolutePath.ParseResult.Success)
             {
-                BuildXL.Processes.Tracing.Logger.Log.FileAccessAllowlistFailedToParsePath(
+                Tracing.Logger.Log.FileAccessAllowlistFailedToParsePath(
                     loggingContext,
                     pip.SemiStableHash,
-                    pip.GetDescription(m_context),
-                    reportedFileAccess.Describe(),
+                    pip.FormattedSemiStableHash,
+                    reportedFileAccess.GetPath(m_context.PathTable),
                     reportedFileAccess.Process.Path,
                     characterWithError);
             }

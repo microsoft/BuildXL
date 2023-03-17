@@ -3986,7 +3986,7 @@ namespace BuildXL.Scheduler
                     // Report cacheable/uncachable so that pip executor can decide if the pip is cacheable or uncacheable.
                     foreach ((ReportedFileAccess fa, FileAccessAllowlist.MatchType matchType) in reportedMatchTypes.Where(t => t.Item2 != FileAccessAllowlist.MatchType.NoMatch))
                     {
-                        m_fileAccessReportingContext.ReportFileAccess(fa, matchType);
+                        m_fileAccessReportingContext.AddAndReportUncacheableFileAccess(fa, matchType);
                     }
 
                     return ObservedInputAccessCheckFailureAction.SuppressAndIgnorePath;

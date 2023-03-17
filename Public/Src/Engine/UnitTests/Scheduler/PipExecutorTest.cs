@@ -1188,7 +1188,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         [InlineData(false)]
         [InlineData(true)]
-        public Task ObservedInputsLogedForFileMonitoringViolationsProcess(bool unexpectedFileAccessesAreErrors)
+        public Task ObservedInputsLoggedForFileMonitoringViolationsProcess(bool unexpectedFileAccessesAreErrors)
         {
             return WithCachingExecutionEnvironment(
                 GetFullPath(".cache"),
@@ -1218,7 +1218,8 @@ namespace Test.BuildXL.Scheduler
                     string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
                     await testRunChecker.VerifySucceeded(env, pip, "AB2" + Environment.NewLine, expectMarkedPerpetuallyDirty: true);
 
-                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    // In Linux two different tools accessed b, i.e., sh and cat, while in Windows only one tool accessed b, i.e., cmd.exe.
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: OperatingSystemHelper.IsWindowsOS ? 1 : 2);
                     AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
@@ -1228,7 +1229,7 @@ namespace Test.BuildXL.Scheduler
         }
 
 
-        [Trait(BuildXL.TestUtilities.Features.Feature, BuildXL.TestUtilities.Features.NonStandardOptions)]
+        [Trait(TestUtilities.Features.Feature, TestUtilities.Features.NonStandardOptions)]
         [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public Task ProcessUncacheableDueToFileMonitoringViolationsInSealedDirectory()
         {
@@ -1252,17 +1253,17 @@ namespace Test.BuildXL.Scheduler
                     string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
                     await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
-                    // Expecting 4 warnings, of which 3 are collapsed into one due to similar file access type.
-                    // Events ignore the function used for the access.
-                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    // Before reporting disallowed file access, all reported file accesses are grouped into (process, path) pairs.
+                    // In Linux two different tools accessed b, i.e., sh and cat, while in Windows only one tool accessed b, i.e., cmd.exe.
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: OperatingSystemHelper.IsWindowsOS ? 1 : 2);
                     AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
                     await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
-                    // Expecting 4 warnings, of which 3 are collapsed into one due to similar file access type.
-                    // Events ignore the function used for the access.
-                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    // Before reporting disallowed file access, all reported file accesses are grouped into (process, path) pairs.
+                    // In Linux two different tools accessed b, i.e., sh and cat, while in Windows only one tool accessed b, i.e., cmd.exe.
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: OperatingSystemHelper.IsWindowsOS ? 1 : 2);
                     AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
                 });
@@ -1291,14 +1292,16 @@ namespace Test.BuildXL.Scheduler
                     // Pip with file monitoring errors succeeds in PipExecutor but fails in the post-process step.
                     await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpetuallyDirty: true);
 
-                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    // In Linux two different tools accessed a, i.e., sh and cat, while in Windows only one tool accessed b, i.e., cmd.exe.
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: OperatingSystemHelper.IsWindowsOS ? 1 : 2);
                     AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
 
                     // Uncacheable pip due to the file monitoring errors
                     await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpetuallyDirty: true);
 
-                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    // In Linux two different tools accessed a, i.e., sh and cat, while in Windows only one tool accessed b, i.e., cmd.exe.
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: OperatingSystemHelper.IsWindowsOS ? 1 : 2);
                     AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
                 });
@@ -1573,9 +1576,9 @@ namespace Test.BuildXL.Scheduler
 
                     await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
-                    // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
-                    // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, count: 2);
+                    // Before reporting disallowed file access, all reported file accesses are grouped into (process, path) pairs.
+                    // In Linux two different tools accessed a, i.e., sh and cat, while in Windows only one tool accessed a, i.e., cmd.exe.
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, count: OperatingSystemHelper.IsWindowsOS ? 1 : 2);
 
                     // The sealed-directory specific event is only emitted when there are non-allowlisted violations.
                     AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
@@ -1583,9 +1586,9 @@ namespace Test.BuildXL.Scheduler
 
                     await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
-                    // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
-                    // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, count: 2);
+                    // Before reporting disallowed file access, all reported file accesses are grouped into (process, path) pairs.
+                    // In Linux two different tools accessed a, i.e., sh and cat, while in Windows only one tool accessed a, i.e., cmd.exe.
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, count: OperatingSystemHelper.IsWindowsOS ? 1 : 2);
                     AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
                 });
@@ -1629,9 +1632,8 @@ namespace Test.BuildXL.Scheduler
                     string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
                     await testRunChecker.VerifySucceeded(env, pip, expected);
 
-                    // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
-                    // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, count: 2);
+                    // Before reporting disallowed file access, all reported file accesses are grouped into (process, path) pairs.
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, count: 1);
 
                     // The sealed-directory specific event is only emitted when there are non-allowlisted violations.
                     AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);

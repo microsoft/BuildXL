@@ -854,7 +854,7 @@ namespace BuildXL.Native.IO.Windows
                 }
             }
 
-            Logger.Log.SettingOwnershipAndAcl(m_loggingContext, path);
+            Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Attempting to set ownership and ACL to path");
 
             // The long path prefix is required for paths greater than MAX_PATH before calling native methods.
             path = FileSystemWin.ToLongPathIfExceedMaxPath(path);

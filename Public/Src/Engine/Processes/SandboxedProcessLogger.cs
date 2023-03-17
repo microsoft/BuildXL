@@ -50,10 +50,10 @@ namespace BuildXL.Processes
             {
                 foreach (ReportedFileAccess reportedFile in fileAccesses)
                 {
-                    BuildXL.Processes.Tracing.Logger.Log.PipProcessFileAccess(
+                    Tracing.Logger.Log.PipProcessFileAccess(
                         LoggingContext,
                         Process.SemiStableHash,
-                        Process.GetDescription(Context),
+                        Process.FormattedSemiStableHash,
                         reportedFile.Describe(),
                         reportedFile.GetPath(Context.PathTable));
                 }
@@ -63,10 +63,10 @@ namespace BuildXL.Processes
             {
                 foreach (var reportedProcess in processes)
                 {
-                    BuildXL.Processes.Tracing.Logger.Log.PipProcess(
+                    Tracing.Logger.Log.PipProcess(
                         LoggingContext,
                         Process.SemiStableHash,
-                        Process.GetDescription(Context),
+                        Process.FormattedSemiStableHash,
                         reportedProcess.ProcessId,
                         reportedProcess.Path);
                 }

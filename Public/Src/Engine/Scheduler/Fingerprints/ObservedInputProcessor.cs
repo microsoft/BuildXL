@@ -331,9 +331,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         FileArtifact fakeArtifact = FileArtifact.CreateSourceFile(path);
                         FileContentInfo? pathContentInfo;
 
-                        using (operationContext.StartOperation(
-                            PipExecutorCounter.ObservedInputProcessorTryQuerySealedInputContentDuration,
-                            fakeArtifact))
+                        using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorTryQuerySealedInputContentDuration, fakeArtifact))
                         {
                             pathContentInfo = await observationInfos[i].FileContentInfoTask;
                         }
@@ -433,7 +431,13 @@ namespace BuildXL.Scheduler.Fingerprints
                         {
                             if (allowUndeclaredSourceReads)
                             {
-                                var undeclaredAccessCheckResult = target.OnAllowingUndeclaredAccessCheck(observation);
+                                ObservedInputAccessCheckFailureAction undeclaredAccessCheckResult;
+
+                                using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorOnAllowingUndeclaredAccessCheckDuration, fakeArtifact))
+                                {
+                                    undeclaredAccessCheckResult = target.OnAllowingUndeclaredAccessCheck(observation);
+                                }
+                                
                                 if (undeclaredAccessCheckResult == ObservedInputAccessCheckFailureAction.Fail)
                                 {
                                     // Undeclared access doesn't match any entry in the allow list.
@@ -471,14 +475,21 @@ namespace BuildXL.Scheduler.Fingerprints
                             }
                             else if (type == ObservedInputType.FileContentRead || type == ObservedInputType.ExistingFileProbe)
                             {
-                                ObservedInputAccessCheckFailureAction accessCheckFailureResult = target.OnAccessCheckFailure(
-                                    observation,
-                                    fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnlyOverride: false)));
+                                ObservedInputAccessCheckFailureAction accessCheckFailureResult;
+                                using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorOnAccessCheckFailureDuration, fakeArtifact))
+                                {
+                                    accessCheckFailureResult = target.OnAccessCheckFailure(
+                                        observation,
+                                        fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnlyOverride: false)));
+                                }
+                                
                                 HandleFailureResult(accessCheckFailureResult, ref status, ref invalid);
                                 continue;
                             }
                             else if (target.IsReportableUnexpectedAccess(path))
                             {
+                                // TODO: This is used by unit tests only. Need to be removed.
+
                                 if (pipFileSystemViewPathIds == null)
                                 {
                                     // Lazily populate pipFileSystemViewPathIds if there is at least one reportable unexpected access.
@@ -515,21 +526,24 @@ namespace BuildXL.Scheduler.Fingerprints
 
                         isUnsuppressedObservation[i] = true;
                     }
+                }
 
-                    DirectoryMembershipFilter searchPathFilter;
-                    using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorComputeSearchPathsAndFilterDuration))
-                    {
-                        searchPathFilter = ComputeSearchPathsAndFilter(
-                                                ref observedAccessedFileNames,
-                                                environment.Context.PathTable,
-                                                pip,
-                                                target,
-                                                observations,
-                                                observationTypes,
-                                                isUnsuppressedObservation,
-                                                searchPaths);
-                    }
+                DirectoryMembershipFilter searchPathFilter;
+                using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorComputeSearchPathsAndFilterDuration))
+                {
+                    searchPathFilter = ComputeSearchPathsAndFilter(
+                                            ref observedAccessedFileNames,
+                                            environment.Context.PathTable,
+                                            pip,
+                                            target,
+                                            observations,
+                                            observationTypes,
+                                            isUnsuppressedObservation,
+                                            searchPaths);
+                }
 
+                using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorPass3ProcessObservationInfosDuration))
+                { 
                     AbsolutePath lastAbsentPath = AbsolutePath.Invalid;
 
                     // Third and final pass

@@ -4128,7 +4128,7 @@ namespace BuildXL.ProcessPipExecutor
                             if (matchType != FileAccessAllowlist.MatchType.NoMatch)
                             {
                                 // If the match is cacheable/uncacheable, report the access so that pip executor knows if the pip can be cached or not.
-                                fileAccessReportingContext.ReportFileAccess(firstAccess, matchType);
+                                fileAccessReportingContext.AddAndReportUncacheableFileAccess(firstAccess, matchType);
                             }
 
                             if (shouldBeConsideredAsOutput)

@@ -114,12 +114,6 @@ namespace BuildXL.Scheduler
         // ============================================================================================================
 
         /// <summary>
-        /// The amount of time it took to matrerialize the inputs for all run pips.
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        InputMaterializationDuration,
-
-        /// <summary>
         /// The amount of time it took to compute strong fingerprints from prior path sets. This is part
         /// of cache lookup for prior process executions.
         /// </summary>
@@ -180,10 +174,6 @@ namespace BuildXL.Scheduler
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
-        CheckProcessRunnableFromCacheChapter3LoadAndDeserializeDuration,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
         CheckProcessRunnableFromCacheChapter4CheckContentAvailabilityDuration,
 
         /// <nodoc/>
@@ -241,6 +231,12 @@ namespace BuildXL.Scheduler
         ObservedInputProcessorPass2ProcessObservationInfosDuration,
 
         /// <summary>
+        /// The amount of time ObservedInputProcessor spent in Pass3
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        ObservedInputProcessorPass3ProcessObservationInfosDuration,
+
+        /// <summary>
         /// The amount of time ObservedInputProcessor spent in ComputeSearchPathsAndFilter
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
@@ -269,6 +265,18 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         ObservedInputProcessorProcessInternalDuration,
+
+        /// <summary>
+        /// The amount of time ObservedInputProcessor spent in checking if undeclared accesses are allowed.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        ObservedInputProcessorOnAllowingUndeclaredAccessCheckDuration,
+
+        /// <summary>
+        /// The amount of time ObservedInputProcessor spent in checking access failure.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        ObservedInputProcessorOnAccessCheckFailureDuration,
 
         /// <summary>
         /// The amount of time it took to determine the set of dependencies which need to build
@@ -864,18 +872,6 @@ namespace BuildXL.Scheduler
         ExecutePipRemotelyDuration,
 
         /// <summary>
-        /// Time spent executing the pip step on all workers
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        ExecuteStepOnAllRemotesDuration,
-
-        /// <summary>
-        /// Time spent executing the pip step on local worker
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        ExecuteStepLocallyDuration,
-
-        /// <summary>
         /// The time spent querying RAM usage for process pips
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
@@ -932,34 +928,10 @@ namespace BuildXL.Scheduler
         FileContentManagerGetAndRecordFileContentHashDuration,
 
         /// <summary>
-        /// The amount of time for pip graph post validation.
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        PipGraphBuilderPostGraphValidation,
-
-        /// <summary>
         /// Time spent handling a pip request on worker
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         WorkerServiceHandlePipStepDuration,
-
-        /// <summary>
-        /// Time spent executing a pip request on worker
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        WorkerServiceExecutePipStepDuration,
-
-        /// <summary>
-        /// Time spent reporting result of a pip request on worker
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        WorkerServiceReportPipStepDuration,
-
-        /// <summary>
-        /// Time a pip request spent queue on worker
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        WorkerServiceQueuedPipStepDuration,
 
         /// <summary>
         /// The maximum detours heap used in Bytes
@@ -971,12 +943,6 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         AcquireResourcesDuration,
-
-        /// <summary>
-        /// The time spent computing incremental scheduling state
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        ComputeIncrementalSchedulingStateDuration,
 
         /// <summary>
         /// The number of pips skipped due to being materialized.
@@ -1036,18 +1002,6 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         WhenDoneWorkerFinishDuration,
-
-        /// <summary>
-        /// The time spent to create symlink including waiting for semaphore.
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        TryCreateSymlinkOuterDuration,
-
-        /// <summary>
-        /// The time spent to create symlink.
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        TryCreateSymlinkDuration,
 
         /// <summary>
         /// The time spent to create a reparse point for file materialization.
@@ -1259,6 +1213,7 @@ namespace BuildXL.Scheduler
         ObservedInputProcessorComputePipFileSystemPaths,
 
         /// <nodoc/>
+        // TODO: Is this used?
         [CounterType(CounterType.Stopwatch)]
         ObservedInputProcessorReportUnexpectedAccess,
 

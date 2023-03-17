@@ -290,7 +290,7 @@ namespace BuildXL.Processes.Tracing
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
-            string fileAccessDescription,
+            string processPath,
             string path);
 
         [GeneratedEvent(
@@ -306,7 +306,7 @@ namespace BuildXL.Processes.Tracing
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
-            string fileAccessDescription,
+            string processPath,
             string path);
 
         [GeneratedEvent(
@@ -317,13 +317,13 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message =
                 EventConstants.PipPrefix +
-                "Tool path '{3}' failed to parse at character '{4}' could not be parsed. File access allowlist entries matching on tool paths will not be checked for this access. (Accessed via {2})")]
+                "Failed to parse tool path '{3}' at character '{4}' that accessed '{2}'. File access allowlist entries matching on tool paths will not be checked for this access.")]
         public abstract void FileAccessAllowlistFailedToParsePath(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
-            string fileAccessDescription,
             string path,
+            string processPath,
             int characterWithError);
 
         [GeneratedEvent(
@@ -339,7 +339,7 @@ namespace BuildXL.Processes.Tracing
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
-            string fileAccessDescription,
+            string processPath,
             string path);
 
         [GeneratedEvent(

@@ -318,33 +318,40 @@ namespace BuildXL.Processes
             {
                 using (item.wrapper)
                 {
-                    // Format:
-                    //   "%s|%d|%d|%d|%d|%d|%d|%s|%d\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath, isDirectory
-                    string message = Encoding.GetString(item.wrapper.Instance, index: 0, count: item.length).TrimEnd('\n');
 
-                    // parse message and create AccessReport
-                    string[] parts = message.Split(new[] { '|' });
-                    Contract.Assert(parts.Length == 9);
-                    RequestedAccess access = (RequestedAccess)AssertInt(parts[2]);
-                    string path = parts[7];
+                    var message = Encoding.GetString(item.wrapper.Instance, index: 0, count: item.length).AsSpan().TrimEnd('\n');
 
+                    // parse the message, consuming the span field by field. The format is:
+                    //  "%s|%d|%d|%d|%d|%d|%d|%s|%d\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath, isDirectory
+                    var restOfMessage = message;
+                    _ = nextField(restOfMessage, out restOfMessage);  // ignore progname
+                    var pid = AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var access = (RequestedAccess)AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var status = AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var explicitlogging = AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var err = AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var opCode = AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var path = nextField(restOfMessage, out restOfMessage);
+                    var isDirectory = AssertInt(nextField(restOfMessage, out restOfMessage));
+                    Contract.Assert(restOfMessage.IsEmpty);  // We should have reached the end of the message
+                                                             
                     // ignore accesses to libDetours.so, because we injected that library
-                    if (path == s_detoursLibFile)
+                    if (path.SequenceEqual(s_detoursLibFile.AsSpan()))
                     {
                         return;
                     }
 
                     var report = new AccessReport
                     {
-                        Pid = (int)AssertInt(parts[1]),
+                        Pid = (int)pid,
                         PipId = Process.PipId,
                         RequestedAccess = (uint)access,
-                        Status = AssertInt(parts[3]),
-                        ExplicitLogging = AssertInt(parts[4]),
-                        Error = AssertInt(parts[5]),
-                        Operation = (FileOperation)AssertInt(parts[6]),
-                        PathOrPipStats = Encoding.GetBytes(path),
-                        IsDirectory = AssertInt(parts[8]),
+                        Status = status,
+                        ExplicitLogging = explicitlogging,
+                        Error = err,
+                        Operation = (FileOperation)opCode,
+                        PathOrPipStats = Encoding.GetBytes(path.ToArray()),
+                        IsDirectory = isDirectory,
                     };
 
                     // update active processes
@@ -358,10 +365,11 @@ namespace BuildXL.Processes
                     }
                     else
                     {
+                        var pathStr = path.ToString();
                         // check the path cache (only when the message is not about process tree)
-                        if (GetOrCreateCacheRecord(path).CheckCacheHitAndUpdate(access))
+                        if (GetOrCreateCacheRecord(pathStr).CheckCacheHitAndUpdate(access))
                         {
-                            LogDebug("Cache hit for access report: " + message);
+                            LogDebug($"Cache hit for access report: ({pathStr}, {access})");
                             return;
                         }
                     }
@@ -369,17 +377,37 @@ namespace BuildXL.Processes
                     // post the AccessReport
                     Process.PostAccessReport(report);
                 }
+
+                // Reads next field of the serialized message, i.e. split on the first | and return both parts
+                static ReadOnlySpan<char> nextField(ReadOnlySpan<char> message, out ReadOnlySpan<char> rest)
+                {
+                    for (int i = 0; i < message.Length; i++)
+                    {
+                        if (message[i] == '|')
+                        {
+                            rest = i + 1 == message.Length ? ReadOnlySpan<char>.Empty : message.Slice(i+1); // Defend against | being the last character, although we don't expect this
+                            return message.Slice(0, i);
+                        }
+                    }
+
+                    rest = ReadOnlySpan<char>.Empty;
+                    return message;
+                }
             }
 
-            private uint AssertInt(string str)
+            private uint AssertInt(ReadOnlySpan<char> str)
             {
+#if NETCOREAPP
                 if (uint.TryParse(str, out uint result))
+#else // .NET 472 - no ReadOnlySpan<char> overloads. We don't really care about perf for .NET472 here
+                if (uint.TryParse(str.ToString(), out uint result))
+#endif
                 {
                     return result;
                 }
                 else
                 {
-                    LogError($"Could not parse int from '{str}'");
+                    LogError($"Could not parse int from '{str.ToString()}'");
                     return 0;
                 }
             }

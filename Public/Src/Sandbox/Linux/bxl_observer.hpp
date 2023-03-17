@@ -155,6 +155,17 @@ static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
 #define _fatal(fmt, ...) do { real_fprintf(stderr, "(%s) " fmt "\n", __func__, __VA_ARGS__); _exit(1); } while (0)
 #define fatal(msg) _fatal("%s", msg)
 
+#define _fatal_undefined_env(name)                                                                      \
+    char** procenv = environ;                                                                           \
+    std::stringstream ss;                                                                               \
+    for (int i = 0; procenv[i] != NULL; i++) {                                                          \
+        ss << procenv[i];                                                                               \
+        if (procenv[i+1] != NULL) {                                                                     \
+            ss << ",";                                                                                  \
+        }                                                                                               \
+    }                                                                                                   \
+    _fatal("[%s] ERROR: Env var '%s' not set. Environment: [%s]\n", __func__, name, ss.str().c_str());  \
+
 /**
  * Wraps the result of a syscall together with the current 'errno'.
  *

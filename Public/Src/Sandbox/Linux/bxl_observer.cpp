@@ -54,9 +54,10 @@ void BxlObserver::InitDetoursLibPath()
 void BxlObserver::InitPTraceMq()
 {
     const char *mqname = getenv(BxlPTraceMqName);
-    if (is_null_or_empty(mqname) && CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
+
+    if (is_null_or_empty(mqname))
     {
-        _fatal("[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
+        _fatal_undefined_env(BxlPTraceMqName);
     }
 
     strlcpy(ptraceMqName_, mqname, NAME_MAX);
@@ -70,7 +71,7 @@ void BxlObserver::InitFam()
     {
         // This environment variable is set by the sandbox before calling exec
         // We always expect to have it on initialization of the observer
-        _fatal("[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
+        _fatal_undefined_env(BxlEnvFamPath);
     }
 
     // Store the value for future uses, as the environment might be cleared by the running process
@@ -974,6 +975,7 @@ char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *en
     return newEnvp;
 }
 
+// Propagate the environment needed for sandbox initialization
 char** BxlObserver::ensureEnvs(char *const envp[])
 {
     if (!IsMonitoringChildProcesses())
@@ -982,6 +984,7 @@ char** BxlObserver::ensureEnvs(char *const envp[])
         newEnvp = ensure_env_value(newEnvp, BxlEnvFamPath, "");
         newEnvp = ensure_env_value(newEnvp, BxlEnvDetoursPath, "");
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
+        newEnvp = ensure_env_value(newEnvp, BxlPTraceMqName, "");
         return newEnvp;
     }
     else
@@ -994,6 +997,7 @@ char** BxlObserver::ensureEnvs(char *const envp[])
 
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath, famPath_);
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath, detoursLibFullPath_);
+        newEnvp = ensure_env_value_with_log(newEnvp, BxlPTraceMqName, ptraceMqName_);
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
 
         return newEnvp;

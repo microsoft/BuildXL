@@ -42,6 +42,7 @@ namespace Processes.Detours {
                 EngineTestUtilities.dll,
                 importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
                 importFrom("BuildXL.Engine").Processes.dll,
+                importFrom("BuildXL.Engine").Processes.Remoting.dll,
                 importFrom("BuildXL.Pips").dll,
                 importFrom("BuildXL.Utilities").dll,
                 importFrom("BuildXL.Utilities").Native.dll,

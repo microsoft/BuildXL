@@ -18,6 +18,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Tracing.CounterCollection;
+using System.Text.Json;
 
 #nullable enable
 
@@ -294,7 +295,7 @@ namespace BuildXL.Processes.Remoting
                 }
             };
 
-            string jsonConfigOverrides = Newtonsoft.Json.JsonConvert.SerializeObject(jsonConfigOverridesObj, Newtonsoft.Json.Formatting.Indented);
+            string jsonConfigOverrides = JsonSerializer.Serialize(jsonConfigOverridesObj, new JsonSerializerOptions { WriteIndented = true });
             string jsonConfigOverridesFile = Path.Combine(m_remoteManagerDirectory, "AnyBuildRepoConfigOverrides.json");
 
             // TODO: Change to File.WriteAllTextAsync when moving completely from NET framework.

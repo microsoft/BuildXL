@@ -9,6 +9,7 @@ namespace ProcessPipExecutor {
         sources: globR(d`.`, "*.cs"),
         references: [
             Processes.dll,
+            Processes.Remoting.dll,
 
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,

@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
+using BuildXL.Processes;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Processes.Remoting

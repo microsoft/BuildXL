@@ -25,6 +25,8 @@ namespace Scheduler {
             Cache.dll,
             ProcessPipExecutor.dll,
             Processes.dll,
+            Processes.Remoting.dll,
+            ProcessPipExecutor.dll,
             Distribution.Grpc.dll,
             ViewModel.dll,
             importFrom("BuildXL.Cache.ContentStore").Library.dll,

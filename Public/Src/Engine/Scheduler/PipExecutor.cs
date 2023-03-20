@@ -1546,7 +1546,7 @@ namespace BuildXL.Scheduler
                             enableCaching: !skipCaching,
                             fingerprintComputation: fingerprintComputation,
                             executionResult.ContainerConfiguration);
-          
+
                         var pushOutputsToCache = DateTime.UtcNow.Subtract(start);
                         SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringCacheContent, pushOutputsToCache);
                         processExecutionResult.ReportPushOutputsToCacheDurationMs(pushOutputsToCache.ToMilliseconds());

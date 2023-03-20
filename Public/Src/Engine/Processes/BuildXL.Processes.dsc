@@ -5,23 +5,18 @@ import * as Managed from "Sdk.Managed";
 import * as Shared from "Sdk.Managed.Shared";
 import * as SysMng from "System.Management";
 import * as MacServices from "BuildXL.Sandbox.MacOS";
-import * as GrpcSdk from "Sdk.Protocols.Grpc";
 
 namespace Processes {
 
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Processes",
-        sources: [
-            ...globR(d`.`, "*.cs"),
-            ...GrpcSdk.generateCSharp({
-                    proto: [f`Remoting/Proto/Remote.proto`]
-                }).sources
-            ],
+        sources: globR(d`.`, "*.cs"),
         generateLogs: true,
         references: [
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+                importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             ]),
 
             ...addIf(BuildXLSdk.isFullFramework,
@@ -51,11 +46,6 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("Newtonsoft.Json").pkg,
-            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
-            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
-                  importFrom("AnyBuild.SDK").pkg,
-            ]),
-            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(),
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Engine",

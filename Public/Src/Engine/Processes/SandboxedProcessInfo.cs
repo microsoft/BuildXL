@@ -14,7 +14,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.BuildParameters;
-using BuildXL.Processes.Remoting;
 
 #nullable enable
 

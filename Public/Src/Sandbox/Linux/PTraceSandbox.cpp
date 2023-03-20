@@ -460,7 +460,7 @@ void PTraceSandbox::ReportOpen(std::string path, int oflag, std::string syscallN
     mode_t pathMode = m_bxl->get_mode(path.c_str());
     bool pathExists = pathMode != 0;
     bool isCreate = !pathExists && (oflag & (O_CREAT|O_TRUNC));
-    bool isWrite = pathExists && (oflag & (O_CREAT|O_TRUNC) && (oflag & O_WRONLY));
+    bool isWrite = pathExists && (oflag & (O_CREAT|O_TRUNC) && ((oflag & O_ACCMODE == O_WRONLY) || (oflag & O_ACCMODE == O_RDWR)));
 
     IOEvent event(
         isCreate ? ES_EVENT_TYPE_NOTIFY_CREATE : isWrite ? ES_EVENT_TYPE_NOTIFY_WRITE : ES_EVENT_TYPE_NOTIFY_OPEN,

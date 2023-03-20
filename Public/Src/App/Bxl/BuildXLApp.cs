@@ -1641,7 +1641,6 @@ namespace BuildXL
                     onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
                     maxStatusPips: m_configuration.FancyConsoleMaxStatusPips,
                     optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps || m_configuration.OptimizeVsoAnnotationsForAzureDevOps);
-
                 listener.SetBuildViewModel(buildViewModel);
 
                 AddListener(listener);
@@ -1649,7 +1648,6 @@ namespace BuildXL
 
             private void ConfigureAzureDevOpsLogging(BuildViewModel buildViewModel)
             {
-                var initialFrequency = Scheduler.Scheduler.GetLoggingPeriodInMsForExecution(m_configuration);
                 var listener = new AzureDevOpsListener(
                     Events.Log,
                     m_console,
@@ -1657,7 +1655,6 @@ namespace BuildXL
                     buildViewModel,
                     m_configuration.UseCustomPipDescriptionOnConsole,
                     m_warningManager.GetState,
-                    initialFrequency,
                     m_configuration.AdoConsoleMaxIssuesToLog
                 );
 

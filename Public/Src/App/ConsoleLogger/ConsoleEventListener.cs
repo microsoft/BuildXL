@@ -13,6 +13,7 @@ using System.Text;
 using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -54,6 +55,8 @@ namespace BuildXL
         /// This provides access to viewmodel data of the build for instance to get the list of running pips in fancy console mode.
         /// </summary>
         private BuildViewModel m_buildViewModel;
+
+        private readonly StatusMessageThrottler m_statusMessageThrottler;
 
         /// <summary>
         /// Creates a new instance with optional colorization.
@@ -208,6 +211,7 @@ namespace BuildXL
             m_logsDirectory = logsDirectory;
             m_notWorker = notWorker;
             m_optimizeForAzureDevOps = optimizeForAzureDevOps;
+            m_statusMessageThrottler = new StatusMessageThrottler(baseTime);
         }
 
         /// <summary>
@@ -359,7 +363,9 @@ namespace BuildXL
 
                         string standardStatus = sb.ToString();
                         string updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo);
-                        SendToConsole(eventData, "info", standardStatus, updatingStatus);
+
+                        bool allowStatusThrottling = eventData.EventId != (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable;
+                        SendToConsole(eventData, "info", standardStatus, allowStatusThrottling: allowStatusThrottling, updatableMessage: updatingStatus);
                     }
 
                     if (m_notWorker)
@@ -372,7 +378,7 @@ namespace BuildXL
 
                 default:
                 {
-                    SendToConsole(eventData, "info", eventData.Message);
+                    SendToConsole(eventData, "info", eventData.Message, allowStatusThrottling: false);
                     break;
                 }
             }
@@ -534,8 +540,14 @@ namespace BuildXL
             return format;
         }
 
-        private void SendToConsole(EventWrittenEventArgs eventData, string label, string message, string updatableMessage = null)
+        private void SendToConsole(EventWrittenEventArgs eventData, string label, string message, bool allowStatusThrottling, string updatableMessage = null)
         {
+            if (allowStatusThrottling && m_statusMessageThrottler.ShouldThrottleStatusUpdate())
+            {
+                // Bail out early if this is a status update and the update period is more frequent than desired
+                return;
+            }
+
             string finalMessage = CreateFullMessageString(eventData, label, message, BaseTime, UseCustomPipDescription, TimeDisplay.Seconds);
 
             var keyWords = eventData.Keywords;

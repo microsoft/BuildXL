@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
@@ -10,12 +11,11 @@ using System.Threading;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL
 {
@@ -48,9 +48,7 @@ namespace BuildXL
         private int m_lastReportedProgress = -1;
         private int m_warningCount;
         private int m_errorCount;
-        private readonly int m_initialFrequencyMs;
-        private int m_loggingFrequencyMs;
-        private DateTime m_statusLogTime;
+        private readonly StatusMessageThrottler m_statusMessageThrottler;
 
         /// <nodoc />
         public AzureDevOpsListener(
@@ -60,7 +58,6 @@ namespace BuildXL
             BuildViewModel buildViewModel,
             bool useCustomPipDescription,
             [AllowNull] WarningMapper warningMapper,
-            int initialFrequencyMs,
             int adoConsoleMaxIssuesToLog)
             : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
@@ -70,7 +67,7 @@ namespace BuildXL
             m_console = console;
             m_buildViewModel = buildViewModel;
             m_adoConsoleMaxIssuesToLog = adoConsoleMaxIssuesToLog;
-            m_initialFrequencyMs = initialFrequencyMs;
+            m_statusMessageThrottler = new StatusMessageThrottler(baseTime);
         }
 
         /// <inheritdoc />
@@ -79,26 +76,6 @@ namespace BuildXL
         {
             m_console.Dispose();
             base.Dispose();
-        }
-
-        private int GetCurrentFrequencyMs()
-        {
-            DateTime currentTime = DateTime.UtcNow;
-            long totalElapsedMins = SafeConvert.ToInt32(currentTime.Subtract(BaseTime).TotalMinutes);
-
-            if (totalElapsedMins <= 5)
-            {
-                return m_initialFrequencyMs;
-            }
-            else if (totalElapsedMins < 60)
-            {
-                return 20_000;
-            }
-            else
-            {
-                return 60_000;
-            }
-
         }
 
         /// <inheritdoc />
@@ -124,17 +101,10 @@ namespace BuildXL
                     var processPercent = (100.0 * done) / (total * 1.0);
                     var currentProgress = Convert.ToInt32(Math.Floor(processPercent));
 
-                    if (currentProgress > m_lastReportedProgress)
+                    if (currentProgress > m_lastReportedProgress && !m_statusMessageThrottler.ShouldThrottleStatusUpdate())
                     {
                         m_lastReportedProgress = currentProgress;
-
-                        DateTime currentTime = DateTime.UtcNow;
-                        m_loggingFrequencyMs = GetCurrentFrequencyMs();
-                        if (currentTime > m_statusLogTime.AddMilliseconds(m_loggingFrequencyMs))
-                        {
-                            m_statusLogTime = currentTime;
-                            m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
-                        }
+                        m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
                     }
 
                     break;

@@ -5485,7 +5485,7 @@ namespace BuildXL.Scheduler
                 IList<long> totalQueueRequestDurations = new long[(int)PipExecutionStep.Done + 1];
                 IList<long> totalSendRequestDurations = new long[(int)PipExecutionStep.Done + 1];
                 IList<long> totalCacheLookupStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
-                long totalCacheMissAnalysisDuration = 0, totalSuspendedDuration = 0, totalRetryCount = 0;
+                long totalCacheMissAnalysisDuration = 0, totalSuspendedDuration = 0, totalRetryCount = 0, totalPushOutputsToCacheDuration = 0;
 
                 var summaryTable = new StringBuilder();
                 var detailedLog = new StringBuilder();
@@ -5576,6 +5576,7 @@ namespace BuildXL.Scheduler
 
                     totalCacheMissAnalysisDuration += (long)performance.CacheMissAnalysisDuration.TotalMilliseconds;
                     totalSuspendedDuration += performance.SuspendedDurationMs;
+                    totalPushOutputsToCacheDuration += performance.PushOutputsToCacheDurationMs;
 
                     index++;
                 }
@@ -5754,10 +5755,12 @@ namespace BuildXL.Scheduler
                 builder.AppendLine(I($"{"Total Cache Miss Analysis Overhead (ms) on the Critical Path",-106}: {totalCacheMissAnalysisDuration,10}"));
                 builder.AppendLine(I($"{"Total Suspended Duration (ms) on the Critical Path",-106}: {totalSuspendedDuration,10}"));
                 builder.AppendLine(I($"{"Total Retry Count on the Critical Path",-106}: {totalRetryCount,10}"));
+                builder.AppendLine(I($"{"Total Push Outputs to Cache (ms) on the Critical Path",-106}: {totalPushOutputsToCacheDuration,10}"));
 
                 statistics.Add("CriticalPath.CacheMissAnalysisDurationMs", totalCacheMissAnalysisDuration);
                 statistics.Add("CriticalPath.TotalSuspendedDurationMs", totalSuspendedDuration);
                 statistics.Add("CriticalPath.TotalRetryCount", totalRetryCount);
+                statistics.Add("CriticalPath.TotalPushOutputsToCacheDurationMs", totalPushOutputsToCacheDuration);
 
                 builder.AppendLine();
                 builder.AppendLine(I($"{"Total Critical Path Length (including queue waiting time and choosing worker(s)) ms",-106}: {totalOrchestratorQueueTime + totalChooseWorker + totalCriticalPathRunningTime,10}"));

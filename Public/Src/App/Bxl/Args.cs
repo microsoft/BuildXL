@@ -49,8 +49,6 @@ namespace BuildXL
         /// </summary>
         public const string LastBuiltCachedGraphName = "lastbuild";
 
-        private const string RedirectedUserProfileLocationInCloudBuild = @"d:\dbs";
-
         private readonly IConsole m_console;
         private readonly bool m_shouldDisposeConsole;
 
@@ -203,7 +201,6 @@ namespace BuildXL
 
                 bool unsafeUnexpectedFileAccessesAreErrorsSet = false;
                 bool failPipOnFileAccessErrorSet = false;
-                bool? enableProfileRedirect = null;
                 ContentHashingUtilities.SetDefaultHashType();
 
                 // Notes
@@ -928,9 +925,6 @@ namespace BuildXL
                             "qualifier",
                             "q",
                             opt => ParseStringOption(opt, startupConfiguration.QualifierIdentifiers)),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "redirectUserProfile",
-                            opt => enableProfileRedirect = opt),
                         OptionHandlerFactory.CreateOption(
                             "redirectedUserProfileJunctionRoot",
                             opt => layoutConfiguration.RedirectedUserProfileJunctionRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
@@ -1566,37 +1560,10 @@ namespace BuildXL
                     // Forcefully disable incremental scheduling in CB.
                     schedulingConfiguration.IncrementalScheduling = false;
 
-                    // if not explicitly disabled, enable user profile redirect and force the location
-                    if (!enableProfileRedirect.HasValue || enableProfileRedirect.Value)
-                    {
-                        layoutConfiguration.RedirectedUserProfileJunctionRoot = AbsolutePath.Create(pathTable, RedirectedUserProfileLocationInCloudBuild);
-                        enableProfileRedirect = true;
-                    }
-
                     if (!frontEndConfiguration.EnableCredScan.HasValue)
                     {
                         frontEndConfiguration.EnableCredScan = true;
                     }
-                }
-
-                if (!OperatingSystemHelper.IsUnixOS)
-                {
-                    // if /enableProfileRedirect was set, RedirectedUserProfileJunctionRoot must have been set as well
-                    // (either explicitly via /redirectedUserProfilePath argument or implicitly via /inCloudBuild flag)
-                    if (enableProfileRedirect.HasValue && enableProfileRedirect.Value && !layoutConfiguration.RedirectedUserProfileJunctionRoot.IsValid)
-                    {
-                        throw CommandLineUtilities.Error(Strings.Args_ProfileRedirectEnabled_NoPathProvided);
-                    }
-
-                    if (!enableProfileRedirect.HasValue || enableProfileRedirect.HasValue && !enableProfileRedirect.Value)
-                    {
-                        layoutConfiguration.RedirectedUserProfileJunctionRoot = AbsolutePath.Invalid;
-                    }
-                }
-                else
-                {
-                    // profile redirection only happens on Windows
-                    layoutConfiguration.RedirectedUserProfileJunctionRoot = AbsolutePath.Invalid;
                 }
 
                 if (OperatingSystemHelper.IsUnixOS)

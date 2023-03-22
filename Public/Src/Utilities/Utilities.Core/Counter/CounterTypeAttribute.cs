@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.Utilities.Tracing
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Attribute used to assign counter types to the base enum values for CounterCollection

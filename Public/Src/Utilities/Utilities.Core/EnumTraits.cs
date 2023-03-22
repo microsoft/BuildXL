@@ -3,12 +3,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Reflection;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Traits for an enum type (validation, int casting, etc.)
@@ -22,7 +21,6 @@ namespace BuildXL.Utilities
         private static readonly Dictionary<TEnum, ulong> s_valueToInteger;
         private static readonly ulong s_allFlags;
 
-        [SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline")]
         static EnumTraits()
         {
             Contract.Assume(typeof(TEnum).GetTypeInfo().IsEnum, "EnumTraits may only be instantiated for an enum type");
@@ -103,7 +101,6 @@ namespace BuildXL.Utilities
         /// This conversion will fail if <paramref name="intValue" /> doesn't correspond to a declared constant,
         /// such as if it represents a combination of flags.
         /// </remarks>
-        [SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "int")]
         public static bool TryConvert(ulong intValue, out TEnum value)
         {
             return s_integerToValue.TryGetValue(intValue, out value);
@@ -116,7 +113,6 @@ namespace BuildXL.Utilities
         /// This conversion will fail if <paramref name="intValue" /> doesn't correspond to a declared constant,
         /// such as if it represents a combination of flags.
         /// </remarks>
-        [SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "int")]
         public static bool TryConvert(long intValue, out TEnum value)
         {
             return s_integerToValue.TryGetValue(unchecked((ulong)intValue), out value);
@@ -129,7 +125,6 @@ namespace BuildXL.Utilities
         /// It is an error to attempt this conversion if <paramref name="value" /> is not a declared constant,
         /// such as if it represents a combination of flags.
         /// </remarks>
-        [SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames")]
         public static ulong ToInteger(TEnum value)
         {
             return s_valueToInteger[value];

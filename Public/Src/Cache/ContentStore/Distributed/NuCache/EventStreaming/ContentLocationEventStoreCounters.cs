@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {

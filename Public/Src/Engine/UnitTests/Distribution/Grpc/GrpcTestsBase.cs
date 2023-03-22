@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
@@ -15,13 +14,12 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
-using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager.ConnectionFailureEventArgs;
 using static BuildXL.Engine.Distribution.RemoteWorker;
 
 namespace Test.BuildXL.Distribution

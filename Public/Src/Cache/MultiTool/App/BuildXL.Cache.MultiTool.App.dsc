@@ -16,6 +16,7 @@ namespace App {
             ContentStore.Hashing.dll,
 
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
             ...BuildXLSdk.bclAsyncPackages,
         ],

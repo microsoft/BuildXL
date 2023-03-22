@@ -1,12 +1,12 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -19,12 +19,10 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.Host.Configuration;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
-using RocksDbSharp;
+using BuildXL.Utilities.Core;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Sessions
@@ -430,7 +428,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <remarks>Does not guarantee anything is at the returned path</remarks>
         public AbsolutePath GetPath(ContentHash contentHash)
         {
-            return _storePath / contentHash.HashType.Serialize() / new RelativePath(contentHash.ToHex(stringLength: HashDirectoryNameLength)) / string.Format(CultureInfo.InvariantCulture, "{0}.{1}", contentHash.ToHex(), BlobNameExtension);
+            return _storePath / contentHash.HashType.Serialize() / new Interfaces.FileSystem.RelativePath(contentHash.ToHex(stringLength: HashDirectoryNameLength)) / string.Format(CultureInfo.InvariantCulture, "{0}.{1}", contentHash.ToHex(), BlobNameExtension);
         }
 
         /// <summary>

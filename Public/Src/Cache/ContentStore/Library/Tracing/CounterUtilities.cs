@@ -3,7 +3,7 @@
 
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ContentStore.Tracing
 {

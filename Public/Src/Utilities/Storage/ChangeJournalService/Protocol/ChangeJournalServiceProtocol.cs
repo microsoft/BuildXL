@@ -6,7 +6,7 @@ using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 #pragma warning disable SA1649 // File name must match first type name
 

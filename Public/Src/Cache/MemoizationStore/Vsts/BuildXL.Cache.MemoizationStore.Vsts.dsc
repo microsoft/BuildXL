@@ -30,6 +30,7 @@ namespace Vsts {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Authentication.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [

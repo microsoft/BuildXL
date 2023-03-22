@@ -21,10 +21,11 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 #nullable enable
 

@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace BuildXL.Utilities.Tracing
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Defines a counter type in a CounterCollection

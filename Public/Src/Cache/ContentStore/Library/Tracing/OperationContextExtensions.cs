@@ -8,9 +8,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
-using BuildXL.Utilities.Tracing;
 
 #nullable enable
 

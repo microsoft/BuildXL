@@ -5,7 +5,7 @@ using System;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;

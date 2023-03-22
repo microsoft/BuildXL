@@ -20,7 +20,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Storage;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Diagnostics;
+using BuildXL.Utilities.Core.Diagnostics;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Threading;

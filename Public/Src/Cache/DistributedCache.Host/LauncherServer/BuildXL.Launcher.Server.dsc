@@ -25,6 +25,7 @@ namespace LauncherServer {
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
             importFrom("Azure.Security.KeyVault.Secrets").pkg,
             importFrom("Azure.Identity").pkg,

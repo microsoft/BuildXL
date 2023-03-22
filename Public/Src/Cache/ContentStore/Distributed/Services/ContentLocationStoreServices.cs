@@ -7,7 +7,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.Services

@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 #pragma warning disable SA1005 // Single line comment must begin with a space.

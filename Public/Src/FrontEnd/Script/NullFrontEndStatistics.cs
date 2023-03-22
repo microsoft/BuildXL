@@ -5,6 +5,7 @@ using System;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Utilities.Core;
+using Counter = BuildXL.FrontEnd.Workspaces.Counter;
 
 namespace BuildXL.FrontEnd.Script
 {

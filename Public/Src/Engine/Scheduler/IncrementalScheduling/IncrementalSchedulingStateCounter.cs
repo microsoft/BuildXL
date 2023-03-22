@@ -16,7 +16,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
     /// </summary>
     /// <remarks>
     /// <see cref="IIncrementalSchedulingState"/> uses this adhoc counters for speed reason because these counters are in the hot path.
-    /// Using <see cref="CounterCollection"/> may degrade performance.
+    /// Using <see cref="BuildXL.Utilities.Core.CounterCollection"/> may degrade performance.
     /// </remarks>
     public sealed class IncrementalSchedulingStateCounter
     {

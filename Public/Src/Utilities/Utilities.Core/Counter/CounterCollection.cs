@@ -4,17 +4,15 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Utilities.Tracing
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Cache-aware integer counters. Note that counters should be monotonic, since
@@ -224,7 +222,6 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Stopwatch context of a counter. Adds to the counter when disposed.
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
         public readonly struct Stopwatch : IDisposable
         {
             private readonly CounterCollection m_collection;
@@ -421,7 +418,6 @@ namespace BuildXL.Utilities.Tracing
     /// <summary>
     /// <see cref="CounterCollection"/> with counters named according to an enum.
     /// </summary>
-    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
     [DebuggerDisplay("{ToDebuggerDisplay(),nq}")]
     public sealed class CounterCollection<TEnum> : CounterCollection
         where TEnum : System.Enum
@@ -607,8 +603,6 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Adds two counters.
         /// </summary>
-        [SuppressMessage("Microsoft.Usage", "CA2225")]
-        [SuppressMessage("Microsoft.Design", "CA1013")]
         public static CounterCollection<TEnum> operator +(CounterCollection<TEnum> x, CounterCollection<TEnum> y)
         {
             var result = new CounterCollection<TEnum>();

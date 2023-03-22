@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace BuildXL.Utilities.Tracing
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Class used to track several counter collections. Useful for the case where stores want to track the counters of all their
@@ -24,7 +24,7 @@ namespace BuildXL.Utilities.Tracing
         public KeyValuePair<string, CounterTracker>[] ChildCounterTrackers => _trackers.ToArray();
 
         /// <nodoc />
-        public CounterCollection<T> AddOrGetCounterCollection<T>() where T : System.Enum
+        public CounterCollection<T> AddOrGetCounterCollection<T>() where T : Enum
             => (CounterCollection<T>)_counters.GetOrAdd(typeof(T), _ => new CounterCollection<T>());
 
         /// <nodoc />
@@ -35,7 +35,7 @@ namespace BuildXL.Utilities.Tracing
         /// Creates a new CounterCollection with a CounterTracker as a parent.
         /// </summary>
         public static CounterCollection<TEnum> CreateCounterCollection<TEnum>(CounterTracker counterTracker)
-            where TEnum : System.Enum
+            where TEnum : Enum
         {
             var parent = counterTracker?.AddOrGetCounterCollection<TEnum>();
             return new CounterCollection<TEnum>(parent);

@@ -4,7 +4,7 @@
 using BuildXL.Engine;
 using BuildXL.Storage.ChangeJournalService.Protocol;
 using BuildXL.Storage.ChangeTracking;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;

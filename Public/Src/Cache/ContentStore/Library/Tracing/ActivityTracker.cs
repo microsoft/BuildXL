@@ -5,8 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 

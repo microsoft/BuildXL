@@ -14,7 +14,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Services
@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         LocalLocationStoreConfiguration ContentLocationStoreConfiguration,
         DistributedCacheServiceHostOverrides Overrides,
         IDistributedServicesSecrets Secrets,
-        AbsolutePath PrimaryCacheRoot,
+        Interfaces.FileSystem.AbsolutePath PrimaryCacheRoot,
         IAbsFileSystem FileSystem,
         DistributedContentCopier DistributedContentCopier)
     {

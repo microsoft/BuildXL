@@ -9,7 +9,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
-using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -25,11 +24,12 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using static BuildXL.Utilities.ConfigurationHelper;
 using ResultsExtensions = BuildXL.Cache.ContentStore.Interfaces.Results.ResultsExtensions;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 #nullable enable
 

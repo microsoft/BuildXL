@@ -24,10 +24,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
@@ -321,7 +320,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         protected override async Task<PlaceFileResult> PlaceFileCoreAsync(
             OperationContext context,
             ContentHash contentHash,
-            AbsolutePath path,
+            Interfaces.FileSystem.AbsolutePath path,
             FileAccessMode accessMode,
             FileReplacementMode replacementMode,
             FileRealizationMode realizationMode,

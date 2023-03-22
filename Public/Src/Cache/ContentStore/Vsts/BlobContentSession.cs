@@ -6,16 +6,15 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = System.IO.FileInfo;
 
 namespace BuildXL.Cache.ContentStore.Vsts

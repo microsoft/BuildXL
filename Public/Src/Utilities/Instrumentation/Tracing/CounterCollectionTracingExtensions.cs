@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Tracing
 {

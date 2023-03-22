@@ -19,12 +19,12 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tracing;
-
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     using static CheckpointManifest;
+    using AbsolutePath = Interfaces.FileSystem.AbsolutePath;
 
     /// <summary>
     /// Helper class responsible for creating and restoring checkpoints of a local database.

@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 

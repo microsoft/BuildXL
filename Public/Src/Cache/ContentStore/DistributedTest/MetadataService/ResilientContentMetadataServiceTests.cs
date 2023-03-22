@@ -16,7 +16,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;

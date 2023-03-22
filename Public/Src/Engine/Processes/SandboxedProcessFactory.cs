@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tracing;
 
 #nullable enable
 

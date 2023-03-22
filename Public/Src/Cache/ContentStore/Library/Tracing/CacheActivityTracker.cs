@@ -11,8 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 

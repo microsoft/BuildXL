@@ -45,7 +45,6 @@ namespace BuildXL.Processes
 
         private readonly LoggingContext m_loggingContext;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public ProcessTreeContext(
             Guid payloadGuid,
             SafeHandle reportPipe,
@@ -306,7 +305,7 @@ namespace BuildXL.Processes
 
             HasDetoursInjectionFailures = true;
 
-            BuildXL.Processes.Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext ?? Events.StaticContext, processId, error);
+            Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext ?? Events.StaticContext, processId, error);
         }
     }
 }

@@ -15,7 +15,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Diagnostics;
+using BuildXL.Utilities.Core.Diagnostics;
 
 namespace BuildXL.Pips
 {

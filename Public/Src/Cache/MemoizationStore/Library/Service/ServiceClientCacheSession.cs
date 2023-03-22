@@ -3,11 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -20,12 +18,10 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Tracing;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.MemoizationStore.Service
 {

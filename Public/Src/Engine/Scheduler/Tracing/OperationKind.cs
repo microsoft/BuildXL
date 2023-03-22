@@ -8,7 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler.Tracing
 {

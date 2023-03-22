@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -28,8 +27,9 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 #nullable enable
 

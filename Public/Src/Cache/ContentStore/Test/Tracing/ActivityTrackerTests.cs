@@ -4,7 +4,7 @@
 using System;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using FluentAssertions;
 using Xunit;
 

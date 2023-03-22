@@ -4,10 +4,10 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities.Core;
 
 #nullable enable
-namespace BuildXL.Utilities.Diagnostics
+
+namespace BuildXL.Utilities.Core.Diagnostics
 {
     /// <summary>
     /// Provides helper functions and extension methods for common exception handling.

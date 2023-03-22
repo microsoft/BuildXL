@@ -28,7 +28,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.Host.Service.Internal;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Distributed.Redis;
 using FluentAssertions;

@@ -8,7 +8,7 @@ using BuildXL.Utilities.Configuration;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Test.BuildXL.TestUtilities.Xunit;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Instrumentation.Common.LoggingContext;

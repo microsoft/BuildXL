@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 
@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             // Ensure result exceptions are demystified.
             // This class is called almost ubiquitously by code utilizing the cache. So this ensures that most
             // cases are covered without needing to handle all executables.
-            BuildXL.Cache.ContentStore.Utils.ResultsExtensions.InitializeResultExceptionPreprocessing();
+            Utils.ResultsExtensions.InitializeResultExceptionPreprocessing();
         }
 
         /// <summary>

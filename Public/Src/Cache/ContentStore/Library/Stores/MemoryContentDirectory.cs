@@ -21,16 +21,16 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
+    using AbsolutePath = Interfaces.FileSystem.AbsolutePath;
     using ContentMap = ConcurrentDictionary<ContentHash, ContentFileInfo>;
 
     /// <summary>

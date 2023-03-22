@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Reflection;
@@ -88,12 +87,10 @@ namespace BuildXL.Utilities.Tracing
         /// DO NOT USE!! DO NOT CONSUME IN NEW LOG MESSAGES!!!!
         /// Only for use while transitioning our logging. Telemetry will cry if it sees any of these
         /// </summary>
-        [SuppressMessage("Microsoft.Usage", "CA2211:NonConstantFieldsShouldNotBeVisible", Justification = "Needed until we convert everything to pass logging contexts.")]
         public static LoggingContext StaticContext = new LoggingContext("DummyStatic");
 
         private static readonly Events s_log = new Events();
 
-        [SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline")]
         static Events()
         {
             // we must declare a static ctor in order to trigger beforefieldinit semantics. Otherwise the log

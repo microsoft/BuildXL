@@ -22,9 +22,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
-using BuildXL.Utilities.Tracing;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 

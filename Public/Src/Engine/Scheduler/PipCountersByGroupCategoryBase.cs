@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler
 {

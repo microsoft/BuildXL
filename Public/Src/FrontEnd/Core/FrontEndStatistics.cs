@@ -6,6 +6,7 @@ using System.Threading;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Utilities.Core;
+using Counter = BuildXL.FrontEnd.Workspaces.Counter;
 
 #pragma warning disable SA1649 // File name must match first type name
 

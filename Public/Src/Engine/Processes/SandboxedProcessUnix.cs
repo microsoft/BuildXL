@@ -112,18 +112,27 @@ namespace BuildXL.Processes
         /// </summary>
         internal static readonly string EnvExecutable = OperatingSystemHelper.IsLinuxOS ? EnsureDeploymentFile("bxl-env", setExecuteBit: true) : "/usr/bin/env";
 
-        internal static string EnsureDeploymentFile(string relativePath, bool setExecuteBit = false)
+        internal static string GetDeploymentFileFullPath(string relativePath)
         {
             var deploymentDir = Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()) ?? string.Empty;
-            var fullPath = Path.Combine(deploymentDir, relativePath);
+            return Path.Combine(deploymentDir, relativePath);
+        }
+
+        /// <summary>
+        /// Ensures that the deployment file exists and returns its full path, and optionally sets the execute bit.
+        /// </summary>
+        public static string EnsureDeploymentFile(string relativePath, bool setExecuteBit = false)
+        {
+            var fullPath = GetDeploymentFileFullPath(relativePath);
+
             if (!File.Exists(fullPath))
             {
-                throw new ArgumentException($"Deployment file '{relativePath}' not found in '{deploymentDir}'");
+                throw new ArgumentException($"Deployment file '{relativePath}' not found");
             }
 
             if (setExecuteBit)
             {
-                var result = FileUtilities.TrySetExecutePermissionIfNeeded(fullPath).ThrowIfFailure();
+                _ = FileUtilities.TrySetExecutePermissionIfNeeded(fullPath).ThrowIfFailure();
             }
 
             return fullPath;

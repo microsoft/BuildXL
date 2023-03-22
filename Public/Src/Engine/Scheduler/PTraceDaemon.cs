@@ -6,9 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Interop.Unix;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -37,6 +35,9 @@ namespace BuildXL.Scheduler
         private readonly AsyncProcessExecutor m_daemonExecutor;
         private readonly LoggingContext m_loggingContext;
 
+        private readonly string m_daemonFile;
+        private readonly string m_runnerFile;
+
         /// <summary>
         /// Creates an instance of the PTraceDaemon class without starting the daemon.
         /// </summary>
@@ -47,14 +48,13 @@ namespace BuildXL.Scheduler
 
             m_loggingContext = loggingContext;
 
-            // Give the daemon and runner binaries executable permissions in case they don't already have it
-            IO.SetFilePermissionsForFilePath(SandboxConnectionLinuxDetours.PTraceDaemonFile, IO.FilePermissions.ACCESSPERMS);
-            IO.SetFilePermissionsForFilePath(SandboxConnectionLinuxDetours.PTraceRunnerFile, IO.FilePermissions.ACCESSPERMS);
+            m_daemonFile = SandboxedProcessUnix.EnsureDeploymentFile(SandboxConnectionLinuxDetours.PTraceDaemonFileName, setExecuteBit: true);
+            m_runnerFile = SandboxedProcessUnix.EnsureDeploymentFile(SandboxConnectionLinuxDetours.PTraceRunnerFileName, setExecuteBit: true);
 
-            var args = $"-m {SandboxConnectionLinuxDetours.LinuxSandboxPTraceMqName} -r {SandboxConnectionLinuxDetours.PTraceRunnerFile}";
+            var args = $"-m {SandboxConnectionLinuxDetours.LinuxSandboxPTraceMqName} -r {m_runnerFile}";
             var process = new Process
             {
-                StartInfo = new ProcessStartInfo(SandboxConnectionLinuxDetours.PTraceDaemonFile, args)
+                StartInfo = new ProcessStartInfo(m_daemonFile, args)
                 {
                     CreateNoWindow = true,
                     UseShellExecute = false,

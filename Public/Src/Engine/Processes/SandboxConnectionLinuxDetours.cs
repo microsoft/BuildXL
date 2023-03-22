@@ -319,7 +319,7 @@ namespace BuildXL.Processes
                 using (item.wrapper)
                 {
 
-                    var message = Encoding.GetString(item.wrapper.Instance, index: 0, count: item.length).AsSpan().TrimEnd('\n');
+                    var message = s_encoding.GetString(item.wrapper.Instance, index: 0, count: item.length).AsSpan().TrimEnd('\n');
 
                     // parse the message, consuming the span field by field. The format is:
                     //  "%s|%d|%d|%d|%d|%d|%d|%s|%d\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath, isDirectory
@@ -350,7 +350,7 @@ namespace BuildXL.Processes
                         ExplicitLogging = explicitlogging,
                         Error = err,
                         Operation = (FileOperation)opCode,
-                        PathOrPipStats = Encoding.GetBytes(path.ToArray()),
+                        PathOrPipStats = s_encoding.GetBytes(path.ToArray()),
                         IsDirectory = isDirectory,
                     };
 
@@ -507,37 +507,41 @@ namespace BuildXL.Processes
         public bool IsInTestMode { get; }
 
         /// <summary>
-        /// Path to the ptracedaemon
+        /// Name of PTrace daemon file.
         /// </summary>
-        public static readonly string PTraceDaemonFile = SandboxedProcessUnix.EnsureDeploymentFile("ptracedaemon");
+        public const string PTraceDaemonFileName = "ptracedaemon";
+
+        /// <summary>
+        /// Name of PTrace runner file.
+        /// </summary>
+        public const string PTraceRunnerFileName = "ptracerunner";
+
         /// <summary>
         /// Path to the ptracerunner
         /// </summary>
-        public static readonly string PTraceRunnerFile = SandboxedProcessUnix.EnsureDeploymentFile("ptracerunner");
+        private static readonly string s_ptraceRunnerFile = SandboxedProcessUnix.GetDeploymentFileFullPath(PTraceRunnerFileName);
 
         /// <summary>
         /// Message queue name used for communication with the ptrace daemon process
         /// </summary>
         public static readonly string LinuxSandboxPTraceMqName = "/BUILDXLPTRACEMQ";
 
-        private static readonly string s_buildXLBin = Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetLocation());
+        private readonly ConcurrentDictionary<long, Info> m_pipProcesses = new();
 
-        private readonly ConcurrentDictionary<long, Info> m_pipProcesses = new ConcurrentDictionary<long, Info>();
+        private readonly ManagedFailureCallback m_failureCallback;
 
-        private readonly Sandbox.ManagedFailureCallback m_failureCallback;
-
-        private static readonly Encoding Encoding = Encoding.UTF8;
+        private static readonly Encoding s_encoding = Encoding.UTF8;
 
         /// <inheritdoc />
         /// <remarks>Unimportant</remarks>
         public TimeSpan CurrentDrought => TimeSpan.FromSeconds(0);
 
         /// <nodoc />
-        public SandboxConnectionLinuxDetours(Sandbox.ManagedFailureCallback failureCallback = null, bool isInTestMode = false)
+        public SandboxConnectionLinuxDetours(ManagedFailureCallback failureCallback = null, bool isInTestMode = false)
         {
             m_failureCallback = failureCallback;
             IsInTestMode = isInTestMode;
-            BuildXL.Native.Processes.ProcessUtilities.SetNativeConfiguration(BuildXL.Processes.SandboxConnection.IsInDebugMode);
+            Native.Processes.ProcessUtilities.SetNativeConfiguration(SandboxConnection.IsInDebugMode);
         }
 
         /// <inheritdoc />
@@ -566,7 +570,7 @@ namespace BuildXL.Processes
         public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
             var detoursLibPath = info.RootJailInfo.CopyToRootJailIfNeeded(s_detoursLibFile);
-            (string fifoPath, string famPath) = GetPaths(info.RootJailInfo, uniqueName);
+            (_, string famPath) = GetPaths(info.RootJailInfo, uniqueName);
 
             yield return ("__BUILDXL_ROOT_PID", "1"); // CODESYNC: Public/Src/Sandbox/Linux/common.h (temp solution for breakaway processes)
             yield return ("__BUILDXL_FAM_PATH", info.RootJailInfo.ToPathInsideRootJail(famPath));
@@ -589,8 +593,12 @@ namespace BuildXL.Processes
             }
 
             // CODESYNC: Public/Src/Engine/Scheduler/PTraceDaemon.cs
+            // TODO: Remove setting PTrace-related environment variable when PTrace is not enabled, i.e.,
+            //       !(info.FileAccessManifest.EnableLinuxPTraceSandbox || info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox).
+            //       Currently we cannot do that because BxlObserver include checks for these environment variables unconditionally.
+            //       Note that setting these environment variables will not affect Detours behavior when PTrace is not enabled; it's only confusing.
             yield return ("__BUILDXL_PTRACE_MQ_NAME", LinuxSandboxPTraceMqName);
-            yield return ("__BUILDXL_PTRACE_RUNNER_PATH", info.RootJailInfo.CopyToRootJailIfNeeded(PTraceRunnerFile));
+            yield return ("__BUILDXL_PTRACE_RUNNER_PATH", info.RootJailInfo.CopyToRootJailIfNeeded(s_ptraceRunnerFile));
         }
 
         private (string fifo, string fam) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)
@@ -684,16 +692,6 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process)
-        {
-            if (m_pipProcesses.TryRemove(pipId, out _))
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
+        public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process) => m_pipProcesses.TryRemove(pipId, out _);
     }
 }

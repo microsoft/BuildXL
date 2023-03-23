@@ -1531,6 +1531,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                    _pendingProactivePuts.Remove(hash);
                                }
                            },
+                traceOperationStarted: false,
                 extraEndMessage: r => $"Hash={info.ContentHash}, Retries={r.TotalRetries}, Reason=[{reason}]");
         }
 

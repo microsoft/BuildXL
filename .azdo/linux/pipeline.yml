@@ -19,21 +19,9 @@ extends:
       name: BuildXL-DevOpsAgents-Linux-PME-EastUS
       os: linux
     sdl:
-      # [maly] - 03/23 - disable SDL temporarily - see bug #2042843
-      credscan:
-        enabled: false
-      antimalwareScan:
-        enabled: false
-      publishLogs:
-        enabled: false
-      policheck:
-        enabled: false
-      armory:
-        enabled: false
-      eslint:
-        enabled: false
       sourceAnalysisPool:
-        name: 1ES-Shared-Hosted-Pool_Windows-Server-2022
+        name: OneESPipelinesValidation
+        image: OneESPipelinesValidation
         os: windows
 
     stages:

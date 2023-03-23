@@ -38,8 +38,9 @@ jobs:
 
   timeoutInMinutes: 90
 
-  strategy:
-    parallel: 2
+  # [maly] - 03/23 - disable distribution temporarily - see bug #2042843
+  # strategy:
+  #   parallel: 2
 
   steps:
   - task: UseDotNet@2

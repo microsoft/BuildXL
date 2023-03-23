@@ -571,6 +571,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies,
                     ProactiveCopyCheckpointFiles = _distributedSettings.ProactiveCopyCheckpointFiles,
                     InlineCheckpointProactiveCopies = _distributedSettings.InlineCheckpointProactiveCopies,
+                    UsePhysicalSizeInQuotaKeeper = _distributedSettings.UsePhysicalSizeInQuotaKeeper,
                 };
 
                 if (_distributedSettings.UseSelfCheckSettingsForDistributedCentralStorage)

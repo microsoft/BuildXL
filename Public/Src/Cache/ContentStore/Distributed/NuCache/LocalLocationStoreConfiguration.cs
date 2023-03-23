@@ -406,6 +406,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Whether to inline proactive copies done for checkpoint files or to do them asynchronously.
         /// </summary>
         public bool InlineCheckpointProactiveCopies { get; set; } = false;
+
+        /// <summary>
+        /// Whether the physical size is used for quota purposes.
+        /// </summary>
+        public bool UsePhysicalSizeInQuotaKeeper { get; set; } = false;
     }
 
     /// <summary>

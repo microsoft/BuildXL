@@ -45,6 +45,12 @@ namespace DistributedTest {
                         environmentVariables: envVars
                     }
                 },
+                unsafeTestRunArguments: {
+                    untrackedPaths: [
+                        ...addIfLazy(Context.isWindowsOS() && Environment.getDirectoryValue("CommonProgramFiles") !== undefined,
+                            () => [f`${Environment.getDirectoryValue("CommonProgramFiles")}/SSL/openssl.cnf`])
+                    ]
+                }
             },
         //skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),

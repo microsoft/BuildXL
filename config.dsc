@@ -276,7 +276,7 @@ config({
                 // Azurite node app compiled to standalone executable
                 // Sources for this package are: https://github.com/Azure/Azurite
                 // This packaged is produced by the pipeline: https://dev.azure.com/mseng/Domino/_build?definitionId=13199
-                { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20220612-002122" },
+                { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20230322-001635" },
 
                 // Testing
                 { id: "System.Security.Cryptography.ProtectedData", version: "5.0.0"},

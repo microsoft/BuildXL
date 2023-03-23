@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
         /// This test is for a bug in Azurite (the Azure storage emulator)
         /// where creating a snapshot causes PutBlock operations with a lease to fail.
         /// </summary>
-        [Fact]
+        [Fact(Skip = "The bug is still there, but we don't actually use snapshots.")]
         public async Task TestStorage()
         {
             using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);

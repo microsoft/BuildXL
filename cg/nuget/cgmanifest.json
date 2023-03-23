@@ -204,7 +204,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "BuildXL.Azurite.Executables",
-          "Version": "1.0.0-CI-20220612-002122"
+          "Version": "1.0.0-CI-20230322-001635"
         }
       }
     },

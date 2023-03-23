@@ -352,15 +352,6 @@ namespace BuildXL
                             filePipsTotal,
                             remoteProcs);
 
-                        if (pipsWaitingOnResources > 0)
-                        {
-                            sb.AppendLine();
-                            sb.AppendFormat(
-                                CultureInfo.InvariantCulture,
-                                Strings.ConsoleListener_PipsResourceWaitingStatusLine,
-                                pipsWaitingOnResources);
-                        }
-
                         string standardStatus = sb.ToString();
                         string updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo);
 

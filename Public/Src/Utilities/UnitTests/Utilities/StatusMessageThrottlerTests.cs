@@ -13,18 +13,12 @@ namespace Test.BuildXL.Utilities
         // No throttling under a minute
         [InlineData(10_000, 1, false)]
         [InlineData(10_000, 10_000, false)]
-        // 1-5 min, every 10 sec
+        // 1-5 min, every 30 sec
         [InlineData(4 * 60_000, 5_000, true)]
-        [InlineData(4 * 60_000, 20_000, false)]
-        // 5-30 min, 20 sec
+        [InlineData(4 * 60_000, 35_000, false)]
+        // 5+ min, 60 sec
         [InlineData(6 * 60_000, 10_000, true)]
-        [InlineData(6 * 60_000, 25_000, false)]
-        // 30-60 min, 30 sec
-        [InlineData(31 * 60_000, 25_000, true)]
-        [InlineData(31 * 60_000, 55_000, false)]
-        // 60+ min, 60 sec
-        [InlineData(61 * 60_000, 55_000, true)]
-        [InlineData(61 * 60_000, 65_000, false)]
+        [InlineData(6 * 60_000, 65_000, false)]
         public void EventThrottlingTests(int baseTimeAgoMs, int lastStatusLogTimeAgoMs, bool expectThrottle)
         {
             DateTime currentTime = DateTime.UtcNow;

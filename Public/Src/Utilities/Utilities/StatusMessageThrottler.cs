@@ -44,12 +44,6 @@ namespace BuildXL.Utilities
                     targetUpdatePeriodMs = int.MinValue;
                     break;
                 case < 5:
-                    targetUpdatePeriodMs = 10_000;
-                    break;
-                case < 30:
-                    targetUpdatePeriodMs = 20_000;
-                    break;
-                case < 60:
                     targetUpdatePeriodMs = 30_000;
                     break;
                 default:

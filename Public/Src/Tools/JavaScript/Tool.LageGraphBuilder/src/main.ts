@@ -83,10 +83,16 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
 
 try {
     let script  = lageLocation === undefined ? `"${npmLocation}" run lage --silent --` : `"${lageLocation}"`;
-    script  = `${script} info ${targets} --reporter json`;
+    script  = `${script} info ${targets} --reporter json > "${outputGraphFile}"`;
     console.log(`Starting lage export: ${script}`);
-    const lageJson = execSync(script).toString();
+
+    // The graph sometimes is big enough to exceed the default stdio buffer (200kb). In order to workaround this issue, output the raw
+    // report to the output graph file and immediately read it back for post-processing. The final graph (in the format bxl expects)
+    // will be rewritten into the same file
+    execSync(script, {stdio: "ignore"});
  
+    const lageJson = fs.readFileSync(outputGraphFile, "utf8");
+
     const lageReport = JSON.parse(lageJson) as Report;
     console.log('Finished lage export');
 

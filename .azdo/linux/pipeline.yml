@@ -16,7 +16,7 @@ extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
     pool:
-      name: BuildXL-DevOpsAgents-Linux-PME
+      name: BuildXL-DevOpsAgents-Linux-PME-EastUS
       os: linux
     sdl:
       sourceAnalysisPool:

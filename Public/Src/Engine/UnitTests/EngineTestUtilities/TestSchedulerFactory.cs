@@ -11,13 +11,12 @@ using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 namespace Test.BuildXL.TestUtilities
 {

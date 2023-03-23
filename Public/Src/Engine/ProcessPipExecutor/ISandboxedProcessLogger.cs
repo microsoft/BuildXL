@@ -2,8 +2,9 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Processes;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Logger for monitoring of a sandboxed process

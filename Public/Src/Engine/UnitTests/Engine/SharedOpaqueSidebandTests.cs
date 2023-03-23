@@ -10,8 +10,7 @@ using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-
-using static BuildXL.Processes.Sideband.SidebandWriter;
+using static BuildXL.Processes.Sideband.SidebandWriterHelper;
 
 namespace Test.BuildXL.Engine
 {
@@ -174,7 +173,7 @@ namespace Test.BuildXL.Engine
             }
 
             // reading should produce valid records and just finish when it encounters the bogus stuff
-            var read = SidebandWriter.ReadRecordedPathsFromSidebandFile(sidebandFile).ToArray();
+            var read = SidebandWriterHelper.ReadRecordedPathsFromSidebandFile(sidebandFile).ToArray();
             XAssert.ArrayEqual(validRecords, read);
         }
 

@@ -3,10 +3,11 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// A file-access allowlist rule that will match on tool and path.

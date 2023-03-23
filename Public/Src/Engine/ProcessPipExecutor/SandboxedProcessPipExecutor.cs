@@ -1106,7 +1106,7 @@ namespace BuildXL.ProcessPipExecutor
             System.Diagnostics.Stopwatch sandboxPrepTime,
             CancellationToken cancellationToken = default)
         {
-            info.StandardInputSourceInfo = StandardInputInfo.CreateForProcess(m_pip, m_context.PathTable);
+            info.StandardInputSourceInfo = StandardInputInfoExtensions.CreateForProcess(m_pip, m_context.PathTable);
 
             if (m_pip.WarningRegex.IsValid)
             {
@@ -3321,7 +3321,7 @@ namespace BuildXL.ProcessPipExecutor
         private bool DeleteSharedOpaqueOutputsRecordedInSidebandFile()
         {
             Contract.AssertNotNull(m_sidebandState, "DeleteSharedOpaqueOutputsRecordedInSidebandFile can't be called without a sideband state");
-            var sidebandFile = SidebandWriter.GetSidebandFileForProcess(m_context.PathTable, m_layoutConfiguration.SharedOpaqueSidebandDirectory, m_pip);
+            var sidebandFile = SidebandWriterHelper.GetSidebandFileForProcess(m_context.PathTable, m_layoutConfiguration.SharedOpaqueSidebandDirectory, m_pip);
 
             try
             {
@@ -5663,7 +5663,6 @@ namespace BuildXL.ProcessPipExecutor
             m_incrementalToolMatchCache.AddItem(toolPath, result);
             return result;
         }
-
 
         /// <summary>
         /// Logs a process sub phase and ensures the time is recored in the Counters

@@ -2164,7 +2164,7 @@ namespace BuildXL.Scheduler
         /// Creates a <see cref="SidebandWriter"/> for <paramref name="pip"/>.
         /// </summary>
         private static SidebandWriter CreateSidebandWriter(IPipExecutionEnvironment env, Process pip)
-            => new SidebandWriter(CreateSidebandMetadata(env, pip), env.Context, pip, env.Configuration.Layout.SharedOpaqueSidebandDirectory);
+            => SidebandWriterHelper.CreateSidebandWriterFromProcess(CreateSidebandMetadata(env, pip), env.Context, pip, env.Configuration.Layout.SharedOpaqueSidebandDirectory);
 
         /// <summary>
         /// Uses <see cref="IPipExecutionEnvironment.ContentFingerprinter"/> of <paramref name="env"/> to look up the static

@@ -4,7 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Pips.Operations;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;

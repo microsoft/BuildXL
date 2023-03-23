@@ -79,8 +79,9 @@ namespace Native {
         ],
         internalsVisibleTo: [
             "BuildXL.Processes",
+            "BuildXL.ProcessPipExecutor",
             "Test.BuildXL.Storage",
-			"Test.BuildXL.Native",
+            "Test.BuildXL.Native",
         ]
     });
 }

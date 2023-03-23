@@ -9,10 +9,8 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using BuildXL.Native.IO;
-using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Processes
 {
@@ -547,127 +545,8 @@ namespace BuildXL.Processes
             OpenedFileOrDirectoryAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY);
 
         /// <summary>
-        /// Checks if this is a special device type of path for which we should not report a warning.
-        /// Make it a verbose message, so it appears in the log (for diagnosability if there are problems with such access).
-        /// </summary>
-        /// <returns>true if the Path reperesents a special path. Otherwise false.</returns>
-        [SuppressMessage("Microsoft.Globalization", "CA1304")]
-        [SuppressMessage("Microsoft.Globalization", "CA1307")]
-        private bool IsSpecialDevicePath()
-        {
-            bool ret = false;
-            if (Path != null)
-            {
-                // Add more special device paths here if needed.
-                if (Path.ToLower().StartsWith("\\\\.\\pipe"))
-                {
-                    ret = true;
-                }
-            }
-
-            return ret;
-        }
-
-        /// <summary>
-        /// Checks if the path contains whildcard characters, for which we should not report a warning.
-        /// Make it a verbose message, so it appears in the log (for diagnosability if there are problems with such access).
-        /// </summary>
-        /// <returns>true if the Path contains whildcard characters. Otherwise false.</returns>
-        /// <remarks>
-        /// We can get access message to such file if an app is probbing fot existence of files with wildcard characters.
-        /// </remarks>
-        [SuppressMessage("Microsoft.Globalization", "CA1304")]
-        [SuppressMessage("Microsoft.Globalization", "CA1307")]
-        public static bool DoesPathContainsWildcards(string path)
-        {
-            bool ret = false;
-
-            if (path != null)
-            {
-                // Get the last part of the file name
-                int lastSlash = path.LastIndexOf('\\');
-                string lastComponent = lastSlash != -1 ? path.Substring(lastSlash) : path;
-                if (lastComponent != null)
-                {
-                    // Add more special device paths here if needed.
-                    if (lastComponent.Contains("?") ||
-                        lastComponent.Contains("*"))
-                    {
-                        ret = true;
-                    }
-                }
-            }
-
-            return ret;
-        }
-
-        /// <summary>
-        /// Attempts to parse the full path accessed to an <see cref="AbsolutePath"/>.
-        /// When this succeeds, the returned path is equivalent to <see cref="GetPath"/>.
-        /// In the event of parse failure that is not attributable to <c>ERROR_INVALID_NAME</c>,
-        /// an event is logged to attribute the unknown path to the reporting <paramref name="pip"/>.
-        /// </summary>
-        [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
-        public bool TryParseAbsolutePath(PipExecutionContext context, LoggingContext loggingContext, Process pip, out AbsolutePath parsedPath)
-        {
-            Contract.Requires(context != null);
-            Contract.Requires(pip != null);
-
-            const int ErrorInvalidName = 0x7B; // ERROR_INVALID_NAME
-
-            if (Path == null)
-            {
-                parsedPath = ManifestPath;
-                return parsedPath.IsValid;
-            }
-            else
-            {
-                // Here we try to parse the path, but may fail gracefully. Sometimes tools try to open invalid paths.
-                // For example, 'for /R dir %f in (*) do echo %f' in cmd may have GetFileAttributesEx("dir\*") called.
-                bool parsed = AbsolutePath.TryCreate(context.PathTable, Path, out parsedPath);
-                if (!parsed)
-                {
-                    if (Error != ErrorInvalidName)
-                    {
-                        // If this is opening a special (device type) path, just report it as a verbose message, so we don't lose it completely.
-                        if (IsSpecialDevicePath())
-                        {
-                            BuildXL.Processes.Tracing.Logger.Log.PipProcessIgnoringPathOfSpecialDeviceFileAccess(
-                                loggingContext,
-                                pip.SemiStableHash,
-                                pip.GetDescription(context),
-                                Describe(),
-                                Path);
-                        }
-                        else if (DoesPathContainsWildcards(Path))
-                        {
-                            BuildXL.Processes.Tracing.Logger.Log.PipProcessIgnoringPathWithWildcardsFileAccess(
-                                loggingContext,
-                                pip.SemiStableHash,
-                                pip.GetDescription(context),
-                                Describe(),
-                                Path);
-                        }
-                        else
-                        {
-                            BuildXL.Processes.Tracing.Logger.Log.PipProcessFailedToParsePathOfFileAccess(
-                                loggingContext,
-                                pip.SemiStableHash,
-                                pip.GetDescription(context),
-                                Describe(),
-                                Path);
-                        }
-                    }
-                }
-
-                return parsed;
-            }
-        }
-
-        /// <summary>
         /// Creates an instance from an absolute path.
         /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1726:UsePreferredTerms", MessageId = "flags")]
         public static ReportedFileAccess Create(
             ReportedFileOperation operation,
             ReportedProcess process,

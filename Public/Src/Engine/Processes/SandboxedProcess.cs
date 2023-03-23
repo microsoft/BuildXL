@@ -16,7 +16,6 @@ using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
-using BuildXL.Pips.Operations;
 using BuildXL.Processes.Internal;
 using BuildXL.Storage;
 using BuildXL.Utilities.Core;
@@ -87,7 +86,7 @@ namespace BuildXL.Processes
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "We own these objects.")]
         internal SandboxedProcess(SandboxedProcessInfo info)
         {
-            Contract.Requires(!info.Timeout.HasValue || info.Timeout.Value <= Process.MaxTimeout);
+            Contract.Requires(!info.Timeout.HasValue || info.Timeout.Value >= TimeSpan.Zero);
             Contract.Requires(!info.CreateSandboxTraceFile
                 || (info.FileAccessManifest.ReportFileAccesses && info.FileAccessManifest.LogProcessData && info.FileAccessManifest.ReportProcessArgs),
                 "Trace file is enabled, but some of the required options in the file access manifest are not.");

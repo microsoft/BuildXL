@@ -15,7 +15,7 @@ namespace Utilities.Core {
 
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 NetFx.System.Xml.dll,
-                $.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
+                NetFx.Netstandard.dll,
                 importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
                 importFrom("System.Threading.Tasks.Extensions").pkg,
             ]),

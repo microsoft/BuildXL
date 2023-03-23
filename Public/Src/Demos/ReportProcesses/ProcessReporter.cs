@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 

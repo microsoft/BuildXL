@@ -10,12 +10,13 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Allowlist containing file operations that have been vetted to be safe(ish) but cannot be easily predicted.
@@ -323,7 +324,7 @@ namespace BuildXL.Processes
             int characterWithError;
             if (AbsolutePath.TryCreate(m_context.PathTable, reportedFileAccess.Process.Path, out toolPath, out characterWithError) != AbsolutePath.ParseResult.Success)
             {
-                Tracing.Logger.Log.FileAccessAllowlistFailedToParsePath(
+                Processes.Tracing.Logger.Log.FileAccessAllowlistFailedToParsePath(
                     loggingContext,
                     pip.SemiStableHash,
                     pip.FormattedSemiStableHash,

@@ -3,10 +3,11 @@
 
 using System.Collections.Generic;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Logs reported processes and file accesses for a pip
@@ -50,7 +51,7 @@ namespace BuildXL.Processes
             {
                 foreach (ReportedFileAccess reportedFile in fileAccesses)
                 {
-                    Tracing.Logger.Log.PipProcessFileAccess(
+                    Processes.Tracing.Logger.Log.PipProcessFileAccess(
                         LoggingContext,
                         Process.SemiStableHash,
                         Process.FormattedSemiStableHash,
@@ -63,7 +64,7 @@ namespace BuildXL.Processes
             {
                 foreach (var reportedProcess in processes)
                 {
-                    Tracing.Logger.Log.PipProcess(
+                    Processes.Tracing.Logger.Log.PipProcess(
                         LoggingContext,
                         Process.SemiStableHash,
                         Process.FormattedSemiStableHash,

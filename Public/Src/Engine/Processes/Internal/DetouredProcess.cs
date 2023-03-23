@@ -16,7 +16,6 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Tracing;
-using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Storage;
 using BuildXL.Utilities.Core;
@@ -364,7 +363,7 @@ namespace BuildXL.Processes.Internal
             Contract.Requires(standardInputEncoding != null);
             Contract.Requires(standardErrorEncoding != null);
             Contract.Requires(standardOutputEncoding != null);
-            Contract.Requires(!timeout.HasValue || timeout.Value <= Process.MaxTimeout);
+            Contract.Requires(!timeout.HasValue || timeout.Value >= TimeSpan.Zero);
 
             m_bufferSize = bufferSize;
             m_commandLine = commandLine;

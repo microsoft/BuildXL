@@ -3,6 +3,7 @@
 
 using BuildXL.Native.IO;
 using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -20,22 +21,22 @@ namespace Test.BuildXL.Processes
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
-                XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("/some/path/without/wildcard"), false);
-                XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("/some/path/with/wildcard/*"), true);
-                XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("/some/*/with/wildcard/*"), true);
+                XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("/some/path/without/wildcard"), false);
+                XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("/some/path/with/wildcard/*"), true);
+                XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("/some/*/with/wildcard/*"), true);
             }
             else
             {
-                XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("\\\\?\\c:\\foo\\bar\\?"), true);
-                XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("\\\\?\\c:\\foo\\bar\\*"), true);
-                XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("\\\\?\\c:\\foo\\bar\\a"), false);
-                XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("c:\\foo\\bar\\?"), true);
-                XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("c:\\foo\\bar\\*"), true);
-                XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("c:\\foo\\bar\\a"), false);
+                XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("\\\\?\\c:\\foo\\bar\\?"), true);
+                XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("\\\\?\\c:\\foo\\bar\\*"), true);
+                XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("\\\\?\\c:\\foo\\bar\\a"), false);
+                XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("c:\\foo\\bar\\?"), true);
+                XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("c:\\foo\\bar\\*"), true);
+                XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("c:\\foo\\bar\\a"), false);
             }
 
-            XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("ab?cd"), true);
-            XAssert.AreEqual(ReportedFileAccess.DoesPathContainsWildcards("abcd"), false);
+            XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("ab?cd"), true);
+            XAssert.AreEqual(ReportedFileAccessExtensions.DoesPathContainsWildcards("abcd"), false);
         }
 
         [Fact]

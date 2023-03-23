@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 

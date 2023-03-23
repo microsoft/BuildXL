@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;

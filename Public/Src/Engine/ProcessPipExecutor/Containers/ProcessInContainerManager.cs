@@ -174,7 +174,7 @@ namespace BuildXL.Processes.Containers
                     {
                         // The operation above may throw, and in that case we don't want to propagate the exception, but grab the error message
                         // and interpret it as a merge failure
-                        Tracing.Logger.Log.FailedToMergeOutputsToOriginalLocation(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), ex.Message);
+                        Processes.Tracing.Logger.Log.FailedToMergeOutputsToOriginalLocation(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), ex.Message);
                         return false;
                     }
 
@@ -300,7 +300,7 @@ namespace BuildXL.Processes.Containers
             {
                 if (isDisallowed)
                 {
-                    Tracing.Logger.Log.DisallowedDoubleWriteOnMerge(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), fileOutput.ExpandedPath, sourcePath);
+                    Processes.Tracing.Logger.Log.DisallowedDoubleWriteOnMerge(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), fileOutput.ExpandedPath, sourcePath);
                     return MergeResult.DisallowedDoubleWrite;
                 }
 
@@ -341,7 +341,7 @@ namespace BuildXL.Processes.Containers
                 {
                     if (isDisallowed)
                     {
-                        Tracing.Logger.Log.DisallowedDoubleWriteOnMerge(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), fileOutput.ExpandedPath, sourcePath);
+                        Processes.Tracing.Logger.Log.DisallowedDoubleWriteOnMerge(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), fileOutput.ExpandedPath, sourcePath);
                         return MergeResult.DisallowedDoubleWrite;
                     }
 
@@ -349,7 +349,7 @@ namespace BuildXL.Processes.Containers
                     return MergeResult.Success;
                 }
 
-                Tracing.Logger.Log.FailedToCreateHardlinkOnMerge(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), fileOutput.ExpandedPath, sourcePath, createHardlinkStatus.ToString());
+                Processes.Tracing.Logger.Log.FailedToCreateHardlinkOnMerge(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), fileOutput.ExpandedPath, sourcePath, createHardlinkStatus.ToString());
                 return MergeResult.Failure;
             }
 
@@ -400,7 +400,7 @@ namespace BuildXL.Processes.Containers
                 }
 
                 // Just log a verbose message for tracking purposes
-                Tracing.Logger.Log.DoubleWriteAllowedDueToPolicy(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), destPath);
+                Processes.Tracing.Logger.Log.DoubleWriteAllowedDueToPolicy(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), destPath);
 
                 isDisallowed = false;
                 shouldDelete = false;

@@ -18,9 +18,9 @@ using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Processes.VmCommandProxy;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
@@ -807,13 +807,13 @@ namespace Test.BuildXL.Scheduler
         }
 
         protected string GetSidebandFile(ScheduleRunResult result, Process process)
-            => SidebandWriter.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
+            => SidebandWriterHelper.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
 
         protected AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)
         {
             var logFile = GetSidebandFile(result, process);
             XAssert.IsTrue(File.Exists(logFile));
-            return SidebandWriter
+            return SidebandWriterHelper
                 .ReadRecordedPathsFromSidebandFile(logFile)
                 .Select(path => AbsolutePath.Create(Context.PathTable, path))
                 .Distinct()

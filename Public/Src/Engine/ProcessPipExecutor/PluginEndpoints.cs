@@ -1,17 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Plugin.Grpc;
+using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Passes calls from SandboxedProcessPipExecutor to PluginManager
@@ -66,7 +64,7 @@ namespace BuildXL.Processes
             StandardInputInfo standardInput = ProcessInfo.StandardInputSourceInfo;
             if (standardInput == null)
             {
-                standardInput = StandardInputInfo.CreateForProcess(m_pip, m_pathTable);
+                standardInput = StandardInputInfoExtensions.CreateForProcess(m_pip, m_pathTable);
             }
 
             ProcessStream inputContent = null;

@@ -8,6 +8,7 @@ namespace BlockAccesses {
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").dll,

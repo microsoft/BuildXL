@@ -17,6 +17,7 @@ namespace Ninja {
             ...BuildXLSdk.tplPackages,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,

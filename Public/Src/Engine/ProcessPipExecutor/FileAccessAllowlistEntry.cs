@@ -5,9 +5,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// A rule that can determine whether a given file access is allowlisted.

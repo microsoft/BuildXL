@@ -98,7 +98,7 @@ namespace BuildXL.Engine
                 string[] extraneousSidebandFiles = null;
                 if (computeExtraneousSidebandFiles)
                 {
-                    var allSidebandFiles = SidebandWriter.FindAllProcessPipSidebandFiles(SidebandRootDir.ToString(Context.PathTable));
+                    var allSidebandFiles = SidebandWriterHelper.FindAllProcessPipSidebandFiles(SidebandRootDir.ToString(Context.PathTable));
                     extraneousSidebandFiles = allSidebandFiles
                         .Except(
                             processesWithSharedOpaqueDirectoryOutputs.Select(GetSidebandFile),
@@ -134,7 +134,7 @@ namespace BuildXL.Engine
         }
 
         private string GetSidebandFile(Process process)
-            => SidebandWriter.GetSidebandFileForProcess(Context.PathTable, SidebandRootDir, process);
+            => SidebandWriterHelper.GetSidebandFileForProcess(Context.PathTable, SidebandRootDir, process);
 
         /// <summary>
         /// Returns nodes accepted by the filter, i.e.,

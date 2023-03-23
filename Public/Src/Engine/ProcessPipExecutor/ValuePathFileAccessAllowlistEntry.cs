@@ -4,9 +4,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// A specific allowlist entry, consisting of a set of filters to test reported file operations against.

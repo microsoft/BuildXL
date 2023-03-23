@@ -21,6 +21,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Processes.VmCommandProxy;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Scheduler.Distribution;
@@ -834,7 +835,7 @@ namespace BuildXL.Engine
             else
             {
                 var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
-                var sharedOpaqueSidebandFiles = SidebandWriter.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
+                var sharedOpaqueSidebandFiles = SidebandWriterHelper.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
                 var distinctRecordedWrites = sidebandExaminer.TryReadAllRecordedWrites(sharedOpaqueSidebandFiles);
 
                 if (distinctRecordedWrites.Any())

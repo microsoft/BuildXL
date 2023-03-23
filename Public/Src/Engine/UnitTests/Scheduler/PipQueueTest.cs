@@ -25,6 +25,7 @@ using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.VmCommandProxy;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;

@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;

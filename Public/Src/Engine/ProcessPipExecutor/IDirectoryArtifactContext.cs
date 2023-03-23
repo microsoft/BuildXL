@@ -6,7 +6,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using System.Collections.Generic;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Provides context information for directory artifacts

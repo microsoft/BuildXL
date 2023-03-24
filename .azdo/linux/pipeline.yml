@@ -16,12 +16,12 @@ extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
     pool:
-      name: BuildXL-DevOpsAgents-Linux-PME-EastUS
+      name: BuildXL-DevOpsAgents-Linux-PME
       os: linux
     sdl:
       sourceAnalysisPool:
-        name: OneESPipelinesValidation
-        image: OneESPipelinesValidation
+        name: Windows-SDL-Agents
+        image: Windows-SDL-Image
         os: windows
 
     stages:

@@ -489,12 +489,11 @@ namespace Test.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.TerminatingDueToPipFailure);
         }
 
-        // TODO: Bug 1984802 - Test is flaky on linux
-        [FactIfSupported(requiresWindowsOrMacOperatingSystem:true)]
+        [Fact]
         public async Task TestSemaphores()
         {
             Setup(maxProcesses: 100);
-            int limit = 2;
+            int limit = 2; 
 
             FileArtifact sourceArtifact = CreateSourceFile();
 

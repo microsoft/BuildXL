@@ -185,23 +185,22 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact nonhashableFile = new FileArtifact(CreateUniqueSourcePath(SourceRootPrefix, NonHashableRoot));
             DirectoryArtifact nonhashableDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueSourcePath(SourceRootPrefix, NonHashableRoot));
 
-            ValidateCachingBehaviorUntrackedMount(nonhashableFile, nonhashableDir, undefinedMount: false);
+            ValidateCachingBehaviorUntrackedMount(nonhashableFile, nonhashableDir);
         }
 
-        // TODO: On Linux this pip is a cache miss when it should have been a cache hit, work item #1980999
         [Feature(Features.Mount)]
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public virtual void ValidateCachingUndefinedMount_Bug1087986()
         {
             // Absent file and directory in an undefined mount 
             FileArtifact undefinedFile = new FileArtifact(CreateUniqueSourcePath(SourceRootPrefix, TemporaryDirectory));
             DirectoryArtifact undefinedDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueSourcePath(SourceRootPrefix, TemporaryDirectory));
 
-            ValidateCachingBehaviorUntrackedMount(undefinedFile, undefinedDir, undefinedMount: true);
+            ValidateCachingBehaviorUntrackedMount(undefinedFile, undefinedDir);
             AssertWarningEventLogged(SchedulerLogEventId.IgnoringUntrackedSourceFileNotUnderMount, 6); // The number of times we run the scheduler in ValidateCachingBehaviorUntrackedMount.
         }
 
-        public void ValidateCachingBehaviorUntrackedMount(FileArtifact file, DirectoryArtifact dir, bool undefinedMount)
+        public void ValidateCachingBehaviorUntrackedMount(FileArtifact file, DirectoryArtifact dir)
         {
             // Dynamically observed accesses on the file and directory
             Process pip = CreateAndSchedulePipBuilder(new Operation[]

@@ -82,8 +82,7 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
-        // TODO: Investigate further why this is failing on Linux (phase 2 pip queue drain is not working as expected) - Work item #1985456
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         [SuppressMessage("AsyncUsage", "AsyncFixer02", Justification = "ReadAllText and WriteAllText have async versions in .NET Standard which cannot be used in full framework.")]
         public async Task Stress()
         {
@@ -219,7 +218,7 @@ namespace Test.BuildXL.Scheduler
                                                     AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(pathTable, workingDirectory);
 
                                                     var pipData = OperatingSystemHelper.IsUnixOS ? 
-                                                        PipDataBuilder.CreatePipData(pathTable.StringTable, " ", PipDataFragmentEscaping.CRuntimeArgumentRules, "-c", "'", "cp", sourceArtifact, destinationArtifact, "'") :
+                                                        PipDataBuilder.CreatePipData(pathTable.StringTable, " ", PipDataFragmentEscaping.NoEscaping, "-c", "\"", "cp", sourceArtifact, destinationArtifact, "\"") :
                                                         PipDataBuilder.CreatePipData(pathTable.StringTable, " ", PipDataFragmentEscaping.CRuntimeArgumentRules, "/d", "/c", "copy", "/B", sourceArtifact, destinationArtifact);
 
                                                     queueKind = DispatcherKind.CPU;

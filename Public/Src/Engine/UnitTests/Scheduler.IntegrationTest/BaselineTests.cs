@@ -1856,7 +1856,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
         }
 
-        // TODO: On Linux the tempOutput is a DFA. Work item #1984802
+        /// <summary>
+        /// This is a test for custom file-access logic for Windows-based tools that was hardcoded into the engine.
+        /// See <see cref="SandboxedProcessPipExecutor.GetSpecialCaseRulesForSpecialTools(AbsolutePath, AbsolutePath)"/>
+        /// </summary>
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestSpecialTempOutputFile()
         {
@@ -1883,7 +1886,8 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(output),
                 Operation.WriteFile(tempOutput, doNotInfer: true)
             });
-            builder.AddUntrackedDirectoryScope(oldExeDirectory);
+
+            // This is needed to avoid unrelated DFAs (the test process touches several dlls that are next to the executable)
             builder.AddUntrackedDirectoryScope(newExeDirectory);
 
             SchedulePipBuilder(builder);
@@ -1943,7 +1947,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
 
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // TODO(BUG): flaky on Unix systems
+        [Theory]
         [InlineData(true)]
         [InlineData(false)]
         public void RetryPipOnHighMemoryUsage(bool allowLowMemoryRetry)

@@ -612,9 +612,23 @@ namespace BuildXL.Scheduler.Fingerprints
                                 dynamicObservations.Add((path, DynamicObservationKind.ProbedFile));
                                 break;
                             case ObservedInputType.ExistingDirectoryProbe:
-                                maybeProposed = ObservedInput.CreateExistingDirectoryProbe(path, flags);
+                                // If the path is not under a mount or a path is under a non-hashable mount, we convert it into an AbsentPathProbe.
+                                // This is in line with our treatment of directory enumerations that happen under invalid / non-hashable mounts.
+                                // This conversion is not affected by AllowUndeclaredSourceReads setting.
+                                // See: ObservedInputProcessingEnvironmentAdapter.DetermineEnumerationModeAndRule, and the code below that handles
+                                // the DirectoryFingerprint.Zero fingerprint case.
+                                SemanticPathInfo mountInfo = environment.PathExpander.GetSemanticPathInfo(path);
+                                if (!mountInfo.IsValid || !mountInfo.AllowHashing)
+                                {
+                                    maybeProposed = ObservedInput.CreateAbsentPathProbe(path, flags);
+                                }
+                                else
+                                {
+                                    maybeProposed = ObservedInput.CreateExistingDirectoryProbe(path, flags);
+                                }
 
                                 // Directory probe is just like file probe.
+                                // We are not changing this into an absent path probe to keep it in sync with how DirectoryEnumeration is treated.
                                 dynamicObservations.Add((path, DynamicObservationKind.ProbedFile));
                                 break;
                             case ObservedInputType.DirectoryEnumeration:
@@ -801,6 +815,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     {
                         Array.Resize(ref observedInputs, valid);
                     }
+
                     Contract.Assume(invalid > 0);
                     return ObservedInputProcessingResult.CreateForFailure(
                         status: status,

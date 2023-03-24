@@ -986,12 +986,12 @@ namespace Test.BuildXL.Scheduler
             var harness = new Harness();
 
             // Create absent path probes both before and after the enumeration to make sure the order doesn't matter
-            harness.AddAbsentProbeObservation(A("X", "Dir1", "a.h"));
-            var o1 = harness.AddExistingDirectoryProbe(A("X", "Dir1", ""), isSearchPath: false);
-            harness.AddAbsentProbeObservation(A("X", "Dir1", "b.h"));
+            harness.AddAbsentProbeObservation(X("/z/writeable/Dir1/a.h"));
+            var o1 = harness.AddExistingDirectoryProbe(X("/z/writeable/Dir1/"), isSearchPath: false);
+            harness.AddAbsentProbeObservation(X("/z/writeable/Dir1/b.h"));
 
             // The probe outside the directory should be considered
-            harness.AddAbsentProbeObservation(A("X", "Dir2", "c.h"));
+            harness.AddAbsentProbeObservation(X("/z/writeable/Dir2/c.h"));
 
             var result = harness.Process(ObservedInputProcessingStatus.Success, true);
 
@@ -999,7 +999,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreEqual(ObservedInputType.ExistingDirectoryProbe, result.ObservedInputs[0].Type);
             XAssert.AreEqual(ObservedInputType.AbsentPathProbe, result.ObservedInputs[1].Type);
             XAssert.AreEqual(ObservedInputType.AbsentPathProbe, result.ObservedInputs[2].Type);
-            XAssert.AreEqual(AbsolutePath.Create(harness.Context.PathTable, X("/X/Dir2/c.h", OperatingSystemHelper.IsUnixOS)), result.ObservedInputs[3].Path);
+            XAssert.AreEqual(AbsolutePath.Create(harness.Context.PathTable, X("/z/writeable/Dir2/c.h")), result.ObservedInputs[3].Path);
         }
 
         [Trait(Test.BuildXL.TestUtilities.Features.Feature, Test.BuildXL.TestUtilities.Features.SearchPath)]

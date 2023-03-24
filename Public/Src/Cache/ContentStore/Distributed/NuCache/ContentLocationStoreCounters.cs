@@ -63,9 +63,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         BackgroundTouchBulk,
 
         /// <nodoc />
-        LocationAddRecentInactiveEager,
-
-        /// <nodoc />
         LocationAddRecentRemoveEager,
 
         /// <nodoc />

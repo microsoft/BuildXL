@@ -198,7 +198,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => result.ContentLifetime = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineRisk, v => result.MachineRisk = v);
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => result.LocationEntryExpiry = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.MachineStateRecomputeIntervalMinutes, v => result.MachineStateRecomputeInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineActiveToClosedIntervalMinutes, v => result.MachineActiveToClosedInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineActiveToExpiredIntervalMinutes, v => result.MachineActiveToExpiredInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.TouchFrequencyMinutes, v => result.TouchFrequency = TimeSpan.FromMinutes(v));
@@ -656,7 +655,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageRetryPolicy, v => blobClusterStateStorageConfiguration.RetryPolicy = v);
 
             var gcCfg = new ClusterStateRecomputeConfiguration();
-            ApplyIfNotNull(_distributedSettings.MachineStateRecomputeIntervalMinutes, v => gcCfg.RecomputeFrequency = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineActiveToClosedIntervalMinutes, v => gcCfg.ActiveToClosedInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineActiveToExpiredIntervalMinutes, v => gcCfg.ActiveToDeadExpiredInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineActiveToExpiredIntervalMinutes, v => gcCfg.ClosedToDeadExpiredInterval = TimeSpan.FromMinutes(v));

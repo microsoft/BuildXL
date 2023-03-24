@@ -2451,8 +2451,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Insert random file in session 0
                     var putResult0 = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
-                    worker0.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddRecentInactiveEager].Value.Should().Be(0);
-
                     var masterResult = await master.GetBulkAsync(
                         context,
                         new[] { putResult0.ContentHash },
@@ -2489,8 +2487,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // Insert random file in session 0
                     var putResult1 = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
-
-                    worker0.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddRecentInactiveEager].Value.Should().Be(0, "New content shouldn't eagerly go to global store because RemoveFromTracker keeps the machine available");
 
                     var worker1GlobalResult = await worker1.GetBulkAsync(
                         context,
@@ -3054,8 +3050,6 @@ namespace ContentStoreTest.Distributed.Sessions
                         ctx,
                         MachineState.Unknown).ShouldBeSuccess();
 
-                    workerState = (await worker.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
-                    workerState.Should().Be(MachineState.DeadExpired);
                     master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeFalse();
                     master.LocalLocationStore.ClusterState.InactiveMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
                 });
@@ -3102,9 +3096,6 @@ namespace ContentStoreTest.Distributed.Sessions
                         MachineState.Unknown).ShouldBeSuccess();
                     master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
                     master.LocalLocationStore.ClusterState.InactiveMachines.Contains(workerPrimaryMachineId).Should().BeFalse();
-
-                    workerState = (await worker.LocalLocationStore.SetOrGetMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
-                    workerState.Should().Be(MachineState.Closed);
                 });
         }
 

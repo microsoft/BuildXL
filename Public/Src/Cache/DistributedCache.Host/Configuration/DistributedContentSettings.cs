@@ -763,10 +763,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, double.MaxValue)]
-        public double? MachineStateRecomputeIntervalMinutes { get; set; }
-
-        [DataMember]
-        [Validation.Range(1, double.MaxValue)]
         public double? MachineActiveToClosedIntervalMinutes { get; set; }
 
         [DataMember]

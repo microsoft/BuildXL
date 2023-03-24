@@ -552,9 +552,6 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 configuration.InlinePostInitialization = true;
 
-                // Set recompute time to zero to force recomputation on every heartbeat
-                configuration.MachineStateRecomputeInterval = TimeSpan.Zero;
-
                 if (!_tests.UseRealEventHub)
                 {
                     // Propagate epoch from normal configuration to in-memory configuration

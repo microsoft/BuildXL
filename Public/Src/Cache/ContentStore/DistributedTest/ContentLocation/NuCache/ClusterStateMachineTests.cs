@@ -28,13 +28,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             machineId.Index.Should().Be(MachineId.MinValue);
 
             var record = clusterState.GetStatus(machineId).ThrowIfFailure();
-            record.Should().BeEquivalentTo(new MachineRecord()
-            {
-                Id = new MachineId(MachineId.MinValue),
-                Location = machineLocation,
-                State = ClusterStateMachine.InitialState,
-                LastHeartbeatTimeUtc = nowUtc,
-            });
+            record.Should().BeEquivalentTo(
+                new MachineRecord()
+                {
+                    Id = new MachineId(MachineId.MinValue),
+                    Location = machineLocation,
+                    State = ClusterStateMachine.InitialState,
+                    LastHeartbeatTimeUtc = nowUtc,
+                });
         }
 
         [Fact]
@@ -118,47 +119,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
-        public void HeartbeatDoesntChangeRecomputeTime()
-        {
-            var clusterState = new ClusterStateMachine();
-            MachineId n1Id;
-
-            (clusterState, n1Id) = clusterState.RegisterMachine(new MachineLocation("node1"), _clock.UtcNow);
-
-            _clock.Increment(TimeSpan.FromMinutes(1));
-            clusterState = clusterState.Heartbeat(n1Id, _clock.UtcNow, MachineState.Open).ThrowIfFailure().Next;
-
-            clusterState.LastStateMachineRecomputeTimeUtc.Should().Be(DateTime.MinValue);
-        }
-
-        [Fact]
-        public void RecomputeDoesntRunIfNotNeeded()
-        {
-            var now = _clock.UtcNow;
-            var current = new ClusterStateMachine()
-            {
-                LastStateMachineRecomputeTimeUtc = now,
-            };
-
-            var cfg = new ClusterStateRecomputeConfiguration()
-            {
-                RecomputeFrequency = TimeSpan.FromMilliseconds(1),
-            };
-
-            var next = current.Recompute(cfg, now);
-
-            next.Should().BeEquivalentTo(current);
-        }
-
-        [Fact]
         public void RecomputeChangesStatesAsExpected()
         {
             var clusterState = new ClusterStateMachine();
-            var cfg = new ClusterStateRecomputeConfiguration()
-            {
-                // Force recompute to run
-                RecomputeFrequency = TimeSpan.Zero,
-            };
+            var cfg = new ClusterStateRecomputeConfiguration();
 
             var nowUtc = _clock.UtcNow;
 
@@ -194,7 +158,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             MachineId n7Id;
             (clusterState, n7Id) = clusterState.ForceRegisterMachineWithState(n7, nowUtc, MachineState.Closed);
 
-            clusterState = clusterState.Recompute(cfg, nowUtc);
+            clusterState = clusterState.TransitionInactiveMachines(cfg, nowUtc);
 
             clusterState.GetStatus(n1Id).ThrowIfFailure().State.Should().Be(MachineState.DeadUnavailable);
             clusterState.GetStatus(n2Id).ThrowIfFailure().State.Should().Be(MachineState.DeadExpired);

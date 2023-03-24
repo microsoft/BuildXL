@@ -1116,7 +1116,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             EagerGlobal,
             EagerGlobalOnPut,
-            RecentInactiveEagerGlobal,
             RecentRemoveEagerGlobal,
             LazyEventOnly,
             LazyTouchEventOnly,
@@ -1138,7 +1137,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 case RegisterAction.EagerGlobal:
                 case RegisterAction.EagerGlobalOnPut:
-                case RegisterAction.RecentInactiveEagerGlobal:
                 case RegisterAction.RecentRemoveEagerGlobal:
                     return RegisterCoreAction.Global;
                 case RegisterAction.LazyEventOnly:
@@ -1160,14 +1158,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // Content was recently removed. Eagerly register with global store.
                 Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Increment();
                 return RegisterAction.RecentRemoveEagerGlobal;
-            }
-
-            if (ClusterState.LastInactiveTime.IsRecent(now, Configuration.MachineStateRecomputeInterval.Multiply(5)))
-            {
-                // The machine was recently inactive. We should eagerly register content for some amount of time (a few heartbeats) because content may be currently filtered from other machines
-                // local db results due to inactive machines filter.
-                Counters[ContentLocationStoreCounters.LocationAddRecentInactiveEager].Increment();
-                return RegisterAction.RecentInactiveEagerGlobal;
             }
 
             if (_recentlyAddedHashes.Contains(hash))

@@ -23,8 +23,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         internal const MachineState InitialState = MachineState.Open;
 
-        public DateTime LastStateMachineRecomputeTimeUtc { get; init; } = DateTime.MinValue;
-
         // Machine IDs have historically been assigned from 1 onwards as an implementation detail. Thus, 0 has been
         // deemed to be an invalid machine ID, and is used as such in some parts of the code. This code keeps the
         // convention to avoid making major changes.
@@ -70,13 +68,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             DateTime nowUtc,
             MachineState state)
         {
-            Contract.Requires(state != MachineState.Unknown, $"Can't register machine ID `{machineId}` for location `{location}` with initial state `{state}`");
+            Contract.Requires(
+                state != MachineState.Unknown,
+                $"Can't register machine ID `{machineId}` for location `{location}` with initial state `{state}`");
 
             if (machineId.Index < NextMachineId)
             {
                 if (TryResolve(machineId, out var assignedLocation))
                 {
-                    Contract.Assert(assignedLocation.Equals(location), $"Machine id `{machineId}` has already been allocated to location `{assignedLocation}` and so can't be allocated to `{location}`");
+                    Contract.Assert(
+                        assignedLocation.Equals(location),
+                        $"Machine id `{machineId}` has already been allocated to location `{assignedLocation}` and so can't be allocated to `{location}`");
 
                     // Heartbeat can only fail if the machine ID doesn't exist, and we know it does
                     return Heartbeat(machineId, nowUtc, state).ThrowIfFailure().Next;
@@ -85,13 +87,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     var records = Records.ToList();
 
-                    records.Add(new MachineRecord()
-                    {
-                        Id = machineId,
-                        Location = location,
-                        State = state,
-                        LastHeartbeatTimeUtc = nowUtc,
-                    });
+                    records.Add(
+                        new MachineRecord()
+                        {
+                            Id = machineId, Location = location, State = state, LastHeartbeatTimeUtc = nowUtc,
+                        });
 
                     // We sort this list in order to ensure it is easy on the eyes when we need to manually inspect it
                     records.Sort((a, b) => a.Id.Index.CompareTo(b.Id.Index));
@@ -103,19 +103,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 var records = Records.ToList();
 
-                records.Add(new MachineRecord()
-                {
-                    Id = machineId,
-                    Location = location,
-                    State = state,
-                    LastHeartbeatTimeUtc = nowUtc,
-                });
+                records.Add(
+                    new MachineRecord()
+                    {
+                        Id = machineId, Location = location, State = state, LastHeartbeatTimeUtc = nowUtc,
+                    });
 
-                return this with
-                {
-                    NextMachineId = Math.Max(machineId.Index + 1, NextMachineId + 1),
-                    Records = records,
-                };
+                return this with { NextMachineId = Math.Max(machineId.Index + 1, NextMachineId + 1), Records = records, };
             }
         }
 
@@ -125,11 +119,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // This will only happen when operating in DistributedContentConsumerOnly mode. These machines get
                 // registered with an invalid machine ID, so this is the expected response of heartbeat.
-                return Result.Success((Next: this, Previous: new MachineRecord()
-                {
-                    State = state,
-                    LastHeartbeatTimeUtc = nowUtc,
-                }));
+                return Result.Success((Next: this, Previous: new MachineRecord() { State = state, LastHeartbeatTimeUtc = nowUtc, }));
             }
 
             var records = new List<MachineRecord>(capacity: Records.Count);
@@ -149,30 +139,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (previous is null)
             {
-                return Result.FromErrorMessage<(ClusterStateMachine Next, MachineRecord Previous)>($"Failed to find machine id `{machineId}` in records");
+                return Result.FromErrorMessage<(ClusterStateMachine Next, MachineRecord Previous)>(
+                    $"Failed to find machine id `{machineId}` in records");
             }
 
             return Result.Success((Next: this with { Records = records }, Previous: previous));
         }
 
-        public ClusterStateMachine Recompute(ClusterStateRecomputeConfiguration configuration, DateTime nowUtc)
+        public ClusterStateMachine TransitionInactiveMachines(ClusterStateRecomputeConfiguration configuration, DateTime nowUtc)
         {
-            if (configuration.RecomputeFrequency != TimeSpan.Zero && LastStateMachineRecomputeTimeUtc.IsRecent(nowUtc, configuration.RecomputeFrequency))
-            {
-                return this;
-            }
-
             var records = new List<MachineRecord>(capacity: Records.Count);
             foreach (var record in Records)
             {
                 records.Add(ChangeMachineStateIfNeeded(configuration, nowUtc, record));
             }
 
-            return this with
-            {
-                LastStateMachineRecomputeTimeUtc = nowUtc,
-                Records = records,
-            };
+            return this with { Records = records, };
         }
 
         private MachineRecord ChangeMachineStateIfNeeded(
@@ -212,7 +194,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     break;
                 }
                 default:
-                    throw new NotImplementedException($"Attempt to transition machine record `{current}` failed because the state `{current.State}` is unknown");
+                    throw new NotImplementedException(
+                        $"Attempt to transition machine record `{current}` failed because the state `{current.State}` is unknown");
             }
 
             return current;

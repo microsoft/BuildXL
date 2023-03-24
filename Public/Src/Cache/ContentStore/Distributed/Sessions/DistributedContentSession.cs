@@ -274,8 +274,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             // First try to fetch file based on locally stored locations for the hash
             // Then fallback to fetching file based on global locations minus the locally stored locations which were already checked
-            foreach (var getBulkTask in ContentLocationStoreExtensions.MultiLevelGetLocations(
-                         ContentLocationStore,
+            foreach (var getBulkTask in ContentLocationStore.MultiLevelGetLocations(
                          operationContext,
                          new[] { contentHash },
                          operationContext.Token,
@@ -305,12 +304,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                     var hashInfo = getBulkResult.ContentHashesInfo.Single();
 
-                    if (!CanCopyContentHash(
-                            operationContext,
-                            hashInfo,
-                            isGlobal: getBulkResult.Origin == GetBulkOrigin.Global,
-                            out var useInRingLocations,
-                            out var errorMessage))
+                    if (!CanCopyContentHash(hashInfo, out var errorMessage))
                     {
                         return new BoolResult(errorMessage);
                     }
@@ -321,8 +315,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         hashInfo,
                         urgencyHint,
                         CopyReason.OpenStream,
-                        trace: false,
-                        useInRingLocations);
+                        trace: false);
                     if (!copyResult)
                     {
                         return new BoolResult(copyResult);
@@ -834,12 +827,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     PlaceFileResult result;
                     try
                     {
-                        if (!CanCopyContentHash(
-                                context,
-                                contentHashWithSizeAndLocations,
-                                isGlobal: origin == GetBulkOrigin.Global,
-                                out var useInRingMachineLocations,
-                                out var errorMessage))
+                        if (!CanCopyContentHash(contentHashWithSizeAndLocations, out var errorMessage))
                         {
                             result = PlaceFileResult.CreateContentNotFound(errorMessage);
                         }
@@ -852,8 +840,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 reason,
                                 // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
                                 trace: false,
-                                // Using in-ring locations as well if the feature is on.
-                                useInRingMachineLocations: useInRingMachineLocations,
                                 outputPath: hashesWithPaths[index].Path);
 
                             if (!copyResult)
@@ -907,53 +893,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         private bool CanCopyContentHash(
-            Context context,
             ContentHashWithSizeAndLocations result,
-            bool isGlobal,
-            out bool useInRingMachineLocations,
             [NotNullWhen(false)] out string message)
         {
-            useInRingMachineLocations = isGlobal && Settings.UseInRingMachinesForCopies;
-            if (!isLocationsAvailable(out message))
+            message = null;
+
+            // Null represents no replicas were ever registered, where as empty list implies content is missing from all replicas
+            if (result.Locations == null)
             {
-                if (useInRingMachineLocations && GetInRingActiveMachines().Length != 0)
-                {
-                    string useInRingLocationsMessage =
-                        $", but {nameof(DistributedContentStoreSettings.UseInRingMachinesForCopies)} is true. Trying to copy the content from in-ring machines.";
-                    Tracer.Debug(context, message + useInRingLocationsMessage);
-                    // Still trying copying the content from in-ring machines, even though the location information is lacking.
-                    return true;
-                }
+                message = $"No replicas registered for hash {result.ContentHash.ToShortString()}";
+                return false;
+            }
 
-                // Tracing only for global locations because they come last.
-                if (isGlobal)
-                {
-                    Tracer.Warning(context, message);
-                }
-
+            if (!result.Locations.Any())
+            {
+                message = $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}";
                 return false;
             }
 
             return true;
-
-            bool isLocationsAvailable([NotNullWhen(false)] out string errorMessage)
-            {
-                errorMessage = null;
-                // Null represents no replicas were ever registered, where as empty list implies content is missing from all replicas
-                if (result.Locations == null)
-                {
-                    errorMessage = $"No replicas registered for hash {result.ContentHash}";
-                    return false;
-                }
-
-                if (!result.Locations.Any())
-                {
-                    errorMessage = $"No replicas currently exist in content tracker for hash {result.ContentHash}";
-                    return false;
-                }
-
-                return true;
-            }
         }
 
         private async Task<PutResult> TryCopyAndPutAsync(
@@ -962,7 +920,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             UrgencyHint urgencyHint,
             CopyReason reason,
             bool trace,
-            bool useInRingMachineLocations = false,
             AbsolutePath outputPath = null)
         {
             Context context = operationContext;
@@ -1019,11 +976,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                  },
                 copyCompression,
                 OverrideWorkingFolder: (Inner as ITrustedContentSession)?.TryGetWorkingDirectory(outputPath));
-
-            if (useInRingMachineLocations)
-            {
-                copyRequest = copyRequest with { InRingMachines = GetInRingActiveMachines() };
-            }
 
             var putResult = await DistributedCopier.TryCopyAndPutAsync(operationContext, copyRequest);
 
@@ -1613,16 +1565,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return ProactivePushResult.FromPushFileResult(pushFileResult, attempt);
         }
 
-        /// <summary>
-        /// Gets all the active in-ring machines (excluding the current one).
-        /// </summary>
-        public MachineLocation[] GetInRingActiveMachines()
-        {
-            return Enumerable.Where<MachineLocation>(BuildRingMachines, m => !m.Equals(LocalCacheRootMachineLocation))
-                .Where(m => ContentLocationStore.IsMachineActive(m))
-                .ToArray();
-        }
-
         private async Task<(int retries, ProactivePushResult insideRingCopyResult)> ProactiveCopyInsideBuildRingWithRetryAsync(
             OperationContext context,
             ContentHashWithSize hash,
@@ -1647,6 +1589,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             return (retries, insideRingCopyResult);
+        }
+
+        /// <summary>
+        /// Gets all the active in-ring machines (excluding the current one).
+        /// </summary>
+        public MachineLocation[] GetInRingActiveMachines()
+        {
+            return Enumerable.Where<MachineLocation>(BuildRingMachines, m => !m.Equals(LocalCacheRootMachineLocation))
+                .Where(m => ContentLocationStore.IsMachineActive(m))
+                .ToArray();
         }
 
         private async Task<ProactivePushResult> ProactiveCopyInsideBuildRing(

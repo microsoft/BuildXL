@@ -214,11 +214,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public CopyCompression GrpcCopyCompressionAlgorithm { get; set; } = CopyCompression.Gzip;
 
         /// <summary>
-        /// If true, then the in-ring machines are used as the candidates for file copies.
-        /// </summary>
-        public bool UseInRingMachinesForCopies { get; set; }
-
-        /// <summary>
         /// If true, put calls with <see cref="UrgencyHint.SkipRegisterContent"/> do not register content.
         /// </summary>
         public bool RespectSkipRegisterContentHint { get; set; }

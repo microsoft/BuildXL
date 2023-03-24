@@ -346,7 +346,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(distributedSettings.RegisterContentEagerlyOnPut, v => distributedContentStoreSettings.RegisterEagerlyOnPut = v);
             ApplyIfNotNull(distributedSettings.GrpcCopyCompressionSizeThreshold, v => distributedContentStoreSettings.GrpcCopyCompressionSizeThreshold = v);
             ApplyEnumIfNotNull<CopyCompression>(distributedSettings.GrpcCopyCompressionAlgorithm, v => distributedContentStoreSettings.GrpcCopyCompressionAlgorithm = v);
-            ApplyIfNotNull(distributedSettings.UseInRingMachinesForCopies, v => distributedContentStoreSettings.UseInRingMachinesForCopies = v);
 
             if (distributedSettings.EnableProactiveReplication && contentLocationStoreConfiguration.Checkpoint != null)
             {

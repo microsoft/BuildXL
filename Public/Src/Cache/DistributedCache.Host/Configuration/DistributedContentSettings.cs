@@ -355,9 +355,6 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Enum(typeof(CopyCompression), allowNull: true)]
         public string GrpcCopyCompressionAlgorithm { get; set; }
 
-        [DataMember]
-        public bool? UseInRingMachinesForCopies { get; set; }
-
         #endregion
 
         #region Grpc File Copier

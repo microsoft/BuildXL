@@ -74,6 +74,16 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool AssumeCallerCreatesDirectoryForPlace { get; set; } = false;
 
         public bool RemoveAuditRuleInheritance { get; set; } = false;
+
+        /// <summary>
+        /// A number of retries used for opening a file for hashing.
+        /// </summary>
+        public int? RetryCountForFileHashing { get; set; }
+
+        /// <summary>
+        /// A delay between retrying opening a file for hashing.
+        /// </summary>
+        public TimeSpan RetryDelayForFileHashing { get; set; } = TimeSpan.FromMilliseconds(100);
     }
 
     /// <nodoc />

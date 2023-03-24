@@ -448,6 +448,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(settings.ReserveSpaceTimeoutInMinutes, v => result.ReserveTimeout = TimeSpan.FromMinutes(v));
 
             ApplyIfNotNull(settings.UseHierarchicalTraceIds, v => Context.UseHierarchicalIds = v);
+            ApplyIfNotNull(settings.RetryCountForFileHashing, v => result.RetryCountForFileHashing = v);
+            ApplyIfNotNull(settings.RetryDelayForFileHashing, v => result.RetryDelayForFileHashing = v);
 
             return result;
         }

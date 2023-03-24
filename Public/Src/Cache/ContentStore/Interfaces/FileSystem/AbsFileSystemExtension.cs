@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
@@ -107,6 +108,28 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public static StreamWithLength? TryOpen(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share)
         {
             return fileSystem.TryOpen(path, fileAccess, fileMode, share, FileOptions.None, DefaultFileStreamBufferSize);
+        }
+
+        /// <summary>
+        /// Tries opening a given <paramref name="path"/> and retries if <see cref="UnauthorizedAccessException"/> is happening.
+        /// </summary>
+        public static async Task<StreamWithLength?> TryOpenWithRetriesAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, int retryCount, TimeSpan retryDelay, Action<UnauthorizedAccessException> onException)
+        {
+            Contract.Requires(retryCount > 0);
+            for (int i = 0; i < retryCount; i++)
+            {
+                try
+                {
+                    return fileSystem.TryOpen(path, fileAccess, fileMode, share, FileOptions.None, DefaultFileStreamBufferSize);
+                }
+                catch (UnauthorizedAccessException e) when (i < retryCount - 1)
+                {
+                    onException(e);
+                    await Task.Delay(retryDelay);
+                }
+            }
+
+            throw Contract.AssertFailure("Not reachable");
         }
 
         /// <summary>

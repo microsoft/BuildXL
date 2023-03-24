@@ -797,6 +797,12 @@ namespace BuildXL.Cache.Host.Configuration
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
 
         [DataMember]
+        public int? RetryCountForFileHashing { get; set; }
+
+        [DataMember]
+        public TimeSpan? RetryDelayForFileHashing { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? SilentOperationDurationThreshold { get; set; }
 

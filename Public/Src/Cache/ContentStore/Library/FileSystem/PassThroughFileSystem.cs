@@ -549,7 +549,15 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 return null;
             }
 
-            return new FileStream(path.Path, mode, accessMode, share, bufferSize, options);
+            try
+            {
+                return new FileStream(path.Path, mode, accessMode, share, bufferSize, options);
+            }
+            catch (IOException e) when(e.Message.Contains("The process cannot access the file"))
+            {
+                // Finding open handles is not supported for Unix.
+                throw CreateUnauthorizedAccessException(e.Message, path.ToString(), tryFindOpenHandles: false);
+            }
         }
 
         /// <summary>
@@ -1204,21 +1212,25 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         throw new DirectoryNotFoundException(message);
                     case ERROR_ACCESS_DENIED:
                     case ERROR_SHARING_VIOLATION:
-
-                        string extraMessage = string.Empty;
-
-                        if (path != null)
-                        {
-                            extraMessage = " " + (FileUtilities.TryFindOpenHandlesToFile(path, out var info, printCurrentFilePath: false)
-                                ? info
-                                : "Attempt to find processes with open handles to the file failed.");
-                        }
-
-                        throw new UnauthorizedAccessException($"{message}.{extraMessage}");
+                        throw CreateUnauthorizedAccessException(message, path, tryFindOpenHandles: true);
                     default:
                         throw new IOException(message, ExceptionUtilities.HResultFromWin32(lastError));
                 }
             }
+        }
+
+        private static UnauthorizedAccessException CreateUnauthorizedAccessException(string message, string? path, bool tryFindOpenHandles)
+        {
+            string extraMessage = string.Empty;
+
+            if (path != null && tryFindOpenHandles)
+            {
+                extraMessage = " " + (FileUtilities.TryFindOpenHandlesToFile(path, out var info, printCurrentFilePath: false)
+                    ? info
+                    : "Attempt to find processes with open handles to the file failed.");
+            }
+
+            throw new UnauthorizedAccessException($"{message}.{extraMessage}");
         }
 
         /// <inheritdoc />

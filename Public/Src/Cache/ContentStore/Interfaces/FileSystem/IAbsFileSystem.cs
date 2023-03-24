@@ -46,6 +46,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// Unlike System.IO.FileStream, this provides a way to atomically check for the existence of a file and open it.
         /// This method throws the same set of exceptions that <see cref="FileStream"/> constructor does.
         /// </remarks>
+        /// <exception cref="IOException">An I/O error occurred.</exception>
+        /// <exception cref="UnauthorizedAccessException">
+        /// Unlike <see cref="FileStream"/>'s ctor, this method fails with <see cref="UnauthorizedAccessException"/> in case of
+        /// sharing violation and not with <see cref="IOException"/>. Plus it tries to find an active process that owns the handle and add such information into the error's text message.
+        /// </exception>
         StreamWithLength? TryOpen(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize);
 
         /// <summary>

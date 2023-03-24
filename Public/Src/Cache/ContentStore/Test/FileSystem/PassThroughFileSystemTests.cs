@@ -18,7 +18,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Core.Tracing;
 using Xunit.Abstractions;
 
@@ -30,6 +29,75 @@ namespace ContentStoreTest.FileSystem
         public PassThroughFileSystemTests(ITestOutputHelper helper)
             : base(helper, () => new PassThroughFileSystem(TestGlobal.Logger))
         {
+        }
+
+        [Fact]
+        public void SharingViolationFailsWithUnauthorizedAccessException()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var filePath = testDirectory.Path / "file";
+                FileSystem.WriteAllBytes(filePath, new byte[] {1, 2, 3});
+                using var file = FileSystem.OpenForWrite(filePath, expectingLength: 42, FileMode.Open, FileShare.None);
+
+                Assert.Throws<UnauthorizedAccessException>(
+                    () => FileSystem.OpenForWrite(filePath, expectingLength: 42, FileMode.Open, FileShare.None));
+            }
+        }
+
+        [Fact]
+        public async Task TryOpenWithRetriesAsyncRetriesMultipleTimes()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var filePath = testDirectory.Path / "file";
+                FileSystem.WriteAllBytes(filePath, new byte[] { 1, 2, 3 });
+                int callbackCount = 0;
+                const int retryCount = 4;
+                using var file = FileSystem.OpenForWrite(filePath, expectingLength: 42, FileMode.Open, FileShare.None);
+                try
+                {
+                    using var file2 = await FileSystem.TryOpenWithRetriesAsync(
+                        filePath,
+                        FileAccess.Read,
+                        FileMode.Open,
+                        FileShare.None,
+                        retryCount: retryCount,
+                        retryDelay: TimeSpan.FromMilliseconds(10),
+                        onException: _ =>
+                        {
+                            callbackCount++;
+                        });
+                    Assert.True(false, "TryOpenWithRetriesAsync should fail.");
+                }
+                catch (UnauthorizedAccessException)
+                { }
+
+                Assert.Equal(retryCount - 1, callbackCount);
+            }
+        }
+
+        [Fact]
+        public async Task TryOpenWithRetriesAsyncRecovers()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var filePath = testDirectory.Path / "file";
+                FileSystem.WriteAllBytes(filePath, new byte[] { 1, 2, 3 });
+                var file = FileSystem.OpenForWrite(filePath, expectingLength: 42, FileMode.Open, FileShare.Write);
+                using var file2 = await FileSystem.TryOpenWithRetriesAsync(
+                    filePath,
+                    FileAccess.Read,
+                    FileMode.Open,
+                    FileShare.None,
+                    retryCount: 4,
+                    retryDelay: TimeSpan.FromMilliseconds(10),
+                    onException: _ =>
+                    {
+                        // Disposing the file should allow us to open it.
+                        file.Dispose();
+                    });
+            }
         }
 
         [Fact]

@@ -270,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream>? wrapStream = null)
         {
             // We only hash the file if a trusted hash is not supplied
-            using var stream = FileSystem.TryOpen(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
+            using var stream = await tryOpenFileAsync();
             if (stream == null)
             {
                 return null;
@@ -284,8 +284,30 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             // Hash the file in  place
             return await HashContentAsync(context, wrappedStream.AssertHasLength(), hashType);
-        }
 
+            Task<StreamWithLength?> tryOpenFileAsync()
+            {
+                if (_settings.RetryCountForFileHashing is { } retryCount)
+                {
+                    return FileSystem.TryOpenWithRetriesAsync(
+                        path,
+                        FileAccess.Read,
+                        FileMode.Open,
+                        FileShare.Read | FileShare.Delete,
+                        retryCount: retryCount,
+                        retryDelay: _settings.RetryDelayForFileHashing,
+                        onException:
+                        ex =>
+                        {
+                            Tracer.Warning(context, ex, $"Transient failure during opening file for hashing. Retrying in '{_settings.RetryDelayForFileHashing}'");
+                        }
+                    );
+                }
+
+                return Task.FromResult(FileSystem.TryOpen(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete));
+            }
+        }
+        
         private void DeleteTempFolder()
         {
             if (FileSystem.DirectoryExists(_tempFolder))

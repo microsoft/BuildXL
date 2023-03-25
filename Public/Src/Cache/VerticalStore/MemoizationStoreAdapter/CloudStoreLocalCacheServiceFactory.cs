@@ -6,18 +6,21 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Blobs;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Sessions;
+using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -166,12 +169,25 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             MemoizationStore.Interfaces.Caches.ICache cache;
             if (configuration.EnableBlobL3Publishing)
             {
-                PublishingCacheConfiguration publishingConfiguration = new AzureBlobStoragePublishingCacheConfiguration();
-                string personalAccessToken = Environment.GetEnvironmentVariable(configuration.BlobL3PublishingPatEnvironmentVariable);
+                var personalAccessToken = Environment.GetEnvironmentVariable(configuration.BlobL3PublishingPatEnvironmentVariable);
                 if (string.IsNullOrEmpty(personalAccessToken))
                 {
                     logger.Error("Attempt to use L3 cache without a personal access token. Moving forward anyways...");
                 }
+
+                var storageCredential = new AzureStorageCredentials(connectionString: personalAccessToken!);
+
+                var accountName = BlobCacheStorageAccountName.Parse(storageCredential.GetAccountName());
+                PublishingCacheConfiguration publishingConfiguration =
+                    new AzureBlobStoragePublishingCacheConfiguration()
+                    {
+                        Configuration = new AzureBlobStorageCacheFactory.Configuration(
+                            ShardingScheme: new ShardingScheme(
+                                ShardingAlgorithm.SingleShard,
+                                new() { accountName }),
+                            Universe: configuration.CacheName,
+                            Namespace: "default")
+                    };
 
                 cache = LocalCache.CreatePublishingRpcCache(
                     logger,

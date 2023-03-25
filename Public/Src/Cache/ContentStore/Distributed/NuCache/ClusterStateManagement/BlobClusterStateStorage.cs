@@ -2,23 +2,33 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Specialized;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public record BlobClusterStateStorageConfiguration()
-        : Host.Configuration.BlobFolderStorageConfiguration(ContainerName: "checkpoints", FolderName: "clusterState")
+    public record BlobClusterStateStorageConfiguration
     {
+        public record StorageSettings(AzureStorageCredentials Credentials, string ContainerName = "checkpoints", string FolderName = "clusterState")
+            : AzureBlobStorageFolder.Configuration(Credentials, ContainerName, FolderName);
+
+        public required StorageSettings Storage { get; init; }
+
+        public BlobFolderStorageConfiguration BlobFolderStorageConfiguration { get; set; } = new BlobFolderStorageConfiguration();
+
         public string FileName { get; set; } = "clusterState.json";
 
         public ClusterStateRecomputeConfiguration RecomputeConfiguration { get; set; } = new ClusterStateRecomputeConfiguration();
@@ -31,18 +41,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly BlobClusterStateStorageConfiguration _configuration;
         private readonly IClock _clock;
 
-        private readonly BlobFolderStorage _storage;
+        private readonly BlobStorageClientAdapter _storageClientAdapter;
+        private readonly BlobClient _client;
 
         public BlobClusterStateStorage(
             BlobClusterStateStorageConfiguration configuration,
             IClock? clock = null)
         {
-            Contract.RequiresNotNull(configuration.Credentials);
             _configuration = configuration;
             _clock = clock ?? SystemClock.Instance;
-            _storage = new BlobFolderStorage(Tracer, configuration);
 
-            LinkLifetime(_storage);
+            _storageClientAdapter = new BlobStorageClientAdapter(Tracer, _configuration.BlobFolderStorageConfiguration);
+
+            var azureBlobStorageFolder = _configuration.Storage.Create();
+            _client = azureBlobStorageFolder.GetBlobClient(new BlobPath(_configuration.FileName, relative: true));
+        }
+
+        protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
+        {
+            await _storageClientAdapter.EnsureContainerExists(context, _client.GetParentBlobContainerClient()).ThrowIfFailureAsync();
+            return BoolResult.Success;
         }
 
         public record RegisterMachineInput(IReadOnlyList<MachineLocation> MachineLocations);
@@ -55,9 +73,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    var (currentState, assignedMachineIds) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineId[]>(
+                    var (currentState, assignedMachineIds) = await _storageClientAdapter.ReadModifyWriteAsync<ClusterStateMachine, MachineId[]>(
                         context,
-                        new BlobPath(_configuration.FileName, relative: true),
+                        _client,
                         currentState =>
                         {
                             var now = _clock.UtcNow;
@@ -97,9 +115,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    var (currentState, priorMachineRecords) = await _storage.ReadModifyWriteAsync<ClusterStateMachine, MachineRecord[]>(
+                    var (currentState, priorMachineRecords) = await _storageClientAdapter.ReadModifyWriteAsync<ClusterStateMachine, MachineRecord[]>(
                         context,
-                        new BlobPath(_configuration.FileName, relative: true),
+                        _client,
                         currentState =>
                         {
                             var now = _clock.UtcNow;
@@ -125,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    var currentState = await _storage.ReadAsync<ClusterStateMachine>(context, new BlobPath(_configuration.FileName, relative: true))
+                    var currentState = await _storageClientAdapter.ReadAsync<ClusterStateMachine>(context, _client)
                         .ThrowIfFailureAsync();
 
                     return Result.Success(TransitionInactiveMachines(currentState));

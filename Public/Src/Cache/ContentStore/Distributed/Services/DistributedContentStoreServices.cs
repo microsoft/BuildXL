@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         Secret GetRequiredSecret(string secretName);
 
         /// <nodoc />
-        AzureBlobStorageCredentials[] GetStorageCredentials(IEnumerable<string> storageSecretNames);
+        AzureStorageCredentials[] GetStorageCredentials(IEnumerable<string> storageSecretNames);
     }
 
     /// <summary>
@@ -179,19 +179,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             var clock = Arguments.Clock;
 
-            var storageRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
-            {
-                Credentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First(),
-                FolderName = "checkpointRegistry" + DistributedContentSettings.KeySpacePrefix,
-                ContainerName = DistributedContentSettings.ContentMetadataBlobCheckpointRegistryContainerName,
+            var azureStorageCredentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First();
+            var configuration = new AzureBlobStorageCheckpointRegistryConfiguration
+                                {
+                Storage = new AzureBlobStorageCheckpointRegistryConfiguration.StorageSettings(Credentials: azureStorageCredentials)
+                {
+                    FolderName = "checkpointRegistry" + DistributedContentSettings.KeySpacePrefix,
+                    ContainerName = DistributedContentSettings.ContentMetadataBlobCheckpointRegistryContainerName,
+                },
                 KeySpacePrefix = DistributedContentSettings.KeySpacePrefix,
             };
 
-            var storageRegistry = new AzureBlobStorageCheckpointRegistry(
-                storageRegistryConfiguration,
-                clock);
+            var storageRegistry = new AzureBlobStorageCheckpointRegistry(configuration, clock);
             storageRegistry.WorkaroundTracer = new Tracer("ContentMetadataAzureBlobStorageCheckpointRegistry");
-
             return storageRegistry;
         }
 

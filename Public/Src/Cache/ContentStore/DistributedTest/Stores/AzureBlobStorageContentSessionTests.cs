@@ -2,9 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Blobs;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -16,6 +19,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
@@ -31,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
     [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public class AzureBlobStorageContentSessionTests : ContentSessionTests
     {
-        private readonly Guid _runId = Guid.NewGuid();
+        private readonly string _runId = ThreadSafeRandom.LowercaseAlphanumeric(10);
         private readonly LocalRedisFixture _fixture;
 
         protected override bool RunEvictionBasedTests { get; } = false;
@@ -126,60 +130,93 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
         {
             // This is testing that the store is not sending too many bulk subrequests within a single API call. Mainly
             // important when using the bulk pin strategies
-            return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
-            {
-                var fileCount = 1337;
-                var randomHashes = Enumerable.Range(0, fileCount).Select(i => ContentHash.Random()).ToList();
-                var results = (await session.PinAsync(context, randomHashes, Token)).ToList();
-                Assert.Equal(fileCount, results.Count);
-                foreach (var result in results)
+            return RunTestAsync(
+                ImplicitPin.None,
+                null,
+                async (context, session) =>
                 {
-                    var pinResult = await result;
-                    Assert.Equal(PinResult.ResultCode.ContentNotFound, pinResult.Item.Code);
-                }
-            });
+                    var fileCount = 1337;
+                    var randomHashes = Enumerable.Range(0, fileCount).Select(i => ContentHash.Random()).ToList();
+                    var results = (await session.PinAsync(context, randomHashes, Token)).ToList();
+                    Assert.Equal(fileCount, results.Count);
+                    foreach (var result in results)
+                    {
+                        var pinResult = await result;
+                        Assert.Equal(PinResult.ResultCode.ContentNotFound, pinResult.Item.Code);
+                    }
+                });
         }
 
         [Fact]
         public Task RepeatedBulkPinShouldSucceedAsync()
         {
             // This is just testing that pinning files repeatedly doesn't have any side effects
-            return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
-            {
-                var fileCount = 5;
-                var contentHashes = await session.PutRandomAsync(context, ContentHashType, false, fileCount, ContentByteCount, true);
-
+            return RunTestAsync(
+                ImplicitPin.None,
+                null,
+                async (context, session) =>
                 {
-                    var results = (await session.PinAsync(context, contentHashes, Token)).ToList();
-                    Assert.Equal(fileCount, results.Count);
+                    var fileCount = 5;
+                    var contentHashes = await session.PutRandomAsync(context, ContentHashType, false, fileCount, ContentByteCount, true);
+
+                    {
+                        var results = (await session.PinAsync(context, contentHashes, Token)).ToList();
+                        Assert.Equal(fileCount, results.Count);
+                        foreach (var result in results)
+                        {
+                            var pinResult = await result;
+                            pinResult.Item.ShouldBeSuccess();
+                        }
+                    }
+
+                    {
+                        var result = await session.PinAsync(context, contentHashes[0], Token);
+                        result.ShouldBeSuccess();
+                    }
+                });
+        }
+
+        [Fact]
+        public Task PutAndPlaceLotsOfRandomFilesShouldSucceed()
+        {
+            // This is just testing that pinning files repeatedly doesn't have any side effects
+            return RunTestAsync(
+                ImplicitPin.None,
+                null,
+                async (context, session) =>
+                {
+                    const int FileCount = 50;
+                    var contentHashes = await session.PutRandomAsync(context, ContentHashType, false, FileCount, ContentByteCount, true);
+
+                    using var placeDirectory = new DisposableDirectory(FileSystem);
+                    var hashes = contentHashes.Select(contentHash => new ContentHashWithPath(
+                                                          contentHash,
+                                                          placeDirectory.Path / contentHash.ToHex())).ToList();
+                    var results = (await Task.WhenAll(await session.PlaceFileAsync(context, hashes, FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists, FileRealizationMode.Any, Token)));
                     foreach (var result in results)
                     {
-                        var pinResult = await result;
-                        pinResult.Item.ShouldBeSuccess();
+                        result.Item.ShouldBeSuccess();
                     }
-                }
-
-                {
-                    var result = await session.PinAsync(context, contentHashes[0], Token);
-                    result.ShouldBeSuccess();
-                }
-            });
+                });
         }
 
         [Fact(Skip = "Used for manual testing of whether the bulk pin logic updates the last access time correctly in Storage")]
         public Task PinSpecificFile()
         {
             OverrideFolderName = "pinSpecificFile";
-            return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
-            {
-                var putResult = await session.PutContentAsync(context, $"hello").ThrowIfFailureAsync();
-                var pinResult = await session.PinAsync(context, putResult.ContentHash, Token);
-                pinResult.ShouldBeSuccess();
+            return RunTestAsync(
+                ImplicitPin.None,
+                null,
+                async (context, session) =>
+                {
+                    var putResult = await session.PutContentAsync(context, $"hello").ThrowIfFailureAsync();
+                    var pinResult = await session.PinAsync(context, putResult.ContentHash, Token);
+                    pinResult.ShouldBeSuccess();
 
-                var pinResults = (await session.PinAsync(context, new [] { putResult.ContentHash }, Token)).ToList();
-                pinResult = (await pinResults[0]).Item;
-                pinResult.ShouldBeSuccess();
-            });
+                    var pinResults = (await session.PinAsync(context, new[] { putResult.ContentHash }, Token)).ToList();
+                    pinResult = (await pinResults[0]).Item;
+                    pinResult.ShouldBeSuccess();
+                });
         }
 
         [Fact]
@@ -189,26 +226,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             using (var placeDirectory = new DisposableDirectory(FileSystem))
             {
                 var path = placeDirectory.Path / "file.dat";
-                await RunTestAsync(ImplicitPin.None, null, async (context, session) =>
-                {
-                    var putResult = await session.PutRandomAsync(
-                        context, ContentHashType, false, "100MB".ToSize(), Token).ShouldBeSuccess();
-                    var result = await session.PlaceFileAsync(
-                        context,
-                        putResult.ContentHash,
-                        path,
-                        FileAccessMode.ReadOnly,
-                        FileReplacementMode.ReplaceExisting,
-                        FileRealizationMode.Any,
-                        Token).ShouldBeSuccess();
-
-                    Assert.True(result.IsPlaced());
-
-                    using (var fs = FileSystem.OpenForHashing(path))
+                await RunTestAsync(
+                    ImplicitPin.None,
+                    null,
+                    async (context, session) =>
                     {
-                        (await HashInfoLookup.GetContentHasher(ContentHashType).GetContentHashAsync(fs)).Should().BeEquivalentTo(putResult.ContentHash);
-                    }
-                });
+                        var putResult = await session.PutRandomAsync(
+                            context,
+                            ContentHashType,
+                            false,
+                            "100MB".ToSize(),
+                            Token).ShouldBeSuccess();
+                        var result = await session.PlaceFileAsync(
+                            context,
+                            putResult.ContentHash,
+                            path,
+                            FileAccessMode.ReadOnly,
+                            FileReplacementMode.ReplaceExisting,
+                            FileRealizationMode.Any,
+                            Token).ShouldBeSuccess();
+
+                        Assert.True(result.IsPlaced());
+
+                        using (var fs = FileSystem.OpenForHashing(path))
+                        {
+                            (await HashInfoLookup.GetContentHasher(ContentHashType).GetContentHashAsync(fs)).Should()
+                                .BeEquivalentTo(putResult.ContentHash);
+                        }
+                    });
             }
         }
 
@@ -216,22 +261,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
         private IDisposable CreateBlobContentStore(out AzureBlobStorageContentStore store)
         {
-            var storage = AzuriteStorageProcess.CreateAndStartEmpty(
+            var shards = Enumerable.Range(0, 10).Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
+
+            // Force it to use a non-sharding account
+            shards.Add(new BlobCacheStorageNonShardingAccountName("devstoreaccount1"));
+
+            var process = AzuriteStorageProcess.CreateAndStart(
                 _fixture,
-                TestGlobal.Logger);
+                TestGlobal.Logger,
+                accounts: shards.Select(account => account.AccountName).ToList());
+
+            var credentials = shards.Select(
+                account =>
+                {
+                    var connectionString = process.ConnectionString.Replace("devstoreaccount1", account.AccountName);
+                    var credentials = new AzureStorageCredentials(connectionString);
+                    Contract.Assert(credentials.GetAccountName() == account.AccountName);
+                    return (Account: account, Credentials: credentials);
+                }).ToDictionary(kvp => kvp.Account, kvp => kvp.Credentials);
 
             var configuration = new AzureBlobStorageContentStoreConfiguration()
             {
-                Credentials = new AzureBlobStorageCredentials(storage.ConnectionString),
-                FolderName = OverrideFolderName ?? _runId.ToString(),
-                // NOTE: bulk pin strategies don't work with the storage emulator, so if you want to test these, you
-                // need to hard code a connection string to an actual storage account.
-                BulkPinStrategy = AzureBlobStorageContentSession.BulkPinStrategy.Individual,
+                Topology = new ShardedBlobCacheTopology(
+                                        new ShardedBlobCacheTopology.Configuration(
+                                            new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
+                                            SecretsProvider: new StaticBlobCacheSecretsProvider(credentials),
+                                            Universe: OverrideFolderName ?? _runId,
+                                            Namespace: "default")),
             };
 
             store = new AzureBlobStorageContentStore(configuration);
 
-            return storage;
+            return process;
         }
     }
 }

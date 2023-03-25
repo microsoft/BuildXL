@@ -115,8 +115,8 @@ namespace BuildXL.Cache.MultiTool.App
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                IReadOnlyList<AzureBlobStorageCredentials> credentials = new[] {
-                    new AzureBlobStorageCredentials(storageConnectionString)
+                IReadOnlyList<AzureStorageCredentials> credentials = new[] {
+                    new AzureStorageCredentials(storageConnectionString)
                 };
 
                 var centralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(credentials, containerName, checkpointsKey: "useless")

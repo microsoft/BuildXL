@@ -59,6 +59,16 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
               .Select(s => s[Generator.Next(s.Length)]).ToArray());
         }
 
+        /// <summary>
+        /// Create a random string of the desired length in a thread-safe manner.
+        /// </summary>
+        public static string LowercaseAlphanumeric(int length)
+        {
+            const string Characters = "abcdefghijklmnopqrstuvwxyz";
+            return new string(Enumerable.Repeat(Characters, length)
+                .Select(s => s[Generator.Next(s.Length)]).ToArray());
+        }
+
         /// <nodoc />
         public static int Uniform(int minValue, int maxValue)
         {

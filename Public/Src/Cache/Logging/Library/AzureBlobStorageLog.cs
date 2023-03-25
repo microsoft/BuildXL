@@ -105,7 +105,7 @@ namespace BuildXL.Cache.Logging
             IClock clock,
             IAbsFileSystem fileSystem,
             ITelemetryFieldsProvider telemetryFieldsProvider,
-            AzureBlobStorageCredentials credentials,
+            AzureStorageCredentials credentials,
             IReadOnlyDictionary<string, string>? additionalBlobMetadata)
             : this(configuration, context, clock, fileSystem, telemetryFieldsProvider,
                 credentials.CreateCloudBlobClient().GetContainerReference(configuration.ContainerName),

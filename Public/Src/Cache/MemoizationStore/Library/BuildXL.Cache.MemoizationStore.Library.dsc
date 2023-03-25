@@ -29,6 +29,7 @@ namespace Library {
             ...BuildXLSdk.bclAsyncPackages,
             
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
+            ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [

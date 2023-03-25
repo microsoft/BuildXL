@@ -248,7 +248,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
             var blobVolatileEventStorage = new BlobWriteAheadEventStorage(new BlobEventStorageConfiguration()
             {
-                Credentials = new Interfaces.Secrets.AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
+                Credentials = new Interfaces.Secrets.AzureStorageCredentials(connectionString: storage.ConnectionString),
             });
 
             var mockPersistentEventStorage = new MockPersistentEventStorage();

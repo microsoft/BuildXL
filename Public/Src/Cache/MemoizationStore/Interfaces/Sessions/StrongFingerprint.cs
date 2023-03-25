@@ -132,9 +132,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         ///     Create a random value.
         /// </summary>
         public static StrongFingerprint Random(
-            int weakFingerprintLength = Fingerprint.MaxLength, HashType selectorHashType = HashType.SHA1)
+            int weakFingerprintLength = Fingerprint.MaxLength, HashType selectorHashType = HashType.SHA1, int? selectorOutputLengthBytes = 2)
         {
-            return new StrongFingerprint(Fingerprint.Random(weakFingerprintLength), Selector.Random(selectorHashType));
+            return new StrongFingerprint(Fingerprint.Random(weakFingerprintLength), Selector.Random(selectorHashType, selectorOutputLengthBytes));
         }
     }
 }

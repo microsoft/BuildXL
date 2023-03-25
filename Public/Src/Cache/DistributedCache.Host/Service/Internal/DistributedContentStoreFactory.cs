@@ -61,7 +61,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         public DistributedContentStoreFactory(DistributedCacheServiceArguments arguments)
         {
             _logger = arguments.Logger;
-            
+
             _arguments = arguments;
             _distributedSettings = arguments.Configuration.DistributedContentSettings;
 
@@ -609,9 +609,10 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {
-                Credentials = storageCredentials[0],
-                ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
-                FolderName = "checkpointRegistry",
+                Storage = new AzureBlobStorageCheckpointRegistryConfiguration.StorageSettings(
+                    storageCredentials[0],
+                    ContainerName: _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
+                    FolderName: "checkpointRegistry"),
                 KeySpacePrefix = epoch,
             };
 
@@ -619,7 +620,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRegisterCheckpointTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.RegisterCheckpointTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGetCheckpointStateTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointStateTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryLatestFileMaxAge, v => azureBlobStorageCheckpointRegistryConfiguration.LatestFileMaxAge = v);
-            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRetryPolicy, v => azureBlobStorageCheckpointRegistryConfiguration.RetryPolicy = v);
+            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRetryPolicy, v => azureBlobStorageCheckpointRegistryConfiguration.BlobFolderStorageConfiguration.RetryPolicy = v);
 
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryCheckpointLimit, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointLimit = v);
             azureBlobStorageCheckpointRegistryConfiguration.NewEpochEventStartCursorDelay = eventStoreConfiguration.NewEpochEventStartCursorDelay;
@@ -628,9 +629,10 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var azureBlobStorageMasterElectionMechanismConfiguration = new AzureBlobStorageMasterElectionMechanismConfiguration()
             {
-                Credentials = storageCredentials[0],
-                ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
-                FolderName = $"{epoch}/masterElection",
+                Storage = new AzureBlobStorageMasterElectionMechanismConfiguration.StorageSettings(
+                    Credentials: storageCredentials[0],
+                    ContainerName: _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
+                    FolderName: $"{epoch}/masterElection"),
             };
 
             azureBlobStorageMasterElectionMechanismConfiguration.IsMasterEligible = _distributedSettings.IsMasterEligible && !(_distributedSettings.DistributedContentConsumerOnly ?? false);
@@ -638,8 +640,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionFileName, v => azureBlobStorageMasterElectionMechanismConfiguration.FileName = v);
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionLeaseExpiryTime, v => azureBlobStorageMasterElectionMechanismConfiguration.LeaseExpiryTime = v);
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionReleaseLeaseOnShutdown, v => azureBlobStorageMasterElectionMechanismConfiguration.ReleaseLeaseOnShutdown = v);
-            ApplyIfNotNull(_distributedSettings.BlobMasterElectionStorageInteractionTimeout, v => azureBlobStorageMasterElectionMechanismConfiguration.StorageInteractionTimeout = v);
-            ApplyIfNotNull(_distributedSettings.BlobMasterElectionRetryPolicy, v => azureBlobStorageMasterElectionMechanismConfiguration.RetryPolicy = v);
+            ApplyIfNotNull(_distributedSettings.BlobMasterElectionStorageInteractionTimeout, v => azureBlobStorageMasterElectionMechanismConfiguration.BlobFolderStorageConfiguration.StorageInteractionTimeout = v);
+            ApplyIfNotNull(_distributedSettings.BlobMasterElectionRetryPolicy, v => azureBlobStorageMasterElectionMechanismConfiguration.BlobFolderStorageConfiguration.RetryPolicy = v);
 
             configuration.AzureBlobStorageMasterElectionMechanismConfiguration = azureBlobStorageMasterElectionMechanismConfiguration;
             configuration.ObservableMasterElectionMechanismConfiguration.GetRoleInterval = configuration.Checkpoint.HeartbeatInterval;
@@ -647,14 +649,14 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var blobClusterStateStorageConfiguration = new BlobClusterStateStorageConfiguration()
             {
-                Credentials = storageCredentials[0],
-                ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
-                FolderName = $"{epoch}/clusterState",
+                Storage = new BlobClusterStateStorageConfiguration.StorageSettings(
+                    Credentials: storageCredentials[0],
+                    ContainerName: _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
+                    FolderName: $"{epoch}/clusterState"),
             };
-
             ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageFileName, v => blobClusterStateStorageConfiguration.FileName = v);
-            ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageStorageInteractionTimeout, v => blobClusterStateStorageConfiguration.StorageInteractionTimeout = v);
-            ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageRetryPolicy, v => blobClusterStateStorageConfiguration.RetryPolicy = v);
+            ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageStorageInteractionTimeout, v => blobClusterStateStorageConfiguration.BlobFolderStorageConfiguration.StorageInteractionTimeout = v);
+            ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageRetryPolicy, v => blobClusterStateStorageConfiguration.BlobFolderStorageConfiguration.RetryPolicy = v);
 
             var gcCfg = new ClusterStateRecomputeConfiguration();
             ApplyIfNotNull(_distributedSettings.MachineActiveToClosedIntervalMinutes, v => gcCfg.ActiveToClosedInterval = TimeSpan.FromMinutes(v));
@@ -665,7 +667,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             configuration.BlobClusterStateStorageConfiguration = blobClusterStateStorageConfiguration;
         }
 
-        private AzureBlobStorageCredentials[] GetStorageCredentials(StringBuilder errorBuilder)
+        private AzureStorageCredentials[] GetStorageCredentials(StringBuilder errorBuilder)
         {
             IEnumerable<string> storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
             // This would have failed earlier otherwise
@@ -674,9 +676,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             return GetStorageCredentials(storageSecretNames);
         }
 
-        public AzureBlobStorageCredentials[] GetStorageCredentials(IEnumerable<string> storageSecretNames)
+        public AzureStorageCredentials[] GetStorageCredentials(IEnumerable<string> storageSecretNames)
         {
-            var credentials = new List<AzureBlobStorageCredentials>();
+            var credentials = new List<AzureStorageCredentials>();
             foreach (var secretName in storageSecretNames)
             {
                 var secret = GetRequiredSecret(secretName);
@@ -686,14 +688,14 @@ namespace BuildXL.Cache.Host.Service.Internal
                     var updatingSasToken = secret as UpdatingSasToken;
                     Contract.Assert(!(updatingSasToken is null));
 
-                    credentials.Add(new AzureBlobStorageCredentials(updatingSasToken));
+                    credentials.Add(new AzureStorageCredentials(updatingSasToken));
                 }
                 else
                 {
                     var plainTextSecret = secret as PlainTextSecret;
                     Contract.Assert(!(plainTextSecret is null));
 
-                    credentials.Add(new AzureBlobStorageCredentials(plainTextSecret));
+                    credentials.Add(new AzureStorageCredentials(plainTextSecret));
                 }
             }
 

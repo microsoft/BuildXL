@@ -72,21 +72,13 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? GlobalGetBulkLocationDelay { get; set; }
     }
 
-    [DataContract]
-    public record BlobFolderStorageConfiguration(string ContainerName = "", string FolderName = "")
+    public record BlobFolderStorageConfiguration
     {
-        [JsonIgnore]
-        public AzureBlobStorageCredentials? Credentials { get; set; }
-
         public RetryPolicyConfiguration RetryPolicy { get; set; } = DefaultRetryPolicy;
-
-        public string ContainerName { get; set; } = ContainerName;
-
-        public string FolderName { get; set; } = FolderName;
 
         public TimeSpanSetting StorageInteractionTimeout { get; set; } = TimeSpan.FromMinutes(1);
 
-        public static RetryPolicyConfiguration DefaultRetryPolicy { get; } = new RetryPolicyConfiguration()
+        public static RetryPolicyConfiguration DefaultRetryPolicy { get; } = new()
         {
             RetryPolicy = StandardRetryPolicy.ExponentialSpread,
             MinimumRetryWindow = TimeSpan.FromMilliseconds(1),

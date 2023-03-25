@@ -10,6 +10,8 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
     /// <summary>
@@ -17,13 +19,23 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// </summary>
     public readonly struct Selector : IEquatable<Selector>
     {
-        private static readonly ByteArrayComparer ByteComparer = new ByteArrayComparer();
+        /// <summary>
+        /// The usage of the <see cref="Output"/> field is to store data that can be fetched inline along with a
+        /// <see cref="StrongFingerprint"/>. There is a limitation on this field because of the underlying storage
+        /// limitations.
+        ///
+        /// The data in this field is interpreted by the user. The cache is blissfully unaware.
+        /// </summary>
+        public const int MaxOutputLength = 512;
+
+        private static readonly ByteArrayComparer s_byteComparer = new();
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Selector" /> struct.
         /// </summary>
-        public Selector(ContentHash contentHash, byte[] output = null)
+        public Selector(ContentHash contentHash, byte[]? output = null)
         {
+            Contract.Requires(output is null || output.Length <= MaxOutputLength, $"{nameof(output)} can't hold more than {MaxOutputLength} bytes");
             ContentHash = contentHash;
             Output = output;
         }
@@ -34,9 +46,14 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public ContentHash ContentHash { get; }
 
         /// <summary>
-        ///     Gets build Engine Selector Output, limited to 1kB.
+        ///     Gets build Engine Selector Output, limited to <see cref="MaxOutputLength"/> bytes.
         /// </summary>
-        public byte[] Output { get; }
+        /// <remarks>
+        ///     Although in theory we support <see cref="MaxOutputLength"/> output sizes, in practice this depends on
+        ///     the specific implementation being used to store data. Implementors should aim to keep Output as small
+        ///     as possible and test in advance that their maximum Output size is supported by the specific cache stack.
+        /// </remarks>
+        public byte[]? Output { get; }
 
         /// <inheritdoc />
         public bool Equals(Selector other)
@@ -91,7 +108,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -99,7 +116,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return ContentHash.GetHashCode() ^ ByteComparer.GetHashCode(Output);
+            return (ContentHash, s_byteComparer.GetHashCode(Output)).GetHashCode();
         }
 
         /// <inheritdoc />
@@ -124,9 +141,14 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Create a random value.
         /// </summary>
-        public static Selector Random(HashType hashType = HashType.Vso0, int outputLengthBytes = 2)
+        public static Selector Random(HashType hashType = HashType.Vso0, int? outputLengthBytes = 2)
         {
-            byte[] output = outputLengthBytes == 0 ? null : ThreadSafeRandom.GetBytes(outputLengthBytes);
+            byte[]? output = null;
+            if (outputLengthBytes is not null)
+            {
+                output = ThreadSafeRandom.GetBytes(outputLengthBytes.Value);
+            }
+
             return new Selector(ContentHash.Random(hashType), output);
         }
     }

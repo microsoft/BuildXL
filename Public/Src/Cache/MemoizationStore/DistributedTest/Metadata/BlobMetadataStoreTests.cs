@@ -12,8 +12,14 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using Xunit;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
+using System.Linq;
 using Xunit.Abstractions;
 using BuildXL.Cache.MemoizationStore.Stores;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using System;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -37,17 +43,40 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         protected override IMemoizationStore CreateStore(DisposableDirectory testDirectory)
         {
-            var instance = AzuriteStorageProcess.CreateAndStartEmpty(_redis, _logger);
-            _databasesToDispose.Add(instance);
+            var shards = Enumerable.Range(0, 10).Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
 
-            var config = new BlobMetadataStoreConfiguration()
+            // Force it to use a non-sharding account
+            shards.Add(new BlobCacheStorageNonShardingAccountName("devstoreaccount1"));
+
+            var process = AzuriteStorageProcess.CreateAndStart(
+                _redis,
+                _logger,
+                accounts: shards.Select(account => account.AccountName).ToList());
+            _databasesToDispose.Add(process);
+
+            var credentials = shards.Select(
+                account =>
+                {
+                    var connectionString = process.ConnectionString.Replace("devstoreaccount1", account.AccountName);
+                    var credentials = new AzureStorageCredentials(connectionString);
+                    Contract.Assert(credentials.GetAccountName() == account.AccountName);
+                    return (Account: account, Credentials: credentials);
+                }).ToDictionary(kvp => kvp.Account, kvp => kvp.Credentials);
+
+            var topology = new ShardedBlobCacheTopology(
+                new ShardedBlobCacheTopology.Configuration(
+                    new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
+                    SecretsProvider: new StaticBlobCacheSecretsProvider(credentials),
+                    Universe: ThreadSafeRandom.LowercaseAlphanumeric(10),
+                    Namespace: "default"));
+            var config = new BlobMetadataStoreConfiguration
             {
-                Credentials = new ContentStore.Interfaces.Secrets.AzureBlobStorageCredentials(instance.ConnectionString)
+                Topology = topology,
             };
 
-            var store = new AzureBlobStorageMetadataStore(config);
+            var store = new AzureBlobStorageMetadataStore(configuration: config);
 
-            return new DatabaseMemoizationStore(new MetadataStoreMemoizationDatabase(store));
+            return new DatabaseMemoizationStore(database: new MetadataStoreMemoizationDatabase(store: store));
         }
 
         public override Task EnumerateStrongFingerprints(int strongFingerprintCount)

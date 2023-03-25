@@ -29,7 +29,7 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Gets blob credentials from the given secrets provider
         /// </summary>
-        public static async Task<AzureBlobStorageCredentials> GetBlobCredentialsAsync(
+        public static async Task<AzureStorageCredentials> GetBlobCredentialsAsync(
             this ISecretsProvider secretsProvider,
             string secretName,
             bool useSasTokens,
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.Host.Service
                     new RetrieveSecretsRequest(secretName, SecretKind.SasToken)
                 }, token);
 
-                return new AzureBlobStorageCredentials((UpdatingSasToken)secrets.Secrets[secretName]);
+                return new AzureStorageCredentials((UpdatingSasToken)secrets.Secrets[secretName]);
             }
             else
             {
@@ -51,7 +51,7 @@ namespace BuildXL.Cache.Host.Service
                     new RetrieveSecretsRequest(secretName, SecretKind.PlainText)
                 }, token);
 
-                return new AzureBlobStorageCredentials((PlainTextSecret)secrets.Secrets[secretName]);
+                return new AzureStorageCredentials((PlainTextSecret)secrets.Secrets[secretName]);
             }
         }
     }

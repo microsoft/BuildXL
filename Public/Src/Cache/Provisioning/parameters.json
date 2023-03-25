@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "locations": {
+      "value": [
+        "eastus2",
+        "southcentralus",
+        "centralus"
+      ]
+    },
+    "shards": {
+      "value": 10
+    },
+    "purpose": {
+      "value": "jubayard"
+    }
+  }
+}

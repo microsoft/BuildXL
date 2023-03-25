@@ -178,6 +178,69 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         }
 
         [Fact]
+        public Task GetExistingWithNullSelector()
+        {
+            var context = new Context(Logger);
+            var strongFingerprint = StrongFingerprint.Random();
+            strongFingerprint = new StrongFingerprint(
+                strongFingerprint.WeakFingerprint,
+                new Selector(strongFingerprint.Selector.ContentHash, output: null));
+
+            var contentHashListWithDeterminism = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+
+            return RunTestAsync(
+                context,
+                async session =>
+                {
+                    await session.AddOrGetContentHashListAsync(
+                        context,
+                        strongFingerprint,
+                        contentHashListWithDeterminism,
+                        Token).ShouldBeSuccess();
+
+                    var result = await session.GetContentHashListAsync(context, strongFingerprint, Token);
+                    Assert.Equal(new GetContentHashListResult(contentHashListWithDeterminism), result);
+
+                    var getSelectors = await session.GetSelectors(context, strongFingerprint.WeakFingerprint, Token).ToListAsync();
+                    Assert.True(getSelectors.Count == 1);
+
+                    getSelectors[0].ShouldBeSuccess();
+                    Assert.Equal(strongFingerprint.Selector, getSelectors[0].Selector);
+                });
+        }
+
+        [Fact]
+        public Task CanStoreLongestOutput()
+        {
+            var context = new Context(Logger);
+            var strongFingerprint = StrongFingerprint.Random(selectorOutputLengthBytes: Selector.MaxOutputLength);
+
+            var contentHashListWithDeterminism = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+
+            return RunTestAsync(
+                context,
+                async session =>
+                {
+                    await session.AddOrGetContentHashListAsync(
+                        context,
+                        strongFingerprint,
+                        contentHashListWithDeterminism,
+                        Token).ShouldBeSuccess();
+
+                    var result = await session.GetContentHashListAsync(context, strongFingerprint, Token);
+                    Assert.Equal(new GetContentHashListResult(contentHashListWithDeterminism), result);
+
+                    var getSelectors = await session.GetSelectors(context, strongFingerprint.WeakFingerprint, Token).ToListAsync();
+                    Assert.True(getSelectors.Count == 1);
+
+                    getSelectors[0].ShouldBeSuccess();
+                    Assert.Equal(strongFingerprint.Selector, getSelectors[0].Selector);
+                });
+        }
+
+
+
+        [Fact]
         public Task AddOrGetAddsNew()
         {
             var context = new Context(Logger);
@@ -203,7 +266,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             var contentHash1 = ContentHash.Random();
             var contentHash2 = ContentHash.Random(HashType.SHA1);
             var contentHash3 = ContentHash.Random(HashType.MD5);
-            var contentHashList = new ContentHashList(new[] {contentHash1, contentHash2, contentHash3});
+            var contentHashList = new ContentHashList(new[] { contentHash1, contentHash2, contentHash3 });
             var contentHashListWithDeterminism = new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None);
 
             return RunTestAsync(context, async session =>
@@ -221,7 +284,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         {
             var context = new Context(Logger);
             var strongFingerprint = StrongFingerprint.Random();
-            var payload = new byte[] {0, 1, 2, 3};
+            var payload = new byte[] { 0, 1, 2, 3 };
             var contentHashListWithDeterminism =
                 new ContentHashListWithDeterminism(ContentHashList.Random(payload: payload), CacheDeterminism.None);
 
@@ -366,9 +429,9 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             var context = new Context(Logger);
             return RunTestAsync(context, async store =>
             {
-                await foreach(var strongFingerprint in store.EnumerateStrongFingerprints(context))
+                await foreach (var strongFingerprint in store.EnumerateStrongFingerprints(context))
                 {
-                    Assert.Equal(false,strongFingerprint);
+                    Assert.Equal(false, strongFingerprint);
                 }
             });
         }

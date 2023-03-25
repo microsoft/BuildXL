@@ -6,7 +6,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Specialized;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
@@ -19,8 +23,14 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     public record AzureBlobStorageMasterElectionMechanismConfiguration()
-        : BlobFolderStorageConfiguration(ContainerName: "checkpoints", FolderName: "masterElection")
     {
+        public record StorageSettings(AzureStorageCredentials Credentials, string ContainerName = "checkpoints", string FolderName = "masterElection")
+            : AzureBlobStorageFolder.Configuration(Credentials, ContainerName, FolderName);
+
+        public required StorageSettings Storage { get; init; }
+
+        public BlobFolderStorageConfiguration BlobFolderStorageConfiguration { get; set; } = new();
+
         public string FileName { get; set; } = "master.json";
 
         public bool IsMasterEligible { get; set; } = true;
@@ -47,7 +57,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly MachineLocation _primaryMachineLocation;
         private readonly IClock _clock;
 
-        private readonly BlobFolderStorage _storage;
+        private readonly BlobStorageClientAdapter _storageClientAdapter;
+        private readonly BlobClient _client;
 
         private MasterElectionState _lastElection = MasterElectionState.DefaultWorker;
 
@@ -58,19 +69,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MachineLocation primaryMachineLocation,
             IClock? clock = null)
         {
-            Contract.RequiresNotNull(configuration.Credentials);
             _configuration = configuration;
             _primaryMachineLocation = primaryMachineLocation;
             _clock = clock ?? SystemClock.Instance;
 
-            _storage = new BlobFolderStorage(Tracer, configuration);
+            _storageClientAdapter = new BlobStorageClientAdapter(Tracer, _configuration.BlobFolderStorageConfiguration);
 
-            LinkLifetime(_storage);
+            var storageFolder = _configuration.Storage.Create();
+            var serviceClient = storageFolder.GetServiceClient();
+            _client = storageFolder.GetBlobClient(serviceClient, new BlobPath(_configuration.FileName, relative: true));
         }
 
         public MachineLocation Master => _lastElection.Master;
 
         public Role Role => _lastElection.Role;
+
+        protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
+        {
+            await _storageClientAdapter.EnsureContainerExists(context, _client.GetParentBlobContainerClient()).ThrowIfFailureAsync();
+            return BoolResult.Success;
+        }
 
         protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
@@ -212,11 +230,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private Task<Result<MasterElectionState>> UpdateRoleAsync(OperationContext context, TryUpdateLease tryUpdateLease)
         {
-            return context.PerformOperationWithTimeoutAsync(
+            return context.PerformOperationAsync(
                 Tracer,
-                async context =>
+                async () =>
                 {
-                    var result = await _storage.ReadModifyWriteAsync<MasterLease, MasterLease>(context, new BlobPath(_configuration.FileName, relative: true),
+                    var result = await _storageClientAdapter.ReadModifyWriteAsync<MasterLease, MasterLease>(context, _client,
                         current =>
                         {
                             var updated = tryUpdateLease(current, out var next);
@@ -226,7 +244,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return Result.Success(GetElectionState(result.Result));
                 },
-                timeout: _configuration.StorageInteractionTimeout,
                 extraEndMessage: r => $"{r!.GetValueOrDefault()} IsMasterEligible=[{_configuration.IsMasterEligible}]");
         }
     }

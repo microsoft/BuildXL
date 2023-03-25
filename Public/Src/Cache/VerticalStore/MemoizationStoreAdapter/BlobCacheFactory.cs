@@ -7,11 +7,13 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using System.Security.Principal;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -121,14 +123,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         {
             var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
             Contract.Assert(!string.IsNullOrEmpty(connectionString), $"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}'.");
-            var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
-                Credentials: new ContentStore.Interfaces.Secrets.AzureBlobStorageCredentials(connectionString),
-                Universe: configuration.Universe,
-                Namespace: configuration.Namespace,
-                StorageInteractionTimeout: TimeSpan.FromHours(1),
-                MetadataPinElisionDuration: TimeSpan.FromDays(1));
+            var credentials = new ContentStore.Interfaces.Secrets.AzureStorageCredentials(connectionString);
+            var accountName = BlobCacheStorageAccountName.Parse(credentials.GetAccountName());
 
-            return AzureBlobStorageCacheFactory.Create(factoryConfiguration);
+            var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
+                ShardingScheme: new ShardingScheme(ShardingAlgorithm.SingleShard, new List<BlobCacheStorageAccountName> { accountName }),
+                Universe: configuration.Universe,
+                Namespace: configuration.Namespace);
+
+            return AzureBlobStorageCacheFactory.Create(factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
         }
 
         /// <inheritdoc />

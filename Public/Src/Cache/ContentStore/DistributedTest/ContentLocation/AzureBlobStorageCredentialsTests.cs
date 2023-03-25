@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             {
                 var connectionString = storage.ConnectionString;
 
-                var ptCreds = new AzureBlobStorageCredentials(connectionString);
+                var ptCreds = new AzureStorageCredentials(connectionString);
                 var ptClient = ptCreds.CreateCloudBlobClient();
 
                 var created = await ptClient.GetContainerReference("test-container").CreateIfNotExistsAsync(
@@ -66,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             {
                 var connectionString = @"Replace with a real connection string";
 
-                var ptCreds = new AzureBlobStorageCredentials(connectionString);
+                var ptCreds = new AzureStorageCredentials(connectionString);
                 var ptAccount = ptCreds.CreateCloudStorageAccount();
 
                 var accountName = ptAccount.CreateCloudBlobClient().Credentials.AccountName;
@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 });
 
                 var updatingSasToken = new UpdatingSasToken(new SasToken(badSasToken, accountName));
-                var sasCreds = new AzureBlobStorageCredentials(updatingSasToken);
+                var sasCreds = new AzureStorageCredentials(updatingSasToken);
                 var sasClient = sasCreds.CreateCloudBlobClient();
 
                 bool threw = false;
@@ -119,7 +119,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             {
                 var connectionString = storage.ConnectionString;
 
-                var ptCreds = new AzureBlobStorageCredentials(connectionString);
+                var ptCreds = new AzureStorageCredentials(connectionString);
                 var ptClient = ptCreds.CreateBlobServiceClient(
                     // The current Azurite version we use supports up to this version
                     new Azure.Storage.Blobs.BlobClientOptions(Azure.Storage.Blobs.BlobClientOptions.ServiceVersion.V2021_02_12));
@@ -138,7 +138,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             {
                 var connectionString = @"Replace with a real connection string";
 
-                var ptCreds = new AzureBlobStorageCredentials(connectionString);
+                var ptCreds = new AzureStorageCredentials(connectionString);
                 var ptSvcClient = ptCreds.CreateBlobServiceClient(
                     // The current Azurite version we use supports up to this version
                     new Azure.Storage.Blobs.BlobClientOptions(Azure.Storage.Blobs.BlobClientOptions.ServiceVersion.V2021_02_12));
@@ -152,7 +152,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
                 // WARNING: this uses the Query part of the URL only
                 var updatingSasToken = new UpdatingSasToken(new SasToken(badSasUri.Query.ToString(), accountName));
-                var sasCreds = new AzureBlobStorageCredentials(updatingSasToken);
+                var sasCreds = new AzureStorageCredentials(updatingSasToken);
                 var sasSvcClient = sasCreds.CreateBlobServiceClient(
                     // The current Azurite version we use supports up to this version
                     new Azure.Storage.Blobs.BlobClientOptions(Azure.Storage.Blobs.BlobClientOptions.ServiceVersion.V2021_02_12));
@@ -190,7 +190,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             {
                 var connectionString = @"Replace with a real connection string";
 
-                var ptCreds = new AzureBlobStorageCredentials(connectionString);
+                var ptCreds = new AzureStorageCredentials(connectionString);
                 var ptAccount = ptCreds.CreateCloudStorageAccount();
 
                 var accountName = ptAccount.CreateCloudBlobClient().Credentials.AccountName;
@@ -204,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 });
 
                 var updatingSasToken = new UpdatingSasToken(new SasToken(badSasToken, accountName));
-                var sasCreds = new AzureBlobStorageCredentials(updatingSasToken);
+                var sasCreds = new AzureStorageCredentials(updatingSasToken);
 
                 var sasSvcClient = sasCreds.CreateBlobServiceClient(
                     // The current Azurite version we use supports up to this version

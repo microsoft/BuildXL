@@ -82,29 +82,29 @@ namespace ContentStoreTest.Distributed.Redis
         /// </summary>
         public static AzuriteStorageProcess CreateAndStart(
             LocalRedisFixture storageFixture,
-            ILogger logger)
+            ILogger logger,
+            List<string> accounts = null)
         {
             logger.Debug($"Fixture '{storageFixture.Id}' has {storageFixture.EmulatorPool.ObjectsInPool} available storage databases.");
-            var instance = storageFixture.EmulatorPool.GetInstance();
-            var oldOrNew = instance.Instance._process != null ? "an old" : "a new";
+            var instance = accounts is null ? storageFixture.EmulatorPool.GetInstance().Instance : new AzuriteStorageProcess();
+            var oldOrNew = instance._process != null ? "an old" : "a new";
             logger.Debug($"LocalStorageProcessDatabase: got {oldOrNew} instance from the pool.");
 
-            var result = instance.Instance;
-            if (result.Closed)
+            if (instance.Closed)
             {
                 throw new ObjectDisposedException("instance", "The instance is already closed!");
             }
 
-            result.Init(logger, storageFixture);
+            instance.Init(logger, storageFixture);
             try
             {
-                result.Start();
-                return result;
+                instance.Start(accounts);
+                return instance;
             }
             catch (Exception e)
             {
                 logger.Error("Failed to start a local database. Exception=" + e);
-                result.Dispose();
+                instance.Dispose();
                 throw;
             }
         }
@@ -148,7 +148,7 @@ namespace ContentStoreTest.Distributed.Redis
 
         public async Task ClearAsync(string prefix = null)
         {
-            AzureBlobStorageCredentials creds = new AzureBlobStorageCredentials(ConnectionString);
+            AzureStorageCredentials creds = new AzureStorageCredentials(ConnectionString);
             var blobClient = creds.CreateCloudBlobClient();
             using var cts = new CancellationTokenSource();
             cts.CancelAfter(TimeSpan.FromSeconds(10));
@@ -230,7 +230,7 @@ namespace ContentStoreTest.Distributed.Redis
             }
         }
 
-        private void Start()
+        private void Start(List<string> accounts = null)
         {
             // Can reuse an existing process only when this instance successfully created a connection to it.
             // Otherwise the test will fail with NRE.
@@ -261,10 +261,10 @@ namespace ContentStoreTest.Distributed.Redis
                 _fileSystem.CreateDirectory(storageServerWorkspacePath);
                 _portNumber = PortExtensions.GetNextAvailablePort();
 
-                var args = $"--blobPort {_portNumber} --location {storageServerWorkspacePath}";
+                var args = $"--blobPort {_portNumber} --location {storageServerWorkspacePath} --skipApiVersionCheck";
                 _logger.Debug($"Running cmd=[{storageServerPath} {args}]");
 
-                _process = new ProcessUtility(storageServerPath, args, createNoWindow: true, workingDirectory: Path.GetDirectoryName(storageServerPath));
+                _process = new ProcessUtility(storageServerPath, args, createNoWindow: true, workingDirectory: Path.GetDirectoryName(storageServerPath), environment: CreateEnvironment(accounts));
 
                 _process.Start();
 
@@ -291,8 +291,7 @@ namespace ContentStoreTest.Distributed.Redis
 
                 ConnectionString = $"DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:{_portNumber}/devstoreaccount1;";
 
-                AzureBlobStorageCredentials creds = new AzureBlobStorageCredentials(ConnectionString);
-
+                var creds = new AzureStorageCredentials(ConnectionString);
                 var client = creds.CreateCloudBlobClient();
                 try
                 {
@@ -325,5 +324,26 @@ namespace ContentStoreTest.Distributed.Redis
             _logger.Debug($"Storage server {_process.Id} is up and running at port {_portNumber}.");
         }
 
+        private Dictionary<string, string> CreateEnvironment(List<string> accounts = null)
+        {
+            if (accounts == null)
+            {
+                return null;
+            }
+
+            // See: https://github.com/Azure/Azurite#customized-storage-accounts--keys
+            var dictionary = new Dictionary<string, string>();
+
+            // Ensure the default account still exists
+            accounts.Add("devstoreaccount1");
+
+            // We use the same password for all storage accounts in the emulator
+            dictionary["AZURITE_ACCOUNTS"] = string.Join(
+                ";",
+                accounts.Select(
+                    name => $"{name}:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="));
+
+            return dictionary;
+        }
     }
 }

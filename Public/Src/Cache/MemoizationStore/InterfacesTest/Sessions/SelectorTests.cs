@@ -82,7 +82,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         [Fact]
         public void RandomNullOutput()
         {
-            Assert.Null(Selector.Random(HashType.SHA1, 0).Output);
+            Assert.Null(Selector.Random(HashType.SHA1, null).Output);
         }
 
         [Fact]

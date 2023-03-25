@@ -212,7 +212,7 @@ namespace BuildXL.Cache.Host.Service
             // will likely be shared across all stamps, so there's no "stamp-specific" configuration in there. That
             // means all stamp-level configuration must be done through the JSON.
 
-            AzureBlobStorageCredentials credentials = await arguments.SecretsProvider.GetBlobCredentialsAsync(
+            AzureStorageCredentials credentials = await arguments.SecretsProvider.GetBlobCredentialsAsync(
                 configuration.SecretName,
                 configuration.UseSasTokens,
                 operationContext.Token);

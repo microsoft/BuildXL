@@ -2,13 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -23,7 +21,6 @@ using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
-using Grpc.Core;
 using Xunit;
 using Xunit.Abstractions;
 using Channel = System.Threading.Channels.Channel;
@@ -302,7 +299,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             {
                 state.Master.Should().Be(master.Value);
             }
-            
+
             state.Role.Should().Be(role);
         }
 
@@ -409,7 +406,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var m1 = WrapIfNecessary(_clock1, mode, new AzureBlobStorageMasterElectionMechanism(
                 new AzureBlobStorageMasterElectionMechanismConfiguration()
                 {
-                    Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
+                    Storage = new AzureBlobStorageMasterElectionMechanismConfiguration.StorageSettings(new AzureStorageCredentials(connectionString: storage.ConnectionString)),
                     IsMasterEligible = true,
                     // Use a random filename to ensure tests don't interact with eachother
                     FileName = fileName,
@@ -422,7 +419,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var m2 = WrapIfNecessary(_clock2, mode, new AzureBlobStorageMasterElectionMechanism(
                 new AzureBlobStorageMasterElectionMechanismConfiguration()
                 {
-                    Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
+                    Storage = new AzureBlobStorageMasterElectionMechanismConfiguration.StorageSettings(new AzureStorageCredentials(connectionString: storage.ConnectionString)),
                     IsMasterEligible = twoMasters,
                     // Use a random filename to ensure tests don't interact with eachother
                     FileName = fileName,
@@ -456,7 +453,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
             var configuration = new AzureBlobStorageMasterElectionMechanismConfiguration()
             {
-                Credentials = new AzureBlobStorageCredentials(connectionString: storage.ConnectionString),
+                Storage = new AzureBlobStorageMasterElectionMechanismConfiguration.StorageSettings(new AzureStorageCredentials(connectionString: storage.ConnectionString)),
                 IsMasterEligible = !worker,
                 // Use a random filename to ensure tests don't interact with eachother
                 FileName = fileName,

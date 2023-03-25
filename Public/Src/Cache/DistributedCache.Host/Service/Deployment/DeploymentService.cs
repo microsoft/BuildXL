@@ -86,7 +86,7 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// For testing purposes only. Used to intercept call to create blob central storage
         /// </summary>
-        public Func<(string storageSecretName, AzureBlobStorageCredentials credentials), CentralStorage> OverrideCreateCentralStorage { get; set; }
+        public Func<(string storageSecretName, AzureStorageCredentials credentials), CentralStorage> OverrideCreateCentralStorage { get; set; }
 
         /// <nodoc />
         public DeploymentService(DeploymentServiceConfiguration configuration, AbsolutePath deploymentRoot, Func<string, ISecretsProvider> secretsProviderFactory, IClock clock, int uploadConcurrency = 1)
@@ -382,7 +382,7 @@ namespace BuildXL.Cache.Host.Service
                 storageSecretInfo.TimeToLive,
                 async () =>
                 {
-                    var credentials = new AzureBlobStorageCredentials(new PlainTextSecret(secretValue));
+                    var credentials = new AzureStorageCredentials(new PlainTextSecret(secretValue));
 
                     CentralStorage centralStorage;
 

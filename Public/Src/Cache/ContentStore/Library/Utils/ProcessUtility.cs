@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
@@ -29,7 +30,8 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <param name="args">Arguments passed to the process.</param>
         /// <param name="createNoWindow">Whether the process shoudl not open a window.</param>
         /// <param name="workingDirectory">Working directory for the process</param>
-        public ProcessUtility(string fileName, string args, bool createNoWindow, string? workingDirectory = null)
+        /// <param name="environment">Environment variables</param>
+        public ProcessUtility(string fileName, string args, bool createNoWindow, string? workingDirectory = null, Dictionary<string, string>? environment = null)
         {
             _createNoWindow = createNoWindow;
             _process = new Process();
@@ -74,6 +76,14 @@ namespace BuildXL.Cache.ContentStore.Utils
                         _errorString.Append(e.Data);
                     }
                 };
+            }
+
+            if (environment != null)
+            {
+                foreach (var entry in environment)
+                {
+                    _process.StartInfo.EnvironmentVariables.Add(entry.Key, entry.Value);
+                }
             }
         }
 

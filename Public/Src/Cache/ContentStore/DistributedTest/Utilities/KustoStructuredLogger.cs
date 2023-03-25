@@ -72,7 +72,7 @@ namespace BuildXL.Cache.Logging
         {
             _output = output;
             _logger = this;
-            var credentials = new AzureBlobStorageCredentials(connectionString);
+            var credentials = new AzureStorageCredentials(connectionString);
             var client = credentials.CreateCloudBlobClient();
             var testStartTime = (DateTime)_table.TestStartTime.DefaultValue;
             output.WriteLine($"Test start time: {testStartTime:o}");

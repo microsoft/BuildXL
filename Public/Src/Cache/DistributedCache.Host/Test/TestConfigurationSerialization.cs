@@ -20,7 +20,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
             var testConfig = new LocalLocationStoreConfiguration();
             var blobConnectionString = "blobConnectionString";
 
-            testConfig.CentralStore = new BlobCentralStoreConfiguration(new AzureBlobStorageCredentials(blobConnectionString), "testContainer", "testKey");
+            testConfig.CentralStore = new BlobCentralStoreConfiguration(new AzureStorageCredentials(blobConnectionString), "testContainer", "testKey");
             string configString = ConfigurationPrinter.ConfigToString(testConfig);
 
             configString.Should().NotContain(blobConnectionString);

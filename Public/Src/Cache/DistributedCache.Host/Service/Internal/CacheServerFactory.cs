@@ -31,7 +31,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Service.OutOfProc;
 using BuildXL.Utilities.ConfigurationHelpers;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
-using BuildXL.Cache.ContentStore.Distributed.Blobs;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {

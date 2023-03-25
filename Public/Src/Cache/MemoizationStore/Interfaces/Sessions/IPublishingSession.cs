@@ -161,7 +161,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     public abstract class PublishingSessionBase<TConfiguration> : StartupShutdownSlimBase, IPublishingSession
     {
         /// <nodoc />
-        protected override abstract Tracer Tracer { get; }
+        protected abstract override Tracer Tracer { get; }
 
         private readonly TConfiguration _cachePublisherConfiguration;
 
@@ -218,11 +218,10 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             OperationContext context,
             TConfiguration configuration)
         {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                return Result.Success(await CreateCachePublisherCoreAsync(context, configuration));
-            },
-            traceOperationStarted: false);
+            return context.PerformOperationAsync(
+                Tracer,
+                async () => Result.Success(await CreateCachePublisherCoreAsync(context, configuration)),
+                traceOperationStarted: false);
         }
 
         /// <nodoc />

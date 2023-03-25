@@ -100,9 +100,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
             var configuration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {
-                Credentials = new AzureBlobStorageCredentials(storage.ConnectionString),
-                ContainerName = "checkpoints",
-                FolderName = "checkpointRegistry",
+                Storage = new AzureBlobStorageCheckpointRegistryConfiguration.StorageSettings(
+                    Credentials: new AzureStorageCredentials(storage.ConnectionString),
+                    ContainerName: "checkpoints",
+                    FolderName: "checkpointRegistry"),
             };
             var registry = new AzureBlobStorageCheckpointRegistry(configuration, clock);
 

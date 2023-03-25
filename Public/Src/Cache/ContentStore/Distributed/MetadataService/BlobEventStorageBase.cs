@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// </summary>
     public record BlobEventStorageConfiguration
     {
-        public AzureBlobStorageCredentials Credentials { get; init; }
+        public AzureStorageCredentials Credentials { get; init; }
 
         public string FolderName { get; init; } = "eventlogs";
 

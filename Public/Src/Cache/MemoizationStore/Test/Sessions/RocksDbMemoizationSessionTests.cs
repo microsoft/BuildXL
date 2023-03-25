@@ -233,7 +233,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var N = 200;
 
             // This number depends on N, so there's nothing we can do here
-            int expectedRemoves = 90;
+            int expectedRemoves = 134;
 
             var context = new Context(Logger);
 
@@ -244,9 +244,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var contentHashLists = new ContentHashListWithDeterminism[N];
             for (var i = 0; i < N; i++)
             {
-                selectors[i] = Selector.Random(outputLengthBytes: 1000);
+                selectors[i] = Selector.Random(outputLengthBytes: Selector.MaxOutputLength);
                 strongFingerprints[i] = new StrongFingerprint(weakFingerprint, selectors[i]);
-                contentHashLists[i] = new ContentHashListWithDeterminism(ContentHashList.Random(contentHashCount: 100), CacheDeterminism.None);
+                contentHashLists[i] = new ContentHashListWithDeterminism(ContentHashList.Random(contentHashCount: 200), CacheDeterminism.None);
             }
 
             return RunTestAsync(context,
@@ -270,7 +270,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     for (var i = 0; i < expectedRemoves; i++)
                     {
                         var chl = database.GetContentHashList(ctx, strongFingerprints[i]).ShouldBeSuccess().ContentHashListWithDeterminism;
-                        chl.ContentHashList.Should().BeNull();
+                        chl.ContentHashList.Should().BeNull($"Expected {i} to be null");
                         chl.Determinism.Should().Be(CacheDeterminism.None);
                     }
 

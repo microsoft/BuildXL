@@ -7,15 +7,17 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Blobs
+namespace BuildXL.Cache.MemoizationStore.Stores
 {
     /// <nodoc />
     public class AzureBlobStoragePublishingCacheConfiguration : PublishingCacheConfiguration
     {
-
+        /// <nodoc />
+        public required AzureBlobStorageCacheFactory.Configuration Configuration { get; init; }
     }
 
     /// <nodoc />
@@ -43,6 +45,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
                 return new Result<IPublishingSession>($"Configuration is not a {nameof(AzureBlobStoragePublishingCacheConfiguration)}. Actual type: {config.GetType().FullName}");
             }
 
+            var configuration = (config as AzureBlobStoragePublishingCacheConfiguration)!;
+
             using var cancellableContext = TrackShutdown(context);
             var operationContext = cancellableContext.Context;
 
@@ -50,6 +54,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blobs
             {
                 return Result.Success<IPublishingSession>(new AzureBlobStoragePublishingSession(new AzureBlobStoragePublishingSessionConfiguration()
                 {
+                    Configuration = configuration.Configuration,
                     SessionName = name,
                     PersonalAccessToken = pat,
                     Parent = this,

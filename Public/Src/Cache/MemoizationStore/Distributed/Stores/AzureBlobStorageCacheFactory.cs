@@ -3,9 +3,8 @@
 
 using System;
 using System.Text.RegularExpressions;
-using BuildXL.Cache.ContentStore.Distributed.Blobs;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
@@ -17,68 +16,82 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     {
         /// <nodoc />
         public record Configuration(
-                AzureBlobStorageCredentials Credentials,
-                string Universe,
-                TimeSpan StorageInteractionTimeout,
-                TimeSpan MetadataPinElisionDuration,
-                string Namespace = "default",
-                bool CoerceNames = true,
-                AzureBlobStorageContentSession.BulkPinStrategy BulkPinStrategy = AzureBlobStorageContentSession.BulkPinStrategy.Individual
-            );
+            ShardingScheme ShardingScheme,
+            string Universe,
+            string Namespace)
+        {
+            /// <summary>
+            /// Time we're willing to wait until a client to the backing storage account is created. This encompasses
+            /// both getting the secret and creating the storage client.
+            /// </summary>
+            public TimeSpan ClientCreationTimeout { get; init; } = TimeSpan.MaxValue;
+
+            /// <summary>
+            /// Maximum amount of time we're willing to wait for any operation against storage.
+            /// </summary>
+            public TimeSpan StorageInteractionTimeout { get; init; } = TimeSpan.FromMinutes(30);
+
+            /// <summary>
+            /// Amount of time that content is guaranteed to exist after a fingerprint that points to that piece of
+            /// content has been obtained from GetContentHashList.
+            /// </summary>
+            public TimeSpan MetadataPinElisionDuration { get; init; } = TimeSpan.FromHours(1);
+
+            internal Configuration Sanitize()
+            {
+                return this with
+                {
+                    Universe = Coerce(Universe),
+                    Namespace = Coerce(Namespace),
+                };
+            }
+
+            private static string Coerce(string name)
+            {
+                name = name.ToLowerInvariant();
+                name = Regex.Replace(name, "[^a-z0-9]", "", RegexOptions.CultureInvariant);
+
+                return name;
+            }
+        }
 
         /// <nodoc />
-        public static ICache Create(Configuration configuration)
+        public static ICache Create(Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
         {
-            string universe = configuration.Universe;
-            string namespce = configuration.Namespace;
+            configuration = configuration.Sanitize();
 
-            if (!IsValidAzureBlobStorageContainerName(universe))
+            BlobCacheContainerName.CheckValidUniverseAndNamespace(configuration.Universe, configuration.Namespace);
+
+            var topology = new ShardedBlobCacheTopology(
+                new ShardedBlobCacheTopology.Configuration(
+                    ShardingScheme: configuration.ShardingScheme,
+                    SecretsProvider: secretsProvider,
+                    Universe: configuration.Universe,
+                    Namespace: configuration.Namespace));
+
+            var blobMetadataStore = new AzureBlobStorageMetadataStore(new BlobMetadataStoreConfiguration
             {
-                if (!configuration.CoerceNames)
+                Topology = topology,
+                BlobFolderStorageConfiguration = new BlobFolderStorageConfiguration
                 {
-                    throw new ArgumentException($"Invalid cache universe specified. Cache universe names must conform to Azure Storage Container naming restrictions", nameof(universe));
+                    StorageInteractionTimeout = configuration.StorageInteractionTimeout,
+                    RetryPolicy = BlobFolderStorageConfiguration.DefaultRetryPolicy,
                 }
-
-                universe = CoerceToValidContainerName(universe);
-            }
-
-            if (!IsValidAzureBlobStorageContainerName(namespce))
-            {
-                if (!configuration.CoerceNames)
-                {
-                    throw new ArgumentException($"Invalid cache namespace specified. Cache universe names must conform to Azure Storage Container naming restrictions", nameof(namespce));
-                }
-
-                namespce = CoerceToValidContainerName(namespce);
-            }
-
-            var metadataStoreConfiguration = new BlobMetadataStoreConfiguration()
-            {
-                Credentials = configuration.Credentials,
-                ContainerName = namespce,
-                FolderName = $"metadata/{universe}",
-                StorageInteractionTimeout = configuration.StorageInteractionTimeout,
-                RetryPolicy = BlobFolderStorage.DefaultRetryPolicy,
-            };
-            var metadataStore = new AzureBlobStorageMetadataStore(metadataStoreConfiguration);
-            var memoizationDatabase = new MetadataStoreMemoizationDatabase(metadataStore);
-            var memoizationStore = new DatabaseMemoizationStore(memoizationDatabase)
-            {
-                OptimizeWrites = true
-            };
-
-            var contentStore = new AzureBlobStorageContentStore(new AzureBlobStorageContentStoreConfiguration()
-            {
-                Credentials = configuration.Credentials,
-                ContainerName = namespce,
-                FolderName = $"content/{universe}",
-                StorageInteractionTimeout = configuration.StorageInteractionTimeout,
-                BulkPinStrategy = configuration.BulkPinStrategy,
             });
 
+            var blobMemoizationDatabase = new MetadataStoreMemoizationDatabase(blobMetadataStore);
+            var blobMemoizationStore = new DatabaseMemoizationStore(blobMemoizationDatabase) { OptimizeWrites = true };
+
+            var blobContentStore = new AzureBlobStorageContentStore(
+                new AzureBlobStorageContentStoreConfiguration()
+                {
+                    Topology = topology,
+                    StorageInteractionTimeout = configuration.StorageInteractionTimeout,
+                });
+
             var cache = new OneLevelCache(
-                contentStoreFunc: () => contentStore,
-                memoizationStoreFunc: () => memoizationStore,
+                contentStoreFunc: () => blobContentStore,
+                memoizationStoreFunc: () => blobMemoizationStore,
                 configuration: new OneLevelCacheBaseConfiguration(
                     Id: Guid.NewGuid(),
                     PassContentToMemoization: false,
@@ -86,58 +99,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 ));
 
             return cache;
-        }
-
-        private static string CoerceToValidContainerName(string name)
-        {
-            name = name.ToLowerInvariant();
-
-            // Remove invalid characters
-            name = Regex.Replace(name, "[^a-z0-9-]", "");
-
-            // Remove invalid sequences of characters
-            name = Regex.Replace(name, "-+", "-");
-
-            // Ensure it starts with number/letter
-            if (!Regex.IsMatch(name, "^[a-z0-9].*"))
-            {
-                name = $"c{name}";
-            }
-
-            // Ensure it ends with number/letter
-            if (!Regex.IsMatch(name, ".*[a-z0-9]$"))
-            {
-                name = $"{name}c";
-            }
-
-            // Ensure length requirements are met
-            if (name.Length < 3)
-            {
-                name = $"ccc{name}";
-            }
-
-            if (name.Length > 63)
-            {
-                name = name.Substring(0, 63);
-            }
-
-            return name;
-        }
-
-        private static bool IsValidAzureBlobStorageContainerName(string name)
-        {
-            // See: https://social.msdn.microsoft.com/Forums/en-US/d364761b-6d9d-4c15-8353-46c6719a3392/what-regular-expression-could-i-use-to-validate-a-blob-container-name?forum=windowsazuredata
-            if (name.Equals("$root"))
-            {
-                return true;
-            }
-
-            if (!Regex.IsMatch(name, @"^[a-z0-9](([a-z0-9\-[^\-])){1,61}[a-z0-9]$"))
-            {
-                return false;
-            }
-
-            return true;
         }
     }
 }

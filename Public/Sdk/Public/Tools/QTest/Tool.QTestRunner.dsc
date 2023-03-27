@@ -328,7 +328,7 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.flag("--EnableMsTestTraceLogging", args.qTestEnableMsTestTraceLogging),
         Cmd.option("--VstestConsoleLoggerOptions ", args.qTestVstestConsoleLoggerOptions),
-        Cmd.option("--msBuildToolsRoot ", Artifact.input(args.qTestMsTestPlatformRootPath)),
+        Cmd.option("--msBuildToolsRoot ", args.qTestMsTestPlatformRootPathValue !== undefined ? args.qTestMsTestPlatformRootPathValue : Artifact.input(args.qTestMsTestPlatformRootPath)),
         Cmd.option("--additionalQTestArgumentsFile ", Artifact.none(args.additionalQTestArgumentsFile))
     ];
 
@@ -441,6 +441,7 @@ export function runQTest(args: QTestArguments): Result {
                     ...(args.qTestInputs || (args.qTestDirToDeploy ? args.qTestDirToDeploy.contents : [])),
                     ...(args.qTestRuntimeDependencies || []),
                     ...(isJSProject ? jsProject.inputs : []),
+                    args.qTestMsTestPlatformRootPath
                 ],
                 unsafe: unsafeOptions,
                 retryExitCodes: [2, 42],
@@ -649,7 +650,9 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestEnableMsTestTraceLogging?: boolean;
     /** Allows additional options to be appended to console logger.*/
     qTestVstestConsoleLoggerOptions?: string;
-    /** Specifies the path for tools/net451 directory from Microsoft.TestPlatform package used to acquire vstest.console.exe */
+    /** Specifies the path for tools/net451 directory from Microsoft.TestPlatform package used to acquire vstest.console.exe.  qTestMsTestPlatformRootPath is the input directory for this location. */
+    qTestMsTestPlatformRootPathValue?: Path;
+    /** Specifies the input directory containing vstest.console.exe.  May be different from qTestMsTestPlatformRootPathValue if, for instance, it is the root of a nuget package.  If qTestMsTestPlatformRootPathValue is set, then qTestMsTestPlatformRootPath should contain the path qTestMsTestPlatformRootPathValue. */
     qTestMsTestPlatformRootPath?: StaticDirectory;
     /** Specifies the path for additional arguments to be passed to DBS.QTest.exe. Not to be confused with qTestAdditionalOptions which passes arguments to the test runner.
      * List of DBS.QTest.exe arguments can be found here: https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/QTest/QTestExe/QTestExeArgumentObject.cs

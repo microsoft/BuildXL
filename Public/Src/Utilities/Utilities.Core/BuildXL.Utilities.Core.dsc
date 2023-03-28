@@ -8,7 +8,6 @@ namespace Utilities.Core {
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
         addNotNullAttributeFile: true,
-        addPolySharpAttributes: false,
         references: [
             // IMPORTANT!!! Do not add non-bxl dependencies or any bxl projects with external dependencies into this project
             //              any non-bxl dependencies should go to BuildXL.Utilities instead
@@ -16,6 +15,7 @@ namespace Utilities.Core {
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 NetFx.System.Xml.dll,
                 NetFx.Netstandard.dll,
+                importFrom("System.Threading.Channels").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
                 importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
                 importFrom("System.Threading.Tasks.Extensions").pkg,
             ]),

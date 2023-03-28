@@ -303,16 +303,5 @@ namespace BuildXL.Utilities.Tracing
                 return builder.ToString();
             }
         }
-
-        [Event(
-            (int)10000,
-            Level = EventLevel.Verbose,
-            Task= Instrumentation.Common.Tasks.UnitTest,
-            Keywords = Keywords.UserMessage,
-            Message = "{0}")]
-        public void VerboseEvent_RemoveMe(string message)
-        {
-            WriteEvent(10000, message);
-        }
     }
 }

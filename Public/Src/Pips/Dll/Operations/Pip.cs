@@ -13,6 +13,7 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Pips.Operations
 {
@@ -121,8 +122,9 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         /// <remarks>
         /// Keep in sync with <see cref="s_formattedSemiStableHashRegex"/> and <see cref="TryParseSemiStableHash(string, out long)"/>
+        /// CODESYNC: Make sure to update 'GetStdInFilePath' in 'SandboxedProcessUnix.cs' when this logic changes!!!
         /// </remarks>
-        public static string FormatSemiStableHash(long hash) => string.Format(CultureInfo.InvariantCulture, "{0}{1:X16}", SemiStableHashPrefix, hash);
+        public static string FormatSemiStableHash(long hash) => I($"{SemiStableHashPrefix}{hash:X16}");
 
         /// <summary>
         /// Inverse of <see cref="FormatSemiStableHash"/>

@@ -3,14 +3,13 @@
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Native.IO;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Streams.Unix;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 
-namespace BuildXL.Storage
+namespace BuildXL.Native.IO
 {
     /// <summary>
     /// A factory to create AsyncFiles with different configurations
@@ -32,14 +31,14 @@ namespace BuildXL.Storage
             FileKind kind = FileKind.File)
         {
             return OperatingSystemHelper.IsUnixOS
-            ? (IAsyncFile) new AsyncFileUnix(handle, access, ownsHandle, path, kind)
-            : (IAsyncFile) new AsyncFileWin(handle, access, ownsHandle, ioCompletionManager, path, kind);
+            ? new AsyncFileUnix(handle, access, ownsHandle, path, kind)
+            : new AsyncFileWin(handle, access, ownsHandle, ioCompletionManager, path, kind);
         }
 
         /// <summary>
         /// Creates or opens a <see cref="IAsyncFile"/>. Throws on failure.
         /// </summary>
-        /// <exception cref="BuildXL.Native.IO.NativeWin32Exception">Thrown on failure</exception>
+        /// <exception cref="NativeWin32Exception">Thrown on failure</exception>
         public static IAsyncFile CreateOrOpen(
             string path,
             FileDesiredAccess desiredAccess,

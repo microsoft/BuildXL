@@ -17,7 +17,6 @@ using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Tracing;
 using BuildXL.Processes.Containers;
-using BuildXL.Storage;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Diagnostics;
 using BuildXL.Utilities.Instrumentation.Common;

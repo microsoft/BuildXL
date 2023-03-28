@@ -26,6 +26,7 @@ namespace AppTest {
             Test.dll,
             Grpc.dll,
 
+            ...getGrpcAspNetCorePackages(),
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Interop.dll,

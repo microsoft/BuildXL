@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Streams.Windows;
-using BuildXL.Storage;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

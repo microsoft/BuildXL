@@ -69,9 +69,9 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         private string KextInstallHelper { get; } = string.Format(KextInstallHelperFormat, s_buildXLBin);
 
         /// <summary>
-        /// <see cref="BuildXL.Pips.Fingerprints.KextInfo.RequiredKextVersionNumber"/>
+        /// <see cref="Native.Processes.Unix.KextInfo.RequiredKextVersionNumber"/>
         /// </summary>
-        public const string RequiredKextVersionNumber = BuildXL.Pips.Fingerprints.KextInfo.RequiredKextVersionNumber;
+        public const string RequiredKextVersionNumber = Native.Processes.Unix.KextInfo.RequiredKextVersionNumber;
 
         /// <summary>
         /// See TN2420 (https://developer.apple.com/library/archive/technotes/tn2420/_index.html) on how versioning numbers are formatted in the Apple ecosystem

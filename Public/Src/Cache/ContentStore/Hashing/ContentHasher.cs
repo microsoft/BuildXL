@@ -13,11 +13,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using System.Runtime.CompilerServices;
 using BuildXL.Utilities.ParallelAlgorithms;
 
-#pragma warning disable CS3001 // CLS
 #pragma warning disable CS3002
-#pragma warning disable CS3003
-
-#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {

@@ -17,7 +17,7 @@ namespace Collections {
             // IMPORTANT!!! Do not add non-bxl dependencies into this project, any non-bxl dependencies should go to BuildXL.Utilities instead
 
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
-                $.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
+                NetFx.Netstandard.dll,
                 importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             ]),
         ]

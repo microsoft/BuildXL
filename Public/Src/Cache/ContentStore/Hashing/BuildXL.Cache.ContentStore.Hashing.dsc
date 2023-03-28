@@ -13,7 +13,7 @@ namespace Hashing {
         assemblyName: "BuildXL.Cache.ContentStore.Hashing",
         sources: [
             ...globR(d`.`, "*.cs"),
-            f`../../../Utilities/Utilities/ParallelAlgorithms/ActionBlockSlim.cs`
+            f`../../../Utilities/Utilities.Core/ActionBlockSlim.cs`
         ],
         references: [
             UtilitiesCore.dll,

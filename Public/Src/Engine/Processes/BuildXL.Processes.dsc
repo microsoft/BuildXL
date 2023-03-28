@@ -34,17 +34,12 @@ namespace Processes {
                 importFrom("System.IO.Pipelines").pkg
             ),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
-            importFrom("BuildXL.Pips").dll,
-            importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Interop.dll,
-            importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
-            importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-            importFrom("Newtonsoft.Json").pkg,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Engine",

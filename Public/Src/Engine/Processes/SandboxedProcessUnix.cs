@@ -3,10 +3,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
@@ -15,12 +17,11 @@ using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.ParallelAlgorithms;
 using static BuildXL.Interop.Unix.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using System.Diagnostics.CodeAnalysis;
 
 #nullable enable
 
@@ -99,7 +100,8 @@ namespace BuildXL.Processes
         /// Gets file path for standard input.
         /// </summary>
         internal static string GetStdInFilePath(string workingDirectory, long pipSemiStableHash) =>
-            Path.Combine(workingDirectory, BuildXL.Pips.Operations.Pip.FormatSemiStableHash(pipSemiStableHash) + ".stdin");
+            // CODESYNC: Ensure the string.Format matches FormatSemiStableHash in Pip.cs.
+            Path.Combine(workingDirectory, I($"Pip{pipSemiStableHash:X16}.stdin"));
 
         /// <summary>
         /// Shell executable that wraps the process to be executed.
@@ -464,7 +466,7 @@ namespace BuildXL.Processes
 
             if (m_pipKextStats != null)
             {
-                var statsJson = Newtonsoft.Json.JsonConvert.SerializeObject(m_pipKextStats.Value);
+                var statsJson = JsonSerializer.Serialize(m_pipKextStats.Value);
                 LogDebug($"Process Kext Stats: {statsJson}");
             }
 

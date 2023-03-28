@@ -11,7 +11,6 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Streams;
 using BuildXL.Processes;
 using BuildXL.Processes.Internal;
-using BuildXL.Storage;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

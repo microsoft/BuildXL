@@ -17,11 +17,9 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
 using VfsUtilities = BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
-using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Artifacts
 {

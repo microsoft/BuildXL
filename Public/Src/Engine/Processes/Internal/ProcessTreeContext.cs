@@ -13,10 +13,8 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Processes.Internal;
-using BuildXL.Storage;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Processes
@@ -56,12 +54,11 @@ namespace BuildXL.Processes
             LoggingContext loggingContext)
         {
             // We cannot create this object in a wow64 process
-            Contract.Assume(
-                !ProcessUtilities.IsWow64Process(),
-                "ProcessTreeContext:ctor - Cannot run injection server in a wow64 32 bit process");
-            SafeFileHandle childHandle = null;
+            Contract.Assume(!ProcessUtilities.IsWow64Process(), "ProcessTreeContext:ctor - Cannot run injection server in a wow64 32 bit process");
+            Contract.Requires(loggingContext != null);
 
             m_loggingContext = loggingContext;
+            SafeFileHandle childHandle = null;
             NamedPipeServerStream serverStream = null;
 
             bool useManagedPipeReader = !PipeReaderFactory.ShouldUseLegacyPipeReader();
@@ -304,8 +301,7 @@ namespace BuildXL.Processes
             }
 
             HasDetoursInjectionFailures = true;
-
-            Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext ?? Events.StaticContext, processId, error);
+            Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext, processId, error);
         }
     }
 }

@@ -8,7 +8,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -17,11 +16,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Native.Tracing;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 #if NETCOREAPP
 using Microsoft.CopyOnWrite;
 #endif
@@ -31,7 +28,6 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 namespace BuildXL.Native.IO.Windows
 {
     /// <inheritdoc />
-    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "This is Windows-specific by design")]
     public sealed class FileUtilitiesWin : IFileUtilities
     {
         /// <summary>

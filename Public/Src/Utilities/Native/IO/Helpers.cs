@@ -6,7 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Native.IO
 {
@@ -90,7 +89,7 @@ namespace BuildXL.Native.IO
                     onException?.Invoke(e);
 
                     // For diagnostic purpose.
-                    Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.ToString());
+                    Tracing.Logger.Log.RetryOnFailureException(FileUtilitiesStaticLoggingContext.LoggingContext, e.ToString());
                 }
             }
 
@@ -135,7 +134,7 @@ namespace BuildXL.Native.IO
                     onException?.Invoke(e);
 
                     // For diagnostic purpose.
-                    Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.ToString());
+                    Tracing.Logger.Log.RetryOnFailureException(FileUtilitiesStaticLoggingContext.LoggingContext, e.ToString());
                 }
             }
 

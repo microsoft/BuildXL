@@ -3,7 +3,7 @@
 
 using System.Globalization;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Formats a byte count in typical (non-SI) units (e.g. 1024 -> "1 KB").

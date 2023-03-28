@@ -170,7 +170,7 @@ internal
         {
             if (configuration.DegreeOfParallelism == -1)
             {
-                configuration = configuration with {DegreeOfParallelism = Environment.ProcessorCount,};
+                configuration = configuration with { DegreeOfParallelism = Environment.ProcessorCount, };
             }
 
             return new ActionBlockSlim<T>(
@@ -187,7 +187,7 @@ internal
         {
             if (configuration.DegreeOfParallelism == -1)
             {
-                configuration = configuration with {DegreeOfParallelism = Environment.ProcessorCount,};
+                configuration = configuration with { DegreeOfParallelism = Environment.ProcessorCount, };
             }
 
             return new ActionBlockSlim<T>(
@@ -304,7 +304,7 @@ internal
 
             var options = m_configuration.CapacityLimit != null
                 // Blocking the calls if the channel is full to handle 
-                ? (ChannelOptions)new BoundedChannelOptions(m_configuration.CapacityLimit.Value) {FullMode = BoundedChannelFullMode.Wait}
+                ? (ChannelOptions)new BoundedChannelOptions(m_configuration.CapacityLimit.Value) { FullMode = BoundedChannelFullMode.Wait }
                 : new UnboundedChannelOptions();
 
             // The assumption is that the following options gives the best performance/throughput.
@@ -347,7 +347,7 @@ internal
                                 }
                             });
                     });
-                
+
                 // Removing the registration once the processing is done.
                 Completion.ContinueWith(_ => { registration.Dispose(); });
             }

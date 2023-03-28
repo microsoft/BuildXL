@@ -63,7 +63,6 @@ namespace Native {
         generateLogs: true,
         addNotNullAttributeFile: true,
         references: [
-            $.dll,
             Interop.dll,
             ...securityDlls,
             Collections.dll,

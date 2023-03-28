@@ -24,7 +24,7 @@ namespace VstsApp {
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             ...BuildXLSdk.bclAsyncPackages,
             importFrom("BuildXL.Utilities").Authentication.dll,
-            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
         appConfig: f`App.config`,
         tools: {

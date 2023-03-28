@@ -15,7 +15,6 @@ using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using UnixIO = BuildXL.Interop.Unix.IO;

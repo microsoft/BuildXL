@@ -42,8 +42,6 @@ namespace App {
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Newtonsoft.Json").pkg,
 
-            importFrom("BuildXL.Utilities").dll,
-
             ...getAzureBlobStorageSdkPackages(true),
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             BuildXLSdk.asyncInterfacesPackage

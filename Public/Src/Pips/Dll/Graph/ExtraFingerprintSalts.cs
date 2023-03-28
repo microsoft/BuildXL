@@ -6,7 +6,7 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Pips.Fingerprints;
+using BuildXL.Native.Processes.Unix;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;

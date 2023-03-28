@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace BuildXL.Pips.Fingerprints
+namespace BuildXL.Native.Processes.Unix
 {
     /// <summary>
     /// Static class with some constant definitions pertinent to the sandbox kext.

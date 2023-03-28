@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -16,16 +15,12 @@ using BuildXL.Native.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Native.IO.FileUtilities;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Overlapped = BuildXL.Native.Streams.Overlapped;
 
 #pragma warning disable 1591   // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
-#pragma warning disable CA1823 // Unused field
-#pragma warning disable SA1203 // Constant fields must appear before non-constant fields
-#pragma warning disable SA1139 // Use literal suffix notation instead of casting
 #pragma warning disable IDE1006 // Naming rule violation
 
 namespace BuildXL.Native.IO.Windows
@@ -2977,15 +2972,6 @@ namespace BuildXL.Native.IO.Windows
         {
             if (!TryGetFileAttributesViaGetFileAttributes(path, out FileAttributes fileAttributes, out int hr))
             {
-                if (hr == NativeIOConstants.ErrorInvalidParameter)
-                {
-                    // This is a temporary log, added to figure out what causes ERROR_INVALID_PARAMETER
-                    // Should be removed after we find out which parameters are wrong and fixing them
-                    // $TODO: When this is removed, please also remove the method VerboseEvent_RemoveMe
-                    string errorMessage = new Win32Exception(Marshal.GetLastWin32Error()).Message;
-                    Events.Log.VerboseEvent_RemoveMe("ERROR_INVALID_PARAMETER (0x57) error orrured in TryProbePathExistence for path: " + path + "  Error Message: " + errorMessage);
-                }
-
                 if (IsHresultNonexistent(hr))
                 {
                     isReparsePoint = false;

@@ -7,7 +7,6 @@ namespace Authentication {
         assemblyName: "BuildXL.Utilities.Authentication",
         sources: globR(d`.`, "*.cs"),
         references: [
-            $.dll,
             Utilities.Core.dll,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("Microsoft.Identity.Client").pkg,

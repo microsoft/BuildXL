@@ -18,6 +18,7 @@ using static BuildXL.Interop.Unix.Impl_Common;
 using static BuildXL.Interop.Unix.Memory;
 using static BuildXL.Interop.Unix.Process;
 using static BuildXL.Interop.Unix.Processor;
+using System.Reflection;
 
 namespace BuildXL.Interop.Unix
 {
@@ -40,10 +41,17 @@ namespace BuildXL.Interop.Unix
         private static long TicksPerSecond;
 
         /// <summary>
-        /// Statx is supported starting from kernel 4.11. Check https://man7.org/linux/man-pages/man2/statx.2.html
+        /// Statx is supported starting from kernel 4.11 and library support was added in glibc 2.28.
         /// </summary>
+        /// <remarks>
+        /// Check https://man7.org/linux/man-pages/man2/statx.2.html for more details.
+        /// 
+        /// In the following check, besides checking for the major and minor version numbers of the OS, the statx support
+        /// is confirmed by calling statx directly in <see cref="CheckIfStatXSupported"/>.
+        /// </remarks>
         public static readonly bool SupportsStatx = Environment.OSVersion.Version is var version 
-            && ((version.Major == 4 && version.Minor >= 11) || version.Major >= 5);
+            && ((version.Major == 4 && version.Minor >= 11) || version.Major >= 5)
+            && CheckIfStatXSupported();
 
         /// <summary>Convert a number of "jiffies", or ticks, to a TimeSpan.</summary>
         /// <param name="ticks">The number of ticks.</param>
@@ -131,6 +139,32 @@ namespace BuildXL.Interop.Unix
                     Translate(buf, ref statBuf);
                     return 0;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Checks if <code>statx</code> is supported by the underlying OS.
+        /// </summary>
+        /// <returns>True if supported; otherwise false.</returns>
+        /// <remarks>
+        /// The check is done by invoking <code>statx</code> on the executing assembly path.
+        /// If the invocation throws <see cref="EntryPointNotFoundException"/>, then it means that
+        /// glibc does not have <code>statx</code>.
+        /// 
+        /// An alternative to invoking <code>statx</code> is to spawn a process that calls <code>ldd --version</code>, and
+        /// then parse its output. Yet another alternative is to call <code>gnu_get_libc_version()</code>.
+        /// </remarks>
+        private static bool CheckIfStatXSupported()
+        {
+            try
+            {
+                var buf = new statx_buf();
+                StatXFile(AT_FDCWD, Assembly.GetExecutingAssembly().Location, false, ref buf);
+                return true;
+            }
+            catch (EntryPointNotFoundException)
+            {
+                return false;
             }
         }
 

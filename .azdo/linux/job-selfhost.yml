@@ -11,7 +11,7 @@ jobs:
 - job: Selfhost_${{ parameters.validationName }}
   displayName: Build and Validate Selfhost (${{ parameters.validationName }})
   pool:
-    name: BuildXL-DevOpsAgents-Linux-PME-EastUS
+    name: BuildXL-DevOpsAgents-Linux-PME
     os: linux
 
   templateContext:

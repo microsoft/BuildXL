@@ -10,6 +10,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
+#nullable enable
+
 namespace BuildXL.Utilities.Instrumentation.Common
 {
     /// <summary>

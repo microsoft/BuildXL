@@ -22,7 +22,6 @@ namespace Test.Tool.DropDaemon {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("ArtifactServices.App.Shared").pkg,
             importFrom("ItemStore.Shared").pkg,
             importFrom("Drop.App.Core").pkg,

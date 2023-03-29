@@ -24,7 +24,6 @@ namespace ProcessPipExecutor {
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").PluginGrpc.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Processes",

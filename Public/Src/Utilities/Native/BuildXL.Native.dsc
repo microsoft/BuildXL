@@ -69,7 +69,6 @@ namespace Native {
             Configuration.dll,
             Utilities.Core.dll,
             importFrom("CopyOnWrite").pkg,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ],
         runtimeContent: [
             ...nativeMac,

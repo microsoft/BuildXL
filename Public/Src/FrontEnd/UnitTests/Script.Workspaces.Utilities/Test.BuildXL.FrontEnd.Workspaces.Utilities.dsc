@@ -16,7 +16,6 @@ namespace Workspaces.Utilities {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
             ...BuildXLSdk.tplPackages

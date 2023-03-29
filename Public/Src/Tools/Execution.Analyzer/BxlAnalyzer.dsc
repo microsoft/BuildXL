@@ -53,7 +53,7 @@ namespace Execution.Analyzer {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

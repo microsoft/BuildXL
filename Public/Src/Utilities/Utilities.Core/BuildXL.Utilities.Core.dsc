@@ -31,6 +31,7 @@ namespace Utilities.Core {
             "Test.BuildXL.Scheduler",
             "Test.BuildXL.Utilities",
             "Test.BuildXL.FrontEnd.Script",
+            "IntegrationTest.BuildXL.Scheduler",
         ],
     });
 }

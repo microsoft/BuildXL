@@ -15,7 +15,6 @@ namespace VerifyFileContentTable {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.App").ConsoleLogger.dll,
         ],
         embeddedResources: [{resX: f`Properties/Resources.resx`}],

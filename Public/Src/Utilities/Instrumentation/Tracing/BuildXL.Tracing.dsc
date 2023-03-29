@@ -10,8 +10,9 @@ namespace Tracing {
         nullable: true,
         generateLogs: true,
         generateLogBinaryRefs: [
-            Common.dll.compile,
+            AriaCommon.dll.compile,
             importFrom("BuildXL.Utilities").Configuration.dll.compile,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll.compile,
         ],
         sources: [
             ...globR(d`.`, "*.cs"),
@@ -19,7 +20,7 @@ namespace Tracing {
         ],
         skipDefaultReferences: true,
         references: [
-            Common.dll,
+            AriaCommon.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,

@@ -18,7 +18,6 @@ export const exe = !BuildXLSdk.isDaemonToolingEnabled ? undefined : BuildXLSdk.e
 
     references: [
         importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
-        importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
         importFrom("BuildXL.Utilities").dll,
         importFrom("BuildXL.Utilities").Ipc.dll,

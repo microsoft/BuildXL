@@ -28,7 +28,6 @@ namespace Storage.Untracked {
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             Storage.dll,
         ],
     });

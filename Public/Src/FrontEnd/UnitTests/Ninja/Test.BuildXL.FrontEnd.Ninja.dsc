@@ -23,7 +23,6 @@ namespace Test.Ninja {
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Nuget.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,

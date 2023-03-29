@@ -793,7 +793,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             ] : [
                 importFrom("BuildXL.Utilities").Utilities.Core.dll.compile,
                 importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
-                importFrom("BuildXL.Utilities.Instrumentation").Common.dll.compile,
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
             ];
         

@@ -12,7 +12,7 @@ namespace LogGenerator {
         nullable: true,
         references: [
             Core.dll,
-            Common.dll,
+            AriaCommon.dll,
             
             // Using Newtonsoft.Json for deserializing Log Gen config, because it self-contained.
             importFrom("Newtonsoft.Json").pkg,
@@ -29,7 +29,7 @@ namespace LogGenerator {
         contents: [
             dll,
             Core.dll,
-            Common.dll,
+            AriaCommon.dll,
             
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,

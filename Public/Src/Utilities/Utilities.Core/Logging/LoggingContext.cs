@@ -7,6 +7,8 @@ using System.Diagnostics.ContractsLight;
 using System.Text;
 using System.Threading;
 
+#nullable enable
+
 namespace BuildXL.Utilities.Instrumentation.Common
 {
     /// <summary>

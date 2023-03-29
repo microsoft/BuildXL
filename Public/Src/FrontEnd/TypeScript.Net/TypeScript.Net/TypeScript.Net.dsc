@@ -14,7 +14,6 @@ namespace TypeScript.Net {
                 NetFx.Microsoft.CSharp.dll
             ),
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,

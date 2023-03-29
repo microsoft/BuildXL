@@ -10,7 +10,7 @@ namespace Core {
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
         references: [
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.dll,
         ],
     });
 }

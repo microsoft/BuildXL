@@ -28,7 +28,7 @@ namespace PrivateWdg {
                     importFrom("BuildXL.Pips").dll,
                     importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
                     importFrom("BuildXL.Tools").Execution.Analyzer.exe,
-                    importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+                    importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.dll,
                     importFrom("BuildXL.Utilities").dll,
                     importFrom("Private.Wdg.ExecutionLogSdk").dll,
                 ]

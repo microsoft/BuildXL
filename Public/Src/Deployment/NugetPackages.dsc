@@ -148,12 +148,6 @@ namespace NugetPackages {
                 importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).SBOMUtilities.dll
             ),
 
-            // BuildXL.Instrumentation.Common
-            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net472packageQualifier).dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net6PackageQualifier).dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net7PackageQualifier).dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(netstandard20PackageQualifier).dll,
-
             // BuildXL.Instrumentation.Tracing
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net472packageQualifier).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net6PackageQualifier).dll,

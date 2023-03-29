@@ -10,10 +10,10 @@ namespace LogGen {
         platform: "anycpu32bitpreferred",
         sources: globR(d`.`, "*.cs"),
         references: [
-            Common.dll,
+            AriaCommon.dll,
             Core.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
-            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,
             importFrom("Microsoft.CodeAnalysis.CSharp").pkg,

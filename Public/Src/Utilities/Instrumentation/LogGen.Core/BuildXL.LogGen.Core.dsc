@@ -9,8 +9,9 @@ namespace Core {
         assemblyName: "BuildXL.LogGen.Core",
         sources: globR(d`.`, "*.cs"),
         references: [
-            Common.dll,
+            AriaCommon.dll,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
             importFrom("Microsoft.CodeAnalysis.Common").pkg,
             importFrom("System.Collections.Immutable.ForVBCS").pkg,

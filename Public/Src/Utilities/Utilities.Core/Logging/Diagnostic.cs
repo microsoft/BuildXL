@@ -7,6 +7,8 @@ using System.Diagnostics.Tracing;
 using System.Globalization;
 using BuildXL.Utilities.Core;
 
+#nullable enable
+
 namespace BuildXL.Utilities.Instrumentation.Common
 {
     /// <summary>

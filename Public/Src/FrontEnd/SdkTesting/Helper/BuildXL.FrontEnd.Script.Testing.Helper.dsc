@@ -28,7 +28,6 @@ namespace Helper {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
             ...importFrom("Sdk.Managed.Testing.XUnit").xunitReferences,
         ],

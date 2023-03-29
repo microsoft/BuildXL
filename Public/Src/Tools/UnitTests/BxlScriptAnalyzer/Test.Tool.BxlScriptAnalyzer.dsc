@@ -21,7 +21,6 @@ namespace Test.BxlScriptAnalyzer {
             importFrom("BuildXL.FrontEndUnitTests").Workspaces.dll,
             importFrom("BuildXL.FrontEndUnitTests").Workspaces.Utilities.dll,
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,

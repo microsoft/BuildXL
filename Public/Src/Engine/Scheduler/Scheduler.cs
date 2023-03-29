@@ -2504,11 +2504,13 @@ namespace BuildXL.Scheduler
 
                 UpdateResourceAvailability(m_perfInfo);
 
-                // Of the pips in choose worker, how many could be executing on the local worker but are not due to
-                // resource constraints
-                int pipsWaitingOnResources = Math.Min(
-                    m_executionStepTracker.CurrentSnapshot[PipExecutionStep.ChooseWorkerCpu],
-                    LocalWorker.TotalProcessSlots - LocalWorker.AcquiredProcessSlots);
+                // The number of pips in the ChooseWorkerCpu step is our best analog for the amount of work that could be
+                // run if there were more resources.
+                // Previously this was comparing TotalProcessSlots vs. AcquiredProcessSlots. That ended up being problematic because
+                // when resource based cancellation happens, the TotalProcessSlots becomes smaller than AquiredProcessSlots and the
+                // result of this comparison was negative. Moreover, in steady state when the scheduler is resource throttled, the two
+                // will be equal and also not give an accurate measurement.
+                int pipsWaitingOnResources = m_executionStepTracker.CurrentSnapshot[PipExecutionStep.ChooseWorkerCpu];
 
                 // Log pip statistics to CloudBuild.
                 if (isLoggingEnabled && m_configuration.InCloudBuild())

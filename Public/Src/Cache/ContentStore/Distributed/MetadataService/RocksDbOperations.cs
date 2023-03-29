@@ -9,7 +9,6 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
 using RocksDbSharp;
 
@@ -17,8 +16,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
     /// Defines write/get/merge operations for content location entries in
-    /// <see cref="RocksDbContentMetadataDatabase"/> columns:
-    /// <see cref="RocksDbContentMetadataDatabase.Columns.SstMergeContent"/> and
+    /// <see cref="RocksDbContentMetadataDatabase"/> columns: and
     /// <see cref="RocksDbContentMetadataDatabase.Columns.MergeContent"/>
     /// </summary>
     public static class RocksDbOperations
@@ -29,45 +27,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public static ShardHash AsEntryKey(this ShortHash hash)
         {
             return new ShardHash(hash);
-        }
-
-        /// <summary>
-        /// Deletes the range of keys in the given partition (i.e. all keys with partition as prefix).
-        /// </summary>
-        public static void DeleteLocationEntryPartitionRange<TWriter>(this TWriter writer, PartitionId partition)
-            where TWriter : IRocksDbColumnWriter
-        {
-            // Create a key after all keys with the given partition by taking partition
-            // and suffixing with byte.MaxValue greater to maximum key length.
-            // Next partition id can't be used because there is no way to represent the next for partition 255.
-            Span<byte> rangeEnd = stackalloc byte[ShortHash.SerializedLength + 2];
-            rangeEnd[0] = partition.EndValue;
-            rangeEnd.Slice(1).Fill(byte.MaxValue);
-
-            writer.DeleteRange(stackalloc[] { partition.StartValue }, rangeEnd);
-        }
-
-        /// <summary>
-        /// Gets a key for the partition record in the partition's range after all valid shard hash
-        /// keys but within the range which would be deleted by a DeleteRange operation.
-        /// </summary>
-        public static ReadOnlyArray<byte> GetPartitionRecordKey(this PartitionId partition)
-        {
-            var key = new byte[ShortHash.SerializedLength + 1];
-            key[0] = partition.EndValue;
-            key.AsSpan().Slice(1).Fill(byte.MaxValue);
-            key[ShortHash.SerializedLength] = 0;
-
-            return key;
-        }
-
-        /// <summary>
-        /// Delete the entry with the given hash to the database
-        /// </summary>
-        public static void DeleteLocationEntry<TWriter>(this TWriter writer, ShardHash hash)
-            where TWriter : IRocksDbColumnWriter
-        {
-            writer.Delete(MemoryMarshal.AsBytes(stackalloc[] { hash }));
         }
 
         /// <summary>

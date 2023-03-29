@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
@@ -109,8 +108,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             MetadataHeaders,
 
             MergeContent,
-
-            SstMergeContent
         }
 
         public enum ColumnGroup
@@ -120,19 +117,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             Two
         }
 
-        private static bool IsRotatedColumn(Columns columns)
-        {
-            return columns != Columns.SstMergeContent;
-        }
-
         private static readonly string[][] ColumnNames =
             EnumTraits<Columns>
                     .EnumerateValues()
-                    .Select(c => !IsRotatedColumn(c) ? new[] { c.ToString() } : Enumerable.Range(1, 2).Select(i => c.ToString() + i).ToArray())
+                    .Select(c => Enumerable.Range(1, 2).Select(i => c.ToString() + i).ToArray())
                     .ToArray();
 
-        private static ReadOnlyArray<string> AllMergeContentColumnNames { get; } =
-            NamesOf(Columns.MergeContent).Concat(NamesOf(Columns.SstMergeContent)).ToReadOnlyArray();
+        private static ReadOnlyArray<string> AllMergeContentColumnNames { get; } = NamesOf(Columns.MergeContent).ToReadOnlyArray();
 
         private enum GlobalKeys
         {
@@ -291,12 +282,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 yield return
                 (
                     Columns.MergeContent,
-                    mergeOperator
-                );
-
-                yield return
-                (
-                    Columns.SstMergeContent,
                     mergeOperator
                 );
             }
@@ -589,7 +574,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                    return _keyValueStore.UseExclusive(
                        (store, _) =>
                        {
-                           foreach (var column in EnumTraits<Columns>.EnumerateValues().Where(IsRotatedColumn))
+                           foreach (var column in EnumTraits<Columns>.EnumerateValues())
                            {
                                if (column == Columns.MetadataHeaders)
                                {
@@ -721,44 +706,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private string NameOf(Columns columnFamily, out ColumnGroup resolvedGroup, ColumnGroup? group = null)
         {
-            resolvedGroup = IsRotatedColumn(columnFamily)
-                ? group ?? _columnMetadata[columnFamily].Group
-                : ColumnGroup.One;
+            resolvedGroup = group ?? _columnMetadata[columnFamily].Group;
             return ColumnNames[(int)columnFamily][(int)resolvedGroup];
-        }
-
-        internal RocksDbStore UnsafeGetStore()
-        {
-            return _keyValueStore.Use(store => store).ToResult().Value!;
-        }
-
-        /// <summary>
-        /// Ingests sst files from the given paths for the <see cref="Columns.SstMergeContent"/> column
-        /// </summary>
-        internal BoolResult IngestMergeContentSstFiles(OperationContext context, IEnumerable<AbsolutePath> files)
-        {
-            return _keyValueStore.Use(store => store.Database.IngestExternalFiles(
-                files.Select(f => f.Path).ToArray(),
-                new IngestExternalFileOptions().SetMoveFiles(true)
-                ,
-                store.GetColumn(NameOf(Columns.SstMergeContent))))
-            .ToBoolResult();
-        }
-
-        /// <summary>
-        /// Create an <see cref="SstFileWriter"/> at the given path for the <see cref="Columns.SstMergeContent"/> column
-        /// </summary>
-        internal Result<SstFileWriter> CreateContentSstWriter(OperationContext context, AbsolutePath path)
-        {
-            return CreateSstFileWriter(context, path, Columns.SstMergeContent);
-        }
-
-        /// <summary>
-        /// Create an <see cref="SstFileWriter"/> at the given path for the given column
-        /// </summary>
-        private Result<SstFileWriter> CreateSstFileWriter(OperationContext context, AbsolutePath path, Columns columns)
-        {
-            return _keyValueStore.Use(store => store.CreateSstFileWriter(path.Path, NameOf(columns))).ToResult();
         }
 
         /// <inheritdoc />
@@ -951,23 +900,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             ).ThrowOnError();
         }
 
-        private static Span<byte> TrimTrailingZeros(Span<byte> span)
-        {
-#if NETCOREAPP
-            return span.TrimEnd<byte>(0);
-#else
-            for (int i = span.Length - 1; i >= 0; i--)
-            {
-                if (span[i] != 0)
-                {
-                    return span.Slice(0, i + 1);
-                }
-            }
-
-            return Span<byte>.Empty;
-#endif
-        }
-
         protected override IEnumerable<(ShortHash key, ContentLocationEntry? entry)> EnumerateEntriesWithSortedKeysFromStorage(OperationContext context, EnumerationFilter? filter = null, bool returnKeysOnly = false)
         {
             throw new NotImplementedException();
@@ -981,14 +913,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     (hash, db: this)
                 ).ThrowOnError();
             return entry != null;
-        }
-
-        private static int SizeOf<T>()
-            where T : unmanaged
-        {
-            Span<T> span = stackalloc T[1];
-            var size = MemoryMarshal.AsBytes(span).Length;
-            return size;
         }
 
         // NOTE: This should remain static to avoid allocations in TryGetEntryCore
@@ -1042,18 +966,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return result;
         }
 
-        public Result<Optional<TResult>> TryDeserializeValue<TResult>(ReadOnlyMemory<byte> key, Columns columns, DeserializeValue<TResult> deserializer)
-        {
-            return _keyValueStore.Use((store, state) =>
-                {
-                    bool found = TryDeserializeValue(store, state.key.Span, state.columns, state.deserializer, out var result);
-                    return (found, result);
-                },
-                (key, columns, deserializer))
-            .Then(r => r.found ? new Optional<TResult>(r.result!) : default)
-            .ToResult();
-        }
-
         private bool TryGetValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, Columns columns)
         {
             return store.TryGetValue(key, out value, NameOf(columns))
@@ -1069,7 +981,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public bool TryDeserializeValue<TResult>(RocksDbStore store, ReadOnlySpan<byte> key, Columns columns, DeserializeValue<TResult> deserializer, [NotNullWhen(true)] out TResult? result)
         {
             return store.TryDeserializeValue(key, NameOf(columns), deserializer, out result)
-                   || IsRotatedColumn(columns) && store.TryDeserializeValue(key, NameOf(columns, GetFormerColumnGroup(columns)), deserializer, out result);
+                   || store.TryDeserializeValue(key, NameOf(columns, GetFormerColumnGroup(columns)), deserializer, out result);
         }
 
         private bool TryGetValue(RocksDbStore store, ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, out ColumnGroup resolvedGroup, Columns columns)
@@ -1249,37 +1161,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 });
         }
 
-        public Result<IterateDbContentResult> IterateSstMergeContentEntries(OperationContext context, Action<MachineContentEntry> onEntry)
-        {
-            return _keyValueStore.Use(
-                static (store, state) =>
-                {
-                    var hashKeySize = Unsafe.SizeOf<ShardHash>();
-                    return store.IterateDbContent(
-                        iterator =>
-                        {
-                            var key = iterator.Key();
-                            if (key.Length != hashKeySize)
-                            {
-                                return;
-                            }
-
-                            var hash = MemoryMarshal.Read<ShardHash>(key);
-                            RocksDbOperations.ReadMergedContentLocationEntry(iterator.Value(), out var machines, out var info);
-                            foreach (var machine in machines)
-                            {
-                                var entry = new MachineContentEntry(hash, machine, info.Size!.Value, info.LatestAccessTime ?? CompactTime.Zero);
-                                state.onEntry(entry);
-                            }
-                        },
-                        state.@this.NameOf(Columns.SstMergeContent),
-                        startValue: (byte[]?)null,
-                        state.context.Token);
-
-                }, (@this: this, onEntry, context))
-                .ToResult();
-        }
-
         /// <inheritdoc />
         public override IEnumerable<Result<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context)
         {
@@ -1354,12 +1235,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             store.PrefixLookup(state, key, columnFamilyName: NameOf(column), observeCallback);
             store.PrefixLookup(state, key, columnFamilyName: NameOf(column, GetFormerColumnGroup(column)), observeCallback);
-        }
-
-        private void PrefixKeyLookup<TState>(RocksDbStore store, TState state, ReadOnlySpan<byte> key, Columns column, RocksDbStore.ObserveKeyCallback<TState> observeCallback)
-        {
-            store.PrefixKeyLookup(state, key, columnFamilyName: NameOf(column), observeCallback);
-            store.PrefixKeyLookup(state, key, columnFamilyName: NameOf(column, GetFormerColumnGroup(column)), observeCallback);
         }
 
         private PooledBuffer SerializeMetadataEntryHeader(MetadataEntryHeader value)

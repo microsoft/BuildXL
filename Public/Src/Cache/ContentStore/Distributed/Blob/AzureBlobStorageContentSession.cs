@@ -99,30 +99,40 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
             return new OpenStreamResult(new MemoryStream(Array.Empty<byte>()).WithLength(0));
         }
 
-        var stream = await OpenRemoteStreamAsync(context, contentHash).ThrowIfFailureAsync();
+        var stream = await TryOpenRemoteStreamAsync(context, contentHash).ThrowIfFailureAsync();
         return new OpenStreamResult(stream);
     }
 
-    private async Task<StreamWithLength?> TryOpenReadAsync(OperationContext context, ContentHash contentHash)
+    private async Task<(StreamWithLength?, string)> TryOpenReadAsync(OperationContext context, ContentHash contentHash)
     {
-        var client = await GetBlobClientAsync(context, contentHash);
+        var (client, blobPath) = await GetBlobClientAsync(context, contentHash);
         try
         {
             var readStream = await client.OpenReadAsync(allowBlobModifications: false, cancellationToken: context.Token);
-            return readStream.WithLength(readStream.Length);
+            return (readStream.WithLength(readStream.Length), blobPath);
         }
         // See: https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-error-codes
         catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
         {
-            return null;
+            return (null, blobPath);
         }
     }
 
-    private Task<Result<StreamWithLength?>> OpenRemoteStreamAsync(OperationContext context, ContentHash contentHash)
+    /// <summary>
+    /// Creates a stream against the given <see cref="ContentHash"/>
+    /// </summary>
+    /// <returns>Returns Success(null) if the blob for a given content hash is not found.</returns>
+    private Task<Result<StreamWithLength?>> TryOpenRemoteStreamAsync(OperationContext context, ContentHash contentHash)
     {
+        string blobPath = string.Empty;
         return context.PerformOperationWithTimeoutAsync(
             Tracer,
-            async context => Result.Success(await TryOpenReadAsync(context, contentHash), isNullAllowed: true),
+            async context =>
+            {
+                StreamWithLength? stream;
+                (stream, blobPath) = await TryOpenReadAsync(context, contentHash);
+                return Result.Success(stream, isNullAllowed: true);
+            },
             traceOperationStarted: false,
             timeout: _configuration.StorageInteractionTimeout,
             extraEndMessage: r =>
@@ -133,7 +143,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
                                      size = r.Value.Value.Length;
                                  }
 
-                                 return $"ContentHash=[{contentHash}] Size=[{size}]";
+                                 return $"ContentHash=[{contentHash.ToShortString()}] Size=[{size}] BlobPath=[{blobPath}]";
                              });
     }
 
@@ -212,6 +222,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
         FileAccessMode accessMode,
         FileReplacementMode replacementMode)
     {
+        string blobPath = string.Empty;
         return context.PerformOperationWithTimeoutAsync(
             Tracer,
             async context =>
@@ -220,7 +231,8 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
 
                 try
                 {
-                    var stream = await TryOpenReadAsync(context, contentHash);
+                    StreamWithLength? stream;
+                    (stream, blobPath) = await TryOpenReadAsync(context, contentHash);
                     if (stream == null)
                     {
                         return CreateDownloadResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, stopwatch.Elapsed);
@@ -245,11 +257,11 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
                             FileSize = remoteStream.Length,
                             TimeToFirstByteDuration = timeToFirstByteDuration,
                             DownloadResult = new DownloadResult()
-                                             {
-                                                 OpenFileStreamDuration = openFileStreamDuration,
-                                                 DownloadDuration = downloadDuration,
-                                                 WriteDuration = fileStream.GetWriteDurationIfAvailable(),
-                                             },
+                            {
+                                OpenFileStreamDuration = openFileStreamDuration,
+                                DownloadDuration = downloadDuration,
+                                WriteDuration = fileStream.GetWriteDurationIfAvailable(),
+                            },
                         });
                 }
                 catch
@@ -272,7 +284,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
             extraEndMessage: r =>
                              {
                                  var baseline =
-                                     $"ContentHash=[{contentHash.ToShortString()}] Path=[{path}] AccessMode=[{accessMode}] ReplacementMode=[{replacementMode}]";
+                                     $"ContentHash=[{contentHash.ToShortString()}] Path=[{path}] AccessMode=[{accessMode}] ReplacementMode=[{replacementMode}] BlobPath=[{blobPath}]";
                                  if (!r.Succeeded)
                                  {
                                      return baseline;
@@ -286,9 +298,10 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
     private static RemoteDownloadResult CreateDownloadResult(PlaceFileResult.ResultCode resultCode, TimeSpan downloadDuration)
     {
         return new RemoteDownloadResult()
-               {
-                   ResultCode = resultCode, DownloadResult = new DownloadResult() { DownloadDuration = downloadDuration, },
-               };
+        {
+            ResultCode = resultCode,
+            DownloadResult = new DownloadResult() { DownloadDuration = downloadDuration, },
+        };
     }
 
     /// <inheritdoc />
@@ -409,11 +422,13 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
 
     private Task<PinResult> PinRemoteAsync(OperationContext context, ContentHash contentHash)
     {
+        string blobPath = string.Empty;
         return context.PerformOperationWithTimeoutAsync(
             Tracer,
             async context =>
             {
-                var client = await GetBlobClientAsync(context, contentHash);
+                BlobClient client;
+                (client, blobPath) = await GetBlobClientAsync(context, contentHash);
                 try
                 {
                     var properties = await client.GetPropertiesAsync(cancellationToken: context.Token);
@@ -428,7 +443,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
                 }
             },
             traceOperationStarted: false,
-            extraEndMessage: _ => $"ContentHash=[{contentHash}]",
+            extraEndMessage: _ => $"ContentHash=[{contentHash.ToShortString()}] BlobPath=[{blobPath}]",
             timeout: _configuration.StorageInteractionTimeout);
     }
 
@@ -441,11 +456,13 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
         // See: https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-error-codes
         const int PreconditionFailed = 412;
         const int BlobAlreadyExists = 409;
+        string blobPath = string.Empty;
         return context.PerformOperationWithTimeoutAsync(
             Tracer,
             async context =>
             {
-                var client = await GetBlobClientAsync(context,contentHash);
+                BlobClient client;
+                (client, blobPath) = await GetBlobClientAsync(context, contentHash);
 
                 // WARNING: remember implicit pin
 
@@ -473,12 +490,15 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
                 return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache);
             },
             traceOperationStarted: false,
+            extraEndMessage: _ => $"ContentHash=[{contentHash.ToShortString()}] Size=[{contentSize}] BlobPath=[{blobPath}]",
             timeout: _configuration.StorageInteractionTimeout);
     }
 
-    private Task<BlobClient> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
+    private async Task<(BlobClient, string)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
     {
-        return _store.GetBlobClientAsync(context, contentHash);
+        var client = await _store.GetBlobClientAsync(context, contentHash);
+        var path = $"{client.AccountName}@{client.BlobContainerName}:/{client.Name}";
+        return (client, path);
     }
 }
 

@@ -150,7 +150,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
         [Fact]
         public Task RepeatedBulkPinShouldSucceedAsync()
         {
-            // This is just testing that pinning files repeatedly doesn't have any side effects
             return RunTestAsync(
                 ImplicitPin.None,
                 null,
@@ -179,7 +178,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
         [Fact]
         public Task PutAndPlaceLotsOfRandomFilesShouldSucceed()
         {
-            // This is just testing that pinning files repeatedly doesn't have any side effects
             return RunTestAsync(
                 ImplicitPin.None,
                 null,
@@ -192,10 +190,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                     var hashes = contentHashes.Select(contentHash => new ContentHashWithPath(
                                                           contentHash,
                                                           placeDirectory.Path / contentHash.ToHex())).ToList();
-                    var results = (await Task.WhenAll(await session.PlaceFileAsync(context, hashes, FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists, FileRealizationMode.Any, Token)));
+                    var results = await Task.WhenAll(await session.PlaceFileAsync(context, hashes, FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists, FileRealizationMode.Any, Token));
                     foreach (var result in results)
                     {
+                        result.Item.Code.Should().Be(PlaceFileResult.ResultCode.PlacedWithCopy);
                         result.Item.ShouldBeSuccess();
+                    }
+                });
+        }
+
+        [Fact]
+        public Task PutAndOpenStreamLotsOfRandomFilesShouldSucceed()
+        {
+            // This is just testing that pinning files repeatedly doesn't have any side effects
+            return RunTestAsync(
+                ImplicitPin.None,
+                null,
+                async (context, session) =>
+                {
+                    const int FileCount = 50;
+                    var contentHashes = await session.PutRandomAsync(context, ContentHashType, false, FileCount, ContentByteCount, true);
+
+                    using var placeDirectory = new DisposableDirectory(FileSystem);
+                    var tasks = contentHashes.Select(contentHash => session.OpenStreamAsync(context, contentHash, Token)).ToList();
+                    foreach (var result in await Task.WhenAll(tasks))
+                    {
+                        result.Code.Should().Be(OpenStreamResult.ResultCode.Success);
+                        result.Stream.Should().NotBeNull();
+                        result.ShouldBeSuccess();
+                        result.Stream!.Dispose();
                     }
                 });
         }

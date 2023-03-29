@@ -39,6 +39,24 @@ public class BlobCacheTests : TestWithOutput
         k3.Purpose.Should().BeEquivalentTo(BlobCacheContainerPurpose.Metadata);
     }
 
+    [Fact]
+    public void BlobCacheShardingKeyStabilityTests()
+    {
+        // These tests assert that the hashes don't change across processes
+
+        // Chosen by fair dice roll. Guaranteed to be random.
+        var bytes = new byte[] { 0x21, 0xfc, 0x81, 0x32, 0xdd, 0xfd, 0x24, 0x24, 0x0f, 0xbc, 0xb9, 0xdc, 0xfe, 0x7b, 0x85, 0xd3,
+0x26, 0xe6, 0x0e, 0xac, 0xfb, 0xe8, 0xe6, 0xcd, 0x94, 0xf8, 0xe5, 0x66, 0xf5, 0xdf, 0xa0, 0x60,
+0xb0 };
+        var ch = new ContentHash(HashType.Vso0, bytes);
+
+        var k1 = BlobCacheShardingKey.FromContentHash(ch);
+        k1.Key.Should().Be(-1294787154);
+
+        var wf = new Fingerprint(bytes, bytes.Length);
+        var k2 = BlobCacheShardingKey.FromWeakFingerprint(wf);
+        k2.Key.Should().Be(-138440390);
+    }
 
     [Fact]
     public void BlobCacheAccountNameTests()

@@ -71,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: BaseCounters[ContentSessionBaseCounters.OpenStream],
-                    extraEndMessage: result => $"Hash={contentHash}"));
+                    extraEndMessage: result => $"Hash={contentHash.ToShortString()}"));
         }
 
         /// <nodoc />
@@ -191,7 +191,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: result =>
                                      {
-                                         var message = $"input=({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})";
+                                         var message = $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})";
                                          if (result.Metadata == null)
                                          {
                                              return message;
@@ -266,11 +266,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutFileCoreAsync(operationContext, hashType, path, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutFileRetries]),
-                    extraStartMessage: $"({path},{realizationMode},{hashType}) trusted=false",
+                    extraStartMessage: $"({hashType},{path},{realizationMode}) trusted=false",
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: result =>
                     {
-                        var message = $"({path},{realizationMode}) trusted=false";
+                        var message = $"({hashType},{path},{realizationMode}) trusted=false";
                         if (result.MetaData == null)
                         {
                             return message;
@@ -310,11 +310,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutFileCoreAsync(operationContext, contentHash, path, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutFileRetries]),
-                    extraStartMessage: $"({path},{realizationMode},{contentHash.ToShortString()}) trusted=false",
+                    extraStartMessage: $"({contentHash.ToShortString()},{path},{realizationMode}) trusted=false",
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: result =>
                                      {
-                                         var message = $"({path},{realizationMode}) trusted=false";
+                                         var message = $"({contentHash.ToShortString()},{path},{realizationMode}) trusted=false";
                                          if (result.MetaData == null)
                                          {
                                              return message;

@@ -127,6 +127,5 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             extraStartMessage: msg,
             extraEndMessage: _ => msg,
             timeout: _configuration.ClientCreationTimeout ?? Timeout.InfiniteTimeSpan);
-
     }
 }

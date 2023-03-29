@@ -994,6 +994,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_PosixDeleteMode" xml:space="preserve">
     <value>Controls the applicability of file/directory deletion using POSIX delete. Allowed values are NoRun, RunFirst, and RunLast. Defaults for Windows is RunLast, and for Unix is RunFirst</value>
   </data>
+  <data name="Args_ProfileRedirectEnabled_NoPathProvided" xml:space="preserve">
+    <value>User profile redirect was enabled (/enableProfileRedirect+) but the path to the redirected user profile was not set. Please use /RedirectedUserProfileJunctionRoot:&lt;path&gt; to set the path under which a junction to the real user profile will be created.</value>
+  </data>
   <data name="HelpText_DisplayHelp_RunInContainerAndAllowDoubleWrites" xml:space="preserve">
     <value>Configures the default for all scheduled pips to run in a container with output isolation, allowing double writes to occur. Individual pips can override this setting. This is an unsafe option.</value>
   </data>
@@ -1140,8 +1143,5 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_AlwaysRemoteInjectDetoursFrom32BitProcess" xml:space="preserve">
     <value>Always use remote detours injection when launching processes from a 32-bit process. Defaults to true.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_RedirectedUserProfileJunctionRoot" xml:space="preserve">
-    <value>When a path is set, the build engine will create a junction from a subdirectory of this path to the actual Windows user profile directory. Processes in the build will be routed to use this redirected user profile instead of the real one to help keep paths stable.</value>
   </data>
 </root>

@@ -897,12 +897,6 @@ namespace BuildXL
                 HelpLevel.Verbose
                 );
 
-            hw.WriteOption(
-                "/redirectedUserProfileJunctionRoot:<path>",
-                Strings.HelpText_DisplayHelp_RedirectedUserProfileJunctionRoot,
-                HelpLevel.Verbose
-                );
-            
             #endregion
 
             hw.WriteBanner(

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL;
@@ -37,7 +38,7 @@ namespace Test.BuildXL
             {
                 listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
                 testElements.LogPipProcessError();
-                testElements.Console.ValidateCall(MessageLevel.Info, testElements.ExpectingConsoleLog);
+                testElements.Console.ValidateCallForPipProcessErrorinADO(MessageLevel.Info, testElements.ExpectingConsoleLog);
                 XAssert.AreEqual(m_eventFields, testElements.PipProcessError, "You may edit the PipProcessError event fields, update the test and/or struct PipProcessErrorEventFields.");
                 AssertErrorEventLogged(LogEventId.PipProcessError);
             }
@@ -60,11 +61,11 @@ namespace Test.BuildXL
 
                 // First log should go through as normal
                 testElements.LogPipProcessError();
-                testElements.Console.ValidateCall(MessageLevel.Info, testElements.ExpectingConsoleLog);
+                testElements.Console.ValidateCallForPipProcessErrorinADO(MessageLevel.Info, testElements.ExpectingConsoleLog);
 
                 // Second will log the message about being truncated
-                testElements.LogPipProcessError();
-                testElements.Console.ValidateCall(MessageLevel.Info, "truncated");
+               testElements.LogPipProcessError();
+               testElements.Console.ValidateCallForPipProcessErrorinADO(MessageLevel.Info, new List<string>{ $"##vso[task.logIssue type=error;] Future messages of this level are truncated" });
 
                 // Third should result in no more messages logged
                 testElements.LogPipProcessError();
@@ -100,7 +101,7 @@ namespace Test.BuildXL
                     Text = text,
                     PipProcessErrorEvent = testElements.PipProcessError,
                 });
-                testElements.Console.ValidateCall(MessageLevel.Info, testElements.ExpectingConsoleLog);
+                testElements.Console.ValidateCallForPipProcessErrorinADO(MessageLevel.Info, testElements.ExpectingConsoleLog);
                 XAssert.IsTrue(testElements.ViewModel.BuildSummary.PipErrors.Any(e => e.SemiStablePipId == $"Pip{(pipSemiStableHash):X16}"));
                 XAssert.AreEqual(m_eventFields, testElements.PipProcessError, "You may edit the PipProcessError and/or WorkerForwardedEvent fields, and/or struct PipProcessErrorEventFields.");
                 AssertErrorEventLogged(SharedLogEventId.DistributionWorkerForwardedError);
@@ -113,7 +114,7 @@ namespace Test.BuildXL
         private class PipProcessErrorTestElement : IDisposable
         {
             public PipProcessErrorEventFields PipProcessError;
-            public string ExpectingConsoleLog;
+            public List<string> ExpectingConsoleLog = new List<string>();
             public MockConsole Console;
             public BuildViewModel ViewModel;
             private LoggingContext m_loggingContext;
@@ -136,8 +137,13 @@ namespace Test.BuildXL
                     "my pip",
                     totalElapsedTimeMs);
 
-                var processedOutputToLog = "Failure message Line1%0D%0A##[error]Failure message Line2%0D##[error]Failure message Line3%0A##[error]";
-                result.ExpectingConsoleLog = @$"##vso[task.logIssue type=error;]DX0064 [Pip0000000000000018, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}%0D%0A##[error]{processedOutputToLog}%0D%0A##[error]{pipProcessError.MessageAboutPathsToLog}%0D%0A##[error]{pipProcessError.PathsToLog}";
+                var addFormattingToErrorMessage = Environment.NewLine;
+                var errorPrefix = @$"DX0064 [Pip0000000000000018, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}";
+                var processedErrorOutputToLog = "##vso[task.logIssue type=error;]Failure message Line1%0D%0A##[error]Failure message Line2%0D##[error]Failure message Line3%0A##[error]";
+                var errorSuffix = $"{pipProcessError.MessageAboutPathsToLog}{addFormattingToErrorMessage}{pipProcessError.PathsToLog}";
+                result.ExpectingConsoleLog.Add(errorPrefix);
+                result.ExpectingConsoleLog.Add(processedErrorOutputToLog);
+                result.ExpectingConsoleLog.Add(errorSuffix);
                 result.PipProcessError = pipProcessError;
                 result.Console = new MockConsole();
                 result.ViewModel = new BuildViewModel();

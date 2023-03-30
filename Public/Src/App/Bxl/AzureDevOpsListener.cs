@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Tracing;
@@ -185,55 +186,58 @@ namespace BuildXL
 
         private void LogAzureDevOpsIssue(EventWrittenEventArgs eventData, string eventType)
         {
-            using (var pooledInstance = Pools.StringBuilderPool.GetInstance())
+            int dxCode = eventData.EventId;
+            var message = eventData.Message;
+            var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
+
+            // construct a short message for ADO console
+            if ((eventData.EventId == (int)LogEventId.PipProcessError)
+                || (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError && (int)args[1] == (int)LogEventId.PipProcessError))
             {
-                var builder = pooledInstance.Instance;
-                builder.Append("##vso[task.logIssue type=");
-                builder.Append(eventType);
+                dxCode = (int)LogEventId.PipProcessError;
+                var pipProcessError = new PipProcessErrorEventFields(eventData.Payload, eventData.EventId != (int)LogEventId.PipProcessError);
+                var pipSemiStableHash = Pip.FormatSemiStableHash(pipProcessError.PipSemiStableHash);
+                var formattedDXCode = FormatErrorCode(dxCode);
+                // Splitting the error message into different segments and logging them individually as we want only OutputsToLog to be highlighted.
+                var errorMessagePrefix = @$"{formattedDXCode}[{pipSemiStableHash}, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}";
+                m_console.WriteOutputLine(MessageLevel.Info, errorMessagePrefix);
 
-                int dxCode = eventData.EventId;
-                var message = eventData.Message;
-                var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
-                string body;
+                LogIssue(eventType, pipProcessError.OutputToLog);
 
-                var newArgs = args;
-                // construct a short message for ADO console
-                if ((eventData.EventId == (int)LogEventId.PipProcessError)
-                    || (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError && (int)args[1] == (int)LogEventId.PipProcessError))
-                {
-                    dxCode = (int)LogEventId.PipProcessError;
-                    var pipProcessError = new PipProcessErrorEventFields(eventData.Payload, eventData.EventId != (int)LogEventId.PipProcessError);
-                    args[0] = Pip.FormatSemiStableHash(pipProcessError.PipSemiStableHash);
-                    args[1] = pipProcessError.ShortPipDescription;
-                    args[2] = pipProcessError.PipSpecPath;
-                    args[3] = pipProcessError.ExitCode;
-                    args[4] = pipProcessError.OptionalMessage;
-                    args[5] = pipProcessError.OutputToLog;
-                    args[6] = pipProcessError.MessageAboutPathsToLog;
-                    args[7] = pipProcessError.PathsToLog;
-                    message = "[{0}, {1}, {2}] - failed with exit code {3}, {4}\r\n{5}\r\n{6}\r\n{7}";
-                }
-                else if (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError || eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedWarning)
+                var addFormattingToErrorMessage = Environment.NewLine;
+                var errorMessageSuffix = $"{pipProcessError.MessageAboutPathsToLog}{addFormattingToErrorMessage}{pipProcessError.PathsToLog}";
+                m_console.WriteOutputLine(MessageLevel.Info, errorMessageSuffix);
+            }
+            else
+            {
+                if (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError || eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedWarning)
                 {
                     message = "{0}";
                 }
 
-                body = string.Format(CultureInfo.CurrentCulture, message, args);
-                builder.Append(";]");
-
-                // DX code
-                builder.Append("DX");
-                builder.Append(dxCode.ToString("D4"));
-                builder.Append(' ');
-
-                // substitute newlines in the message
-                var encodedBody = body.Replace("\r\n", $"%0D%0A##[{eventType}]")
-                                      .Replace("\r", $"%0D##[{eventType}]")
-                                      .Replace("\n", $"%0A##[{eventType}]");
-                builder.Append(encodedBody);
-
-                m_console.WriteOutputLine(MessageLevel.Info, builder.ToString());
+                string messageBodyWithAppendedDXCode = string.Concat(FormatErrorCode(dxCode), message);
+                var messageBody = string.Format(CultureInfo.CurrentCulture, messageBodyWithAppendedDXCode, args);
+                LogIssue(eventType, messageBody);
             }
+        }
+
+        private void LogIssue(string eventType, string message)
+        {
+            // This method logs message body which needs to be highlighted.
+            m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.logIssue type={eventType};]{ReplaceNewLinesWithADOFormattingCommands(message, eventType)}");
+        }
+
+        private string FormatErrorCode(int dxCode)
+        {
+            // Construct DX code for the error and append it at the beginning of the error message.
+            return string.Concat("DX", dxCode.ToString("D4"), ' ');
+        }
+
+        private string ReplaceNewLinesWithADOFormattingCommands(string body, string eventType)
+        {
+            return body.Replace("\r\n", $"%0D%0A##[{eventType}]")
+                                  .Replace("\r", $"%0D##[{eventType}]")
+                                  .Replace("\n", $"%0A##[{eventType}]");
         }
 
         private void LogIssueWithLimit(ref int counter, EventWrittenEventArgs eventData, string level)

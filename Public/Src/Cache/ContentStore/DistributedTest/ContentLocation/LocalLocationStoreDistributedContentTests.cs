@@ -2284,12 +2284,13 @@ namespace ContentStoreTest.Distributed.Sessions
                     worker1Lls.Counters[ContentLocationStoreCounters.LocationAddEager].Value.Should().Be(1);
                     worker1Lls.Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Value.Should().Be(1);
 
-                    // Force the roundtrip to get the locations on the worker.
+                    TestClock.UtcNow += TimeSpan.FromHours(1.5);
+
                     await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+                    await worker.GetBulkLocalAsync(context, putResult0.ContentHash).ShouldBeSuccess();
 
                     TestClock.UtcNow += TimeSpan.FromHours(1.5);
-                    await worker.GetBulkLocalAsync(context, putResult0.ContentHash).ShouldBeSuccess();
-                    TestClock.UtcNow += TimeSpan.FromHours(1.5);
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
 
                     // It was 3 hours since the content was added and 1.5h since the last touch.
                     worker1Lls.Counters[ContentLocationStoreCounters.LazyTouchEventOnly].Value.Should().Be(0);

@@ -84,7 +84,7 @@ namespace Test.BuildXL.Processes.Detours
                 PipSemiStableHash = 0x12345678,
                 PipDescription = nameof(SerializeSandboxedProcessInfo),
                 TimeoutDumpDirectory = A("C", "Timeout"),
-                SandboxKind = global::BuildXL.Utilities.Configuration.SandboxKind.Default,
+                SandboxKind = SandboxKind.Default,
                 AllowedSurvivingChildProcessNames = new[] { "conhost.exe", "mspdbsrv.exe" },
                 NestedProcessTerminationTimeout = SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
                 StandardInputSourceInfo = StandardInputInfo.CreateForData("Data"),

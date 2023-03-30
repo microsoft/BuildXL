@@ -6,7 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Configuration;
 
 #nullable enable
 

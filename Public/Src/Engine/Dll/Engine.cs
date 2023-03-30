@@ -370,6 +370,9 @@ namespace BuildXL.Engine
             }
             // Designate a temp directory under ObjectDirectory for FileUtilities to move files to during deletion attempts
             m_moveDeleteTempDirectory = Path.Combine(configuration.Layout.ObjectDirectory.ToString(context.PathTable), MoveDeleteTempDirectoryName);
+
+            SandboxedProcess.SetMaxWorkingSetToPeakBeforeResume(EngineEnvironmentSettings.SetMaxWorkingSetToPeakBeforeResume.Value);
+            PipeReaderFactory.SetKind(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value);
         }
 
         /// <summary>

@@ -4,19 +4,21 @@
 using System;
 using System.IO.Pipes;
 using System.Text;
-using BuildXL.Utilities.Configuration;
+using BuildXL.Processes.Internal;
 
-namespace BuildXL.Processes.Internal
+namespace BuildXL.Processes
 {
     /// <summary>
     /// Factory for pipe reader.
     /// </summary>
-    internal static class PipeReaderFactory
+    public static class PipeReaderFactory
     {
+        private static Kind s_kind = Kind.Legacy;
+
         /// <summary>
         /// Kinds of pipe reader.
         /// </summary>
-        internal enum Kind
+        public enum Kind
         {
             /// <summary>
             /// Lagacy async pipe reader.
@@ -48,7 +50,7 @@ namespace BuildXL.Processes.Internal
         /// Currently there are two kinds of managed pipe reader, StreamAsyncPipeReader that
         /// is based on .NET stream reader and PipelineAsyncPipeReader that is based on .NET System.IO.Pipelines.
         /// </remarks>
-        public static IAsyncPipeReader CreateManagedPipeReader(
+        internal static IAsyncPipeReader CreateManagedPipeReader(
             NamedPipeServerStream pipeStream,
             StreamDataReceived callback,
             Encoding encoding,
@@ -71,21 +73,29 @@ namespace BuildXL.Processes.Internal
         /// <summary>
         /// Gets kind of pipe reader to be created.
         /// </summary>
+        private static Kind GetKind()
+        {
+            return s_kind;
+        }
+
+        /// <summary>
+        /// Sets kind of pipe reader to be created.
+        /// </summary>
         /// <remarks>
         /// For NET6 or greater, the default is StreamReader-based async pipe reader. For other runtimes,
         /// the legacy one is chosen.
         /// </remarks>
-        private static Kind GetKind()
+        public static void SetKind(string kind)
         {
 #if NET6_0_OR_GREATER
-            if (string.IsNullOrEmpty(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value))
+            if (!string.IsNullOrEmpty(kind))
             {
-                return Kind.Legacy;
+                s_kind = Enum.TryParse(kind, true, out Kind value) ? value : Kind.Legacy;
             }
-
-            return Enum.TryParse(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value, true, out Kind value) ? value : Kind.Legacy;
-#else
-            return Kind.Legacy;
+            else
+            {
+                s_kind = Kind.Legacy;
+            }
 #endif
         }
 

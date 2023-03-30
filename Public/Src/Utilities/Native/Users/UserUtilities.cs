@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Native.Users
 {
@@ -13,15 +12,14 @@ namespace BuildXL.Native.Users
     public static class UserUtilities
     {
         private static readonly IUserUtilities s_userUtilities = OperatingSystemHelper.IsUnixOS
-            ? (IUserUtilities) new Unix.UserUtilitiesUnix()
-            : (IUserUtilities) new Windows.UserUtilitiesWin();
+            ? new Unix.UserUtilitiesUnix()
+            : new Windows.UserUtilitiesWin();
 
         /// <summary>
         /// See <see cref="IUserUtilities.CurrentUserName"/>
         /// </summary>
-        public static string CurrentUserName()
-        {
-            return EngineEnvironmentSettings.BuildXLUserName.Value ?? s_userUtilities.CurrentUserName();
-        }
+        public static string CurrentUserName(string userName) => string.IsNullOrEmpty(userName)
+            ? s_userUtilities.CurrentUserName()
+            : userName;
     }
 }

@@ -11,7 +11,6 @@ using BuildXL.Native.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Sideband;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.BuildParameters;
 

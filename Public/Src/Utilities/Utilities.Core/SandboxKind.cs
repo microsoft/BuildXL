@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace BuildXL.Utilities.Configuration
+namespace BuildXL.Utilities.Core
 {
     /// <summary>
     /// Different kinds of sandboxes

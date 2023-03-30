@@ -18,8 +18,6 @@ using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Processes.Internal;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using Microsoft.Win32.SafeHandles;
@@ -45,6 +43,7 @@ namespace BuildXL.Processes
     {
         private const int MaxProcessPathLength = 1024;
         private static BinaryPaths? s_binaryPaths;
+        private static bool s_setMaxWorkingSetToPeakBeforeResume = false;
         private static readonly Guid s_payloadGuid = new Guid("7CFDBB96-C3D6-47CD-9026-8FA863C52FEC");
         private static readonly UIntPtr s_defaultMin = new UIntPtr(204800);
 
@@ -82,7 +81,6 @@ namespace BuildXL.Processes
         private readonly Aggregation m_peakCommitSize = new Aggregation();
         private readonly Aggregation m_commitSize = new Aggregation();
 
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "We own these objects.")]
         internal SandboxedProcess(SandboxedProcessInfo info)
         {
             Contract.Requires(!info.Timeout.HasValue || info.Timeout.Value >= TimeSpan.Zero);
@@ -97,10 +95,10 @@ namespace BuildXL.Processes
             }
 
             // If unspecified make the injection timeout the DefaultProcessTimeoutInMinutes. Also, make it no less than DefaultProcessTimeoutInMinutes.
-            m_timeoutMins = info.Timeout.HasValue ? ((uint)info.Timeout.Value.TotalMinutes) : SandboxConfiguration.DefaultProcessTimeoutInMinutes;
-            if (m_timeoutMins < SandboxConfiguration.DefaultProcessTimeoutInMinutes)
+            m_timeoutMins = info.Timeout.HasValue ? ((uint)info.Timeout.Value.TotalMinutes) : Defaults.ProcessTimeoutInMinutes;
+            if (m_timeoutMins < Defaults.ProcessTimeoutInMinutes)
             {
-                m_timeoutMins = SandboxConfiguration.DefaultProcessTimeoutInMinutes;
+                m_timeoutMins = Defaults.ProcessTimeoutInMinutes;
             }
 
             m_fileAccessManifest = info.FileAccessManifest;
@@ -279,21 +277,21 @@ namespace BuildXL.Processes
             var visitResult = TryVisitJobObjectProcesses((processHandle, pid) =>
             {
                 ulong peakWorkingSet = 0;
-                if (EngineEnvironmentSettings.SetMaxWorkingSetToPeakBeforeResume)
+                if (s_setMaxWorkingSetToPeakBeforeResume)
                 {
                     // If maxLimitMultiplier is not zero, retrieve the memory counters before empty the working set.
                     // Those memory counters will be used when setting the maxworkingsetsize of the process.
-                    var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                    var memoryUsage = GetMemoryUsageCounters(processHandle.DangerousGetHandle());
                     peakWorkingSet = memoryUsage?.PeakWorkingSetSize ?? 0;
                 }
 
                 if (peakWorkingSet != 0)
                 {
-                    Interop.Windows.Memory.SetProcessWorkingSetSizeEx(
+                    SetProcessWorkingSetSizeEx(
                         processHandle.DangerousGetHandle(),
                         s_defaultMin, // the default on systems with 4k pages
                         new UIntPtr(peakWorkingSet),
-                        Interop.Windows.Memory.WorkingSetSizeFlags.MaxEnable | Interop.Windows.Memory.WorkingSetSizeFlags.MinDisable);
+                        WorkingSetSizeFlags.MaxEnable | WorkingSetSizeFlags.MinDisable);
                 }
 
                 try
@@ -918,6 +916,11 @@ namespace BuildXL.Processes
             m_resultTaskCompletionSource.SetResult(result);
         }
 
+        internal static void SetMaxWorkingSetToPeakBeforeResume(bool setPeak)
+        {
+            s_setMaxWorkingSetToPeakBeforeResume = setPeak;
+        }
+
         /// <summary>
         /// Start a sandboxed process asynchronously. The result will only be available once the process terminates.
         /// </summary>
@@ -925,7 +928,6 @@ namespace BuildXL.Processes
         /// Thrown if the process creation fails in a recoverable manner due do some obscure problem detected by the underlying
         /// ProcessCreate call.
         /// </exception>
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "Object lives on via task result.")]
         public static async Task<SandboxedProcess> StartAsync(SandboxedProcessInfo info)
         {
             var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);

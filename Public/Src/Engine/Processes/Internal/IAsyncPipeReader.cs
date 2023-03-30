@@ -4,8 +4,11 @@
 using System;
 using System.Threading.Tasks;
 
-namespace BuildXL.Processes.Internal
+namespace BuildXL.Processes
 {
+    /// <summary>
+    /// Interface for AsyncPipeReaders. Used for Legacy, Stream, and Baseline.
+    /// </summary>
     internal interface IAsyncPipeReader : IDisposable
     {
         /// <summary>

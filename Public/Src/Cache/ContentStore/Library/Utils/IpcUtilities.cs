@@ -13,6 +13,7 @@ using System.Security.Principal;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Native.Users;
+using BuildXL.Utilities.Configuration;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Cache.ContentStore.Utils
@@ -232,7 +233,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             public static EventWaitHandleAccessRule CurrentUserFullControlRule()
             {
-                var currentUser = UserUtilities.CurrentUserName();
+                var currentUser = UserUtilities.CurrentUserName(EngineEnvironmentSettings.BuildXLUserName.Value);
                 return new EventWaitHandleAccessRule(
                     currentUser,
                     EventWaitHandleRights.FullControl,

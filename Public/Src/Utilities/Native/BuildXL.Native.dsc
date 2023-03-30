@@ -66,7 +66,6 @@ namespace Native {
             Interop.dll,
             ...securityDlls,
             Collections.dll,
-            Configuration.dll,
             Utilities.Core.dll,
             importFrom("CopyOnWrite").pkg,
         ],

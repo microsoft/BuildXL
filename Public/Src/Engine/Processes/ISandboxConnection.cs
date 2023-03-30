@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Configuration;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 

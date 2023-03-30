@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.Users;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -39,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public static bool EnsureRunning(Context context, string? scenario, int waitMs)
         {
-            var currentUser = UserUtilities.CurrentUserName();
+            var currentUser = UserUtilities.CurrentUserName(EngineEnvironmentSettings.BuildXLUserName.Value);
 
 #if PLATFORM_WIN
             _tracer.Debug(context, $"Opening ready event name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}.");
@@ -95,7 +96,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public static EventWaitHandle? OpenShutdownEvent(Context context, string? scenario)
         {
-            var currentUser = UserUtilities.CurrentUserName();
+            var currentUser = UserUtilities.CurrentUserName(EngineEnvironmentSettings.BuildXLUserName.Value);
             _tracer.Debug(context, $"Opening shutdown event name=[{scenario}] for user=[{currentUser}]");
 
             EventWaitHandle? handle = null;
@@ -116,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private static EventWaitHandle CreateReadyEvent(ILogger logger, string? scenario)
         {
-            var currentUser = UserUtilities.CurrentUserName();
+            var currentUser = UserUtilities.CurrentUserName(EngineEnvironmentSettings.BuildXLUserName.Value);
 
             logger.Debug($"Creating ready event name=[{scenario}] for user=[{currentUser}]");
             var readyEvent = IpcUtilities.GetReadyWaitHandle(scenario);
@@ -132,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private static EventWaitHandle CreateShutdownEvent(ILogger logger, string? scenario)
         {
-            var currentUser = UserUtilities.CurrentUserName();
+            var currentUser = UserUtilities.CurrentUserName(EngineEnvironmentSettings.BuildXLUserName.Value);
 
             logger.Debug($"Creating shutdown event name=[{scenario}] for user=[{currentUser}]");
             var shutdownEvent = IpcUtilities.GetShutdownWaitHandle(scenario);

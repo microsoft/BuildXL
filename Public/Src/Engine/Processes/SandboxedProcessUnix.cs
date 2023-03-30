@@ -16,7 +16,6 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
 using static BuildXL.Interop.Unix.Sandbox;

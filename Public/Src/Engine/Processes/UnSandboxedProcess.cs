@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Diagnostics.CodeAnalysis;
 #if FEATURE_SAFE_PROCESS_HANDLE
@@ -32,7 +31,7 @@ namespace BuildXL.Processes
     {
         private ISet<ReportedFileAccess> EmptyFileAccessesSet => new HashSet<ReportedFileAccess>();
 
-        private static readonly TimeSpan s_defaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
+        private static readonly TimeSpan s_defaultProcessTimeout = TimeSpan.FromMinutes(Defaults.ProcessTimeoutInMinutes);
 
         private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessOutputBuilder m_error;
@@ -475,7 +474,7 @@ namespace BuildXL.Processes
         /// </summary>
         internal void LogDebug(string message)
         {
-            if (BuildXL.Processes.SandboxConnection.IsInDebugMode || ShouldReportFileAccesses)
+            if (SandboxConnection.IsInDebugMode || ShouldReportFileAccesses)
             {
                 LogProcessState(message);
             }

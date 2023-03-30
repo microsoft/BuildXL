@@ -12,7 +12,6 @@ using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Processes

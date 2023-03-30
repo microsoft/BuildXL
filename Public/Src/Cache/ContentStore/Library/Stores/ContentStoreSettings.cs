@@ -78,7 +78,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// A number of retries used for opening a file for hashing.
         /// </summary>
-        public int? RetryCountForFileHashing { get; set; }
+        public int? RetryCountForFileHashing { get; set; } = 5;
 
         /// <summary>
         /// A delay between retrying opening a file for hashing.

@@ -354,8 +354,7 @@ namespace BuildXL
 
                         string standardStatus = sb.ToString();
                         string updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo);
-
-                        bool allowStatusThrottling = eventData.EventId != (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable;
+                        bool allowStatusThrottling = m_optimizeForAzureDevOps && eventData.EventId != (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable;
                         SendToConsole(eventData, "info", standardStatus, allowStatusThrottling: allowStatusThrottling, updatableMessage: updatingStatus);
                     }
 
@@ -533,13 +532,11 @@ namespace BuildXL
 
         private void SendToConsole(EventWrittenEventArgs eventData, string label, string message, bool allowStatusThrottling, string updatableMessage = null)
         {
-            /* Bug: 2044355
-             * Temporarily disable until addressed
             if (allowStatusThrottling && m_statusMessageThrottler.ShouldThrottleStatusUpdate())
             {
                 // Bail out early if this is a status update and the update period is more frequent than desired
                 return;
-            }*/
+            }
 
             string finalMessage = CreateFullMessageString(eventData, label, message, BaseTime, UseCustomPipDescription, TimeDisplay.Seconds);
 

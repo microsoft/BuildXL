@@ -7,7 +7,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Resolves file accesses containing reparse points by normalizing them into corresponding reparse point free ones

@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Utilities.Core;
 
-namespace BuildXL.Processes
+namespace BuildXL.Processes.External
 {
     /// <summary>
     /// Class that wraps the tool for executing sandboxed process externally.

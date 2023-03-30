@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities.Core;
 
-namespace BuildXL.Processes
+namespace BuildXL.Processes.External
 {
     /// <summary>
     /// Sanboxed process that will be executed by an external tool.

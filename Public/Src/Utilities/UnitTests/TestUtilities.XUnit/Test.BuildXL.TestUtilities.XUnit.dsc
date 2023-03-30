@@ -19,6 +19,7 @@ namespace TestUtilities.XUnit {
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Engine").Processes.External.dll,
             importFrom("BuildXL.Pips").dll,
             ...importFrom("Sdk.Managed.Testing.XUnit").xunitReferences,
             TestUtilities.dll,

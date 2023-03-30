@@ -3,11 +3,9 @@
 
 using System;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.EngineTestUtilities;

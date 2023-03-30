@@ -36,6 +36,7 @@ using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Processes.External;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;

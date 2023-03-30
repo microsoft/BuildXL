@@ -6,9 +6,10 @@ using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
+using BuildXL.Processes;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Utility class for identifying a file as being an output of a shared opaque.

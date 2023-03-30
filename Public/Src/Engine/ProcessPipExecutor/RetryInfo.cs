@@ -4,7 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.IO;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Information for process retrial, including the reason and the location (same worker vs. different worker) for retry.

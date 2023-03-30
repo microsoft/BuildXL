@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;

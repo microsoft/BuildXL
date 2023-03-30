@@ -518,9 +518,10 @@ namespace BuildXL.Processes
         public TimeSpan? ReportQueueProcessTimeoutForTests { get; internal set; }
 
         /// <summary>
-        /// Extra data for executing a pip in an external VM.
+        /// This contains a set of stale outputs from a previous external vm run of this pip that must
+        /// be cleaned before performing a retry.
         /// </summary>
-        public ExternalVMSandboxedProcessData? ExternalVMSandboxedProcessData { get; set; }
+        public IReadOnlyList<string>? ExternalVmSandboxStaleFilesToClean { get; set; }
 
         /// <summary>
         /// Whether to create a sandbox trace file.
@@ -602,7 +603,7 @@ namespace BuildXL.Processes
                 writer.Write(SidebandWriter, (w, v) => v!.Serialize(w));
                 writer.Write(CreateJobObjectForCurrentProcess);
                 writer.WriteNullableString(DetoursFailureFile);
-                writer.Write(ExternalVMSandboxedProcessData, (w, v) => v!.Serialize(w));
+                writer.WriteNullableReadOnlyList(ExternalVmSandboxStaleFilesToClean, (w, s) => w.Write(s));
                 writer.Write(CreateSandboxTraceFile);
 
                 // File access manifest should be serialized the last.
@@ -650,7 +651,7 @@ namespace BuildXL.Processes
                 var sidebandWritter = reader.ReadNullable(r => SidebandWriter.Deserialize(r));
                 var createJobObjectForCurrentProcess = reader.ReadBoolean();
                 var detoursFailureFile = reader.ReadNullableString();
-                var externalVMSandboxedProcessData = reader.ReadNullable(r => ExternalVMSandboxedProcessData.Deserialize(r));
+                var externalVmSandboxStaleFilesToClean = reader.ReadNullableReadOnlyList(r => r.ReadString());
                 var createSandboxTraceFile = reader.ReadBoolean();
 
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
@@ -690,7 +691,7 @@ namespace BuildXL.Processes
                     StandardObserverDescriptor = standardObserverDescriptor,
                     RedirectedTempFolders = redirectedTempFolder,
                     DetoursFailureFile = detoursFailureFile,
-                    ExternalVMSandboxedProcessData = externalVMSandboxedProcessData,
+                    ExternalVmSandboxStaleFilesToClean = externalVmSandboxStaleFilesToClean,
                     NumRetriesPipeReadOnCancel = numRetriesPipeReadOnCancel,
                     CreateSandboxTraceFile = createSandboxTraceFile,
                 };

@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.IO;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;

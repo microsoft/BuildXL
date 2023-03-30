@@ -4,8 +4,9 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
+using BuildXL.Processes;
 
-namespace BuildXL.Processes
+namespace BuildXL.ProcessPipExecutor
 {
     /// <summary>
     /// Comparer for <see cref="ObservedFileAccess"/>es which orders the accesses by their expanded paths

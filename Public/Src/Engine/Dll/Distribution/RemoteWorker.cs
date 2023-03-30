@@ -23,7 +23,6 @@ using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Tracing;
@@ -1030,7 +1029,7 @@ namespace BuildXL.Engine.Distribution
                     step: runnablePip.Step.AsString(),
                     callerName: callerName);
 
-                result = ExecutionResult.GetRetryableNotRunResult(operationContext, Processes.RetryInfo.GetDefault(Processes.RetryReason.StoppedWorker));
+                result = ExecutionResult.GetRetryableNotRunResult(operationContext, RetryInfo.GetDefault(RetryReason.StoppedWorker));
 
                 pipCompletionTask.TrySet(result);
                 return;

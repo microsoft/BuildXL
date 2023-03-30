@@ -25,7 +25,7 @@ namespace Scheduler {
             Cache.dll,
             ProcessPipExecutor.dll,
             Processes.dll,
-            Processes.Remoting.dll,
+            Processes.External.dll,
             ProcessPipExecutor.dll,
             Distribution.Grpc.dll,
             ViewModel.dll,

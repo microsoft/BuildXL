@@ -19,9 +19,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using Mount=BuildXL.Utilities.Configuration.Mutable.Mount;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Sdk;
 
 namespace Test.BuildXL.Engine
 {

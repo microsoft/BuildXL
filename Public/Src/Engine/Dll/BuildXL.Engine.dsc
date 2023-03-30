@@ -27,6 +27,7 @@ namespace Engine {
             Cache.Plugin.Core.dll,
             ProcessPipExecutor.dll,
             Processes.dll,
+            Processes.External.dll,
             Scheduler.dll,
             Distribution.Grpc.dll,
             ViewModel.dll,

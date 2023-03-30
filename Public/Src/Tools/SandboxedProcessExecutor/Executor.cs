@@ -715,9 +715,9 @@ namespace BuildXL.SandboxedProcessExecutor
         /// <returns>True if succeeded</returns>
         private bool TryCleanStaleOuputs(SandboxedProcessInfo info)
         {
-            if (info.ExternalVMSandboxedProcessData != null)
+            if (info.ExternalVmSandboxStaleFilesToClean != null)
             {
-                foreach (var staleFile in info.ExternalVMSandboxedProcessData.StaleFilesToClean)
+                foreach (var staleFile in info.ExternalVmSandboxStaleFilesToClean)
                 {
                     // Log who was holding the file from inside the VM
                     if (FileUtilities.TryFindOpenHandlesToFile(staleFile, out var diagnosticData, printCurrentFilePath: true))

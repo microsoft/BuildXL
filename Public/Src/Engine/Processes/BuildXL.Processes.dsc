@@ -33,7 +33,6 @@ namespace Processes {
                 }),
                 importFrom("System.IO.Pipelines").pkg
             ),
-            ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Collections.dll,

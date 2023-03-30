@@ -12,7 +12,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 using BuildXL.Processes.VmCommandProxy;
 
-namespace BuildXL.Processes
+namespace BuildXL.Processes.External
 {
     /// <summary>
     /// Sandboxed process that will be executed in VM.

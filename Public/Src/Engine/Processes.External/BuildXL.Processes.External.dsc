@@ -3,28 +3,24 @@
 
 import * as GrpcSdk from "Sdk.Protocols.Grpc";
 
-namespace Processes.Remoting {
+namespace Processes.External {
 
     @@public
     export const dll = BuildXLSdk.library({
-        assemblyName: "BuildXL.Processes.Remoting",
+        assemblyName: "BuildXL.Processes.External",
         sources: [
             ...globR(d`.`, "*.cs"),
             ...GrpcSdk.generateCSharp({
-                    proto: [f`Proto/Remote.proto`]
+                    proto: [f`Remoting/Proto/Remote.proto`]
                 }).sources
             ],
         references: [
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            ]),
-
-            ...addIf(BuildXLSdk.isFullFramework,
-                BuildXLSdk.NetFx.System.IO.Compression.dll,
-                BuildXLSdk.NetFx.System.Management.dll,
+                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
                 BuildXLSdk.NetFx.System.Net.Http.dll,
                 NetFx.Netstandard.dll
-            ),
+            ]),
 
             Processes.dll,
 

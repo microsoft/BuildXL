@@ -7,14 +7,16 @@ namespace ProcessPipExecutor {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.ProcessPipExecutor",
         sources: globR(d`.`, "*.cs"),
+        allowUnsafeBlocks: true,
         references: [
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             ]),
 
             Processes.dll,
-            Processes.Remoting.dll,
+            Processes.External.dll,
 
+            ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,

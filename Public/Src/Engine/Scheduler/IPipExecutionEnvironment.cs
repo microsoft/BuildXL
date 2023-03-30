@@ -13,14 +13,13 @@ using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.VmCommandProxy;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
 {

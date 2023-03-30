@@ -25,6 +25,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.External;
 using BuildXL.Processes.Internal;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.Sideband;
@@ -1239,7 +1240,7 @@ namespace BuildXL.ProcessPipExecutor
             {
                 if (m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM != null && m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM.Count > 0)
                 {
-                    info.ExternalVMSandboxedProcessData = new ExternalVMSandboxedProcessData(m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM);
+                    info.ExternalVmSandboxStaleFilesToClean = m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM;
                 }
             }
         }

@@ -11,7 +11,7 @@ using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 
-namespace BuildXL.Processes
+namespace BuildXL.Processes.External
 {
     /// <summary>
     /// Class representing external execution of sandboxed process.

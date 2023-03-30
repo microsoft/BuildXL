@@ -7,12 +7,15 @@ parameters:
   - name: DropName
     type: string
     default: buildxl.dogfood.$(BuildXLPackageVersion)
+  - name: Role
+    type: string
+    default: Orchestrator
 
 variables:
   - group: "BuildXL Common variables"
   - group: "BuildXL Secrets"
   - name: Domino.DogfoodPackagePath
-    value: $(System.DefaultWorkingDirectory)\$(Build.BuildId)\Dogfood
+    value: $(Build.StagingDirectory)\$(Build.BuildId)\Dogfood
   - name: BuildXL.RepoDirectory
     value: $(Build.Repository.LocalPath)
   - name: BuildXL.LogsDirectory
@@ -22,17 +25,37 @@ variables:
   - name: BxlScriptArgs
     value: -UseAdoBuildRunner -SharedCacheMode ConsumeAndPublish -Use Dev -DevRoot $(Domino.DogfoodPackagePath)\release\win-x64
   - name: BuildXLArgs
-    value: /q:ReleaseDotNet6 /server- /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=* /p:BuildXLWorkerAttachTimeoutMin=5 /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceinfo:valdation=ReleasePipelineDistribution /enableIncrementalFrontEnd- /p:xunitSemaphoreCount=12
+    value: /q:ReleaseDotNet6 /server- /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=* /dynamicBuildWorkerSlots:2 /p:BuildXLWorkerAttachTimeoutMin=5 /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceinfo:valdation=ReleasePipelineDistribution /enableIncrementalFrontEnd- /p:xunitSemaphoreCount=12
 
 pool:
   name: BuildXL-DevOpsAgents-PME
 
 jobs:
 - job: Distributed_Clean
-  strategy:
-    parallel: 3
+  ${{ if eq(parameters.Role, 'Worker') }}:
+    strategy:
+      parallel: 2
+
   displayName: Clean distributed build
   steps:
+  - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
+    displayName: 'Download ${{ parameters.DropName }} from drop'
+    inputs:
+      dropServiceURI: 'https://mseng.artifacts.visualstudio.com/DefaultCollection'
+      buildNumber: '${{ parameters.DropName }}'
+      destinationPath: '$(Domino.DogfoodPackagePath)'
+      rootPaths: 'release/win-x64'
+
+  - ${{ if eq(parameters.Role, 'Orchestrator') }}:
+    - task: PowerShell@2
+      inputs:
+        targetType: 'inline'
+        script: .\AdoBuildRunner.exe launchworkers 13959 /param:DropName=${{ parameters.DropName }} /param:Role=Worker
+        workingDirectory: $(Domino.DogfoodPackagePath)\release\win-x64
+      displayName: 'Trigger worker pipeline'
+      env:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
   - checkout: self
     fetchDepth: 1
   
@@ -41,14 +64,6 @@ jobs:
       AzDevPAT: $(PAT-TseBuild-AzureDevOps-MsEng)
 
   - template: ../common/journaling.yml
-
-  - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
-    displayName: 'Download ${{ parameters.DropName }} from drop'
-    inputs:
-      dropServiceURI: 'https://mseng.artifacts.visualstudio.com/DefaultCollection'
-      buildNumber: '${{ parameters.DropName }}'
-      destinationPath: '$(Domino.DogfoodPackagePath)'
-      rootPaths: 'release/win-x64'
 
   - script: |
       netsh advfirewall firewall add rule name="Open BuildXL inbound port" dir=in action=allow protocol=TCP localport=6979
@@ -64,6 +79,7 @@ jobs:
     displayName: 'Run clean selfhost build distributed'
     env:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
   
   - powershell: |
       $bxlWithRemotingLogDir = "$(BuildXL.LogsDirectory)"

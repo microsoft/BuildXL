@@ -135,11 +135,11 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
 
     // If current host is windowns, esrp sign configuration and sign tool path is configured, sign the dll binary files.
     if (Context.getCurrentHost().os === "win" && args.esrpSignConfiguration !== undefined) {
-        const signedFilesDirectoryName = `${args.id}.${args.version}.signed`;
-        const signedDir = d`${downloadDirectory.combine(signedFilesDirectoryName)}`;
+         const signedFilesDirectoryName = `${args.id}.${args.version}.signed`;
+         const signedDir = d`${downloadDirectory.combine(signedFilesDirectoryName)}`;
 
-        let signFiles = BinarySigner.signDirectory(args.esrpSignConfiguration, resultDir, signedDir);
-        return Transformer.sealPartialDirectory(signedDir, signFiles);
+         let signFiles = BinarySigner.signDirectory(args.esrpSignConfiguration, resultDir, signedDir);
+         return Transformer.sealPartialDirectory(signedDir, signFiles);
     }
 
     return resultDir;

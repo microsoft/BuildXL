@@ -204,6 +204,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public TimeSpan AsyncSessionShutdownTimeout { get; set; }
 
+        /// <summary>
+        /// Whether to protect hibernated session data.
+        /// </summary>
+        public bool ProtectHibernatedSessionData { get; set; } = true;
+
         /// <inheritdoc />
         public override string ToString()
         {

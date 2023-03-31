@@ -112,6 +112,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? DoNotShutdownSessionsInUse { get; set; }
 
+        /// <summary>
+        /// Whether to protect hibernated session data.
+        /// </summary>
+        [DataMember]
+        public bool? ProtectHibernatedSessionData { get; set; }
+
         /// <nodoc />
         [DataMember]
         public GrpcCoreServerOptions GrpcCoreServerOptions { get; set; }

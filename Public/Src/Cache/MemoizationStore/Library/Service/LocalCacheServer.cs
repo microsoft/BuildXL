@@ -119,12 +119,16 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 HibernatedSessions<HibernatedCacheSessionInfo> datas;
                 try
                 {
-                    datas = await FileSystem.ReadProtectedHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName);
+                    datas = Config.ProtectHibernatedSessionData
+                        ? await FileSystem.ReadProtectedHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName)
+                        : await FileSystem.ReadHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName);
                 }
                 catch (Exception e)
                 {
-                    Tracer.Debug(context, $"Failed to read protected hibernated cache sessions. Attempting to read unprotected data. Exception: {e}");
-                    datas = await FileSystem.ReadHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName);
+                    Tracer.Debug(context, $"Failed to read {(Config.ProtectHibernatedSessionData ? "protected" : "unprotected")} hibernated cache sessions. Attempting to read unprotected data. Exception: {e}");
+                    datas = Config.ProtectHibernatedSessionData
+                        ? await FileSystem.ReadHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName)
+                        : await FileSystem.ReadProtectedHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName);
                 }
 
                 foreach (var data in datas.Sessions)
@@ -219,14 +223,22 @@ namespace BuildXL.Cache.MemoizationStore.Service
             }
             var hibernatedSessions = new HibernatedSessions<HibernatedCacheSessionInfo>(sessionInfoList);
 
-            try
+            if (Config.ProtectHibernatedSessionData)
             {
-                await hibernatedSessions.WriteProtectedAsync(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
+                try
+                {
+                    await hibernatedSessions.WriteProtectedAsync(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
+                }
+                catch (Exception e) when (e is NotSupportedException)
+                {
+                    Tracer.Debug(context, e, "Failed to protect hibernated sessions because it is not supported by the current OS. " +
+                        $"Attempting to hibernate while unprotected.");
+                    hibernatedSessions.Write(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
+                }
             }
-            catch (Exception e) when (e is NotSupportedException)
+            else
             {
-                Tracer.Debug(context, e, "Failed to protect hibernated sessions because it is not supported by the current OS. " +
-                    $"Attempting to hibernate while unprotected.");
+                // Saving unprotected data to avoid errors reading it (WindowsCryptographicException: Key not valid for use in specified state)
                 hibernatedSessions.Write(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
             }
 

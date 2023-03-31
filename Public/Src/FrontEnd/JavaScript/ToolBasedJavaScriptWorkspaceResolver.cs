@@ -15,6 +15,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json;
+using System.Diagnostics.ContractsLight;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.FrontEnd.JavaScript
 {
@@ -101,6 +103,14 @@ namespace BuildXL.FrontEnd.JavaScript
             }
 
             return maybeResult;
+        }
+
+        /// <summary>
+        /// Defined the project name for a group based on its group members and group command name
+        /// </summary>
+        protected virtual string GetProjectNameForGroup(IReadOnlyCollection<JavaScriptProject> groupMembers, string groupCommandName)
+        {
+            throw new NotImplementedException("Subclasses are supposed to implement this");
         }
 
         private async Task<Possible<(JavaScriptGraph<TGraphConfiguration>, GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration>)>> ComputeBuildGraphAsync(
@@ -229,6 +239,128 @@ namespace BuildXL.FrontEnd.JavaScript
 
                 return graph.Then(graph => new Possible<(JavaScriptGraph<TGraphConfiguration>, GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration>)>((graph, flattenedJavaScriptGraph)));
             }
+        }
+
+        /// <summary>
+        /// Resolves a JavaScript graph without execution semantics. Assumes each JS project has at most one script command.
+        /// </summary>
+        protected Possible<JavaScriptGraph<TGraphConfiguration>> ResolveGraphWithoutExecutionSemantics(GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration> flattenedJavaScriptGraph)
+        {
+            // Compute the inverse relationship between commands and their groups
+            var commandGroupMembership = BuildCommandGroupMembership();
+
+            // Here we put all resolved projects (including the ones belonging to a group command)
+            var resolvedProjects = new Dictionary<string, (JavaScriptProject JavaScriptProject, IReadOnlyCollection<string> dependencies)>(flattenedJavaScriptGraph.Projects.Count);
+            // Here we put the resolved projects that belong to a given group. Use the project folder + command group as the key for a group. The assumption here is that all resolved projects that belong to the
+            // same group share the project folder (since grouping is about bundling together script commands coming from the same package.json)
+            var resolvedGroups = new MultiValueDictionary<(AbsolutePath projectFolder, string commandGroup), JavaScriptProject>(CommandGroups.Keys.Count());
+            // This is the final list of projects
+            var resultingProjects = new List<JavaScriptProject>();
+
+            foreach (var deserializedProject in flattenedJavaScriptGraph.Projects)
+            {
+                Contract.Assert(deserializedProject.AvailableScriptCommands.Count == 1, "If the graph builder tool is already adding the execution semantics, each deserialized project should only have one script command");
+                string command = deserializedProject.AvailableScriptCommands.Keys.Single();
+
+                if (!TryValidateAndCreateProject(command, deserializedProject, out JavaScriptProject javaScriptProject, out Failure failure))
+                {
+                    return failure;
+                }
+
+                // Here we check for duplicate projects
+                if (resolvedProjects.ContainsKey((javaScriptProject.Name)))
+                {
+                    return new JavaScriptProjectSchedulingFailure(javaScriptProject,
+                        $"Duplicate project name '{javaScriptProject.Name}' defined in '{javaScriptProject.ProjectFolder.ToString(Context.PathTable)}' " +
+                        $"and '{resolvedProjects[javaScriptProject.Name].JavaScriptProject.ProjectFolder.ToString(Context.PathTable)}' for script command '{command}'");
+                }
+
+                // If the command does not belong to any group, we know it is already part of the final list of projects
+                if (!commandGroupMembership.TryGetValue(command, out string commandGroup))
+                {
+                    resultingProjects.Add(javaScriptProject);
+                }
+                else
+                {
+                    // Otherwise, group it so we can inspect it later
+                    resolvedGroups.Add((javaScriptProject.ProjectFolder, commandGroup), javaScriptProject);
+                }
+
+                resolvedProjects.Add(javaScriptProject.Name, (javaScriptProject, deserializedProject.Dependencies));
+            }
+
+            // Here we build a map between each group member to its group project
+            var resolvedCommandGroupMembership = new Dictionary<JavaScriptProject, JavaScriptProject>();
+
+            // Now add groups commands
+            foreach (var kvp in resolvedGroups)
+            {
+                string commandName = kvp.Key.commandGroup;
+                AbsolutePath projectFolder = kvp.Key.projectFolder;
+                IReadOnlyList<JavaScriptProject> members = kvp.Value;
+
+                Contract.Assert(members.Count > 0);
+
+                // All members of a group are expected to share the same project and temp folder (since
+                // they all come from the same package.json)
+                var firstMember = members.First();
+
+                var groupProject = CreateGroupProject(commandName, GetProjectNameForGroup(members, commandName), members, firstMember.ProjectFolder, firstMember.TempFolder);
+
+                // Here we check for duplicate projects
+                if (resolvedProjects.ContainsKey(groupProject.Name))
+                {
+                    return new JavaScriptProjectSchedulingFailure(groupProject,
+                        $"Duplicate project name '{groupProject.Name}' defined in '{groupProject.ProjectFolder.ToString(Context.PathTable)}' " +
+                        $"and '{resolvedProjects[groupProject.Name].JavaScriptProject.ProjectFolder.ToString(Context.PathTable)}' for script command '{commandName}'");
+                }
+
+                // Group dependencies are defined by the union of the dependencies of their members. 
+                // Turn this into a set to dedup them
+                var groupedDependencies = members.SelectMany(member => resolvedProjects[member.Name].dependencies).ToReadOnlySet();
+
+                resolvedProjects.Add(groupProject.Name, (groupProject, groupedDependencies));
+                // This project group should be part of the final list of projects
+                resultingProjects.Add(groupProject);
+
+                // Update the resolved membership so each member points to its group project
+                foreach (var member in members)
+                {
+                    resolvedCommandGroupMembership[member] = groupProject;
+                }
+            }
+
+            // Now resolve dependencies
+            foreach (var resultingProject in resultingProjects)
+            {
+                var dependencies = resolvedProjects[resultingProject.Name].dependencies;
+
+                // Let's use a set so we make sure dependencies are deduped
+                var projectDependencies = new HashSet<JavaScriptProject>();
+                foreach (string dependency in dependencies)
+                {
+                    // Some providers (e.g. Lage) list dependencies to nodes that don't actually exist. This is typically when, for example, project A depends on B, A has a 'build' verb
+                    // but B doesn't. B#build will be listed as a dependency for A#build, but B#build won't be defined as a node in the graph. The dependency in the case should be ignored.
+                    if (!resolvedProjects.TryGetValue(dependency, out var value))
+                    {
+                        Tracing.Logger.Log.IgnoredDependency(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), dependency, resultingProject.Name);
+                        continue;
+                    }
+
+                    var resolvedDependency = GetGroupProjectIfDefined(resolvedCommandGroupMembership, value.JavaScriptProject);
+                    // Let's avoid a reference to itself. This can happen when two dependencies point to different scripts of the same project
+                    if (resolvedDependency != resultingProject)
+                    {
+                        projectDependencies.Add(resolvedDependency);
+                    }
+                }
+
+                resultingProject.SetDependencies(projectDependencies);
+            }
+
+            return new JavaScriptGraph<TGraphConfiguration>(
+                new List<JavaScriptProject>(resultingProjects),
+                flattenedJavaScriptGraph.Configuration);
         }
 
         private Task<SandboxedProcessResult> RunJavaScriptGraphBuilderAsync(

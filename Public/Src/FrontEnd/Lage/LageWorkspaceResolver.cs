@@ -2,13 +2,15 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.FrontEnd.JavaScript;
+using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Lage.ProjectGraph;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Lage
 {
@@ -70,12 +72,33 @@ namespace BuildXL.FrontEnd.Lage
             // Use forward slashes for all node.exe arguments to avoid this.
             string pathToRepoRoot = ResolverSettings.Root.ToString(Context.PathTable, PathFormat.Script);
 
-            IEnumerable<string> commands = ComputedCommands.Keys;
+            // Get the list of all regular commands
+            IEnumerable<string> commands = ComputedCommands.Keys.Where(command => !CommandGroups.ContainsKey(command)).Union(CommandGroups.Values.SelectMany(commandMembers => commandMembers)).ToList();
             
             // Pass the 6th argument (lage location) as "undefined" string. This argument is used by Office implementation.
             var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(Context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}"" ""{string.Join(" ", commands)}"" ""undefined""";
             
             return JavaScriptUtilities.GetCmdArguments(args);
+        }
+
+        /// <inheritdoc/>
+        protected override string GetProjectNameForGroup(IReadOnlyCollection<JavaScriptProject> groupMembers, string groupCommandName)
+        {
+            Contract.Requires(groupMembers.Count > 0);
+            var firstMember = groupMembers.First();
+
+            // Lage project names look like project-name#script-command. All members in the same group are
+            // supposed to share the same project name, so just use the first member
+            string name = firstMember.Name;
+            var index = name.LastIndexOf('#');
+            // There should always be a '#' in the name, but just be defensive here
+            if (index >= 0)
+            {
+                name = name[..(index + 1)];
+            }
+
+            // Let's keep the same Lage nomenclature for the group
+            return $"{name}{groupCommandName}";
         }
     }
 }

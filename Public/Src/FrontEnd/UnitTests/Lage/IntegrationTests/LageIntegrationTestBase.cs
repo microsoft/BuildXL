@@ -76,12 +76,12 @@ namespace Test.BuildXL.FrontEnd.Lage
             OutDir = "target";
         }
 
-        /// <inheritdoc/>
+        /// <nodoc/>
         protected SpecEvaluationBuilder Build(
-            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null,
+        Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null,
             string moduleName = "Test",
             string root = "d`.`",
-            IEnumerable<string> executeCommands = null)
+            string executeCommands = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -124,12 +124,15 @@ namespace Test.BuildXL.FrontEnd.Lage
                 }}
             }}");
 
-            // For now we are hardcoding build -> build and test -> build
+            // For now we are hardcoding build -> build, lint -> build, prepare -> build, post-test -> test, and test -> build
             File.WriteAllText(config.Layout.SourceDirectory.Combine(PathTable, "lage.config.js").ToString(PathTable), @"
 module.exports = {
   pipeline: {
     build: [""^build""],
+    prepare: [""^build""],
+    posttest: [""^test""],
     test: [""build""],
+    lint: [""build""],
   },
 };");
             // Run yarn install to get the workspace populated
@@ -170,7 +173,7 @@ module.exports = {
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
             string moduleName,
             string root,
-            IEnumerable<string> executeCommands) => $@"
+            string executeCommands) => $@"
 config({{
     resolvers: [
         {{
@@ -179,7 +182,7 @@ config({{
             root: {root},
             nodeExeLocation: f`{PathToNode}`,
             {DictionaryToExpression("environment", environment)}
-            {(executeCommands == null ? string.Empty : $"execute: [{string.Join(",", executeCommands.Select(command => $"\"{command}\""))}],")}
+            {(executeCommands == null ? string.Empty : $"execute: {executeCommands},")}
         }}
     ],
 }});";

@@ -6,6 +6,8 @@ import * as Managed from "Sdk.Managed";
 import * as Branding from "BuildXL.Branding";
 
 namespace Factory {
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
+    
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.FrontEnd.Factory",

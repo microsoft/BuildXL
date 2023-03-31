@@ -8,6 +8,8 @@ import { NetFx } from "Sdk.BuildXL";
 import {Transformer} from "Sdk.Transformers";
 
 namespace Yarn {
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
+    
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.FrontEnd.Yarn",

@@ -56,7 +56,7 @@ namespace Test.BuildXL.FrontEnd.Lage
         public void NonExistentScriptInDependencyIsIgnored()
         {
             // Create two projects A and B such that A -> B.
-            var config = Build(executeCommands: new[] { "build", "test"})
+            var config = Build(executeCommands: "['build', 'test']")
                 .AddJavaScriptProject("@ms/project-A", "src/A", "module.exports = function A(){}", scriptCommands: new[] { ("test", "node ./main.js") })
                 .AddJavaScriptProject("@ms/project-B", "src/B", "const A = require('@ms/project-A'); return A();", new string[] { "@ms/project-A" }, scriptCommands: new[] { 
                     ("test", "node ./main.js"),

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -19,10 +20,9 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using TypeScript.Net.DScript;
@@ -30,7 +30,6 @@ using TypeScript.Net.Types;
 using ConfigurationConverter = BuildXL.FrontEnd.Script.Util.ConfigurationConverter;
 using SourceFile = TypeScript.Net.Types.SourceFile;
 using SyntaxKind = TypeScript.Net.Types.SyntaxKind;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.JavaScript
 {
@@ -51,7 +50,10 @@ namespace BuildXL.FrontEnd.JavaScript
         /// </summary>
         protected IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> ComputedCommands;
         
-        private IReadOnlyDictionary<string, IReadOnlyList<string>> m_commandGroups;
+        /// <summary>
+        /// Mapping of command name groups to the list of (plain) command names that define the group
+        /// </summary>
+        protected IReadOnlyDictionary<string, IReadOnlyList<string>> CommandGroups;
 
         private FullSymbol AllProjectsSymbol { get; set; }
 
@@ -147,7 +149,7 @@ namespace BuildXL.FrontEnd.JavaScript
                     resolverSettings.Location(Context.PathTable),
                     ((IJavaScriptResolverSettings)resolverSettings).Execute,
                     out ComputedCommands,
-                    out m_commandGroups))
+                    out CommandGroups))
             {
                 // Error has been logged
                 return false;
@@ -663,12 +665,12 @@ namespace BuildXL.FrontEnd.JavaScript
             var commandGroupMembership = BuildCommandGroupMembership();
 
             // Get the list of all regular commands
-            var allFlattenedCommands = ComputedCommands.Keys.Where(command => !m_commandGroups.ContainsKey(command)).Union(m_commandGroups.Values.SelectMany(commandMembers => commandMembers)).ToList();
+            var allFlattenedCommands = ComputedCommands.Keys.Where(command => !CommandGroups.ContainsKey(command)).Union(CommandGroups.Values.SelectMany(commandMembers => commandMembers)).ToList();
 
             // Here we put all resolved projects (including the ones belonging to a group command)
             var resolvedProjects = new Dictionary<(string projectName, string command), (JavaScriptProject JavaScriptProject, DeserializedJavaScriptProject deserializedJavaScriptProject)>(flattenedJavaScriptGraph.Projects.Count * allFlattenedCommands.Count);
             // Here we put the resolved projects that belong to a given group
-            var resolvedGroups = new MultiValueDictionary<(string projectName, string commandGroup), JavaScriptProject>(m_commandGroups.Keys.Count());
+            var resolvedGroups = new MultiValueDictionary<(string projectName, string commandGroup), JavaScriptProject>(CommandGroups.Keys.Count());
             // This is the final list of projects
             var resultingProjects = new List<JavaScriptProject>();
 
@@ -852,11 +854,13 @@ namespace BuildXL.FrontEnd.JavaScript
             return dependencies;
         }
 
-        private Dictionary<string, string> BuildCommandGroupMembership()
+        /// <summary>
+        /// Compute the inverse relationship between commands and their groups
+        /// </summary>
+        protected Dictionary<string, string> BuildCommandGroupMembership()
         {
-
             var commandGroupMembership = new Dictionary<string, string>();
-            foreach (var kvp in m_commandGroups)
+            foreach (var kvp in CommandGroups)
             {
                 string groupName = kvp.Key;
                 foreach (string command in kvp.Value)
@@ -869,7 +873,18 @@ namespace BuildXL.FrontEnd.JavaScript
             return commandGroupMembership;
         }
 
-        private JavaScriptProject CreateGroupProject(string commandName, string projectName, IReadOnlyList<JavaScriptProject> members, DeserializedJavaScriptProject deserializedProject)
+        /// <summary>
+        /// <see cref="CreateGroupProject(string, string, IReadOnlyList{JavaScriptProject}, AbsolutePath, AbsolutePath)"/>
+        /// </summary>
+        protected JavaScriptProject CreateGroupProject(string commandName, string projectName, IReadOnlyList<JavaScriptProject> members, DeserializedJavaScriptProject deserializedProject)
+        {
+            return CreateGroupProject(commandName, projectName, members, deserializedProject.ProjectFolder, deserializedProject.TempFolder);
+        }
+
+        /// <summary>
+        /// Creates a <see cref="JavaScriptProject"/> that represents a group of projects
+        /// </summary>
+        protected JavaScriptProject CreateGroupProject(string commandName, string projectName, IReadOnlyList<JavaScriptProject> members, AbsolutePath projectFolder, AbsolutePath tempFolder)
         {
             // Source files and output directories are the union of the corresponding ones of each member
             var inputFiles = members.SelectMany(member => member.InputFiles).ToHashSet();
@@ -881,10 +896,10 @@ namespace BuildXL.FrontEnd.JavaScript
             
             var projectGroup = new JavaScriptProject(
                 projectName, 
-                deserializedProject.ProjectFolder, 
+                projectFolder, 
                 commandName, 
                 computedScript, 
-                deserializedProject.TempFolder, 
+                tempFolder, 
                 outputDirectories, 
                 inputFiles,
                 inputDirectories);
@@ -892,7 +907,10 @@ namespace BuildXL.FrontEnd.JavaScript
             return projectGroup;
         }
 
-        private static JavaScriptProject GetGroupProjectIfDefined(Dictionary<JavaScriptProject, JavaScriptProject> resolvedCommandGroupMembership, JavaScriptProject project)
+        /// <summary>
+        /// Given a project -> projectGroup mapping, return the project group associated with the given project if that association is present. Otherwise, returns the original project.
+        /// </summary>
+        protected static JavaScriptProject GetGroupProjectIfDefined(Dictionary<JavaScriptProject, JavaScriptProject> resolvedCommandGroupMembership, JavaScriptProject project)
         {
             if (resolvedCommandGroupMembership.TryGetValue(project, out JavaScriptProject groupProject))
             {
@@ -992,118 +1010,6 @@ namespace BuildXL.FrontEnd.JavaScript
             closestDependencies.AddRange(closestCachedDependencies);
             closestDependenciesCache[(projectName, command)] = closestCachedDependencies;
             cycleDetector.Remove((projectName, command));
-        }
-
-        /// <summary>
-        /// Resolves a JavaScript graph without execution semantics. Assumes each JS project has at most one script command.
-        /// </summary>
-        protected Possible<JavaScriptGraph<TGraphConfiguration>> ResolveGraphWithoutExecutionSemantics(GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration> flattenedJavaScriptGraph)
-        {
-            // Compute the inverse relationship between commands and their groups
-            var commandGroupMembership = BuildCommandGroupMembership();
-
-            // Get the list of all regular commands
-            var allFlattenedCommands = ComputedCommands.Keys.Where(command => !m_commandGroups.ContainsKey(command)).Union(m_commandGroups.Values.SelectMany(commandMembers => commandMembers)).ToList();
-
-            // Here we put all resolved projects (including the ones belonging to a group command)
-            var resolvedProjects = new Dictionary<string, (JavaScriptProject JavaScriptProject, DeserializedJavaScriptProject deserializedJavaScriptProject)>(flattenedJavaScriptGraph.Projects.Count);
-            // Here we put the resolved projects that belong to a given group
-            var resolvedGroups = new MultiValueDictionary<(string projectName, string commandGroup), JavaScriptProject>(m_commandGroups.Keys.Count());
-            // This is the final list of projects
-            var resultingProjects = new List<JavaScriptProject>();
-
-            foreach (var deserializedProject in flattenedJavaScriptGraph.Projects)
-            {
-                Contract.Assert(deserializedProject.AvailableScriptCommands.Count == 1, "If the graph builder tool is already adding the execution semantics, each deserialized project should only have one script command");
-                string command = deserializedProject.AvailableScriptCommands.Keys.Single();
-
-                if (!TryValidateAndCreateProject(command, deserializedProject, out JavaScriptProject javaScriptProject, out Failure failure))
-                {
-                    return failure;
-                }
-
-                // Here we check for duplicate projects
-                if (resolvedProjects.ContainsKey((javaScriptProject.Name)))
-                {
-                    return new JavaScriptProjectSchedulingFailure(javaScriptProject,
-                        $"Duplicate project name '{javaScriptProject.Name}' defined in '{javaScriptProject.ProjectFolder.ToString(Context.PathTable)}' " +
-                        $"and '{resolvedProjects[javaScriptProject.Name].JavaScriptProject.ProjectFolder.ToString(Context.PathTable)}' for script command '{command}'");
-                }
-
-                // If the command does not belong to any group, we know it is already part of the final list of projects
-                if (!commandGroupMembership.TryGetValue(command, out string commandGroup))
-                {
-                    resultingProjects.Add(javaScriptProject);
-                }
-                else
-                {
-                    // Otherwise, group it so we can inspect it later
-                    resolvedGroups.Add((javaScriptProject.Name, commandGroup), javaScriptProject);
-                }
-
-                resolvedProjects.Add(javaScriptProject.Name, (javaScriptProject, deserializedProject));
-            }
-
-            // Here we build a map between each group member to its group project
-            var resolvedCommandGroupMembership = new Dictionary<JavaScriptProject, JavaScriptProject>();
-
-            // Now add groups commands
-            foreach (var kvp in resolvedGroups)
-            {
-                string commandName = kvp.Key.commandGroup;
-                string projectName = kvp.Key.projectName;
-                IReadOnlyList<JavaScriptProject> members = kvp.Value;
-
-                Contract.Assert(members.Count > 0);
-
-                var deserializedProject = resolvedProjects[projectName].deserializedJavaScriptProject;
-                var groupProject = CreateGroupProject(commandName, projectName, members, deserializedProject);
-
-                // Here we check for duplicate projects
-                if (resolvedProjects.ContainsKey(groupProject.Name))
-                {
-                    return new JavaScriptProjectSchedulingFailure(groupProject,
-                        $"Duplicate project name '{groupProject.Name}' defined in '{groupProject.ProjectFolder.ToString(Context.PathTable)}' " +
-                        $"and '{resolvedProjects[groupProject.Name].JavaScriptProject.ProjectFolder.ToString(Context.PathTable)}' for script command '{commandName}'");
-                }
-
-                resolvedProjects.Add(groupProject.Name, (groupProject, deserializedProject));
-                // This project group should be part of the final list of projects
-                resultingProjects.Add(groupProject);
-
-                // Update the resolved membership so each member points to its group project
-                foreach (var member in members)
-                {
-                    resolvedCommandGroupMembership[member] = groupProject;
-                }
-            }
-
-            // Now resolve dependencies
-            foreach (var kvp in resolvedProjects)
-            {
-                JavaScriptProject javaScriptProject = kvp.Value.JavaScriptProject;
-                DeserializedJavaScriptProject deserializedProject = kvp.Value.deserializedJavaScriptProject;
-
-                var projectDependencies = new List<JavaScriptProject>();
-                foreach (string dependency in deserializedProject.Dependencies)
-                {
-                    // Some providers (e.g. Lage) list dependencies to nodes that don't actually exist. This is typically when, for example, project A depends on B, A has a 'build' verb
-                    // but B doesn't. B#build will be listed as a dependency for A#build, but B#build won't be defined as a node in the graph. The dependency in the case should be ignored.
-                    if (!resolvedProjects.TryGetValue(dependency, out var value))
-                    {
-                        Tracing.Logger.Log.IgnoredDependency(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), dependency, deserializedProject.Name);
-                        continue;
-                    }
-
-                    projectDependencies.Add(GetGroupProjectIfDefined(resolvedCommandGroupMembership, value.JavaScriptProject));
-                }
-
-                javaScriptProject.SetDependencies(projectDependencies);
-            }
-
-            return new JavaScriptGraph<TGraphConfiguration>(
-                new List<JavaScriptProject>(resultingProjects),
-                flattenedJavaScriptGraph.Configuration);
         }
 
         /// <summary>
@@ -1291,7 +1197,10 @@ namespace BuildXL.FrontEnd.JavaScript
             }
         }
 
-        private bool TryValidateAndCreateProject(
+        /// <summary>
+        /// Validates a deserialized project and constructs the corresponding <see cref="JavaScriptProject"/> based on the given command
+        /// </summary>
+        protected bool TryValidateAndCreateProject(
             string command, 
             DeserializedJavaScriptProject deserializedProject, 
             out JavaScriptProject javaScriptProject,

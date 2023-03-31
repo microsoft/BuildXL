@@ -1,6 +1,26 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230324.3.2 (Release [287737](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=287737) Released 3/30/2023)
+- Optimize allow list check for undeclared accesses
+- Linux sandbox considers O_RDWR when marking access modes as writes
+- Add push to outputs duration on the critical path
+- Fix for Lage graph being too big for stdio
+- Various other bug fixes.
+
+# 0.1.0-20230317.0 (Release [284911](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=284911) Released 3/22/2023)
+- [Linux sandbox] Propagate __BUILDXL_PTRACE_MQ_NAME through the process tree
+- Spanify parsing of the Linux sandbox reports
+- Decouple SandboxProcessPipExecutor out of Processes
+- Track the time it takes to push outputs to the cache as part of perf info
+- [Linux sandbox] Process pending reports from the FIFO even after the pip process tree has exited
+- Capture observed inputs for failed & retried pips in the XLG
+- Fix a crash caused by a race during build cancellation
+- [Linux sandbox] Generate write accesses for destination on rewrite interposing
+- Run ptrace sandbox as a daemon
+- Add error handling to CreateFileStream() GraphAgnosticIncrementalSchedulingState.cs in to avoid crashing on failure during incremental scheduling.
+- Handle pips that are too large to serialize to fingerprint store
+
 # 0.1.0-20230310.5 (Release [283306](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=283306) Released 3/15/2023)
 -	Fix directory enumeration with legacy Win32 pattern *.*
 -	Merge ConcurrencyLimit and UnavailableSlots in build summary reporting

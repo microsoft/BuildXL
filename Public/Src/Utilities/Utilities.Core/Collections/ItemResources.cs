@@ -4,6 +4,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 
+#nullable enable
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>

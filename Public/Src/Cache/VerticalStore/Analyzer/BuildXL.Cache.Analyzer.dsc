@@ -18,7 +18,6 @@ namespace Analyzer {
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

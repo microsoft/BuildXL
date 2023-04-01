@@ -22,7 +22,6 @@ namespace FileDownloader {
         references:[
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").VstsAuthentication.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
@@ -41,7 +40,6 @@ namespace FileDownloader {
         skipDefaultReferences: true,
         sources: globR(d`.`, "Extractor*.cs"),
         references:[
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,

@@ -6,6 +6,8 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>

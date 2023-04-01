@@ -10,7 +10,6 @@ namespace Ninja.Serialization {
         references: [
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
     });

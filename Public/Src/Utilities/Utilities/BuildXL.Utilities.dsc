@@ -18,7 +18,6 @@ export const dll = BuildXLSdk.library({
             NetFx.System.Management.dll,
             NetFx.System.Security.dll
         ),
-        Collections.dll,
         Interop.dll,
         Utilities.Core.dll,
 

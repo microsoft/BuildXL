@@ -54,7 +54,6 @@ namespace Distributed {
             importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
             Grpc.dll,

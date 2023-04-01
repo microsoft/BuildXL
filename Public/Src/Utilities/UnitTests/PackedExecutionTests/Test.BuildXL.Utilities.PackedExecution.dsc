@@ -29,7 +29,6 @@ namespace PackedExecution {
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
             importFrom("BuildXL.Tools.UnitTests").Test.Tool.Analyzers.dll,
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,

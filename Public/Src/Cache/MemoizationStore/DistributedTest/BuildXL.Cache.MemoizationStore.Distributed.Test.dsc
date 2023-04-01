@@ -40,7 +40,6 @@ namespace DistributedTest {
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
 
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
 
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...BuildXLSdk.bclAsyncPackages,

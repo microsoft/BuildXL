@@ -8,6 +8,8 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
+#nullable enable
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>

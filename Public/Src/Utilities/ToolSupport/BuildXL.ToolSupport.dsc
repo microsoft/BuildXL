@@ -10,7 +10,6 @@ namespace ToolSupport {
         sources: globR(d`.`, "*.cs"),
         references: [
             $.dll,
-            Collections.dll,
             Utilities.Core.dll
         ],
     });

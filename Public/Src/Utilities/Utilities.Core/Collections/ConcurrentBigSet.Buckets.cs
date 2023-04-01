@@ -7,6 +7,9 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
+#nullable enable
+
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>

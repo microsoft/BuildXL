@@ -17,7 +17,6 @@ namespace PackedTable {
         ],
         references: [
             $.dll,
-            Collections.dll,
             Native.dll,
             Utilities.Core.dll,
         ],

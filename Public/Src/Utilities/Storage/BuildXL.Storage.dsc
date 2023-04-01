@@ -14,7 +14,6 @@ namespace Storage {
         references: [
             $.dll,
             Native.dll,
-            Collections.dll,
             Configuration.dll,
             Utilities.Core.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,

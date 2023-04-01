@@ -21,7 +21,6 @@ namespace MsBuildGraphBuilder {
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.FrontEnd").MsBuild.Serialization.dll,
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable.ForVBCS").pkg),

@@ -17,7 +17,6 @@ namespace Configuration {
             $.dll,
             Interop.dll,
             Utilities.Core.dll,
-            $.Collections.dll,
         ],
     });
 }

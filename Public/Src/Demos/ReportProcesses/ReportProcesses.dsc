@@ -10,7 +10,6 @@ namespace ReportProcesses {
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             importFrom("BuildXL.Pips").dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,

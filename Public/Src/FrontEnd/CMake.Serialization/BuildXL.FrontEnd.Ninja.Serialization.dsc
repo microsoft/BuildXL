@@ -10,7 +10,6 @@ namespace CMake.Serialization {
         references: [
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
         ],
     });
 }

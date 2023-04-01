@@ -18,7 +18,6 @@ namespace Helper {
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,

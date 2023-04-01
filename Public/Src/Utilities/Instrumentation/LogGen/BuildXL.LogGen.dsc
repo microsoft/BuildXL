@@ -12,7 +12,6 @@ namespace LogGen {
         references: [
             AriaCommon.dll,
             Core.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,

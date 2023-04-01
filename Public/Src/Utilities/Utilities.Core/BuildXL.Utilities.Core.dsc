@@ -19,7 +19,6 @@ namespace Utilities.Core {
                 importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
                 importFrom("System.Threading.Tasks.Extensions").pkg,
             ]),
-            Collections.dll,
             Interop.dll,
         ],
         internalsVisibleTo: [
@@ -30,6 +29,7 @@ namespace Utilities.Core {
             "Test.BuildXL.Pips",
             "Test.BuildXL.Scheduler",
             "Test.BuildXL.Utilities",
+            "Test.BuildXL.Utilities.Collections",
             "Test.BuildXL.FrontEnd.Script",
             "IntegrationTest.BuildXL.Scheduler",
         ],

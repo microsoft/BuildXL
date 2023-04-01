@@ -11,6 +11,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Diagnostics.CodeAnalysis;
 
+#nullable enable
+
 namespace BuildXL.Utilities.Collections
 {
 

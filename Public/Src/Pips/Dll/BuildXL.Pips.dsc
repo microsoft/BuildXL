@@ -24,7 +24,6 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Utilities").Interop.dll,
         importFrom("BuildXL.Utilities").Ipc.dll,
         importFrom("BuildXL.Utilities").Storage.dll,
-        importFrom("BuildXL.Utilities").Collections.dll,
         importFrom("BuildXL.Utilities").Configuration.dll,
         importFrom("BuildXL.Utilities").Utilities.Core.dll,
         importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.dll,

@@ -23,7 +23,6 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Engine").Processes.dll,
         importFrom("BuildXL.Engine").Scheduler.dll,
         importFrom("BuildXL.Utilities").dll,
-        importFrom("BuildXL.Utilities").Collections.dll,
         importFrom("BuildXL.Utilities").Native.dll,
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Utilities").Utilities.Core.dll,

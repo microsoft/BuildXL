@@ -7,7 +7,6 @@ namespace Collections {
         assemblyName: "Test.BuildXL.Utilities.Collections",
         sources: globR(d`.`, "*.cs"),
         references: [
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,

@@ -18,9 +18,8 @@ namespace VBCSCompilerLogger {
             importFrom("Microsoft.CodeAnalysis.VisualBasic.ForVBCS").pkg,
             importFrom("Microsoft.CodeAnalysis.Common.ForVBCS").pkg,
             importFrom("System.Collections.Immutable.ForVBCS").pkg,
-            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             NetFx.Netstandard.dll, // due to issue https://github.com/dotnet/standard/issues/542
         ],
@@ -50,9 +49,8 @@ namespace VBCSCompilerLogger {
             importFrom("Microsoft.CodeAnalysis.Common.Old").pkg,
             importFrom("Microsoft.CodeAnalysis.VisualBasic.Old").pkg,
             importFrom("System.Collections.Immutable").pkg,
-            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Engine").Processes.dll,
         ],
         runtimeContent:[

@@ -19,7 +19,6 @@ namespace Interfaces {
             importFrom("BuildXL.Cache.VerticalStore").ImplementationSupport.dll,
             importFrom("BuildXL.Cache.VerticalStore").InMemory.dll,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
         ],
     });
 }

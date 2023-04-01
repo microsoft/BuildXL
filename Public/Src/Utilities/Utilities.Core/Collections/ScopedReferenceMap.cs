@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 
+#nullable enable
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>

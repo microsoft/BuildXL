@@ -14,7 +14,6 @@ namespace Generator.Old {
                 NetFx.System.Xml.Linq.dll
             ),
             importFrom("BuildXL.Engine").Scheduler.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,

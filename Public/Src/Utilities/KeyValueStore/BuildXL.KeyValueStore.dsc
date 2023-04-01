@@ -18,7 +18,6 @@ namespace KeyValueStore {
                 NetFx.System.Text.Encoding.dll
             ),
             $.dll,
-            Collections.dll,
             Native.dll,
             Utilities.Core.dll,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,

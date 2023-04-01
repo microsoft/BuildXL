@@ -52,7 +52,6 @@ namespace Script {
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Engine").ViewModel.dll,
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").Native.dll,

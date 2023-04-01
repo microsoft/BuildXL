@@ -16,9 +16,8 @@ namespace PackedExecution {
             ...globR(d`.`, "*.cs"),
         ],
         references: [
-            $.dll,
+            Utilities.Core.dll,
             PackedTable.dll,
-            Collections.dll,
             Native.dll,
         ],
     });

@@ -55,7 +55,6 @@ namespace Execution.Analyzer {
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("Newtonsoft.Json").pkg,

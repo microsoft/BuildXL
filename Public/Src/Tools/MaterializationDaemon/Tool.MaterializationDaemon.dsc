@@ -24,7 +24,6 @@ export const exe = !BuildXLSdk.isDaemonToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("BuildXL.Utilities").Ipc.Providers.dll,
         importFrom("BuildXL.Utilities").Native.dll,
         importFrom("BuildXL.Utilities").Storage.dll,
-        importFrom("BuildXL.Utilities").Collections.dll,
         importFrom("BuildXL.Utilities").Utilities.Core.dll,
         importFrom("BuildXL.Tools").ServicePipDaemon.dll,
 

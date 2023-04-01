@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using BuildXL.Utilities.Core;
 
 #nullable disable // Disabling nullability for generic type
 

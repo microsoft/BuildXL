@@ -6,6 +6,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 
+#nullable enable
+
 namespace BuildXL.Utilities
 {
     /// <summary>

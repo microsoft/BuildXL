@@ -103,7 +103,8 @@ namespace Tool.SymbolDaemon
 
             m_logger.Info(I($"[{nameof(VsoSymbolClient)}] Using symbol config: {JsonConvert.SerializeObject(m_config)}"));
 
-            m_credentialFactory = new VssCredentialsFactory(pat: null, new CredentialProviderHelper(m => m_logger.Verbose(m)), m => m_logger.Verbose(m));
+            string pat = !string.IsNullOrEmpty(config.PersonalAccessTokenEnv) ? Environment.GetEnvironmentVariable(config.PersonalAccessTokenEnv) : null;
+            m_credentialFactory = new VssCredentialsFactory(pat: pat, new CredentialProviderHelper(m => m_logger.Verbose(m)), m => m_logger.Verbose(m));
 
             m_symbolClient = new ReloadingSymbolClient(
                 logger: logger,

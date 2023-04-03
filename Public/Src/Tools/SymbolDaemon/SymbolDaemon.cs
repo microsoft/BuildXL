@@ -160,6 +160,14 @@ namespace Tool.SymbolDaemon
             IsRequired = false,
             DefaultValue = true,
         });
+        
+        internal static readonly StrOption PersonalAccessTokenEnv = RegisterSymbolConfigOption(new StrOption("PersonalAccessTokenEnv")
+        {
+            ShortName = "patenv",
+            HelpText = "Personal access token environment variable",
+            IsRequired = false,
+            DefaultValue = string.Empty,
+        });
 
         internal static SymbolConfig CreateSymbolConfig(ConfiguredCommand conf)
         {
@@ -182,7 +190,8 @@ namespace Tool.SymbolDaemon
                 batchSize: conf.Get(BatchSize),
                 maxParallelUploads: conf.Get(MaxParallelUploads),
                 nagleTimeMs: conf.Get(NagleTimeMs),
-                reportTelemetry: conf.Get(ReportTelemetry));
+                reportTelemetry: conf.Get(ReportTelemetry),
+                personalAccessTokenEnv: conf.Get(PersonalAccessTokenEnv));
         }
 
         private static Client CreateClient(string serverMoniker, IClientConfig config)

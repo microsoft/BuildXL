@@ -84,6 +84,11 @@ namespace Tool.SymbolDaemon
         /// </summary>
         public DebugEntryCreateBehavior DebugEntryCreateBehavior { get; }
 
+        /// <summary>
+        /// Env of personal access token for authentication.
+        /// </summary>
+        public string PersonalAccessTokenEnv { get; }
+
         /// <nodoc/>
         public static TimeSpan DefaultRetention { get; } = TimeSpan.FromDays(10);
 
@@ -119,7 +124,8 @@ namespace Tool.SymbolDaemon
             int? batchSize = null,
             int? maxParallelUploads = null,
             int? nagleTimeMs = null,
-            bool? reportTelemetry = null)
+            bool? reportTelemetry = null,
+            string personalAccessTokenEnv = null)
         {
             Name = requestName;
             Service = serviceEndpoint;
@@ -133,6 +139,7 @@ namespace Tool.SymbolDaemon
             NagleTime = nagleTimeMs.HasValue ? TimeSpan.FromMilliseconds(nagleTimeMs.Value) : DefaultNagleTime;
             MaxParallelUploads = maxParallelUploads ?? DefaultMaxParallelUploads;
             ReportTelemetry = reportTelemetry ?? false;
+            PersonalAccessTokenEnv = personalAccessTokenEnv;
 
             if (debugEntryCreateBehaviorStr == null)
             {

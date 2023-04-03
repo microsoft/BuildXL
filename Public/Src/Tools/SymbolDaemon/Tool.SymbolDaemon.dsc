@@ -43,6 +43,7 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("Newtonsoft.Json").pkg,
         importFrom("Symbol.App.Core").pkg,
         importFrom("Symbol.Client").pkg,
+        importFrom("Microsoft.Azure.Storage.Common").pkg,
         importFrom("Microsoft.Windows.Debuggers.SymstoreInterop").pkg,
         importFrom("System.Reflection.Metadata").pkg,
         ...addIf(BuildXLSdk.isFullFramework,

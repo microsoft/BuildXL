@@ -62,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public TimeSpan CheckpointStateTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-        public TimeSpan? LatestFileMaxAge { get; set; } = null;
+        public TimeSpan? LatestFileMaxAge { get; set; } = TimeSpan.FromMinutes(30);
     }
 
     /// <summary>

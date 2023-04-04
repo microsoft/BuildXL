@@ -98,14 +98,14 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets file path for standard input.
         /// </summary>
-        internal static string GetStdInFilePath(string workingDirectory, long pipSemiStableHash) =>
+        public static string GetStdInFilePath(string workingDirectory, long pipSemiStableHash) =>
             // CODESYNC: Ensure the string.Format matches FormatSemiStableHash in Pip.cs.
             Path.Combine(workingDirectory, I($"Pip{pipSemiStableHash:X16}.stdin"));
 
         /// <summary>
         /// Shell executable that wraps the process to be executed.
         /// </summary>
-        internal const string ShellExecutable = "/bin/bash"; // /bin/sh doesn't support env vars that contain funky characters (e.g., [])
+        public const string ShellExecutable = "/bin/bash"; // /bin/sh doesn't support env vars that contain funky characters (e.g., [])
 
         /// <summary>
         /// Full path to "bxl-env" executable to use instead of '/usr/bin/env' (because some old versions of 'env' do not support the '-C' option).

@@ -6,7 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
-using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
@@ -17,7 +16,7 @@ namespace BuildXL.Processes.Remoting
     /// <summary>
     /// Builds an instance of <see cref="RemoteData"/>
     /// </summary>
-    internal class RemoteDataBuilder
+    public class RemoteDataBuilder
     {
         private readonly HashSet<AbsolutePath> m_fileDependencies = new();
         private readonly HashSet<AbsolutePath> m_directoryDependencies = new();

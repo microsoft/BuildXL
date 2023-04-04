@@ -7,15 +7,36 @@ using BuildXL.Utilities.Core;
 
 #nullable enable
 
-namespace BuildXL.Processes.Internal
+namespace BuildXL.Processes
 {
-    internal sealed class BinaryPaths
+    /// <summary>
+    /// Collections of binary paths used by the process detouring infrastructure.
+    /// </summary>
+    public sealed class BinaryPaths
     {
+        /// <summary>
+        /// The name of the detours services X64-bit DLL.
+        /// </summary>
         public readonly string DllNameX64;
+
+        /// <summary>
+        /// The name of the detours services X86-bit DLL.
+        /// </summary>
         public readonly string DllNameX86;
+
+        /// <summary>
+        /// Directory containing the X64-bit DLL.
+        /// </summary>
         public readonly string DllDirectoryX64;
+
+        /// <summary>
+        /// Directory containing the X86-bit DLL.
+        /// </summary>
         public readonly string DllDirectoryX86;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         public BinaryPaths()
         {
             string directory = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(BinaryPaths).GetTypeInfo().Assembly)) ?? string.Empty;

@@ -38,7 +38,6 @@ namespace Processes.External {
         internalsVisibleTo: [
             "Test.BuildXL.Processes",
             "ExternalToolTest.BuildXL.Scheduler",
-            "BuildXL.ProcessPipExecutor",
         ],
     });
 }

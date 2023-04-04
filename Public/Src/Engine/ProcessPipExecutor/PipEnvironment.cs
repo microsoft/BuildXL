@@ -123,13 +123,12 @@ namespace BuildXL.ProcessPipExecutor
             // Append any passthrough environment variables if they're specified
             unsetEnvNames = globalUnsafePassthroughEnvironmentVariables != null ? unsetEnvNames.Union(globalUnsafePassthroughEnvironmentVariables) : unsetEnvNames;
 
-            IBuildParameters fullEnvironmentForPassThrough = OrchestratorEnvironmentVariables != null ?
-
-                // We first look at the env variables from the worker,
-                // then if the pass through variable is unset, we look at the env variables from the orchestrator.
-                // That's why, if OrchestratorEnvironmentVariables is not null, it is overridden by the current environment variables.
-                GetFactory(ReportDuplicateVariable).PopulateFromDictionary(OrchestratorEnvironmentVariables).Override(FullEnvironmentVariables.ToDictionary()) :
-                FullEnvironmentVariables;
+            // We first look at the env variables from the worker,
+            // then if the pass through variable is unset, we look at the env variables from the orchestrator.
+            // That's why, if OrchestratorEnvironmentVariables is not null, it is overridden by the current environment variables.
+            IBuildParameters fullEnvironmentForPassThrough = OrchestratorEnvironmentVariables != null
+                ? GetFactory(ReportDuplicateVariable).PopulateFromDictionary(OrchestratorEnvironmentVariables).Override(FullEnvironmentVariables.ToDictionary())
+                : FullEnvironmentVariables;
 
             IBuildParameters effectiveVariables = m_baseEnvironmentVariables
                 .Override(setEnvironmentVars.ToDictionary(

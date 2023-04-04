@@ -2313,7 +2313,6 @@ namespace BuildXL.Scheduler
 
             int numPathSetsDownloaded = 0, numCacheEntriesVisited = 0;
             WeakContentFingerprint weakFingerprint;
-            bool performedLookupForAugmentedWeakFingerprint = false;
 
             using (operationContext.StartOperation(PipExecutorCounter.ComputeWeakFingerprintDuration))
             {
@@ -2356,7 +2355,7 @@ namespace BuildXL.Scheduler
             Logger.Log.PipCacheLookupStats(
                 operationContext,
                 process.FormattedSemiStableHash,
-                performedLookupForAugmentedWeakFingerprint,
+                isWeakFingerprintAugmented,
                 weakFingerprint.ToString(),
                 numCacheEntriesVisited,
                 numPathSetsDownloaded);
@@ -2621,7 +2620,6 @@ namespace BuildXL.Scheduler
                                     PipId = processRunnable.PipId,
                                     CacheMissType = PipCacheMissType.Invalid,
                                 };
-                                performedLookupForAugmentedWeakFingerprint = true;
                                 strongFingerprintComputation.Item1.Value.AugmentedWeakFingerprint = augmentedWeakFingerprint;
 
                                 // Notice this is a recursive call to same method with augmented weak fingerprint but disallowing

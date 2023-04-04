@@ -2228,9 +2228,13 @@ namespace BuildXL.Scheduler
             RunnableFromCacheResult runnableFromCacheResult = null;
 
             using (var strongFingerprintComputationListWrapper = SchedulerPools.StrongFingerprintDataListPool.GetInstance())
+            using (var weakFingerprintSetWrapper = SchedulerPools.WeakContentFingerprintSet.GetInstance())
             using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheDuration))
             {
                 List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList = strongFingerprintComputationListWrapper.Instance;
+
+                // We collect here all the augmented weak fingerprints that were traversed during this cache lookup.
+                var traversedAugmentedWeakFingerprintSet = weakFingerprintSetWrapper.Instance;
 
                 runnableFromCacheResult = await TryCheckProcessRunnableFromCacheAsync(
                     processRunnable,
@@ -2242,7 +2246,8 @@ namespace BuildXL.Scheduler
                     strongFingerprintComputationList,
                     canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0,
                     isWeakFingerprintAugmented: false,
-                    avoidRemoteLookups: avoidRemoteLookups);
+                    avoidRemoteLookups: avoidRemoteLookups,
+                    traversedAugmentedWeakFingerprintSet);
 
                 processFingerprintComputationResult.Value.StrongFingerprintComputations = strongFingerprintComputationList.SelectArray(s => s.Value);
 
@@ -2287,7 +2292,8 @@ namespace BuildXL.Scheduler
             List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList,
             bool canAugmentWeakFingerprint,
             bool isWeakFingerprintAugmented,
-            bool avoidRemoteLookups)
+            bool avoidRemoteLookups,
+            HashSet<WeakContentFingerprint> traversedAugmentedWeakFingerprintSet)
         {
             Contract.Requires(processRunnable != null);
             Contract.Requires(cacheableProcess != null);
@@ -2321,7 +2327,27 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            var result = await innerCheckRunnableFromCacheAsync();
+            RunnableFromCacheResult result;
+
+            // Check whether this is not the first time we are seeing this augmented weak fingerprint as part of this lookup.
+            // This can happen if due to a race (e.g. concurrent builds) more than one special marker entry (with StrongContentFingerprint.AugmentedWeakFingerprintMarker)
+            // was pushed to the cache with the same (weak fp -> augmented fp) values. We don't need to go through all the checks again, we know this was a miss the first time.
+            if (isWeakFingerprintAugmented && !traversedAugmentedWeakFingerprintSet.Add(weakFingerprint))
+            {
+                Logger.Log.TwoPhaseCacheDescriptorDuplicatedAugmentedFingerprint(
+                                        operationContext,
+                                        processRunnable.Description,
+                                        weakFingerprint.ToString());
+
+                // The miss reasons might have been slightly different the first time (e.g. we could have failed because content couldn't be downloaded)
+                // but it is not worth storing the original reason and the extra complexity that would bring. The original reason for the miss was also
+                // logged already.
+                result = RunnableFromCacheResult.CreateForMiss(weakFingerprint, PipCacheMissType.MissForDescriptorsDueToAugmentedWeakFingerprints);
+            }
+            else
+            {
+                result = await innerCheckRunnableFromCacheAsync();
+            }
 
             // Update the strong fingerprint computations list
 
@@ -2610,7 +2636,8 @@ namespace BuildXL.Scheduler
                                     strongFingerprintComputationList,
                                     canAugmentWeakFingerprint: false,
                                     isWeakFingerprintAugmented: true,
-                                    avoidRemoteLookups: avoidRemoteLookups);
+                                    avoidRemoteLookups: avoidRemoteLookups,
+                                    traversedAugmentedWeakFingerprintSet);
 
                                 string keepAliveResult = "N/A";
 

@@ -546,6 +546,16 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseCacheDescriptorMissDueToWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint, bool isAugmented);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DuplicatedAugmentedFingerprint,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Duplicate augmented weak fingerprint {augmentedWeakFingerprint} was found. The same augmented weak fingerprint was already checked during this cache lookup and resulted in a miss. " +
+                      "No further cache queries will be performed on this augmented weak fingerprint to avoid redundant work.")]
+        internal abstract void TwoPhaseCacheDescriptorDuplicatedAugmentedFingerprint(LoggingContext loggingContext, string pipDescription, string augmentedWeakFingerprint);
+
+        [GeneratedEvent(
             (ushort)LogEventId.InvalidCacheDescriptorForContentFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

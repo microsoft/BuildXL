@@ -33,6 +33,7 @@ namespace BuildXL.Scheduler.Tracing
 
         CacheDescriptorHitForContentFingerprint = 200,
         CacheDescriptorMissForContentFingerprint = 201,
+        DuplicatedAugmentedFingerprint = 205,
         ContentMissAfterContentFingerprintCacheDescriptorHit = 202,
         PipOutputDeployedFromCache = 204,
 

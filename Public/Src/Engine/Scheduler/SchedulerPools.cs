@@ -4,10 +4,11 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler
 {
@@ -30,6 +31,14 @@ namespace BuildXL.Scheduler
         public static readonly ObjectPool<List<BoxRef<ProcessStrongFingerprintComputationData>>> StrongFingerprintDataListPool =
             new ObjectPool<List<BoxRef<ProcessStrongFingerprintComputationData>>>(
                 () => new List<BoxRef<ProcessStrongFingerprintComputationData>>(),
+                c => c.Clear());
+
+        /// <summary>
+        /// Pool for weak fingerprint set
+        /// </summary>
+        public static readonly ObjectPool<HashSet<WeakContentFingerprint>> WeakContentFingerprintSet =
+            new ObjectPool<HashSet<WeakContentFingerprint>>(
+                () => new HashSet<WeakContentFingerprint>(),
                 c => c.Clear());
     }
 }

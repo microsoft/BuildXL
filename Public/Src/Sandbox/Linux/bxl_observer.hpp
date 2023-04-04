@@ -259,6 +259,7 @@ private:
     ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t associatedPid = 0);
 
     bool IsMonitoringChildProcesses() const { return !pip_ || CheckMonitorChildProcesses(pip_->GetFamFlags()); }
+    bool IsPTraceEnabled() const { return pip_ && (CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()) || CheckUnconditionallyEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags())); }
     inline bool IsValid() const             { return sandbox_ != NULL; }
     inline bool IsEnabled() const
     {
@@ -391,9 +392,9 @@ public:
     // Enumerates a specified directory
     bool EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);
 
-    const char* getPTraceMqName();
-    const char* getFamPath();
-    
+    const char* getPTraceMqName() const { return IsPTraceEnabled() ? ptraceMqName_ : ""; }
+    const char* getFamPath() const { return famPath_; };
+
     inline bool LogDebugEnabled()
     {
         if (pip_ == NULL)

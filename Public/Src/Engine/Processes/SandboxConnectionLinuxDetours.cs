@@ -591,12 +591,11 @@ namespace BuildXL.Processes
             }
 
             // CODESYNC: Public/Src/Engine/Scheduler/PTraceDaemon.cs
-            // TODO: Remove setting PTrace-related environment variable when PTrace is not enabled, i.e.,
-            //       !(info.FileAccessManifest.EnableLinuxPTraceSandbox || info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox).
-            //       Currently we cannot do that because BxlObserver include checks for these environment variables unconditionally.
-            //       Note that setting these environment variables will not affect Detours behavior when PTrace is not enabled; it's only confusing.
-            yield return ("__BUILDXL_PTRACE_MQ_NAME", LinuxSandboxPTraceMqName);
-            yield return ("__BUILDXL_PTRACE_RUNNER_PATH", info.RootJailInfo.CopyToRootJailIfNeeded(s_ptraceRunnerFile));
+            if (info.FileAccessManifest.EnableLinuxPTraceSandbox || info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox)
+            {
+                yield return ("__BUILDXL_PTRACE_MQ_NAME", LinuxSandboxPTraceMqName);
+                yield return ("__BUILDXL_PTRACE_RUNNER_PATH", info.RootJailInfo.CopyToRootJailIfNeeded(s_ptraceRunnerFile));
+            }
         }
 
         private (string fifo, string fam) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)

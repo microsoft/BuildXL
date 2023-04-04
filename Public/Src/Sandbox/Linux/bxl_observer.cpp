@@ -53,6 +53,11 @@ void BxlObserver::InitDetoursLibPath()
 
 void BxlObserver::InitPTraceMq()
 {
+    if (!IsPTraceEnabled())
+    {
+        return;
+    }
+
     const char *mqname = getenv(BxlPTraceMqName);
 
     if (is_null_or_empty(mqname))
@@ -1054,14 +1059,4 @@ bool BxlObserver::EnumerateDirectory(std::string rootDirectory, bool recursive, 
     }
 
     return true;
-}
-
-const char* BxlObserver::getPTraceMqName()
-{
-    return ptraceMqName_;
-}
-
-const char* BxlObserver::getFamPath()
-{
-    return famPath_;
 }

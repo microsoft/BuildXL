@@ -9,7 +9,7 @@ using ProtoBuf;
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     [ProtoContract]
-    public struct BlockReference : IComparable<BlockReference>
+    public readonly struct BlockReference : IComparable<BlockReference>
     {
         [ProtoMember(1)]
         public CheckpointLogId LogId { get; init; }
@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public override string ToString()
         {
-            return $"CheckpointLogId=[{LogId}] LogBlockId=[{LogBlockId}]";
+            return $"LogId=[{LogId}] LogBlockId=[{LogBlockId}]";
         }
 
         public int CompareTo(BlockReference other)

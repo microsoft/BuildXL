@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -12,6 +13,8 @@ using BuildXL.Utilities.Collections;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Microsoft.CodeAnalysis;
+
+#nullable enable
 
 namespace VBCSCompilerLogger
 {
@@ -29,17 +32,14 @@ namespace VBCSCompilerLogger
         private const string VbcTaskName = "Vbc";
         private const string CscToolName = "csc.exe";
         private const string VbcToolName = "vbc.exe";
-        private AugmentedManifestReporter m_augmentedReporter;
 
-        private readonly ConcurrentBigSet<Diagnostic> m_badSwitchErrors = new ConcurrentBigSet<Diagnostic>();
+        private readonly ConcurrentBigSet<Diagnostic> m_badSwitchErrors = new();
 
         /// <inheritdoc/>
         public override void Initialize(IEventSource eventSource)
         {
             eventSource.MessageRaised += EventSourceOnMessageRaised;
             eventSource.BuildFinished += EventSourceOnBuildFinished;
-
-            m_augmentedReporter = AugmentedManifestReporter.Instance;
         }
 
         private void EventSourceOnBuildFinished(object sender, BuildFinishedEventArgs e)
@@ -64,7 +64,7 @@ namespace VBCSCompilerLogger
             {
                 // We are only interested in CSharp and VisualBasic tasks
                 string language;
-                string extractedArguments;
+                string? extractedArguments;
                 string error;
                 bool success;
                 
@@ -90,21 +90,22 @@ namespace VBCSCompilerLogger
                     throw new ArgumentException(error);
                 }
 
-                var parsedCommandLine = CompilerUtilities.GetParsedCommandLineArguments(language, extractedArguments, commandLine.ProjectFile, out string[] args);
+                CommandLineArguments parsedCommandLine = CompilerUtilities.GetParsedCommandLineArguments(language, extractedArguments!, commandLine.ProjectFile, out string[] args);
 
                 // In general we don't care about errors in the command line, since any error there will eventually fail the compiler call.
                 // However, we do care about new switches that may represent file accesses that are introduced to the compiler and this logger 
                 // is not aware of.
                 // This means that if the command line comes back with a bad switch error, but the compiler doesn't fail, we need to fail the call. 
                 // Error 2007 represents a bad switch. Unfortunately there doesn't seem to be any public enumeration that defines it properly.
-                var badSwitchErrors = parsedCommandLine.Errors.Where(diagnostic => diagnostic.Id.Contains("2007")).ToList();
-                foreach (var badSwitch in badSwitchErrors)
+                IEnumerable<Diagnostic> badSwitchErrors = parsedCommandLine.Errors.Where(diagnostic => diagnostic.Id.Contains("2007")).ToList();
+                foreach (Diagnostic badSwitch in badSwitchErrors)
                 {
                     // If we find a bad switch error, delay making a decision until we know if the compiler failed or not.
                     m_badSwitchErrors.Add(badSwitch);
                 }
 
                 string[] embeddedResourceFilePaths = Array.Empty<string>();
+                Contract.RequiresNotNullOrEmpty(parsedCommandLine.BaseDirectory);
 
                 // Determine the paths to the embedded resources. /resource: parameters end up in CommandLineArguments.ManifestResources,
                 // but the returned class drops the file path (and is currently internal anyway).
@@ -123,17 +124,11 @@ namespace VBCSCompilerLogger
                         parsedCommandLine.BaseDirectory);
                 }
 
-                var result = new ParseResult()
-                {
-                    ParsedArguments = parsedCommandLine,
-                    EmbeddedResourcePaths = embeddedResourceFilePaths
-                };
-
-                RegisterAccesses(result);
+                RegisterAccesses(new ParseResult(parsedCommandLine, embeddedResourceFilePaths));
             }
         }
 
-        private bool TryGetArgumentsFromCommandLine(string toolToTrim, string commandLine, out string arguments, out string error)
+        private static bool TryGetArgumentsFromCommandLine(string toolToTrim, string commandLine, out string? arguments, out string error)
         {
             toolToTrim += " ";
             int index = commandLine.IndexOf(toolToTrim, StringComparison.OrdinalIgnoreCase);
@@ -151,61 +146,116 @@ namespace VBCSCompilerLogger
 
             return true;
         }
-
-        private void RegisterAccesses(ParseResult results)
+        
+        private static void RegisterAccesses(ParseResult results)
         {
-            // Even thought CommandLineArguments class claims to always report back absolute paths, that's not the case.
+            // Even though CommandLineArguments class claims to always report back absolute paths, that's not the case.
             // Use the base directory to resolve relative paths if needed
             // The base directory is what CommandLineArgument claims to be resolving all paths against anyway
-            var accessRegister = new AccessRegistrar(m_augmentedReporter, results.ParsedArguments.BaseDirectory);
+            CommandLineArguments commandLineArguments = results.ParsedArguments;
+            string? baseDirectory = commandLineArguments.BaseDirectory!;
+            var accessRegistrar = new AccessRegistrar(baseDirectory);
 
-            // All inputs
-            accessRegister.RegisterInputs(results.ParsedArguments.AnalyzerReferences.Select(r => ResolveRelativePathIfNeeded(r.FilePath, results.ParsedArguments.BaseDirectory, results.ParsedArguments.ReferencePaths)));
-            accessRegister.RegisterInputs(results.ParsedArguments.MetadataReferences.Select(r => ResolveRelativePathIfNeeded(r.Reference, results.ParsedArguments.BaseDirectory, results.ParsedArguments.ReferencePaths)));
-            accessRegister.RegisterInputs(results.ParsedArguments.SourceFiles.Select(source => source.Path));
-            accessRegister.RegisterInputs(results.ParsedArguments.EmbeddedFiles.Select(embedded => embedded.Path));
-            accessRegister.RegisterInput(results.ParsedArguments.Win32ResourceFile);
-            accessRegister.RegisterInput(results.ParsedArguments.Win32Icon);
-            accessRegister.RegisterInput(results.ParsedArguments.Win32Manifest);
-            accessRegister.RegisterInputs(results.ParsedArguments.AdditionalFiles.Select(additional => additional.Path));
-            accessRegister.RegisterInput(results.ParsedArguments.AppConfigPath);
-            accessRegister.RegisterInput(results.ParsedArguments.RuleSetPath);
-            accessRegister.RegisterInput(results.ParsedArguments.SourceLink);
-            accessRegister.RegisterInput(results.ParsedArguments.CompilationOptions.CryptoKeyFile);
+            // All *inputs* for compiler options that are guaranteed to exist for the Microsoft.CodeAnalysis
+            // library versions we support.
+            accessRegistrar.RegisterInputs(commandLineArguments.MetadataReferences.Select(r => ResolveRelativePathIfNeeded(r.Reference, baseDirectory, commandLineArguments.ReferencePaths)));
+            accessRegistrar.RegisterInputs(commandLineArguments.SourceFiles.Select(source => source.Path));
+            accessRegistrar.RegisterInput(commandLineArguments.Win32ResourceFile);
+            accessRegistrar.RegisterInput(commandLineArguments.Win32Icon);
+            accessRegistrar.RegisterInput(commandLineArguments.Win32Manifest);
+            accessRegistrar.RegisterInput(commandLineArguments.AppConfigPath);
+            accessRegistrar.RegisterInput(commandLineArguments.CompilationOptions.CryptoKeyFile);
+
+            // All *outputs* for compiler options that are guaranteed to exist for the Microsoft.CodeAnalysis
+            // library versions we support.
+            accessRegistrar.RegisterOutput(commandLineArguments.TouchedFilesPath?.Insert(commandLineArguments.TouchedFilesPath.Length - 1, ".read"));
+            accessRegistrar.RegisterOutput(commandLineArguments.TouchedFilesPath?.Insert(commandLineArguments.TouchedFilesPath.Length - 1, ".write"));
+            accessRegistrar.RegisterOutput(commandLineArguments.DocumentationPath);
+
+            // /resource: parameters end up in ParsedArguments.ManifestResources, but the returned class drops the file path. We'll have to get them explicitly.
+            // We might be able to simply use ParsedArguments.ManifestResources if this gets resolved: https://github.com/dotnet/roslyn/issues/41372
+            accessRegistrar.RegisterInputs(results.EmbeddedResourcePaths);
+
+            // The following registrations concern compiler options that did not exist when Roslyn was open sourced:
+            // https://github.com/dotnet/roslyn/blob/3611ed35610793e814c8aa25715aa582ec08a8b6/Src/Compilers/Core/Source/NonPortable/CommandLine/CommonCommandLineArguments.cs
+            // Therefore, we no-op if a compiler option doesn't exist to support old Microsoft.CodeAnalysis libraries.
+            // It's important that, if a new compiler option introduces a new type, then the path(s) associated with the
+            // new compiler option are passed into tryAccessCommandLineArgument. E.g.,
+            // tryAccessCommandLineArgument(() => commandLineArguments.ErrorLogOptions?.Path)
+            // not
+            // tryAccessCommandLineArgument(() => commandLineArguments.ErrorLogOptions)?.Path
+            // Otherwise, the CLR will throw a System.TypeLoadException.
+
+            // Inputs:
+            ImmutableArray<CommandLineAnalyzerReference> analyzerReferences = tryAccessCommandLineArgument(() => commandLineArguments.AnalyzerReferences);
+            if (analyzerReferences != default)
+            {
+                accessRegistrar.RegisterInputs(analyzerReferences.Select(r => ResolveRelativePathIfNeeded(r.FilePath, baseDirectory, commandLineArguments.ReferencePaths)));
+            }
+            
+            ImmutableArray<CommandLineSourceFile> embeddedFiles = tryAccessCommandLineArgument(() => commandLineArguments.EmbeddedFiles);
+            if (embeddedFiles != default)
+            {
+                accessRegistrar.RegisterInputs(embeddedFiles.Select(embedded => embedded.Path));
+            }
+
+            ImmutableArray<CommandLineSourceFile> additionalFiles = tryAccessCommandLineArgument(() => commandLineArguments.AdditionalFiles);
+            if (additionalFiles != default)
+            {
+                accessRegistrar.RegisterInputs(additionalFiles.Select(additional => additional.Path));
+            }
+            
+            accessRegistrar.RegisterInput(tryAccessCommandLineArgument(() => commandLineArguments.RuleSetPath));
+            accessRegistrar.RegisterInput(tryAccessCommandLineArgument(() => commandLineArguments.SourceLink));   
 #if !TEST
             // When building for tests we intentionally use an older version of CommandLineArguments where these fields are not available
-            accessRegister.RegisterInputs(results.ParsedArguments.AnalyzerConfigPaths);
-            accessRegister.RegisterOutput(results.ParsedArguments.ErrorLogOptions?.Path);
+            ImmutableArray<string> analyzerConfigPaths = tryAccessCommandLineArgument(() => commandLineArguments.AnalyzerConfigPaths);
+            if (analyzerConfigPaths != default)
+            {
+                accessRegistrar.RegisterInputs(analyzerConfigPaths);
+            }
+
+            accessRegistrar.RegisterInput(tryAccessCommandLineArgument(() => commandLineArguments.ErrorLogOptions?.Path));
 
             // If there is any analyzer configured and the generated output directory is not null, that means some of the configured analyzers could be source generators, and therefore they might
             // produce files under the generated output directory. We cannot predict those outputs files, so we bail out for this case
-            if (results.ParsedArguments.GeneratedFilesOutputDirectory != null && results.ParsedArguments.AnalyzerReferences.Length > 0 && !results.ParsedArguments.SkipAnalyzers)
+            if (tryAccessCommandLineArgument(() => commandLineArguments.GeneratedFilesOutputDirectory) != null && analyzerReferences.Length > 0 &&
+                    !tryAccessCommandLineArgument(() => commandLineArguments.SkipAnalyzers))
             {
-                throw new InvalidOperationException("The compilation is configured to emit generated sources which cannot be statically predicted. Static predictions are required for managed compilers when shared compilation is enabled. " +
-                            "Please disable shared compilation.");
+                throw new InvalidOperationException("The compilation is configured to emit generated source files, which cannot be statically predicted."
+                    + " Static predictions are required for managed compilers when shared compilation is enabled."
+                    + " Please disable shared compilation.");
             }
 #endif
-            // /resource: parameters end up in ParsedArguments.ManifestResources, but the returned class drops the file path. We'll have to get them explicitly.
-            // We might be able to simply use ParsedArguments.ManifestResources if this gets resolved: https://github.com/dotnet/roslyn/issues/41372
-            accessRegister.RegisterInputs(results.EmbeddedResourcePaths);
-
-            // All outputs
-            accessRegister.RegisterOutput(results.ParsedArguments.TouchedFilesPath?.Insert(results.ParsedArguments.TouchedFilesPath.Length - 1, ".read"));
-            accessRegister.RegisterOutput(results.ParsedArguments.TouchedFilesPath?.Insert(results.ParsedArguments.TouchedFilesPath.Length - 1, ".write"));
-            accessRegister.RegisterOutput(results.ParsedArguments.DocumentationPath);
-            accessRegister.RegisterOutput(results.ParsedArguments.ErrorLogPath);
-            accessRegister.RegisterOutput(results.ParsedArguments.OutputRefFilePath);
-            var outputFileName = ComputeOutputFileName(results.ParsedArguments);
-            accessRegister.RegisterOutput(Path.Combine(results.ParsedArguments.OutputDirectory, outputFileName));
-            if (results.ParsedArguments.EmitPdb)
+            // Outputs:
+            accessRegistrar.RegisterOutput(tryAccessCommandLineArgument(() => commandLineArguments.ErrorLogPath));
+            accessRegistrar.RegisterOutput(tryAccessCommandLineArgument(() => commandLineArguments.OutputRefFilePath));
+            string outputFileName = ComputeOutputFileName(commandLineArguments);
+            string? outputDirectory = commandLineArguments.OutputDirectory;
+            accessRegistrar.RegisterOutput(outputDirectory != null ? Path.Combine(outputDirectory, outputFileName) : outputDirectory);
+            if (tryAccessCommandLineArgument(() => commandLineArguments.EmitPdb))
             {
-                accessRegister.RegisterOutput(Path.Combine(results.ParsedArguments.OutputDirectory, results.ParsedArguments.PdbPath ?? Path.ChangeExtension(outputFileName, ".pdb")));
+                accessRegistrar.RegisterOutput(Path.Combine(outputDirectory!, results.ParsedArguments.PdbPath ?? Path.ChangeExtension(outputFileName, ".pdb")));
+            }
+
+            // For those using old Microsoft.CodeAnalysis libraries, no-op when trying to get new compiler options discovered at runtime.
+            static T? tryAccessCommandLineArgument<T>(Func<T> accessCommandLineArgument)
+            {
+                try
+                {
+                    return accessCommandLineArgument();
+                }
+                catch (MissingMethodException)
+                {
+                    // No-op.
+                    return default;
+                }
             }
         }
 
         private static string ComputeOutputFileName(CommandLineArguments args)
         {
-            string outputFileName = args.OutputFileName;
+            string? outputFileName = args.OutputFileName;
 
             // If the output filename is not specified, we follow the logic documented for csc.exe
             // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/out-compiler-option
@@ -216,32 +266,21 @@ namespace VBCSCompilerLogger
             // and it is based on the first source file (when the original task didn't specify it). So this is just about being conservative.
             if (string.IsNullOrEmpty(outputFileName))
             {
-                switch (args.CompilationOptions.OutputKind)
+                outputFileName = args.CompilationOptions.OutputKind switch
                 {
                     // For these cases, the first source file is used
-                    case OutputKind.DynamicallyLinkedLibrary:
-                        outputFileName = Path.ChangeExtension(args.SourceFiles[0].Path, ".dll");
-                        break;
-                    case OutputKind.NetModule:
-                        outputFileName = Path.ChangeExtension(args.SourceFiles[0].Path, ".netmodule");
-                        break;
-                    case OutputKind.WindowsRuntimeMetadata:
-                        outputFileName = Path.ChangeExtension(args.SourceFiles[0].Path, ".winmdobj");
-                        break;
+                    OutputKind.DynamicallyLinkedLibrary => Path.ChangeExtension(args.SourceFiles[0].Path, ".dll"),
+                    OutputKind.NetModule => Path.ChangeExtension(args.SourceFiles[0].Path, ".netmodule"),
+                    OutputKind.WindowsRuntimeMetadata => Path.ChangeExtension(args.SourceFiles[0].Path, ".winmdobj"),
                     // For these cases an .exe will be generated based on the source file that contains a Main method.
                     // We cannot easily predict this statically, so we bail out for this case.
-                    case OutputKind.ConsoleApplication:
-                    case OutputKind.WindowsApplication:
-                    case OutputKind.WindowsRuntimeApplication:
-                        throw new InvalidOperationException("The output filename was not specified and it could not be statically predicted. Static predictions are required for managed compilers when shared compilation is enabled. " +
-                            "Please specify the output filename or disable shared compilation by setting 'useManagedSharedCompilation' in Bxl main configuration file.");
-                    default:
-                        throw new InvalidOperationException($"Unrecognized OutputKind: ${args.CompilationOptions.OutputKind}");
-                }
+                    OutputKind.ConsoleApplication or OutputKind.WindowsApplication or OutputKind.WindowsRuntimeApplication => throw new InvalidOperationException("The output filename was not specified and it could not be statically predicted. Static predictions are required for managed compilers when shared compilation is enabled. " +
+                                                "Please specify the output filename or disable shared compilation by setting 'useManagedSharedCompilation' in Bxl main configuration file."),
+                    _ => throw new InvalidOperationException($"Unrecognized OutputKind: {args.CompilationOptions.OutputKind}"),
+                };
             }
 
-            Contract.Assert(!string.IsNullOrEmpty(outputFileName));
-            return outputFileName;
+            return outputFileName!;
         }
 
         /// <summary>
@@ -252,9 +291,9 @@ namespace VBCSCompilerLogger
         /// directories (first the base directory, then the additional ones, in order) and returns the first absolute path such that the path exists.
         /// Observe this will cause potential absent file probes that will be observed by detours, which is intentional.
         /// </remarks>
-        private string ResolveRelativePathIfNeeded(string path, string baseDirectory, IEnumerable<string> additionalSearchDirectories)
+        private static string? ResolveRelativePathIfNeeded(string path, string baseDirectory, IEnumerable<string> additionalSearchDirectories)
         {
-            if (string.IsNullOrEmpty(path))
+            if (path.Length == 0)
             {
                 return null;
             }
@@ -267,7 +306,7 @@ namespace VBCSCompilerLogger
 
             // So this should be a relative path
             // We first try resolving against the base directory
-            var candidate = Path.Combine(baseDirectory, path);
+            string candidate = Path.Combine(baseDirectory, path);
             if (PathExistsAsFile(candidate))
             {
                 return candidate;
@@ -287,10 +326,7 @@ namespace VBCSCompilerLogger
             return null;
         }
 
-        private bool PathExistsAsFile(string path)
-        {
-            return FileUtilities.FileExistsNoFollow(path);
-        }
+        private static bool PathExistsAsFile(string path) => FileUtilities.FileExistsNoFollow(path);
 
         /// <summary>
         /// Resolves all relative path registrations against a base path
@@ -298,69 +334,47 @@ namespace VBCSCompilerLogger
         private sealed class AccessRegistrar
         {
             private readonly string m_basePath;
-            private readonly AugmentedManifestReporter m_augmentedReporter;
 
-            public AccessRegistrar(AugmentedManifestReporter reporter, string basePath)
+            public AccessRegistrar(string basePath) => m_basePath = basePath;
+
+            public void RegisterOutput(string? filePath) => RegisterAccess(filePath, AugmentedManifestReporter.Instance.TryReportFileCreations);
+
+            public void RegisterInput(string? filePath) => RegisterAccess(filePath, AugmentedManifestReporter.Instance.TryReportFileReads);
+
+            public void RegisterInputs(IEnumerable<string?> filePaths)
             {
-                Contract.Requires(!string.IsNullOrEmpty(basePath));
-                Contract.Requires(reporter != null);
-
-                m_basePath = basePath;
-                m_augmentedReporter = reporter;
-            }
-
-            public void RegisterOutput(string filePath)
-            {
-                RegisterAccess(filePath, m_augmentedReporter.TryReportFileCreations);
-            }
-
-            public void RegisterInput(string filePath)
-            {
-                RegisterAccess(filePath, m_augmentedReporter.TryReportFileReads);
-            }
-
-            public void RegisterInputs(IEnumerable<string> filePaths)
-            {
-                Contract.Requires(filePaths != null);
-
-                var finalPaths = filePaths.Where(path => !string.IsNullOrEmpty(path)).Select(path => MakeAbsoluteIfNeeded(path));
-
-                if (!m_augmentedReporter.TryReportFileReads(finalPaths))
+                IEnumerable<string> finalPaths = filePaths.Where(path => !string.IsNullOrEmpty(path)).Select((path) => MakeAbsoluteIfNeeded(path!));
+                if (!AugmentedManifestReporter.Instance.TryReportFileReads(finalPaths))
                 {
-                    throw new InvalidOperationException($"Failed at reporting augmented file accesses [${string.Join(", ", filePaths)}]");
+                    throw new InvalidOperationException($"Failed at reporting augmented file accesses for the following files: [{string.Join(", ", filePaths)}]");
                 }
             }
 
-            private void RegisterAccess(string filePath, Func<IEnumerable<string>, bool> tryReport)
+            private void RegisterAccess(string? filePath, Func<IEnumerable<string>, bool> tryReport)
             {
                 if (string.IsNullOrEmpty(filePath))
                 {
                     return;
                 }
 
-                filePath = MakeAbsoluteIfNeeded(filePath);
-
+                filePath = MakeAbsoluteIfNeeded(filePath!);
                 if (!tryReport(new[] { filePath }))
                 {
-                    throw new InvalidOperationException($"Failed at reporting an augmented file access for ${filePath}");
+                    throw new InvalidOperationException($"Failed at reporting an augmented file access for {filePath}");
                 }
             }
 
             private string MakeAbsoluteIfNeeded(string path)
             {
-                Contract.Requires(!string.IsNullOrEmpty(path));
-
-                return Path.IsPathRooted(path)? path : Path.Combine(m_basePath, path);
+                Contract.Requires(path.Length > 0);
+                return Path.IsPathRooted(path) ? path : Path.Combine(m_basePath, path);
             }
+                
         }
 
         /// <summary>
         /// Encapsulates the results of all parsing.
         /// </summary>
-        private sealed class ParseResult
-        {
-            public CommandLineArguments ParsedArguments { get; set; }
-            public string[] EmbeddedResourcePaths { get; set; }
-        }
+        private readonly record struct ParseResult(CommandLineArguments ParsedArguments, string[] EmbeddedResourcePaths);
     }
 }

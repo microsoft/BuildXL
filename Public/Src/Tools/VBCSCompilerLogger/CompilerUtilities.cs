@@ -12,6 +12,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.VisualBasic;
 
+#nullable enable
+
 namespace VBCSCompilerLogger
 {
     /// <summary>
@@ -37,10 +39,10 @@ namespace VBCSCompilerLogger
 
         static CompilerUtilities()
         {
-            var tryParseOptionMethod = typeof(CommandLineParser).GetMethod("TryParseOption", BindingFlags.NonPublic | BindingFlags.Static);
+            MethodInfo tryParseOptionMethod = typeof(CommandLineParser).GetMethod("TryParseOption", BindingFlags.NonPublic | BindingFlags.Static)!;
             TryParseOption = (TryParseOptionFxn)Delegate.CreateDelegate(typeof(TryParseOptionFxn), null, tryParseOptionMethod);
 
-            var parseResourceDescriptionMethod = typeof(CommandLineParser).GetMethod("ParseResourceDescription", BindingFlags.NonPublic | BindingFlags.Static);
+            MethodInfo parseResourceDescriptionMethod = typeof(CommandLineParser).GetMethod("ParseResourceDescription", BindingFlags.NonPublic | BindingFlags.Static)!;
             ParseResourceDescription = (ParseResourceDescriptionFxn)Delegate.CreateDelegate(typeof(ParseResourceDescriptionFxn), null, parseResourceDescriptionMethod);
         }
 
@@ -49,28 +51,20 @@ namespace VBCSCompilerLogger
         /// </summary>
         public static CommandLineArguments GetParsedCommandLineArguments(string language, string arguments, string projectFile, out string[] args)
         {
-            Contract.RequiresNotNullOrEmpty(language);
-            Contract.RequiresNotNullOrEmpty(arguments);
-            Contract.RequiresNotNullOrEmpty(projectFile);
+            Contract.Requires(language.Length > 0);
+            Contract.Requires(arguments.Length > 0);
+            Contract.Requires(projectFile.Length > 0);
 
-            var sdkDirectory = RuntimeEnvironment.GetRuntimeDirectory();
+            string sdkDirectory = RuntimeEnvironment.GetRuntimeDirectory();
             args = CommandLineParser.SplitCommandLineIntoArguments(arguments, removeHashComments: false).ToArray();
 
-            var projectDirectory = Path.GetDirectoryName(projectFile);
-
-            CommandLineArguments result;
-            switch (language)
+            string? projectDirectory = Path.GetDirectoryName(projectFile);
+            CommandLineArguments result = language switch
             {
-                case LanguageNames.CSharp:
-                    result = CSharpCommandLineParser.Default.Parse(args, projectDirectory, sdkDirectory);
-                    break;
-                case LanguageNames.VisualBasic:
-                    result = VisualBasicCommandLineParser.Default.Parse(args, projectDirectory, sdkDirectory);
-                    break;
-                default:
-                    throw new InvalidOperationException($"Unexpected language '{language}'");
-            }
-            
+                LanguageNames.CSharp => CSharpCommandLineParser.Default.Parse(args, projectDirectory, sdkDirectory),
+                LanguageNames.VisualBasic => VisualBasicCommandLineParser.Default.Parse(args, projectDirectory, sdkDirectory),
+                _ => throw new InvalidOperationException($"Unexpected language '{language}'"),
+            };
             return result;
         }
 

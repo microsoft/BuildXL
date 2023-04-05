@@ -33,7 +33,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes; // TODO: eventually change this to IgnoreNothing
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
             ProbeDirectorySymlinkAsDirectory = true;
-            DoNotApplyAllowListToDynamicOutputs = true;
+            DoNotApplyAllowListToDynamicOutputs = false;
 
             if (EngineVersion.Version < 1)
             {

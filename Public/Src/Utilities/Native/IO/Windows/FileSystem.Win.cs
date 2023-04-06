@@ -1021,8 +1021,6 @@ namespace BuildXL.Native.IO.Windows
 
         private readonly Lazy<bool> m_supportUnprivilegedCreateSymbolicLinkFlag = default;
 
-        private Lazy<bool> m_supportCopyOnWrite;
-
         /// <summary>
         /// Checks if the OS supports SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE flag for creating symlink.
         /// </summary>
@@ -1051,7 +1049,6 @@ namespace BuildXL.Native.IO.Windows
         {
             m_loggingContext = loggingContext;
             m_supportUnprivilegedCreateSymbolicLinkFlag = new Lazy<bool>(CheckSupportUnprivilegedCreateSymbolicLinkFlag);
-            m_supportCopyOnWrite = new Lazy<bool>(SupportCopyOnWrite);
         }
 
         /// <summary>
@@ -4076,58 +4073,7 @@ namespace BuildXL.Native.IO.Windows
         public bool CheckIfVolumeSupportsPreciseFileVersionByHandle(SafeFileHandle fileHandle) => true;
 
         /// <inheritdoc />
-        public bool IsCopyOnWriteSupportedByEnlistmentVolume
-        {
-            get => m_supportCopyOnWrite.Value;
-            set => m_supportCopyOnWrite = new Lazy<bool>(() => value);
-        }
-
-        /// <inheritdoc />
         public bool IsInKernelCopyingSupportedByHostSystem => false;
-
-        /// <inheritdoc />
-        public bool CheckIfVolumeSupportsCopyOnWriteByHandle(SafeFileHandle fileHandle)
-        {
-#if NETCOREAPP
-            try
-            {
-                return GetVolumeFileSystemByHandle(fileHandle) == FileSystemType.ReFS;
-            }
-            catch (NativeWin32Exception)
-            {
-                return false;
-            }
-#else
-            return false;
-#endif
-        }
-
-        private bool SupportCopyOnWrite()
-        {
-#if NETCOREAPP
-            bool disableCopyOnWrite = string.Equals(Environment.GetEnvironmentVariable("DisableCopyOnWriteWin"), "1", StringComparison.Ordinal);
-
-            if (disableCopyOnWrite)
-            {
-                return false;
-            }
-
-            string workingDir = Environment.CurrentDirectory;
-            OpenFileResult directoryOpenResult = TryOpenDirectory(
-                workingDir,
-                FileShare.ReadWrite | FileShare.Delete,
-                out SafeFileHandle directoryHandle);
-
-            if (directoryOpenResult.Succeeded)
-            {
-                using (directoryHandle)
-                {
-                    return CheckIfVolumeSupportsCopyOnWriteByHandle(directoryHandle);
-                }
-            }
-#endif  
-            return false;
-        }
 
         /// <inheritdoc />
         public bool IsPathRooted(string path)

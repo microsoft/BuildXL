@@ -668,11 +668,11 @@ namespace Test.BuildXL.EngineTestUtilities
 
         private Task<bool> CopyFileInternalAsync(string source, string destination)
         {
-            if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
+            if (FileUtilitiesExtensions.IsCopyOnWriteSupportedByEnlistmentVolume)
             {
                 return Task.Run(async () =>
                 {
-                    var possiblyCreateCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(source, destination, followSymlink: false);
+                    var possiblyCreateCopyOnWrite = FileUtilitiesExtensions.TryCreateCopyOnWrite(source, destination, followSymlink: false);
 
                     if (!possiblyCreateCopyOnWrite.Succeeded)
                     {

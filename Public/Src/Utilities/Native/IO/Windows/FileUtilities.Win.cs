@@ -19,9 +19,6 @@ using BuildXL.Native.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-#if NETCOREAPP
-using Microsoft.CopyOnWrite;
-#endif
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
@@ -1327,28 +1324,6 @@ namespace BuildXL.Native.IO.Windows
                     throw new BuildXLException(I($"File move from '{source}' to '{destination}' failed"), ex);
                 }
             });
-        }
-
-        /// <inheritdoc />
-        public Possible<Unit> CloneFile(string source, string destination, bool followSymlink)
-        {
-#if NETCOREAPP
-            try
-            {
-                // NoFileIntegrityCheck: Cache does not use Windows file integrity.
-                // PathIsFullyResolved: No need for CoW library to do Path.GetFullPath() again, full paths are provided from PathTable.     
-                ICopyOnWriteFilesystem cow = CopyOnWriteFilesystemFactory.GetInstance();
-                cow.CloneFile(source, destination, CloneFlags.NoFileIntegrityCheck | CloneFlags.PathIsFullyResolved);
-            }
-            catch (NotSupportedException ex)
-            {
-                return new Failure<string>(ex.Message);
-            }
-
-            return Unit.Void;
-#else
-            throw new NotImplementedException();
-#endif
         }
 
         /// <inheritdoc />

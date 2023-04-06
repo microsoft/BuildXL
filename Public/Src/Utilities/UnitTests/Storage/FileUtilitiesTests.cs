@@ -1059,11 +1059,11 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(
                 OperatingSystemHelper.IsUnixOS ? FileSystemType.APFS : FileSystemType.ReFS,
                 GetFileSystemType(file));
-            XAssert.IsTrue(FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume);
+            XAssert.IsTrue(FileUtilitiesExtensions.IsCopyOnWriteSupportedByEnlistmentVolume);
 
             var clonedFile = GetFullPath(nameof(TestCopyOnWrite) + "_cloned");
 
-            var possiblyCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(file, clonedFile, followSymlink: false);
+            var possiblyCopyOnWrite = FileUtilitiesExtensions.TryCreateCopyOnWrite(file, clonedFile, followSymlink: false);
             XAssert.IsTrue(possiblyCopyOnWrite.Succeeded);
 
             var fileTimestamp = FileUtilities.GetFileTimestamps(file);
@@ -1100,14 +1100,14 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(
                 OperatingSystemHelper.IsUnixOS ? FileSystemType.APFS : FileSystemType.ReFS,
                 GetFileSystemType(file));
-            XAssert.IsTrue(FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume);
+            XAssert.IsTrue(FileUtilitiesExtensions.IsCopyOnWriteSupportedByEnlistmentVolume);
 
             var symlink = GetFullPath(nameof(TestCopyOnWriteWithSymlink) + "_symlink");
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink, file, isTargetFile: true));
 
             var clonedFile = GetFullPath(nameof(TestCopyOnWriteWithSymlink) + "_cloned");
 
-            var possiblyCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(symlink, clonedFile, followSymlink: followSymlink);
+            var possiblyCopyOnWrite = FileUtilitiesExtensions.TryCreateCopyOnWrite(symlink, clonedFile, followSymlink: followSymlink);
             XAssert.IsTrue(possiblyCopyOnWrite.Succeeded);
 
             var verifiedTimestamp = followSymlink
@@ -1411,7 +1411,7 @@ namespace Test.BuildXL.Storage
         {
             using FileStream fileStream = FileUtilities.CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
 
-            return FileUtilities.CheckIfVolumeSupportsCopyOnWriteByHandle(fileStream.SafeFileHandle);
+            return FileUtilitiesExtensions.CheckIfVolumeSupportsCopyOnWriteByHandle(fileStream.SafeFileHandle);
         }
     }
 }

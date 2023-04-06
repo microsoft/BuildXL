@@ -874,7 +874,7 @@ namespace BuildXL.Engine
                     FileShare.Read | FileShare.Delete))
                 {
                     FileUtilities.IsPreciseFileVersionSupportedByEnlistmentVolume = VersionedFileIdentity.HasPreciseFileVersion(configFileStream.SafeFileHandle);
-                    FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume = FileUtilities.CheckIfVolumeSupportsCopyOnWriteByHandle(configFileStream.SafeFileHandle);
+                    FileUtilitiesExtensions.IsCopyOnWriteSupportedByEnlistmentVolume = FileUtilitiesExtensions.CheckIfVolumeSupportsCopyOnWriteByHandle(configFileStream.SafeFileHandle);
                 }
             }
         }

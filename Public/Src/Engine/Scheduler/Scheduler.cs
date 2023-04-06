@@ -16,7 +16,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
@@ -741,7 +740,7 @@ namespace BuildXL.Scheduler
 
             try
             {
-                await FileUtilities.TryDuplicateOneFileAsync(sourcePath, destinationPath);
+                await FileUtilitiesExtensions.TryDuplicateOneFileAsync(sourcePath, destinationPath);
             }
             catch (BuildXLException ex)
             {

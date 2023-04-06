@@ -50,9 +50,9 @@ namespace BuildXL.Native.IO
         /// When running on Windows but inside the CoreCLR, we use the same concrete implementation
         /// as the vanilla BuildXL build for Windows and skip Unix implementations completely
         /// </remarks>
-        private static readonly IFileUtilities s_fileUtilities = OperatingSystemHelper.IsUnixOS
-            ? (IFileUtilities)new Unix.FileUtilitiesUnix()
-            : (IFileUtilities)new Windows.FileUtilitiesWin(LoggingContext);
+        internal static readonly IFileUtilities OsFileUtilities = OperatingSystemHelper.IsUnixOS
+            ? new Unix.FileUtilitiesUnix()
+            : new Windows.FileUtilitiesWin(LoggingContext);
 
         /// <summary>
         /// A platform specific concrete implementation of the file system layer functions
@@ -61,9 +61,9 @@ namespace BuildXL.Native.IO
         /// When running on Windows but inside the CoreCLR, we use the same concrete implementation
         /// as the vanilla BuildXL build for Windows and skip Unix implementations completely
         /// </remarks>
-        private static readonly IFileSystem s_fileSystem = OperatingSystemHelper.IsUnixOS
-            ? ((Unix.FileUtilitiesUnix)s_fileUtilities).FileSystem
-            : ((Windows.FileUtilitiesWin)s_fileUtilities).FileSystem;
+        internal static readonly IFileSystem OsFileSystem = OperatingSystemHelper.IsUnixOS
+            ? ((Unix.FileUtilitiesUnix)OsFileUtilities).FileSystem
+            : ((Windows.FileUtilitiesWin)OsFileUtilities).FileSystem;
 
         /// <summary>
         /// Directory separator as string.
@@ -107,7 +107,7 @@ namespace BuildXL.Native.IO
         public static void CreateDirectory(string path)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
-            s_fileSystem.CreateDirectory(path);
+            OsFileSystem.CreateDirectory(path);
         }
 
         /// <summary>
@@ -136,13 +136,13 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileSystem.RemoveDirectory(string)"/>
         public static void RemoveDirectory(string path)
         {
-            s_fileSystem.RemoveDirectory(path);
+            OsFileSystem.RemoveDirectory(path);
         }
 
         /// <see cref="IFileSystem.TryRemoveDirectory(string, out int)"/>
         public static bool TryRemoveDirectory(string path, out int hr)
         {
-            return s_fileSystem.TryRemoveDirectory(path, out hr);
+            return OsFileSystem.TryRemoveDirectory(path, out hr);
         }
 
         /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool, bool}, ITempCleaner, bool, CancellationToken?)"/>
@@ -153,7 +153,7 @@ namespace BuildXL.Native.IO
             ITempCleaner tempDirectoryCleaner = null,
             bool bestEffort = false,
             CancellationToken? cancellationToken = default) =>
-            s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, bestEffort, cancellationToken);
+            OsFileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, bestEffort, cancellationToken);
 
         /// <see cref="IFileSystem.EnumerateDirectoryEntries(string, bool, Action{string, string, FileAttributes}, bool)"/>
         public static EnumerateDirectoryResult EnumerateDirectoryEntries(
@@ -161,7 +161,7 @@ namespace BuildXL.Native.IO
             bool recursive,
             Action<string, string, FileAttributes> handleEntry)
         {
-            return s_fileSystem.EnumerateDirectoryEntries(directoryPath, recursive, handleEntry);
+            return OsFileSystem.EnumerateDirectoryEntries(directoryPath, recursive, handleEntry);
         }
 
         /// <see cref="IFileSystem.EnumerateDirectoryEntries(string, bool, string, Action{string, string, FileAttributes}, bool, bool)"/>
@@ -171,7 +171,7 @@ namespace BuildXL.Native.IO
             string pattern,
             Action<string, string, FileAttributes> handleEntry)
         {
-            return s_fileSystem.EnumerateDirectoryEntries(directoryPath, recursive, pattern, handleEntry, followSymlinksToDirectories: true);
+            return OsFileSystem.EnumerateDirectoryEntries(directoryPath, recursive, pattern, handleEntry, followSymlinksToDirectories: true);
         }
 
         /// <see cref="IFileSystem.EnumerateFiles(string, bool, string, Action{string, string, FileAttributes, long})"/>
@@ -181,7 +181,7 @@ namespace BuildXL.Native.IO
             string pattern,
             Action<string /*filePath*/, string /*fileName*/, FileAttributes /*attributes*/, long /*fileSize*/> handleFileEntry)
         {
-            return s_fileSystem.EnumerateFiles(directoryPath, recursive, pattern, handleFileEntry);
+            return OsFileSystem.EnumerateFiles(directoryPath, recursive, pattern, handleFileEntry);
         }
 
         /// <see cref="IFileSystem.EnumerateDirectoryEntries(string, Action{string, FileAttributes}, bool)"/>
@@ -199,12 +199,12 @@ namespace BuildXL.Native.IO
             bool recursive,
             IDirectoryEntriesAccumulator accumulators)
         {
-            return s_fileSystem.EnumerateDirectoryEntries(directoryPath, enumerateDirectory, pattern, directoriesToSkipRecursively, recursive, accumulators);
+            return OsFileSystem.EnumerateDirectoryEntries(directoryPath, enumerateDirectory, pattern, directoriesToSkipRecursively, recursive, accumulators);
         }
 
         /// <see cref="IFileUtilities.FindAllOpenHandlesInDirectory(string, HashSet{string},Func{String, bool, bool})"/>
         public static string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null) =>
-            s_fileUtilities.FindAllOpenHandlesInDirectory(directoryPath, pathsPossiblyPendingDelete);
+            OsFileUtilities.FindAllOpenHandlesInDirectory(directoryPath, pathsPossiblyPendingDelete);
 
         /// <see cref="IFileSystem.TryOpenDirectory(string, FileDesiredAccess, FileShare, FileFlagsAndAttributes, out SafeFileHandle)"/>
         public static OpenFileResult TryOpenDirectory(
@@ -214,13 +214,13 @@ namespace BuildXL.Native.IO
             FileFlagsAndAttributes flagsAndAttributes,
             out SafeFileHandle handle)
         {
-            return s_fileSystem.TryOpenDirectory(directoryPath, desiredAccess, shareMode, flagsAndAttributes, out handle);
+            return OsFileSystem.TryOpenDirectory(directoryPath, desiredAccess, shareMode, flagsAndAttributes, out handle);
         }
 
         /// <see cref="IFileSystem.TryOpenDirectory(string, FileShare, out SafeFileHandle)"/>
         public static OpenFileResult TryOpenDirectory(string directoryPath, FileShare shareMode, out SafeFileHandle handle)
         {
-            return s_fileSystem.TryOpenDirectory(directoryPath, shareMode, out handle);
+            return OsFileSystem.TryOpenDirectory(directoryPath, shareMode, out handle);
         }
 
         #endregion
@@ -232,42 +232,13 @@ namespace BuildXL.Native.IO
             string source,
             string destination,
             Func<SafeFileHandle, SafeFileHandle, bool> predicate = null,
-            Action<SafeFileHandle, SafeFileHandle> onCompletion = null) => s_fileUtilities.CopyFileAsync(source, destination, predicate, onCompletion);
+            Action<SafeFileHandle, SafeFileHandle> onCompletion = null) => OsFileUtilities.CopyFileAsync(source, destination, predicate, onCompletion);
 
         /// <see cref="IFileUtilities.MoveFileAsync(string, string, bool)"/>
         public static Task MoveFileAsync(
             string source,
             string destination,
-            bool replaceExisting = false) => s_fileUtilities.MoveFileAsync(source, destination, replaceExisting);
-
-        /// <summary>
-        /// Tries to create copy-on-write by calling <see cref="IFileUtilities.CloneFile(string, string, bool)"/>.
-        /// </summary>
-        /// <param name="source">Source of copy.</param>
-        /// <param name="destination">Destination path.</param>
-        /// <param name="followSymlink">Flag indicating whether to follow source symlink or not.</param>
-        public static Possible<Unit> TryCreateCopyOnWrite(string source, string destination, bool followSymlink)
-        {
-            try
-            {
-                using (Counters?.StartStopwatch(StorageCounters.CopyOnWriteDuration))
-                {
-                    Counters?.IncrementCounter(StorageCounters.CopyOnWriteCount);
-                    Possible<Unit> result = s_fileUtilities.CloneFile(source, destination, followSymlink);
-
-                    if (result.Succeeded)
-                    {
-                        Counters?.IncrementCounter(StorageCounters.SuccessfulCopyOnWriteCount);
-                    }
-
-                    return result;
-                }
-            }
-            catch (NativeWin32Exception ex)
-            {
-                return NativeFailure.CreateFromException(ex);
-            }
-        }
+            bool replaceExisting = false) => OsFileUtilities.MoveFileAsync(source, destination, replaceExisting);
 
         /// <summary>
         /// Tries to copy using <see cref="IFileUtilities.InKernelFileCopy(string, string, bool)"/>.
@@ -279,7 +250,7 @@ namespace BuildXL.Native.IO
                 using (Counters?.StartStopwatch(StorageCounters.InKernelFileCopyDuration))
                 {
                     Counters?.IncrementCounter(StorageCounters.InKernelFileCopyCount);
-                    Possible<Unit> result = s_fileUtilities.InKernelFileCopy(source, destination, followSymlink);
+                    Possible<Unit> result = OsFileUtilities.InKernelFileCopy(source, destination, followSymlink);
                     if (result.Succeeded)
                     {
                         Counters?.IncrementCounter(StorageCounters.SuccessfulInKernelFileCopyCount);
@@ -303,17 +274,17 @@ namespace BuildXL.Native.IO
             string path,
             FileShare fileShare,
             bool openAsync = true,
-            bool allowExcludeFileShareDelete = false) => s_fileUtilities.CreateReplacementFile(path, fileShare, openAsync, allowExcludeFileShareDelete);
+            bool allowExcludeFileShareDelete = false) => OsFileUtilities.CreateReplacementFile(path, fileShare, openAsync, allowExcludeFileShareDelete);
 
         /// <see cref="IFileUtilities.DeleteFile(string, bool, ITempCleaner)"/>
         public static void DeleteFile(string path, bool retryOnFailure = true, ITempCleaner tempDirectoryCleaner = null) =>
-            s_fileUtilities.DeleteFile(path, retryOnFailure, tempDirectoryCleaner);
+            OsFileUtilities.DeleteFile(path, retryOnFailure, tempDirectoryCleaner);
 
         /// <see cref="IFileUtilities.PosixDeleteMode"/>
         public static PosixDeleteMode PosixDeleteMode
         {
-            get { return s_fileUtilities.PosixDeleteMode; }
-            set { s_fileUtilities.PosixDeleteMode = value; }
+            get { return OsFileUtilities.PosixDeleteMode; }
+            set { OsFileUtilities.PosixDeleteMode = value; }
         }
 
         /// <summary>
@@ -324,25 +295,25 @@ namespace BuildXL.Native.IO
         {
             get
             {
-                return s_fileUtilities.PosixDeleteMode == PosixDeleteMode.NoRun;
+                return OsFileUtilities.PosixDeleteMode == PosixDeleteMode.NoRun;
             }
 
             set
             {
                 if (value)
                 {
-                    s_fileUtilities.PosixDeleteMode = PosixDeleteMode.NoRun;
+                    OsFileUtilities.PosixDeleteMode = PosixDeleteMode.NoRun;
                 }
                 else
                 {
-                    s_fileUtilities.PosixDeleteMode = PosixDeleteMode.RunFirst;
+                    OsFileUtilities.PosixDeleteMode = PosixDeleteMode.RunFirst;
                 }
             }
         }
 
         /// <see cref="IFileUtilities.TryDeleteFile(string, bool, ITempCleaner)"/>
         public static Possible<string, DeletionFailure> TryDeleteFile(string path, bool retryOnFailure = true, ITempCleaner tempDirectoryCleaner = null) =>
-            s_fileUtilities.TryDeleteFile(path, retryOnFailure, tempDirectoryCleaner);
+            OsFileUtilities.TryDeleteFile(path, retryOnFailure, tempDirectoryCleaner);
 
         /// <summary>
         /// Tries to delete file or directory if exists.
@@ -437,44 +408,44 @@ namespace BuildXL.Native.IO
         }
 
         /// <see cref="IFileUtilities.TryMoveDelete(string, string)"/>
-        public static bool TryMoveDelete(string path, string deletionTempDirectory) => s_fileUtilities.TryMoveDelete(path, deletionTempDirectory);
+        public static bool TryMoveDelete(string path, string deletionTempDirectory) => OsFileUtilities.TryMoveDelete(path, deletionTempDirectory);
 
         /// <see cref="IFileUtilities.GetFileName(string)"/>
-        public static Possible<string> GetFileName(string path) => s_fileUtilities.GetFileName(path);
+        public static Possible<string> GetFileName(string path) => OsFileUtilities.GetFileName(path);
 
         /// <see cref="IFileUtilities.GetFileTimestamps"/>
         public static FileTimestamps GetFileTimestamps(string path, bool followSymlink = false)
-            => s_fileUtilities.GetFileTimestamps(path, followSymlink);
+            => OsFileUtilities.GetFileTimestamps(path, followSymlink);
 
         /// <see cref="IFileUtilities.SetFileTimestamps"/>
         public static void SetFileTimestamps(string path, FileTimestamps timestamps, bool followSymlink = false)
-            => s_fileUtilities.SetFileTimestamps(path, timestamps, followSymlink);
+            => OsFileUtilities.SetFileTimestamps(path, timestamps, followSymlink);
 
         /// <see cref="IFileUtilities.WriteAllTextAsync(string, string, Encoding)"/>
         public static Task WriteAllTextAsync(
             string filePath,
             string text,
-            Encoding encoding) => s_fileUtilities.WriteAllTextAsync(filePath, text, encoding);
+            Encoding encoding) => OsFileUtilities.WriteAllTextAsync(filePath, text, encoding);
 
         /// <see cref="IFileUtilities.WriteAllBytesAsync(string, byte[], Func{SafeFileHandle, bool}, Action{SafeFileHandle})"/>
         public static Task<bool> WriteAllBytesAsync(
             string filePath,
             byte[] bytes,
             Func<SafeFileHandle, bool> predicate = null,
-            Action<SafeFileHandle> onCompletion = null) => s_fileUtilities.WriteAllBytesAsync(filePath, bytes, predicate, onCompletion);
+            Action<SafeFileHandle> onCompletion = null) => OsFileUtilities.WriteAllBytesAsync(filePath, bytes, predicate, onCompletion);
 
         /// <see cref="IFileUtilities.TryFindOpenHandlesToFile"/>
         public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true)
-            => s_fileUtilities.TryFindOpenHandlesToFile(filePath, out diagnosticInfo, printCurrentFilePath);
+            => OsFileUtilities.TryFindOpenHandlesToFile(filePath, out diagnosticInfo, printCurrentFilePath);
 
         /// <see cref="IFileUtilities.GetHardLinkCount(string)"/>
-        public static uint GetHardLinkCount(string path) => s_fileUtilities.GetHardLinkCount(path);
+        public static uint GetHardLinkCount(string path) => OsFileUtilities.GetHardLinkCount(path);
 
         /// <see cref="IFileUtilities.HasWritableAccessControl(string)"/>
-        public static bool HasWritableAccessControl(string path) => s_fileUtilities.HasWritableAccessControl(path);
+        public static bool HasWritableAccessControl(string path) => OsFileUtilities.HasWritableAccessControl(path);
 
         /// <see cref="IFileUtilities.HasWritableAttributeAccessControl(string)"/>
-        public static bool HasWritableAttributeAccessControl(string path) => s_fileUtilities.HasWritableAttributeAccessControl(path);
+        public static bool HasWritableAttributeAccessControl(string path) => OsFileUtilities.HasWritableAttributeAccessControl(path);
 
         /// <see cref="IFileUtilities.CreateFileStream(string, FileMode, FileAccess, FileShare, FileOptions, bool, bool)"/>
         public static FileStream CreateFileStream(
@@ -486,7 +457,7 @@ namespace BuildXL.Native.IO
             bool force = false,
             bool allowExcludeFileShareDelete = false)
         {
-            return s_fileUtilities.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force, allowExcludeFileShareDelete);
+            return OsFileUtilities.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force, allowExcludeFileShareDelete);
         }
 
         /// <see cref="IFileUtilities.CreateAsyncFileStream(string, FileMode, FileAccess, FileShare, FileOptions, bool, bool)"/>
@@ -499,7 +470,7 @@ namespace BuildXL.Native.IO
             bool force = false,
             bool allowExcludeFileShareDelete = false)
         {
-            return s_fileUtilities.CreateAsyncFileStream(path, fileMode, fileAccess, fileShare, options, force, allowExcludeFileShareDelete);
+            return OsFileUtilities.CreateAsyncFileStream(path, fileMode, fileAccess, fileShare, options, force, allowExcludeFileShareDelete);
         }
 
         /// <see cref="IFileUtilities.UsingFileHandleAndFileLength"/>
@@ -511,69 +482,13 @@ namespace BuildXL.Native.IO
             FileFlagsAndAttributes flagsAndAttributes,
             Func<SafeFileHandle, long, TResult> handleStream)
             =>
-                s_fileUtilities.UsingFileHandleAndFileLength(
+                OsFileUtilities.UsingFileHandleAndFileLength(
                     path,
                     desiredAccess,
                     shareMode,
                     creationDisposition,
                     flagsAndAttributes,
                     handleStream);
-
-        /// <summary>
-        /// Tries to duplicate a file.
-        /// </summary>
-        public static Task<FileDuplicationResult> TryDuplicateOneFileAsync(string sourcePath, string destinationPath)
-        {
-            Contract.Requires(!string.IsNullOrWhiteSpace(sourcePath));
-            Contract.Requires(!string.IsNullOrWhiteSpace(destinationPath));
-
-            if (string.Compare(sourcePath, destinationPath, OperatingSystemHelper.PathComparison) == 0)
-            {
-                return Task.FromResult(FileDuplicationResult.Existed); // Nothing to do.
-            }
-
-            return ExceptionUtilities.HandleRecoverableIOExceptionAsync(
-                async () =>
-                {
-                    var destinationDirectory = Path.GetDirectoryName(destinationPath);
-                    if (DirectoryExistsNoFollow(destinationDirectory))
-                    {
-                        if (FileExistsNoFollow(destinationPath))
-                        {
-                            DeleteFile(destinationPath);
-                        }
-                    }
-                    else
-                    {
-                        CreateDirectory(destinationDirectory);
-                    }
-
-                    if (!OperatingSystemHelper.IsUnixOS)
-                    {
-                        var hardlinkResult = s_fileSystem.TryCreateHardLinkViaSetInformationFile(destinationPath, sourcePath);
-
-                        if (hardlinkResult == CreateHardLinkStatus.Success)
-                        {
-                            return FileDuplicationResult.Hardlinked;
-                        }
-                    }
-                    else
-                    {
-                        if (IsCopyOnWriteSupportedByEnlistmentVolume)
-                        {
-                            var possiblyCreateCopyOnWrite = TryCreateCopyOnWrite(sourcePath, destinationPath, followSymlink: false);
-                            if (possiblyCreateCopyOnWrite.Succeeded)
-                            {
-                                return FileDuplicationResult.Copied;
-                            }
-                        }
-                    }
-
-                    await CopyFileAsync(sourcePath, destinationPath);
-                    return FileDuplicationResult.Copied;
-                },
-                ex => { throw new BuildXLException(ex.Message); });
-        }
 
         /// <see cref="IFileSystem.TryCreateOrOpenFile(string, FileDesiredAccess, FileShare, FileMode, FileFlagsAndAttributes, out SafeFileHandle)"/>
         public static OpenFileResult TryCreateOrOpenFile(
@@ -584,7 +499,7 @@ namespace BuildXL.Native.IO
             FileFlagsAndAttributes flagsAndAttributes,
             out SafeFileHandle handle)
         {
-            return s_fileSystem.TryCreateOrOpenFile(path, desiredAccess, shareMode, creationDisposition, flagsAndAttributes, out handle);
+            return OsFileSystem.TryCreateOrOpenFile(path, desiredAccess, shareMode, creationDisposition, flagsAndAttributes, out handle);
         }
 
         /// <see cref="IFileSystem.TryOpenFileById(SafeFileHandle, FileId, FileDesiredAccess, FileShare, FileFlagsAndAttributes, out SafeFileHandle)"/>
@@ -596,7 +511,7 @@ namespace BuildXL.Native.IO
             FileFlagsAndAttributes flagsAndAttributes,
             out SafeFileHandle handle)
         {
-            return s_fileSystem.TryOpenFileById(existingHandleOnVolume, fileId, desiredAccess, shareMode, flagsAndAttributes, out handle);
+            return OsFileSystem.TryOpenFileById(existingHandleOnVolume, fileId, desiredAccess, shareMode, flagsAndAttributes, out handle);
         }
 
         /// <see cref="IFileSystem.TryReOpenFile(SafeFileHandle, FileDesiredAccess, FileShare, FileFlagsAndAttributes, out SafeFileHandle)"/>
@@ -607,19 +522,19 @@ namespace BuildXL.Native.IO
             FileFlagsAndAttributes flagsAndAttributes,
             out SafeFileHandle reopenedHandle)
         {
-            return s_fileSystem.TryReOpenFile(existing, desiredAccess, shareMode, flagsAndAttributes, out reopenedHandle);
+            return OsFileSystem.TryReOpenFile(existing, desiredAccess, shareMode, flagsAndAttributes, out reopenedHandle);
         }
 
         /// <see cref="IFileSystem.TryPosixDelete(string, out OpenFileResult)"/>
         public static unsafe bool TryPosixDelete(string pathToDelete, out OpenFileResult openFileResult)
         {
-            return s_fileSystem.TryPosixDelete(pathToDelete, out openFileResult);
+            return OsFileSystem.TryPosixDelete(pathToDelete, out openFileResult);
         }
 
         /// <see cref="IFileSystem.TrySetDeletionDisposition(SafeFileHandle)"/>
         public static unsafe bool TrySetDeletionDisposition(SafeFileHandle handle)
         {
-            return s_fileSystem.TrySetDeletionDisposition(handle);
+            return OsFileSystem.TrySetDeletionDisposition(handle);
         }
 
         /// <see cref="IFileSystem.GetFileFlagsAndAttributesForPossibleReparsePoint"/>
@@ -627,7 +542,7 @@ namespace BuildXL.Native.IO
         {
             using (Counters?.StartStopwatch(StorageCounters.GetFileFlagsAndAttributesForPossibleReparsePointDuration))
             {
-                return s_fileSystem.GetFileFlagsAndAttributesForPossibleReparsePoint(expandedPath);
+                return OsFileSystem.GetFileFlagsAndAttributesForPossibleReparsePoint(expandedPath);
             }
         }
 
@@ -636,41 +551,41 @@ namespace BuildXL.Native.IO
         {
             using (Counters?.StartStopwatch(StorageCounters.GetFileAttributesByHandleDuration))
             {
-                return s_fileSystem.GetFileAttributesByHandle(fileHandle);
+                return OsFileSystem.GetFileAttributesByHandle(fileHandle);
             }
         }
 
         /// <see cref="IFileSystem.GetFileAttributes(string)"/>
-        public static FileAttributes GetFileAttributes(string path) => s_fileSystem.GetFileAttributes(path);
+        public static FileAttributes GetFileAttributes(string path) => OsFileSystem.GetFileAttributes(path);
 
         /// <see cref="IFileSystem.SetFileAttributes(string, FileAttributes)"/>
         public static void SetFileAttributes(string path, FileAttributes attributes)
         {
-            s_fileSystem.SetFileAttributes(path, attributes);
+            OsFileSystem.SetFileAttributes(path, attributes);
         }
 
         /// <see cref="IFileUtilities.SetFileAccessControl(string, FileSystemRights, bool, bool)"/>
         public static void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow, bool disableInheritance = false)
         {
-            s_fileUtilities.SetFileAccessControl(path, fileSystemRights, allow, disableInheritance);
+            OsFileUtilities.SetFileAccessControl(path, fileSystemRights, allow, disableInheritance);
         }
 
         /// <see cref="IFileSystem.TryWriteFileSync(SafeFileHandle, byte[], out int)"/>
         public static bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode)
         {
-            return s_fileSystem.TryWriteFileSync(handle, content, out nativeErrorCode);
+            return OsFileSystem.TryWriteFileSync(handle, content, out nativeErrorCode);
         }
 
         /// <see cref="IFileUtilities.DisableAuditRuleInheritance(string)"/>
         public static void DisableAuditRuleInheritance(string path)
         {
-            s_fileUtilities.DisableAuditRuleInheritance(path);
+            OsFileUtilities.DisableAuditRuleInheritance(path);
         }
 
         /// <inheritdoc />
         public static bool IsFileAccessRuleInheritanceDisabled(string path)
         {
-            return s_fileUtilities.IsAclInheritanceDisabled(path);
+            return OsFileUtilities.IsAclInheritanceDisabled(path);
         }
 
         #endregion
@@ -678,19 +593,19 @@ namespace BuildXL.Native.IO
         #region General file and directory utilities
 
         /// <see cref="IFileUtilities.Exists(string)"/>
-        public static bool Exists(string path) => s_fileUtilities.Exists(path);
+        public static bool Exists(string path) => OsFileUtilities.Exists(path);
 
         /// <see cref="IFileUtilities.DoesLogicalDriveHaveSeekPenalty(char)"/>
-        public static bool? DoesLogicalDriveHaveSeekPenalty(char driveLetter) => s_fileUtilities.DoesLogicalDriveHaveSeekPenalty(driveLetter);
+        public static bool? DoesLogicalDriveHaveSeekPenalty(char driveLetter) => OsFileUtilities.DoesLogicalDriveHaveSeekPenalty(driveLetter);
 
         /// <see cref="IFileUtilities.GetKnownFolderPath(Guid)"/>
-        public static string GetKnownFolderPath(Guid knownFolder) => s_fileUtilities.GetKnownFolderPath(knownFolder);
+        public static string GetKnownFolderPath(Guid knownFolder) => OsFileUtilities.GetKnownFolderPath(knownFolder);
 
         /// <see cref="IFileUtilities.GetUserSettingsFolder(string)"/>
-        public static string GetUserSettingsFolder(string appName) => s_fileUtilities.GetUserSettingsFolder(appName);
+        public static string GetUserSettingsFolder(string appName) => OsFileUtilities.GetUserSettingsFolder(appName);
 
         /// <see cref="IFileUtilities.TryTakeOwnershipAndSetWriteable(string)"/>
-        public static bool TryTakeOwnershipAndSetWriteable(string path) => s_fileUtilities.TryTakeOwnershipAndSetWriteable(path);
+        public static bool TryTakeOwnershipAndSetWriteable(string path) => OsFileUtilities.TryTakeOwnershipAndSetWriteable(path);
 
         #endregion
 
@@ -699,13 +614,13 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileSystem.CreateJunction(string, string, bool, bool)"/>
         public static void CreateJunction(string junctionPoint, string targetDir, bool createDirectoryForJunction = true, bool allowNonExistentTarget = false)
         {
-            s_fileSystem.CreateJunction(junctionPoint, targetDir, createDirectoryForJunction, allowNonExistentTarget);
+            OsFileSystem.CreateJunction(junctionPoint, targetDir, createDirectoryForJunction, allowNonExistentTarget);
         }
 
         /// <see cref="IFileSystem.TryCreateSymbolicLink(string, string, bool)"/>
         public static Possible<Unit> TryCreateSymbolicLink(string symLinkFileName, string targetFileName, bool isTargetFile)
         {
-            return s_fileSystem.TryCreateSymbolicLink(symLinkFileName, targetFileName, isTargetFile);
+            return OsFileSystem.TryCreateSymbolicLink(symLinkFileName, targetFileName, isTargetFile);
         }
 
 
@@ -747,7 +662,7 @@ namespace BuildXL.Native.IO
 
             if (shouldCreate)
             {
-                s_fileUtilities.DeleteFile(reparsePoint, retryOnFailure: true);
+                OsFileUtilities.DeleteFile(reparsePoint, retryOnFailure: true);
                 return TryCreateReparsePoint(reparsePoint, reparsePointTarget, type);
             }
 
@@ -766,7 +681,7 @@ namespace BuildXL.Native.IO
             {
                 try
                 {
-                    s_fileSystem.CreateJunction(path, reparsePointTarget, allowNonExistentTarget: true);
+                    OsFileSystem.CreateJunction(path, reparsePointTarget, allowNonExistentTarget: true);
                 }
                 catch (Exception e)
                 {
@@ -780,7 +695,7 @@ namespace BuildXL.Native.IO
                 {
                     CreateDirectory(Path.GetDirectoryName(path));
 
-                    var maybeSymbolicLink = s_fileSystem.TryCreateSymbolicLink(path, reparsePointTarget, isTargetFile: type != ReparsePointType.DirectorySymlink);
+                    var maybeSymbolicLink = OsFileSystem.TryCreateSymbolicLink(path, reparsePointTarget, isTargetFile: type != ReparsePointType.DirectorySymlink);
                     if (!maybeSymbolicLink.Succeeded)
                     {
                         return maybeSymbolicLink.Failure;
@@ -798,19 +713,19 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileSystem.TryCreateHardLink(string, string)"/>
         public static CreateHardLinkStatus TryCreateHardLink(string link, string linkTarget)
         {
-            return s_fileSystem.TryCreateHardLink(link, linkTarget);
+            return OsFileSystem.TryCreateHardLink(link, linkTarget);
         }
 
         /// <see cref="IFileSystem.TryCreateHardLinkViaSetInformationFile(string, string, bool)"/>
         public static CreateHardLinkStatus TryCreateHardLinkViaSetInformationFile(string link, string linkTarget, bool replaceExisting = true)
         {
-            return s_fileSystem.TryCreateHardLinkViaSetInformationFile(link, linkTarget, replaceExisting);
+            return OsFileSystem.TryCreateHardLinkViaSetInformationFile(link, linkTarget, replaceExisting);
         }
 
         /// <see cref="IFileSystem.IsReparsePointActionable(ReparsePointType)"/>
         public static bool IsReparsePointActionable(ReparsePointType reparsePointType)
         {
-            return s_fileSystem.IsReparsePointActionable(reparsePointType);
+            return OsFileSystem.IsReparsePointActionable(reparsePointType);
         }
 
         /// <see cref="IFileSystem.TryGetReparsePointType(string)"/>
@@ -818,38 +733,38 @@ namespace BuildXL.Native.IO
         {
             using (Counters?.StartStopwatch(StorageCounters.GetReparsePointTypeDuration))
             {
-                return s_fileSystem.TryGetReparsePointType(path);
+                return OsFileSystem.TryGetReparsePointType(path);
             }
         }
 
         /// <see cref="IFileSystem.IsWciReparseArtifact(string)"/>
         public static bool IsWciReparseArtifact(string path)
         {
-            return s_fileSystem.IsWciReparseArtifact(path);
+            return OsFileSystem.IsWciReparseArtifact(path);
         }
 
         /// <see cref="IFileSystem.IsWciReparsePoint(string)"/>
         public static bool IsWciReparsePoint(string path)
         {
-            return s_fileSystem.IsWciReparsePoint(path);
+            return OsFileSystem.IsWciReparsePoint(path);
         }
 
         /// <see cref="IFileSystem.IsWciTombstoneFile(string)"/>
         public static bool IsWciTombstoneFile(string path)
         {
-            return s_fileSystem.IsWciTombstoneFile(path);
+            return OsFileSystem.IsWciTombstoneFile(path);
         }
 
         /// <see cref="IFileSystem.GetChainOfReparsePoints(SafeFileHandle, string, IList{string})"/>
         public static void GetChainOfReparsePoints(SafeFileHandle handle, string sourcePath, IList<string> chainOfReparsePoints)
         {
-            s_fileSystem.GetChainOfReparsePoints(handle, sourcePath, chainOfReparsePoints);
+            OsFileSystem.GetChainOfReparsePoints(handle, sourcePath, chainOfReparsePoints);
         }
 
         /// <see cref="IFileSystem.TryGetReparsePointTarget(SafeFileHandle, string)"/>
         public static Possible<string> TryGetReparsePointTarget(SafeFileHandle handle, string sourcePath)
         {
-            return s_fileSystem.TryGetReparsePointTarget(handle, sourcePath);
+            return OsFileSystem.TryGetReparsePointTarget(handle, sourcePath);
         }
 
         /// <summary>
@@ -885,10 +800,10 @@ namespace BuildXL.Native.IO
         }
 
         /// <see cref="IFileSystem.IsDirectorySymlinkOrJunction(string)"/>
-        public static bool IsDirectorySymlinkOrJunction(string path) => s_fileSystem.IsDirectorySymlinkOrJunction(path);
+        public static bool IsDirectorySymlinkOrJunction(string path) => OsFileSystem.IsDirectorySymlinkOrJunction(path);
 
         /// <see cref="IFileSystem.GetFullPath(string)"/>
-        public static string GetFullPath(string path) => s_fileSystem.GetFullPath(path);
+        public static string GetFullPath(string path) => OsFileSystem.GetFullPath(path);
 
         /// <summary>
         /// Returns a unique temporary file name, and creates a 0-byte file by that name on disk.
@@ -919,7 +834,7 @@ namespace BuildXL.Native.IO
         }
 
         /// <see cref="IFileSystem.SupportsCreationDate"/>
-        public static bool SupportsCreationDate() => s_fileSystem.SupportsCreationDate();
+        public static bool SupportsCreationDate() => OsFileSystem.SupportsCreationDate();
 
         #endregion
 
@@ -930,7 +845,7 @@ namespace BuildXL.Native.IO
         {
             using (Counters?.StartStopwatch(StorageCounters.ReadFileUsnByHandleDuration))
             {
-                return s_fileSystem.ReadFileUsnByHandle(fileHandle, forceJournalVersion2);
+                return OsFileSystem.ReadFileUsnByHandle(fileHandle, forceJournalVersion2);
             }
         }
 
@@ -945,14 +860,14 @@ namespace BuildXL.Native.IO
         {
             using (Counters?.StartStopwatch(StorageCounters.ReadUsnJournalDuration))
             {
-                return s_fileSystem.TryReadUsnJournal(volumeHandle, buffer, journalId, startUsn, forceJournalVersion2, isJournalUnprivileged);
+                return OsFileSystem.TryReadUsnJournal(volumeHandle, buffer, journalId, startUsn, forceJournalVersion2, isJournalUnprivileged);
             }
         }
 
         /// <see cref="IFileSystem.TryQueryUsnJournal(SafeFileHandle)"/>
         public static QueryUsnJournalResult TryQueryUsnJournal(SafeFileHandle volumeHandle)
         {
-            return s_fileSystem.TryQueryUsnJournal(volumeHandle);
+            return OsFileSystem.TryQueryUsnJournal(volumeHandle);
         }
 
         /// <see cref="IFileSystem.TryWriteUsnCloseRecordByHandle(SafeFileHandle)"/>
@@ -960,7 +875,7 @@ namespace BuildXL.Native.IO
         {
             using (Counters?.StartStopwatch(StorageCounters.WriteUsnCloseRecordByHandleDuration))
             {
-                return s_fileSystem.TryWriteUsnCloseRecordByHandle(fileHandle);
+                return OsFileSystem.TryWriteUsnCloseRecordByHandle(fileHandle);
             }
         }
 
@@ -971,61 +886,61 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileSystem.ListVolumeGuidPathsAndSerials"/>
         public static List<Tuple<VolumeGuidPath, ulong>> ListVolumeGuidPathsAndSerials()
         {
-            return s_fileSystem.ListVolumeGuidPathsAndSerials();
+            return OsFileSystem.ListVolumeGuidPathsAndSerials();
         }
 
         /// <see cref="IFileSystem.GetVolumeFileSystemByHandle(SafeFileHandle)"/>
         public static FileSystemType GetVolumeFileSystemByHandle(SafeFileHandle fileHandle)
         {
-            return s_fileSystem.GetVolumeFileSystemByHandle(fileHandle);
+            return OsFileSystem.GetVolumeFileSystemByHandle(fileHandle);
         }
 
         /// <see cref="IFileSystem.GetShortVolumeSerialNumberByHandle(SafeFileHandle)"/>
         public static unsafe uint GetShortVolumeSerialNumberByHandle(SafeFileHandle fileHandle)
         {
-            return s_fileSystem.GetShortVolumeSerialNumberByHandle(fileHandle);
+            return OsFileSystem.GetShortVolumeSerialNumberByHandle(fileHandle);
         }
 
         /// <see cref="IFileSystem.GetVolumeFileSystemByHandle(SafeFileHandle)"/>
         public static ulong GetVolumeSerialNumberByHandle(SafeFileHandle fileHandle)
         {
-            return s_fileSystem.GetVolumeSerialNumberByHandle(fileHandle);
+            return OsFileSystem.GetVolumeSerialNumberByHandle(fileHandle);
         }
 
         /// <see cref="IFileSystem.TryGetFileIdAndVolumeIdByHandle(SafeFileHandle)"/>
         public static unsafe FileIdAndVolumeId? TryGetFileIdAndVolumeIdByHandle(SafeFileHandle fileHandle)
         {
-            return s_fileSystem.TryGetFileIdAndVolumeIdByHandle(fileHandle);
+            return OsFileSystem.TryGetFileIdAndVolumeIdByHandle(fileHandle);
         }
 
         /// <see cref="IFileSystem.IsVolumeMapped(string)"/>
-        public static bool IsVolumeMapped(string volume) => s_fileSystem.IsVolumeMapped(volume);
+        public static bool IsVolumeMapped(string volume) => OsFileSystem.IsVolumeMapped(volume);
 
         #endregion
 
         #region File identity and version
 
         /// <see cref="IFileSystem.TryGetFileIdentityByHandle(SafeFileHandle)"/>
-        public static unsafe FileIdAndVolumeId? TryGetFileIdentityByHandle(SafeFileHandle fileHandle) => s_fileSystem.TryGetFileIdentityByHandle(fileHandle);
+        public static unsafe FileIdAndVolumeId? TryGetFileIdentityByHandle(SafeFileHandle fileHandle) => OsFileSystem.TryGetFileIdentityByHandle(fileHandle);
 
         /// <see cref="IFileSystem.TryGetVersionedFileIdentityByHandle(SafeFileHandle)"/>
-        public static unsafe (FileIdAndVolumeId, Usn)? TryGetVersionedFileIdentityByHandle(SafeFileHandle fileHandle) => s_fileSystem.TryGetVersionedFileIdentityByHandle(fileHandle);
+        public static unsafe (FileIdAndVolumeId, Usn)? TryGetVersionedFileIdentityByHandle(SafeFileHandle fileHandle) => OsFileSystem.TryGetVersionedFileIdentityByHandle(fileHandle);
 
         /// <see cref="IFileSystem.TryEstablishVersionedFileIdentityByHandle(SafeFileHandle,bool)"/>
         public static unsafe (FileIdAndVolumeId, Usn)? TryEstablishVersionedFileIdentityByHandle(SafeFileHandle fileHandle, bool flushPageCache)
-            => s_fileSystem.TryEstablishVersionedFileIdentityByHandle(fileHandle, flushPageCache);
+            => OsFileSystem.TryEstablishVersionedFileIdentityByHandle(fileHandle, flushPageCache);
 
         /// <see cref="IFileSystem.CheckIfVolumeSupportsPreciseFileVersionByHandle(SafeFileHandle)"/>
-        public static bool CheckIfVolumeSupportsPreciseFileVersionByHandle(SafeFileHandle fileHandle) => s_fileSystem.CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle);
+        public static bool CheckIfVolumeSupportsPreciseFileVersionByHandle(SafeFileHandle fileHandle) => OsFileSystem.CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle);
 
         /// <see cref="IFileSystem.IsPreciseFileVersionSupportedByEnlistmentVolume"/>
         public static bool IsPreciseFileVersionSupportedByEnlistmentVolume
         {
-            get => s_fileSystem.IsPreciseFileVersionSupportedByEnlistmentVolume;
+            get => OsFileSystem.IsPreciseFileVersionSupportedByEnlistmentVolume;
 
             set
             {
-                s_fileSystem.IsPreciseFileVersionSupportedByEnlistmentVolume = value;
+                OsFileSystem.IsPreciseFileVersionSupportedByEnlistmentVolume = value;
             }
         }
 
@@ -1035,65 +950,55 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileSystem.MaxDirectoryPathLength"/>
         public static int MaxDirectoryPathLength()
         {
-            return s_fileSystem.MaxDirectoryPathLength();
+            return OsFileSystem.MaxDirectoryPathLength();
         }
 
         /// <see cref="IFileSystem.TryProbePathExistence(string, bool, out bool)"/>
         public static Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink)
         {
-            return s_fileSystem.TryProbePathExistence(path, followSymlink, out _);
+            return OsFileSystem.TryProbePathExistence(path, followSymlink, out _);
         }
 
         /// <see cref="IFileSystem.TryProbePathExistence(string, bool, out bool)"/>
         public static Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink, out bool isReparsePoint)
         {
-            return s_fileSystem.TryProbePathExistence(path, followSymlink, out isReparsePoint);
+            return OsFileSystem.TryProbePathExistence(path, followSymlink, out isReparsePoint);
         }
 
         /// <see cref="IFileSystem.PathMatchPattern"/>
         public static bool PathMatchPattern(string path, string pattern)
         {
-            return s_fileSystem.PathMatchPattern(path, pattern);
+            return OsFileSystem.PathMatchPattern(path, pattern);
         }
 
         /// <see cref="IFileSystem.IsPendingDelete(SafeFileHandle)"/>
         public static unsafe bool IsPendingDelete(SafeFileHandle fileHandle)
         {
-            return s_fileSystem.IsPendingDelete(fileHandle);
+            return OsFileSystem.IsPendingDelete(fileHandle);
         }
 
         /// <see cref="IFileSystem.GetFinalPathNameByHandle(SafeFileHandle, bool)"/>
         public static string GetFinalPathNameByHandle(SafeFileHandle handle, bool volumeGuidPath = false)
         {
-            return s_fileSystem.GetFinalPathNameByHandle(handle, volumeGuidPath);
+            return OsFileSystem.GetFinalPathNameByHandle(handle, volumeGuidPath);
         }
 
         /// <see cref="IFileSystem.TryGetFinalPathNameByPath(string, out string, out int, bool)"/>
         public static bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false)
         {
-            return s_fileSystem.TryGetFinalPathNameByPath(path, out finalPath, out nativeErrorCode, volumeGuidPath);
+            return OsFileSystem.TryGetFinalPathNameByPath(path, out finalPath, out nativeErrorCode, volumeGuidPath);
         }
 
         /// <see cref="IFileSystem.FlushPageCacheToFilesystem(SafeFileHandle)"/>
         public static unsafe NtStatus FlushPageCacheToFilesystem(SafeFileHandle handle)
         {
-            return s_fileSystem.FlushPageCacheToFilesystem(handle);
+            return OsFileSystem.FlushPageCacheToFilesystem(handle);
         }
 
-        /// <see cref="IFileSystem.CheckIfVolumeSupportsCopyOnWriteByHandle(SafeFileHandle)"/>
-        public static bool CheckIfVolumeSupportsCopyOnWriteByHandle(SafeFileHandle fileHandle) => s_fileSystem.CheckIfVolumeSupportsCopyOnWriteByHandle(fileHandle);
-
-        /// <see cref="IFileSystem.IsCopyOnWriteSupportedByEnlistmentVolume"/>
-        public static bool IsCopyOnWriteSupportedByEnlistmentVolume
-        {
-            get => s_fileSystem.IsCopyOnWriteSupportedByEnlistmentVolume;
-            set => s_fileSystem.IsCopyOnWriteSupportedByEnlistmentVolume = value;
-        }
-
-        /// <see cref="IFileSystem.IsCopyOnWriteSupportedByEnlistmentVolume"/>
+        /// <see cref="IFileSystem.IsInKernelCopyingSupportedByHostSystem"/>
         public static bool IsInKernelCopyingSupportedByHostSystem
         {
-            get => s_fileSystem.IsInKernelCopyingSupportedByHostSystem;
+            get => OsFileSystem.IsInKernelCopyingSupportedByHostSystem;
         }
 
         /// <summary>
@@ -1138,11 +1043,11 @@ namespace BuildXL.Native.IO
         /// </remarks>
         public static Possible<string> ResolveSymlinkTarget(string symlinkPath, string targetPath = null)
         {
-            Contract.Requires(s_fileSystem.IsPathRooted(symlinkPath));
+            Contract.Requires(OsFileSystem.IsPathRooted(symlinkPath));
 
             if (targetPath == null)
             {
-                var maybeTarget = s_fileSystem.TryGetReparsePointTarget(null, symlinkPath);
+                var maybeTarget = OsFileSystem.TryGetReparsePointTarget(null, symlinkPath);
                 if (!maybeTarget.Succeeded)
                 {
                     return maybeTarget.Failure;
@@ -1151,14 +1056,14 @@ namespace BuildXL.Native.IO
                 targetPath = maybeTarget.Result;
             }
 
-            if (s_fileSystem.IsPathRooted(targetPath))
+            if (OsFileSystem.IsPathRooted(targetPath))
             {
                 // If symlink target is an absolute path, then simply returns that path.
                 return targetPath;
             }
 
             // Symlink target is a relative path.
-            var maybeResolvedRelative = s_fileSystem.TryResolveReparsePointRelativeTarget(symlinkPath, targetPath);
+            var maybeResolvedRelative = OsFileSystem.TryResolveReparsePointRelativeTarget(symlinkPath, targetPath);
 
             if (!maybeResolvedRelative.Succeeded)
             {

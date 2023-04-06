@@ -63,10 +63,12 @@ namespace Native {
         generateLogs: true,
         addNotNullAttributeFile: true,
         references: [
+            // IMPORTANT!!! Do not add non-bxl dependencies or any bxl projects with external dependencies into this project
+            //              any non-bxl dependencies should go to BuildXL.Native.Extensions instead
+
             Interop.dll,
             ...securityDlls,
             Utilities.Core.dll,
-            importFrom("CopyOnWrite").pkg,
         ],
         runtimeContent: [
             ...nativeMac,
@@ -74,6 +76,7 @@ namespace Native {
             ...nativeLinux,
         ],
         internalsVisibleTo: [
+            "BuildXL.Native.Extensions",
             "BuildXL.Processes",
             "BuildXL.ProcessPipExecutor",
             "Test.BuildXL.Storage",

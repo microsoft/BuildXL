@@ -21,7 +21,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 using KVP = System.Collections.Generic.KeyValuePair<string, string>;
 using PipKVP = System.Collections.Generic.KeyValuePair<string, BuildXL.Scheduler.Tracing.FingerprintStore.PipFingerprintKeys>;
@@ -1753,9 +1752,9 @@ namespace BuildXL.Scheduler.Tracing
                                     // Assume if the first hard link fails, all the hard links will fail
                                     if (!hardLinkFailureSeen)
                                     {
-                                        if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
+                                        if (FileUtilitiesExtensions.IsCopyOnWriteSupportedByEnlistmentVolume)
                                         {
-                                            var possiblyCreateCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(storeFile, logFile, followSymlink: false);
+                                            var possiblyCreateCopyOnWrite = FileUtilitiesExtensions.TryCreateCopyOnWrite(storeFile, logFile, followSymlink: false);
 
                                             if (possiblyCreateCopyOnWrite.Succeeded)
                                             {

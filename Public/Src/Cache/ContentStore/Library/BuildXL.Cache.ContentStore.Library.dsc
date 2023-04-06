@@ -39,6 +39,7 @@ namespace Library {
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Native.Extensions.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             ...getGrpcPackages(true),

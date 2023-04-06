@@ -24,6 +24,7 @@ namespace Storage {
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Native.Extensions.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...importFrom("BuildXL.Utilities").Native.securityDlls,

@@ -130,6 +130,12 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).Native.dll,
 
+            // BuildXL.Native.Extensions
+            importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Native.Extensions.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Native.Extensions.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).Native.Extensions.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).Native.Extensions.dll,
+
             // BuildXL.Configuration
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Configuration.dll,

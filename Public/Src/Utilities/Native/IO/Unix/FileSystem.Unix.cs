@@ -50,8 +50,6 @@ namespace BuildXL.Native.IO.Unix
 
         private Lazy<bool> m_supportPreciseFileVersion = default;
 
-        private Lazy<bool> m_supportCopyOnWrite = default;
-
         private readonly ConcurrentDictionary<string, Regex> m_patternRegexes;
 
         /// <summary>
@@ -60,7 +58,6 @@ namespace BuildXL.Native.IO.Unix
         public FileSystemUnix()
         {
             m_supportPreciseFileVersion = new Lazy<bool>(() => SupportPreciseFileVersion());
-            m_supportCopyOnWrite = new Lazy<bool>(() => SupportCopyOnWrite());
             var matchEverythingRegex = TranslatePattern("*");
             m_patternRegexes = new ConcurrentDictionary<string, Regex>
             {
@@ -1139,45 +1136,7 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public bool IsCopyOnWriteSupportedByEnlistmentVolume
-        {
-            get => m_supportCopyOnWrite.Value;
-            set
-            {
-                m_supportCopyOnWrite = new Lazy<bool>(() => value);
-            }
-        }
-
-        /// <inheritdoc />
         public bool IsInKernelCopyingSupportedByHostSystem => !Interop.Dispatch.IsMacOS;
-
-        /// <inheritdoc />
-        public bool CheckIfVolumeSupportsCopyOnWriteByHandle(SafeFileHandle fileHandle)
-        {
-            try
-            {
-                return GetVolumeFileSystemByHandle(fileHandle) == FileSystemType.APFS;
-            }
-            catch (NativeWin32Exception)
-            {
-                return false;
-            }
-        }
-
-        private bool SupportCopyOnWrite()
-        {
-            // Use temp file name as an approximation whether file system supports copy-on-write.
-            string path = FileUtilities.GetTempFileName();
-            bool result = false;
-
-            using (var fileStream = CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, FileOptions.None, false))
-            {
-                result = CheckIfVolumeSupportsCopyOnWriteByHandle(fileStream.SafeFileHandle);
-            }
-
-            File.Delete(path);
-            return result;
-        }
 
         private static int TryGetFilePermission(string path, bool followSymlink = false, bool throwOnFailure = true)
         {

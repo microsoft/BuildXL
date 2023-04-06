@@ -2217,7 +2217,7 @@ namespace BuildXL.Engine
             try
             {
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = await FileUtilities.TryDuplicateOneFileAsync(sourcePath, destinationPath);
+                var result = await FileUtilitiesExtensions.TryDuplicateOneFileAsync(sourcePath, destinationPath);
 
                 if (result == FileDuplicationResult.Copied)
                 {

@@ -14,7 +14,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
@@ -130,9 +129,9 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
             CreateDirectory(destinationPath.GetParent());
 
-            if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
+            if (FileUtilitiesExtensions.IsCopyOnWriteSupportedByEnlistmentVolume)
             {
-                var possiblyCreateCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(sourcePath.Path, destinationPath.Path, followSymlink: false);
+                var possiblyCreateCopyOnWrite = FileUtilitiesExtensions.TryCreateCopyOnWrite(sourcePath.Path, destinationPath.Path, followSymlink: false);
                 if (possiblyCreateCopyOnWrite.Succeeded)
                 {
                     return;
@@ -432,7 +431,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                 CreateDirectory(destinationPath.GetParent());
 
-                var possiblyCreateCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(sourcePath.Path, destinationPath.Path, followSymlink: false);
+                var possiblyCreateCopyOnWrite = FileUtilitiesExtensions.TryCreateCopyOnWrite(sourcePath.Path, destinationPath.Path, followSymlink: false);
 
                 return possiblyCreateCopyOnWrite.Succeeded;
             });
@@ -656,7 +655,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             sourcePath.ThrowIfPathTooLong();
             destinationPath.ThrowIfPathTooLong();
 
-            if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
+            if (FileUtilitiesExtensions.IsCopyOnWriteSupportedByEnlistmentVolume)
             {
                 if (await TryCopyOnWriteFileInsideSemaphoreAsync(sourcePath, destinationPath, replaceExisting))
                 {

@@ -642,18 +642,6 @@ namespace BuildXL.Native.IO
         NtStatus FlushPageCacheToFilesystem(SafeFileHandle handle);
 
         /// <summary>
-        /// Checks if a file system volume supports copy on write.
-        /// </summary>
-        /// <param name="fileHandle">File handle.</param>
-        /// <returns>True iff the file system volume supports copy on write.</returns>
-        bool CheckIfVolumeSupportsCopyOnWriteByHandle(SafeFileHandle fileHandle);
-
-        /// <summary>
-        /// Flag indicating if the enlistment volume supports copy on write.
-        /// </summary>
-        bool IsCopyOnWriteSupportedByEnlistmentVolume { get; set; }
-
-        /// <summary>
         /// Flag indicating if the operating system supports in-kernel file copying.
         /// </summary>
         bool IsInKernelCopyingSupportedByHostSystem { get; }

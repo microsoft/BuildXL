@@ -144,15 +144,6 @@ namespace BuildXL.Native.IO
         Task MoveFileAsync(string source, string destination, bool replaceExisting);
 
         /// <summary>
-        /// Creates a copy on write clone of files if supported by the underlying OS.
-        /// </summary>
-        /// <remarks>
-        /// This method must be implemented if <see cref="IFileSystem.IsCopyOnWriteSupportedByEnlistmentVolume"/> returns true.
-        /// </remarks>
-        /// <exception cref="NativeWin32Exception">Throw native exception upon failure.</exception>
-        Possible<Unit> CloneFile(string source, string destination, bool followSymlink);
-
-        /// <summary>
         /// Copy a file using in-kernel file descriptors to avoid user mode read/write buffer overheads.
         /// </summary>
         /// <remarks>

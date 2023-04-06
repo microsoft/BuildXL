@@ -44,6 +44,7 @@ namespace Scheduler {
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Native.Extensions.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.dll,

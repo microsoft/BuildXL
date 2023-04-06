@@ -64,6 +64,9 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         public static void ComputeEnvironment(this IProjectGraphResolverSettings resolverSettings, PathTable pathTable, out IDictionary<string, string> trackedEnv, out ICollection<string> passthroughEnv, out bool processEnvironmentUsed)
         {
+            // Do not use CollectionUtilities.EmptyArray<string>() because the caller can modify the collection.
+            passthroughEnv = new List<string>();
+
             if (resolverSettings.Environment == null)
             {
                 var allEnvironmentVariables = Environment.GetEnvironmentVariables();
@@ -75,13 +78,11 @@ namespace BuildXL.Utilities.Configuration
                     trackedEnv[envVar.ToString()] = value.ToString();
                 }
 
-                passthroughEnv = CollectionUtilities.EmptyArray<string>();
                 return;
             }
 
             processEnvironmentUsed = false;
-            var trackedList = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
-            var passthroughList = new List<string>();
+            trackedEnv = new Dictionary<string, string>(OperatingSystemHelper.EnvVarComparer);
             var builder = new StringBuilder();
 
             foreach (var kvp in resolverSettings.Environment)
@@ -90,16 +91,13 @@ namespace BuildXL.Utilities.Configuration
                 var valueOrPassthrough = kvp.Value?.GetValue();
                 if (valueOrPassthrough == null || valueOrPassthrough is not UnitValue)
                 {
-                    trackedList.Add(kvp.Key, ProcessEnvironmentData(kvp.Value, pathTable, builder));
+                    trackedEnv.Add(kvp.Key, ProcessEnvironmentData(kvp.Value, pathTable, builder));
                 }
                 else
                 {
-                    passthroughList.Add(kvp.Key);
+                    passthroughEnv.Add(kvp.Key);
                 }
             }
-
-            trackedEnv = trackedList;
-            passthroughEnv = passthroughList;
         }
 
         private static string ProcessEnvironmentData([MaybeNull] EnvironmentData environmentData, PathTable pathTable, StringBuilder s)

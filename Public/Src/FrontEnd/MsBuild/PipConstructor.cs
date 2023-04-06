@@ -556,6 +556,9 @@ namespace BuildXL.FrontEnd.MsBuild
             // to avoid a large number of path sets
             processBuilder.Options |= Process.Options.EnforceWeakFingerprintAugmentation;
 
+            // Allow the pip to consume global dependencies like passthrough environment variables and untracked scopes.
+            processBuilder.Options |= Process.Options.RequireGlobalDependencies;
+
             // By default the double write policy is to allow same content double writes and safe rewrites.
             // Otherwise we honor the double write policy specified in the resolver configuration
             processBuilder.RewritePolicy |= m_resolverSettings.DoubleWritePolicy.HasValue 

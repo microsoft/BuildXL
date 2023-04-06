@@ -17,7 +17,6 @@ namespace SandboxExec {
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

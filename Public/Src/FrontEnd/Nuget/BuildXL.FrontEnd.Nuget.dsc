@@ -38,7 +38,6 @@ namespace Nuget {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").VstsAuthentication.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Storage.dll,

@@ -34,7 +34,6 @@ namespace Processes {
                 importFrom("System.IO.Pipelines").pkg
             ),
             importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
         internalsVisibleTo: [

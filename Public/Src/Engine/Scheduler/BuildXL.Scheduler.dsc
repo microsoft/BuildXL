@@ -38,7 +38,6 @@ namespace Scheduler {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").Ipc.Providers.dll,
             importFrom("BuildXL.Utilities").Plugin.dll,

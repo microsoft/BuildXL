@@ -66,7 +66,6 @@ namespace Native {
             // IMPORTANT!!! Do not add non-bxl dependencies or any bxl projects with external dependencies into this project
             //              any non-bxl dependencies should go to BuildXL.Native.Extensions instead
 
-            Interop.dll,
             ...securityDlls,
             Utilities.Core.dll,
         ],

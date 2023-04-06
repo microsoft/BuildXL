@@ -30,7 +30,6 @@ namespace PackedExecution {
             importFrom("BuildXL.Tools.UnitTests").Test.Tool.Analyzers.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").PackedExecution.dll,
             importFrom("BuildXL.Utilities").PackedTable.dll,

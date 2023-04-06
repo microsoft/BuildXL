@@ -9,7 +9,6 @@ namespace Native.Extensions {
         nullable: true,
         references: [
             Native.dll,
-            Interop.dll,
             Utilities.Core.dll,
             importFrom("CopyOnWrite").pkg,
         ],

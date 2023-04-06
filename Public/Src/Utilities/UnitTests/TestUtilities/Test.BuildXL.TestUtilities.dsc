@@ -14,7 +14,6 @@ namespace TestUtilities {
             ),
 
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,

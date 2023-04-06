@@ -29,7 +29,6 @@ namespace AppTest {
             ...getGrpcAspNetCorePackages(),
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
             ...BuildXLSdk.fluentAssertionsWorkaround

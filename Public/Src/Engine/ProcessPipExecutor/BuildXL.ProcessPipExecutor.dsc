@@ -20,7 +20,6 @@ namespace ProcessPipExecutor {
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").PluginGrpc.dll,

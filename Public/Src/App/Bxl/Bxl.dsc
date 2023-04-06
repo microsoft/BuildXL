@@ -53,7 +53,6 @@ namespace Main {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").Storage.dll,

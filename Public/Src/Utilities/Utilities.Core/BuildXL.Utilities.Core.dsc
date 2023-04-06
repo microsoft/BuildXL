@@ -6,7 +6,10 @@ namespace Utilities.Core {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Utilities.Core",
         allowUnsafeBlocks: true,
-        sources: globR(d`.`, "*.cs"),
+        sources: [
+            ...globR(d`.`, "*.cs"),
+            Interop.opNamesAutoGen
+        ],
         addNotNullAttributeFile: true,
         references: [
             // IMPORTANT!!! Do not add non-bxl dependencies or any bxl projects with external dependencies into this project
@@ -19,7 +22,6 @@ namespace Utilities.Core {
                 importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
                 importFrom("System.Threading.Tasks.Extensions").pkg,
             ]),
-            Interop.dll,
         ],
         internalsVisibleTo: [
             "BuildXL.FrontEnd.Script",

@@ -21,7 +21,6 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
         importFrom("BuildXL.Utilities").dll,
         importFrom("BuildXL.Utilities").Native.dll,
-        importFrom("BuildXL.Utilities").Interop.dll,
         importFrom("BuildXL.Utilities").Ipc.dll,
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Utilities").Configuration.dll,

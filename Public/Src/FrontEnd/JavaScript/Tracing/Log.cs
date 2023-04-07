@@ -44,7 +44,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "An error occurred while constructing the project graph: {message}",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ProjectGraphConstructionError(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
@@ -60,8 +60,8 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             (ushort)LogEventId.SchedulingPipFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics),
-            EventTask = (ushort)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+        EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "A failure occurred while scheduling a pip. Reason: {detailedFailure}.")]
         public abstract void SchedulingPipFailure(LoggingContext context, Location location, string detailedFailure);
 
@@ -101,7 +101,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "JavaScript command is empty. Only non-empty command names are allowed. E.g. 'build'.",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void JavaScriptCommandIsEmpty(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -111,7 +111,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "JavaScript command '{command}' is specified more than once.",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void JavaScriptCommandIsDuplicated(LoggingContext context, Location location, string command);
 
         [GeneratedEvent(
@@ -121,7 +121,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "There is a cyclic dependency in the specified JavaScript commands '{cycle}'.",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void CycleInJavaScriptCommands(LoggingContext context, Location location, string cycle);
 
         [GeneratedEvent(
@@ -131,7 +131,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Cannot find the graph builder tool, which is required to compute the project graph. {details}",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void CannotFindGraphBuilderTool(LoggingContext context, Location location, string details);
 
         [GeneratedEvent(
@@ -141,7 +141,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "The specified content for export symbol '{exportSymbol}' does not contain any valid package. Selector: '{selector}'.",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void SpecifiedPackageForExportDoesNotExist(LoggingContext context, Location location, string exportSymbol, string selector);
 
         [GeneratedEvent(
@@ -162,7 +162,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "The specified symbol '{symbol}' is a reserved name.",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void SpecifiedExportIsAReservedName(LoggingContext context, Location location, string symbol);
 
         [GeneratedEvent(
@@ -183,7 +183,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             "but it is also being defined as a command group.",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void JavaScriptCommandGroupCanOnlyContainRegularCommands(LoggingContext context, Location location, string commandGroup, string command);
 
         [GeneratedEvent(
@@ -193,7 +193,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Failure at computing custom scripts for package '{packageName}'. {failure}",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void CustomScriptsFailure(LoggingContext context, Location location, string packageName, string failure);
 
         [GeneratedEvent(
@@ -203,7 +203,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Failure reading package scripts from '{pathToJson}'. {failure}",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void CannotLoadScriptsFromJsonFile(LoggingContext context, Location location, string pathToJson, string failure);
 
         [GeneratedEvent(
@@ -213,7 +213,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Invalid regular expression in project selector: {selector}. Failure: {failure}",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void InvalidRegexInProjectSelector(LoggingContext context, Location location, string selector, string failure);
 
         [GeneratedEvent(

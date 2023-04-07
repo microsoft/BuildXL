@@ -260,7 +260,7 @@ namespace Flags {
      * Note, the property can be overriden by the library or executable arguments. This defines the default value only.
      */
     @@public
-    export const embedSources = Environment.hasVariable("[Sdk.BuildXL]embedSources") ? Environment.getFlag("[Sdk.BuildXL]embedSources") : false;
+    export const embedSources = Environment.hasVariable("[Sdk.BuildXL]embedSources") ? Environment.getFlag("[Sdk.BuildXL]embedSources") : true;
 
     /**
      * Gets the default value for whether the C# compiler will report additional analyzer information, such as execution time.

@@ -20,7 +20,9 @@ namespace Cache {
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("Newtonsoft.Json").pkg,			
+            importFrom("Newtonsoft.Json").pkg,				
+            
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(),
         ],
     });
 }

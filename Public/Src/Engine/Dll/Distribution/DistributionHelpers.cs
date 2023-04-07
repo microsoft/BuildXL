@@ -2,18 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Net.Sockets;
-using System.Text;
-using BuildXL.Distribution.Grpc;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using Google.Protobuf;
 
 namespace BuildXL.Engine.Distribution
@@ -80,14 +72,6 @@ namespace BuildXL.Engine.Distribution
         public static ArraySegment<byte> ToArraySegmentByte(this ByteString byteString)
         {
             return new ArraySegment<byte>(byteString.ToByteArray());
-        }
-
-        /// <summary>
-        /// Convert Grpc ByteString to BondContentHash
-        /// </summary>
-        public static BondContentHash ToBondContentHash(this ByteString byteString)
-        {
-            return new BondContentHash() { Data = byteString.ToArraySegmentByte() };
         }
 
         internal static string GetServiceName(int port)

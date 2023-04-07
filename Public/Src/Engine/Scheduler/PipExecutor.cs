@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -3760,7 +3761,7 @@ namespace BuildXL.Scheduler
             foreach (var opaqueDir in pip.DirectoryOutputs)
             {
                 var dirPath = opaqueDir.Path;
-                foreach (var dynamicOutput in metadata.DynamicOutputs[opaqueIndex++])
+                foreach (var dynamicOutput in metadata.DynamicOutputs[opaqueIndex++].RelativePathFileMaterializationInfos)
                 {
                     // Dynamic output is stored with content hash and relative path from its opaque directory.
                     var filePath = dirPath.Combine(pathTable, RelativePath.Create(stringTable, dynamicOutput.RelativePath));
@@ -3776,7 +3777,7 @@ namespace BuildXL.Scheduler
             int lastDynamicArtifactIndex = staticExistentArtifactCount;
             for (int i = 0; i < metadata.DynamicOutputs.Count; i++)
             {
-                var directoryContentsCount = metadata.DynamicOutputs[i].Count;
+                var directoryContentsCount = metadata.DynamicOutputs[i].RelativePathFileMaterializationInfos.Count;
 
                 dynamicDirectoryContents[i] = new ArrayView<(FileArtifact, FileMaterializationInfo)>(
                     cachedArtifactContentHashesArray,
@@ -4852,7 +4853,7 @@ namespace BuildXL.Scheduler
                     Contract.Assert(metadata.StaticOutputHashes.Count == process.GetCacheableOutputsCount());
 
                     // An assertion for the dynamic outputs
-                    Contract.Assert(metadata.DynamicOutputs.Sum(a => a.Count) == numDynamicOutputs);
+                    Contract.Assert(metadata.DynamicOutputs.Sum(a => a.RelativePathFileMaterializationInfos.Count) == numDynamicOutputs);
 
                     var entryStore = await TryCreateTwoPhaseCacheEntryAndStoreMetadataAsync(
                         operationContext,
@@ -5069,7 +5070,7 @@ namespace BuildXL.Scheduler
             // Initialize the list of dynamic outputs per directory output (opaque directory)
             for (int i = 0; i < process.DirectoryOutputs.Length; i++)
             {
-                metadata.DynamicOutputs.Add(new List<RelativePathFileMaterializationInfo>());
+                metadata.DynamicOutputs.Add(new PipCacheDescriptorV2Metadata.Types.RelativePathFileMaterializationInfoList());
             }
 
             foreach (var outputHashPair in outputHashPairs)
@@ -5083,7 +5084,7 @@ namespace BuildXL.Scheduler
                     var keyedHash = new AbsolutePathFileMaterializationInfo
                     {
                         AbsolutePath = path.ToString(pathTable),
-                        Info = materializationInfo.ToBondFileMaterializationInfo(pathTable),
+                        Info = materializationInfo.ToGrpcFileMaterializationInfo(pathTable),
                     };
                     metadata.StaticOutputHashes.Add(keyedHash);
                 }
@@ -5099,9 +5100,9 @@ namespace BuildXL.Scheduler
                     var keyedHash = new RelativePathFileMaterializationInfo
                     {
                         RelativePath = relativePath.ToString(pathTable.StringTable),
-                        Info = materializationInfo.ToBondFileMaterializationInfo(pathTable),
+                        Info = materializationInfo.ToGrpcFileMaterializationInfo(pathTable),
                     };
-                    metadata.DynamicOutputs[opaqueIndex].Add(keyedHash);
+                    metadata.DynamicOutputs[opaqueIndex].RelativePathFileMaterializationInfos.Add(keyedHash);
                 }
             }
         }
@@ -5374,7 +5375,7 @@ namespace BuildXL.Scheduler
             return new StringKeyedHash
             {
                 Key = state.PathExpander.ExpandPath(environment.Context.PathTable, path),
-                ContentHash = hash.ToBondContentHash(),
+                ContentHash = hash.ToByteString(),
             };
         }
 

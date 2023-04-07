@@ -66,7 +66,7 @@ export const pluginPath = (() => {
 @@public
 export const includes = Transformer.sealPartialDirectory(
     includesFolder, 
-    pkgContents.getContent().filter(file => file.isWithin(includesFolder))
+    pkgContents.getContent().filter(file => (<File>file).isWithin(includesFolder))
 );
 
 /**

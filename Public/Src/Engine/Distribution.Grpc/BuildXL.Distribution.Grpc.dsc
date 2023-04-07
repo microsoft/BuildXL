@@ -8,7 +8,10 @@ namespace Distribution.Grpc {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Distribution.Grpc",
         sources: [
-            ...GrpcSdk.generateCSharp({rpc: [f`Interfaces.proto`]}).sources,
+            ...GrpcSdk.generateCSharp({
+                rpc: [f`Interfaces.proto`],
+                includes: [GrpcSdk.includes],
+            }).sources,
         ],
         references: [
             ...addIf(BuildXLSdk.isFullFramework,

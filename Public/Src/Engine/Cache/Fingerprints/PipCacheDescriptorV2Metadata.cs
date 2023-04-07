@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
+using Google.Protobuf;
 
 namespace BuildXL.Engine.Cache.Fingerprints
 {
     /// <summary>
-    /// Bond-serialized part of a descriptor for a particular pip execution. This is the 'V2' format in which we have
+    /// Protobuf-serialized part of a descriptor for a particular pip execution. This is the 'V2' format in which we have
     /// a two-phase lookup (weak and strong fingerprints), hence ObservedInputHashesByPath and ObservedDirectoryMembershipFingerprintsByPath
     /// have been removed.
     /// Furthermore, all output hashes (including standard error and standard output) are stored externally, since cache entries
@@ -16,24 +17,16 @@ namespace BuildXL.Engine.Cache.Fingerprints
     /// </summary>
     public partial class PipCacheDescriptorV2Metadata : IPipFingerprintEntryData
     {
-        /// <nodoc />
-        public PipFingerprintEntryKind Kind => PipFingerprintEntryKind.DescriptorV2;
-
-        /// <summary>
-        /// A small 32-bit bloom filter for determining a lower bound on how many machines have replicated the output content of this metadata entry
-        /// </summary>
-        public uint OutputContentReplicasMiniBloomFilter;
-
-        /// <nodoc />
-        public IEnumerable<BondContentHash> ListRelatedContent()
+        /// <inheritdoc />
+        public IEnumerable<ByteString> ListRelatedContent()
         {
             return StaticOutputHashes.Select(info => info.Info.Hash);
         }
 
-        /// <nodoc />
+        /// <inheritdoc />
         public PipFingerprintEntry ToEntry()
         {
-            return PipFingerprintEntry.CreateFromData(this);
+            return PipFingerprintEntry.CreateFromData(PipFingerprintEntryKind.DescriptorV2, this.ToByteString());
         }
     }
 }

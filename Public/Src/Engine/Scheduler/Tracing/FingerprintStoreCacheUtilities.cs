@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -98,7 +99,7 @@ namespace BuildXL.Scheduler.Tracing
                         var result = storeResult.Then(result => new StringKeyedHash()
                         {
                             Key = path.ExpandRelative(pathTable, filePath),
-                            ContentHash = result.ToBondContentHash()
+                            ContentHash = result.ToByteString()
                         });
 
                         string message = I($"Saving fingerprint store to cache: Success='{result.Succeeded}', FilePath='{expandedFilePath}'");
@@ -135,9 +136,9 @@ namespace BuildXL.Scheduler.Tracing
             PackageDownloadDescriptor descriptor = new PackageDownloadDescriptor()
             {
                 TraceInfo = loggingContext.Session.Environment,
-                FriendlyName = nameof(FingerprintStore),
-                Contents = storedFiles.Select(p => p.Result).ToList()
+                FriendlyName = nameof(FingerprintStore)
             };
+            descriptor.Contents.Add(storedFiles.Select(p => p.Result).ToList());
 
             var storeDescriptorResult = await cache.ArtifactContentCache.TrySerializeAndStoreContent(descriptor);
             Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Saving fingerprint store descriptor to cache: Success='{storeDescriptorResult.Succeeded}'"));

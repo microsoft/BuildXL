@@ -65,8 +65,8 @@ namespace BuildXL.Storage
             IsUndeclaredFileRewrite = isAllowedSourceRewrite;
             IsExecutable = isExecutable;
 
-            // NOTE: Update ExecutionResultSerializer WriteOutputContent/ReadOutputContent when adding new fields (i.e., BuildXL.Engine.Cache bond structure) 
-            // NOTE: Update FileArtifactKeyedHash when adding new fields (i.e., BuildXL.Engine bond structure) 
+            // NOTE: Update ExecutionResultSerializer WriteOutputContent/ReadOutputContent when adding new fields (i.e., BuildXL.Engine.Cache protobuf structure) 
+            // NOTE: Update FileArtifactKeyedHash when adding new fields (i.e., BuildXL.Engine protobuf structure) 
         }
 
         /// <summary>

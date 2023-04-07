@@ -24,6 +24,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using static BuildXL.Engine.Cache.Fingerprints.PipCacheDescriptorV2Metadata.Types;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -65,18 +66,13 @@ namespace Test.BuildXL.Scheduler
                     X("/X/d/e"),
                     X("/X/a/b/c/d"));
 
-                PipCacheDescriptorV2Metadata metadata1 =
-                    new PipCacheDescriptorV2Metadata
-                    {
-                        StaticOutputHashes = new List<AbsolutePathFileMaterializationInfo>
-                                            {
-                                                new AbsolutePathFileMaterializationInfo
-                                                {
-                                                    AbsolutePath = abPath1.GetName(pathTable).ToString(context.StringTable),
-                                                    Info = new BondFileMaterializationInfo { FileName = "p1OUT.bin" }
-                                                }
-                                            }
-                    };
+                PipCacheDescriptorV2Metadata metadata1 = new PipCacheDescriptorV2Metadata();
+
+                metadata1.StaticOutputHashes.Add(new AbsolutePathFileMaterializationInfo
+                {
+                    AbsolutePath = abPath1.GetName(pathTable).ToString(context.StringTable),
+                    Info = new GrpcFileMaterializationInfo { FileName = "p1OUT.bin" }
+                });
 
                 var storedPathSet1 = await cache.TryStorePathSetAsync(pathSet1, preservePathCasing: false);
                 var storedMetadata1 = await cache.TryStoreMetadataAsync(metadata1);
@@ -95,34 +91,27 @@ namespace Test.BuildXL.Scheduler
                     X("/G/a/z/c/d"),
                     X("/B/a/b/c"));
 
-                PipCacheDescriptorV2Metadata metadata2 =
-                    new PipCacheDescriptorV2Metadata
+                PipCacheDescriptorV2Metadata metadata2 = new PipCacheDescriptorV2Metadata();
+                metadata2.StaticOutputHashes.Add(new AbsolutePathFileMaterializationInfo
+                {
+                    AbsolutePath = abPath2.ToString(pathTable),
+                    Info = new GrpcFileMaterializationInfo { FileName = abPath2.GetName(pathTable).ToString(context.StringTable) }
+                });
+                RelativePathFileMaterializationInfoList infoList = new RelativePathFileMaterializationInfoList();
+                infoList.RelativePathFileMaterializationInfos.Add(new List<RelativePathFileMaterializationInfo>
+                {
+                    new RelativePathFileMaterializationInfo
                     {
-                        StaticOutputHashes = new List<AbsolutePathFileMaterializationInfo>
-                                            {
-                                                new AbsolutePathFileMaterializationInfo
-                                                {
-                                                    AbsolutePath = abPath2.ToString(pathTable),
-                                                    Info = new BondFileMaterializationInfo { FileName = abPath2.GetName(pathTable).ToString(context.StringTable) }
-                                                }
-                                            },
-                        DynamicOutputs = new List<List<RelativePathFileMaterializationInfo>>
-                                         {
-                                         new List<RelativePathFileMaterializationInfo>
-                                         {
-                                             new RelativePathFileMaterializationInfo
-                                             {
-                                                 RelativePath = @"dir\P2Dynamic.txt",
-                                                 Info = new BondFileMaterializationInfo {FileName = "p2dynamic.txt"}
-                                             },
-                                             new RelativePathFileMaterializationInfo
-                                             {
-                                                 RelativePath = @"dir\P2dynout2.txt",
-                                                 Info = new BondFileMaterializationInfo {FileName = null}
-                                             }
-                                         }
-                                         }
-                    };
+                        RelativePath = @"dir\P2Dynamic.txt",
+                        Info = new GrpcFileMaterializationInfo { FileName = "p2dynamic.txt" }
+                    },
+                    new RelativePathFileMaterializationInfo
+                    {
+                        RelativePath = @"dir\P2dynout2.txt",
+                        Info = new GrpcFileMaterializationInfo { FileName = null }
+                    }
+                });
+                metadata2.DynamicOutputs.Add(infoList);
 
                 var storedPathSet2 = await cache.TryStorePathSetAsync(pathSet2, preservePathCasing: false);
                 var storedMetadata2 = await cache.TryStoreMetadataAsync(metadata2);
@@ -236,11 +225,11 @@ namespace Test.BuildXL.Scheduler
             Assert.Equal(metadata1.DynamicOutputs.Count, metadata2.DynamicOutputs.Count);
             for (int i = 0; i < metadata1.DynamicOutputs.Count; i++)
             {
-                Assert.Equal(metadata1.DynamicOutputs[i].Count, metadata2.DynamicOutputs[i].Count);
-                for (int j = 0; j < metadata1.DynamicOutputs[i].Count; j++)
+                Assert.Equal(metadata1.DynamicOutputs[i].RelativePathFileMaterializationInfos.Count, metadata2.DynamicOutputs[i].RelativePathFileMaterializationInfos.Count);
+                for (int j = 0; j < metadata1.DynamicOutputs[i].RelativePathFileMaterializationInfos.Count; j++)
                 {
-                    Assert.Equal(metadata1.DynamicOutputs[i][j].RelativePath, metadata2.DynamicOutputs[i][j].RelativePath);
-                    Assert.Equal(metadata1.DynamicOutputs[i][j].Info.FileName, metadata2.DynamicOutputs[i][j].Info.FileName);
+                    Assert.Equal(metadata1.DynamicOutputs[i].RelativePathFileMaterializationInfos[j].RelativePath, metadata2.DynamicOutputs[i].RelativePathFileMaterializationInfos[j].RelativePath);
+                    Assert.Equal(metadata1.DynamicOutputs[i].RelativePathFileMaterializationInfos[j].Info.FileName, metadata2.DynamicOutputs[i].RelativePathFileMaterializationInfos[j].Info.FileName);
                 }
             }
         }

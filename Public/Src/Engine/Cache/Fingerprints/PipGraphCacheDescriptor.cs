@@ -1,35 +1,34 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using Google.Protobuf;
 
 namespace BuildXL.Engine.Cache.Fingerprints
-{
-    /// <summary>
+{   /// <summary>
     /// Descriptor for a cached pip graph.
     /// </summary>
     public partial class PipGraphCacheDescriptor : IPipFingerprintEntryData
-    {
-        /// <nodoc />
-        public PipFingerprintEntryKind Kind => PipFingerprintEntryKind.GraphDescriptor;
-
+    {    /// <summary>
+    /// Descriptor for a cached pip graph.
+    /// </summary>
         /// <inheritdoc />
-        public IEnumerable<BondContentHash> ListRelatedContent()
+        public IEnumerable<ByteString> ListRelatedContent()
         {
             return EnumerateGraphFiles().Select(kvp => kvp.Value);
         }
 
-        /// <nodoc />
+        /// <inheritdoc />
         public PipFingerprintEntry ToEntry()
         {
-            return PipFingerprintEntry.CreateFromData(this);
+            return PipFingerprintEntry.CreateFromData(PipFingerprintEntryKind.GraphDescriptor, this.ToByteString());
         }
 
         /// <nodoc />
         public static PipGraphCacheDescriptor CreateFromFiles(
-            IDictionary<GraphCacheFile, BondContentHash> files,
+            IDictionary<GraphCacheFile, ByteString> files,
             string traceInfo)
         {
             var descriptor = new PipGraphCacheDescriptor
@@ -87,20 +86,20 @@ namespace BuildXL.Engine.Cache.Fingerprints
         }
 
         /// <nodoc />
-        public IEnumerable<KeyValuePair<GraphCacheFile, BondContentHash>> EnumerateGraphFiles()
+        public IEnumerable<KeyValuePair<GraphCacheFile, ByteString>> EnumerateGraphFiles()
         {
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.PathTable, PathTable);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.StringTable, StringTable);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.SymbolTable, SymbolTable);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.QualifierTable, QualifierTable);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.PipTable, PipTable);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.PreviousInputs, PreviousInputs);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.MountPathExpander, MountPathExpander);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.ConfigState, ConfigState);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.DirectedGraph, DirectedGraph);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.PipGraph, PipGraph);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.PipGraphId, PipGraphId);
-            yield return new KeyValuePair<GraphCacheFile, BondContentHash>(GraphCacheFile.HistoricTableSizes, HistoricTableSizes);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.PathTable, PathTable);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.StringTable, StringTable);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.SymbolTable, SymbolTable);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.QualifierTable, QualifierTable);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.PipTable, PipTable);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.PreviousInputs, PreviousInputs);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.MountPathExpander, MountPathExpander);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.ConfigState, ConfigState);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.DirectedGraph, DirectedGraph);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.PipGraph, PipGraph);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.PipGraphId, PipGraphId);
+            yield return new KeyValuePair<GraphCacheFile, ByteString>(GraphCacheFile.HistoricTableSizes, HistoricTableSizes);
         }
     }
 }

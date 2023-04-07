@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.FrontEnd.Sdk;
@@ -463,7 +464,7 @@ namespace BuildXL.FrontEnd.Core
                     return new PackageDownloadFailure(friendlyName, targetFileLocation.ExpandedPath, PackageDownloadFailure.FailureType.HashingOfPackageFile, e);
                 }
 
-                stringKeyedHashes.Add(new StringKeyedHash() { Key = relativePath.ToString(FrontEndContext.StringTable), ContentHash = contentHash.ToBondContentHash() });
+                stringKeyedHashes.Add(new StringKeyedHash() { Key = relativePath.ToString(FrontEndContext.StringTable), ContentHash = contentHash.ToByteString()});
 
                 var possiblyContentStored = await cache.Cache.ArtifactContentCache.TryStoreAsync(
                     PackageFileRealizationMode,
@@ -700,7 +701,7 @@ namespace BuildXL.FrontEnd.Core
                 {
                     var possibleFingerprintStored = await possibleCache.SinglePhaseStore.TryStoreFingerprintEntryAsync(
                         downloadFingerprint,
-                        FileDownloadDescriptor.Create(downloadedHash.ToBondContentHash(), url, loggingContext.Session.Environment).ToEntry());
+                        FileDownloadDescriptor.Create(downloadedHash.ToByteString(), url, loggingContext.Session.Environment).ToEntry());
                     if (!possibleFingerprintStored.Succeeded)
                     {
                         m_logger.DownloadToolCannotCache(loggingContext, friendlyName, targetFilePath, url, downloadedHash.ToHex(), possibleFingerprintStored.Failure.Describe());

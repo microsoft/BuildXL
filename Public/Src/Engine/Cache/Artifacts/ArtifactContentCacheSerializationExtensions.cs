@@ -7,17 +7,15 @@ using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Bond;
-using Bond.IO.Unsafe;
-using Bond.Protocols;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
+using Google.Protobuf;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Artifacts
@@ -30,14 +28,9 @@ namespace BuildXL.Engine.Cache.Artifacts
     public static class ArtifactContentCacheSerializationExtensions
     {
         /// <summary>
-        /// Default size of the buffer used by the bond deserializer.
-        /// </summary>
-        private const int DefaultBondBufferSize = 65536;
-
-        /// <summary>
         /// This is a self-contained operation to obtain and deserialize a previously stored structure by its hash.
         /// First, this tries to load the given content with <see cref="IArtifactContentCache.TryLoadAvailableContentAsync"/>.
-        /// If the content is available, returns a Bond-deserialized <typeparamref name="T"/>.
+        /// If the content is available, returns a Protobuf-deserialized <typeparamref name="T"/>.
         /// If the content is unavailable, returns <c>null</c>.
         /// To store a structure (the inverse of this method), use <see cref="TrySerializeAndStoreContent{T}"/>.
         /// </summary>
@@ -46,7 +39,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             ContentHash contentHash,
             CancellationToken cancellationToken,
             BoxRef<long> contentSize = null)
-            where T : class
+            where T : IMessage<T>, new()
         {
             var maybeStream = await TryGetStreamFromContentHash(contentCache, contentHash, cancellationToken, contentSize);
 
@@ -64,29 +57,19 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             using (stream)
             {
-                int streamLength = (int)stream.Length;
-
-                // Use default bond deserializer
-                return DeserializeWithInputStream<T>(stream, streamLength);
+                // Use default protobuf deserializer
+                return DeserializeWithInputStream<T>(stream);
             }
         }
 
-        private static Possible<T, Failure> DeserializeWithInputStream<T>(Stream stream, int streamLength)
-            where T : class
+        private static Possible<T, Failure> DeserializeWithInputStream<T>(Stream stream)
+            where T : IMessage<T>, new()
         {
-            // If the blob is bigger then the default buffer size, then we'll use the default buffer size
-            // and bond is responsible for growing the buffer in its own way.
-            // But if the stream is smaller than the limit, then we'll use a stream size as an input to
-            // InputStream constructor to avoid allocating big buffers that will waste memory.
-            int bufferLength = Math.Min(streamLength, DefaultBondBufferSize);
-            var inputStream = new InputStream(stream, bufferLength);
-            var reader = new CompactBinaryReader<InputStream>(inputStream);
-
             try
             {
-                return Deserialize<T>.From(reader);
+                return CacheGrpcExtensions.Deserialize<T>(stream);
             }
-            catch (InvalidDataException ex)
+            catch (Exception ex)
             {
                 return new Possible<T, Failure>(new DeserializationFailure(ex));
             }
@@ -102,7 +85,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             Func<Possible<T, Failure>, bool> shouldRetry,
             CancellationToken cancellationToken,
             BoxRef<long> contentSize = null, int maxRetry = 1)
-            where T : class
+            where T : IMessage<T>, new()
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(shouldRetry != null);
@@ -262,16 +245,16 @@ namespace BuildXL.Engine.Cache.Artifacts
         }
 
         /// <summary>
-        /// Bond-serializes a given <typeparamref name="T"/> and stores the result to the content cache.
+        /// Protobuf-serializes a given <typeparamref name="T"/> and stores the result to the content cache.
         /// The returned content hash can be used to later deserialize the structure with <see cref="TryLoadAndDeserializeContent{T}"/>.
         /// </summary>
         public static Task<Possible<ContentHash>> TrySerializeAndStoreContent<T>(
             this IArtifactContentCache contentCache,
             T valueToSerialize,
             BoxRef<long> contentSize = null,
-            StoreArtifactOptions options = default)
+            StoreArtifactOptions options = default) where T : IMessage<T>
         {
-            return BondExtensions.TrySerializeAndStoreContent(
+            return CacheGrpcExtensions.TrySerializeAndStoreContent(
                 valueToSerialize,
                 async (valueHash, valueBuffer) =>
                 {
@@ -298,7 +281,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             private readonly ExceptionDispatchInfo m_exceptionDispatchInfo;
 
             /// <nodoc />
-            public DeserializationFailure(InvalidDataException exception)
+            public DeserializationFailure(Exception exception)
             {
                 Contract.Requires(exception != null);
                 m_exceptionDispatchInfo = ExceptionDispatchInfo.Capture(exception);
@@ -320,7 +303,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             /// <inheritdoc/>
             public override string Describe()
             {
-                return m_exceptionDispatchInfo.SourceException.GetLogEventMessage();
+                return m_exceptionDispatchInfo.SourceException.ToString();
             }
         }
     }

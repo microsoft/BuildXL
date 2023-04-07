@@ -1,10 +1,9 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
-
-#pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
+using Google.Protobuf;
 
 namespace BuildXL.Engine.Cache.Fingerprints
 {
@@ -13,19 +12,19 @@ namespace BuildXL.Engine.Cache.Fingerprints
     /// </summary>
     public partial class PackageDownloadDescriptor : IPipFingerprintEntryData
     {
-        public PipFingerprintEntryKind Kind => PipFingerprintEntryKind.PackageDownload;
-
         /// <inheritdoc />
-        public IEnumerable<BondContentHash> ListRelatedContent()
+        public IEnumerable<ByteString> ListRelatedContent()
         {
             return Contents.Select(hashByName => hashByName.ContentHash);
         }
 
+        /// <inheritdoc />
         public PipFingerprintEntry ToEntry()
         {
-            return PipFingerprintEntry.CreateFromData(this);
+            return PipFingerprintEntry.CreateFromData(PipFingerprintEntryKind.PackageDownload, this.ToByteString());
         }
 
+        /// <nodoc /
         public static PackageDownloadDescriptor Create(
             string friendlyName,
             List<StringKeyedHash> contents,
@@ -35,9 +34,9 @@ namespace BuildXL.Engine.Cache.Fingerprints
             {
                 Id = PipFingerprintEntry.CreateUniqueId(),
                 FriendlyName = friendlyName,
-                Contents = contents,
                 TraceInfo = traceInfo,
             };
+            descriptor.Contents.Add(contents);
 
             return descriptor;
         }

@@ -14,7 +14,8 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
     // Metrics library used by .net core CaSaaS
-    {id: "Microsoft.Cloud.InstrumentationFramework", version: "3.3.8.1"},
+    // Todo: Migrade to OpenTelemetry. See https://eng.ms/docs/products/geneva/collect/instrument/ifx/ifx-retirement
+    {id: "Microsoft.Cloud.InstrumentationFramework", version: "3.4.1.1"},
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.8.99" },

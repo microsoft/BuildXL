@@ -298,12 +298,12 @@ namespace BuildXL.Engine.Distribution
                             FileExistence.Required,
                             isUndeclaredFileRewrite: fileArtifactKeyedHash.IsAllowedFileRewrite);
 
-                        foreach (var bondDirectoryArtifact in fileArtifactKeyedHash.AssociatedDirectories)
+                        foreach (var directoryArtifact in fileArtifactKeyedHash.AssociatedDirectories)
                         {
                             var directory = new DirectoryArtifact(
-                                new AbsolutePath(bondDirectoryArtifact.DirectoryPathValue),
-                                bondDirectoryArtifact.DirectorySealId,
-                                bondDirectoryArtifact.IsDirectorySharedOpaque);
+                                new AbsolutePath(directoryArtifact.DirectoryPathValue),
+                                directoryArtifact.DirectorySealId,
+                                directoryArtifact.IsDirectorySharedOpaque);
 
                             if (!dynamicDirectoryMap.TryGetValue(directory, out var files))
                             {

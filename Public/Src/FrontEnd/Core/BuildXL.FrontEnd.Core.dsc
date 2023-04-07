@@ -20,6 +20,7 @@ namespace Core {
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Pips").dll,
@@ -37,6 +38,8 @@ namespace Core {
 
             ...BuildXLSdk.tplPackages,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(),
         ],
         internalsVisibleTo: [
             "bxlScriptAnalyzer",

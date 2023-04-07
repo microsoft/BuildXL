@@ -15,11 +15,11 @@ using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using PipGraphCacheDescriptor = BuildXL.Engine.Cache.Fingerprints.PipGraphCacheDescriptor;
 
@@ -293,7 +293,7 @@ namespace BuildXL.Engine.Distribution
                 return false;
             }
 
-            descriptor = BuildStartData.CachedGraphDescriptor.ToOpenBond();
+            descriptor = BuildStartData.CachedGraphDescriptor.ToCacheGrpc();
             return true;
         }
 

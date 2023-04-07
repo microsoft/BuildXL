@@ -131,10 +131,6 @@ namespace BuildXL.Scheduler.Distribution
 
             var twoPhaseCachingInfo = ReadTwoPhaseCachingInfo(reader);
             var cacheDescriptor = ReadPipCacheDescriptor(reader);
-            if (cacheDescriptor != null)
-            {
-                cacheDescriptor.OutputContentReplicasMiniBloomFilter = reader.ReadUInt32();
-            }
 
             ObservedPathSet? pathSet = null;
             if (reader.ReadBoolean())
@@ -240,10 +236,6 @@ namespace BuildXL.Scheduler.Distribution
 
             WriteTwoPhaseCachingInfo(writer, result.TwoPhaseCachingInfo);
             WritePipCacheDescriptor(writer, result.PipCacheDescriptorV2Metadata);
-            if (result.PipCacheDescriptorV2Metadata != null)
-            {
-                writer.Write(result.PipCacheDescriptorV2Metadata.OutputContentReplicasMiniBloomFilter);
-            }
 
             writer.Write(result.PathSet.HasValue);
             result.PathSet?.Serialize(m_executionContext.PathTable, writer, preservePathCasing, pathWriter: WriteAbsolutePath);
@@ -307,7 +299,7 @@ namespace BuildXL.Scheduler.Distribution
             if (metadata != null)
             {
                 writer.Write(true);
-                var blob = BondExtensions.Serialize(metadata);
+                var blob = CacheGrpcExtensions.Serialize(metadata);
                 writer.WriteCompact(blob.Count);
                 writer.Write(blob.Array, blob.Offset, blob.Count);
             }
@@ -326,7 +318,12 @@ namespace BuildXL.Scheduler.Distribution
             {
                 var length = reader.ReadInt32Compact();
                 var blob = new ArraySegment<byte>(reader.ReadBytes(length));
-                return BondExtensions.Deserialize<PipCacheDescriptorV2Metadata>(blob);
+                var possibleResult = CacheGrpcExtensions.Deserialize<PipCacheDescriptorV2Metadata>(blob);
+                if (!possibleResult.Succeeded)
+                {
+                    return null;
+                }
+                return possibleResult.Result;
             }
             else
             {

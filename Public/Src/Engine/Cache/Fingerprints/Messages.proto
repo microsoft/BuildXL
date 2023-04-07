@@ -1,107 +1,90 @@
-// Copyright (C) Microsoft Corporation. All Rights Reserved.
+syntax = "proto3";
 
-namespace BuildXL.Engine.Cache.Fingerprints
+import "google/protobuf/wrappers.proto";
 
-/// <summary>
-/// Content hash with variable length.
-/// </summary>
-struct BondContentHash 
-{
-    7: required blob Data;
+package BuildXL.Engine.Cache.Fingerprints;
+
+enum GrpcReparsePointType { 
+    None = 0;
+    FileSymlink = 1;
+    DirectorySymlink = 2;
+    UnixSymlink = 3;
+    Junction = 4;
+    NonActionable = 5;
 }
 
-/// <summary>
-/// Content hash with variable length.
-/// </summary>
-struct BondFingerprint 
+message GrpcFileMaterializationInfo
 {
-    7: required blob Data;
+    bytes Hash = 1;
+    int64 Length = 2;
+    google.protobuf.StringValue FileName = 3;
+    GrpcReparsePointType ReparsePointType = 4;
+    google.protobuf.StringValue ReparsePointTarget = 5;
+    bool IsAllowedFileRewrite = 6;
+    bool IsExecutable = 7;
 }
 
-enum BondReparsePointType {
-    None,
-    FileSymlink,
-    DirectorySymlink,
-    UnixSymlink,
-    Junction,
-    NonActionable
+message RelativePathFileMaterializationInfo
+{
+    string RelativePath = 1;
+    GrpcFileMaterializationInfo Info = 2;
 }
 
-struct BondFileMaterializationInfo
+message AbsolutePathFileMaterializationInfo
 {
-    1: BondContentHash Hash;
-    2: int64 Length;
-    3: nullable<string> FileName;
-    4: BondReparsePointType ReparsePointType = None;
-    5: nullable<string> ReparsePointTarget;
-    6: bool IsAllowedFileRewrite;
-    7: bool IsExecutable;
-}
-
-struct RelativePathFileMaterializationInfo
-{
-    1: string RelativePath;
-    2: BondFileMaterializationInfo Info;
-}
-
-struct AbsolutePathFileMaterializationInfo
-{
-    1: string AbsolutePath;
-    2: BondFileMaterializationInfo Info;
+    string AbsolutePath = 1;
+    GrpcFileMaterializationInfo Info = 2;
 }
 
 /// <summary>
 /// TODO: Remove along with PipCacheDescriptor (V1)
 /// </summary>
-struct StringKeyedHash
+message StringKeyedHash
 {
-    1: string Key;
-    2: BondContentHash ContentHash;
+    string Key = 1;
+    bytes ContentHash = 2;
 }
 
 /// <summary>
 /// TODO: Remove along with PipCacheDescriptor (V1)
 /// </summary>
-struct EncodedStringKeyedHash
+message EncodedStringKeyedHash
 {
-    1: StringKeyedHash StringKeyedHash;
-    2: string EncodingName;
+    StringKeyedHash StringKeyedHash = 1;
+    string EncodingName = 2;
 }
 
 enum ObservedInputKind {
-    Unknown,
-    ObservedInput,
-    DirectoryMembership
+    UnknownKind = 0;
+    ObservedInput = 1;
+    DirectoryMembership = 2;
 }
 
 /// <summary>
 /// TODO: Remove along with PipCacheDescriptor (V1)
 /// </summary>
-struct StringKeyedHashObservedInput
+message StringKeyedHashObservedInput
 {
-    1: StringKeyedHash StringKeyedHash;
-    2: ObservedInputKind ObservedInputKind = Unknown;
+    StringKeyedHash StringKeyedHash = 1;
+    ObservedInputKind ObservedInputKind = 2;
 }
 
 enum PipFingerprintEntryKind {
-    Unknown,
-    DescriptorV1,
-    DescriptorV2,
-    GraphDescriptor,
-    FileDownload,
-    PackageDownload,
-    GraphInputDescriptor
-}
-
-struct PipFingerprintEntryData {
-    // Globally unique ID (possibly randomly generated)
-    1: required uint64 Id;
+    Unknown = 0;
+    DescriptorV1 = 1;
+    DescriptorV2 = 2;
+    GraphDescriptor = 3;
+    FileDownload = 4;
+    PackageDownload = 5;
+    GraphInputDescriptor = 6;
 }
 
 /// <summary>
 /// Descriptor for a cached graph.
 /// </summary>
-struct PipGraphCacheDescriptor : PipFingerprintEntryData {
+message PipGraphCacheDescriptor {
+    uint64 Id = 1;
+
     /// <summary>
     /// TraceInfo specified for the BuildXL session.
     /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
@@ -109,27 +92,29 @@ struct PipGraphCacheDescriptor : PipFingerprintEntryData {
     /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
     /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
     /// </summary>
-    1: string TraceInfo;
+    string TraceInfo = 2;
 
-    4: nullable<BondContentHash> PathTable;
-    5: nullable<BondContentHash> StringTable;
-    6: nullable<BondContentHash> SymbolTable;
-    7: nullable<BondContentHash> QualifierTable;
-    8: nullable<BondContentHash> PipTable;
-    9: nullable<BondContentHash> PreviousInputs;
-    10: nullable<BondContentHash> MountPathExpander;
-    11: nullable<BondContentHash> ConfigState;
-    12: nullable<BondContentHash> DirectedGraph;
-    13: nullable<BondContentHash> PipGraph;
-    14: nullable<BondContentHash> EngineState;
-    15: nullable<BondContentHash> HistoricTableSizes;
-    16: nullable<BondContentHash> PipGraphId;
+    google.protobuf.BytesValue PathTable = 3;
+    google.protobuf.BytesValue StringTable = 4;
+    google.protobuf.BytesValue SymbolTable = 5;
+    google.protobuf.BytesValue QualifierTable = 6;
+    google.protobuf.BytesValue PipTable = 7;
+    google.protobuf.BytesValue PreviousInputs = 8;
+    google.protobuf.BytesValue MountPathExpander = 9;
+    google.protobuf.BytesValue ConfigState = 10;
+    google.protobuf.BytesValue DirectedGraph = 11;
+    google.protobuf.BytesValue PipGraph = 12;
+    google.protobuf.BytesValue EngineState = 13;
+    google.protobuf.BytesValue HistoricTableSizes = 14;
+    google.protobuf.BytesValue PipGraphId = 15;
 }
 
 /// <summary>
 /// Descriptor for downloading a file.
 /// </summary>
-struct FileDownloadDescriptor : PipFingerprintEntryData {
+message FileDownloadDescriptor {
+    uint64 Id = 1;
+
     /// <summary>
     /// TraceInfo specified for the BuildXL session.
     /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
@@ -137,16 +122,18 @@ struct FileDownloadDescriptor : PipFingerprintEntryData {
     /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
     /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
     /// </summary>
-    1: string TraceInfo;
+    string TraceInfo = 2;
 
-    2: BondContentHash Content;
-    3: string Url;
+    bytes Content = 3;
+    string Url = 4;
 }
 
 /// <summary>
 /// Descriptor for a package.
 /// </summary>
-struct PackageDownloadDescriptor : PipFingerprintEntryData {
+message PackageDownloadDescriptor {
+    uint64 Id = 1;
+
     /// <summary>
     /// TraceInfo specified for the BuildXL session.
     /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
@@ -154,79 +141,36 @@ struct PackageDownloadDescriptor : PipFingerprintEntryData {
     /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
     /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
     /// </summary>
-    1: string TraceInfo;
+    string TraceInfo = 2;
 
     /// <summary>
     /// Provenance which servers were used and what the id is.
     /// </summary>
-    2: string FriendlyName;
+    string FriendlyName = 3;
 
     /// <summary>
     /// Map of relative path to package content
     /// </summary>
-    3: vector<StringKeyedHash> Contents;
+    repeated StringKeyedHash Contents = 4;
 }
 
 /// <summary>
-/// Descriptor for a particular pip execution. This is the 'V1' format which is being phased out.
-/// </summary>
-struct PipCacheDescriptor : PipFingerprintEntryData
-{
-    /// <summary>
-    /// A sequence of (path, content hash) tuples, as strings.
-    /// </summary>
-    1: vector<StringKeyedHash> OutputHashesByPath;
-
-    /// <summary>
-    /// A sorted sequence of inputs as observed via detours.
-    /// Observed inputs may be file accesses, containing the path and content hash of the file at the time of the observation,
-    /// Or a directory enumeration, containing the path and fingerprint of the directory.
-    /// Note that such a tuple need not be recorded if the pip indicates the particular directory and its membership as a static dependency 
-    /// (i.e., captured in the pip fingerprint).
-    /// </summary>
-    2: vector<StringKeyedHashObservedInput> ObservedInputsSortedByPath;
-
-    /// <summary>
-    /// An optional standard output reference.
-    /// </summary>
-    3: nullable<EncodedStringKeyedHash> StandardOutput;
-
-    /// <summary>
-    /// An optional standard error reference.
-    /// </summary>
-    4: nullable<EncodedStringKeyedHash> StandardError;
-
-    /// <summary>
-    /// Number of warnings found in standard output and standard error.
-    /// </summary>
-    5: int32 NumberOfWarnings;
-
-    /// <summary>
-    /// TraceInfo specified for the BuildXL session.
-    /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
-    /// As usage is observed it may be promoted to ContentBagCommon.Provenance where it more logically belongs. A lookup
-    /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
-    /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
-    /// </summary>
-    7: string TraceInfo;
-};
-
-/// <summary>
-/// Bond-serialized part of a descriptor for a particular pip execution. This is the 'V2' format in which we have
+/// Protobuf-serialized part of a descriptor for a particular pip execution. This is the 'V2' format in which we have
 /// a two-phase lookup (weak and strong fingerprints), hence ObservedInputHashesByPath and ObservedDirectoryMembershipFingerprintsByPath
 /// have been removed. 
 /// Furthermore, all output hashes (including standard error and standard output) are stored externally, since cache entries
 /// natively store hash-lists. PipCacheDescriptorV2Metadata is serialized and referenced by hash in the 'metadata' slot of the cache entry;
-/// together with the hash list, this forms a PipCacheDescriptorV2 (which is not a Bond type).
+/// together with the hash list, this forms a PipCacheDescriptorV2 (which is not a Protobuf type).
 /// </summary>
-struct PipCacheDescriptorV2Metadata : PipFingerprintEntryData
-{    
+message PipCacheDescriptorV2Metadata {    
+    uint64 Id = 1;
+
     // TODO: We are inheriting a random ID field. That's not ideal for storing into the CAS.
 
     /// <summary>
     /// Number of warnings found in standard output and standard error.
     /// </summary>
-    5: int32 NumberOfWarnings;
+    int32 NumberOfWarnings = 2;
 
     /// <summary>
     /// TraceInfo specified for the BuildXL session.
@@ -235,7 +179,7 @@ struct PipCacheDescriptorV2Metadata : PipFingerprintEntryData
     /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
     /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
     /// </summary>
-    7: string TraceInfo;
+    string TraceInfo = 3;
 
     // TODO: The following fields contain encodings, paths, and hashes that should ideally go away. 
     //        It would be far easier to (a) just decide console encoding statically for the pip, and have it in the fingerprint (and maybe universally choose UTF8),
@@ -244,43 +188,46 @@ struct PipCacheDescriptorV2Metadata : PipFingerprintEntryData
     /// <summary>
     /// Standard output (or null, if standard output was not saved).
     /// </summary>
-    8: nullable<EncodedStringKeyedHash> StandardOutput;
+    optional EncodedStringKeyedHash StandardOutput = 4;
 
     /// <summary>
     /// Standard error (or null, if standard error was not saved).
     /// </summary>
-    9: nullable<EncodedStringKeyedHash> StandardError;
+    optional EncodedStringKeyedHash StandardError = 5;
 
     /// <summary>
     /// Size of all referenced outputs.
     /// <summary>
-    10: int64 TotalOutputSize;
+    int64 TotalOutputSize = 6;
 
     /// <summary>
     /// Hashes of the outputs
     /// The ordering must match with outputs defined in the pip
     /// </summary>
-    11: vector<AbsolutePathFileMaterializationInfo> StaticOutputHashes;
+    repeated AbsolutePathFileMaterializationInfo StaticOutputHashes = 7;
 
     /// <summary>
     /// Dynamic outputs (<relative path, hash>) per opaque directory.
     /// The ordering must match with OpaqueDirectory outputs defined in the pip
     /// </summary>
-    12: vector<vector<RelativePathFileMaterializationInfo>> DynamicOutputs;
+    message RelativePathFileMaterializationInfoList {
+        repeated RelativePathFileMaterializationInfo RelativePathFileMaterializationInfos = 1;
+    }
+    repeated RelativePathFileMaterializationInfoList DynamicOutputs = 8;
 
-    13: string WeakFingerprint;
-    14: string StrongFingerprint;
-    15: int64 SemiStableHash;
+    string WeakFingerprint = 9;
+    string StrongFingerprint = 10;
+    int64 SemiStableHash = 11;
 
     /// <summary>
     /// Session Id of the build who creates this metadata
     /// </summary>
-    16: string SessionId;
+    string SessionId = 12;
 
     /// <summary>
     /// Related session Id of the build who creates this metadata
-    /// </summary>
-    17: string RelatedSessionId;
+    /// </summary>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+    string RelatedSessionId = 13;
 
     /// <summary>
     /// Collection of directories that were succesfully created during pip execution. 
@@ -288,7 +235,7 @@ struct PipCacheDescriptorV2Metadata : PipFingerprintEntryData
     /// <remarks>
     /// Only populated if allowed undeclared reads is on, since these are used for computing directory fingerprint enumeration when undeclared files are allowed.
     /// </remarks>
-    18: vector<string> CreatedDirectories;
+    repeated string CreatedDirectories = 14;
 };
 
 /// <summary>
@@ -297,34 +244,36 @@ struct PipCacheDescriptorV2Metadata : PipFingerprintEntryData
 /// by lookup type (is this a weak or strong fingerprint lookup?). The Data field is
 /// polymorphic, with the concrete type indicate by Kind.
 /// </summary>
-struct PipFingerprintEntry {
-    1: required PipFingerprintEntryKind Kind = Unknown;
-    2: required blob DataBlob;
+message PipFingerprintEntry {
+    PipFingerprintEntryKind Kind = 1;
+    bytes DataBlob = 2;
 };
 
-struct StringKeyValue
+message StringKeyValue
 {
-    1: string Key;
-    2: nullable<string> Value;
+    string Key = 1;
+    google.protobuf.StringValue Value = 2;
 }
 
 /// <summary>
 /// Pip graph input metadata.
 /// </summary>
-struct PipGraphInputDescriptor : PipFingerprintEntryData
+message PipGraphInputDescriptor
 {
+    uint64 Id = 1;
+
     /// <summary>
     /// Observed inputs.
     /// </summary>
-    2: vector<StringKeyedHashObservedInput> ObservedInputsSortedByPath;
+    repeated StringKeyedHashObservedInput ObservedInputsSortedByPath = 2;
 
     /// <summary>
     /// Environment variables.
     /// </summary>
-    3: vector<StringKeyValue> EnvironmentVariablesSortedByName;
+    repeated StringKeyValue EnvironmentVariablesSortedByName = 3;
 
     /// <summary>
     /// Mounts (name and path).
     /// </summary>
-    4: vector<StringKeyValue> MountsSortedByName;
+    repeated StringKeyValue MountsSortedByName = 4;
 }

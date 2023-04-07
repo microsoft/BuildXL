@@ -1,18 +1,16 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using Google.Protobuf;
 
 namespace BuildXL.Engine.Cache.Fingerprints
 {
-    /// <nodoc />
+    ///<nodoc />
     public partial class PipGraphInputDescriptor : IPipFingerprintEntryData
     {
         /// <inheritdoc />
-        public PipFingerprintEntryKind Kind => PipFingerprintEntryKind.GraphInputDescriptor;
-
-        /// <inheritdoc />
-        public IEnumerable<BondContentHash> ListRelatedContent()
+        public IEnumerable<ByteString> ListRelatedContent()
         {
             yield break;
         }
@@ -20,7 +18,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
         /// <inheritdoc />
         public PipFingerprintEntry ToEntry()
         {
-            return PipFingerprintEntry.CreateFromData(this);
+            return PipFingerprintEntry.CreateFromData(PipFingerprintEntryKind.GraphInputDescriptor, this.ToByteString());
         }
     }
 }

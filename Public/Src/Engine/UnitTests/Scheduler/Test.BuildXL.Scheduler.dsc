@@ -32,7 +32,8 @@ namespace Scheduler {
         skipTestRun: qualifier.targetFramework === "net472" || !BuildXLSdk.targetFrameworkMatchesCurrentHost,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
-                BuildXLSdk.NetFx.System.Reflection.dll
+                BuildXLSdk.NetFx.System.Reflection.dll,
+                BuildXLSdk.NetFx.Netstandard.dll
             ),
             EngineTestUtilities.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
@@ -60,6 +61,8 @@ namespace Scheduler {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").Configuration.dll,
+
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(),
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").testProcessExe

@@ -1,5 +1,7 @@
 ﻿syntax = "proto3";
 
+import "google/protobuf/wrappers.proto";
+
 package BuildXL.Distribution.Grpc;
 
 // Defines the service for talking to the builder orchestrator process
@@ -328,19 +330,19 @@ message PipGraphCacheDescriptor {
     /// </summary>
     string TraceInfo = 2;
 
-    bytes PathTable = 3;
-    bytes StringTable = 4;
-    bytes SymbolTable = 5;
-    bytes QualifierTable = 6;
-    bytes PipTable = 7;
-    bytes PreviousInputs = 8;
-    bytes MountPathExpander = 9;
-    bytes ConfigState = 10;
-    bytes DirectedGraph = 11;
-    bytes PipGraph = 12;
-    bytes EngineState = 13;
-    bytes HistoricTableSizes = 14;
-    bytes PipGraphId = 15;
+    google.protobuf.BytesValue PathTable = 3;
+    google.protobuf.BytesValue StringTable = 4;
+    google.protobuf.BytesValue SymbolTable = 5;
+    google.protobuf.BytesValue QualifierTable = 6;
+    google.protobuf.BytesValue PipTable = 7;
+    google.protobuf.BytesValue PreviousInputs = 8;
+    google.protobuf.BytesValue MountPathExpander = 9;
+    google.protobuf.BytesValue ConfigState = 10;
+    google.protobuf.BytesValue DirectedGraph = 11;
+    google.protobuf.BytesValue PipGraph = 12;
+    google.protobuf.BytesValue EngineState = 13;
+    google.protobuf.BytesValue HistoricTableSizes = 14;
+    google.protobuf.BytesValue PipGraphId = 15;
 }
 
 message PipProcessErrorEvent {

@@ -3,14 +3,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Engine
 {
@@ -86,13 +87,11 @@ namespace BuildXL.Engine
         {
             Contract.Requires(pathTable != null);
 
-            return new PipGraphInputDescriptor
-            {
-                ObservedInputsSortedByPath = PathInputs.Select(i => i.ToStringKeyedHashObservedInput(pathTable)).ToList(),
-                EnvironmentVariablesSortedByName =
-                        EnvironmentVariableInputs.BaseArray.Select(kvp => new StringKeyValue { Key = kvp.Name, Value = kvp.Value }).ToList(),
-                MountsSortedByName = MountInputs.Select(i => i.ToStringKeyValue(pathTable)).ToList()
-            };
+            PipGraphInputDescriptor pipGraphInputDescriptor = new PipGraphInputDescriptor();
+            pipGraphInputDescriptor.ObservedInputsSortedByPath.Add(PathInputs.Select(i => i.ToStringKeyedHashObservedInput(pathTable)).ToList());
+            pipGraphInputDescriptor.EnvironmentVariablesSortedByName.Add(EnvironmentVariableInputs.BaseArray.Select(kvp => new StringKeyValue { Key = kvp.Name, Value = kvp.Value }).ToList());
+            pipGraphInputDescriptor.MountsSortedByName.Add(MountInputs.Select(i => i.ToStringKeyValue(pathTable)).ToList());
+            return pipGraphInputDescriptor;
         }
 
         /// <summary>
@@ -245,7 +244,7 @@ namespace BuildXL.Engine
                        StringKeyedHash = new StringKeyedHash
                                          {
                                              Key = Path.ToString(pathTable),
-                                             ContentHash = Hash.ToBondContentHash(),
+                                             ContentHash = Hash.ToByteString(),
                                          },
                        ObservedInputKind = DirectoryMembership ? ObservedInputKind.DirectoryMembership : ObservedInputKind.ObservedInput,
                    };

@@ -1492,11 +1492,19 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        private ExtraFingerprintSalts CreateExtraFingerprintSalts(string fingerprintSalt)
+        {
+            ExtraFingerprintSalts extraFingerprintSalts = ExtraFingerprintSalts.Default();
+            extraFingerprintSalts.FingerprintSalt = fingerprintSalt;
+            return extraFingerprintSalts;
+        }
+
         private PipFingerprinter CreateDefaultContentFingerprinter<TPip>(VariationSource<TPip> variation) where TPip : Pip
         {
             return new PipContentFingerprinter(
                     m_context.PathTable,
-                    variation.LookupContentHash);
+                    variation.LookupContentHash,
+                    CreateExtraFingerprintSalts("content_fingerprinter"));
         }
 
         private PipFingerprinter CreateDefaultStaticFingerprinter<TPip>(VariationSource<TPip> variation) where TPip : Pip
@@ -1504,7 +1512,8 @@ namespace Test.BuildXL.Scheduler
             return new PipStaticFingerprinter(
                     m_context.PathTable,
                     variation.LookupDirectoryFingerprint,
-                    variation.LookupDirectoryFingerprint);
+                    variation.LookupDirectoryFingerprint,
+                    CreateExtraFingerprintSalts("static_fingerprinter"));
         }
 
         private PipFingerprinter CreateIndependentStaticFingerprinter<TPip>(VariationSource<TPip> variation) where TPip : Pip
@@ -1512,7 +1521,8 @@ namespace Test.BuildXL.Scheduler
             return new PipStaticFingerprinter(
                     m_context.PathTable,
                     null,
-                    null);
+                    null,
+                    CreateExtraFingerprintSalts("static_fingerprinter"));
         }
 
         private PipFingerprinter CreateSealDirectoryStaticFingerprinter<TPip>(VariationSource<TPip> variation) where TPip : Pip

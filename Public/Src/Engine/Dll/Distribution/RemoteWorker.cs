@@ -60,7 +60,7 @@ namespace BuildXL.Engine.Distribution
         private readonly OrchestratorService m_orchestratorService;
 
         private ServiceLocation m_serviceLocation;
-        private BondContentHash m_cacheValidationContentHash;
+        private ByteString m_cacheValidationContentHash;
         private int m_nextSequenceNumber;
         private PipGraph m_pipGraph;
         private CancellationTokenRegistration m_cancellationTokenRegistration;
@@ -1223,7 +1223,7 @@ namespace BuildXL.Engine.Distribution
                 return;
             }
 
-            m_cacheValidationContentHash = attachCompletionInfo.WorkerCacheValidationContentHash.ToBondContentHash();
+            m_cacheValidationContentHash = attachCompletionInfo.WorkerCacheValidationContentHash;
             TotalProcessSlots = attachCompletionInfo.MaxProcesses;
             TotalCacheLookupSlots = attachCompletionInfo.MaxCacheLookup;
             TotalMaterializeInputSlots = attachCompletionInfo.MaxMaterialize;

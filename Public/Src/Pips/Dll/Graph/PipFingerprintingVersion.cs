@@ -78,8 +78,9 @@ namespace BuildXL.Pips.Graph
         /// 101: Direct dirty should apply to all pips, not just filtered pips
         /// 102: Add dynamic absent path probe observations to incremental scheduling state
         /// 103: Add apply-allow-list logic on dynamic (shared opaque) outputs.
+        /// 104: Migrate Bond to Google.Protobuf
         /// </remarks>
-        TwoPhaseV2 = 103,
+        TwoPhaseV2 = 104,
 
         /* 
          * We do not want to bump the fingerprint version more than needed, so we will accumulate the tasks to do when we really need to bump the fingerprint version:

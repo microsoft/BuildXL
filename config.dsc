@@ -75,11 +75,11 @@ config({
 
             packages: [
                 { id: "NLog", version: "4.7.7" },
-                { id: "Bond.Core.CSharp", version: "10.0.0" },
-                { id: "Bond.CSharp", version: "10.0.0" },
-                { id: "Bond.CSharp.osx-x64", version: "10.0.0", osSkip: [ "unix" ] },
-                { id: "Bond.CSharp.linux-x64", version: "10.0.0", osSkip: [ "macOS" ] },
-                { id: "Bond.Runtime.CSharp", version: "10.0.0" },
+                // Temporary workaround for Bond issue. Microsoft.Cloud.InstrumentationFramework is using 11.0.0.
+                // Remove Bond once migration to OpenTelemetry is done.
+                { id: "Bond.Core.CSharp", version: "11.0.0" },
+                { id: "Bond.CSharp", version: "11.0.0" },
+                { id: "Bond.Runtime.CSharp", version: "11.0.0" },
                 { id: "CLAP", version: "4.6" },
                 { id: "CLAP-DotNetCore", version: "4.6" },
 

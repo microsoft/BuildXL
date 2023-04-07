@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -42,6 +43,8 @@ using BuildXL.ViewModel;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
 using SchedulerLogger = BuildXL.Scheduler.Tracing.Logger;
+using BuildXL.Cache.ContentStore.Service.Grpc;
+using Google.Protobuf;
 
 namespace BuildXL.Engine
 {
@@ -1987,7 +1990,7 @@ namespace BuildXL.Engine
                         return false;
                     }
 
-                    hashes.Add(new StringKeyedHash {Key = filesToPut[i].ToString(Context.PathTable), ContentHash = result.Result.ToBondContentHash()});
+                    hashes.Add(new StringKeyedHash {Key = filesToPut[i].ToString(Context.PathTable), ContentHash = result.Result.ToByteString()});
                 }
 
                 // We can sort in place since nobody uses 'hashes' after this point in an order dependent way.
@@ -2011,12 +2014,12 @@ namespace BuildXL.Engine
             // this cache descriptor. This is done so the graph caching can be used without the cache being enabled.
             // This descriptor will be stored under both fingerprints (input based and graph content based) to allow finding the graph content
             // from either the input files themselves (has a graph for these specs been computed before?) or from logs (load the exact graph used in a prior build).
-            var hashesByFileType = new Dictionary<GraphCacheFile, BondContentHash>();
+            var hashesByFileType = new Dictionary<GraphCacheFile, ByteString>();
             Contract.Assume(fileTypes.Count == storeResults.Length);
             for (int i = 0; i < fileTypes.Count; i++)
             {
                 Contract.Assume(storeResults[i].Succeeded);
-                hashesByFileType.Add(fileTypes[i], storeResults[i].Result.ToBondContentHash());
+                hashesByFileType.Add(fileTypes[i], storeResults[i].Result.ToByteString());
             }
 
             PipGraphCacheDescriptor descriptor = PipGraphCacheDescriptor.CreateFromFiles(

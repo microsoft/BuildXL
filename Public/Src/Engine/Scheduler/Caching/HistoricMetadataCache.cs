@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
@@ -25,12 +25,14 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
+using Google.Protobuf;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 
 namespace BuildXL.Scheduler.Cache
 {
@@ -42,7 +44,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// The version for format of <see cref="HistoricMetadataCache"/>
         /// </summary>
-        public const int FormatVersion = 26;
+        public const int FormatVersion = 27;
 
         /// <summary>
         /// Indicates if entries should be purged as soon as there TTL reaches zero versus reaching a limit in percentage expired.
@@ -391,7 +393,7 @@ namespace BuildXL.Scheduler.Cache
             if (TryGetContent(metadataHash, out var content))
             {
                 Counters.IncrementCounter(PipCachingCounter.HistoricMetadataHits);
-                return BondExtensions.Deserialize<PipCacheDescriptorV2Metadata>(content);
+                return CacheGrpcExtensions.Deserialize<PipCacheDescriptorV2Metadata>(content);
             }
 
             var possiblyRetrieved = await base.TryRetrieveMetadataAsync(pip, weakFingerprint, strongFingerprint, metadataHash, pathSetHash);
@@ -834,8 +836,7 @@ namespace BuildXL.Scheduler.Cache
         {
             using (Counters.StartStopwatch(PipCachingCounter.HistoricTryAddMetadataDuration))
             {
-                var content = BondExtensions.Serialize(metadata);
-                return TryAddContent(metadataHash, content);
+                return TryAddContent(metadataHash, CacheGrpcExtensions.Serialize(metadata));
             }
         }
 
@@ -1385,7 +1386,7 @@ namespace BuildXL.Scheduler.Cache
                     return storeResult.Then(result => new StringKeyedHash()
                     {
                         Key = absolutePath.ExpandRelative(pathTable, filePath),
-                        ContentHash = result.ToBondContentHash()
+                        ContentHash = result.ToByteString()
                     });
                 }
             }).ToList());
@@ -1400,9 +1401,9 @@ namespace BuildXL.Scheduler.Cache
             PackageDownloadDescriptor descriptor = new PackageDownloadDescriptor()
             {
                 TraceInfo = loggingContext.Session.Environment,
-                FriendlyName = nameof(HistoricMetadataCache),
-                Contents = storedFiles.Select(p => p.Result).ToList()
+                FriendlyName = nameof(HistoricMetadataCache)
             };
+            descriptor.Contents.Add(storedFiles.Select(p => p.Result).ToList());
 
             var storeDescriptorResult = await cache.ArtifactContentCache.TrySerializeAndStoreContent(descriptor);
             Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Storing historic metadata cache descriptor to cache: Success='{storeDescriptorResult.Succeeded}'"));

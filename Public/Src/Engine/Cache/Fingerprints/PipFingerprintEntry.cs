@@ -1,23 +1,21 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
 using System.Threading;
-using Bond;
-using Bond.IO.Safe;
-using Bond.Protocols;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
+using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
+using Google.Protobuf;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Fingerprints
@@ -55,7 +53,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
         /// <summary>
         /// Returns true if the data blob is corrupted.
         /// </summary>
-        public bool IsCorrupted => DataBlob.Count == 0 || DataBlob.Array[DataBlob.Offset] == 0;
+        public bool IsCorrupted => DataBlob.IsEmpty;
 
         /// <summary>
         /// Deserializes an <see cref="IPipFingerprintEntryData"/> of the appropriate concrete type (or null if the type is unknown).
@@ -76,29 +74,24 @@ namespace BuildXL.Engine.Cache.Fingerprints
 
             try
             {
-                InputBuffer buffer = new InputBuffer(DataBlob);
-                CompactBinaryReader<InputBuffer> reader = new CompactBinaryReader<InputBuffer>(buffer);
                 IPipFingerprintEntryData deserialized;
 
                 switch (Kind)
                 {
-                    case PipFingerprintEntryKind.DescriptorV1:
-                        deserialized = Deserialize<PipCacheDescriptor>.From(reader);
-                        break;
                     case PipFingerprintEntryKind.DescriptorV2:
-                        deserialized = Deserialize<PipCacheDescriptorV2Metadata>.From(reader);
+                        deserialized = CacheGrpcExtensions.Deserialize<PipCacheDescriptorV2Metadata>(DataBlob);
                         break;
                     case PipFingerprintEntryKind.GraphDescriptor:
-                        deserialized = Deserialize<PipGraphCacheDescriptor>.From(reader);
+                        deserialized = CacheGrpcExtensions.Deserialize<PipGraphCacheDescriptor>(DataBlob);
                         break;
                     case PipFingerprintEntryKind.FileDownload:
-                        deserialized = Deserialize<FileDownloadDescriptor>.From(reader);
+                        deserialized = CacheGrpcExtensions.Deserialize<FileDownloadDescriptor>(DataBlob);
                         break;
                     case PipFingerprintEntryKind.PackageDownload:
-                        deserialized = Deserialize<PackageDownloadDescriptor>.From(reader);
+                        deserialized = CacheGrpcExtensions.Deserialize<PackageDownloadDescriptor>(DataBlob);
                         break;
                     case PipFingerprintEntryKind.GraphInputDescriptor:
-                        deserialized = Deserialize<PipGraphInputDescriptor>.From(reader);
+                        deserialized = CacheGrpcExtensions.Deserialize<PipGraphInputDescriptor>(DataBlob);
                         break;
                     default:
                         throw Contract.AssertFailure("Unhandled PipFingerprintEntryKind");
@@ -111,15 +104,8 @@ namespace BuildXL.Engine.Cache.Fingerprints
             {
                 if (IsCorrupted)
                 {
-                    OutputBuffer valueBuffer = new OutputBuffer(1024);
-                    CompactBinaryWriter<OutputBuffer> writer = new CompactBinaryWriter<OutputBuffer>(valueBuffer);
-                    Serialize.To(writer, this);
-
                     // Include in the log the hash of this instance so that we can trace it in the cache log, and obtain the file in the CAS.
-                    ContentHash valueHash = ContentHashingUtilities.HashBytes(
-                        valueBuffer.Data.Array,
-                        valueBuffer.Data.Offset,
-                        valueBuffer.Data.Count);
+                    ContentHash valueHash = ContentHashingUtilities.HashBytes(this.ToByteArray());
 
                     const string Unspecified = "<Unspecified>";
                     string actualEntryBlob = Unspecified;
@@ -161,29 +147,22 @@ namespace BuildXL.Engine.Cache.Fingerprints
         }
 
         /// <summary>
-        /// Helper for <see cref="IPipFingerprintEntryData.ToEntry"/>. Note that <typeparamref name="T"/> must
-        /// be a concrete type known to Bond.
+        /// Helper for <see cref="IPipFingerprintEntryData.ToEntry"/>. Note that data must be serialized from protobuf message type.
         /// </summary>
-        internal static PipFingerprintEntry CreateFromData<T>(T data) where T : IPipFingerprintEntryData
+        internal static PipFingerprintEntry CreateFromData(PipFingerprintEntryKind kind, ByteString data)
         {
-            // TODO: It would be nice to predict the buffer size accurately.
-            OutputBuffer buffer = new OutputBuffer(1024);
-            CompactBinaryWriter<OutputBuffer> writer = new CompactBinaryWriter<OutputBuffer>(buffer);
-
-            Serialize.To(writer, data);
-
             var entry = new PipFingerprintEntry
-                        {
-                            Kind = data.Kind,
-                            DataBlob = buffer.Data,
-                        };
+            {
+                Kind = kind,
+                DataBlob = data,
+            };
 
             if (entry.IsCorrupted)
             {
                 Logger.Log.SerializingToPipFingerprintEntryResultInCorruptedData(Events.StaticContext, entry.Kind.ToString(), entry.ToDataBlobString());
 
                 // We don't expect this to happen, so throw an exception to crash the build.
-                throw new InvalidDataException(I($"Serializing '{data.Kind.ToString()}' results in corrupted {nameof(PipFingerprintEntry)}"));
+                throw new InvalidDataException(I($"Serializing '{kind.ToString()}' results in corrupted {nameof(PipFingerprintEntry)}"));
             }
 
             return entry;
@@ -204,21 +183,15 @@ namespace BuildXL.Engine.Cache.Fingerprints
         }
 
         /// <nodoc />
-        public IEnumerable<BondContentHash> OutputContentHashes
+        public IEnumerable<ByteString> OutputContentHashes
         {
             get
             {
                 // TODO [pgunasekara]: Add a cancellation token here
                 // We are robust to Kind.Unknown here since this properties is sometimes used in string-ifying for e.g. logs.
                 IPipFingerprintEntryData data = Deserialize(CancellationToken.None);
-                return data == null ? CollectionUtilities.EmptyArray<BondContentHash>() : data.ListRelatedContent();
+                return data == null ? CollectionUtilities.EmptyArray<ByteString>() : data.ListRelatedContent();
             }
-        }
-
-        /// <inheritdoc />
-        public bool Equals(PipFingerprintEntry other)
-        {
-            return Equals((object)other);
         }
 
         /// <summary>
@@ -226,7 +199,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
         /// </summary>
         private string ToDataBlobString()
         {
-            return Kind + "(" + ToByteArrayString(DataBlob.ToArray()) + ")";
+            return Kind + "(" + ToByteArrayString(DataBlob.ToByteArray()) + ")";
         }
 
         private static string ToByteArrayString(byte[] bytes)

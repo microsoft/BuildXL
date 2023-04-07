@@ -35,6 +35,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             var newResult = result.WithMaterializationSource(PlaceFileResult.Source.DatacenterCache);
 
             Assert.Equal(successDiagnostics, newResult.Diagnostics);
+            Assert.Equal(PlaceFileResult.Source.DatacenterCache, newResult.MaterializationSource);
         }
 
         [Fact]

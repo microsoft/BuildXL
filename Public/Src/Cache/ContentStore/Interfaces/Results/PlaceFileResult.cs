@@ -198,6 +198,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                     result.SetDiagnosticsForSuccess(Diagnostics);
                 }
 
+                return result;
             }
 
             return this;

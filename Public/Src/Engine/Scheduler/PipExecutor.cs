@@ -2263,7 +2263,6 @@ namespace BuildXL.Scheduler
                     {
                         Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
 
-
                         Logger.Log.ScheduleProcessPipCacheMiss(
                             processRunnable.OperationContext,
                             cacheableProcess.Description,
@@ -2342,6 +2341,7 @@ namespace BuildXL.Scheduler
                 // but it is not worth storing the original reason and the extra complexity that would bring. The original reason for the miss was also
                 // logged already.
                 result = RunnableFromCacheResult.CreateForMiss(weakFingerprint, PipCacheMissType.MissForDescriptorsDueToAugmentedWeakFingerprints);
+                pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToAugmentedWeakFingerprints;
             }
             else
             {

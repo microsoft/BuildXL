@@ -132,7 +132,7 @@ namespace BuildXL.Engine
             // Cross Plat supported MountPoints
             // On Linux the user profile maps to the user home folder - we shouldn't treat that as a special system mount.
             // We still add it as a static mount for the sake of the tools that output to this mount, but we enable hashing on it
-            table.AddStaticSystemMount("ProgramData", Environment.SpecialFolder.CommonApplicationData);
+            table.AddStaticSystemMount("ProgramData", Environment.SpecialFolder.CommonApplicationData, trackSourceFileChanges: true);
             if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
             {
                 table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile, trackSourceFileChanges: true);

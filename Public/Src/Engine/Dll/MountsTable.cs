@@ -135,18 +135,18 @@ namespace BuildXL.Engine
             table.AddStaticSystemMount("ProgramData", Environment.SpecialFolder.CommonApplicationData);
             if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
             {
-                table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);                
+                table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile, trackSourceFileChanges: true);
                 table.AddStaticSystemMount("AppData", Environment.SpecialFolder.ApplicationData, allowCreateDirectory: true);
-                table.AddStaticSystemMount("LocalAppData", Environment.SpecialFolder.LocalApplicationData, allowCreateDirectory: true);
+                table.AddStaticSystemMount("LocalAppData", Environment.SpecialFolder.LocalApplicationData, allowCreateDirectory: true, trackSourceFileChanges: true);
             }
             else
             {
                 // User profile is redirected; need to use the paths specified in the env block.
                 Contract.Assert(properties != null);
 
-                RegisterRedirectedMount(context, properties, table, "UserProfile", trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
+                RegisterRedirectedMount(context, properties, table, "UserProfile", trackSourceFileChanges: true);
                 RegisterRedirectedMount(context, properties, table, "AppData", allowCreateDirectory: true);
-                RegisterRedirectedMount(context, properties, table, "LocalAppData", allowCreateDirectory: true);
+                RegisterRedirectedMount(context, properties, table, "LocalAppData", allowCreateDirectory: true, trackSourceFileChanges: true);
             }
 
             if (!OperatingSystemHelper.IsUnixOS)

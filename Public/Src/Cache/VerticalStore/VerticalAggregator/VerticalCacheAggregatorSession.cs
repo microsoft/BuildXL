@@ -41,6 +41,19 @@ namespace BuildXL.Cache.VerticalAggregator
         private readonly SessionCounters m_sessionCounters;
         private readonly LockSet<CasHash> m_remoteDownloads;
 
+        /// <summary>
+        /// We avoid the remote cache if it is read-only and the operation hints say to avoid the remote cache.
+        /// </summary>
+        /// <remarks>
+        /// Rationale: avoiding the remote cache for query-related operations can cause a pip to be oblivious to existing
+        /// candidates (even if they end up being a miss) and therefore keep pushing new candidates on the same weak fingerprint,
+        /// causing a path set explosion. Fingerprint augmentation is a way to avoid this problem, but it relies on being aware
+        /// of the existing set of candidates, since they are used to augment the fingerprint.
+        /// Therefore, only avoid the remote if it is read-only. An alternate solution could be to not push the result of an execution
+        /// if the lookup was avoided.
+        /// </remarks>
+        private bool ShouldAvoidRemote(OperationHints hints) => m_remoteIsReadOnly && hints.AvoidRemote;
+
         internal VerticalCacheAggregatorSession(
             VerticalCacheAggregator cache,
             string sessionId,
@@ -541,7 +554,7 @@ namespace BuildXL.Cache.VerticalAggregator
                     counters.YieldReturnSenintel();
                     yield return Task.FromResult(new Possible<StrongFingerprint, Failure>(StrongFingerprintSentinel.Instance));
 
-                    if (!m_cache.RemoteCache.IsDisconnected && !hints.AvoidRemote)
+                    if (!m_cache.RemoteCache.IsDisconnected && !ShouldAvoidRemote(hints))
                     {
                         foreach (var oneEntry in m_remoteROSession.EnumerateStrongFingerprints(weak, hints, eventing.Id))
                         {
@@ -600,9 +613,9 @@ namespace BuildXL.Cache.VerticalAggregator
                             counters.Failure();
                             return eventing.Returns(failure);
                         }
-
+                        
                         // If we are avoiding remote lookups, just return the local result
-                        if (hints.AvoidRemote)
+                        if (ShouldAvoidRemote(hints))
                         {
                             if (localResult.Succeeded)
                             {
@@ -1134,7 +1147,7 @@ namespace BuildXL.Cache.VerticalAggregator
                                     counters.PinHitLocal();
                                     retValues[i] = localResultSet[i];
                                 }
-                                else if (hints.AvoidRemote)
+                                else if (ShouldAvoidRemote(hints))
                                 {
                                     counters.PinMiss();
                                 }
@@ -1216,7 +1229,7 @@ namespace BuildXL.Cache.VerticalAggregator
                             return eventing.Returns(localResult);
                         }
 
-                        if (hints.AvoidRemote)
+                        if (ShouldAvoidRemote(hints))
                         {
                             if (!localResult.Succeeded)
                             {

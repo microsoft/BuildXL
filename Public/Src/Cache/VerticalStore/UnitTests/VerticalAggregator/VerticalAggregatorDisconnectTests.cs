@@ -66,7 +66,7 @@ namespace BuildXL.Cache.Tests
         /// <param name="strictMetadataCasCoupling">If the cache should require a strick metadata CAS coupling.</param>
         /// <param name="writeThroughCasData">If the VerticalAggregator should force write through of CAS data.</param>
         /// <returns>A VerticalCacheAggregator </returns>
-        internal static string NewWrappedCache(string cacheId, bool strictMetadataCasCoupling, bool writeThroughCasData, bool wrapLocal, bool wrapRemote)
+        internal static string NewWrappedCache(string cacheId, bool strictMetadataCasCoupling, bool writeThroughCasData, bool wrapLocal, bool wrapRemote, bool remoteReadOnly = false)
         {
             TestInMemory memTests = new TestInMemory();
             string localCacheString = memTests.NewCache(cacheId + VerticalAggregatorBaseTests.LocalMarker, strictMetadataCasCoupling);
@@ -82,7 +82,7 @@ namespace BuildXL.Cache.Tests
                 remoteCacheString = TestCallbackCache.FormatNewCacheConfig(remoteCacheString);
             }
 
-            string vertCacheConfig = VerticalAggregatorBaseTests.NewCacheString(cacheId, localCacheString, remoteCacheString, false, false, writeThroughCasData);
+            string vertCacheConfig = VerticalAggregatorBaseTests.NewCacheString(cacheId, localCacheString, remoteCacheString, false, remoteReadOnly, writeThroughCasData);
             return vertCacheConfig;
         }
 
@@ -234,6 +234,14 @@ namespace BuildXL.Cache.Tests
             Contract.Requires(((VerticalCacheAggregatorSession)session).RemoteRoSession is CallbackCacheSessionWrapper);
 
             return ((VerticalCacheAggregatorSession)session).RemoteRoSession as CallbackCacheSessionWrapper;
+        }
+
+        internal static CallbackCacheReadOnlySessionWrapper UnwrapReadOnlyRemoteSession(ICacheSession session)
+        {
+            Contract.Requires(session is VerticalCacheAggregatorSession);
+            Contract.Requires(((VerticalCacheAggregatorSession)session).RemoteRoSession is CallbackCacheReadOnlySessionWrapper);
+
+            return ((VerticalCacheAggregatorSession)session).RemoteRoSession as CallbackCacheReadOnlySessionWrapper;
         }
 
         internal static CallbackCacheSessionWrapper UnwrapLocalSession(ICacheSession session)

@@ -1323,32 +1323,31 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             string testName = "StrongFpEnumerationHonorsOperationHints";
             string testCacheId = MakeCacheId(testName);
 
-            // L1 + L3 cache.
+            // L1 + readonly L3 cache.
+            // The vertical aggregator needs to see the L3 as readonly so it can honor the 'AvoidRemote' hint
             TestInMemory memoryCache = new TestInMemory();
             string configL1 = memoryCache.NewCache(testCacheId + "L1", false);
             string configL3 = memoryCache.NewCache(testCacheId + "L3", true, authoritative: true);
-            string vertConfig = NewCacheString(testCacheId, configL1, configL3, false, false, false);
 
-            ICache testCache = await CacheFactory.InitializeCacheAsync(vertConfig).SuccessAsync();
-            VerticalAggregator.VerticalCacheAggregator cache = testCache as VerticalAggregator.VerticalCacheAggregator;
+            string readOnlyVertConfig = NewCacheString(testCacheId, configL1, configL3, false, remoteReadOnly: true, false);
+            ICache remoteReadonlyTestCache = await CacheFactory.InitializeCacheAsync(readOnlyVertConfig).SuccessAsync();
+            VerticalCacheAggregator remoteReadOnlyCache = remoteReadonlyTestCache as VerticalAggregator.VerticalCacheAggregator;
 
             string testSessionId = "Session1-" + testCacheId;
-            ICacheSession session = await CreateSessionAsync(testCache, testSessionId);
-
-            VerticalCacheAggregatorSession vSession = session as VerticalCacheAggregatorSession;
-            XAssert.IsNotNull(vSession, "Where is our vertical aggregator session?");
+            ICacheSession l3Onlysession = await CreateSessionAsync(remoteReadOnlyCache.RemoteCache, testSessionId);
 
             // Get some pip data into the cache
-            FullCacheRecord cacheRecord = await FakeBuild.DoPipAsync(session, "TestPip");
+            // Use the L3 layer directly so we can actually write into it
+            FullCacheRecord cacheRecord = await FakeBuild.DoPipAsync(l3Onlysession, "TestPip");
 
             var sfp = cacheRecord.StrongFingerprint;
 
-            // Remove the fingerprints from the local cache
-            await TestInMemory.ClearFingerprints(cache.LocalCache);
-
+            // Observe that at this point the local cache is empty
             // With the default operation hints, this should still be a hit, as the remote cache is queried
+            ICacheSession remoteReadOnlySession = await CreateSessionAsync(remoteReadonlyTestCache, testSessionId);
+
             bool sfpHit = false;
-            foreach (var t in session.EnumerateStrongFingerprints(sfp.WeakFingerprint))
+            foreach (var t in remoteReadOnlySession.EnumerateStrongFingerprints(sfp.WeakFingerprint))
             {
                 var maybeFp = await t;
                 maybeFp.Success("Enumeration should succeed");
@@ -1357,10 +1356,10 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             XAssert.IsTrue(sfpHit);
 
-            // If the remote cache is avoided, we shouldn't find anything after clearing the local cache:
+            // If the remote cache is avoided, we shouldn't find anything since the local cache is empty:
             OperationHints hints = new OperationHints() { AvoidRemote = true };
             sfpHit = false;
-            foreach (var t in session.EnumerateStrongFingerprints(sfp.WeakFingerprint, hints))
+            foreach (var t in remoteReadOnlySession.EnumerateStrongFingerprints(sfp.WeakFingerprint, hints))
             {
                 var maybeFp = await t;
                 maybeFp.Success("Enumeration should succeed");
@@ -1377,37 +1376,36 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             string testName = "GetCacheEntryHonorsOperationHints";
             string testCacheId = MakeCacheId(testName);
 
-            // L1 + L3 cache
+            // L1 + readonly L3 cache.
+            // The vertical aggregator needs to see the L3 as readonly so it can honor the 'AvoidRemote' hint
             TestInMemory memoryCache = new TestInMemory();
             string configL1 = memoryCache.NewCache(testCacheId + "L1", false);
             string configL3 = memoryCache.NewCache(testCacheId + "L3", true, authoritative: true);
-            string vertConfig = NewCacheString(testCacheId, configL1, configL3, false, false, false);
 
-            ICache testCache = await CacheFactory.InitializeCacheAsync(vertConfig).SuccessAsync();
-            VerticalAggregator.VerticalCacheAggregator cache = testCache as VerticalAggregator.VerticalCacheAggregator;
+            string readOnlyVertConfig = NewCacheString(testCacheId, configL1, configL3, false, remoteReadOnly: true, false);
+            ICache remoteReadonlyTestCache = await CacheFactory.InitializeCacheAsync(readOnlyVertConfig).SuccessAsync();
+            VerticalCacheAggregator remoteReadOnlyCache = remoteReadonlyTestCache as VerticalAggregator.VerticalCacheAggregator;
 
             string testSessionId = "Session1-" + testCacheId;
-            ICacheSession session = await CreateSessionAsync(testCache, testSessionId);
-
-            VerticalCacheAggregatorSession vSession = session as VerticalCacheAggregatorSession;
-            XAssert.IsNotNull(vSession, "Where is our vertical aggregator session?");
+            ICacheSession l3Onlysession = await CreateSessionAsync(remoteReadOnlyCache.RemoteCache, testSessionId);
 
             // Get some pip data into the cache
-            FullCacheRecord cacheRecord = await FakeBuild.DoPipAsync(session, "TestPip");
+            // Use the L3 layer directly so we can actually write into it
+            FullCacheRecord cacheRecord = await FakeBuild.DoPipAsync(l3Onlysession, "TestPip");
 
-            // Remove the entry from the local cache
-            await TestInMemory.ClearFingerprints(cache.LocalCache);
             var sfp = cacheRecord.StrongFingerprint;
 
+            // Observe that at this point the local cache is empty
             // With the default operation hints, this should still be a hit, as the remote cache is queried
-            (await session.GetCacheEntryAsync(sfp)).Success("We should get a result while using the remote cache");
+            ICacheSession remoteReadOnlySession = await CreateSessionAsync(remoteReadonlyTestCache, testSessionId);
+            (await remoteReadOnlySession.GetCacheEntryAsync(sfp)).Success("We should get a result while using the remote cache");
 
             // Clear again - the last call to GetCacheEntry populates the local cache
-            await TestInMemory.ClearFingerprints(cache.LocalCache); 
+            await TestInMemory.ClearFingerprints(remoteReadOnlyCache.LocalCache); 
             // If the remote cache is avoided, we shouldn't find anything after clearing the local cache:
             OperationHints hints = new OperationHints() { AvoidRemote = true };
 
-            XAssert.IsFalse((await session.GetCacheEntryAsync(sfp, hints)).Succeeded,
+            XAssert.IsFalse((await remoteReadOnlySession.GetCacheEntryAsync(sfp, hints)).Succeeded,
                 "We should not find the entry when avoiding the remote cache");
         }
 
@@ -1420,12 +1418,13 @@ namespace BuildXL.Cache.VerticalAggregator.Test
         public async Task OperationHintsAreRespected(SessionAPIs sessionApiToCheck)
         {
             string testCacheId = "OperationHintsAreRespected";
-            ICache testCache = await InitializeCacheAsync(VerticalAggregatorDisconnectTests.NewWrappedCache(testCacheId, false, false, wrapLocal: true, wrapRemote: true)).SuccessAsync();
+            // Let's make the remote cache read-only, since only in that case the 'avoidRemote' hit is honored
+            ICache testCache = await InitializeCacheAsync(VerticalAggregatorDisconnectTests.NewWrappedCache(testCacheId, false, false, wrapLocal: true, wrapRemote: true, remoteReadOnly: true)).SuccessAsync();
             VerticalAggregator.VerticalCacheAggregator vertCache = VerticalAggregatorDisconnectTests.UnwrapVerticalCache(testCache);
 
 
             ICacheSession session = await testCache.CreateSessionAsync().SuccessAsync();
-            CallbackCacheSessionWrapper remoteSessionWrapper = VerticalAggregatorDisconnectTests.UnwrapRemoteSession(session);
+            CallbackCacheReadOnlySessionWrapper remoteSessionWrapper = VerticalAggregatorDisconnectTests.UnwrapReadOnlyRemoteSession(session);
             CallbackCacheSessionWrapper localSessionWrapper = VerticalAggregatorDisconnectTests.UnwrapLocalSession(session);
 
             ICacheSession localSession = await vertCache.LocalCache.CreateSessionAsync().SuccessAsync();

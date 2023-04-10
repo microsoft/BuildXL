@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Buffers;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Utils;
@@ -20,6 +19,22 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         public ContentLocationEntryTests(ITestOutputHelper testOutputHelper)
         {
             _testOutputHelper = testOutputHelper;
+        }
+
+        [Fact]
+        public void CatchDeserializationException()
+        {
+            var input = new byte[] { 1 };
+            Action deserializeFunc = () => ContentLocationEntry.Deserialize(input);
+            deserializeFunc.Should().Throw<InvalidOperationException>();
+        }
+
+        [Fact]
+        public void CatchDeserializationExceptionOnArgumentOutOfRangeException()
+        {
+            var input = new byte[] { 1, 2, 3, 4 };
+            Action deserializeFunc = () => ContentLocationEntry.Deserialize(input);
+            deserializeFunc.Should().Throw<InvalidOperationException>();
         }
 
         [Theory]

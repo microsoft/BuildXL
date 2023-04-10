@@ -107,5 +107,28 @@ namespace BuildXL.Utilities
             }
             return new string(chars);
         }
+        
+        /// <summary>
+        /// Converts the provided bytes into a hexadecimal string of the form '1234abcd'.
+        /// </summary>
+        public static string SpanToHex(this ReadOnlySpan<byte> bytes, int? maxInputLength = null)
+        {
+            if (bytes.IsEmpty)
+            {
+                return NullHex;
+            }
+
+            var inputLength = maxInputLength ?? bytes.Length;
+            inputLength = Math.Min(bytes.Length, inputLength);
+
+            var chars = new char[inputLength * 2];
+            for (int i = 0; i < inputLength; i++)
+            {
+                byte b = bytes[i];
+                chars[i * 2] = s_nybbleToHex[(b & 0xF0) >> 4];
+                chars[i * 2 + 1] = s_nybbleToHex[b & 0x0F];
+            }
+            return new string(chars);
+        }
     }
 }

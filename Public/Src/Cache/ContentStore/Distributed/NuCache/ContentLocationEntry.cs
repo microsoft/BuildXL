@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -107,16 +108,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public static ContentLocationEntry Deserialize(ref SpanReader reader)
         {
-            var size = reader.ReadInt64Compact();
-            var locations = MachineIdSet.Deserialize(ref reader);
-            var (creationTime, lastAccessTime) = ReadCreationAndLastAccessTimes(ref reader);
-
-            if (size == -1 && lastAccessTime == default)
+            SpanReader originalReader = reader;
+            try
             {
-                return Missing;
-            }
+                var size = reader.ReadInt64Compact();
+                var locations = MachineIdSet.Deserialize(ref reader);
+                var (creationTime, lastAccessTime) = ReadCreationAndLastAccessTimes(ref reader);
 
-            return Create(locations, size, lastAccessTime, creationTime);
+                if (size == -1 && lastAccessTime == default)
+                {
+                    return Missing;
+                }
+
+                return Create(locations, size, lastAccessTime, creationTime);
+            }
+            catch (Exception e) when(e is InsufficientLengthException or ArgumentOutOfRangeException)
+            {
+                string error =
+                    $"Deserialization failed. InputLength: {originalReader.RemainingLength}. Input: {originalReader.Remaining.SpanToHex(maxInputLength: 128)}";
+                throw new InvalidOperationException(error, e);
+            }
         }
 
         private static (UnixTime creationTime, UnixTime lastAccessTime) ReadCreationAndLastAccessTimes(ref SpanReader reader)

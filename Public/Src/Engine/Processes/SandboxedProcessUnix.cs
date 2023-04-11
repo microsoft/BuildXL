@@ -1013,7 +1013,7 @@ namespace BuildXL.Processes
         internal static string AccessReportToString(AccessReport report)
         {
             var operation = report.DecodeOperation();
-            var pid = report.Pid.ToString("X");
+            var pid = report.Pid;
             var requestedAccess = report.RequestedAccess;
             var status = report.Status;
             var explicitLogging = report.ExplicitLogging != 0 ? 1 : 0;

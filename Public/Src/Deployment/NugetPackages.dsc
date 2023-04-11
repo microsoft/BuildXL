@@ -41,6 +41,8 @@ namespace NugetPackages {
         : "Microsoft.BuildXL";
 
     const buildXLUtilitiesIdentity = { id: `${packageNamePrefix}.Utilities`, version: Branding.Nuget.packageVersion};
+    const buildXLUtilitiesCoreIdentity = { id: `${packageNamePrefix}.Utilities.Core`, version: Branding.Nuget.packageVersion};
+    const buildXLNativeIdentity = { id: `${packageNamePrefix}.Native`, version: Branding.Nuget.packageVersion};
     const buildXLPipsIdentity = { id: `${packageNamePrefix}.Pips`, version: Branding.Nuget.packageVersion};
     const buildXLCacheHashingIdentity = { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion};
     const buildXLCacheInterfacesIdentity = { id: `${packageNamePrefix}.Cache.Interfaces`, version: Branding.Nuget.packageVersion};
@@ -99,12 +101,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).dll,
             importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).dll,
-            
-            // BuildXL.Utilities.Core
-            importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Utilities.Core.dll,
-            importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Utilities.Core.dll,
-            importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).Utilities.Core.dll,
-            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).Utilities.Core.dll,
 
             // BuildXL.Utilities.Branding
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Branding.dll,
@@ -117,12 +113,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).KeyValueStore.dll,
-
-            // BuildXL.Native
-            importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Native.dll,
-            importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Native.dll,
-            importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).Native.dll,
-            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).Native.dll,
 
             // BuildXL.Native.Extensions
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Native.Extensions.dll,
@@ -159,7 +149,8 @@ namespace NugetPackages {
         dependencies: [
             // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
             // Therefore for now we manually declare these.
-            buildXLCacheHashingIdentity,
+            buildXLUtilitiesCoreIdentity,
+            buildXLNativeIdentity,
         ],
         deploymentOptions: reducedDeploymentOptions,
         additionalContent: [
@@ -184,6 +175,35 @@ namespace NugetPackages {
         ]
     });
 
+    const utilitiesCore = packAssemblies({
+        id: buildXLUtilitiesCoreIdentity.id,
+        assemblies: [
+            // BuildXL.Utilities.Core
+            importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Utilities.Core.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Utilities.Core.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).Utilities.Core.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).Utilities.Core.dll,
+        ],
+        deploymentOptions: reducedDeploymentOptions,
+    });
+
+    const native = packAssemblies({
+        id: buildXLNativeIdentity.id,
+        assemblies: [
+            // BuildXL.Native
+            importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Native.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Native.dll,
+            importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).Native.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).Native.dll,
+        ],
+        dependencies: [
+            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
+            // Therefore for now we manually declare these.
+            buildXLUtilitiesCoreIdentity,
+        ],
+        deploymentOptions: reducedDeploymentOptions,
+    });
+
     const pips = packAssemblies({
         id: buildXLPipsIdentity.id,
         assemblies: [
@@ -206,6 +226,8 @@ namespace NugetPackages {
             // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
             // Therefore for now we manually declare these.
             buildXLUtilitiesIdentity,
+            buildXLUtilitiesCoreIdentity,
+            buildXLNativeIdentity,
             buildXLCacheHashingIdentity,
             buildXLCacheInterfacesIdentity,
         ],
@@ -223,8 +245,8 @@ namespace NugetPackages {
         dependencies: [
             // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
             // Therefore for now we manually declare these.
-            buildXLUtilitiesIdentity,
-            buildXLPipsIdentity,
+            buildXLUtilitiesCoreIdentity,
+            buildXLNativeIdentity,
         ],
         deploymentOptions: reducedDeploymentOptions,
     });
@@ -263,6 +285,8 @@ namespace NugetPackages {
             // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
             // Therefore for now we manually declare these.
             buildXLUtilitiesIdentity,
+            buildXLUtilitiesCoreIdentity,
+            buildXLNativeIdentity,
             buildXLCacheHashingIdentity,
             buildXLCacheInterfacesIdentity,
             buildXLCacheLibrariesIdentity,
@@ -305,6 +329,8 @@ namespace NugetPackages {
         dependencies: [
             buildXLCacheInterfacesIdentity,
             buildXLUtilitiesIdentity,
+            buildXLUtilitiesCoreIdentity,
+            buildXLNativeIdentity,
 
             importFrom("Microsoft.Azure.EventHubs").withQualifier(net472packageQualifier).pkg,
             importFrom("Microsoft.Azure.Amqp").withQualifier(net472packageQualifier).pkg,
@@ -334,6 +360,8 @@ namespace NugetPackages {
         dependencies: [
             buildXLCacheHashingIdentity,
             buildXLUtilitiesIdentity,
+            buildXLUtilitiesCoreIdentity,
+            buildXLNativeIdentity,
 
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472packageQualifier).pkg,
             ...BuildXLSdk.withQualifier(net472packageQualifier).bclAsyncPackages,
@@ -383,6 +411,8 @@ namespace NugetPackages {
                 cacheService,
                 cacheHashing,
                 utilities,
+                utilitiesCore,
+                native,
                 pips,
                 processes,
                 engineCache,

@@ -16,6 +16,11 @@ export const pkgs = isMicrosoftInternal ? [
     // Metrics library used by .net core CaSaaS
     // Todo: Migrade to OpenTelemetry. See https://eng.ms/docs/products/geneva/collect/instrument/ifx/ifx-retirement
     {id: "Microsoft.Cloud.InstrumentationFramework", version: "3.4.1.1"},
+    // Temporary workaround for Bond issue. Microsoft.Cloud.InstrumentationFramework is using 11.0.0.
+    // Remove Bond once migration to OpenTelemetry is done.
+    { id: "Bond.Core.CSharp", version: "11.0.0" },
+    { id: "Bond.CSharp", version: "11.0.0" },
+    { id: "Bond.Runtime.CSharp", version: "11.0.0" },
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.8.99" },

@@ -32,6 +32,11 @@ namespace BuildXL.Scheduler.Tracing
         protected uint CurrentEventWorkerId { get; private set; }
 
         /// <summary>
+        /// The timestamp of the current event processing. For use during event handlers.
+        /// </summary>
+        protected long Timestamp { get; private set; }
+
+        /// <summary>
         /// Gets a value indicating if the execution log target can process worker events
         /// </summary>
         public virtual bool CanHandleWorkerEvents { get; set; }
@@ -203,6 +208,7 @@ namespace BuildXL.Scheduler.Tracing
         bool IExecutionLogTarget.CanHandleEvent(ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
         {
             CurrentEventWorkerId = workerId;
+            Timestamp = timestamp;
 
             if (eventId == ExecutionEventId.ProcessFingerprintComputation &&
                 CanHandleEvent(ExecutionEventId.ObservedInputs, workerId, timestamp, eventPayloadSize))

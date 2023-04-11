@@ -127,7 +127,7 @@ namespace BuildXL.Execution.Analyzer
                 pipInfo.SetFingerprintComputation(data, CurrentEventWorkerId);
 
                 sw.WriteLine(I($"Fingerprint kind: {data.Kind}"));
-                WriteWeakFingerprintData(pipInfo, sw);
+                WriteWeakFingerprintData(pipInfo, sw, CurrentEventWorkerId, Timestamp);
 
                 if (data.StrongFingerprintComputations.Count == 0)
                 {
@@ -163,15 +163,22 @@ namespace BuildXL.Execution.Analyzer
             m_model.Salts = data.ToFingerprintSalts();
         }
 
-        private static void WriteWeakFingerprintData(PipCachingInfo info, TextWriter writer)
+        private static void WriteWeakFingerprintData(PipCachingInfo info, TextWriter writer, uint workerId, long timestamp)
         {
-            writer.WriteLine("Weak Fingerprint Info");
+            writer.WriteLine($"Weak Fingerprint Info from worker {workerId} at timestamp {timestamp}");
             writer.WriteLine(I($"Weak Fingerprint: {info.FingerprintComputation.WeakFingerprint}"));
+
+            var recomputedFingerprint = info.Fingerprinter.ComputeWeakFingerprint(info.GetOriginalProcess(), out string fingerprintText);
+            if (info.FingerprintComputation.WeakFingerprint.Hash != recomputedFingerprint.Hash)
+            {
+                writer.WriteLine();
+                writer.WriteLine("WARNING - The WeakFingerprint text re-computed based on XLG events does not match the fingerprint computed during the build.");
+                writer.WriteLine("This discrepency means the Fingerprint Text below does not match the Weak Fingerprint.");
+                writer.WriteLine("Refer to a fingerprint store based analyzer to see how the fingerprint was computed");
+            }
+
             writer.WriteLine();
             writer.WriteLine("Fingerprint Text:");
-
-            string fingerprintText;
-            info.Fingerprinter.ComputeWeakFingerprint(info.GetOriginalProcess(), out fingerprintText);
             writer.WriteLine(fingerprintText);
         }
 

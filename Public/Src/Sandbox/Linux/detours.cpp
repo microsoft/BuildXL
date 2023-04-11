@@ -603,7 +603,8 @@ static AccessCheckResult CreateFileOpen(BxlObserver *bxl, string &pathStr, int o
     mode_t pathMode = bxl->get_mode(pathStr.c_str());
     bool pathExists = pathMode != 0;
     bool isCreate = !pathExists && (oflag & (O_CREAT|O_TRUNC));
-    bool isWrite = pathExists && (oflag & (O_CREAT|O_TRUNC) && ((oflag & O_ACCMODE == O_WRONLY) || (oflag & O_ACCMODE == O_RDWR)));
+    bool hasWriteAccess = ((oflag & O_ACCMODE) == O_WRONLY) || ((oflag & O_ACCMODE) == O_RDWR);
+    bool isWrite = pathExists && (oflag & (O_CREAT|O_TRUNC) && hasWriteAccess);
     IOEvent event(
         isCreate ? ES_EVENT_TYPE_NOTIFY_CREATE : isWrite ? ES_EVENT_TYPE_NOTIFY_WRITE : ES_EVENT_TYPE_NOTIFY_OPEN,
         ES_ACTION_TYPE_NOTIFY,

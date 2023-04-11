@@ -2561,15 +2561,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "PackageUrl",
-          "Version": "1.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Pipelines.Sockets.Unofficial",
           "Version": "2.2.0"
         }

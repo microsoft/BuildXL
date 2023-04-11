@@ -171,6 +171,7 @@ export namespace DropDaemon {
             importFrom("Microsoft.Sbom.Parsers.Spdx22SbomParser").pkg,
             importFrom("Microsoft.ComponentDetection.Contracts").pkg,
             importFrom("Microsoft.Sbom.Adapters").pkg,
+            importFrom("packageurl-dotnet").pkg,
             importFrom("System.Text.Json.v5.0.0").pkg,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("System.Text.Encodings.Web.v5.0.1").pkg,

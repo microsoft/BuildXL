@@ -13,6 +13,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using Microsoft.Sbom.Contracts.Entities;
+using Microsoft.Sbom.Adapters;
+using Microsoft.Sbom.Adapters.Report;
 using System.Text;
 
 namespace Test.Tool.DropDaemon
@@ -77,14 +79,15 @@ namespace Test.Tool.DropDaemon
             };
             IEnumerable<SBOMFile> files = new List<SBOMFile>() { myfile };
 
-            // A meagre package
-            var mypkg = new SBOMPackage()
+            var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(GenerateBcdeOutput());
+            XAssert.IsNotNull(packages);
+            foreach (var reportItem in adapterReport.Report)
             {
-                Id = "MyPackageId",
-                PackageName = "MyPackageName"
-            };
-
-            IEnumerable<SBOMPackage> packages = new List<SBOMPackage>() { mypkg };
+                if (reportItem.Type == AdapterReportItemType.Failure)
+                {
+                    XAssert.Fail("ComponentDetectionToSBOMPackageAdapter failure: " + reportItem.Details);
+                }
+            }
 
             var result = await sbomGenerator.GenerateSBOMAsync(sbomGenerationRootDirectory, files, packages, metadata, specs);
             if (!result.IsSuccessful)
@@ -106,6 +109,103 @@ namespace Test.Tool.DropDaemon
             }
 
             return sb.ToString();
+        }
+
+        private static string GenerateBcdeOutput() 
+        {
+            // A minimized but complete version of a bcde-output grabbed from a real build
+            const string spec = @"
+{
+  ""dependencyGraphs"": 
+  {
+    ""D:\\dbs\\el\\bxlint\\Shared\\Npm\\packages\\buildxl\\yarn.lock"": {
+      ""graph"": {
+        ""path-is-absolute 1.0.1 - Npm"": null,
+        ""chalk 4.1.0 - Npm"": [
+          ""ansi-styles 4.3.0 - Npm"",
+        ]
+      },
+      ""explicitlyReferencedComponentIds"": [
+        ""chalk 4.1.0 - Npm""
+      ],
+      ""developmentDependencies"": [
+        ""asynckit 0.4.0 - Npm"",
+      ],
+      ""dependencies"": [
+        ""path-is-absolute 1.0.1 - Npm"",
+      ]
+    }
+  },
+  ""componentsFound"": [
+   {
+      ""locationsFoundAt"": [
+        ""/Shared/Npm/packages/buildxl/yarn.lock""
+      ],
+      ""component"": {
+        ""name"": ""fs.realpath"",
+        ""version"": ""1.0.0"",
+        ""hash"": null,
+        ""author"": null,
+        ""type"": ""Npm"",
+        ""id"": ""fs.realpath 1.0.0 - Npm"",
+        ""packageUrl"": {
+          ""Scheme"": ""pkg"",
+          ""Type"": ""npm"",
+          ""Namespace"": null,
+          ""Name"": ""fs.realpath"",
+          ""Version"": ""1.0.0"",
+          ""Qualifiers"": null,
+          ""Subpath"": null
+        }
+      },
+      ""detectorId"": ""Yarn"",
+      ""isDevelopmentDependency"": false,
+      ""dependencyScope"": null,
+      ""topLevelReferrers"": [
+        {
+          ""name"": ""rimraf"",
+          ""version"": ""3.0.2"",
+          ""hash"": null,
+          ""author"": null,
+          ""type"": ""Npm"",
+          ""id"": ""rimraf 3.0.2 - Npm"",
+          ""packageUrl"": {
+            ""Scheme"": ""pkg"",
+            ""Type"": ""npm"",
+            ""Namespace"": null,
+            ""Name"": ""rimraf"",
+            ""Version"": ""3.0.2"",
+            ""Qualifiers"": null,
+            ""Subpath"": null
+          }
+        }
+      ],
+      ""containerDetailIds"": [],
+      ""containerLayerIds"": {}
+    }
+  ],
+  ""detectorsInScan"": [
+    {
+      ""detectorId"": ""Yarn"",
+      ""isExperimental"": false,
+      ""version"": 6,
+      ""supportedComponentTypes"": [
+        ""Npm""
+      ]
+    }
+  ],
+  ""containerDetailsMap"": {},
+  ""resultCode"": ""Success""
+}
+";
+            string tempFilePath = Path.GetTempFileName();
+            using(var writer = new StreamWriter(tempFilePath))
+            {
+                writer.Write(spec);
+                writer.Flush();
+            }
+            
+            return tempFilePath;
         }
     }
 }

@@ -800,7 +800,7 @@ namespace BuildXL.Cache.Host.Configuration
         public int? RetryCountForFileHashing { get; set; }
 
         [DataMember]
-        public TimeSpan? RetryDelayForFileHashing { get; set; }
+        public TimeSpanSetting? RetryDelayForFileHashing { get; set; }
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]

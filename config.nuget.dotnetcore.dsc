@@ -4,20 +4,19 @@
 const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
 const core60Version = "6.0.16";
+const core70Version = "7.0.5";
+
 // Microsoft.NETCore.Platforms has become out of sync with the rest of the packages that use core60Version
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
-const core60VersionPrev = "6.0.9"; 
-const core700Version = "7.0.0";
-const core70Version = "7.0.3";
+const core60VersionPlatforms = "6.0.9"; 
+const core70VersionPlatforms = "7.0.2";
 
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";
 const pkgVersion5 = "5.0.0";
 const pkgVersion6 = "6.0.0";
 const pkgVersion6Preview = "6.0.0-preview.5.21301.5";
-
 const pkgVersion7 = "7.0.0";
-const pkgVErsion7Preview = "7.0.0-preview.5.21301.5";
 
 export const pkgs = [
 
@@ -39,7 +38,7 @@ export const pkgs = [
     // .NET Core 6.0 Dependencies
     { id: "Microsoft.NETCore.App.Ref", version: core60Version, alias: "Microsoft.NETCore.App.Ref60" },
 
-    { id: "Microsoft.NETCore.Platforms", version: core60VersionPrev, alias: "Microsoft.NETCore.Platforms.6.0" },
+    { id: "Microsoft.NETCore.Platforms", version: core60VersionPlatforms, alias: "Microsoft.NETCore.Platforms.6.0" },
     
     // .NET Core Self-Contained Deployment
     { id: "Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "Microsoft.NETCore.DotNetHostResolver.6.0" },
@@ -71,7 +70,7 @@ export const pkgs = [
     // .NET Core 7.0 Dependencies
     { id: "Microsoft.NETCore.App.Ref", version: core70Version, alias: "Microsoft.NETCore.App.Ref70" },
 
-    { id: "Microsoft.NETCore.Platforms", version: core700Version, alias: "Microsoft.NETCore.Platforms.7.0" },
+    { id: "Microsoft.NETCore.Platforms", version: core70VersionPlatforms, alias: "Microsoft.NETCore.Platforms.7.0" },
     
     // .NET Core Self-Contained Deployment
     { id: "Microsoft.NETCore.DotNetHostResolver", version: core70Version, alias: "Microsoft.NETCore.DotNetHostResolver.7.0" },

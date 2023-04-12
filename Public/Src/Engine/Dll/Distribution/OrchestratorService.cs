@@ -82,7 +82,7 @@ namespace BuildXL.Engine.Distribution
 
             m_loggingContext = loggingContext;
 
-            for (int i = 0; i < config.RemoteWorkerCount; i++)     
+            for (int i = 0; i < config.RemoteWorkerCount; i++)
             {
                 ServiceLocation serviceLocation = null;
                 if (i < config.BuildWorkers.Count)
@@ -207,19 +207,19 @@ namespace BuildXL.Engine.Distribution
 
                         if (forwardedEvent.EventId == (int)BuildXL.Processes.Tracing.LogEventId.PipProcessError)
                         {
-                            var pipProcessErrorEvent = new PipProcessErrorEventFields(
-                                forwardedEvent.PipProcessErrorEvent.PipSemiStableHash,
-                                forwardedEvent.PipProcessErrorEvent.PipDescription,
-                                forwardedEvent.PipProcessErrorEvent.PipSpecPath,
-                                forwardedEvent.PipProcessErrorEvent.PipWorkingDirectory,
-                                forwardedEvent.PipProcessErrorEvent.PipExe,
-                                forwardedEvent.PipProcessErrorEvent.OutputToLog,
-                                forwardedEvent.PipProcessErrorEvent.MessageAboutPathsToLog,
-                                forwardedEvent.PipProcessErrorEvent.PathsToLog,
-                                forwardedEvent.PipProcessErrorEvent.ExitCode,
-                                forwardedEvent.PipProcessErrorEvent.OptionalMessage,
-                                forwardedEvent.PipProcessErrorEvent.ShortPipDescription,
-                                forwardedEvent.PipProcessErrorEvent.PipExecutionTimeMs
+                            var pipProcessErrorEvent = PipProcessEventFields.CreatePipProcessErrorEventFields(
+                                forwardedEvent.PipProcessEvent.PipSemiStableHash,
+                                forwardedEvent.PipProcessEvent.PipDescription,
+                                forwardedEvent.PipProcessEvent.PipSpecPath,
+                                forwardedEvent.PipProcessEvent.PipWorkingDirectory,
+                                forwardedEvent.PipProcessEvent.PipExe,
+                                forwardedEvent.PipProcessEvent.OutputToLog,
+                                forwardedEvent.PipProcessEvent.MessageAboutPathsToLog,
+                                forwardedEvent.PipProcessEvent.PathsToLog,
+                                forwardedEvent.PipProcessEvent.ExitCode,
+                                forwardedEvent.PipProcessEvent.OptionalMessage,
+                                forwardedEvent.PipProcessEvent.ShortPipDescription,
+                                forwardedEvent.PipProcessEvent.PipExecutionTimeMs
                                 );
 
                             logForwardedError(
@@ -231,9 +231,10 @@ namespace BuildXL.Engine.Distribution
                                     EventId = forwardedEvent.EventId,
                                     EventName = forwardedEvent.EventName,
                                     EventKeywords = forwardedEvent.EventKeywords,
-                                    PipProcessErrorEvent = pipProcessErrorEvent,
+                                    PipProcessEvent = pipProcessErrorEvent,
                                 });
-                        } else
+                        }
+                        else
                         {
                             logForwardedError(
                                 m_loggingContext,
@@ -253,16 +254,44 @@ namespace BuildXL.Engine.Distribution
                         }
                         break;
                     case EventLevel.Warning:
-                        Logger.Log.DistributionWorkerForwardedWarning(
-                            m_loggingContext,
-                            new WorkerForwardedEvent()
-                            {
-                                Text = forwardedEvent.Text,
-                                WorkerName = worker.Name,
-                                EventId = forwardedEvent.EventId,
-                                EventName = forwardedEvent.EventName,
-                                EventKeywords = forwardedEvent.EventKeywords,
-                            });
+                        if (forwardedEvent.EventId == (int)BuildXL.Processes.Tracing.LogEventId.PipProcessWarning)
+                        {
+                            var pipProcessWarningEvent = PipProcessEventFields.CreatePipProcessWarningEventFields(
+                                forwardedEvent.PipProcessEvent.PipSemiStableHash,
+                                forwardedEvent.PipProcessEvent.PipDescription,
+                                forwardedEvent.PipProcessEvent.PipSpecPath,
+                                forwardedEvent.PipProcessEvent.PipWorkingDirectory,
+                                forwardedEvent.PipProcessEvent.PipExe,
+                                forwardedEvent.PipProcessEvent.OutputToLog,
+                                forwardedEvent.PipProcessEvent.MessageAboutPathsToLog,
+                                forwardedEvent.PipProcessEvent.PathsToLog
+                                );
+
+                            Logger.Log.DistributionWorkerForwardedWarning(
+                                m_loggingContext,
+                                new WorkerForwardedEvent()
+                                {
+                                    Text = forwardedEvent.Text,
+                                    WorkerName = worker.WorkerIpAddress,
+                                    EventId = forwardedEvent.EventId,
+                                    EventName = forwardedEvent.EventName,
+                                    EventKeywords = forwardedEvent.EventKeywords,
+                                    PipProcessEvent = pipProcessWarningEvent,
+                                });
+                        }
+                        else
+                        {
+                            Logger.Log.DistributionWorkerForwardedWarning(
+                                m_loggingContext,
+                                new WorkerForwardedEvent()
+                                {
+                                    Text = forwardedEvent.Text,
+                                    WorkerName = worker.Name,
+                                    EventId = forwardedEvent.EventId,
+                                    EventName = forwardedEvent.EventName,
+                                    EventKeywords = forwardedEvent.EventKeywords,
+                                });
+                        }
                         break;
                     default:
                         break;

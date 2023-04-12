@@ -17,7 +17,7 @@ namespace Test.BuildXL
         private MessageLevel m_lastMessageLevel;
         // This list is used in ADOConsole for DX64 errors where the message is split into various segments and logged to ensure that only a part of the error message is highlighted.
         private List<string> m_errorMessage = new List<string>();
-        
+
         public void Dispose()
         {
         }
@@ -55,7 +55,7 @@ namespace Test.BuildXL
             m_errorMessage.Clear();
         }
 
-        public void ValidateCallForPipProcessErrorinADO(MessageLevel messageLevel, List<string> expectedErrorMessage)
+        public void ValidateCallForPipProcessEventinADO(MessageLevel messageLevel, List<string> expectedErrorMessage)
         {
             XAssert.IsNotNull(m_errorMessage.LastOrDefault(), "WriteOutputLine was not called");
             XAssert.AreEqual(messageLevel, m_lastMessageLevel);

@@ -131,9 +131,9 @@ message EventMessage
     // The message for the event
     string Text = 6;
 
-    oneof ErrorEvent {
-       // The original pipProcessError event if exist
-       PipProcessErrorEvent PipProcessErrorEvent = 7;
+    oneof PipProcessErrorOrWarningEvent {
+       // The original pipProcessError/pipProcessWarning event if exist
+       PipProcessEvent PipProcessEvent = 7;
     }
 }
 
@@ -345,7 +345,11 @@ message PipGraphCacheDescriptor {
     google.protobuf.BytesValue PipGraphId = 15;
 }
 
-message PipProcessErrorEvent {
+/// <summary>
+/// Event message for PipProcessError/PipProcessWarning.
+/// Since the last four fields are present only for PipProcessError event they are made optional for PipProcessWarning.
+/// </summary>
+message PipProcessEvent {
     int64 PipSemiStableHash = 1;
     string PipDescription = 2;
     string PipSpecPath = 3;
@@ -354,8 +358,8 @@ message PipProcessErrorEvent {
     string OutputToLog = 6;
     string MessageAboutPathsToLog = 7;
     string PathsToLog = 8;
-    int32 ExitCode = 9;
-    string OptionalMessage = 10;
-    string ShortPipDescription = 11;
-    int64 PipExecutionTimeMs = 12;
+    optional int32 ExitCode = 9;
+    optional string OptionalMessage = 10;
+    optional string ShortPipDescription = 11;
+    optional int64 PipExecutionTimeMs = 12;
 }

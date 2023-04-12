@@ -51,17 +51,17 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 if (((long)eventData.Keywords & (long)Keywords.NotForwardedToOrchestrator) > 0)
-                { 
+                {
                     return;
                 }
 
                 try
                 {
-                    PipProcessErrorEvent pipProcessErrorEvent = null;
+                    PipProcessEvent pipProcessEvent = null;
                     if (eventData.EventId == (int)LogEventId.PipProcessError)
                     {
-                        var pipProcessErrorEventFields = new PipProcessErrorEventFields(eventData.Payload, false);
-                        pipProcessErrorEvent = new PipProcessErrorEvent()
+                        var pipProcessErrorEventFields = new PipProcessEventFields(eventData.Payload, forwardedPayload: false, isPipProcessError: true);
+                        pipProcessEvent = new PipProcessEvent()
                         {
                             PipSemiStableHash = pipProcessErrorEventFields.PipSemiStableHash,
                             PipDescription = pipProcessErrorEventFields.PipDescription,
@@ -78,6 +78,21 @@ namespace BuildXL.Engine.Distribution
                         };
                     }
 
+                    if (eventData.EventId == (int)LogEventId.PipProcessWarning)
+                    {
+                        var pipProcessWarningEventFields = new PipProcessEventFields(eventData.Payload, forwardedPayload: false, isPipProcessError: false);
+                        pipProcessEvent = new PipProcessEvent()
+                        {
+                            PipSemiStableHash = pipProcessWarningEventFields.PipSemiStableHash,
+                            PipDescription = pipProcessWarningEventFields.PipDescription,
+                            PipWorkingDirectory = pipProcessWarningEventFields.PipWorkingDirectory,
+                            PipExe = pipProcessWarningEventFields.PipExe,
+                            OutputToLog = pipProcessWarningEventFields.OutputToLog,
+                            MessageAboutPathsToLog = pipProcessWarningEventFields.MessageAboutPathsToLog,
+                            PathsToLog = pipProcessWarningEventFields.PathsToLog,
+                        };
+                    }
+
                     m_notificationManager.ReportEventMessage(new EventMessage()
                     {
                         Id = Interlocked.Increment(ref m_nextEventId),
@@ -86,7 +101,7 @@ namespace BuildXL.Engine.Distribution
                         EventId = eventData.EventId,
                         EventName = eventData.EventName,
                         Text = text,
-                        PipProcessErrorEvent = pipProcessErrorEvent,
+                        PipProcessEvent = pipProcessEvent,
                     });
                 }
                 catch (Exception ex) when (ExceptionUtilities.HandleUnexpectedException(ex))

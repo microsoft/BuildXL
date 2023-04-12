@@ -189,24 +189,32 @@ namespace BuildXL
             int dxCode = eventData.EventId;
             var message = eventData.Message;
             var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
+            var addFormattingToEventMessage = Environment.NewLine;
 
             // construct a short message for ADO console
             if ((eventData.EventId == (int)LogEventId.PipProcessError)
                 || (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError && (int)args[1] == (int)LogEventId.PipProcessError))
             {
-                dxCode = (int)LogEventId.PipProcessError;
-                var pipProcessError = new PipProcessErrorEventFields(eventData.Payload, eventData.EventId != (int)LogEventId.PipProcessError);
+                var pipProcessError = new PipProcessEventFields(eventData.Payload, forwardedPayload: eventData.EventId != (int)LogEventId.PipProcessError, isPipProcessError: true);
                 var pipSemiStableHash = Pip.FormatSemiStableHash(pipProcessError.PipSemiStableHash);
-                var formattedDXCode = FormatErrorCode(dxCode);
+                var formattedDXCode = FormatErrorCode((int)LogEventId.PipProcessError);
+
                 // Splitting the error message into different segments and logging them individually as we want only OutputsToLog to be highlighted.
                 var errorMessagePrefix = @$"{formattedDXCode}[{pipSemiStableHash}, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}";
-                m_console.WriteOutputLine(MessageLevel.Info, errorMessagePrefix);
+                var errorMessageSuffix = $"{pipProcessError.MessageAboutPathsToLog}{addFormattingToEventMessage}{pipProcessError.PathsToLog}";
+                LogPipProcessEventMessage(errorMessagePrefix, pipProcessError.OutputToLog, errorMessageSuffix, eventType);
+            }
+            else if ((eventData.EventId == (int)LogEventId.PipProcessWarning)
+            || (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedWarning && (int)args[1] == (int)LogEventId.PipProcessWarning))
+            {
+                var pipProcessWarning = new PipProcessEventFields(eventData.Payload, forwardedPayload: eventData.EventId != (int)LogEventId.PipProcessWarning, isPipProcessError: false);
+                var formattedDXCode = FormatErrorCode((int)LogEventId.PipProcessWarning);
+                var pipSemiStableHash = Pip.FormatSemiStableHash(pipProcessWarning.PipSemiStableHash);
 
-                LogIssue(eventType, pipProcessError.OutputToLog);
-
-                var addFormattingToErrorMessage = Environment.NewLine;
-                var errorMessageSuffix = $"{pipProcessError.MessageAboutPathsToLog}{addFormattingToErrorMessage}{pipProcessError.PathsToLog}";
-                m_console.WriteOutputLine(MessageLevel.Info, errorMessageSuffix);
+                // Splitting the warning message into different segments and logging them individually as we want only OutputsToLog to be highlighted.
+                var warningMessagePrefix = @$"{formattedDXCode}[{pipSemiStableHash}, {pipProcessWarning.PipDescription}, {pipProcessWarning.PipSpecPath}] - warnings";
+                var warningMessageSuffix = $"{pipProcessWarning.MessageAboutPathsToLog}{addFormattingToEventMessage}{pipProcessWarning.PathsToLog}";
+                LogPipProcessEventMessage(warningMessagePrefix, pipProcessWarning.OutputToLog, warningMessageSuffix, eventType);
             }
             else
             {
@@ -218,6 +226,17 @@ namespace BuildXL
                 string messageBodyWithAppendedDXCode = string.Concat(FormatErrorCode(dxCode), message);
                 var messageBody = string.Format(CultureInfo.CurrentCulture, messageBodyWithAppendedDXCode, args);
                 LogIssue(eventType, messageBody);
+            }
+        }
+
+        private void LogPipProcessEventMessage(string eventPrefix, string eventIssue, string eventSuffix, string eventType)
+        {
+            m_console.WriteOutputLine(MessageLevel.Info, eventPrefix);
+            LogIssue(eventType, eventIssue);
+            string formattedEventSuffix = eventSuffix.TrimEnd(Environment.NewLine.ToCharArray());
+            if (!string.IsNullOrEmpty(formattedEventSuffix))
+            {
+                m_console.WriteOutputLine(MessageLevel.Info, formattedEventSuffix);
             }
         }
 

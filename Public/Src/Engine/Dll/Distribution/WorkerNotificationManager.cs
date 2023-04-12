@@ -24,7 +24,7 @@ using Grpc.Core;
 
 namespace BuildXL.Engine.Distribution
 {
-    internal interface IWorkerNotificationManager 
+    internal interface IWorkerNotificationManager
     {
         /// <summary>
         /// Starts the notification manager, which will start to listen
@@ -238,17 +238,17 @@ namespace BuildXL.Engine.Distribution
         // We keep message queues for every active pip step in this worker
         private readonly ConcurrentDictionary<long, PooledObjectWrapper<ConcurrentQueue<EventMessage>>> m_pendingMessages = new();
 
-        private readonly ObjectPool<ConcurrentQueue<EventMessage>> m_queuePool = new (
-            () => new(), 
-            q => 
-            { 
-                while (q.TryDequeue(out _)) 
+        private readonly ObjectPool<ConcurrentQueue<EventMessage>> m_queuePool = new(
+            () => new(),
+            q =>
+            {
+                while (q.TryDequeue(out _))
                 {
                     // Queue has no .Clear(), dequeue everything. 
                     // Note that we will drain the queue anyways before
                     // disposing the pooled object wrapper so this should be no-op 
                 }
-                return q; 
+                return q;
             });
 
         /// <nodoc/>
@@ -261,7 +261,7 @@ namespace BuildXL.Engine.Distribution
                 return;
             }
 
-            if (TryExtractSemistableHashFromEvent(eventMessage, out var hash) 
+            if (TryExtractSemistableHashFromEvent(eventMessage, out var hash)
                 && m_pendingMessages.TryGetValue(hash, out var messageQueueForPip))
             {
                 messageQueueForPip.Instance.Enqueue(eventMessage);
@@ -318,7 +318,7 @@ namespace BuildXL.Engine.Distribution
             // so extract it from there rather than using the regex
             if (eventMessage.EventId == (int)BuildXL.Processes.Tracing.LogEventId.PipProcessError)
             {
-                hash = eventMessage.PipProcessErrorEvent.PipSemiStableHash;
+                hash = eventMessage.PipProcessEvent.PipSemiStableHash;
                 return true;
             }
 
@@ -524,8 +524,8 @@ namespace BuildXL.Engine.Distribution
         public void MarkPipProcessingStarted(long semistableHash)
         {
             // Add a queue for pending messages for this pip step
-            Contract.Assert(m_pendingMessages.TryAdd(semistableHash, m_queuePool.GetInstance()), 
-                "There shouldn't be a pending message queue for a pip we are about to process"); 
+            Contract.Assert(m_pendingMessages.TryAdd(semistableHash, m_queuePool.GetInstance()),
+                "There shouldn't be a pending message queue for a pip we are about to process");
         }
 
         private static string GetPipResultsDescription(PipResultsInfo notificationArgs, IList<ExtendedPipCompletionData> pips)

@@ -82,13 +82,13 @@ namespace BuildXL
         }
 
         /// <nodoc />
-        internal static void ApplyIfPipError(EventWrittenEventArgs eventData, Action<PipProcessErrorEventFields, string> addPipErrors)
+        internal static void ApplyIfPipError(EventWrittenEventArgs eventData, Action<PipProcessEventFields, string> addPipErrors)
         {
             switch (eventData.EventId)
             {
                 case (int)LogEventId.PipProcessError:
                 {
-                    addPipErrors(new PipProcessErrorEventFields(eventData.Payload, false), LocalWorker.MachineName);
+                    addPipErrors(new PipProcessEventFields(eventData.Payload, forwardedPayload: false, isPipProcessError: true), LocalWorker.MachineName);
                 }
                 break;
                 case (int)SharedLogEventId.DistributionWorkerForwardedError:
@@ -96,7 +96,7 @@ namespace BuildXL
                     var actualEventId = (int)eventData.Payload[1];
                     if (actualEventId == (int)LogEventId.PipProcessError)
                     {
-                        var pipProcessErrorEventFields = new PipProcessErrorEventFields(eventData.Payload, true);
+                        var pipProcessErrorEventFields = new PipProcessEventFields(eventData.Payload, forwardedPayload: true, isPipProcessError: true);
                         addPipErrors(pipProcessErrorEventFields, (string)eventData.Payload[16]);
                     }
                 }

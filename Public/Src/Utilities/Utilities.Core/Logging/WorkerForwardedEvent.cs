@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Utilities.Instrumentation.Common
-{    
+{
     /// <summary>
     /// Represents an event forwarded from a worker
     /// </summary>
@@ -38,8 +38,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public long EventKeywords { get; set; }
 
         /// <summary>
-        /// The original PipProcessError event
+        /// The original PipProcessError/PipProcessWarning event
         /// </summary>
-        public PipProcessErrorEventFields PipProcessErrorEvent { get; set; }
+        public PipProcessEventFields PipProcessEvent { get; set; }
     }
 }

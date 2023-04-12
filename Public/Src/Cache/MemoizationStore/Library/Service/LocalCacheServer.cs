@@ -125,7 +125,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 }
                 catch (Exception e)
                 {
-                    Tracer.Debug(context, $"Failed to read {(Config.ProtectHibernatedSessionData ? "protected" : "unprotected")} hibernated cache sessions. Attempting to read unprotected data. Exception: {e}");
+                    Tracer.Debug(context, $"Failed to read {(Config.ProtectHibernatedSessionData ? "protected" : "unprotected")} hibernated cache sessions. Attempting to read {(Config.ProtectHibernatedSessionData ? "unprotected" : "protected")} data. Exception: {e}");
                     datas = Config.ProtectHibernatedSessionData
                         ? await FileSystem.ReadHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName)
                         : await FileSystem.ReadProtectedHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName);

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -223,7 +224,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         private ClusterStateManager CreateClusterStateManager()
         {
             Contract.Assert(Configuration.BlobClusterStateStorageConfiguration is not null);
-            return new ClusterStateManager(Configuration, new BlobClusterStateStorage(Configuration.BlobClusterStateStorageConfiguration, Clock), Clock);
+
+            var clusterStateManagerConfiguration = new ClusterStateManager.Configuration()
+            {
+                ReadOnly = Configuration.DistributedContentConsumerOnly,
+                PrimaryLocation = Configuration.PrimaryMachineLocation,
+                AdditionalMachineLocations = Configuration.AdditionalMachineLocations,
+                UpdateInterval = Configuration.Checkpoint?.UpdateClusterStateInterval ?? TimeSpan.Zero,
+            };
+
+            return new ClusterStateManager(clusterStateManagerConfiguration, new BlobClusterStateStorage(Configuration.BlobClusterStateStorageConfiguration, Clock), Clock);
         }
     }
 }

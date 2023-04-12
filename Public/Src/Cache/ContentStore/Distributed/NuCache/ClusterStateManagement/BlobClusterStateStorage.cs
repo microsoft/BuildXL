@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -34,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public ClusterStateRecomputeConfiguration RecomputeConfiguration { get; set; } = new ClusterStateRecomputeConfiguration();
     }
 
-    public class BlobClusterStateStorage : StartupShutdownComponentBase
+    public class BlobClusterStateStorage : StartupShutdownComponentBase, IClusterStateStorage
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(BlobClusterStateStorage));
 
@@ -63,11 +64,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return BoolResult.Success;
         }
 
-        public record RegisterMachineInput(IReadOnlyList<MachineLocation> MachineLocations);
-
-        public record RegisterMachineOutput(ClusterStateMachine State, MachineMapping[] MachineMappings);
-
-        public Task<Result<RegisterMachineOutput>> RegisterMachinesAsync(OperationContext context, RegisterMachineInput request)
+        public Task<Result<IClusterStateStorage.RegisterMachineOutput>> RegisterMachinesAsync(OperationContext context, IClusterStateStorage.RegisterMachineInput request)
         {
             return context.PerformOperationAsync(
                 Tracer,
@@ -100,16 +97,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         .Zip(assignedMachineIds, (machineLocation, machineId) => new MachineMapping(machineId, machineLocation))
                         .ToArray();
 
-                    return Result.Success(new RegisterMachineOutput(currentState, machineMappings));
+                    return Result.Success(new IClusterStateStorage.RegisterMachineOutput(currentState, machineMappings));
                 },
                 traceOperationStarted: false);
         }
 
-        public record HeartbeatInput(IReadOnlyList<MachineId> MachineIds, MachineState MachineState);
-
-        public record HeartbeatOutput(ClusterStateMachine State, MachineRecord[] PriorRecords);
-
-        public Task<Result<HeartbeatOutput>> HeartbeatAsync(OperationContext context, HeartbeatInput request)
+        public Task<Result<IClusterStateStorage.HeartbeatOutput>> HeartbeatAsync(OperationContext context, IClusterStateStorage.HeartbeatInput request)
         {
             return context.PerformOperationAsync(
                 Tracer,
@@ -132,7 +125,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return (currentState, priorMachineRecords);
                         }).ThrowIfFailureAsync();
 
-                    return Result.Success(new HeartbeatOutput(TransitionInactiveMachines(currentState), priorMachineRecords));
+                    return Result.Success(new IClusterStateStorage.HeartbeatOutput(TransitionInactiveMachines(currentState), priorMachineRecords));
                 },
                 traceOperationStarted: false);
         }

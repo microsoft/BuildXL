@@ -12,6 +12,8 @@ using System.Diagnostics.ContractsLight;
 using System;
 
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
+using System.Threading;
 
 #nullable enable
 
@@ -22,21 +24,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public class ClusterStateManager : StartupShutdownComponentBase
     {
+        public record Configuration
+        {
+            public TimeSpan UpdateInterval { get; set; } = TimeSpan.Zero;
+
+            public bool ReadOnly { get; set; } = false;
+
+            public MachineLocation PrimaryLocation { get; set; }
+
+            public MachineLocation[] AdditionalMachineLocations { get; set; } = Array.Empty<MachineLocation>();
+        }
+
         protected override Tracer Tracer { get; } = new Tracer(nameof(ClusterStateManager));
 
         public override bool AllowMultipleStartupAndShutdowns => true;
 
-        private readonly LocalLocationStoreConfiguration _configuration;
+        private readonly Configuration _configuration;
 
         private readonly IClock _clock;
 
-        private readonly BlobClusterStateStorage _storage;
+        private readonly IClusterStateStorage _storage;
 
         public ClusterState ClusterState { get; } = ClusterState.CreateEmpty();
 
         public ClusterStateManager(
-            LocalLocationStoreConfiguration configuration,
-            BlobClusterStateStorage storage,
+            Configuration configuration,
+            IClusterStateStorage storage,
             IClock? clock = null)
         {
             _configuration = configuration;
@@ -45,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             LinkLifetime(_storage);
 
-            if (_configuration.Checkpoint?.UpdateClusterStateInterval > TimeSpan.Zero)
+            if (_configuration.UpdateInterval > TimeSpan.Zero && _configuration.UpdateInterval < Timeout.InfiniteTimeSpan)
             {
                 RunInBackground(nameof(BackgroundUpdateAsync), BackgroundUpdateAsync, fireAndForget: true);
             }
@@ -53,11 +66,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
-            var machineLocations = (new[] { _configuration.PrimaryMachineLocation }).Concat(_configuration.AdditionalMachineLocations).ToArray();
+            var machineLocations = (new[] { _configuration.PrimaryLocation }).Concat(_configuration.AdditionalMachineLocations).ToArray();
 
             MachineMapping[] machineMappings;
             ClusterStateMachine currentState;
-            if (_configuration.DistributedContentConsumerOnly)
+            if (_configuration.ReadOnly)
             {
                 currentState = await _storage.ReadState(context).ThrowIfFailureAsync();
                 machineMappings = machineLocations.Select(machineLocation => new MachineMapping(MachineId.Invalid, machineLocation)).ToArray();
@@ -84,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             using var cancellableContext = startupContext.WithCancellationToken(ShutdownStartedCancellationToken);
             var context = cancellableContext.Context;
 
-            var updateFrequency = _configuration.Checkpoint!.UpdateClusterStateInterval;
+            var updateFrequency = _configuration.UpdateInterval;
             while (true)
             {
                 context.Token.ThrowIfCancellationRequested();
@@ -110,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var registerMachinesResponse = await _storage.RegisterMachinesAsync(context, new BlobClusterStateStorage.RegisterMachineInput(machineLocations)).ThrowIfFailureAsync();
+                var registerMachinesResponse = await _storage.RegisterMachinesAsync(context, new IClusterStateStorage.RegisterMachineInput(machineLocations)).ThrowIfFailureAsync();
 
                 return Result.Success((registerMachinesResponse.State, registerMachinesResponse.MachineMappings));
             });
@@ -147,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     var localMachineIds = ClusterState.LocalMachineMappings.Select(machineMapping => machineMapping.Id).ToArray();
 
-                    if (_configuration.DistributedContentConsumerOnly || localMachineIds.Length == 0)
+                    if (_configuration.ReadOnly || localMachineIds.Length == 0)
                     {
                         var currentState = await _storage.ReadState(context).ThrowIfFailureAsync();
                         ClusterState.Update(context, currentState, nowUtc: _clock.UtcNow).ThrowIfFailure();
@@ -158,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     else
                     {
-                        var heartbeatResponse = await _storage.HeartbeatAsync(context, new BlobClusterStateStorage.HeartbeatInput(localMachineIds, machineState)).ThrowIfFailureAsync();
+                        var heartbeatResponse = await _storage.HeartbeatAsync(context, new IClusterStateStorage.HeartbeatInput(localMachineIds, machineState)).ThrowIfFailureAsync();
                         Contract.Assert(heartbeatResponse.PriorRecords.Length == localMachineIds.Length, "Mismatch between number of requested heartbeats and actual heartbeats. This should never happen.");
 
                         ClusterState.Update(context, heartbeatResponse.State, nowUtc: _clock.UtcNow).ThrowIfFailure();

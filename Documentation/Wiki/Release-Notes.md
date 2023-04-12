@@ -1,6 +1,12 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230407.6 (Release [289924](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=289924) Released 4/12/2023)
+-	Track source changes in UserProfile and LocalAppData by default
+-	Embed sources into PDBs for internal builds
+-	Migrate Bond to Protobuf for cache serialization
+-	Bug fixes and perf improvements
+
 # 0.1.0-20230324.3.2 (Release [287737](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=287737) Released 3/30/2023)
 - Optimize allow list check for undeclared accesses
 - Linux sandbox considers O_RDWR when marking access modes as writes

@@ -25,7 +25,7 @@ namespace BuildXL.Utilities.Serialization
         private readonly BxlArrayBufferWriter<byte>? m_bufferWriter;
 
         // Re-computing the remaining length instead of computing it on the fly, because
-        // we access 'RemainingLength' property on a hot path and its cheaper to update
+        // we access 'RemainingLength' property on a hot path and it's cheaper to update
         // two fields once the position has changed instead of re-computing the property all the time.
         private int m_remainingLength;
 

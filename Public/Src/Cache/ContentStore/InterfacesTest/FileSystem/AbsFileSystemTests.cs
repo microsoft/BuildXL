@@ -1231,7 +1231,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                         var expectedCreateHardLinkResult = CreateHardLinkResult.Success;
                         Assert.True(
                             expectedCreateHardLinkResult == result,
-                            $"Expected {expectedCreateHardLinkResult}, found {result}. Result: {result.ToString()}, Destination path length: {length}.");
+                            $"Expected {expectedCreateHardLinkResult}, found {result}. Result: {result}, Destination path length: {length}.");
                     }
                 }
             }

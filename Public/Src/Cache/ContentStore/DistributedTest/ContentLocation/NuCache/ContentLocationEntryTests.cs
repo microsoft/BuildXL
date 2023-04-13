@@ -3,6 +3,7 @@
 
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Utils;
 using FluentAssertions;
@@ -38,44 +39,27 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         }
 
         [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(5000)]
-        public void PooledSerializationDeserializationTest(int locationCount)
+        [InlineData(0, 42, 127)]
+        [InlineData(1, 127, 200)]
+        [InlineData(10, 254, 1 << 14 + 1)]
+        [InlineData(42, 1 << 14 + 1, 1 << 21 + 1)]
+        [InlineData(100, 1 << 49 - 1, 1 << 28 + 1)]
+        [InlineData(5000, 1 << 62 + 1, 1 << 14 - 1)]
+        public void SerializationDeserializationTest(int locationCount, long contentSize, int secondsFromLastWriteTime)
         {
-            var entry = CreateEntry(CreateMachineIdSet(Enumerable.Range(1, locationCount).Select(l => l.AsMachineId())));
-            var copy = entry.CloneWithSpan(usePooledSerialization: true);
-
+            var entry = CreateEntry(
+                CreateMachineIdSet(Enumerable.Range(1, locationCount).Select(l => l.AsMachineId())),
+                size: contentSize,
+                lastAccessTimeDeltaSeconds: secondsFromLastWriteTime);
+            var copy = entry.CloneWithSpan(usePooledSerialization: false);
             copy.Should().Be(entry, $"Cloning with span should give equivalent {nameof(ContentLocationEntry)}");
-        }
 
-        [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(5000)]
-        public void SerializationDeserializationTest(int locationCount)
-        {
-            SerializationDeserializationTestCore(locationCount);
-        }
-
-        [Fact]
-        public void SerializationDeserializationTest42()
-        {
-            int locationCount = 42;
-
-            SerializationDeserializationTestCore(locationCount);
-        }
-
-        public void SerializationDeserializationTestCore(int locationCount)
-        {
-            var entry = CreateEntry(CreateMachineIdSet(Enumerable.Range(1, locationCount).Select(l => l.AsMachineId())));
-            var copy = entry.CloneWithSpan();
-
-            copy.Should().Be(entry, $"Cloning with span should give equivalent {nameof(ContentLocationEntry)}");
+            // Stress test pooling as well as serialization.
+            Parallel.For(0, 1000, _ =>
+            {
+                copy = entry.CloneWithSpan(usePooledSerialization: true);
+                copy.Should().Be(entry, $"Cloning with pooled span should give equivalent {nameof(ContentLocationEntry)}");
+            });
         }
 
         [Fact]
@@ -219,10 +203,16 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             merge.Locations.Contains(machineId2).Should().BeFalse();
         }
 
-        internal static ContentLocationEntry CreateEntry(MachineIdSet machineIdSet, UnixTime? lastAccessTimeUtc = null, UnixTime? creationTimeUtc = null) => ContentLocationEntry.Create(
-            machineIdSet,
-            contentSize: 42,
-            lastAccessTimeUtc: lastAccessTimeUtc ?? (DateTime.UtcNow - TimeSpan.FromMinutes(5)).ToUnixTime(),
-            creationTimeUtc: creationTimeUtc ?? UnixTime.UtcNow);
+        internal static ContentLocationEntry CreateEntry(
+            MachineIdSet machineIdSet,
+            UnixTime? lastAccessTimeUtc = null,
+            UnixTime? creationTimeUtc = null,
+            long? size = null,
+            int lastAccessTimeDeltaSeconds = 5 * 60)
+            => ContentLocationEntry.Create(
+                machineIdSet,
+                contentSize: size ?? 42,
+                lastAccessTimeUtc: lastAccessTimeUtc ?? (DateTime.UtcNow - TimeSpan.FromSeconds(lastAccessTimeDeltaSeconds)).ToUnixTime(),
+                creationTimeUtc: creationTimeUtc ?? UnixTime.UtcNow);
     }
 }

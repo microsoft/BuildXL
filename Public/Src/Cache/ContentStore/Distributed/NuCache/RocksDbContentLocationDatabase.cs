@@ -23,12 +23,10 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ConfigurationHelpers;
 using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using RocksDbSharp;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -364,7 +362,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var mergedEntry = ContentLocationEntry.MergeEntries(context, leftEntry, rightEntry, sortLocations: _configuration.SortMergeableContentLocations);
 
-            using var serializedEntry = SerializeContentLocationEntry(mergedEntry);
+            using var serializedEntry = SerializeContentLocationEntry(mergedEntry!);
             result.ValueBuffer.Set(serializedEntry.WrittenSpan);
         }
 
@@ -546,7 +544,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private LocationChangeMachineIdSet GetEmptyChangeSet() =>
             _configuration.SortMergeableContentLocations ? MachineIdSet.SortedEmptyChangeSet : MachineIdSet.EmptyChangeSet;
 
-        private StoreSlot GetNextSlot(StoreSlot slot)
+        private static StoreSlot GetNextSlot(StoreSlot slot)
         {
             return slot == StoreSlot.Slot1 ? StoreSlot.Slot2 : StoreSlot.Slot1;
         }
@@ -825,14 +823,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, [NotNullWhen(true)] out ContentLocationEntry? entry)
         {
             entry = _keyValueStore.Use(
-                    static (store, state) => TryGetEntryCoreHelper(state.hash, store, state.db),
+                    static (store, state) => TryGetEntryCoreHelper(state.hash, store),
                     (hash, db: this)
                 ).ThrowOnError();
             return entry != null;
         }
 
         // NOTE: This should remain static to avoid allocations in TryGetEntryCore
-        internal static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
+        internal static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store)
         {
             store.TryDeserializeValue(
                 hash.AsSpanUnsafe(),
@@ -884,23 +882,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private void DeleteFromDb(ShortHash hash)
         {
             _keyValueStore.Use(
-                static (store, state) => DeleteFromDbHelper(state.hash, store, state.db), (hash, db: this)).ThrowOnError();
+                static (store, state) => DeleteFromDbHelper(state.hash, store), (hash, db: this)).ThrowOnError();
         }
 
         // NOTE: This should remain static to avoid allocations in Delete
-        private static Unit DeleteFromDbHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
+        private static Unit DeleteFromDbHelper(ShortHash hash, RocksDbStore store)
         {
             // hash.AsSpan is safe here.
             store.Remove(hash.AsSpanUnsafe());
             return Unit.Void;
         }
 
-        private ShortHash DeserializeKey(byte[] key)
+        private static ShortHash DeserializeKey(byte[] key)
         {
             return ShortHash.FromBytes(key);
         }
 
-        private ShortHash DeserializeKey(ReadOnlySpan<byte> key)
+        private static ShortHash DeserializeKey(ReadOnlySpan<byte> key)
         {
             return ShortHash.FromSpan(key);
         }
@@ -1036,12 +1034,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         columnFamilyName: nameof(Columns.Metadata),
                         observeCallback: static (state, key, value) =>
                     {
-                                             var strongFingerprint = state.db.DeserializeStrongFingerprint(key);
-                                             var timeUtc = state.db.DeserializeMetadataLastAccessTimeUtc(value);
+                        var strongFingerprint = state.db.DeserializeStrongFingerprint(key);
+                        var timeUtc = DeserializeMetadataLastAccessTimeUtc(value);
                         state.selectors.Add((timeUtc, strongFingerprint.Selector));
-                                             return true;
-                    }
-                        );
+                        return true;
+                    });
 
                     return Unit.Void;
                 }, (selectors: selectors, db: this, weakFingerprint: weakFingerprint));
@@ -1056,7 +1053,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 .Select(entry => entry.Selector).ToList());
         }
 
-        private long DeserializeMetadataLastAccessTimeUtc(ReadOnlySpan<byte> data)
+        private static long DeserializeMetadataLastAccessTimeUtc(ReadOnlySpan<byte> data)
         {
             var reader = data.AsReader();
             return MetadataEntry.DeserializeLastAccessTimeUtc(ref reader);
@@ -1293,7 +1290,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _keyValueStore.Use(store => GetLongProperty(store, propertyName, columnFamilyName)).Result;
         }
 
-        private Result<long> GetLongProperty(RocksDbStore store, string propertyName, string? columnFamilyName = null)
+        private static Result<long> GetLongProperty(RocksDbStore store, string propertyName, string? columnFamilyName = null)
         {
             try
             {

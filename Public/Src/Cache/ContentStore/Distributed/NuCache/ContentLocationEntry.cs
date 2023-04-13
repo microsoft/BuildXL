@@ -2,12 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -62,7 +63,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         private ContentLocationEntry(MachineIdSet locations, long contentSize, UnixTime lastAccessTimeUtc, UnixTime? creationTimeUtc)
         {
-            Contract.RequiresNotNull(locations);
             Locations = locations;
             ContentSize = contentSize;
             LastAccessTimeUtc = lastAccessTimeUtc;
@@ -207,17 +207,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public ContentLocationEntry Merge(OperationContext context, ContentLocationEntry other, bool sortLocations) => MergeEntries(context, this, other, sortLocations);
+        public ContentLocationEntry? Merge(OperationContext context, ContentLocationEntry? other, bool sortLocations) => MergeEntries(context, this, other, sortLocations);
 
         /// <nodoc />
-        public static ContentLocationEntry MergeEntries(OperationContext context, ContentLocationEntry entry1, ContentLocationEntry entry2, bool sortLocations)
+        public static ContentLocationEntry? MergeEntries(OperationContext context, ContentLocationEntry? entry1, ContentLocationEntry? entry2, bool sortLocations)
         {
-            if (entry1 == null || entry1.IsMissing)
+            if (entry1 is null || entry1.IsMissing)
             {
                 return entry2;
             }
 
-            if (entry2 == null || entry2.IsMissing)
+            if (entry2 is null || entry2.IsMissing)
             {
                 return entry1;
             }
@@ -247,7 +247,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public bool Equals(ContentLocationEntry other)
+        public bool Equals(ContentLocationEntry? other)
         {
             if (other is null)
             {
@@ -261,7 +261,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return ReferenceEquals(this, obj) || obj is ContentLocationEntry other && Equals(other);
         }

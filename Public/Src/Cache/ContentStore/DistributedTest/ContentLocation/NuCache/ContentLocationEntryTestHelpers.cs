@@ -68,13 +68,13 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 return ContentLocationEntry.Deserialize(ref blobReader);
             }
 
-            var reader = AsSpan(source).AsReader();
+            var reader = source.AsSpan().AsReader();
             return ContentLocationEntry.Deserialize(ref reader);
         }
 
         public static TMachineIdSet CloneWithSpan<TMachineIdSet>(this TMachineIdSet source) where TMachineIdSet : MachineIdSet
         {
-            var reader = AsSpan(source).AsReader();
+            var reader = source.AsSpan().AsReader();
             return (TMachineIdSet)MachineIdSet.Deserialize(ref reader);
         }
 

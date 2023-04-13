@@ -115,7 +115,6 @@ namespace BuildXL.Utilities
             serializeFunc(instance, ref writer);
 
             return new PooledArrayBuffer(arrayBuffer);
-
         }
 
         /// <nodoc />

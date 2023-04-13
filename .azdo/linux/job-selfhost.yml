@@ -6,6 +6,9 @@ parameters:
   type: string
 - name: ValidationName
   type: string
+- name: Distributed
+  type: boolean
+  default: false
 
 jobs:
 - job: Selfhost_${{ parameters.validationName }}
@@ -38,9 +41,9 @@ jobs:
 
   timeoutInMinutes: 90
 
-  # [maly] - 03/23 - disable distribution temporarily - see bug #2042843
-  # strategy:
-  #   parallel: 2
+  ${{ if parameters.Distributed }}:
+    strategy:
+      parallel: 2
 
   steps:
   - task: UseDotNet@2
@@ -160,8 +163,10 @@ jobs:
 
   - bash: |
       set -eu
-      # the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
-      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='PrPipelineSalt_20230407'" /p:BuildXLWorkerAttachTimeoutMin=10
+      # - the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
+      # - we also disable early worker release to avoid releasing a worker before attachment, which tends to happen
+      #   when the build is highly cached: the intention is to have as much of a distributed build as possible for validation purposes
+      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='PrPipelineSalt_20230407'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=10
     displayName: Test (${{ parameters.validationName }})
     workingDirectory: /home/subst
     env:

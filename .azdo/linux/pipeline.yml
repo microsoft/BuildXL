@@ -36,5 +36,6 @@ extends:
 
         - template: /.azdo/linux/job-selfhost.yml@self
           parameters:
+            Distributed: true
             ValidationName: InternalRelease
             BxlExtraArgs: --internal /q:ReleaseLinux

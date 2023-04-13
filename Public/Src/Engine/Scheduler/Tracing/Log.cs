@@ -1316,7 +1316,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Pip exited with Azure Watson's 0xDEAD exit code. Refer to the {ShortProductName} log for more information.")]
+            Message = EventConstants.PipPrefix + "Pip exited with return code 0xDEAD, indicating that a process crashed and was handled by Azure Watson. Refer to the related messages for this pip in the {ShortProductName} log to see more information about the crashed process. Additional details about the crash may be available by searching in Azure Watson at https:/aka.ms/aw.")]
         public abstract void PipExitedWithAzureWatsonExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(

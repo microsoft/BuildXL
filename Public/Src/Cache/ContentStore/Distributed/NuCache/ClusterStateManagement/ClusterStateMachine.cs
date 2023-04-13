@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Utils;
 
@@ -12,6 +14,39 @@ using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
+    public static class ClusterStateMachineExtensions
+    {
+        public static (ClusterStateMachine NextState, MachineRecord[] Result) HeartbeatMany(this ClusterStateMachine currentState, IClusterStateStorage.HeartbeatInput request, DateTime now)
+        {
+            var priorMachineRecords = new MachineRecord[request.MachineIds.Count];
+            foreach (var entry in request.MachineIds.AsIndexed())
+            {
+                (currentState, priorMachineRecords[entry.Index]) =
+                    currentState.Heartbeat(entry.Item, now, request.MachineState).ThrowIfFailure();
+            }
+
+            return (currentState, priorMachineRecords);
+        }
+
+        public static (ClusterStateMachine NextState, MachineId[] Result) RegisterMany(this ClusterStateMachine state, IClusterStateStorage.RegisterMachineInput request, DateTime now)
+        {
+            MachineId[] assignedMachineIds = new MachineId[request.MachineLocations.Count];
+            foreach (var (item, index) in request.MachineLocations.AsIndexed())
+            {
+                if (state.TryResolveMachineId(item, out var machineId))
+                {
+                    assignedMachineIds[index] = machineId;
+                }
+                else
+                {
+                    (state, assignedMachineIds[index]) = state.RegisterMachine(item, now);
+                }
+            }
+
+            return (state, assignedMachineIds);
+        }
+    }
+
     /// <summary>
     /// Immutable data structure that implements state machines for all machines inside of a cluster. This is the model
     /// behind <see cref="ClusterState"/>, and it is followed by all machines in the cluster.
@@ -90,7 +125,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     records.Add(
                         new MachineRecord()
                         {
-                            Id = machineId, Location = location, State = state, LastHeartbeatTimeUtc = nowUtc,
+                            Id = machineId,
+                            Location = location,
+                            State = state,
+                            LastHeartbeatTimeUtc = nowUtc,
                         });
 
                     // We sort this list in order to ensure it is easy on the eyes when we need to manually inspect it
@@ -106,7 +144,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 records.Add(
                     new MachineRecord()
                     {
-                        Id = machineId, Location = location, State = state, LastHeartbeatTimeUtc = nowUtc,
+                        Id = machineId,
+                        Location = location,
+                        State = state,
+                        LastHeartbeatTimeUtc = nowUtc,
                     });
 
                 return this with { NextMachineId = Math.Max(machineId.Index + 1, NextMachineId + 1), Records = records, };

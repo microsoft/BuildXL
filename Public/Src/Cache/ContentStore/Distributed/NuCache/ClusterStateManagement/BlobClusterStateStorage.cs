@@ -1,14 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -73,25 +71,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var (currentState, assignedMachineIds) = await _storageClientAdapter.ReadModifyWriteAsync<ClusterStateMachine, MachineId[]>(
                         context,
                         _client,
-                        currentState =>
-                        {
-                            var now = _clock.UtcNow;
-
-                            MachineId[] assignedMachineIds = new MachineId[request.MachineLocations.Count];
-                            foreach (var (item, index) in request.MachineLocations.AsIndexed())
-                            {
-                                if (currentState.TryResolveMachineId(item, out var machineId))
-                                {
-                                    assignedMachineIds[index] = machineId;
-                                }
-                                else
-                                {
-                                    (currentState, assignedMachineIds[index]) = currentState.RegisterMachine(item, now);
-                                }
-                            }
-
-                            return (currentState, assignedMachineIds);
-                        }).ThrowIfFailureAsync();
+                        currentState => currentState.RegisterMany(request, now: _clock.UtcNow)).ThrowIfFailureAsync();
 
                     var machineMappings = request.MachineLocations
                         .Zip(assignedMachineIds, (machineLocation, machineId) => new MachineMapping(machineId, machineLocation))
@@ -111,19 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var (currentState, priorMachineRecords) = await _storageClientAdapter.ReadModifyWriteAsync<ClusterStateMachine, MachineRecord[]>(
                         context,
                         _client,
-                        currentState =>
-                        {
-                            var now = _clock.UtcNow;
-
-                            var priorMachineRecords = new MachineRecord[request.MachineIds.Count];
-                            foreach (var entry in request.MachineIds.AsIndexed())
-                            {
-                                (currentState, priorMachineRecords[entry.Index]) =
-                                    currentState.Heartbeat(entry.Item, now, request.MachineState).ThrowIfFailure();
-                            }
-
-                            return (currentState, priorMachineRecords);
-                        }).ThrowIfFailureAsync();
+                        currentState => currentState.HeartbeatMany(request, _clock.UtcNow)).ThrowIfFailureAsync<(ClusterStateMachine NextState, MachineRecord[] Result)>();
 
                     return Result.Success(new IClusterStateStorage.HeartbeatOutput(TransitionInactiveMachines(currentState), priorMachineRecords));
                 },

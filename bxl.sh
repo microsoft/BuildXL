@@ -12,7 +12,6 @@ declare arg_DeployDev=""
 declare arg_UseDev=""
 declare arg_Minimal=""
 declare arg_Internal=""
-declare arg_Cgmanifest=""
 # default configuration is debug
 declare configuration="Debug"
 
@@ -106,7 +105,7 @@ function compileWithBxl() {
 }
 
 function printHelp() {
-    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--cgmanifest] [--vs] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
+    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--vs] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
 }
 
 function parseArgs() {
@@ -138,10 +137,6 @@ function parseArgs() {
             ;;
         --internal)
             arg_Internal="1"
-            shift
-            ;;
-        --cgmanifest)
-            arg_Cgmanifest="1"
             shift
             ;;
         --test-class)

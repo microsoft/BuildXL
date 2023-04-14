@@ -377,7 +377,7 @@ config({
                 { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.19" },
                 { id: "Microsoft.Rest.ClientRuntime.Azure.Authentication", version: "2.4.1" },
 
-                { id: "Azure.Data.Tables", version: "12.6.1" },
+                { id: "Azure.Data.Tables", version: "12.8.0" },
                 { id: "Azure.Storage.Queues", version: "12.11.0" },
 
                 // FsCheck

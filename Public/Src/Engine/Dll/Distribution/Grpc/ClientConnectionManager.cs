@@ -218,7 +218,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (GrpcSettings.EncryptionEnabled)
             {
-                SetupChannelOptionsForEncryption(channelOptions, handler);
+                SetupChannelOptionsForEncryption(handler);
                 address = $"https://{ipAddress}:{port}";
                 Logger.Log.GrpcTrace(m_loggingContext, ipAddress, "Grpc.NET auth is enabled.");
             }
@@ -228,23 +228,28 @@ namespace BuildXL.Engine.Distribution.Grpc
                 address = $"http://{ipAddress}:{port}";
             }
 
+            if (GrpcSettings.AuthenticationEnabled)
+            {
+                var credentials = GetCallCredentialsWithToken();
+                channelOptions.Credentials = ChannelCredentials.Create(new SslCredentials(), credentials);
+            }
+
             return GrpcChannel.ForAddress(address, channelOptions);
         }
 
-        private void SetupChannelOptionsForEncryption(GrpcChannelOptions channelOptions, SocketsHttpHandler httpHandler)
+        private void SetupChannelOptionsForEncryption(SocketsHttpHandler httpHandler)
         {
-            string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
+            string certSubjectName = GrpcSettings.CertificateSubjectName;
 
             X509Certificate2 certificate = null;
 
             try
             {
-                certificate = GrpcEncryptionUtils.TryGetEncryptionCertificate(certSubjectName, out string error);
+                certificate = GrpcEncryptionUtils.TryGetEncryptionCertificate(certSubjectName, GrpcSettings.CertificateStore, out string error);
             }
             catch (Exception e)
             {
                 Logger.Log.GrpcTraceWarning(m_loggingContext, m_ipAddress, $"An exception occurred when finding a certificate: '{e}'.");
-                return;
             }
 
             if (certificate == null)
@@ -272,10 +277,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                 // If the path for the chains is not provided, we will not validate the certificate.
                 return true;
             };
-
-            var credentials = GetCallCredentialsWithToken();
-
-            channelOptions.Credentials = ChannelCredentials.Create(new SslCredentials(), credentials);
         }
 #endif
 

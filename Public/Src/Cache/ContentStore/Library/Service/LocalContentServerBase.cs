@@ -361,9 +361,8 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private ServerCredentials? TryGetEncryptedCredentials(Context context)
         {
-            // CODESYNC: The Environment Variable below is set by ContentAddressableStoreService in CloudBuild
-            string? encryptionCertificateName = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_SUBJECT__");
-            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionCertificateName, out _);
+            var encryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
+            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionOptions.CertificateSubjectName, encryptionOptions.StoreLocation, out _);
 
             if (keyCertPairResult.Succeeded)
             {

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Security.Cryptography.X509Certificates;
 using BuildXL.Utilities.Configuration;
 using Grpc.Core;
 
@@ -26,8 +27,22 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// Whether we should use encryption in the grpc calls.
         /// </summary>
         public static bool EncryptionEnabled => EngineEnvironmentSettings.GrpcEncryptionEnabled &&
-                EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value != null &&
-                EngineEnvironmentSettings.CBBuildUserCertificateName.Value != null;
+                CertificateSubjectName != null;
+
+        /// <summary>
+        /// Certificate subject name
+        /// </summary>
+        public static string CertificateSubjectName => EngineEnvironmentSettings.CBBuildUserCertificateName.Value ?? EngineEnvironmentSettings.GrpcCertificateSubjectName.Value;
+
+        /// <summary>
+        /// Whether we should use authentication in the grpc calls.
+        /// </summary>
+        public static bool AuthenticationEnabled => EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value != null;
+
+        /// <summary>
+        /// Certificate store location 
+        /// </summary>
+        public static StoreLocation CertificateStore => EngineEnvironmentSettings.GrpcCertificateStoreLocation.Value ?? StoreLocation.LocalMachine;
 
         /// <summary>
         /// Whether we should enable heartbeat messages.

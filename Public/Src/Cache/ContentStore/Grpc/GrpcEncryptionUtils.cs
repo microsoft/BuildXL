@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
     /// <summary>
     /// Encryption options used when creating gRPC channels.
     /// </summary>
-    public record ChannelEncryptionOptions(string CertificateSubjectName, string? CertificateChainsPath, string? IdentityTokenPath);
+    public record ChannelEncryptionOptions(string CertificateSubjectName, string? CertificateChainsPath, string? IdentityTokenPath, StoreLocation StoreLocation);
 
     /// <summary>
     /// Utility methods needed to enable encryption and authentication for gRPC-using services in CloudBuild
@@ -35,18 +35,21 @@ namespace BuildXL.Cache.ContentStore.Grpc
             var encryptionCertificateName = Environment.GetEnvironmentVariable(CertSubjectEnvironmentVariable);
             var certificateChainsPath = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_CHAINS_PATH__");
             var identityTokenPath = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_IDENTITY_TOKEN_PATH__");
+            StoreLocation storeLocation = ParseCertificateStoreLocation(Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_STORE_LOCATION__"))
+                ?? StoreLocation.LocalMachine;
 
             if (encryptionCertificateName is null)
             {
                 throw Contract.AssertFailure($"EncryptionCertificateName is null. The environment variable '{CertSubjectEnvironmentVariable}' is not set.");
             }
 
-            return new ChannelEncryptionOptions(encryptionCertificateName, certificateChainsPath, identityTokenPath);
+            return new ChannelEncryptionOptions(encryptionCertificateName, certificateChainsPath, identityTokenPath, storeLocation);
         }
+
         /// <summary>
         /// Look up the given certificate subject name in the Windows certificate store and return the actual certificate.
         /// </summary>
-        public static X509Certificate2? TryGetEncryptionCertificate(string certSubjectName, out string error)
+        public static X509Certificate2? TryGetEncryptionCertificate(string certSubjectName, StoreLocation storeLocation, out string error)
         {
             error = $"{nameof(TryGetEncryptionCertificate)}: ";
             if (string.IsNullOrWhiteSpace(certSubjectName))
@@ -55,8 +58,8 @@ namespace BuildXL.Cache.ContentStore.Grpc
                 return null;
             }
 
-            using X509Store? store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
-            store.Open(OpenFlags.OpenExistingOnly);
+            using X509Store? store = new X509Store(StoreName.My, storeLocation);
+            store.Open(OpenFlags.ReadOnly);
 
             X509Certificate2Collection certificates = store.Certificates.Find(X509FindType.FindBySubjectDistinguishedName, certSubjectName, false);
 
@@ -92,6 +95,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// </summary>
         public static bool TryGetPublicAndPrivateKeys(
             string certificateSubject,
+            StoreLocation storeLocation,
             out string? publicCertificate,
             out string? privateKey,
             out string? hostName,
@@ -102,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
             hostName = null;
             errorMessage = null;
 
-            X509Certificate2? serverCert = TryGetEncryptionCertificate(certificateSubject, out errorMessage);
+            X509Certificate2? serverCert = TryGetEncryptionCertificate(certificateSubject, storeLocation, out errorMessage);
 
             if (serverCert == null)
             {
@@ -131,7 +135,11 @@ namespace BuildXL.Cache.ContentStore.Grpc
             loadedPrivateKey = loadedRsa?.ExportPkcs8PrivateKey();
 #endif
 
-            Contract.Assert(loadedPrivateKey is not null, "loadedPrivateKey variable should be populated at this point.");
+            if (loadedPrivateKey == null)
+            {
+                errorMessage = $"The certificate does not contain the private key. Cert.HasPrivateKey: {serverCert.HasPrivateKey}";
+                return false;
+            }
 
             privateKey = PrivateKeyToPem(loadedPrivateKey);
             return true;
@@ -160,12 +168,24 @@ namespace BuildXL.Cache.ContentStore.Grpc
                    $"-----END {header}-----";
         }
 
-        public static Result<KeyCertificatePair> TryGetSecureChannelCredentials(string? encryptionCertificateName, out string? hostName)
+        private static StoreLocation? ParseCertificateStoreLocation(string? value)
+        {
+            StoreLocation phase;
+            if (Enum.TryParse(value, ignoreCase: true, result: out phase))
+            {
+                return phase;
+            }
+
+            return null;
+        }
+
+        public static Result<KeyCertificatePair> TryGetSecureChannelCredentials(string? encryptionCertificateName, StoreLocation storeLocation, out string? hostName)
         {
             hostName = "localhost";
             try
             {
                 if (TryGetPublicAndPrivateKeys(encryptionCertificateName!,
+                    storeLocation,
                     out var publicCertificate,
                     out var privateKey,
                     out hostName,

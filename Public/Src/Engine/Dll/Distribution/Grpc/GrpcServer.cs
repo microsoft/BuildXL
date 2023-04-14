@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Engine.Tracing;
 using BuildXL.Cache.ContentStore.Grpc;
+using System.Security.Cryptography.X509Certificates;
 #if NETCOREAPP
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -64,17 +65,17 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (GrpcSettings.EncryptionEnabled)
             {
-                string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
-                if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out var _, out string errorMessage) &&
+                string certSubjectName = GrpcSettings.CertificateSubjectName;
+                if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, GrpcSettings.CertificateStore, out string publicCertificate, out string privateKey, out var _, out string errorMessage) &&
                     publicCertificate != null &&
                     privateKey != null)
                 {
                     serverCreds = new SslServerCredentials(
                         new List<KeyCertificatePair> { new KeyCertificatePair(publicCertificate, privateKey) },
                         null,
-                        SslClientCertificateRequestType.DontRequest);
+                        SslClientCertificateRequestType.RequestAndRequireButDontVerify);
 
-                    Logger.Log.GrpcServerTrace(m_loggingContext, $"Server auth is enabled");
+                    Logger.Log.GrpcServerTrace(m_loggingContext, $"Server auth is enabled: {certSubjectName}");
                 }
                 else
                 {

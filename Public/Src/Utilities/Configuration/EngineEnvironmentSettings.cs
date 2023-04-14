@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using BuildXL.Utilities.Core;
 
@@ -369,6 +370,16 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> CBBuildUserCertificateName = CreateSetting("CB_BUILDUSERCERTIFICATE_NAME", value => value);
 
         /// <summary>
+        /// gRPC certificate subject name 
+        /// </summary>
+        public static readonly Setting<string> GrpcCertificateSubjectName = CreateSetting("GrpcCertificateSubjectName", value => value);
+
+        /// <summary>
+        /// The name of the store for the certificates
+        /// </summary>
+        public static readonly Setting<StoreLocation?> GrpcCertificateStoreLocation = CreateSetting("GrpcCertificateStoreLocation", ParseCertificateStoreLocation);
+
+        /// <summary>
         /// The file containing the authority chains of the build user certificate
         /// </summary>
         public static readonly Setting<string> CBBuildUserCertificateChainsPath = CreateSetting("CB_BUILDUSERCERTIFICATECHAINS_PATH", value => value);
@@ -580,6 +591,17 @@ namespace BuildXL.Utilities.Configuration
             {
                 return null;
             }
+        }
+
+        private static StoreLocation? ParseCertificateStoreLocation(string value)
+        {
+            StoreLocation phase;
+            if (Enum.TryParse(value, ignoreCase: true, result: out phase))
+            {
+                return phase;
+            }
+
+            return null;
         }
 
         /// <summary>

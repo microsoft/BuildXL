@@ -21,15 +21,14 @@ namespace BuildXL.Engine.Distribution
         private readonly LoggingContext m_loggingContext;
         private readonly DistributedInvocationId m_invocationId;
         private readonly string m_token;
-        private readonly bool m_encryptionEnabled; 
+        private readonly bool m_authenticationEnabled;
 
         public ServerInterceptor(LoggingContext loggingContext, DistributedInvocationId invocationId)
         {
             m_loggingContext = loggingContext;
             m_invocationId = invocationId;
-            m_encryptionEnabled = GrpcSettings.EncryptionEnabled;
-
-            if (m_encryptionEnabled)
+            m_authenticationEnabled = GrpcSettings.AuthenticationEnabled;
+            if (m_authenticationEnabled)
             {
                 m_token = GrpcEncryptionUtils.TryGetTokenBuildIdentityToken(EngineEnvironmentSettings.CBBuildIdentityTokenPath);
             }
@@ -59,7 +58,7 @@ namespace BuildXL.Engine.Distribution
                     trailers);
             }
 
-            if (m_encryptionEnabled && token != m_token)
+            if (m_authenticationEnabled && token != m_token)
             {
                 Logger.Log.GrpcTrace(m_loggingContext, sender, $"Authentication tokens do not match:\r\nReceived:{token}\r\nExpected:{m_token}");
 

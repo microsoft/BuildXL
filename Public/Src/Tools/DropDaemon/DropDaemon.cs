@@ -859,7 +859,7 @@ namespace Tool.DropDaemon
 
                 using (m_counters.StartStopwatch(DropDaemonCounter.BuildManifestComponentConversionDuration))
                 {
-                    packages = GetSbomPackages(logger);
+                    packages = await GetSbomPackagesAsync(logger);
                 }
 
                 logger.Verbose("Starting SBOM Generation");
@@ -965,9 +965,11 @@ namespace Tool.DropDaemon
         /// <returns>
         /// A converted list of <see cref="SBOMPackage"/> if successful.
         /// If partially successful, a partial list of packages are returned and errors messages will be logged.
-        /// If conversion is unsuccessful, an empty list is returned and errors are logged.
+        /// 
+        /// TODO: If conversion is unsuccessful, an empty list is returned and any anomalies are logged through the API server,
+        /// so we can monitor occurrence. The intention is to turn this into a bona fide IPC failure. See work item #2048136
         /// </returns>
-        private IEnumerable<SBOMPackage> GetSbomPackages(IIpcLogger logger)
+        private async Task<IEnumerable<SBOMPackage>> GetSbomPackagesAsync(IIpcLogger logger)
         {
             // Read Path for bcde output from environment, this should already be set by Cloudbuild
             var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
@@ -975,12 +977,12 @@ namespace Tool.DropDaemon
             if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
             {
                 // This shouldn't happen, but SBOM creation can still happen without it a set of packages. So, log it and return an empty set.
-                logger.Error($"[GetSbomPackages] The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
+                await logAndReportError($"[GetSbomPackages] The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
                 return new List<SBOMPackage>();
             }
             else if (!System.IO.File.Exists(bcdeOutputJsonPath))
             {
-                logger.Error($"[GetSbomPackages] Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
+                await logAndReportError($"[GetSbomPackages] Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
                 return new List<SBOMPackage>();
             }
 
@@ -988,6 +990,8 @@ namespace Tool.DropDaemon
 
             var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(bcdeOutputJsonPath);
 
+            var adapterReportFailures = "";
+            var adapterReportWarnings = "";
             foreach (var reportItem in adapterReport.Report)
             {
                 switch (reportItem.Type)
@@ -1004,6 +1008,7 @@ namespace Tool.DropDaemon
                     {
                         if (!string.IsNullOrEmpty(reportItem.Details))
                         {
+                            adapterReportWarnings += reportItem.Details + Environment.NewLine;
                             logger.Warning("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
                         }
                         break;
@@ -1012,6 +1017,7 @@ namespace Tool.DropDaemon
                     {
                         if (!string.IsNullOrEmpty(reportItem.Details))
                         {
+                            adapterReportFailures += reportItem.Details + Environment.NewLine;
                             logger.Error("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
                         }
                         break;
@@ -1019,9 +1025,24 @@ namespace Tool.DropDaemon
                 }
             }
 
+            // For now, we don't fail if this tool failed, but we log a message through the ApiServer and continue with an empty list
+            // See work item #2048136
+            if (packages == null || !string.IsNullOrEmpty(adapterReportFailures) || !string.IsNullOrEmpty(adapterReportWarnings))
+            {
+                var warningMsg = $"[GetSbomPackages] ComponentDetectionToSBOMPackageAdapter finished with. Null return: {packages == null}.{Environment.NewLine}Warnings: {adapterReportWarnings}.{Environment.NewLine}Errors: {adapterReportFailures}";
+                Analysis.IgnoreResult(await ApiClient.LogMessage(warningMsg, isWarning: true));
+            }
+
             var result = packages ?? new List<SBOMPackage>();
             logger.Verbose($"[GetSbomPackages] Retrieved {result.Count()} packages");
             return result;
+
+            // Related to work item #2048136
+            async Task logAndReportError(string errorMsg)
+            {
+                logger.Error(errorMsg); 
+                Analysis.IgnoreResult(await ApiClient.LogMessage(errorMsg, isWarning: true));
+            }
         }
 
         /// <summary>

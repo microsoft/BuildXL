@@ -356,7 +356,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                             using (counters[Deserialization].Start())
                             {
-                                eventDatas = eventDataSerializer.DeserializeEvents(message);
+                                eventDatas = eventDataSerializer.DeserializeEvents(context, message);
                             }
 
                             counters[ReceivedEventsCount].Add(eventDatas.Count);

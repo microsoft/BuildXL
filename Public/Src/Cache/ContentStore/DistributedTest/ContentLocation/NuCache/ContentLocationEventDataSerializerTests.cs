@@ -407,7 +407,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var serializedMessages = Serialize(serializer, new [] { message });
             serializedMessages.Count.Should().Be(1); // All the cases we have should fit into one message.
 
-            var deserialized = serializer.DeserializeEvents(serializedMessages[0], eventTime);
+            var deserialized = serializer.DeserializeEvents(default, serializedMessages[0], eventTime);
             deserialized.Count.Should().Be(1);
             deserialized[0].Should().Be(message);
         }

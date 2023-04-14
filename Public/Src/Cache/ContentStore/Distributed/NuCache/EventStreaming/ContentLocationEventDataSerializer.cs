@@ -247,7 +247,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                     if (_validationMode != ValidationMode.Off)
                     {
-                        var deserializedEvents = result.SelectMany(e => DeserializeEventsWithSpan(e, DateTime.Now)).ToList();
+                        var deserializedEvents = result.SelectMany(e => DeserializeEventsWithSpan(context, e, DateTime.Now)).ToList();
                         AnalyzeEquality(context, eventDatas, deserializedEvents);
                     }
 
@@ -574,11 +574,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <nodoc />
-        public IReadOnlyList<ContentLocationEventData> DeserializeEvents(EventData message, DateTime? eventTimeUtc = null)
+        public IReadOnlyList<ContentLocationEventData> DeserializeEvents(OperationContext context, EventData message, DateTime? eventTimeUtc = null)
         {
             return _serializationMode == SerializationMode.Legacy
-                ? DeserializeEvents(message, eventTimeUtc)
-                : DeserializeEventsWithSpan(message, eventTimeUtc);
+                ? DeserializeEventsLegacy(message, eventTimeUtc)
+                : DeserializeEventsWithSpan(context, message, eventTimeUtc);
         }
 
         /// <nodoc />
@@ -598,26 +598,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 });
         }
 
-        private IReadOnlyList<ContentLocationEventData> DeserializeEventsWithSpan(EventData message, DateTime? eventTimeUtc = null)
+        private IReadOnlyList<ContentLocationEventData> DeserializeEventsWithSpan(OperationContext context, EventData message, DateTime? eventTimeUtc = null)
         {
-            return SynchronizeIfNeeded(
-                _ =>
-                {
-                    if (eventTimeUtc == null)
+            try
+            {
+                return SynchronizeIfNeeded(
+                    _ =>
                     {
-                        Contract.Assert(message.SystemProperties != null, "Either eventTimeUtc argument must be provided or message.SystemProperties must not be null. Did you forget to provide eventTimeUtc arguments in tests?");
-                        eventTimeUtc = message.SystemProperties.EnqueuedTimeUtc;
-                    }
+                        if (eventTimeUtc == null)
+                        {
+                            Contract.Assert(
+                                message.SystemProperties != null,
+                                "Either eventTimeUtc argument must be provided or message.SystemProperties must not be null. Did you forget to provide eventTimeUtc arguments in tests?");
+                            eventTimeUtc = message.SystemProperties.EnqueuedTimeUtc;
+                        }
 
-                    var dataReader = message.Body.AsSpan().AsReader();
-                    var result = new List<ContentLocationEventData>();
-                    while (!dataReader.IsEnd)
-                    {
-                        result.Add(ContentLocationEventData.Deserialize(ref dataReader, eventTimeUtc.Value));
-                    }
+                        var dataReader = message.Body.AsSpan().AsReader();
+                        var result = new List<ContentLocationEventData>();
+                        while (!dataReader.IsEnd)
+                        {
+                            result.Add(ContentLocationEventData.Deserialize(ref dataReader, eventTimeUtc.Value));
+                        }
 
-                    return result;
-                });
+                        return result;
+                    });
+            }
+            catch (Exception e)
+            {
+                Tracer.Error(context, e, "Unexpected error deserializing events with span-based reader. Falling back to BxlReader.");
+                // Printing at least some portion of the blob to figure out whats the issue is.
+                Tracer.Debug(context, $"Non-deserializable blob. Size: {message.Body.Count}, Blob: {HexHelper.SpanToHex(message.Body.AsSpan(start: 0, length: 512))}");
+                return DeserializeEventsLegacy(message, eventTimeUtc);
+            }
         }
 
         /// <nodoc />

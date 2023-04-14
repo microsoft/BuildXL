@@ -1,13 +1,22 @@
 # Environment variables
-Lots of build systems allow environment variables to leak into the build specifications and the tools they run and allow them to be modified during execution.
-[Other build systems](#Other-build-systems) have reliability and reproducibility issues because of their lax allowances with regard to environment variables.
+Like source code, environment variables are a form of input to a build. BuildXL tracks the environment variables visible to a build for sake of caching. As such, it is important to understand and control how environment variables are used in a build to allow for correct and efficient caching.
 
-## BuildXL pips
-When BuildXL launches a pip it does not inherit any of the environment variables from the process that launches BuildXL. Each process starts in a pristine empty environment. Each OS requires a minimal of environment variables for tools to run properly. On [Windows](#windows-fixed-environment-variables) we have a small set of fixed environment variables we have to set for tools to operate successfully.
-All other environment variables for the pip have to be explicitly declared in the build specs. The user declared environment variables all are part of the fingerprint, so changing any environment variable will cause the tool to rerun properly.
+Consumption is divided into 2 categories:
+1. Build logic
+1. Child Processes (Pips)
 
-## DScript
-Sometimes users want to base their build logic on build parameters, for example to turn certain features on or off for the entire build. To do so, DScript allows users access to certain environment variables using the `getPathValue` function via the `Environment` namepace, e.g. `Environment.getPathValue("BUILDXL_DEPLOY_ROOT")`. The main configuration file can access any environment variable. Projects are only allowed to access environment variables that [the configuration](..\..\..\Public\Sdk\Public\Prelude\Prelude.Configuration.dsc) explicity allows via 
+
+### Passing variables to BuildXL
+Environment variables can be set prior to launching bxl.exe or be specified on the command-line using the `/p` option:
+
+`bxl.exe /p:x=1`
+
+The `/p` option will override environment variables that may have already been specified from the context under which bxl.exe was launched.
+
+## Build Logic
+Users may want to base build logic on build parameters, for example to turn certain features on or off for the build. To do so, DScript allows access to environment variables through the [Environment functions](../../../Public/Sdk/Public/Prelude/Prelude.Environment.dsc). For example `Environment.getPathValue("BUILDXL_DEPLOY_ROOT")` in DScript will return a Path with the value of the BUILDXL_DEPLOY_ROOT environment variable. 
+
+The main configuration file can access any environment variable. To limit consumption of environment variables in other build specification files, only variables explicitly set as allowed may be used outside of the main configuration file. This is controlled via [the configuration](..\..\..\Public\Sdk\Public\Prelude\Prelude.Configuration.dsc):
 
 ```ts
 config({
@@ -15,32 +24,20 @@ config({
 });
 ```
 
-## Other resolvers 
-The spec writer can define the environment variables visible to the processes in the `environment` property in the [resolver settings](..\..\..\Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc). If not defined, the BuildXL process environment is exposed.
+## Process Pips
+When BuildXL launches a pip, the pip does not inherit all of the environment variables from the process that launches BuildXL. Instead, each process starts with a minimal environment of [base environment variables](#base-environment-variables). Build logic may append to or override these base variables. The value of those variables may be explicitly set in build logic or be marked as passthrough, meaning the current value will be passed through to the process but not included in fingerprints.
 
-## Command-Line
-Each environment variable can be specified on the command-line using the `/p` option:
+| Variable type | Caching Implications|  
+|-----------|-----------:|  
+| Base environment variables | Not tracked |
+| DScript specified environment variables | Key and value tracked for caching | 
+| DScript specified passthrough environment variables | Value is not tracked. Addition or removal is considered for caching |
+| Global passthrough environment variables | Value is not tracked. Addition or removal is **not** considered for caching | 
 
-`bxl.exe /p:x=1`
 
-The `/p` option will override environment variables that may have already been specified from the context under which bxl.exe was launched.
-
-## Specifying environment variables to be passed to Process pips
-In BuildXL each tool that runs in the engine starts with a basic environment variable set. Basically the minimum needed to run a process on Windows (see list below). Any additional state needs to be specified when the pip is added to the build graph.
-
-```ts
-    let result = Transformer.execute({
-            tool: args.tool,
-            description: args.description,
-            // ...
-            environmentVariables:[{}] ,
-
-    });
-```
 ## Passthrough environment variables
-Environment variables can be marked as _passthrough_, meaning the environment variable value is not considered when fingerprinting the process. Global passthrough variables, which will be visible to processes and also untracked, may be set via a semicolon separated list passed on the command line via `/unsafe_GlobalPassthroughEnvVars`. Note this is an unsafe configuration.
+Environment variables can be marked as _passthrough_, meaning the environment variable value is not considered when fingerprinting the process. By default, the value is read from the environment of the bxl.exe process (which can be overridden by use of the [/p argument](#passing-variables-to-buildxl) ). However, the value of passthrough variables can also be explicitly set in DScript to something other than what is in bxl.exe's environment. The effect is the same in that the value will not be tracked.
 
-Different from basic environment variables, passthrough environment variables can also be set in unsafe when the pip is added into build graph.
 ```ts
     let result = Transformer.execute({
             tool: args.tool,
@@ -56,48 +53,29 @@ Different from basic environment variables, passthrough environment variables ca
     });
 ```
 
-### Windows fixed environment variables.
-| Variable | Value | Note |
-|--|--|--|
-| NUMBER_OF_PROCESSORS | Passthrough | This allows the tool to parallelize as needed. BuildXL reserves the right in the future to tweak this number on the fly to maximize resource utilization on the machine. |
-| PROCESSOR_ARCHITECTURE | Passthrough | 
-| PROCESSOR_IDENTIFIER | Passthrough | 
-| PROCESSOR_LEVEL | Passthrough | 
-| PROCESSOR_REVISION | Passthrough | 
-| OS| Passthrough | On supported Windows os's this is practically always `Windows_NT`
-| SYSTEMDRIVE | Passthrough |
-| SYSTEMROOT |Passthrough |
-| SYSTEMTYPE |Passthrough |
-| ComSpec |  "$(SYSDIR)\cmd.exe" | This is the standard shell for the tool |
-| PATH | "$(SYSDIR) ; $(Windows) ; $(SYSDIR)\wbem" | This is the minimal set of OS paths that tools typically need to function |
-| PATHEXT | ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC" | This is the standard search path when in a shell you write `x`, it wills earch for `x.com`, `x.exe` etc.
-| TMP | A non-writeable location | By default TMP and TEMP are set to a value that tools can't write to. When you create a pip via `Transformer.execute` you can specify that a tool needs a temporary folder and then this will be set to a tool-specific folder where it is allowed to read and write |
-| TEMP | A non-writeable location | See TMP |
+Passthrough variables may also be set globally for all processes in a build. The are set via a semicolon separate list passed on the command line with `/unsafe_GlobalPassthroughEnvVars`. The value of these variables may not be overridden.
+
+
+### Base Environment Variables
+| Variable | Value | OS | Note |
+|--|--|--|--|
+| NUMBER_OF_PROCESSORS | Passthrough | All | This allows the tool to parallelize as needed. BuildXL reserves the right in the future to tweak this number on the fly to maximize resource utilization on the machine. |
+| PROCESSOR_ARCHITECTURE | Passthrough | All |
+| PROCESSOR_IDENTIFIER | Passthrough | All |
+| PROCESSOR_LEVEL | Passthrough | All|
+| PROCESSOR_REVISION | Passthrough | All |
+| OS| Passthrough | All |On supported Windows os's this is practically always `Windows_NT`
+| SYSTEMDRIVE | Passthrough | All |
+| SYSTEMROOT |Passthrough | All |
+| SYSTEMTYPE |Passthrough | All |
+| PATH | \$(WINDIR);$(SYSTEM)\wbem | Windows |  This is the minimal set of OS paths that tools typically need to function. | 
+|  | /usr/bin;/usr/sbin;/bin;/sbin | Linux |   | 
+| ComSpec |  "$(SYSDIR)\cmd.exe" | Windows | This is the standard shell for the tool |
+| PATHEXT | ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC" | Windows | This is the standard search path when in a shell you write `x`, it wills search for `x.com`, `x.exe` etc.
+| TMP | A non-writeable location | All | By default TMP and TEMP are set to a value that tools can't write to. When you create a pip via `Transformer.execute` you can specify that a tool needs a temporary folder and then this will be set to a tool-specific folder where it is allowed to read and write |
+| TEMP | A non-writeable location | All | See TMP |
+| TMPDIR | A non-writeable location | Linux | See TMP
                           
 `$(SYSDIR)` in the table is defined as the result of [GetSystemDirectory()](https://msdn.microsoft.com/en-us/library/windows/desktop/ms724373(v=vs.85).aspx) 
 `$(WINDOWS)` in the table is defined as the result of [SHGetFolderPath()](https://msdn.microsoft.com/en-us/library/windows/desktop/bb762181(v=vs.85).aspx) with [CSIDL_WINDOWS](https://msdn.microsoft.com/en-us/library/windows/desktop/bb762494(v=vs.85).aspx)
 
-# Other build systems
-For example in MSBuild you can write:
-```xml
-<PropertyGroup>
-   <MyValue>$(APPDATA)\someFolder</MyValue>
-</PropertyGroup>
-
-<Target>
-  <SetEnvironmentVariableTask Name="Path" Value="$(MyValue);$(Path)" />
-  <Exec Command="echo %PATH%"/>
-</Target>
-```
-After the `SetEnvironmentVariableTask`, MSBuild can do things in parallel and the order of target execution is not guaranteed. Thus, it is not deterministic which tools will run with which PATH environment variable. Not to mention the problems of differences between users.
-
-NMake let's you can do similar things:
-```
-MyValue=$(APPDATA)\someFolder 
-PATH= $(MyValue);$(PATH)
-
-all:  
-    echo %PATH%  
-```
-
-As it has the same behavior as MSBuild, this has similar problems. Although in NMake targets will run in the same deterministic order (unless they take non-deterministic input).

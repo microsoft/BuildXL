@@ -23,6 +23,14 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         }
 
         [Fact]
+        public void EmptyInputReturnsMissingEntry()
+        {
+            var input = Array.Empty<byte>().AsSpan();
+            var entry = ContentLocationEntry.Deserialize(input);
+            entry.IsMissing.Should().BeTrue();
+        }
+
+        [Fact]
         public void CatchDeserializationException()
         {
             var input = new byte[] { 1 };

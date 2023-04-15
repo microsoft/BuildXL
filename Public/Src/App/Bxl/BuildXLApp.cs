@@ -2008,7 +2008,8 @@ namespace BuildXL
                     // Log an event and set a cancellation signal but allow execution to continue.
                     // NOTE: it is important to log an error message before calling Cancel(),
                     //       because all the clients expect an error to be logged first.
-                    Logger.Log.CancellationRequested(loggingContext);
+                    string immediateTerminationKeystroke = OperatingSystem.IsWindows() ? "ctrl-break" : "ctrl-\\";
+                    Logger.Log.CancellationRequested(loggingContext, immediateTerminationKeystroke);
                     m_cancellationSource.Cancel();
                 }
 

@@ -2042,7 +2042,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 {
                     if (triggeredResume)
                     {
-                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext);
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext, immediateTerminationKeystroke: "ctrl-c");
                         tokenSource.Cancel();
                     }
 
@@ -2137,7 +2137,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 {
                     if (scheduler.RetrieveExecutingProcessPips().Count() > 0)
                     {
-                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext);
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext, immediateTerminationKeystroke: "ctrl-c");
                         tokenSource.Cancel();
                     }
 

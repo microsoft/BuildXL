@@ -306,8 +306,8 @@ namespace BuildXL.App.Tracing
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.HostApplication,
             EventOpcode = (byte)EventOpcode.Info,
-            Message = "Graceful cancellation requested.\r\n" + "Use ctrl-break for immediate termination. CAUTION! This may slow down the next build.")]
-        public abstract void CancellationRequested(LoggingContext context);
+            Message = "Graceful cancellation requested.\r\n" + "Use {immediateTerminationKeystroke} for immediate termination. CAUTION! This may slow down the next build.")]
+        public abstract void CancellationRequested(LoggingContext context, string immediateTerminationKeystroke);
 
         [GeneratedEvent(
             (ushort)LogEventId.TelemetryShutDown,

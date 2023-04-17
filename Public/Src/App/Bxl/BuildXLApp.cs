@@ -2721,12 +2721,14 @@ namespace BuildXL
             }
 
             await Task.Delay(msUntilTimeout);
-            m_cancellationSource.Cancel();
 
+            // It is important to always log an error before triggering the cancellation. Various failed state checks
+            // will validate that an error has already been logged and crash if that is not upheld.
             Logger.Log.CbTimeoutReached(
                 m_appLoggingContext,
                 earlyCbTimeoutMins,
                 Convert.ToInt32(TimeSpan.FromMilliseconds(msUntilTimeout).TotalMinutes));
+            m_cancellationSource.Cancel();
         }
     }
 

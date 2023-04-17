@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Utilities.Instrumentation.Common;
+
 namespace BuildXL.App.Tracing
 {
     // disable warning regarding 'missing XML comments on public API'. We don't need docs for these values
@@ -64,8 +66,8 @@ namespace BuildXL.App.Tracing
         // ProblematicWorkerExitError = 14013,
 
         PerformanceCollectorInitializationFailed = 15000,
-        CbTimeoutReached = 15001,
-        CbTimeoutTooLow = 15002,
+        CbTimeoutReached = SharedLogEventId.CbTimeoutReached,
+        CbTimeoutTooLow = SharedLogEventId.CbTimeoutTooLow,
         CbTimeoutInvalid = 15003,
         CbTimeoutInfo = 15004,
     }

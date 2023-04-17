@@ -224,6 +224,7 @@ namespace BuildXL.Utilities.Tracing
         protected override void OnError(EventWrittenEventArgs eventData)
         {
             var level = eventData.Level;
+            bool wasInfrastructureOrInternal = false;
             if (level == EventLevel.Error)
             {
                 long keywords = (long)eventData.Keywords;
@@ -238,7 +239,7 @@ namespace BuildXL.Utilities.Tracing
                     keywords = (long)eventData.Payload[3];
                 }
 
-                BucketError(keywords, eventName, eventMessage);
+                wasInfrastructureOrInternal = BucketError(keywords, eventName, eventMessage);
             }
             else
             {
@@ -253,12 +254,14 @@ namespace BuildXL.Utilities.Tracing
 
             if (m_loggingContext != null && m_internalErrorAction != null)
             {
-                if (InfrastructureErrorDetails.Count > 0 || InternalErrorDetails.Count > 0)
+                if (wasInfrastructureOrInternal &&
+                    // These timeout errors are infrastrucure errors but also trigger a shutdown. So do not re-trigger another
+                    // internal error early shutdown. Doing so would create confusion in logging
+                    eventData.EventId != (int)SharedLogEventId.CbTimeoutReached && eventData.EventId != (int)SharedLogEventId.CbTimeoutTooLow)
                 {
                     TriggerInternalErrorAction();
                 }
             }
-
         }
 
         /// <summary>
@@ -287,11 +290,16 @@ namespace BuildXL.Utilities.Tracing
             }
         }
 
-        private void BucketError(long keywords, string eventName, string errorMessage)
+        /// <summary>
+        /// Buckets and tracks an error into user, infrastrucure, internal
+        /// </summary>
+        /// <returns>True if the error is an internal or infrastructure error</returns>
+        private bool BucketError(long keywords, string eventName, string errorMessage)
         {
             if ((keywords & (long)Keywords.UserError) > 0)
             {
                 UserErrorDetails.RegisterError(eventName, errorMessage);
+                return false;
             }
             else if ((keywords & (long)Keywords.InfrastructureError) > 0)
             {
@@ -301,6 +309,8 @@ namespace BuildXL.Utilities.Tracing
             {
                 InternalErrorDetails.RegisterError(eventName, errorMessage);
             }
+
+            return true;
         }
 
         /// <inheritdoc />

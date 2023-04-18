@@ -97,9 +97,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         private void ScheduleProcessConsumingDynamicOutput(
-            out FileArtifact input, 
-            out DirectoryArtifact outputDirectory, 
-            out FileArtifact preservedOutput, 
+            out FileArtifact input,
+            out DirectoryArtifact outputDirectory,
+            out FileArtifact preservedOutput,
             out Process dynamicOutputProducer,
             out Process preservingProcess)
         {
@@ -191,7 +191,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         private void ScheduleRewriteProcess(out FileArtifact rewrittenOutput, out Process preservingProcessA, out Process preservingProcessB)
         {
             // dummyInput -> Process A -> rewrittenOutput -> Process B -> rewrittenOutput
-            
+
             var dummyInput = CreateSourceFile();
             var rewrittenOutputRc1 = CreateOutputFileArtifact();
 
@@ -282,7 +282,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var outputContent = RunSchedulerAndGetOutputContents(outputPreserved, false, processAndOutputs.Process.PipId);
             XAssert.AreEqual(CONTENT, outputContent);
             XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputUnpreserved)));
-            
+
             ModifyFile(input);
 
             outputContent = RunSchedulerAndGetOutputContents(outputPreserved, false, processAndOutputs.Process.PipId);
@@ -318,7 +318,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // processA will not perserve outputs because its trust level is lower than global setting of preserve output trust level
             // but processB will preserve output
             builderA.Options |= Process.Options.AllowPreserveOutputs;
-            builderA.PreserveOutputsTrustLevel = 1; 
+            builderA.PreserveOutputsTrustLevel = 1;
             var processAndOutputsA = SchedulePipBuilder(builderA);
 
             builderB.Options |= Process.Options.AllowPreserveOutputs;
@@ -488,7 +488,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // No cache hit
             outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
-            
+
             // As the opaque output is preserved, the pip appended the existing file.
             XAssert.AreEqual(CONTENT_TWICE, outputContents);
 
@@ -622,9 +622,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public void BuildAndPipFlagTest(bool buildPreserve, bool pipPreserve)
         {
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = 
-                buildPreserve 
-                ? PreserveOutputsMode.Enabled 
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs =
+                buildPreserve
+                ? PreserveOutputsMode.Enabled
                 : PreserveOutputsMode.Disabled;
 
             var pipA = ScheduleAndGetPip(out var input, out var output, false, pipPreserve);
@@ -657,9 +657,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void PreserveOutputsTest2(bool preserveOutputs)
         {
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = 
-                preserveOutputs 
-                ? PreserveOutputsMode.Enabled 
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs =
+                preserveOutputs
+                ? PreserveOutputsMode.Enabled
                 : PreserveOutputsMode.Disabled;
 
             var pipA = ScheduleAndGetPip(out var input, out var output, false, preserveOutputs);
@@ -895,7 +895,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // ReportAccess policy and is not reported as a file read. Therefore, cache hit.
                 RunScheduler().AssertCacheMiss(pip.PipId);
             }
-            
+
             // Pip should cache hit because incremental tool is disabled, the file change is not observed
             RunScheduler().AssertCacheHit(pip.PipId);
 
@@ -1084,7 +1084,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Feature(Features.OpaqueDirectory)]
         [Feature(Features.PreserveOutputs)]
-        [Fact]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void OpaqueDirectoryCleanupWithPreserveOutputs()
         {
             // Create a pip with the following:

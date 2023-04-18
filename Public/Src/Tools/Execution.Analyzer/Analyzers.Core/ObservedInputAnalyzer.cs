@@ -75,7 +75,10 @@ namespace BuildXL.Execution.Analyzer
         {
             writer.WriteStartObject();
             WriteJsonProperty(writer, "SemiStableHash", pip.FormattedSemiStableHash);
-            WriteJsonProperty(writer, "Provenance", pip.Provenance.Usage.ToString(pipExecutionContext.PathTable));
+            if (pip.Provenance.Usage.IsValid)
+            {
+                WriteJsonProperty(writer, "Provenance", pip.Provenance.Usage.ToString(pipExecutionContext.PathTable));
+            }
             WriteJsonProperty(writer, "Type", pip.PipType.ToString());
             WriteJsonProperty(writer, "Description", pip.GetDescription(pipExecutionContext));
             writer.WriteEndObject();

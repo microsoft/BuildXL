@@ -2,9 +2,11 @@
 // Licensed under the MIT License.
 
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -33,8 +35,8 @@ namespace BuildXL.Launcher.Server
     /// </summary>
     public class GrpcDotNetInitializer : ICacheServerGrpcHost
     {
-        private static readonly Tracer _tracer = new Tracer(nameof(GrpcDotNetInitializer));
-        private ConcurrentDictionary<LocalServerConfiguration, IHost> _webHosts = new ();
+        private static readonly Tracer _tracer = new(nameof(GrpcDotNetInitializer));
+        private readonly ConcurrentDictionary<int, IHost> _webHosts = new ();
 
         /// <nodoc />
         public GrpcDotNetInitializer()
@@ -42,14 +44,10 @@ namespace BuildXL.Launcher.Server
         }
         
         /// <inheritdoc />
-        public async Task<BoolResult> StartAsync(OperationContext context, LocalServerConfiguration configuration, ICacheServer cacheServer)
+        public async Task<BoolResult> StartAsync(OperationContext context, int port, GrpcDotNetServerOptions grpcOptions, IEnumerable<IGrpcServiceEndpoint> grpcEndpoints)
         {
-            Contract.Requires(configuration.UseGrpcDotNet, "The gRPC.NET must be enabled in order to use this type.");
-            int port = configuration.GrpcPort;
-
             _tracer.Debug(context, $"Initializing gRPC.NET environment. Port={port}.");
 #if NET6_0_OR_GREATER
-            var grpcOptions = configuration.GrpcDotNetServerOptions;
             var hostResult = await context.PerformOperationAsync(
                 _tracer,
                 async () =>
@@ -90,9 +88,9 @@ namespace BuildXL.Launcher.Server
                                             endpoints =>
                                             {
                                                 var endpointsAdapter = new GrpcEndpointCollectionAdapter(endpoints);
-                                                foreach (var endpoint in cacheServer.GrpcEndpoints)
+                                                foreach (var grpcEndpoint in grpcEndpoints)
                                                 {
-                                                    endpoint.MapServices(endpointsAdapter);
+                                                    grpcEndpoint.MapServices(endpointsAdapter);
                                                 }
                                             });
                                     });
@@ -114,13 +112,13 @@ namespace BuildXL.Launcher.Server
 
                             var grpcServiceCollection = new ServiceCollectionAdapter(services);
 
-                            foreach (var grpcEndpoint in cacheServer.GrpcEndpoints)
+                            foreach (var grpcEndpoint in grpcEndpoints)
                             {
                                 grpcEndpoint.AddServices(grpcServiceCollection);
                             }
 
                             // Required for GCS because unlike the content servers, the GCS uses code first approach.
-                            services.AddSingleton<BinderConfiguration>(MetadataServiceSerializer.BinderConfiguration);
+                            services.AddSingleton(MetadataServiceSerializer.BinderConfiguration);
                             services.AddCodeFirstGrpc();
                         });
 
@@ -132,7 +130,7 @@ namespace BuildXL.Launcher.Server
 
             if (hostResult.Succeeded)
             {
-                var added = _webHosts.TryAdd(configuration, hostResult.Value);
+                var added = _webHosts.TryAdd(port, hostResult.Value);
                 Contract.Assert(added);
             }
 
@@ -161,15 +159,13 @@ namespace BuildXL.Launcher.Server
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> StopAsync(OperationContext context, LocalServerConfiguration configuration)
+        public Task<BoolResult> StopAsync(OperationContext context, int port)
         {
             // Not passing cancellation token since it will already be signaled
 #if NET6_0_OR_GREATER
-            bool removed = _webHosts.TryRemove(configuration, out var webHost);
+            bool removed = _webHosts.TryRemove(port, out var webHost);
             Contract.Assert(removed);
 
-
-            int port = configuration.GrpcPort;
             _tracer.Debug(context, $"Shutting down gRPC.NET environment. Port={port}.");
             return context.PerformOperationAsync(
                 _tracer,
@@ -186,6 +182,16 @@ namespace BuildXL.Launcher.Server
 #else
             throw new NotSupportedException();
 #endif
+        }
+
+        public Task<BoolResult> StartAsync(OperationContext context, LocalServerConfiguration configuration, ICacheServer cacheServer)
+        {
+            return StartAsync(context, configuration.GrpcPort, configuration.GrpcDotNetServerOptions, cacheServer.GrpcEndpoints);
+        }
+
+        public Task<BoolResult> StopAsync(OperationContext context, LocalServerConfiguration configuration)
+        {
+            return StopAsync(context, configuration.GrpcPort);
         }
     }
 }

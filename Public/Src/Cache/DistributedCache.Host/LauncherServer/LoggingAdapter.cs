@@ -50,7 +50,7 @@ namespace BuildXL.Cache.Host.Service
             }
 
             var message = formatter(state, exception);
-            _context.TraceMessage(GetSeverity(logLevel), message, _name);
+            _context.TraceMessage(GetSeverity(logLevel), message, exception,_name);
         }
 
         private Severity GetSeverity(LogLevel logLevel)

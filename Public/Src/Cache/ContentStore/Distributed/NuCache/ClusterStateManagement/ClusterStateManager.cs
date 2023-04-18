@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ClusterStateMachine currentState;
             if (_configuration.ReadOnly)
             {
-                currentState = await _storage.ReadState(context).ThrowIfFailureAsync();
+                currentState = await _storage.ReadStateAsync(context).ThrowIfFailureAsync();
                 machineMappings = machineLocations.Select(machineLocation => new MachineMapping(MachineId.Invalid, machineLocation)).ToArray();
             }
             else
@@ -162,7 +162,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (_configuration.ReadOnly || localMachineIds.Length == 0)
                     {
-                        var currentState = await _storage.ReadState(context).ThrowIfFailureAsync();
+                        var currentState = await _storage.ReadStateAsync(context).ThrowIfFailureAsync();
                         ClusterState.Update(context, currentState, nowUtc: _clock.UtcNow).ThrowIfFailure();
 
                         // When in consumer-only mode, we should never update the remote representation of the cluster

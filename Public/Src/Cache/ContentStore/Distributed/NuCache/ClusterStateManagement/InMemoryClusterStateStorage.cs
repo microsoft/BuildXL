@@ -18,28 +18,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement
         protected override Tracer Tracer { get; } = new Tracer(nameof(InMemoryClusterStateStorage));
 
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1);
-
         private readonly IClock _clock = SystemClock.Instance;
 
         private ClusterStateMachine _clusterStateMachine = new ClusterStateMachine();
-
 
         public Task<Result<IClusterStateStorage.HeartbeatOutput>> HeartbeatAsync(OperationContext context, IClusterStateStorage.HeartbeatInput request)
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var guard = await _lock.AcquireAsync(context.Token);
+                using var guard = await _lock.AcquireAsync(context.Token);
                 var (currentState, result) = _clusterStateMachine.HeartbeatMany(request, _clock.UtcNow);
                 _clusterStateMachine = currentState;
                 return Result.Success(new IClusterStateStorage.HeartbeatOutput(_clusterStateMachine, result));
             });
         }
 
-        public Task<Result<ClusterStateMachine>> ReadState(OperationContext context)
+        public Task<Result<ClusterStateMachine>> ReadStateAsync(OperationContext context)
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var guard = await _lock.AcquireAsync(context.Token);
+                using var guard = await _lock.AcquireAsync(context.Token);
                 return Result.Success(_clusterStateMachine);
             });
         }
@@ -48,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var guard = await _lock.AcquireAsync(context.Token);
+                using var guard = await _lock.AcquireAsync(context.Token);
                 var (currentState, assignedMachineIds) = _clusterStateMachine.RegisterMany(request, _clock.UtcNow);
                 _clusterStateMachine = currentState;
 

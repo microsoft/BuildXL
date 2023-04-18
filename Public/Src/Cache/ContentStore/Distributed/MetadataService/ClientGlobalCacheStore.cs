@@ -1,10 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -15,8 +13,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities.Core.Tracing;
-using Grpc.Core;
 
 #nullable enable
 
@@ -25,104 +21,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// <summary>
     /// A global content metadata store client which routes requests to a remote machine.
     /// </summary>
-    public class ClientGlobalCacheStore : StartupShutdownComponentBase, IGlobalCacheStore
+    public class ClientGlobalCacheStore : GrpcCodeFirstClient<IGlobalCacheService>, IGlobalCacheStore
     {
         /// <inheritdoc />
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ClientGlobalCacheStore));
-
-        private readonly IClientAccessor<IGlobalCacheService> _serviceClientFactory;
-
-        private readonly ClientContentMetadataStoreConfiguration _configuration;
-
-        private readonly IClock _clock;
-
-        private readonly IRetryPolicy _retryPolicy;
+        protected override Tracer Tracer { get; } = new(nameof(ClientGlobalCacheStore));
 
         public ClientGlobalCacheStore(
             IClientAccessor<IGlobalCacheService> metadataServiceClientFactory,
             ClientContentMetadataStoreConfiguration configuration)
+            : base(metadataServiceClientFactory, CreateRetryPolicy(configuration), SystemClock.Instance, configuration.OperationTimeout)
         {
-            _serviceClientFactory = metadataServiceClientFactory;
-            _configuration = configuration;
-            _clock = SystemClock.Instance;
+        }
 
-            _retryPolicy = RetryPolicyFactory.GetExponentialPolicy(
+        private static IRetryPolicy CreateRetryPolicy(ClientContentMetadataStoreConfiguration configuration)
+        {
+            return RetryPolicyFactory.GetExponentialPolicy(
                 _ => true,
                 // We use an absurdly high retry count because the actual operation timeout is controlled through
                 // PerformOperationAsync in ExecuteAsync.
                 1_000_000,
-                _configuration.RetryMinimumWaitTime,
-                _configuration.RetryMaximumWaitTime,
-                _configuration.RetryDelta);
-
-            LinkLifetime(_serviceClientFactory);
-        }
-
-        private async Task<TResult> ExecuteAsync<TResult>(
-            OperationContext originalContext,
-            Func<OperationContext, CallOptions, IGlobalCacheService, Task<TResult>> executeAsync,
-            Func<TResult, string?> extraEndMessage,
-            string? extraStartMessage = null,
-            [CallerMemberName] string caller = null!)
-            where TResult : ResultBase
-        {
-            var attempt = -1;
-            using var contextWithShutdown = TrackShutdown(originalContext);
-            var context = contextWithShutdown.Context;
-            var callerAttempt = $"{caller}_Attempt";
-
-            return await context.PerformOperationWithTimeoutAsync(
-                Tracer,
-                context =>
-                {
-                    var callOptions = new CallOptions(
-                        headers: new Metadata()
-                        {
-                            MetadataServiceSerializer.CreateContextIdHeaderEntry(context.TracingContext.TraceId)
-                        },
-                        deadline: _clock.UtcNow + _configuration.OperationTimeout,
-                        cancellationToken: context.Token);
-
-                    return _retryPolicy.ExecuteAsync(async () =>
-                    {
-                        await Task.Yield();
-
-                        attempt++;
-
-                        var stopwatch = StopwatchSlim.Start();
-                        var clientCreationTime = TimeSpan.Zero;
-
-                        var result = await context.PerformOperationAsync(Tracer, () =>
-                            {
-                                return _serviceClientFactory.UseAsync(context, service =>
-                                {
-                                    clientCreationTime = stopwatch.Elapsed;
-
-                                    return executeAsync(context, callOptions, service);
-                                });
-                            },
-                            extraStartMessage: extraStartMessage,
-                            extraEndMessage: r => $"Attempt=[{attempt}] ClientCreationTimeMs=[{clientCreationTime.TotalMilliseconds}] {extraEndMessage(r)}",
-                            caller: callerAttempt,
-                            traceErrorsOnly: true);
-
-                        await Task.Yield();
-
-                        // Because we capture exceptions inside the PerformOperation, we need to make sure that they
-                        // get propagated for the retry policy to kick in.
-                        result.RethrowIfFailure();
-
-                        return result;
-                    }, context.Token);
-                },
-                caller: caller,
-                traceErrorsOnly: true,
-                extraStartMessage: extraStartMessage,
-                extraEndMessage: r => $"Attempts=[{attempt + 1}] {extraEndMessage(r)}",
-                timeout: _configuration.OperationTimeout);
+                configuration.RetryMinimumWaitTime,
+                configuration.RetryMaximumWaitTime,
+                configuration.RetryDelta);
         }
 
         public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)
@@ -242,16 +165,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             },
             // TODO: What to log here?
             extraEndMessage: r => r.GetValueOrDefault()?.ToString());
-        }
-
-        public Task<Result<MachineMapping>> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
-        {
-            throw new NotImplementedException($"Attempt to use {nameof(ClientGlobalCacheStore)} for machine registration is unsupported");
-        }
-
-        public Task<BoolResult> ForceRegisterMachineAsync(OperationContext context, MachineMapping mapping)
-        {
-            throw new NotImplementedException($"Attempt to use {nameof(ClientGlobalCacheStore)} for machine registration is unsupported");
         }
     }
 }

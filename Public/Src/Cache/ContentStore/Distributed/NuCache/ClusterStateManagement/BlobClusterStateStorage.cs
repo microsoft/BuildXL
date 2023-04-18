@@ -98,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 traceOperationStarted: false);
         }
 
-        public Task<Result<ClusterStateMachine>> ReadState(OperationContext context)
+        public Task<Result<ClusterStateMachine>> ReadStateAsync(OperationContext context)
         {
             return context.PerformOperationAsync(
                 Tracer,

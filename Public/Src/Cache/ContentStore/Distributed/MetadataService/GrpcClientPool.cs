@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -12,6 +14,7 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Collections;
 using Grpc.Core;
 using ProtoBuf.Grpc.Client;
 
@@ -65,7 +68,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public GrpcConnectionPool(ConnectionPoolConfiguration configuration, OperationContext context, IClock? clock = null)
         {
             _pool = new ResourcePool<MachineLocation, ConnectionHandle>(
-                context, configuration, location => new ConnectionHandle(context, location, configuration), clock);
+                context,
+                configuration,
+                location => new ConnectionHandle(
+                    context,
+                    location,
+                    configuration.DefaultPort,
+                    grpcDotNetOptions: configuration.GrpcDotNetOptions,
+                    connectionTimeout: configuration.ConnectTimeout),
+                clock);
         }
 
         /// <inheritdoc />
@@ -86,34 +97,60 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(ConnectionHandle));
 
-        public MachineLocation Location { get; }
-
         public string Host { get; }
+
         public int Port { get; }
 
         internal ChannelBase Channel { get; }
 
-        private readonly ConnectionPoolConfiguration _configuration;
-
         protected override string GetArgumentsMessage() => $"{Host}:{Port}";
 
-        public ConnectionHandle(OperationContext context, MachineLocation location, ConnectionPoolConfiguration configuration)
+        private readonly TimeSpan _connectionTimeout;
+
+        public ConnectionHandle(
+            OperationContext context,
+            MachineLocation location,
+            int defaultPort,
+            IEnumerable<ChannelOption>? grpcCoreOptions = null,
+            GrpcDotNetClientOptions? grpcDotNetOptions = null,
+            TimeSpan? connectionTimeout = null)
         {
-            Location = location;
-            _configuration = configuration;
+            _connectionTimeout = connectionTimeout ?? Timeout.InfiniteTimeSpan;
 
             var hostInfo = location.ExtractHostInfo();
             Host = hostInfo.host;
-            Port = hostInfo.port ?? _configuration.DefaultPort;
-            Channel = GrpcChannelFactory.CreateChannel(context, GetChannelCreationOptions(Host, Port), channelType: nameof(ConnectionHandle));
-        }
+            Port = hostInfo.port ?? defaultPort;
 
-        private ChannelCreationOptions GetChannelCreationOptions(string host, int port) =>
-            new ChannelCreationOptions(_configuration.UseGrpcDotNet, host, port, GrpcCoreOptions: Enumerable.Empty<ChannelOption>(), _configuration.GrpcDotNetOptions);
+
+            var useGrpcDotNet = grpcDotNetOptions is not null || grpcCoreOptions is null;
+#if !NET6_0_OR_GREATER
+            useGrpcDotNet = false;
+#endif
+            if (useGrpcDotNet)
+            {
+                grpcDotNetOptions ??= GrpcDotNetClientOptions.Default;
+                grpcCoreOptions = null;
+            }
+            else
+            {
+                grpcCoreOptions ??= ReadOnlyArray<ChannelOption>.Empty;
+                grpcDotNetOptions = null;
+            }
+
+            Channel = GrpcChannelFactory.CreateChannel(
+                context,
+                new ChannelCreationOptions(
+                    useGrpcDotNet,
+                    Host,
+                    Port,
+                    grpcCoreOptions,
+                    grpcDotNetOptions),
+                channelType: nameof(ConnectionHandle));
+        }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            await Channel.ConnectAsync(SystemClock.Instance, _configuration.ConnectTimeout);
+            await Channel.ConnectAsync(SystemClock.Instance, _connectionTimeout);
             return BoolResult.Success;
         }
 
@@ -126,12 +163,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
     public class ConnectionPoolConfiguration : ResourcePoolConfiguration
     {
-        public required int DefaultPort { get; set; }
+        public required int DefaultPort { get; init; }
 
-        public required TimeSpan ConnectTimeout { get; set; }
+        public required TimeSpan ConnectTimeout { get; init; }
 
-        public required bool UseGrpcDotNet { get; set; }
+        public required bool UseGrpcDotNet { get; init; }
 
-        public required GrpcDotNetClientOptions GrpcDotNetOptions { get; set; }
+        public required GrpcDotNetClientOptions GrpcDotNetOptions { get; init; }
     }
 }

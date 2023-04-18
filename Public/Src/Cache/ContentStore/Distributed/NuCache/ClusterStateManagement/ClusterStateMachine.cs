@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Utils;
+using ProtoBuf;
 
 #nullable enable
 
@@ -52,8 +53,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// behind <see cref="ClusterState"/>, and it is followed by all machines in the cluster.
     /// </summary>
     /// <remarks>
-    /// This class must be serializable by System.Text.Json due to <see cref="BlobClusterStateStorage"/>
+    /// This class must be serializable by System.Text.Json due to <see cref="BlobClusterStateStorage"/>.
+    ///
+    /// It must also be serializable by Protobuf.Net due to <see cref="IGrpcClusterStateStorage"/>. The ProtoContract
+    /// below ensures this is the case.
     /// </remarks>
+    [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
     public record ClusterStateMachine
     {
         internal const MachineState InitialState = MachineState.Open;
@@ -63,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // convention to avoid making major changes.
         public int NextMachineId { get; init; } = MachineId.MinValue;
 
-        public IReadOnlyList<MachineRecord> Records { get; init; } = Array.Empty<MachineRecord>();
+        public IReadOnlyList<MachineRecord> Records { get; init; } = new List<MachineRecord>();
 
         /// <summary>
         /// Registers a machine.

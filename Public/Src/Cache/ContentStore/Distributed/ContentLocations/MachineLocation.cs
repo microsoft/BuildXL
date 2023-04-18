@@ -18,11 +18,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
     {
         public const string GrpcUriSchemePrefix = "grpc://";
 
+        public static MachineLocation Invalid { get; } = new(string.Empty);
+
         /// <summary>
         /// Gets whether the current machine location represents valid data
         /// </summary>
         [JsonIgnore]
-        public bool IsValid => Path != null;
+        public bool IsValid => !string.IsNullOrEmpty(Path);
 
         /// <summary>
         /// Gets the path representation of the machine location

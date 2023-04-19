@@ -356,8 +356,27 @@ In production, the primary risk can be pathset lookup. It is possible for a weak
 tend to read many of the same files at runtime, it can result in pathset explosion: the number of
 potentially matching pathsets grows to a point that it degrades performance.
 
-The primary fix for this issue (beyond tuning some pathset-related parameters in BuildXL's
-configuration) is to make the weak fingerprints stronger, by adding more statically known inputs.
-This results in fewer pathsets per weak fingerprint. BuildXL has also implemented an 'augmented
-weak fingerprint' mechanism which associates common pathsets with weak fingerprints, for optimized
-lookup.
+## Weak fingerprint augmentation
+
+BuildXL implements a heuristic to deal with the case where a weak fingerprint is *too* weak and produces a large number
+of unique pathsets under it. In some particular scenarios where the weak fingerprint is known to be
+not strong enough, this behavior is enabled by default. This includes all the family of the JavaScript resolvers, as well as
+CMake/Ninja and MSBuild resolvers. For the case of DScript, the behavior can enabled at the pip level by setting 
+
+```enforceWeakFingerprintAugmentation: true```
+
+as part of the transformer execute arguments.
+
+A high level description of the heuristic is described below:
+
+* Let's say BuildXL performs a cache lookup with a given weak fingerprint `fp`. Assume the lookup turns out to be a miss and the pip is executed. If the lookup involves more than `n` downloaded unique path sets, BuildXL won't push to the cache the result of the execution under the given `fp`, but it will use an augmented `aug_fp` for it.
+* How is this augmented weak fingerprint computed? BuildXL will try to extract some common paths from all the downloaded path sets and will construct with that a new `augmented` path set. A strong fingerprint will be then computed based on that augmented path set, and the result will be used as the new augmented weak fingerprint `aug_fp`. The result of executing the pip will be stored using the augmented fingerprint, not the original one, effectively branching the candidates that would have been stored under the original weak fingerprint under the augmented one.
+* When an augmented path set is produced, BuildXL also pushes a special entry to the cache that represents the `fp -> augmented path set` mapping. The next time a cache lookup against `fp` happens, the special entry `fp -> augmented path` will be also retrieved. That will make BuildXL to query the cache again, but now for all candidates with weak fingerprint `aug_fp = strong_fingerprint(augmented path set)`.
+
+Observe that since the augmented weak fingerprint is *locally computed* from an augmented path set, the result will depend on the local state of the disk, and therefore only the candidates pushed under this particular weak fingerprint will be retrieved. This effectively reduces the number of candidates that are retrieved overall compared with not using the augmented fingerprint heuristic.
+
+Two knobs that affect this heuristic can be configured:
+* `/pathSetThreshold` : The maximum number of visited path sets allowed before switching to an 'augmented' weak fingerprint computed from common dynamically accessed paths ('`n`' in the above description). Default is `5`.
+* `/augmentingPathSetCommonalityFactor`: Used to compute the number of times an entry must appear among paths in the observed path set in order to be included in the common path set. Value must be (0, 1]. Default is `0.4`.
+
+This means that, by default, after downloading `5` different path sets, an augmented one will be computed. If a path is present in at least `2` (`5 * 0.4`) of the `5` different path sets, it will be included in the augmented one.

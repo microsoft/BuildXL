@@ -129,6 +129,7 @@ namespace BuildXL.FrontEnd.Nuget
 
         private readonly Dictionary<string, INugetPackage> m_packagesOnConfig;
         private readonly bool m_doNotEnforceDependencyVersions;
+        private readonly NugetRelativePathComparer m_nugetRelativePathComparer;
 
         /// <nodoc/>
         private NugetAnalyzedPackage(
@@ -151,6 +152,7 @@ namespace BuildXL.FrontEnd.Nuget
             m_dependencies = new List<INugetPackage>();
             DependenciesPerFramework = new MultiValueDictionary<PathAtom, INugetPackage>();
             CredentialProviderPath = credentialProviderPath;
+            m_nugetRelativePathComparer = new NugetRelativePathComparer(m_context.StringTable);
         }
 
         /// <summary>
@@ -189,7 +191,7 @@ namespace BuildXL.FrontEnd.Nuget
             var magicNugetMarker = PathAtom.Create(stringTable, "_._");
             var dllExtension = PathAtom.Create(stringTable, ".dll");
 
-            foreach (var relativePath in PackageOnDisk.Contents.OrderBy(path => path.ToString(stringTable)))
+            foreach (var relativePath in PackageOnDisk.Contents.OrderBy(path => path, m_nugetRelativePathComparer))
             {
                 // This is a dll. Check if it is in a lib folder or ref folder.
 

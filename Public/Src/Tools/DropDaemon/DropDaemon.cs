@@ -1030,7 +1030,7 @@ namespace Tool.DropDaemon
             if (packages == null || !string.IsNullOrEmpty(adapterReportFailures) || !string.IsNullOrEmpty(adapterReportWarnings))
             {
                 var warningMsg = $"[GetSbomPackages] ComponentDetectionToSBOMPackageAdapter finished with. Null return: {packages == null}.{Environment.NewLine}Warnings: {adapterReportWarnings}.{Environment.NewLine}Errors: {adapterReportFailures}";
-                Analysis.IgnoreResult(await ApiClient.LogMessage(warningMsg, isWarning: true));
+                Analysis.IgnoreResult(await ApiClient.LogMessage(warningMsg, isWarning: false));
             }
 
             var result = packages ?? new List<SBOMPackage>();
@@ -1041,7 +1041,7 @@ namespace Tool.DropDaemon
             async Task logAndReportError(string errorMsg)
             {
                 logger.Error(errorMsg); 
-                Analysis.IgnoreResult(await ApiClient.LogMessage(errorMsg, isWarning: true));
+                Analysis.IgnoreResult(await ApiClient.LogMessage(errorMsg, isWarning: false));
             }
         }
 

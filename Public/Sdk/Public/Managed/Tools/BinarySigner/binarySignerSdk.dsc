@@ -99,7 +99,7 @@ export function signBinary(args: ESRPSignArguments): File {
                 Cmd.option("-i ", Artifact.input(jsonFile)),
                 Cmd.option("-c ", Artifact.input(f`${args.signToolConfiguration}`)),
                 Cmd.option("-p ", Artifact.input(f`${args.signToolEsrpPolicy}`)),
-                Cmd.option("-l ", "Verbose")
+                Cmd.option("-l ", "Error")
             ],
             dependencies: [
                 args.file,

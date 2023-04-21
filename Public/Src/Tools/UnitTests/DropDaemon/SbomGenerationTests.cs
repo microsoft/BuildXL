@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Linq;
 using Tool.DropDaemon;
 using Microsoft.ManifestGenerator;
 using Microsoft.Sbom.Contracts;
@@ -24,6 +25,21 @@ namespace Test.Tool.DropDaemon
         public SbomGenerationTests(ITestOutputHelper output)
             : base(output)
         {
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ExpectingFailuresOnFailedCgParsing(bool missingFile)
+        {
+            // Test for absent file in one case, for malformed JSON in the other
+            var path = missingFile ? Path.GetTempFileName() : GenerateBcdeOutput(Path.GetTempFileName(), malformed: true);
+            var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(path);
+            
+            XAssert.IsNotNull(packages, "ComponentDetectionToSBOMPackageAdapter shouldn't return null on failure");
+
+            // This will make us fail
+            XAssert.IsTrue(adapterReport.Report.Any(r => r.Type == AdapterReportItemType.Failure), "Expecting a failure in the adapter report");
         }
 
         /// <summary>
@@ -79,7 +95,7 @@ namespace Test.Tool.DropDaemon
             };
             IEnumerable<SBOMFile> files = new List<SBOMFile>() { myfile };
 
-            var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(GenerateBcdeOutput());
+            var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(GenerateBcdeOutput(Path.GetTempFileName()));
             XAssert.IsNotNull(packages);
             foreach (var reportItem in adapterReport.Report)
             {
@@ -111,10 +127,10 @@ namespace Test.Tool.DropDaemon
             return sb.ToString();
         }
 
-        private static string GenerateBcdeOutput() 
+        private static string GenerateBcdeOutput(string tempFilePath, bool malformed = false) 
         {
             // A minimized but complete version of a bcde-output grabbed from a real build
-            const string spec = @"
+            string spec = (malformed ? "{" : "") + @"
 {
   ""dependencyGraphs"": 
   {
@@ -198,7 +214,6 @@ namespace Test.Tool.DropDaemon
   ""resultCode"": ""Success""
 }
 ";
-            string tempFilePath = Path.GetTempFileName();
             using(var writer = new StreamWriter(tempFilePath))
             {
                 writer.Write(spec);

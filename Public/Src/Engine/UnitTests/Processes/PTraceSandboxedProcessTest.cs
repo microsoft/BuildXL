@@ -170,6 +170,46 @@ namespace Test.BuildXL.Processes
         }
 
         [Fact]
+        public async Task PTraceForcedProcessesAreTreatedAsStaticallyLinked()
+        {
+            // Test that the PTrace forcing via environment variable is working
+            // This feature is currently meant for debugging purposes only, here we'd like to
+            // make sure that the process name is being propagated correctly to the sandbox.
+            var dummyFile = CreateSourceFileWithPrefix(prefix: "dummy");
+
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.EnableLinuxPTraceSandbox = true;
+            fam.UnconditionallyEnableLinuxPTraceSandbox = false;
+
+            // Create a directory but make sure we perform it on an existing file
+            var info = ToProcessInfo(
+                ToProcess(
+                    // We need to spawn a process because the sandbox assumes the root process is never static and the interposing 
+                    // sandbox is always used for it.
+                    Operation.Spawn(
+                        Context.PathTable, waitToFinish: true, 
+                        Operation.WriteFile(dummyFile)
+                    )
+                ),
+                fileAccessManifest: fam);
+
+            // Force PTrace with the appropriate environment variable
+#if NETCOREAPP
+            var environmentDictionary = new Dictionary<string, string>(info.EnvironmentVariables.ToDictionary());
+#else
+            var environmentDictionary = new Dictionary<string, string>(info.EnvironmentVariables.ToDictionary().ToDictionary(x => x.Key, x => x.Value));
+#endif
+            environmentDictionary["__BUILDXL_PTRACE_FORCED_PROCESSES"] = $"{TestProcessToolName};SomeOtherToolName";
+            info.EnvironmentVariables = BuildParameters.GetFactory().PopulateFromDictionary(environmentDictionary);
+
+            var result = await RunProcess(info);
+
+            // When PTrace is forced, the process is being reported as statically linked 
+            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary);            
+        }
+
+        [Fact]
         public async Task RemoveDirReturnValueIsReported()
         {
             // Create the artifact but leave the path as absent

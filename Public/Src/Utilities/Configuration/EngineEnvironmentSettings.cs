@@ -510,7 +510,7 @@ namespace BuildXL.Utilities.Configuration
         /// Default disabled
         /// </remarks>
         public static readonly Setting<bool> DoNotSendXLGToOrchestrator = CreateSetting("BuildXLDoNotSendXLGToOrchestrator", value => value == "1");
-
+        
         /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>

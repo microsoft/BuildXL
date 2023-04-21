@@ -36,6 +36,28 @@ BxlObserver::BxlObserver()
     InitDetoursLibPath();
     // NOTE: this needs to be called after InitFam() because it relies on the flags from the file access manifest.
     InitPTraceMq();
+
+    const char* const forcedprocesses = getenv(BxlPTraceForcedProcessNames);
+    if (!is_null_or_empty(forcedprocesses))
+    {
+        strlcpy(forcedPTraceProcessNamesList_, forcedprocesses, PATH_MAX);
+
+        // Get the list consuming the semicolon-separated value
+        const char* start = forcedprocesses; 
+        const char* end = forcedprocesses; 
+        while (*end != '\0') 
+        {
+            if (*end == ';') 
+            {
+                forcedPTraceProcessNames_.emplace_back(start, end - start);
+                start = end + 1;
+            }
+
+            end++;
+        }
+        
+        forcedPTraceProcessNames_.emplace_back(start, end - start);
+    }
 }
 
 void BxlObserver::InitDetoursLibPath()
@@ -606,6 +628,18 @@ bool BxlObserver::check_and_report_statically_linked_process(int fd)
     return check_and_report_statically_linked_process(fd_to_path(fd).c_str());
 }
 
+bool BxlObserver::IsPTraceForced(const char *path)
+{
+    // 1. Get the last component of the path (i.e., the program name)
+    if (forcedPTraceProcessNames_.size() == 0) 
+    {
+        return false;
+    }
+    
+    char *progname = basename((char*)path);
+    return std::find(forcedPTraceProcessNames_.begin(), forcedPTraceProcessNames_.end(), std::string(progname)) != forcedPTraceProcessNames_.end();
+}
+
 bool BxlObserver::check_and_report_statically_linked_process(const char *path)
 {
     // If the ptrace sandbox is unconditionally enabled, then there is no need to check anything else
@@ -617,6 +651,31 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
     if (!CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
     {
         return false;
+    }
+
+    if (IsPTraceForced(path))
+    {
+        // We force ptrace for this process. 
+        // Send a "statically linked" report so that the managed side can track it.
+        AccessReport report =
+        {
+            .operation        = kOpStaticallyLinkedProcess,
+            .pid              = getpid(),
+            .rootPid          = pip_->GetProcessId(),
+            .requestedAccess  = (int) RequestedAccess::Read,
+            .status           = FileAccessStatus::FileAccessStatus_Allowed,
+            .reportExplicitly = (int) ReportLevel::Report,
+            .error            = 0,
+            .pipId            = pip_->GetPipId(),
+            .path             = {0},
+            .stats            = {0},
+            .isDirectory      = 0,
+            .shouldReport     = true,
+        };
+
+        strlcpy(report.path, path, sizeof(report.path));
+        SendReport(report);
+        return true;
     }
 
     // Stat the path to get the last modified time of the path
@@ -990,6 +1049,7 @@ char** BxlObserver::ensureEnvs(char *const envp[])
         newEnvp = ensure_env_value(newEnvp, BxlEnvDetoursPath, "");
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
         newEnvp = ensure_env_value(newEnvp, BxlPTraceMqName, "");
+        newEnvp = ensure_env_value(newEnvp, BxlPTraceForcedProcessNames, "");
         return newEnvp;
     }
     else
@@ -1003,6 +1063,7 @@ char** BxlObserver::ensureEnvs(char *const envp[])
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath, famPath_);
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath, detoursLibFullPath_);
         newEnvp = ensure_env_value_with_log(newEnvp, BxlPTraceMqName, ptraceMqName_);
+        newEnvp = ensure_env_value_with_log(newEnvp, BxlPTraceForcedProcessNames, forcedPTraceProcessNamesList_);
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
 
         return newEnvp;

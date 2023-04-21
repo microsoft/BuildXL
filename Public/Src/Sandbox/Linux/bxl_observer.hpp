@@ -226,6 +226,7 @@ private:
     char detoursLibFullPath_[PATH_MAX];
     char famPath_[PATH_MAX];
     char ptraceMqName_[NAME_MAX];
+    char forcedPTraceProcessNamesList_[PATH_MAX];
 
     std::timed_mutex cacheMtx_;
     std::unordered_map<es_event_type_t, std::unordered_set<std::string>> cache_;
@@ -247,6 +248,7 @@ private:
 
     // Cache for statically linked processes in the form <timestamp>:<path>
     std::vector<std::pair<std::string, bool>> staticallyLinkedProcessCache_;
+    std::vector<std::string> forcedPTraceProcessNames_;
 
     void InitFam();
     void InitDetoursLibPath();
@@ -260,6 +262,8 @@ private:
 
     bool IsMonitoringChildProcesses() const { return !pip_ || CheckMonitorChildProcesses(pip_->GetFamFlags()); }
     bool IsPTraceEnabled() const { return pip_ && (CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()) || CheckUnconditionallyEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags())); }
+    bool IsPTraceForced(const char *path);
+
     inline bool IsValid() const             { return sandbox_ != NULL; }
     inline bool IsEnabled() const
     {

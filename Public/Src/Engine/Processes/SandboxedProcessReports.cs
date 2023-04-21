@@ -863,7 +863,7 @@ namespace BuildXL.Processes
             }
 
             if (operation == ReportedFileOperation.StaticallyLinkedProcess)
-            {
+            {                
                 // The sandbox should automatically filter out duplicate process names
                 m_staticallyLinkedProcesses.Add(finalPath);
                 return true;

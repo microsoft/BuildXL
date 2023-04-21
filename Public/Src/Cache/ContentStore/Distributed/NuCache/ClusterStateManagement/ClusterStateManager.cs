@@ -58,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             LinkLifetime(_storage);
 
-            if (_configuration.UpdateInterval > TimeSpan.Zero && _configuration.UpdateInterval < Timeout.InfiniteTimeSpan)
+            if (_configuration.UpdateInterval > TimeSpan.Zero)
             {
                 RunInBackground(nameof(BackgroundUpdateAsync), BackgroundUpdateAsync, fireAndForget: true);
             }

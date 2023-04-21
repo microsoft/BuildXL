@@ -106,10 +106,10 @@ namespace Test.BuildXL.Processes
                 .Where(i => (i.Operation == ReportedFileOperation.Process || i.Operation == ReportedFileOperation.ProcessExit) && i.GetPath(Context.PathTable) == staticProcessArtifact.Path.ToString(Context.PathTable))
                 .Select(i => $"{i.Operation}: '{i.GetPath(Context.PathTable)}'")
                 .ToList();
-            var expectedForkAndExitCount = 9;
+            var expectedForkAndExitCount = 10;
 
             // We should get 8 here because we call fork 4 times (8 create/exit), and the main process will have one create and exit
-            // Right now this number is 9 because the bxl observer layer will report the ptracerunner process as a process creation as well because it does not expect the tracing process to be external
+            // Right now this number is 10 because the bxl observer layer will report the ptracerunner process as a process creation as well because it does not expect the tracing process to be external
             // This will require more changes to the sandbox in upcoming changes to ensure that the sandbox only reports fork/clone/exit.
             // TODO [pgunasekara]: Update the expected fork/exit count back to 8
             XAssert.IsTrue(forksAndExits.Count() == expectedForkAndExitCount, $"Mismatch in the number of process creations and exits. Expected {expectedForkAndExitCount}, got {forksAndExits.Count()}. Process creations and exits:\n{string.Join("\n", forksAndExits)}");

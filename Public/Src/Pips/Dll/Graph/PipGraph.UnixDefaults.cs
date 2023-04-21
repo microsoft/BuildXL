@@ -114,6 +114,8 @@ namespace BuildXL.Pips.Graph
                         //     deterministic---is executed multiple times on same inputs, the set of 
                         //     dynamically loaded libraries is not necessarily going to stay the same.
                         UnixPaths.UsrLib,
+                        // Modern Linux distributions link /lib to /usr/lib, so this is safe to untrack
+                        UnixPaths.Lib,
                         UnixPaths.LibLinuxGnu,
                         UnixPaths.Lib64,
                         UnixPaths.Run,

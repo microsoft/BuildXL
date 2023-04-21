@@ -73,6 +73,7 @@ private:
     unsigned long ReadArgumentLong(int argumentIndex);
     void ReportOpen(std::string path, int oflag, std::string syscallName);
     void ReportCreate(std::string syscallName, int dirfd, const char *pathname, mode_t mode, long returnValue = 0, bool checkCache = true);
+    int GetErrno();
 
     // Handlers
     MAKE_HANDLER_FN_DEF(execveat);

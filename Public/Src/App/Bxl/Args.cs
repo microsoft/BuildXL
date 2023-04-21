@@ -1156,6 +1156,16 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "typeCheck",
                             sign => { /* Do nothing Office still passes this flag even though it is deprecated. */ }),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "forceEnableLinuxPTraceSandbox",
+                            sign =>
+                            {
+                                if (OperatingSystemHelper.IsLinuxOS)
+                                {
+                                    m_console.WriteOutputLine(MessageLevel.Warning, I($"Option 'forceEnableLinuxPTraceSandbox' should only be used for testing purposes and will significantly slow down this build."));
+                                    sandboxConfiguration.UnconditionallyEnableLinuxPTraceSandbox = sign;
+                                }
+                            }),
 
                         // <Begin unsafe arguments>
                         // Unsafe options should follow the pattern that enabling them (i.e. "/unsafe_option" or "/unsafe_option+") should lead to an unsafe configuration

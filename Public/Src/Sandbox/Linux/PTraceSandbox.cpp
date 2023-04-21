@@ -166,32 +166,29 @@ void PTraceSandbox::AttachToProcess(pid_t traceePid, pid_t parentPid, std::strin
 {
     BXL_LOG_DEBUG(m_bxl, "[PTrace] Starting tracer PID '%d' to trace PID '%d'", getpid(), traceePid);
 
+    // PTRACE_O_TRACESYSGOOD: Sets bit 7 of the signal when delivering a system calls.
+    // PTRACE_O_TRACESECCOMP: Enables ptrace events from seccomp on the child
+    // PTRACE_O_TRACECLONE/FORK/VFORK: Ptrace will signal on clone/fork/vfork before the syscall returns back to the caller
+    // PTRACE_O_TRACEEXIT: ptrace will signal before exit() returns back to the caller.
+    unsigned long options = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACESECCOMP | PTRACE_O_TRACECLONE | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEEXIT;
+
     int status;
-    if (ptrace(PTRACE_ATTACH, traceePid, 0L, 0L) == -1)
+    if (ptrace(PTRACE_SEIZE, traceePid, 0L, options) == -1)
     {
-        BXL_LOG_DEBUG(m_bxl, "[PTrace] PTRACE_ATTACH failed with error: '%s'", strerror(errno));
+        BXL_LOG_DEBUG(m_bxl, "[PTrace] PTRACE_SEIZE failed with error: '%s'", strerror(errno));
+        _exit(-1);
+    }
+
+    // Interrupt the child to verify that the process attached
+    if (ptrace(PTRACE_INTERRUPT, traceePid, 0L, 0L) == -1)
+    {
+        BXL_LOG_DEBUG(m_bxl, "[PTrace] PTRACE_INTERRUPT failed with error: '%s'", strerror(errno));
         _exit(-1);
     }
 
     m_traceePid = traceePid;
     m_traceeTable.push_back(std::make_tuple(traceePid, parentPid, exe));
     m_bxl->disable_fd_table();
-
-    // Wait for initial SIGSTOP from child
-    waitpid(m_traceePid, &status, 0);
-
-    // PTRACE_O_TRACESECCOMP: Enables ptrace events from seccomp on the child
-    // PTRACE_O_TRACECLONE/FORK/VFORK: Ptrace will signal on clone/fork/vfork before the syscall returns back to the caller
-    // PTRACE_O_TRACEEXIT: ptrace will signal before exit() returns back to the caller.
-    if(ptrace(
-        PTRACE_SETOPTIONS,
-        m_traceePid,
-        NULL,
-        PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACESECCOMP | PTRACE_O_TRACECLONE | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEEXIT) == -1)
-    {
-        BXL_LOG_DEBUG(m_bxl, "[PTrace] PTRACE_SETOPTIONS failed with error: '%s'", strerror(errno));
-        _exit(-1);
-    }
 
     // Resume child
     ptrace(PTRACE_SYSCALL, m_traceePid, 0, 0);
@@ -273,6 +270,13 @@ void PTraceSandbox::AttachToProcess(pid_t traceePid, pid_t parentPid, std::strin
             // We can resume the child with PTRACE_CONT here to ignore the ptrace-exit-stop for this syscall
             ptrace(PTRACE_CONT, m_traceePid, NULL, NULL);
         }
+        else if (WIFSTOPPED(status) && !(WSTOPSIG(status) & 0x80))
+        {
+            // This is a signal-delivery-stop, this means that the tracee stopped during signal delivery
+            // We don't care about these events, but when restarting the tracee we must deliver the signal by setting the last argument to ptrace(...)
+            // signal-delivery-stop can be differentiated from sys calls events by checking whether the 7th bit is set on the signal (WSTOPSIG(status) & 0x80)
+            ptrace(PTRACE_SYSCALL, m_traceePid, NULL, WSTOPSIG(status));
+        }
         else
         {
             // We can ignore the ptrace-exit-stop for fork/vfork/clone/exit events here
@@ -303,7 +307,15 @@ bool PTraceSandbox::AllTraceesHaveExited()
         [this](const std::tuple<pid_t, pid_t, std::string>& item) { return std::get<0>(item) == m_traceePid; }
     ), m_traceeTable.end());
 
-    return m_traceeTable.size() == 0;
+    auto shouldExit = m_traceeTable.size() == 0;
+
+    if (shouldExit)
+    {
+        // Workaround for the PID of this runner process being reported to bxl
+        m_bxl->SendExitReport(getpid());
+    }
+
+    return shouldExit;
 }
 
 void *PTraceSandbox::GetArgumentAddr(int index)
@@ -313,7 +325,7 @@ void *PTraceSandbox::GetArgumentAddr(int index)
     // Order of first 6 arguments: %rdi, %rsi, %rdx, %rcx, %r8, and %r9
     switch (index) {
         case 0: // Return value
-            addr *= ORIG_RAX;
+            addr *= RAX;
             break;
         case 1:
             addr *= RDI;
@@ -392,6 +404,12 @@ unsigned long PTraceSandbox::ReadArgumentLong(int argumentIndex)
 {
     void *addr = GetArgumentAddr(argumentIndex);
     return ptrace(PTRACE_PEEKUSER, m_traceePid, addr, NULL);
+}
+
+int PTraceSandbox::GetErrno()
+{
+    long returnValue = ReadArgumentLong(0);
+    return (returnValue == 0 ? 0 : 0xffffffffffffffffUL - returnValue);
 }
 
 // Handlers for each syscall
@@ -684,11 +702,8 @@ HANDLER_FUNCTION(rmdir)
     ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
     waitpid(m_traceePid, &status, 0);
 
-    long returnValue = ReadArgumentLong(0);
-
-    BXL_LOG_DEBUG(m_bxl, "[PTrace] rmdir %s", path.c_str());
     // We don't want to use the cache since we want to distinguish between creation and deletion of directories
-    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), m_emptyStr, /*mode*/ S_IFDIR, /* error */ returnValue, /*checkCache */ false);
+    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), m_emptyStr, /*mode*/ S_IFDIR, /* error */ GetErrno(), /*checkCache */ false);
 }
 
 HANDLER_FUNCTION(rename)
@@ -875,10 +890,8 @@ HANDLER_FUNCTION(mkdir)
     ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
     waitpid(m_traceePid, &status, 0);
 
-    long returnValue = ReadArgumentLong(0);
-
     // We don't want to use the cache since we want to distinguish between creation and deletion of directories
-    ReportCreate(SYSCALL_NAME_STRING(mkdir), AT_FDCWD, path.c_str(), S_IFDIR, returnValue, /* checkCache */ false);
+    ReportCreate(SYSCALL_NAME_STRING(mkdir), AT_FDCWD, path.c_str(), S_IFDIR, GetErrno(), /* checkCache */ false);
 }
 
 HANDLER_FUNCTION(mkdirat)
@@ -891,10 +904,8 @@ HANDLER_FUNCTION(mkdirat)
     ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
     waitpid(m_traceePid, &status, 0);
 
-    long returnValue = ReadArgumentLong(0);
-
     // We don't want to use the cache since we want to distinguish between creation and deletion of directories
-    ReportCreate(SYSCALL_NAME_STRING(mkdirat), dirfd, path.c_str(), S_IFDIR, returnValue, /* checkCache */ false);
+    ReportCreate(SYSCALL_NAME_STRING(mkdirat), dirfd, path.c_str(), S_IFDIR, GetErrno(), /* checkCache */ false);
 }
 
 HANDLER_FUNCTION(mknod)

@@ -257,6 +257,16 @@ namespace BuildXL.Processes
                 {
                     process.StartInfo.EnvironmentVariables[kvp.Item1] = kvp.Item2;
                 }
+
+                // If the ptrace sandbox is used and the top level process is statically linked or the ptrace sandbox is unconditionally enabled, then it needs to be updated to use bash
+                // This allows the interposed sandbox to start up (because bash is known to not be statically linked) and wrap the exec of the real binary with ptrace.
+                var objDump = UnixObjectFileDumpUtils.CreateObjDump();
+                if (info.FileAccessManifest.EnableLinuxPTraceSandbox && 
+                    (info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox || objDump.IsBinaryStaticallyLinked(info.FileName)))
+                {
+                    process.StartInfo.Arguments = $"-c \"{process.StartInfo.FileName} {process.StartInfo.Arguments}\"";
+                    process.StartInfo.FileName = ShellExecutable;
+                }
             }
             else
             {

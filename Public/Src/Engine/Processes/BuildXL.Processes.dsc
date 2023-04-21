@@ -14,6 +14,10 @@ namespace Processes {
         sources: globR(d`.`, "*.cs"),
         generateLogs: true,
         references: [
+            // IMPORTANT!!! Do not add non-bxl dependencies or any bxl projects apart from Native and Utilities.Core into this project
+            //              This is consumed by MSBuild and adding any additional reference will cause it to break! BXL specific change
+            //              should go to 'ProcessPipExecutor' instead.
+
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
                 importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
@@ -22,7 +26,6 @@ namespace Processes {
             ...addIf(BuildXLSdk.isFullFramework,
                 BuildXLSdk.NetFx.System.IO.Compression.dll,
                 BuildXLSdk.NetFx.System.Management.dll,
-                BuildXLSdk.NetFx.System.Net.Http.dll,
                 NetFx.Netstandard.dll
             ),
             ...addIf(BuildXLSdk.isDotNetCoreOrStandard,

@@ -3,7 +3,7 @@
 
 import * as Managed from "Sdk.Managed";
 
-import * as LinuxSandboxTestProcess from "BuildXL.Sandbox.Linux.UnitTests";
+import * as LinuxSandboxTest from "BuildXL.Sandbox.Linux.UnitTests";
 import * as DetoursTest from "BuildXL.Sandbox.Windows.DetoursTests";
 const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
 
@@ -97,8 +97,9 @@ namespace Processes {
                 {
                     subfolder: "LinuxTestProcesses",
                     contents: [
-                        LinuxSandboxTestProcess.StaticLinkingTestProcess.exe(true),
-                        LinuxSandboxTestProcess.StaticLinkingTestProcess.exe(false),
+                        LinuxSandboxTest.StaticLinkingTestProcess.exe(true),
+                        LinuxSandboxTest.StaticLinkingTestProcess.exe(false),
+                        ...LinuxSandboxTest.UnitTests.BoostTestExecutables
                     ]
                 }
             ]),

@@ -25,8 +25,8 @@ namespace UnitTests
             sourceFiles: [ f`interpose.cpp` ]
         },
         {
-            exeName: a`observer_utililities_test`,
-            sourceFiles: [ f`observer_utililities_test.cpp`, f`${sandboxSrcDirectory.path}/observer_utilities.cpp` ],
+            exeName: a`observer_utilities_test`,
+            sourceFiles: [ f`observer_utilities_test.cpp`, f`${sandboxSrcDirectory.path}/observer_utilities.cpp` ],
             includeDirectories: [ sandboxSrcDirectory ]
         }
     ];
@@ -38,7 +38,7 @@ namespace UnitTests
     const boostLibDir = boost.Contents.all.ensureContents({subFolder: r`lib/native/include`});
 
     @@public
-    export const tests = boostTests.map(s => runBoostTest(compileForBoost(s)));
+    export const BoostTestExecutables = boostTests.map(s => compileForBoost(s));
 
     function compileForBoost(testSpec: BoostTest) : DerivedFile
     {

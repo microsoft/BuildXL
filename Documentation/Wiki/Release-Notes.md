@@ -1,6 +1,16 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230414.2.1 (Release [292538](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=292538) Released 4/19/2023)
+- Track source changes in ProgramData
+- Update nugetcache fingerprint version
+- Only avoid querying the remote cache (under /remoteCacheCutoff) if the remote is read-only
+- Detect and warn when CacheDump fingerprint computation is not accurate
+- Change the warning logging message displayed on ADO console for DX65 warnings
+- Update net6, net7 and packageurl-dotnet version
+- Fixed the missing dependency used by ComponentDetectionToSBOMPackageAdapter
+- Various bug fixes
+
 # 0.1.0-20230407.6 (Release [289924](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=289924) Released 4/12/2023)
 -	Track source changes in UserProfile and LocalAppData by default
 -	Embed sources into PDBs for internal builds

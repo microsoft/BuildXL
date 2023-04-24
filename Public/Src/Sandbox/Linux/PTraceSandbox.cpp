@@ -576,13 +576,13 @@ HANDLER_FUNCTION(execve)
 HANDLER_FUNCTION(stat)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(stat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(stat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(lstat)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(lstat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(lstat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(fstat)
@@ -606,7 +606,7 @@ HANDLER_FUNCTION_NEW(fstatat)
 HANDLER_FUNCTION(access)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(access), ES_EVENT_TYPE_NOTIFY_ACCESS, pathname.c_str(), /* mode */ 0U, /* flags */ 0, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(access), ES_EVENT_TYPE_NOTIFY_ACCESS, pathname.c_str(), /* mode */ 0U, /* flags */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(faccessat)
@@ -635,7 +635,8 @@ HANDLER_FUNCTION(open)
 HANDLER_FUNCTION(openat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto path = m_bxl->normalize_path_at(dirfd, ReadArgumentString(2, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
+    auto pathName = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto path = m_bxl->normalize_path_at(dirfd, pathName.c_str(), /*oflags*/0, m_traceePid);
     auto flags = ReadArgumentLong(3);
     ReportOpen(path, flags, SYSCALL_NAME_STRING(openat));
 }
@@ -684,7 +685,7 @@ HANDLER_FUNCTION(pwrite64)
 HANDLER_FUNCTION(truncate)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str());
+    m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str(), /* mode */ 0, /* oflags */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(ftruncate)
@@ -741,7 +742,7 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
             {
                 // Source
                 auto mode = m_bxl->get_mode(fileOrDirectory.c_str());
-                m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, fileOrDirectory.c_str(), mode, O_NOFOLLOW, /* error */ 0);
+                m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, fileOrDirectory.c_str(), mode, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
 
                 // Destination
                 fileOrDirectory.replace(0, oldStr.length(), newStr);
@@ -753,7 +754,7 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
     {
         auto mode = m_bxl->get_mode(oldStr.c_str());
         // Source
-        m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, oldStr.c_str(), mode, O_NOFOLLOW, /* error*/ 0);
+        m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, oldStr.c_str(), mode, O_NOFOLLOW, /* error*/ 0, /* checkCache */ true, m_traceePid);
 
         // Destination
         ReportOpen(newStr, O_CREAT, std::string(syscall));
@@ -794,7 +795,7 @@ HANDLER_FUNCTION(unlink)
 
     if (path[0] != '\0')
     {
-        m_bxl->report_access(SYSCALL_NAME_STRING(unlink), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
+        m_bxl->report_access(SYSCALL_NAME_STRING(unlink), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
     }
 }
 
@@ -836,7 +837,7 @@ HANDLER_FUNCTION(readlink)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
 
-    m_bxl->report_access(SYSCALL_NAME_STRING(readlink), ES_EVENT_TYPE_NOTIFY_READLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(readlink), ES_EVENT_TYPE_NOTIFY_READLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(readlinkat)
@@ -928,7 +929,7 @@ HANDLER_FUNCTION(chmod)
 {
     auto path = ReadArgumentString(1, /*nullTerminated*/ true);
 
-    m_bxl->report_access(SYSCALL_NAME_STRING(chmod), ES_EVENT_TYPE_NOTIFY_SETMODE, path.c_str());
+    m_bxl->report_access(SYSCALL_NAME_STRING(chmod), ES_EVENT_TYPE_NOTIFY_SETMODE, path.c_str(), /* mode */ 0, /* oflags */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(fchmod)
@@ -963,7 +964,7 @@ HANDLER_FUNCTION(fchown)
 HANDLER_FUNCTION(lchown)
 {
     auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(lchown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0);
+    m_bxl->report_access(SYSCALL_NAME_STRING(lchown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(fchownat)

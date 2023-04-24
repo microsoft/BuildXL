@@ -345,6 +345,9 @@ public:
         return remove_path_from_LDPRELOAD(envp, detoursLibFullPath_);
     }
 
+    // TODO [pgunasekara]: All of the create_access/report_access functions below should take associatedPid as an argument
+    //                     When running with ptrace the tracer that does the reports has a different pid from the tracee, which is the process being traced.
+    //                     Thus, to have a correct report, e.g., to get the tracee's working dir, the tracer needs to know the pid of the tracee, which is passed as the associatedpid parameter
     // The following functions create an access report and performs an access check. They do not report the created access to managed BuildXL.
     // The created access report is returned as an out param in the given 'report' param. The returned report is ready to be sent with the exception of
     // setting the operation error. In operations where the error is reported back, the typical flow is creating the report, performing the operation, 
@@ -352,14 +355,14 @@ public:
     AccessCheckResult create_access(const char *syscallName, IOEvent &event, AccessReportGroup &report, bool checkCache = true);
     // In this method (and immediately below) 'mode' is provided on a best effort basis. If 0 is passed for mode, it will be
     // explicitly computed
-    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &report, mode_t mode = 0, int oflags = 0, bool checkCache = true);
-    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true);
+    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &report, mode_t mode = 0, int oflags = 0, bool checkCache = true, pid_t associatedPid = 0);
+    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true, pid_t associatedPid = 0);
     AccessCheckResult create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &reportGroup);
     AccessCheckResult create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &reportGroup, int oflags = 0, bool getModeWithFd = true, pid_t associatedPid = 0);
 
     // The following functions are the create_* equivalent of the ones above but the access is reported to managed BuildXL
     void report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
-    void report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0, int error = 0, bool checkCache = true);
+    void report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0, int error = 0, bool checkCache = true, pid_t associatedPid = 0);
     void report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode = 0, int error = 0, bool checkCache = true);
     void report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error);
     void report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags, bool getModeWithFd = true, pid_t associatedPid = 0, int error = 0);
@@ -441,6 +444,25 @@ public:
             : 0;
         errno = old;
         return result;
+    }
+
+    char *getcurrentworkingdirectory(char *fullpath, size_t size, pid_t associatedPid = 0)
+    {
+        if (associatedPid == 0)
+        {
+            return getcwd(fullpath, size);
+        }
+        else
+        {
+            char linkPath[100] = {0};
+            sprintf(linkPath, "/proc/%d/cwd", associatedPid);
+            if (real_readlink(linkPath, fullpath, size) == -1)
+            {
+                return NULL;
+            }
+            
+            return fullpath;
+        }
     }
 
     std::string normalize_path(const char *pathname, int oflags = 0, pid_t associatedPid = 0)

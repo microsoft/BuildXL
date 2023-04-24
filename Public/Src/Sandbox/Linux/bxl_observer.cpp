@@ -382,7 +382,7 @@ void BxlObserver::report_access_internal(const char *syscallName, es_event_type_
     SendReport(report);
 }
 
-AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache)
+AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache, pid_t associatedPid)
 {
     if (reportPath == nullptr || secondPath == nullptr)
     {
@@ -453,7 +453,7 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, IOEvent &e
     return result;
 }
 
-void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode, int flags, int error, bool checkCache)
+void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode, int flags, int error, bool checkCache, pid_t associatedPid)
 {
     // If the path is null or if we can't normalize it, we have no meaningful way of reporting this access
     if (pathname == nullptr)
@@ -462,7 +462,7 @@ void BxlObserver::report_access(const char *syscallName, es_event_type_t eventTy
         return;
     }
 
-    auto normalized = normalize_path(pathname, flags);
+    auto normalized = normalize_path(pathname, flags, associatedPid);
     if (normalized.length() == 0) 
     {
         LOG_DEBUG("Couldn't normalize path %s", pathname);
@@ -472,7 +472,7 @@ void BxlObserver::report_access(const char *syscallName, es_event_type_t eventTy
     report_access_internal(syscallName, eventType, normalized.c_str(), /*secondPath*/ nullptr , mode, error, checkCache);
 }
 
-AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &reportGroup, mode_t mode, int flags, bool checkCache)
+AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &reportGroup, mode_t mode, int flags, bool checkCache, pid_t associatedPid)
 {
     // If the path is null or if we can't normalize it, we have no meaningful way of reporting this access
     if (pathname == nullptr) 
@@ -531,7 +531,7 @@ AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_even
 
     if (pathname[0] == '/')
     {
-        return create_access(syscallName, eventType, pathname, report, /* mode */0, flags);
+        return create_access(syscallName, eventType, pathname, report, /* mode */0, flags, /* checkCache */ true, associatedPid);
     }
 
     char fullpath[PATH_MAX] = {0};
@@ -541,7 +541,7 @@ AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_even
 
     if (dirfd == AT_FDCWD)
     {
-        if (!getcwd(fullpath, PATH_MAX))
+        if (!getcurrentworkingdirectory(fullpath, PATH_MAX, associatedPid))
         {
             return sNotChecked;
         }
@@ -584,7 +584,7 @@ AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_even
     }
 
     snprintf(&fullpath[len], PATH_MAX - len, "/%s", pathname);
-    return create_access(syscallName, eventType, fullpath, report, flags, mode);
+    return create_access(syscallName, eventType, fullpath, report, mode, flags, /* checkCache */ true, associatedPid);
 }
 
 void BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags, bool getModeWithFd, pid_t associatedPid, int error)
@@ -884,7 +884,7 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
     {
         if (dirfd == AT_FDCWD)
         {
-            if (!getcwd(fullpath, PATH_MAX))
+            if (!getcurrentworkingdirectory(fullpath, PATH_MAX, associatedPid))
             {
                 _fatal("Could not get CWD; errno: %d", errno);
             }

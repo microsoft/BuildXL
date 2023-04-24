@@ -430,8 +430,11 @@ namespace Test.BuildXL.EngineTests
             }
         }
 
-        // [FactIfSupported(requiresMacOperatingSystem:: true)]
-        [Fact(Skip = "While this tests succeeds with a debugger attached, it fails when ran through BuildXL on macOS")]
+        /// <summary>
+        /// Spotlight is the macOS search indexer. This test validates whether a warning is emitted if the build is under an indexed
+        /// location. It is a macOS specific test.
+        /// </summary>
+        [FactIfSupported(requiresMacOperatingSystem: true, Skip = "While this tests succeeds with a debugger attached, it fails when ran through BuildXL on macOS")]
         public void TestSpotlightCheck()
         {
             PathTable pt = new PathTable();

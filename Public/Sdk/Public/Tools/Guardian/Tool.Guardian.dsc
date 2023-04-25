@@ -32,7 +32,7 @@ const guardianUntrackedDirectories = addIfLazy(Context.getCurrentHost().os === "
     // Config files accessed by nuget during Guardian install phase
     d`${Context.getMount("ProgramFilesX86").path}/Nuget`,
     d`${Context.getMount("ProgramFiles").path}/Nuget`,
-    d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetUrlCache`,
+    d`${Context.getMount("LocalLow").path}`,
     // Nuget artifacts credential provider
     d`${Context.getMount("UserProfile").path}/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
     d`${Context.getMount("UserProfile").path}/.nuget/plugins/netcore/CredentialProvider.Microsoft`,

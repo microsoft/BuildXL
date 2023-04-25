@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Hashing;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores;
@@ -66,5 +67,15 @@ public class JumpConsistentHashTests
 
         var errorMargin = Math.Abs(((double)moved / sampleSize) - (1.0 / plusX.Locations.Count));
         Assert.True(errorMargin < margin, $"Distribution is not uniform, error margin: {errorMargin}");
+    }
+
+    [Fact]
+    public void DoesntOverflowOnExtremelySmallRandomNumber()
+    {
+        var example = new ShortHash("VSO0:0BCD64D0A8FCFFAEAD1D51");
+        var key = BlobCacheShardingKey.FromShortHash(example);
+        var ring = new JumpConsistentHash<int>(Enumerable.Range(0, 100).ToList());
+        var location = ring.Locate(key.Key);
+        Assert.Equal(21, location);
     }
 }

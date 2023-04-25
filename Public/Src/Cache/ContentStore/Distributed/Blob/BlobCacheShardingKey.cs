@@ -36,8 +36,24 @@ public readonly record struct BlobCacheShardingKey(BlobCacheContainerPurpose Pur
         return new BlobCacheShardingKey(Purpose: BlobCacheContainerPurpose.Metadata, Key: hash);
     }
 
-    public static int GetStableHash(ReadOnlyFixedBytes bytes)
+    private static int GetStableHash(ReadOnlyFixedBytes bytes)
     {
         return HashCodeHelper.Combine(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7], bytes[8]);
+    }
+
+    public static BlobCacheShardingKey FromShortHash(ShortHash shortHash)
+    {
+        var typeHash = (int)shortHash.HashType;
+        var byteHash = GetShortStableHash(shortHash.Value);
+        var hash = HashCodeHelper.Fold(byteHash, typeHash);
+
+        return new BlobCacheShardingKey(Purpose: BlobCacheContainerPurpose.Content, Key: hash);
+    }
+
+    private static int GetShortStableHash(ShortReadOnlyFixedBytes bytes)
+    {
+        // WARNING: ShortHash uses the first byte to represent the hash type, so this method hashes starting on the 1st
+        // byte instead.
+        return HashCodeHelper.Combine(bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7], bytes[8], bytes[9]);
     }
 }

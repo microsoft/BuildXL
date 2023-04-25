@@ -42,7 +42,18 @@ public record JumpConsistentHash<TShardId> : IShardingScheme<int, TShardId>
         {
             beforePreviousJump = beforeCurrentJump;
             var r = random.NextDouble();
-            beforeCurrentJump = (int)Math.Floor((beforePreviousJump + 1) / r);
+
+            try
+            {
+                beforeCurrentJump = (int)Math.Floor((beforePreviousJump + 1) / r);
+            }
+            catch (OverflowException)
+            {
+                // r can sometimes be extremely small (for example, 1e-10) and cause overflow to happen. In such cases,
+                // beforeCurrentJump would be set to an extremely large number anyways, and so the loop would break and
+                // return the same thing as if we break now.
+                break;
+            }
         }
 
         return Locations[beforePreviousJump];

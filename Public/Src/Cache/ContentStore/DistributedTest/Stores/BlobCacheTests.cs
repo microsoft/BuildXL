@@ -32,6 +32,14 @@ public class BlobCacheTests : TestWithOutput
         // Purpose should be correct
         k1.Purpose.Should().BeEquivalentTo(BlobCacheContainerPurpose.Content);
 
+        var sh = new ShortHash(ch);
+        var k5 = BlobCacheShardingKey.FromShortHash(sh);
+        var k6 = BlobCacheShardingKey.FromShortHash(sh);
+        k5.Should().BeEquivalentTo(k1);
+        k5.Should().BeEquivalentTo(k6);
+        // Purpose should be correct
+        k5.Purpose.Should().BeEquivalentTo(BlobCacheContainerPurpose.Content);
+
         var wf = Fingerprint.Random();
         var k3 = BlobCacheShardingKey.FromWeakFingerprint(wf);
         var k4 = BlobCacheShardingKey.FromWeakFingerprint(wf);

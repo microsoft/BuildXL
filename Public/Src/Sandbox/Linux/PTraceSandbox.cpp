@@ -355,7 +355,7 @@ void *PTraceSandbox::GetArgumentAddr(int index)
     return (void *)addr;
 }
 
-std::string PTraceSandbox::ReadArgumentString(int argumentIndex, bool nullTerminated, int length)
+std::string PTraceSandbox::ReadArgumentString(char *syscall, int argumentIndex, bool nullTerminated, int length)
 {
     void *addr = GetArgumentAddr(argumentIndex);
     // We are only interested in reading paths from the arguments so PATH_MAX (+1 for null terminator) should be safe to use here
@@ -368,7 +368,9 @@ std::string PTraceSandbox::ReadArgumentString(int argumentIndex, bool nullTermin
         long addrMemoryLocation = ptrace(PTRACE_PEEKTEXT, m_traceePid, addrRegValue, NULL);
         if (addrMemoryLocation == -1)
         {
-            BXL_LOG_DEBUG(m_bxl, "[PTrace] Error occured while executing PTRACE_PEEKTEXT: '%s'", strerror(errno));
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] Error occured while executing PTRACE_PEEKTEXT for syscall '%s' argument '%d' : '%s'", syscall, argumentIndex, strerror(errno));
+            argument[currentStringLength] = '\0';
+            break;
         }
 
         addrRegValue += sizeof(long);
@@ -551,7 +553,7 @@ HANDLER_FUNCTION(execveat)
 {
     // TODO: Is this syscall obsolete?
     int dirfd = ReadArgumentLong(1);
-    std::string pathname = ReadArgumentString(2, /*nullTerminated*/ true);
+    std::string pathname = ReadArgumentString(SYSCALL_NAME_STRING(execve), 2, /*nullTerminated*/ true);
     int flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
@@ -565,7 +567,7 @@ HANDLER_FUNCTION(execveat)
 
 HANDLER_FUNCTION(execve)
 {
-    std::string file = ReadArgumentString(1, /*nullTerminated*/ true);
+    std::string file = ReadArgumentString(SYSCALL_NAME_STRING(execve), 1, /*nullTerminated*/ true);
     char mutableFilePath[file.length() + 1];
 
     strcpy(mutableFilePath, file.c_str());
@@ -575,13 +577,13 @@ HANDLER_FUNCTION(execve)
 
 HANDLER_FUNCTION(stat)
 {
-    auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(stat), 1, /*nullTerminated*/ true);
     m_bxl->report_access(SYSCALL_NAME_STRING(stat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(lstat)
 {
-    auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(lstat), 1, /*nullTerminated*/ true);
     m_bxl->report_access(SYSCALL_NAME_STRING(lstat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
@@ -596,7 +598,7 @@ HANDLER_FUNCTION(fstat)
 HANDLER_FUNCTION_NEW(fstatat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fstatat), 2, /*nullTerminated*/ true);
     auto flags = ReadArgumentLong(4);
 
     // TODO: Figure out how to report the errno
@@ -605,21 +607,21 @@ HANDLER_FUNCTION_NEW(fstatat)
 
 HANDLER_FUNCTION(access)
 {
-    auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(access), 1, /*nullTerminated*/ true);
     m_bxl->report_access(SYSCALL_NAME_STRING(access), ES_EVENT_TYPE_NOTIFY_ACCESS, pathname.c_str(), /* mode */ 0U, /* flags */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(faccessat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(faccessat), 2, /*nullTerminated*/ true);
     // TODO: Figure out how to report the errno
     m_bxl->report_access_at(SYSCALL_NAME_STRING(faccessat), ES_EVENT_TYPE_NOTIFY_ACCESS, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
 }
 
 HANDLER_FUNCTION(creat)
 {
-    auto path = m_bxl->normalize_path(ReadArgumentString(1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
+    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(creat), 1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
     auto oflag = O_CREAT | O_WRONLY | O_TRUNC;
     ReportOpen(path, oflag, SYSCALL_NAME_STRING(creat));
 
@@ -627,7 +629,7 @@ HANDLER_FUNCTION(creat)
 
 HANDLER_FUNCTION(open)
 {
-    auto path = m_bxl->normalize_path(ReadArgumentString(1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
+    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(open), 1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
     auto oflag = ReadArgumentLong(2);
     ReportOpen(path, oflag, SYSCALL_NAME_STRING(open));
 }
@@ -635,7 +637,7 @@ HANDLER_FUNCTION(open)
 HANDLER_FUNCTION(openat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathName = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto pathName = ReadArgumentString(SYSCALL_NAME_STRING(openat), 2, /*nullTerminated*/ true);
     auto path = m_bxl->normalize_path_at(dirfd, pathName.c_str(), /*oflags*/0, m_traceePid);
     auto flags = ReadArgumentLong(3);
     ReportOpen(path, flags, SYSCALL_NAME_STRING(openat));
@@ -684,7 +686,7 @@ HANDLER_FUNCTION(pwrite64)
 
 HANDLER_FUNCTION(truncate)
 {
-    auto path = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(truncate), 1, /*nullTerminated*/ true);
     m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str(), /* mode */ 0, /* oflags */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
@@ -696,7 +698,7 @@ HANDLER_FUNCTION(ftruncate)
 
 HANDLER_FUNCTION(rmdir)
 {
-    auto path = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(rmdir), 1, /*nullTerminated*/ true);
 
     // See comment about the need to propagate the returned value under HANDLER_FUNCTION(mkdir)
     int status = 0;
@@ -709,8 +711,8 @@ HANDLER_FUNCTION(rmdir)
 
 HANDLER_FUNCTION(rename)
 {
-    auto oldpath = ReadArgumentString(1, /*nullTerminated*/ true);
-    auto newpath = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(rename), 1, /*nullTerminated*/ true);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(rename), 2, /*nullTerminated*/ true);
 
     HandleRenameGeneric(SYSCALL_NAME_STRING(rename), AT_FDCWD, oldpath.c_str(), AT_FDCWD, newpath.c_str());
 }
@@ -718,9 +720,9 @@ HANDLER_FUNCTION(rename)
 HANDLER_FUNCTION(renameat)
 {
     auto olddirfd = ReadArgumentLong(1);
-    auto oldpath = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat), 2, /*nullTerminated*/ true);
     auto newdirfd = ReadArgumentLong(3);
-    auto newpath = ReadArgumentString(4, /*nullTerminated*/ true);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat), 4, /*nullTerminated*/ true);
     
     HandleRenameGeneric(SYSCALL_NAME_STRING(renameat), olddirfd, oldpath.c_str(), newdirfd, newpath.c_str());
 }
@@ -763,8 +765,8 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
 
 HANDLER_FUNCTION(link)
 {
-    auto oldpath = ReadArgumentString(1, /*nullTerminated*/ true);
-    auto newpath = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(link), 1, /*nullTerminated*/ true);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(link), 2, /*nullTerminated*/ true);
 
     m_bxl->report_access(
         SYSCALL_NAME_STRING(link),
@@ -777,9 +779,9 @@ HANDLER_FUNCTION(link)
 HANDLER_FUNCTION(linkat)
 {
     auto olddirfd = ReadArgumentLong(1);
-    auto oldpath = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(linkat), 2, /*nullTerminated*/ true);
     auto newdirfd = ReadArgumentLong(3);
-    auto newpath = ReadArgumentString(4, /*nullTerminated*/ true);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(linkat), 4, /*nullTerminated*/ true);
 
     m_bxl->report_access(
         SYSCALL_NAME_STRING(linkat),
@@ -791,7 +793,7 @@ HANDLER_FUNCTION(linkat)
 
 HANDLER_FUNCTION(unlink)
 {
-    auto path = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(unlink), 1, /*nullTerminated*/ true);
 
     if (path[0] != '\0')
     {
@@ -802,7 +804,7 @@ HANDLER_FUNCTION(unlink)
 HANDLER_FUNCTION(unlinkat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto path = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(unlinkat), 2, /*nullTerminated*/ true);
     auto flags = ReadArgumentLong(3);
 
     if (dirfd != AT_FDCWD && path[0] != '\0')
@@ -815,7 +817,7 @@ HANDLER_FUNCTION(unlinkat)
 
 HANDLER_FUNCTION(symlink)
 {
-    auto linkPath = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto linkPath = ReadArgumentString(SYSCALL_NAME_STRING(symlink), 2, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
     IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_traceePid), m_bxl->GetProgramPath(), S_IFLNK, false, "", /* error */ 0);
@@ -825,7 +827,7 @@ HANDLER_FUNCTION(symlink)
 HANDLER_FUNCTION(symlinkat)
 {
     auto dirfd = ReadArgumentLong(2);
-    auto linkPath = ReadArgumentString(3, /*nullTerminated*/ true);
+    auto linkPath = ReadArgumentString(SYSCALL_NAME_STRING(symlinkat), 3, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
     IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, ES_ACTION_TYPE_NOTIFY, m_bxl->normalize_path_at(dirfd, linkPath.c_str(), O_NOFOLLOW, m_traceePid), m_bxl->GetProgramPath(), S_IFLNK, false, "", /* error */ 0);
@@ -835,7 +837,7 @@ HANDLER_FUNCTION(symlinkat)
 
 HANDLER_FUNCTION(readlink)
 {
-    auto path = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(readlink), 1, /*nullTerminated*/ true);
 
     m_bxl->report_access(SYSCALL_NAME_STRING(readlink), ES_EVENT_TYPE_NOTIFY_READLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
@@ -843,7 +845,7 @@ HANDLER_FUNCTION(readlink)
 HANDLER_FUNCTION(readlinkat)
 {
     auto fd = ReadArgumentLong(1);
-    auto path = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(readlinkat), 2, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
     m_bxl->report_access_at(SYSCALL_NAME_STRING(readlinkat), ES_EVENT_TYPE_NOTIFY_READLINK, fd, path.c_str(), O_NOFOLLOW, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
@@ -851,7 +853,7 @@ HANDLER_FUNCTION(readlinkat)
 
 HANDLER_FUNCTION(utime)
 {
-    auto filename = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto filename = ReadArgumentString(SYSCALL_NAME_STRING(utime), 1, /*nullTerminated*/ true);
 
     m_bxl->report_access(SYSCALL_NAME_STRING(utime), ES_EVENT_TYPE_NOTIFY_SETTIME, filename.c_str(), "", /* mode */ 0, /* error */ 0);
 }
@@ -864,7 +866,7 @@ HANDLER_FUNCTION(utimes)
 HANDLER_FUNCTION(utimensat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(utimensat), 2, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
     m_bxl->report_access_at(SYSCALL_NAME_STRING(utimensat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
@@ -873,7 +875,7 @@ HANDLER_FUNCTION(utimensat)
 HANDLER_FUNCTION(futimesat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(futimesat), 2, /*nullTerminated*/ true);
 
     // TODO: Figure out how to report the errno
     m_bxl->report_access_at(SYSCALL_NAME_STRING(futimesat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
@@ -881,7 +883,7 @@ HANDLER_FUNCTION(futimesat)
 
 HANDLER_FUNCTION(mkdir)
 {
-    auto path = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mkdir), 1, /*nullTerminated*/ true);
 
     // For mkdir (also for rmdir and mkdirat) we want to report the return value of the function as part of the
     // report since on managed side bxl needs to understand whether the directory creation succeeded.
@@ -898,7 +900,7 @@ HANDLER_FUNCTION(mkdir)
 HANDLER_FUNCTION(mkdirat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto path = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mkdirat), 2, /*nullTerminated*/ true);
 
     // See comment about the need to propagate the returned value under HANDLER_FUNCTION(mkdir)
     int status = 0;
@@ -911,7 +913,7 @@ HANDLER_FUNCTION(mkdirat)
 
 HANDLER_FUNCTION(mknod)
 {
-    auto path = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mknod), 1, /*nullTerminated*/ true);
 
     ReportCreate(SYSCALL_NAME_STRING(mknod), AT_FDCWD, path.c_str(), S_IFREG);
 }
@@ -919,7 +921,7 @@ HANDLER_FUNCTION(mknod)
 HANDLER_FUNCTION(mknodat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto path = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mknodat), 2, /*nullTerminated*/ true);
 
     ReportCreate(SYSCALL_NAME_STRING(mknodat), dirfd, path.c_str(), S_IFREG);
 
@@ -927,7 +929,7 @@ HANDLER_FUNCTION(mknodat)
 
 HANDLER_FUNCTION(chmod)
 {
-    auto path = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(chmod), 1, /*nullTerminated*/ true);
 
     m_bxl->report_access(SYSCALL_NAME_STRING(chmod), ES_EVENT_TYPE_NOTIFY_SETMODE, path.c_str(), /* mode */ 0, /* oflags */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
@@ -941,7 +943,7 @@ HANDLER_FUNCTION(fchmod)
 HANDLER_FUNCTION(fchmodat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fchmodat), 2, /*nullTerminated*/ true);
     auto flags = ReadArgumentLong(4);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
@@ -951,7 +953,7 @@ HANDLER_FUNCTION(fchmodat)
 
 HANDLER_FUNCTION(chown)
 {
-    auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(chown), 1, /*nullTerminated*/ true);
     m_bxl->report_access(SYSCALL_NAME_STRING(chown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), "", /* mode */ 0, /* error */ 0);
 }
 
@@ -963,14 +965,14 @@ HANDLER_FUNCTION(fchown)
 
 HANDLER_FUNCTION(lchown)
 {
-    auto pathname = ReadArgumentString(1, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(lchown), 1, /*nullTerminated*/ true);
     m_bxl->report_access(SYSCALL_NAME_STRING(lchown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
 }
 
 HANDLER_FUNCTION(fchownat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fchownat), 2, /*nullTerminated*/ true);
     auto flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
@@ -993,7 +995,7 @@ HANDLER_FUNCTION(copy_file_range)
 HANDLER_FUNCTION(name_to_handle_at)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(name_to_handle_at), 2, /*nullTerminated*/ true);
     auto flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_FOLLOW) ? 0 : O_NOFOLLOW;

@@ -62,7 +62,7 @@ private:
     void *GetArgumentAddr(int index);
 
     // @brief Gets the offset to read an argument at a given index starting from 1 (0 is used for the return value of the function)
-    std::string ReadArgumentString(int argumentIndex, bool nullTerminated, int length = 0);
+    std::string ReadArgumentString(char *syscall, int argumentIndex, bool nullTerminated, int length = 0);
     /*
      * @brief Reads an argument string at a given address with ptrace
      * @param argumentIndex Index of the argument to read starting from 1 (or 0 for the return value)

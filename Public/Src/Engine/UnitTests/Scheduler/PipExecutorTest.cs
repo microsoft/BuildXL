@@ -1307,8 +1307,7 @@ namespace Test.BuildXL.Scheduler
                 });
         }
 
-        // TODO: investigate why the MustBeConsideredPerpetuallyDirty is unexpectedly being set here on Linux - work item #1985456
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public Task ProcessCachedWithAllowlistedFileMonitoringViolations()
         {
             const string Contents = "Matches!";
@@ -1325,16 +1324,12 @@ namespace Test.BuildXL.Scheduler
 
                     allowlist.Add(
                         new ExecutablePathAllowlistEntry(
-                            AbsolutePath.Create(context.PathTable, CmdHelper.OsShellExe),
+                            // On Windows, shell is the one who performs the file accesses.
+                            // On a Unix based OS, we ask shell to execute a copy command, that command is a separate process that performs the file accesses.
+                            AbsolutePath.Create(context.PathTable, OperatingSystemHelper.IsUnixOS ? GetFullPath("cp") : CmdHelper.OsShellExe),
                             FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("source"))),
                             allowsCaching: true,
                             name: "allowlist1"));
-                    allowlist.Add(
-                        new ExecutablePathAllowlistEntry(
-                            AbsolutePath.Create(context.PathTable, CmdHelper.OsShellExe),
-                            FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("dest"))),
-                            allowsCaching: true,
-                            name: "allowlist2"));
 
                     return allowlist;
                 },

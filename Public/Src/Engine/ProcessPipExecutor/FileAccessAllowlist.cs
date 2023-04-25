@@ -277,7 +277,7 @@ namespace BuildXL.ProcessPipExecutor
         {
             Contract.Requires(pip != null);
 
-            IEnumerable<FileAccessAllowlistEntry> possibleEntries = Enumerable.Empty<FileAccessAllowlistEntry>();;
+            IEnumerable<FileAccessAllowlistEntry> possibleEntries = Enumerable.Empty<FileAccessAllowlistEntry>();
 
             ConcatPossibleEntries(loggingContext, reportedFileAccess, pip, ref possibleEntries);
 

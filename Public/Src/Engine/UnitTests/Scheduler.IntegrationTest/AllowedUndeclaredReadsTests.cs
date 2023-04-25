@@ -509,11 +509,22 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
-        // TODO: fix this test case for Linux where writes under a shared opaque are DFAs. Work item #1984802
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Theory]
         [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void WritingToExistentFileProducedBySamePipIsAllowed(bool varyPath)
         {
+            if (varyPath && OperatingSystemHelper.IsUnixOS)
+            {
+                // If varyPath is true, we modify operations executed by the test process; both of these modifications are not allowed for a Unix based OS.
+                //
+                // The path used for the second operation is upper-cased before accessed. Since paths are case-sensitive, we are no longer accessing the "same"
+                // file (not what this test is about). Also, /home/blah is converted into /HOME/BLAH, and that /HOME/ mount simply does not exist (/home/ does),
+                // so any access under /HOME/ will be denied by the OS.
+                //
+                // The path in the third operation is prefixed with "\\?\". This prefix is only valid on Windows.
+                return;
+            }
+
             // Run a pip that writes into a file twice: the second time, the file will exist. However, this should be allowed.
             // This test complements WritingUndeclaredInputsUnderSharedOpaquesAreBlocked, since the check cannot be made purely based on file existence,
             // but should also consider when the first write happened

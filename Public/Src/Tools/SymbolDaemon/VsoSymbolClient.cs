@@ -233,7 +233,7 @@ namespace Tool.SymbolDaemon
                 await EnsureRequestIdAndDomainIdAreInitalizedAsync();
 
                 var debugEntriesToAssociate = batch.SelectMany(
-                    file => file.File.DebugEntries.Select(entry => CreateDebugEntry(entry, DomainId)))
+                    file => file.File.DebugEntries.Select(entry => CreateDebugEntry(entry, DomainId, file.File)))
                     .ToList();
 
 
@@ -375,7 +375,11 @@ namespace Tool.SymbolDaemon
                 });
 
             // need to update entries before calling associate the second time
-            entriesWithMissingBlobs.ForEach(entry => missingBlobsToFilesMap[entry.BlobIdentifier].BlobIdentifier.UpdateDebugEntryBlobReference(entry));
+            entriesWithMissingBlobs.ForEach(entry =>
+            {
+                missingBlobsToFilesMap[entry.BlobIdentifier].BlobIdentifier.UpdateDebugEntryBlobReference(entry);
+                entry.Size = missingBlobsToFilesMap[entry.BlobIdentifier].File.FileLength;
+            });
 
             using (m_counters.StartStopwatch(SymbolClientCounter.TotalAssociateAfterUploadTime))
             {
@@ -425,7 +429,7 @@ namespace Tool.SymbolDaemon
             m_symbolClient.Dispose();
         }
 
-        private static DebugEntry CreateDebugEntry(IDebugEntryData data, IDomainId domainId)
+        private static DebugEntry CreateDebugEntry(IDebugEntryData data, IDomainId domainId, SymbolFile symbolFile)
         {
             return new DebugEntry()
             {
@@ -433,6 +437,7 @@ namespace Tool.SymbolDaemon
                 ClientKey = data.ClientKey,
                 InformationLevel = data.InformationLevel,
                 DomainId = domainId,
+                Size = symbolFile.FileLength,
             };
         }
 

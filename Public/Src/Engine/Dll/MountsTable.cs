@@ -129,24 +129,33 @@ namespace BuildXL.Engine
                 table.AddStaticMount("TempRoot", layout.TempDirectory, isWriteable: true, isScrubbable: true);
             }
 
-            // Cross Plat supported MountPoints
+            // X-plat supported MountPoints
             // On Linux the user profile maps to the user home folder - we shouldn't treat that as a special system mount.
-            // We still add it as a static mount for the sake of the tools that output to this mount, but we enable hashing on it
-            table.AddStaticSystemMount("ProgramData", Environment.SpecialFolder.CommonApplicationData, trackSourceFileChanges: true);
+            // We still add it as a static mount for the sake of the tools that output to this mount, but we enable hashing on it.
+            //
+            // Many X-plat tools get installed in user profile (or home folder in Linux), or in local app data ($HOME/.local in Linux), or in program data (/usr/local/bin or /usr/bin in Linux).
+            // We want to make sure that we can track and hash the files in these locations, so we add them as static mounts, and enable source file change tracking on them.
+            // In general the enablement of source file change tracking is needed when the process pip allows for undeclared source reads. Otherwise, the observed input processor
+            // will see a read observation on a file that it cannot hash/track, and thus it will emit an error.
+            //
+            // For now, the enablement of source file change tracking is done only on Linux, since enabling it on Windows has caused some performance issues in some customer builds.
+            // For example, a file in a user profile specified as a source file in the build suddenly gets tracked, and since this file keeps changing and is consumed by many pips,
+            // those pips get dirty all the time, and the builds slow down significantly due to losing incremental scheduling.
+            table.AddStaticSystemMount("ProgramData", Environment.SpecialFolder.CommonApplicationData, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
             if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
             {
-                table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
                 table.AddStaticSystemMount("AppData", Environment.SpecialFolder.ApplicationData, allowCreateDirectory: true);
-                table.AddStaticSystemMount("LocalAppData", Environment.SpecialFolder.LocalApplicationData, allowCreateDirectory: true, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("LocalAppData", Environment.SpecialFolder.LocalApplicationData, allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
             }
             else
             {
                 // User profile is redirected; need to use the paths specified in the env block.
                 Contract.Assert(properties != null);
 
-                RegisterRedirectedMount(context, properties, table, "UserProfile", trackSourceFileChanges: true);
+                RegisterRedirectedMount(context, properties, table, "UserProfile", trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
                 RegisterRedirectedMount(context, properties, table, "AppData", allowCreateDirectory: true);
-                RegisterRedirectedMount(context, properties, table, "LocalAppData", allowCreateDirectory: true, trackSourceFileChanges: true);
+                RegisterRedirectedMount(context, properties, table, "LocalAppData", allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
             }
 
             if (!OperatingSystemHelper.IsUnixOS)

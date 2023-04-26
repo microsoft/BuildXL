@@ -264,8 +264,8 @@ namespace BuildXL.Processes
                 if (info.FileAccessManifest.EnableLinuxPTraceSandbox && 
                     (info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox || objDump.IsBinaryStaticallyLinked(info.FileName)))
                 {
-                    process.StartInfo.Arguments = $"-c \"{process.StartInfo.FileName} {process.StartInfo.Arguments}\"";
-                    process.StartInfo.FileName = ShellExecutable;
+                    process.StartInfo.Arguments = $"{process.StartInfo.FileName} {process.StartInfo.Arguments}";
+                    process.StartInfo.FileName = EnvExecutable;
                 }
             }
             else

@@ -37,7 +37,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Whether we should use authentication in the grpc calls.
         /// </summary>
-        public static bool AuthenticationEnabled => EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value != null;
+        /// <remarks>
+        /// Authentication feature requires the encryption.
+        /// </remarks>
+        public static bool AuthenticationEnabled => EncryptionEnabled && EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value != null;
 
         /// <summary>
         /// Certificate store location 

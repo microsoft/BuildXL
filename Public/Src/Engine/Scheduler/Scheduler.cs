@@ -697,6 +697,11 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(loggingContext != null);
 
+            if (m_fileChangeTracker == null)
+            {
+                return;
+            }
+
             FileEnvelopeId fileEnvelopeId = m_fileChangeTracker.GetFileEnvelopeToSaveWith();
             string fileChangeTrackerPath = m_fileChangeTrackerFile.ToString(Context.PathTable);
 

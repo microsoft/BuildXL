@@ -41,6 +41,7 @@ namespace Main {
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.Logging").Library.dll,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Processes.dll,
@@ -63,6 +64,8 @@ namespace Main {
             importFrom("BuildXL.FrontEnd").Factory.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
+            importFrom("Azure.Identity").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
             
             BuildXLSdk.isDotNetCore
                 ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg

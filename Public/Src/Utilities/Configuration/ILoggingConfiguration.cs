@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
@@ -430,5 +431,38 @@ namespace BuildXL.Utilities.Configuration
         /// Whether all cached pip outputs should be logged.
         /// </summary>
         public bool LogCachedPipOutputs { get; }
+
+        /// <summary>
+        /// Whether to send log events to Kusto.
+        /// </summary>
+        /// <remarks>
+        /// False by default
+        /// </remarks>
+        public bool LogToKusto { get; }
+
+        /// <summary>
+        /// The blob URI to send log events to.
+        /// </summary>
+        /// <remarks>
+        /// Expected to be in the format of https://{storage-account-name}.blob.core.windows.net/{container-name}
+        /// Default value is <a href="https://adomessages.blob.core.windows.net/adomessages"/>
+        /// </remarks>
+        public string LogToKustoBlobUri { get; }
+
+        /// <summary>
+        /// The tenant ID to use when sending log events to Kusto.
+        /// </summary>
+        /// <remarks>
+        /// Default value points to the Bxl-owned tenant 975f013f-7f24-47e8-a7d3-abc4752bf346
+        /// </remarks>
+        public string LogToKustoTenantId{ get; }
+
+        /// <summary>
+        /// The identity ID to use when sending log events to Kusto.
+        /// </summary>
+        /// <remarks>
+        /// Default value points to the Bxl-owned identity 6e0959cf-a9ba-4988-bbf1-7facd9deda51
+        /// </remarks>
+        public string LogToKustoIdentityId { get; }
     }
 }

@@ -209,6 +209,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/logToKusto[+|-]",
+                Strings.HelpText_DisplayHelp_LogToKusto,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/noLog:<id list>",
                 Strings.HelpText_DisplayHelp_NoLog,
                 HelpLevel.Verbose);

@@ -166,7 +166,7 @@ jobs:
       # - the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
       # - we also disable early worker release to avoid releasing a worker before attachment, which tends to happen
       #   when the build is highly cached: the intention is to have as much of a distributed build as possible for validation purposes
-      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='PrPipelineSalt_20230407'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=10
+      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='PrPipelineSalt_20230407'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=10 /logToKusto
     displayName: Test (${{ parameters.validationName }})
     workingDirectory: /home/subst
     env:

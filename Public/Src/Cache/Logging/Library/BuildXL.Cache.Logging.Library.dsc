@@ -13,7 +13,9 @@ namespace Library {
         nullable: true,
         references: [
             BuildXLSdk.asyncInterfacesPackage,
-            importFrom("WindowsAzure.Storage").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
+            importFrom("Microsoft.IdentityModel.Abstractions").pkg,
+            importFrom("System.Memory.Data").pkg,
             importFrom("NLog").pkg,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,

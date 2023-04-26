@@ -60,7 +60,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Azure.Core",
-          "Version": "1.25.0"
+          "Version": "1.31.0"
         }
       }
     },
@@ -78,7 +78,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Azure.Identity",
-          "Version": "1.4.0"
+          "Version": "1.8.2"
         }
       }
     },
@@ -1338,7 +1338,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client",
-          "Version": "4.30.1"
+          "Version": "4.49.1"
         }
       }
     },
@@ -1348,6 +1348,15 @@
         "NuGet": {
           "Name": "Microsoft.Identity.Client.Extensions.Msal",
           "Version": "2.18.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IdentityModel.Abstractions",
+          "Version": "6.29.0"
         }
       }
     },

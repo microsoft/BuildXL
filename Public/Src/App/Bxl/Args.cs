@@ -331,6 +331,18 @@ namespace BuildXL
                             "customLog",
                             opt => ParseCustomLogOption(opt, pathTable, loggingConfiguration.CustomLog)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "logToKusto",
+                            opt => loggingConfiguration.LogToKusto = opt),
+                        OptionHandlerFactory.CreateOption(
+                            "logToKustoBlobUri",
+                            opt => loggingConfiguration.LogToKustoBlobUri = opt.Value),
+                        OptionHandlerFactory.CreateOption(
+                            "logToKustoIdentityId",
+                            opt => loggingConfiguration.LogToKustoIdentityId = opt.Value),
+                        OptionHandlerFactory.CreateOption(
+                            "logToKustoTenantId",
+                            opt => loggingConfiguration.LogToKustoTenantId = opt.Value),
+                        OptionHandlerFactory.CreateBoolOption(
                             "debuggerBreakOnExit",
                             opt => frontEndConfiguration.DebuggerBreakOnExit = opt),
                         OptionHandlerFactory.CreateOption(

@@ -11,6 +11,10 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using Azure.Core;
+using Azure.Core.Pipeline;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -20,12 +24,11 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.ParallelAlgorithms;
 using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
-using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
 
@@ -62,7 +65,7 @@ namespace BuildXL.Cache.Logging
 
         private readonly ITelemetryFieldsProvider _telemetryFieldsProvider;
 
-        private readonly CloudBlobContainer _container;
+        private readonly BlobContainerClient _container;
 
         private readonly IReadOnlyDictionary<string, string>? _additionalBlobMetadata;
 
@@ -108,7 +111,9 @@ namespace BuildXL.Cache.Logging
             AzureStorageCredentials credentials,
             IReadOnlyDictionary<string, string>? additionalBlobMetadata)
             : this(configuration, context, clock, fileSystem, telemetryFieldsProvider,
-                credentials.CreateCloudBlobClient().GetContainerReference(configuration.ContainerName),
+                credentials.CreateBlobServiceClient(
+                    new BlobClientOptions { 
+                        RetryPolicy = new RetryPolicy(delayStrategy: DelayStrategy.CreateExponentialDelayStrategy()) }),
                 additionalBlobMetadata)
         {
         }
@@ -120,7 +125,7 @@ namespace BuildXL.Cache.Logging
             IClock clock,
             IAbsFileSystem fileSystem,
             ITelemetryFieldsProvider telemetryFieldsProvider,
-            CloudBlobContainer container,
+            BlobServiceClient blobServiceClient,
             IReadOnlyDictionary<string, string>? additionalBlobMetadata)
         {
             _configuration = configuration;
@@ -132,7 +137,7 @@ namespace BuildXL.Cache.Logging
             _clock = clock;
             _fileSystem = fileSystem;
             _telemetryFieldsProvider = telemetryFieldsProvider;
-            _container = container;
+            _container = blobServiceClient.GetBlobContainerClient(configuration.ContainerName);
             _additionalBlobMetadata = additionalBlobMetadata;
 
             _writeQueue = NagleQueue<string>.CreateUnstarted(
@@ -197,9 +202,9 @@ namespace BuildXL.Cache.Logging
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             await _container.CreateIfNotExistsAsync(
-                accessType: BlobContainerPublicAccessType.Off,
-                options: null,
-                operationContext: null,
+                PublicAccessType.None,
+                metadata: null,
+                encryptionScopeOptions: null,
                 cancellationToken: context.Token);
 
             PrepareLoggingFolders(context);
@@ -365,7 +370,7 @@ namespace BuildXL.Cache.Logging
                 {
                     var blobName = GenerateBlobName();
                     var stagingLogFilePath = _configuration.StagingFolderPath / blobName;
-                    var logFile = (await WriteLogsToFileWithRetryPolicyAsync(_context, stagingLogFilePath, logs).ThrowIfFailure()).Value;
+                    var logFile = (await WriteLogsToFileWithRetryPolicyAsync(context, stagingLogFilePath, logs).ThrowIfFailure()).Value;
 
                     var uploadLogFilePath = _configuration.UploadFolderPath / blobName;
                     _fileSystem.MoveFile(stagingLogFilePath, uploadLogFilePath, replaceExisting: true);
@@ -498,10 +503,14 @@ namespace BuildXL.Cache.Logging
         {
             Contract.Requires(logFilePaths.Count == 1);
 
-            // We use a context that's bound to the shutdown of this component. The reason for this is we don't want
-            // to delay shutdown. Note that this does not loose logs, because logs will be in the upload folder, and
+            // In the scenario where we are not forced to drain the upload queue on shutdown, we use a context that's bound to the shutdown of this component.
+            // The reason for this is we don't want to delay shutdown. Note that this does not lose logs, because logs will be in the upload folder, and
             // therefore uploaded by the next bootup.
-            return UploadFileToBlobStorageAsync(_shutdownBoundContext, logFilePaths[0]);
+            // On the other hand, if we can't leave the upload queue with pending work, use a non-cancellable context. This will make sure that all upload operations
+            // are completed on dispose.
+            var context = _configuration.DrainUploadsOnShutdown ? _nonCancellableContext : _shutdownBoundContext;
+
+            return UploadFileToBlobStorageAsync(context, logFilePaths[0]);
         }
 
         private Task<BoolResult> UploadFileToBlobStorageAsync(OperationContext context, LogFile logFile)
@@ -605,29 +614,20 @@ namespace BuildXL.Cache.Logging
         {
             return context.PerformOperationWithTimeoutAsync(Tracer, async (context) =>
             {
-                var blob = _container.GetBlockBlobReference(logFilePath.FileName);
+                var blob = _container.GetBlobClient(logFilePath.FileName);
 
-                if (_additionalBlobMetadata != null)
-                {
-                    foreach (KeyValuePair<string, string> pair in _additionalBlobMetadata)
-                    {
-                        blob.Metadata.Add(pair.Key, pair.Value);
-                    }
-                }
+                Dictionary<string, string> metadata = _additionalBlobMetadata?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value) ?? new Dictionary<string, string>();
 
                 if (logFile.UncompressedSizeBytes != null)
                 {
-                    blob.Metadata.Add("rawSizeBytes", logFile.UncompressedSizeBytes.ToString());
+                    metadata.Add("rawSizeBytes", logFile.UncompressedSizeBytes.ToString()!);
                 }
 
-                await blob.UploadFromFileAsync(
+                // The API here is slightly misleading, and just by passing a BlobUploadOptions the semantics is to create the blob if it doesn't exist.
+                // For the same reason, set the metadata together with the blob upload (and not before).
+                await blob.UploadAsync(
                     logFilePath.ToString(),
-                    accessCondition: AccessCondition.GenerateIfNotExistsCondition(),
-                    options: new BlobRequestOptions()
-                    {
-                        RetryPolicy = new Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry(),
-                    },
-                    operationContext: null,
+                    options: new BlobUploadOptions() { Metadata = metadata },
                     cancellationToken: context.Token);
 
                 return BoolResult.Success;

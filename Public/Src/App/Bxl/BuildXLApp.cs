@@ -50,7 +50,13 @@ using Strings = bxl.Strings;
 using BuildXL.Utilities.CrashReporting;
 using System.Runtime.InteropServices;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Cache.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
+using Statistic = BuildXL.Tracing.Statistic;
+using Azure.Identity;
+using Azure.Storage.Blobs;
+using Azure.Core.Pipeline;
+using Microsoft.WindowsAzure.Storage.RetryPolicies;
 
 namespace BuildXL
 {
@@ -443,7 +449,8 @@ namespace BuildXL
                    // TODO: Remove this once we can add timestamps for all logs by default
                    displayWarningErrorTime: m_configuration.InCloudBuild(),
                    inCloudBuild: m_configuration.InCloudBuild(),
-                   cancellationToken: m_cancellationSource.Token))
+                   cancellationToken: m_cancellationSource.Token,
+                   m_configuration.Layout.ObjectDirectory))
             {
                 // Mapping roots. Error is logged here to console because file logging may be set up under
                 // the mapped path. In success case, logging of root mappings is done below to ensure it goes
@@ -1399,6 +1406,7 @@ namespace BuildXL
 
             private readonly IConsole m_console;
             private readonly ILoggingConfiguration m_configuration;
+            private readonly AbsolutePath m_objectDirectory;
             private readonly PathTable m_pathTable;
             private readonly DateTime m_baseTime;
             private readonly CancellationToken m_cancellationToken;
@@ -1407,6 +1415,7 @@ namespace BuildXL
             private readonly Dictionary<AbsolutePath, TextWriterEventListener> m_listenersByPath = new Dictionary<AbsolutePath, TextWriterEventListener>();
             private bool m_disposed;
             private readonly bool m_displayWarningErrorTime;
+            private readonly bool m_notWorker;
             private TextWriterEventListener m_defaultFileListener;
             private TextWriterEventListener m_statusFileListener;
             private TextWriterEventListener m_tracerFileListener;
@@ -1443,7 +1452,8 @@ namespace BuildXL
                 BuildViewModel buildViewModel,
                 bool displayWarningErrorTime,
                 bool inCloudBuild,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                AbsolutePath objectDirectory)
             {
                 Contract.RequiresNotNull(console);
                 Contract.RequiresNotNull(configuration);
@@ -1451,9 +1461,11 @@ namespace BuildXL
                 m_console = console;
                 m_baseTime = startTime;
                 m_configuration = configuration;
+                m_objectDirectory = objectDirectory;
                 m_pathTable = pathTable;
                 m_cancellationToken = cancellationToken;
                 m_displayWarningErrorTime = displayWarningErrorTime;
+                m_notWorker = notWorker;
 
                 LogPath = configuration.Log.ToString(pathTable);
                 RootLogDirectory = Path.GetDirectoryName(LogPath);
@@ -1554,6 +1566,11 @@ namespace BuildXL
                     if (m_configuration.CustomLog != null && m_configuration.CustomLog.Count > 0)
                     {
                         ConfigureAdditionalFileLoggers(m_configuration.CustomLog);
+                    }
+
+                    if (m_configuration.LogToKusto)
+                    {
+                        ConfigureKustoLogging(loggingContext);
                     }
                 }
             }
@@ -1774,6 +1791,94 @@ namespace BuildXL
                 return listener;
             }
 
+            private BlobWriterEventListener AddBlobBasedListener(Func<AzureBlobStorageLog, BlobWriterEventListener> listenerCreator)
+            {
+                // As a general consideration: all errors are non blocking, we never fail a build because the kusto uploading failed. We
+                // print all the errors as warning in the console (similarly to what happens with other etw listeners).
+
+                // The log upload needs a 'workspace' directory to write the logs to before uploading them to the blob storage.
+                // The workspace directory will be emptied after logs are uploaded, so it is expected to be empty when the build finishes.
+                // If for any reason this doesn't happen and the directory is preserved, the next time a new build starts, the remaining content
+                // will be uploaded (and emptied).
+                // A directory under the object directory will serve this purpose
+                var workspacePath = m_objectDirectory.Combine(m_pathTable, "BlobUpload").ToString(m_pathTable);
+                try
+                {
+                    Directory.CreateDirectory(workspacePath);
+                }
+                catch (Exception ex)
+                {
+                    WriteWarningToConsole(
+                        Strings.App_ConfigureFileLogging_CantCreateDirectory,
+                        workspacePath,
+                        ex.GetLogEventMessage());
+                }
+
+                // Specify the Client and Tenant ID if using user-assigned managed identities
+                // This should point to the managed identity that has Contribute permissions to write into the blob storage
+                var credentialOptions = new DefaultAzureCredentialOptions
+                {
+                    ManagedIdentityClientId = m_configuration.LogToKustoIdentityId,
+                    TenantId = m_configuration.LogToKustoTenantId,
+                };
+
+                if (!Uri.TryCreate(m_configuration.LogToKustoBlobUri, UriKind.Absolute, out Uri uri))
+                {
+                    WriteWarningToConsole(
+                        Strings.App_ConfigureFileLogging_CannotCreateBlobListener,
+                        $"Invalid uri '{m_configuration.LogToKustoBlobUri}'.");
+                    return null;
+                }
+
+                if (uri.Segments.Length != 2)
+                {
+                    WriteWarningToConsole(
+                        Strings.App_ConfigureFileLogging_CannotCreateBlobListener,
+                        $"Uri expected format is 'https://<storage-account-name>.blob.core.windows.net/<container-name>'.");
+                    return null;
+                }
+
+                var credentials = new DefaultAzureCredential(credentialOptions);
+                var blobServiceClient = new BlobServiceClient(new Uri(uri.GetLeftPart(UriPartial.Authority)), credentials);
+
+                // In case any error happens while uploading messages to Kusto, log those as warnings
+                // To guard for the case where an error manifests on every message that gets uploaded, and in order to not flood the console,
+                // we only log the first error and ignore the rest.
+                var logger = new Cache.ContentStore.Logging.Logger(
+                    new SingleErrorLog((str) => WriteWarningToConsole(Strings.App_ConfigureFileLogging_BlobListenerError, str)));
+
+                try
+                {
+                    var blobLog = new AzureBlobStorageLog(
+                        new AzureBlobStorageLogConfiguration(new Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(workspacePath))
+                        {
+                            ContainerName = uri.Segments[1],
+                            // Make sure the upload queue always get drained on shutdown, since after the build is done we won't have the opportunity to do it again
+                            DrainUploadsOnShutdown = true,
+                        },
+                        new Cache.ContentStore.Tracing.Internal.OperationContext(new Cache.ContentStore.Interfaces.Tracing.Context(logger), m_cancellationToken),
+                        SystemClock.Instance,
+                        new Cache.ContentStore.FileSystem.PassThroughFileSystem(),
+                        new BasicTelemetryFieldsProvider(),
+                        blobServiceClient,
+                        additionalBlobMetadata: null);
+
+                    var blobListener = listenerCreator(blobLog);
+                    AddListener(blobListener);
+
+                    return blobListener;
+                }
+                catch (Exception ex)
+                {
+                    // The most likely cause of this exception is an auth failure. But more generally, we expect any problem with the upload
+                    // to manifest on startup, so this warning should capture most of the error cases.
+                    WriteWarningToConsole(
+                        Strings.App_ConfigureFileLogging_CannotCreateBlobListener,
+                        ex.GetLogEventMessage());
+                    return null;
+                }
+            }
+
             private void ConfigureFileLogging()
             {
                 m_defaultFileListener = AddFileBasedListener(
@@ -1835,6 +1940,29 @@ namespace BuildXL
                     });
             }
 
+            private void ConfigureKustoLogging(LoggingContext loggingContext)
+            {
+                var eventMask = new EventMask(enabledEvents: null, disabledEvents: m_configuration.NoLog, nonMaskableLevel: EventLevel.Error);
+                
+                AddBlobBasedListener(
+                    (blobLog) =>
+                    {
+                        return new BlobWriterEventListener(
+                            Events.Log,
+                            blobLog,
+                            m_baseTime,
+                            m_warningManager.GetState,
+                            !m_notWorker,
+                            loggingContext,
+                            (str) => WriteWarningToConsole(Strings.App_ConfigureFileLogging_BlobListenerError, str),
+                            m_configuration.FileVerbosity.ToEventLevel(),
+                            TimeDisplay.Milliseconds,
+                            eventMask,
+                            onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
+                            pathTranslator: PathTranslatorForLogging);
+                        });
+            }
+
             /// <summary>
             /// Registers generated event sources as merged event sources
             ///
@@ -1864,6 +1992,11 @@ namespace BuildXL
             private void WriteErrorToConsole(string format, params object[] args)
             {
                 m_console.WriteOutputLine(MessageLevel.Error, string.Format(CultureInfo.InvariantCulture, format, args));
+            }
+
+            private void WriteWarningToConsole(string format, params object[] args)
+            {
+                m_console.WriteOutputLine(MessageLevel.Warning, string.Format(CultureInfo.InvariantCulture, format, args));
             }
 
             internal void EnableEtwOutputLogging(LoggingContext loggingContext)

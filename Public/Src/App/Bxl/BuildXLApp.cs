@@ -1814,6 +1814,15 @@ namespace BuildXL
                         ex.GetLogEventMessage());
                 }
 
+                // Let's validate all the required arguments where provided.
+                if (!ValidateBlobConfiguration(out Uri uri, out string failure))
+                {
+                    WriteWarningToConsole(
+                        Strings.App_ConfigureFileLogging_CannotCreateBlobListener,
+                        failure);
+                    return null;
+                }
+
                 // Specify the Client and Tenant ID if using user-assigned managed identities
                 // This should point to the managed identity that has Contribute permissions to write into the blob storage
                 var credentialOptions = new DefaultAzureCredentialOptions
@@ -1821,22 +1830,6 @@ namespace BuildXL
                     ManagedIdentityClientId = m_configuration.LogToKustoIdentityId,
                     TenantId = m_configuration.LogToKustoTenantId,
                 };
-
-                if (!Uri.TryCreate(m_configuration.LogToKustoBlobUri, UriKind.Absolute, out Uri uri))
-                {
-                    WriteWarningToConsole(
-                        Strings.App_ConfigureFileLogging_CannotCreateBlobListener,
-                        $"Invalid uri '{m_configuration.LogToKustoBlobUri}'.");
-                    return null;
-                }
-
-                if (uri.Segments.Length != 2)
-                {
-                    WriteWarningToConsole(
-                        Strings.App_ConfigureFileLogging_CannotCreateBlobListener,
-                        $"Uri expected format is 'https://<storage-account-name>.blob.core.windows.net/<container-name>'.");
-                    return null;
-                }
 
                 var credentials = new DefaultAzureCredential(credentialOptions);
                 var blobServiceClient = new BlobServiceClient(new Uri(uri.GetLeftPart(UriPartial.Authority)), credentials);
@@ -1877,6 +1870,36 @@ namespace BuildXL
                         ex.GetLogEventMessage());
                     return null;
                 }
+            }
+
+            private bool ValidateBlobConfiguration(out Uri uri, out string failure)
+            {
+                if (!Uri.TryCreate(m_configuration.LogToKustoBlobUri, UriKind.Absolute, out uri))
+                {
+                    failure = $"Invalid uri (option /logToKustoBlobUri): '{m_configuration.LogToKustoBlobUri}'.";
+                    return false;
+                }
+
+                if (uri.Segments.Length != 2)
+                {
+                    failure = $"Uri expected format is 'https://<storage-account-name>.blob.core.windows.net/<container-name>'.";
+                    return false;
+                }
+
+                if (string.IsNullOrEmpty(m_configuration.LogToKustoIdentityId))
+                {
+                    failure = "The identity id (option /logToKustoIdentityId) was not provided.";
+                    return false;
+                }
+
+                if (string.IsNullOrEmpty(m_configuration.LogToKustoTenantId))
+                {
+                    failure = "The tenant id (option /logToKustoTenantId) was not provided.";
+                    return false;
+                }
+
+                failure = string.Empty;
+                return true;
             }
 
             private void ConfigureFileLogging()

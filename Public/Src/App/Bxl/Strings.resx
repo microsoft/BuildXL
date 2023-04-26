@@ -1145,7 +1145,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Always use remote detours injection when launching processes from a 32-bit process. Defaults to true.</value>
   </data>
   <data name="HelpText_DisplayHelp_LogToKusto" xml:space="preserve">
-    <value>Whether to send log events to Kusto. If enabled, a valid authentication mechanism should be available with enough permissions to write into the blob storage account where logs are piped to Kusto. Use /logToKustoBlobUri:https://{storage-account-name}/{container-name} /logToKustoIdentityId:{Identity guid} and /logToKustoTenantId:{Tenant guid} to specify the destination of the log messages. If not specified, defaults point to a BuildXL-owned cluster.</value>
+    <value>Whether to send log events to Kusto. If enabled, a valid authentication mechanism should be available with enough permissions to write into the blob storage account where logs are piped to Kusto. Use /logToKustoBlobUri:https://{storage-account-name}/{container-name} /logToKustoIdentityId:{Identity guid} and /logToKustoTenantId:{Tenant guid} to specify the destination of the log messages.</value>
   </data>
   <data name="App_ConfigureFileLogging_CannotCreateBlobListener" xml:space="preserve">
     <value>The option /logToKusto has been specified, but the connection to the blob storage account for sending log events to Kusto could not be established: {0}</value>

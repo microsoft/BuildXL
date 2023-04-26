@@ -13,16 +13,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
     /// <nodoc />
     public sealed class LoggingConfiguration : WarningHandling, ILoggingConfiguration
     {
-        // This is the ID of the managed identity that has contribution permissions to the bxl-owned blob container
-        // that is used for Kusto ingestion.
-        private const string DefaultManagedIdentityClientId = "6e0959cf-a9ba-4988-bbf1-7facd9deda51";
-        // Tenant ID of the ADO organization owning the blob storage account
-        private const string DefaultTenantId = "975f013f-7f24-47e8-a7d3-abc4752bf346";
-        // Uri of the bxl-owned blob storage account to push logs to
-        private const string DefaultKustoIngestionBlobUri = "https://adomessages.blob.core.windows.net/";
-        // Name of the blob container under the storage account to push logs to
-        private const string DefaultKustoIngestionBlobContainerName = "adomessages";
-
         /// <nodoc />
         public LoggingConfiguration()
         {
@@ -76,9 +66,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             PerfCollectorFrequencyMs = 5_000;
             LogToKusto = false;
-            LogToKustoBlobUri = $"{DefaultKustoIngestionBlobUri}/{DefaultKustoIngestionBlobContainerName}";
-            LogToKustoIdentityId = DefaultManagedIdentityClientId;
-            LogToKustoTenantId = DefaultTenantId;
         }
 
         /// <nodoc />

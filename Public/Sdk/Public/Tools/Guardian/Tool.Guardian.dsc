@@ -45,6 +45,7 @@ const guardianUntrackedDirectories = addIfLazy(Context.getCurrentHost().os === "
     ...addIf(cloudBuildTempDirectory !== undefined, cloudBuildTempDirectory),
     // Accessed by Microsoft.Guardian.Cli, not clear on why this occurs yet
     d`${Context.getMount("ProgramFiles").path}/Mellanox/MLNX_VPI`,
+    d`${Context.getMount("ProgramFiles").path}/MICROSOFT MONITORING AGENT`,
 ]);
 
 /**

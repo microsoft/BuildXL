@@ -1089,7 +1089,7 @@ namespace BuildXL.Native.IO.Windows
                     throw ThrowForNativeFailure(hr, "SetThreadErrorMode");
                 }
 
-                Contract.Assume(currentErrorMode == oldErrorModeViaSet, "Thread error mode should only be change from calls on this thread");
+                Contract.Assert(currentErrorMode == oldErrorModeViaSet, "Thread error mode should only be change from calls on this thread");
 
                 return new ErrorModeContext(oldErrorMode: currentErrorMode, thisErrorMode: thisErrorMode);
             }
@@ -1113,8 +1113,8 @@ namespace BuildXL.Native.IO.Windows
             /// </summary>
             public void Dispose()
             {
-                Contract.Assume(m_isValid);
-                Contract.Assume(m_threadId == Thread.CurrentThread.ManagedThreadId, "An ErrorModeContext must be disposed on the same thread on which it was created");
+                Contract.Assert(m_isValid);
+                Contract.Assert(m_threadId == Thread.CurrentThread.ManagedThreadId, "An ErrorModeContext must be disposed on the same thread on which it was created");
 
                 int errorModeBeforeRestore;
                 if (!SetThreadErrorMode(m_oldErrorMode, out errorModeBeforeRestore))
@@ -1123,7 +1123,7 @@ namespace BuildXL.Native.IO.Windows
                     throw ThrowForNativeFailure(hr, "SetThreadErrorMode");
                 }
 
-                Contract.Assume(errorModeBeforeRestore == m_thisErrorMode, "The thread error mode changed within the ErrorModeContext, but was not restored before popping this context.");
+                Contract.Assert(errorModeBeforeRestore == m_thisErrorMode, "The thread error mode changed within the ErrorModeContext, but was not restored before popping this context.");
             }
         }
 
@@ -1174,49 +1174,48 @@ namespace BuildXL.Native.IO.Windows
 
             NativeUsnRecordHeader* recordHeader = (NativeUsnRecordHeader*)recordBuffer;
 
-            Contract.Assume(
+            Contract.Assert(
                 bytesReturned >= NativeUsnRecordHeader.Size,
-                "Not enough data returned for a valid USN record header");
+                $"Not enough data returned for a valid USN record header. The size of a valid header is {NativeUsnRecordHeader.Size} bytes, but only {bytesReturned} byte(s) returned.");
 
-            Contract.Assume(
+            Contract.Assert(
                 bytesReturned == recordHeader->RecordLength,
-                "RecordLength field disagrees from number of bytes actually returned; but we were expecting exactly one record.");
+                $"RecordLength field disagrees from number of bytes actually returned; but we were expecting exactly one record. Record length should be {recordHeader->RecordLength} byte(s), but only {bytesReturned} byte(s) returned.");
 
             MiniUsnRecord resultRecord;
             if (recordHeader->MajorVersion == 3)
             {
-                Contract.Assume(!forceJournalVersion2);
+                Contract.Assert(!forceJournalVersion2);
 
-                Contract.Assume(
+                Contract.Assert(
                     bytesReturned >= NativeUsnRecordV3.MinimumSize && bytesReturned <= NativeUsnRecordV3.MaximumSize,
-                    "FSCTL_READ_FILE_USN_DATA returned an amount of data that does not correspond to a valid USN_RECORD_V3.");
+                    $"FSCTL_READ_FILE_USN_DATA returned an amount of data that does not correspond to a valid USN_RECORD_V3 (minor: {recordHeader->MinorVersion}). Record length: {bytesReturned} (valid length: {NativeUsnRecordV3.MinimumSize} <= length <= {NativeUsnRecordV3.MaximumSize}.");
 
                 NativeUsnRecordV3* record = (NativeUsnRecordV3*)recordBuffer;
 
-                Contract.Assume(
+                Contract.Assert(
                     record->Reason == 0 && record->TimeStamp == 0 && record->SourceInfo == 0,
-                    "FSCTL_READ_FILE_USN_DATA scrubs these fields. Marshalling issue?");
+                    "FSCTL_READ_FILE_USN_DATA scrubs 'Reason', 'TimeStamp', and 'SourceInfo' fields. Marshalling issue?");
 
                 resultRecord = new MiniUsnRecord(record->FileReferenceNumber, record->Usn);
             }
             else if (recordHeader->MajorVersion == 2)
             {
-                Contract.Assume(
+                Contract.Assert(
                     bytesReturned >= NativeUsnRecordV2.MinimumSize && bytesReturned <= NativeUsnRecordV2.MaximumSize,
-                    "FSCTL_READ_FILE_USN_DATA returned an amount of data that does not correspond to a valid USN_RECORD_V2.");
+                    $"FSCTL_READ_FILE_USN_DATA returned an amount of data that does not correspond to a valid USN_RECORD_V2 (minor: {recordHeader->MinorVersion}). Record length: {bytesReturned} (valid length: {NativeUsnRecordV2.MinimumSize} <= length <= {NativeUsnRecordV2.MaximumSize}.");
 
                 NativeUsnRecordV2* record = (NativeUsnRecordV2*)recordBuffer;
 
-                Contract.Assume(
+                Contract.Assert(
                     record->Reason == 0 && record->TimeStamp == 0 && record->SourceInfo == 0,
-                    "FSCTL_READ_FILE_USN_DATA scrubs these fields. Marshalling issue?");
+                    "FSCTL_READ_FILE_USN_DATA scrubs 'Reason', 'TimeStamp', and 'SourceInfo' fields. Marshalling issue?");
 
                 resultRecord = new MiniUsnRecord(new FileId(0, record->FileReferenceNumber), record->Usn);
             }
             else
             {
-                Contract.Assume(false, "An unrecognized record version was returned, even though version 2 or 3 was requested.");
-                throw new InvalidOperationException("Unreachable");
+                throw new NotSupportedException($"An unsupported major record version '{recordHeader->MajorVersion}' was returned by FSCTL_READ_FILE_USN_DATA, even though version 2 or 3 was requested.");
             }
 
             Logger.Log.StorageReadUsn(m_loggingContext, resultRecord.FileId.High, resultRecord.FileId.Low, resultRecord.Usn.Value);
@@ -1250,6 +1249,8 @@ namespace BuildXL.Native.IO.Windows
             int bytesReturned;
             bool ioctlSuccess;
             int error;
+
+            string fsctlApi = isJournalUnprivileged ? "FSCTL_READ_UNPRIVILEGED_USN_JOURNAL" : "FSCTL_READ_USN_JOURNAL";
 
             fixed (byte* pRecordBuffer = buffer)
             {
@@ -1292,7 +1293,7 @@ namespace BuildXL.Native.IO.Windows
                 return new ReadUsnJournalResult(errorStatus, nextUsn: new Usn(0), records: null);
             }
 
-            Contract.Assume(
+            Contract.Assert(
                 bytesReturned >= sizeof(ulong),
                 "The output buffer should always contain the updated USN cursor (even if no records were returned)");
 
@@ -1302,31 +1303,33 @@ namespace BuildXL.Native.IO.Windows
             {
                 nextUsn = *(ulong*) recordBufferBase;
                 byte* currentRecordBase = recordBufferBase + sizeof(ulong);
-                Contract.Assume(currentRecordBase != null);
+                Contract.Assert(currentRecordBase != null);
 
                 // One past the end of the record part of the buffer
                 byte* recordsEnd = recordBufferBase + bytesReturned;
 
                 while (currentRecordBase < recordsEnd)
                 {
-                    Contract.Assume(
+                    Contract.Assert(
                         currentRecordBase + NativeUsnRecordHeader.Size <= recordsEnd,
-                        "Not enough data returned for a valid USN record header");
+                        $"Not enough data returned for a valid USN record header. The size of a valid header is {NativeUsnRecordHeader.Size} bytes, but only {bytesReturned - sizeof(ulong)} byte(s) returned.");
 
                     NativeUsnRecordHeader* currentRecordHeader = (NativeUsnRecordHeader*) currentRecordBase;
 
-                    Contract.Assume(
+                    Contract.Assert(
                         currentRecordBase + currentRecordHeader->RecordLength <= recordsEnd,
                         "RecordLength field advances beyond the buffer");
 
                     if (currentRecordHeader->MajorVersion == 3)
                     {
-                        Contract.Assume(!forceJournalVersion2);
+                        Contract.Assert(!forceJournalVersion2);
 
                         if (!(currentRecordHeader->RecordLength >= NativeUsnRecordV3.MinimumSize &&
-                             currentRecordHeader->RecordLength <= NativeUsnRecordV3.MaximumSize))
+                              currentRecordHeader->RecordLength <= NativeUsnRecordV3.MaximumSize))
                         {
-                            Contract.Assert(false, "Size in record header does not correspond to a valid USN_RECORD_V3. Header record length: " + currentRecordHeader->RecordLength);
+                            Contract.Assert(
+                                false,
+                                $"Size in record header returned by {fsctlApi} does not correspond to a valid USN_RECORD_V3 (minor: {currentRecordHeader->MinorVersion}). Record length: {currentRecordHeader->RecordLength} (valid length: {NativeUsnRecordV3.MinimumSize} <= length <= {NativeUsnRecordV3.MaximumSize}");
                         }
 
                         NativeUsnRecordV3* record = (NativeUsnRecordV3*) currentRecordBase;
@@ -1342,7 +1345,9 @@ namespace BuildXL.Native.IO.Windows
                         if (!(currentRecordHeader->RecordLength >= NativeUsnRecordV2.MinimumSize &&
                               currentRecordHeader->RecordLength <= NativeUsnRecordV2.MaximumSize))
                         {
-                            Contract.Assert(false, "Size in record header does not correspond to a valid USN_RECORD_V2. Header record length: " + currentRecordHeader->RecordLength);
+                            Contract.Assert(
+                                false,
+                                $"Size in record header returned by {fsctlApi} does not correspond to a valid USN_RECORD_V2 (minor: {currentRecordHeader->MinorVersion}). Record length: {currentRecordHeader->RecordLength} (valid length: {NativeUsnRecordV2.MinimumSize} <= length <= {NativeUsnRecordV2.MaximumSize}");
                         }
 
                         NativeUsnRecordV2* record = (NativeUsnRecordV2*) currentRecordBase;
@@ -1355,10 +1360,7 @@ namespace BuildXL.Native.IO.Windows
                     }
                     else
                     {
-                        Contract.Assume(
-                            false,
-                            "An unrecognized record version was returned, even though version 2 or 3 was requested.");
-                        throw new InvalidOperationException("Unreachable");
+                        throw new NotSupportedException($"An unsupported major record version '{currentRecordHeader->MajorVersion}' was returned by {fsctlApi}, even though version 2 or 3 was requested.");
                     }
 
                     currentRecordBase += currentRecordHeader->RecordLength;
@@ -1414,7 +1416,7 @@ namespace BuildXL.Native.IO.Windows
                 return new QueryUsnJournalResult(errorStatus, data: null);
             }
 
-            Contract.Assume(bytesReturned == QueryUsnJournalData.Size, "Output buffer size mismatched (not all fields populated?)");
+            Contract.Assert(bytesReturned == QueryUsnJournalData.Size, "Output buffer size mismatched (not all fields populated?)");
 
             return new QueryUsnJournalResult(QueryUsnJournalStatus.Success, data);
         }
@@ -1448,7 +1450,7 @@ namespace BuildXL.Native.IO.Windows
                 throw ThrowForNativeFailure(error, "DeviceIoControl(FSCTL_WRITE_USN_CLOSE_RECORD)");
             }
 
-            Contract.Assume(bytesReturned == sizeof(ulong));
+            Contract.Assert(bytesReturned == sizeof(ulong));
             Logger.Log.StorageCheckpointUsn(m_loggingContext, writtenUsn);
 
             return new Usn(writtenUsn);
@@ -1581,7 +1583,7 @@ namespace BuildXL.Native.IO.Windows
                 }
 
                 filenameBuffer[destination.Length] = (char)0;
-                Contract.Assume(buffer.Length > 2 && b[buffer.Length - 1] == 0 && b[buffer.Length - 2] == 0);
+                Contract.Assert(buffer.Length > 2 && b[buffer.Length - 1] == 0 && b[buffer.Length - 2] == 0);
 
                 return SetFileInformationByHandle(handle, (uint)FileInfoByHandleClass.FileRenameInfo, (IntPtr)renameInfo, structSizeIncludingDestination);
             }
@@ -1843,15 +1845,15 @@ namespace BuildXL.Native.IO.Windows
             {
                 Logger.Log.StorageTryOpenDirectoryFailure(m_loggingContext, directoryPath, hr);
                 handle = null;
-                Contract.Assume(hr != 0);
+                Contract.Assert(hr != 0);
                 var result = OpenFileResult.Create(directoryPath, hr, fileMode, handleIsValid: false);
-                Contract.Assume(!result.Succeeded);
+                Contract.Assert(!result.Succeeded);
                 return result;
             }
             else
             {
                 var result = OpenFileResult.Create(directoryPath, hr, fileMode, handleIsValid: true);
-                Contract.Assume(result.Succeeded);
+                Contract.Assert(result.Succeeded);
                 return result;
             }
         }
@@ -1887,15 +1889,15 @@ namespace BuildXL.Native.IO.Windows
             {
                 Logger.Log.StorageTryOpenOrCreateFileFailure(m_loggingContext, path, (int)creationDisposition, hr);
                 handle = null;
-                Contract.Assume(hr != 0);
+                Contract.Assert(hr != 0);
                 var result = OpenFileResult.Create(path, hr, creationDisposition, handleIsValid: false);
-                Contract.Assume(!result.Succeeded);
+                Contract.Assert(!result.Succeeded);
                 return result;
             }
             else
             {
                 var result = OpenFileResult.Create(path, hr, creationDisposition, handleIsValid: true);
-                Contract.Assume(result.Succeeded);
+                Contract.Assert(result.Succeeded);
                 return result;
             }
         }
@@ -1915,7 +1917,7 @@ namespace BuildXL.Native.IO.Windows
             if (newHandle.IsInvalid)
             {
                 reopenedHandle = null;
-                Contract.Assume(hr != NativeIOConstants.ErrorSuccess, "Invalid handle should imply an error.");
+                Contract.Assert(hr != NativeIOConstants.ErrorSuccess, "Invalid handle should imply an error.");
                 switch (hr)
                 {
                     case NativeIOConstants.ErrorSharingViolation:
@@ -2029,7 +2031,7 @@ namespace BuildXL.Native.IO.Windows
 
             // Note that we do not wrap returnedHandle as a safe handle. This is because we would otherwise have two safe handles
             // wrapping the same underlying handle value, and could then double-free it.
-            Contract.Assume(returnedHandle == port.DangerousGetHandle());
+            Contract.Assert(returnedHandle == port.DangerousGetHandle());
 
             // TODO:454491: We could also set FileSkipSetEventOnHandle here, such that the file's internal event is not cleared / signaled by the IO manager.
             //       However, this is a compatibility problem for existing usages of e.g. DeviceIoControl that do not specify an OVERLAPPED (which
@@ -2089,14 +2091,14 @@ namespace BuildXL.Native.IO.Windows
             {
                 // Success: IO completed synchronously and we will assume no completion packet is coming (due to FileCompletionMode.FileSkipCompletionPortOnSuccess).
                 GetCompletedOverlappedResult(handle, pinnedOverlapped, out int error, out int bytesTransferred);
-                Contract.Assume(error == NativeIOConstants.ErrorSuccess, "IO operation indicated success, but the completed OVERLAPPED did not contain ERROR_SUCCESS");
+                Contract.Assert(error == NativeIOConstants.ErrorSuccess, "IO operation indicated success, but the completed OVERLAPPED did not contain ERROR_SUCCESS");
                 return new FileAsyncIOResult(FileAsyncIOStatus.Succeeded, bytesTransferred: bytesTransferred, error: NativeIOConstants.ErrorSuccess);
             }
             else
             {
                 // Pending (a completion packet is expected) or synchronous failure.
                 int error = Marshal.GetLastWin32Error();
-                Contract.Assume(error != NativeIOConstants.ErrorSuccess);
+                Contract.Assert(error != NativeIOConstants.ErrorSuccess);
 
                 bool completedSynchronously = error != NativeIOConstants.ErrorIOPending;
                 return new FileAsyncIOResult(
@@ -2242,7 +2244,7 @@ namespace BuildXL.Native.IO.Windows
                 if (!result)
                 {
                     error = Marshal.GetLastWin32Error();
-                    Contract.Assume(error != NativeIOConstants.ErrorSuccess);
+                    Contract.Assert(error != NativeIOConstants.ErrorSuccess);
                 }
 
                 return new IOCompletionPortDequeueResult(
@@ -2453,15 +2455,15 @@ namespace BuildXL.Native.IO.Windows
             if (reparsePointHandle.IsInvalid)
             {
                 reparsePointHandle = null;
-                Contract.Assume(hr != 0);
+                Contract.Assert(hr != 0);
                 var result = OpenFileResult.Create(reparsePoint, hr, FileMode.Open, handleIsValid: false);
-                Contract.Assume(!result.Succeeded);
+                Contract.Assert(!result.Succeeded);
                 return result;
             }
             else
             {
                 var result = OpenFileResult.Create(reparsePoint, hr, FileMode.Open, handleIsValid: true);
-                Contract.Assume(result.Succeeded);
+                Contract.Assert(result.Succeeded);
                 return result;
             }
         }
@@ -2496,9 +2498,9 @@ namespace BuildXL.Native.IO.Windows
                         string volumeGuidPathString = volumeNameBuffer.ToString();
                         volumeNameBuffer.Clear();
 
-                        Contract.Assume(!string.IsNullOrEmpty(volumeGuidPathString) && volumeGuidPathString[volumeGuidPathString.Length - 1] == '\\');
+                        Contract.Assert(!string.IsNullOrEmpty(volumeGuidPathString) && volumeGuidPathString[volumeGuidPathString.Length - 1] == '\\');
                         bool volumeGuidPathParsed = VolumeGuidPath.TryCreate(volumeGuidPathString, out VolumeGuidPath volumeGuidPath);
-                        Contract.Assume(volumeGuidPathParsed, "FindFirstVolume / FindNextVolume promise to return volume GUID paths");
+                        Contract.Assert(volumeGuidPathParsed, "FindFirstVolume / FindNextVolume promise to return volume GUID paths");
 
                         if (TryOpenDirectory(volumeGuidPathString, FileShare.Delete | FileShare.Read | FileShare.Write, out SafeFileHandle volumeRoot).Succeeded)
                         {
@@ -2553,16 +2555,16 @@ namespace BuildXL.Native.IO.Windows
             {
                 Logger.Log.StorageTryOpenFileByIdFailure(m_loggingContext, fileId.High, fileId.Low, GetVolumeSerialNumberByHandle(existingHandleOnVolume), hr);
                 handle = null;
-                Contract.Assume(hr != 0);
+                Contract.Assert(hr != 0);
 
                 var result = OpenFileResult.CreateForOpeningById(hr, FileMode.Open, handleIsValid: false);
-                Contract.Assume(!result.Succeeded);
+                Contract.Assert(!result.Succeeded);
                 return result;
             }
             else
             {
                 var result = OpenFileResult.CreateForOpeningById(hr, FileMode.Open, handleIsValid: true);
-                Contract.Assume(result.Succeeded);
+                Contract.Assert(result.Succeeded);
                 return result;
             }
         }
@@ -2822,7 +2824,7 @@ namespace BuildXL.Native.IO.Windows
                     if (hr == 0x3)
                     {
                         // This can happen if the volume
-                        Contract.Assume(!volumeGuidPath);
+                        Contract.Assert(!volumeGuidPath);
                         return GetFinalPathNameByHandle(handle, volumeGuidPath: true);
                     }
                     else
@@ -2831,7 +2833,7 @@ namespace BuildXL.Native.IO.Windows
                     }
                 }
 
-                Contract.Assume(neededSize < NativeIOConstants.MaxLongPath);
+                Contract.Assert(neededSize < NativeIOConstants.MaxLongPath);
             }
             while (neededSize >= pathBuffer.Capacity);
 
@@ -3112,7 +3114,7 @@ namespace BuildXL.Native.IO.Windows
                 if (findHandle.IsInvalid)
                 {
                     int hr = Marshal.GetLastWin32Error();
-                    Contract.Assume(hr != NativeIOConstants.ErrorSuccess);
+                    Contract.Assert(hr != NativeIOConstants.ErrorSuccess);
                     return EnumerateDirectoryResult.CreateFromHResult(directoryPath, hr);
                 }
 
@@ -3159,7 +3161,7 @@ namespace BuildXL.Native.IO.Windows
                         }
                         else
                         {
-                            Contract.Assume(hr != NativeIOConstants.ErrorSuccess);
+                            Contract.Assert(hr != NativeIOConstants.ErrorSuccess);
 
                             // Maybe we can fail ACLs in the middle of enumerating. Do we nead FILE_READ_ATTRIBUTES on each file? That would be surprising
                             // since the security descriptors aren't in the directory file. All other canonical statuses have to do with beginning enumeration
@@ -3186,7 +3188,7 @@ namespace BuildXL.Native.IO.Windows
                 if (findHandle.IsInvalid)
                 {
                     int hr = Marshal.GetLastWin32Error();
-                    Contract.Assume(hr != NativeIOConstants.ErrorSuccess);
+                    Contract.Assert(hr != NativeIOConstants.ErrorSuccess);
                     return EnumerateDirectoryResult.CreateFromHResult(directoryPath, hr);
                 }
 
@@ -3228,7 +3230,7 @@ namespace BuildXL.Native.IO.Windows
                         }
                         else
                         {
-                            Contract.Assume(hr != NativeIOConstants.ErrorSuccess);
+                            Contract.Assert(hr != NativeIOConstants.ErrorSuccess);
 
                             // Maybe we can fail ACLs in the middle of enumerating. Do we need FILE_READ_ATTRIBUTES on each file? That would be surprising
                             // since the security descriptors aren't in the directory file. All other canonical statuses have to do with beginning enumeration
@@ -3276,7 +3278,7 @@ namespace BuildXL.Native.IO.Windows
                 if (findHandle.IsInvalid)
                 {
                     int hr = Marshal.GetLastWin32Error();
-                    Contract.Assume(hr != NativeIOConstants.ErrorFileNotFound);
+                    Contract.Assert(hr != NativeIOConstants.ErrorFileNotFound);
                     var result = EnumerateDirectoryResult.CreateFromHResult(directoryPath, hr);
                     accumulators.Current.Succeeded = false;
                     return result;
@@ -3331,7 +3333,7 @@ namespace BuildXL.Native.IO.Windows
                                 hr);
                         }
 
-                        Contract.Assume(hr != NativeIOConstants.ErrorSuccess);
+                        Contract.Assert(hr != NativeIOConstants.ErrorSuccess);
                         return new EnumerateDirectoryResult(
                             directoryPath,
                             EnumerateDirectoryStatus.UnknownError,
@@ -3564,7 +3566,7 @@ namespace BuildXL.Native.IO.Windows
 
             if (ioctlSuccess)
             {
-                Contract.Assume(bytesReturned >= Marshal.SizeOf<DEVICE_SEEK_PENALTY_DESCRIPTOR>(), "Query returned fewer bytes than length of output data");
+                Contract.Assert(bytesReturned >= Marshal.SizeOf<DEVICE_SEEK_PENALTY_DESCRIPTOR>(), "Query returned fewer bytes than length of output data");
                 hasSeekPenalty = seekPropertyDescriptor.IncursSeekPenalty;
                 return true;
             }

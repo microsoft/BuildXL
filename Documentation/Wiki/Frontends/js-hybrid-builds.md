@@ -91,7 +91,7 @@ With this configuration, every time there is a JavaScript project to schedule, t
 ```typescript
 // test-telemetry.dsc
 
-@@public export function runJestWithTelemetry(JavaScriptProject project) => TransformerExecuteResult {
+@@public export function runJestWithTelemetry(project: JavaScriptProject) => TransformerExecuteResult {
     ...
 }
 ```
@@ -119,7 +119,7 @@ Let's see now how this custom scheduler can be implemented:
 // test-telemetry.dsc
 import * as JestTelemetry from "Sdk.JestTelemetry";
 
-@@public export function runJestWithTelemetry(JavaScriptProject project) : TransformerExecuteResult {
+@@public export function runJestWithTelemetry(project: JavaScriptProject) : TransformerExecuteResult {
     if (scriptCommandName !== "test") {
         return undefined;
     }

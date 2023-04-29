@@ -1189,7 +1189,7 @@ namespace BuildXL.Native.IO.Windows
 
                 Contract.Assert(
                     bytesReturned >= NativeUsnRecordV3.MinimumSize && bytesReturned <= NativeUsnRecordV3.MaximumSize,
-                    $"FSCTL_READ_FILE_USN_DATA returned an amount of data that does not correspond to a valid USN_RECORD_V3 (minor: {recordHeader->MinorVersion}). Record length: {bytesReturned} (valid length: {NativeUsnRecordV3.MinimumSize} <= length <= {NativeUsnRecordV3.MaximumSize}.");
+                    $"FSCTL_READ_FILE_USN_DATA returned an amount of data that does not correspond to a valid USN_RECORD_V3 (minor: {recordHeader->MinorVersion}). Record length: {bytesReturned} (valid length: {NativeUsnRecordV3.MinimumSize} <= length <= {NativeUsnRecordV3.MaximumSize}).");
 
                 NativeUsnRecordV3* record = (NativeUsnRecordV3*)recordBuffer;
 
@@ -1203,7 +1203,7 @@ namespace BuildXL.Native.IO.Windows
             {
                 Contract.Assert(
                     bytesReturned >= NativeUsnRecordV2.MinimumSize && bytesReturned <= NativeUsnRecordV2.MaximumSize,
-                    $"FSCTL_READ_FILE_USN_DATA returned an amount of data that does not correspond to a valid USN_RECORD_V2 (minor: {recordHeader->MinorVersion}). Record length: {bytesReturned} (valid length: {NativeUsnRecordV2.MinimumSize} <= length <= {NativeUsnRecordV2.MaximumSize}.");
+                    $"FSCTL_READ_FILE_USN_DATA returned an amount of data that does not correspond to a valid USN_RECORD_V2 (minor: {recordHeader->MinorVersion}). Record length: {bytesReturned} (valid length: {NativeUsnRecordV2.MinimumSize} <= length <= {NativeUsnRecordV2.MaximumSize}).");
 
                 NativeUsnRecordV2* record = (NativeUsnRecordV2*)recordBuffer;
 
@@ -1329,7 +1329,7 @@ namespace BuildXL.Native.IO.Windows
                         {
                             Contract.Assert(
                                 false,
-                                $"Size in record header returned by {fsctlApi} does not correspond to a valid USN_RECORD_V3 (minor: {currentRecordHeader->MinorVersion}). Record length: {currentRecordHeader->RecordLength} (valid length: {NativeUsnRecordV3.MinimumSize} <= length <= {NativeUsnRecordV3.MaximumSize}");
+                                $"Size in record header returned by {fsctlApi} does not correspond to a valid USN_RECORD_V3 (minor: {currentRecordHeader->MinorVersion}). Record length: {currentRecordHeader->RecordLength} (valid length: {NativeUsnRecordV3.MinimumSize} <= length <= {NativeUsnRecordV3.MaximumSize})");
                         }
 
                         NativeUsnRecordV3* record = (NativeUsnRecordV3*) currentRecordBase;
@@ -1347,7 +1347,7 @@ namespace BuildXL.Native.IO.Windows
                         {
                             Contract.Assert(
                                 false,
-                                $"Size in record header returned by {fsctlApi} does not correspond to a valid USN_RECORD_V2 (minor: {currentRecordHeader->MinorVersion}). Record length: {currentRecordHeader->RecordLength} (valid length: {NativeUsnRecordV2.MinimumSize} <= length <= {NativeUsnRecordV2.MaximumSize}");
+                                $"Size in record header returned by {fsctlApi} does not correspond to a valid USN_RECORD_V2 (minor: {currentRecordHeader->MinorVersion}). Record length: {currentRecordHeader->RecordLength} (valid length: {NativeUsnRecordV2.MinimumSize} <= length <= {NativeUsnRecordV2.MaximumSize})");
                         }
 
                         NativeUsnRecordV2* record = (NativeUsnRecordV2*) currentRecordBase;

@@ -223,6 +223,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                 });
         }
 
+        [Fact]
+        public void TestParsingByteRange()
+        {
+            Assert.Equal(1234, AzureBlobStorageContentSession.TryExtractContentSizeFromRange("bytes 0-10/1234"));
+            Assert.Equal(null, AzureBlobStorageContentSession.TryExtractContentSizeFromRange("bytes 1-2/*"));
+            Assert.Equal(1234, AzureBlobStorageContentSession.TryExtractContentSizeFromRange("bytes */1234"));
+
+            // The following should never happen
+            Assert.Equal(null, AzureBlobStorageContentSession.TryExtractContentSizeFromRange("megabytes */1234"));
+            Assert.Equal(null, AzureBlobStorageContentSession.TryExtractContentSizeFromRange("bytes */*"));
+            Assert.Equal(null, AzureBlobStorageContentSession.TryExtractContentSizeFromRange("bytes"));
+        }
+
         [Fact(Skip = "Used for manual testing of whether the bulk pin logic updates the last access time correctly in Storage")]
         public Task PinSpecificFile()
         {

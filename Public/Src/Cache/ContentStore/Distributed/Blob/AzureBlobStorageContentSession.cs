@@ -6,11 +6,14 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -18,6 +21,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
@@ -96,20 +100,51 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
     {
         if (contentHash.IsEmptyHash())
         {
-            return new OpenStreamResult(new MemoryStream(Array.Empty<byte>()).WithLength(0));
+            return new OpenStreamResult(new MemoryStream(Array.Empty<byte>(), index: 0, count: 0, writable: false, publiclyVisible: false).WithLength(0));
         }
 
         var stream = await TryOpenRemoteStreamAsync(context, contentHash).ThrowIfFailureAsync();
         return new OpenStreamResult(stream);
     }
 
-    private async Task<(StreamWithLength?, string)> TryOpenReadAsync(OperationContext context, ContentHash contentHash)
+    /// <summary>
+    /// Open a Stream that does a streaming read of <paramref name="contentHash"/> from the appropriate Azure Storage
+    /// account.
+    /// </summary>
+    /// <param name="context">Operation Context</param>
+    /// <param name="contentHash">Content hash to open stream for</param>
+    /// <param name="provideLengthWrap">
+    /// When the stream needs to be passed to methods that assume the Length exists, we'll wrap the stream with a
+    /// <see cref="WrappingStream"/> if this argument is true.
+    /// </param>
+    /// <remarks>
+    /// This method treats a non-existing blob as a different case because doing so makes it a bit cleaner to write the
+    /// error propagation logic.
+    /// </remarks>
+    /// <returns>
+    /// The path at which the blob is supposed to be, and a stream to the blob if necessary.
+    /// </returns>
+    private async Task<(StreamWithLength?, string)> TryOpenReadAsync(OperationContext context, ContentHash contentHash, bool provideLengthWrap = false)
     {
         var (client, blobPath) = await GetBlobClientAsync(context, contentHash);
         try
         {
-            var readStream = await client.OpenReadAsync(allowBlobModifications: false, cancellationToken: context.Token);
-            return (readStream.WithLength(readStream.Length), blobPath);
+            var response = await client.DownloadStreamingAsync(cancellationToken: context.Token);
+
+            var value = response.Value;
+            var stream = value.Content;
+            if (stream is null)
+            {
+                return (null, blobPath);
+            }
+
+            var length = value.Details.ContentLength;
+            if (provideLengthWrap)
+            {
+                var wrapped = new WrappingStream(stream, length);
+                return (wrapped.WithLength(length), blobPath);
+            }
+            return (stream.WithLength(length), blobPath);
         }
         // See: https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-error-codes
         catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
@@ -129,8 +164,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
             Tracer,
             async context =>
             {
-                StreamWithLength? stream;
-                (stream, blobPath) = await TryOpenReadAsync(context, contentHash);
+                (StreamWithLength? stream, blobPath) = await TryOpenReadAsync(context, contentHash, provideLengthWrap: true);
                 return Result.Success(stream, isNullAllowed: true);
             },
             traceOperationStarted: false,
@@ -231,9 +265,8 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
 
                 try
                 {
-                    StreamWithLength? stream;
-                    (stream, blobPath) = await TryOpenReadAsync(context, contentHash);
-                    if (stream == null)
+                    (StreamWithLength? stream, blobPath) = await TryOpenReadAsync(context, contentHash);
+                    if (stream is null)
                     {
                         return CreateDownloadResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, stopwatch.Elapsed);
                     }
@@ -254,7 +287,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
                         new RemoteDownloadResult
                         {
                             ResultCode = PlaceFileResult.ResultCode.PlacedWithCopy,
-                            FileSize = remoteStream.Length,
+                            FileSize = stream.Value.Length,
                             TimeToFirstByteDuration = timeToFirstByteDuration,
                             DownloadResult = new DownloadResult()
                             {
@@ -431,13 +464,41 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
                 (client, blobPath) = await GetBlobClientAsync(context, contentHash);
                 try
                 {
-                    var properties = await client.GetPropertiesAsync(cancellationToken: context.Token);
+                    // We have to do a 1-byte download here because other operations don't update the last access time
+                    // of the blob.
+                    var response = await client.DownloadAsync(
+                        range: new HttpRange(0, 1),
+                        conditions: new BlobRequestConditions() { IfMatch = ETag.All, },
+                        rangeGetContentHash: false,
+                        cancellationToken: context.Token);
+                    
+                    long contentSize = -1;
+                    var range = response.Value.Details.ContentRange;
+                    if (string.IsNullOrEmpty(range))
+                    {
+                        // There is no range header. This only happens if the file is too small.
+                        contentSize = response.Value.ContentLength;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            contentSize = TryExtractContentSizeFromRange(range) ?? contentSize;
+                        }
+                        catch (Exception ex)
+                        {
+                            Tracer.Warning(context, ex, $"Failed to extract the content range. ContentRange=[{range ?? "null"}]");
+                        }
+                    }
+
+                    var lastAccessTime = response.Value.Details.LastAccessed.UtcDateTime;
+                    var lastModificationTime = response.Value.Details.LastModified.UtcDateTime;
                     return new PinResult(
                         code: PinResult.ResultCode.Success,
-                        lastAccessTime: properties.Value.LastModified.UtcDateTime,
-                        contentSize: properties.Value.ContentLength);
+                        lastAccessTime: lastAccessTime.Max(lastModificationTime),
+                        contentSize: contentSize);
                 }
-                catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
+                catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound || e.ErrorCode == BlobErrorCode.ConditionNotMet)
                 {
                     return PinResult.ContentNotFound;
                 }
@@ -445,6 +506,23 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
             traceOperationStarted: false,
             extraEndMessage: _ => $"ContentHash=[{contentHash.ToShortString()}] BlobPath=[{blobPath}]",
             timeout: _configuration.StorageInteractionTimeout);
+    }
+
+    private static readonly Regex s_contentRangeRegex = new(@"^bytes (\*|(?<start>[0-9]+)-(?<end>[0-9]+))/(?<length>[0-9]+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline);
+
+    /// <summary>
+    /// Parses the content size out of a Content-Range header.
+    /// See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range
+    /// </summary>
+    internal static long? TryExtractContentSizeFromRange(string range)
+    {
+        var match = s_contentRangeRegex.Match(range);
+        if (match.Success)
+        {
+            return int.Parse(match.Groups["length"].Value);
+        }
+
+        return null;
     }
 
     private Task<PutResult> UploadFromStreamAsync(
@@ -539,5 +617,107 @@ public readonly record struct DownloadResult
                $"MemoryMapDurationMs=[{MemoryMapDuration?.TotalMilliseconds ?? -1}] " +
                $"DownloadDurationMs=[{DownloadDuration.TotalMilliseconds}]" +
                $"WriteDuration=[{WriteDuration?.TotalMilliseconds ?? -1}]";
+    }
+}
+
+/// <summary>
+/// Some streams may not provide a Length that can  be read. However, our OpenStream verb returns streams that are
+/// always expected to provide the length. We _always_ know what the length of a file is when downloading from
+/// Azure Storage, but <see cref="BlobClient.DownloadStreamingAsync"/> returns a Stream implementation that doesn't
+/// provide the Length for some reason. This class is a pass-through that provides an overriden Length.
+/// </summary>
+internal class WrappingStream : Stream
+{
+    public override bool CanRead => true;
+
+    public override bool CanSeek => false;
+
+    public override bool CanWrite => false;
+
+    public override bool CanTimeout => _stream.CanTimeout;
+
+    public override int ReadTimeout { get => _stream.ReadTimeout; set => _stream.ReadTimeout = value; }
+
+    public override int WriteTimeout { get => _stream.WriteTimeout; set => _stream.WriteTimeout = value; }
+
+    public override long Length { get; }
+
+    public override long Position
+    {
+        get => _stream.Position;
+        set => _stream.Position = value;
+    }
+
+    private readonly Stream _stream;
+
+    public WrappingStream(Stream stream, long length)
+    {
+        _stream = stream;
+        Length = length;
+    }
+
+    public override void Flush()
+    {
+        _stream.Flush();
+    }
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        return _stream.Read(buffer, offset, count);
+    }
+
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+        return _stream.Seek(offset, origin);
+    }
+
+    public override void SetLength(long value)
+    {
+        throw new NotSupportedException();
+    }
+
+    public override void Write(byte[] buffer, int offset, int count)
+    {
+        _stream.Write(buffer, offset, count);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        _stream.Dispose();
+    }
+
+    public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+    {
+        return _stream.CopyToAsync(destination, bufferSize, cancellationToken);
+    }
+
+    public override void Close()
+    {
+        _stream.Close();
+    }
+
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+    {
+        return _stream.ReadAsync(buffer, offset, count, cancellationToken);
+    }
+
+    public override Task FlushAsync(CancellationToken cancellationToken)
+    {
+        return _stream.FlushAsync(cancellationToken);
+    }
+
+    public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+    {
+        return _stream.WriteAsync(buffer, offset, count, cancellationToken);
+    }
+
+    public override int ReadByte()
+    {
+        return _stream.ReadByte();
+    }
+
+    public override void WriteByte(byte value)
+    {
+        _stream.WriteByte(value);
     }
 }

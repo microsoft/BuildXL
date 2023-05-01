@@ -99,11 +99,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public static ContentLocationEntry Deserialize(ReadOnlySpan<byte> input)
         {
-            if (input.IsEmpty)
-            {
-                return Missing;
-            }
-            
             var reader = new SpanReader(input);
             return Deserialize(ref reader);
         }
@@ -113,6 +108,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public static ContentLocationEntry Deserialize(ref SpanReader reader)
         {
+            if (reader.RemainingLength == 0)
+            {
+                return Missing;
+            }
+
             SpanReader originalReader = reader;
             try
             {

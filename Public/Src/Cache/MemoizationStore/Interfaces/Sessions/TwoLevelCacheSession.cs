@@ -1,6 +1,7 @@
 ﻿// Copyright (C) Microsoft Corporation. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,6 +13,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Synchronization;
@@ -66,6 +68,10 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// </summary>
         [DataMember]
         public bool SkipRemotePinOnPut { get; set; } = false;
+
+        /// <nodoc />
+        [DataMember]
+        public TimeSpan RemotePutElisionDuration { get; set; } = TimeSpan.FromDays(1);
     }
 
     /// <summary>
@@ -82,6 +88,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         private readonly TwoLevelCacheConfiguration _config;
         private readonly LockSet<ContentHash> _remoteFetchLock = new LockSet<ContentHash>();
 
+        // It is important to use this cache if we want to skip the remote put. If we don't, there is a race condition where
+        // another put for the same content might come in while we're still finishing up the remote put for the first put,
+        // potentially resulting in us publishing an unbacked content hash list.
+        private readonly VolatileSet<ContentHash> _putElisionCache;
+
         private ResultNagleQueue<(Context context, ContentHash hash), PinResult> _batchSinglePinNagleQueue;
 
         /// <summary>
@@ -90,17 +101,23 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <param name="name"></param>
         /// <param name="localCacheSession"></param>
         /// <param name="remoteCacheSession"></param>
+        /// <param name="clock"></param>
         /// <param name="config"></param>
         public TwoLevelCacheSession(
             string name,
             ICacheSession localCacheSession,
             ICacheSession remoteCacheSession,
+            IClock clock,
             TwoLevelCacheConfiguration config)
         {
             Name = name;
             _remoteCacheSession = remoteCacheSession;
             _localCacheSession = localCacheSession;
             _config = config;
+
+            _putElisionCache = _config.SkipRemotePutIfAlreadyExistsInLocal
+                ? new VolatileSet<ContentHash>(clock)
+                : null;
         }
 
         /// <inheritdoc />
@@ -377,6 +394,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 return localPutResult;
             }
 
+            _putElisionCache?.Add(contentHash, _config.RemotePutElisionDuration);
+
             return BoolResult.Success;
         }
 
@@ -490,7 +509,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 {
                     var localResult = await localPut();
                     if (!localResult || _config.RemoteCacheIsReadOnly ||
-                        (localResult.ContentAlreadyExistsInCache && _config.SkipRemotePutIfAlreadyExistsInLocal))
+                        (localResult.ContentAlreadyExistsInCache && (_putElisionCache?.Contains(localResult.ContentHash) == true)))
                     {
                         return localResult;
                     }
@@ -508,7 +527,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                         }
                     }
 
-                    return await remotePut(localResult);
+                    var remoteResult = await remotePut(localResult);
+                    if (remoteResult.Succeeded)
+                    {
+                        _putElisionCache?.Add(remoteResult.ContentHash, _config.RemotePutElisionDuration);
+                    }
+
+                    return remoteResult;
                 },
                 extraEndMessage: extraEndMessage,
                 traceErrorsOnly: true,

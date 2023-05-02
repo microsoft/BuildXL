@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.MemoizationStore.Interfaces;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using Microsoft.AzureAd.Icm.Types;
 using Microsoft.AzureAd.Icm.WebService.Client;

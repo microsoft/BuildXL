@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
@@ -25,6 +26,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         private readonly ICache _localCache;
         private readonly ICache _remoteCache;
         private readonly TwoLevelCacheConfiguration _config;
+        private readonly IClock _clock = SystemClock.Instance;
 
         /// <nodoc />
         [Obsolete("Please use constructor with TwoLevelCacheConfiguration object ")]
@@ -173,6 +175,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                         name,
                         localSession.Session,
                         remoteSession.Session,
+                        _clock,
                         _config);
                     return new CreateSessionResult<ICacheSession>(cacheSession);
                 });
@@ -189,6 +192,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     name,
                     localResult.Session,
                     remoteResult.Session,
+                    _clock,
                     _config);
                 return new CreateSessionResult<ICacheSession>(cacheSession);
             }

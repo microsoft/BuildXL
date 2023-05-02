@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Cache.MemoizationStore.Interfaces;
 using FluentAssertions;
 using Xunit;
 

@@ -4,13 +4,11 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Utilities.Collections;
-using Microsoft.WindowsAzure.Storage.Table;
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Cache.MemoizationStore.Interfaces
 {
     /// <summary>
     /// Caches values in a set for a given amount of time

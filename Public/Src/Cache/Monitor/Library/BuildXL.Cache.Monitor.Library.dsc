@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as ContentStore from "BuildXL.Cache.ContentStore";
+import * as MemoizationStore from "BuildXL.Cache.MemoizationStore";
 
 namespace Library {
     @@public
@@ -20,6 +21,8 @@ namespace Library {
             ContentStore.Distributed.dll,
             ContentStore.Library.dll,
             ContentStore.Interfaces.dll,
+
+            MemoizationStore.Interfaces.dll,
 
             importFrom("Newtonsoft.Json").pkg,
 

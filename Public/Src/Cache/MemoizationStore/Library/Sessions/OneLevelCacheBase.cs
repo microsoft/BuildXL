@@ -20,6 +20,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
@@ -73,7 +74,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// <nodoc />
         internal OneLevelCacheBaseConfiguration Configuration { get; }
 
-        private readonly ConcurrentDictionary<ContentHash, DateTime> _pinElisionCache = new ConcurrentDictionary<ContentHash, DateTime>();
+        private readonly VolatileSet<ContentHash>? _pinElisionCache;
 
         private readonly IClock _clock = SystemClock.Instance;
 
@@ -81,6 +82,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         protected OneLevelCacheBase(OneLevelCacheBaseConfiguration configuration)
         {
             Configuration = configuration;
+
+            if (Configuration.MetadataPinElisionDuration is not null)
+            {
+                _pinElisionCache = new VolatileSet<ContentHash>(_clock);
+            }
         }
 
         /// <summary>
@@ -353,28 +359,13 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
         internal void AddOrExtendPin(Context context, ContentHash contentHash)
         {
-            if (Configuration.MetadataPinElisionDuration is null)
-            {
-                return;
-            }
-
-            var expiry = _clock.UtcNow + Configuration.MetadataPinElisionDuration.Value;
-            _pinElisionCache.AddOrUpdate(contentHash, expiry, (_, current) => current.Max(expiry));
+            // Since _pinElisionCache is only not null when the config value is not null, we can assume the config value is not null
+            _pinElisionCache?.Add(contentHash, Configuration.MetadataPinElisionDuration!.Value);
         }
 
         internal bool CanElidePin(Context context, ContentHash contentHash)
         {
-            if (Configuration.MetadataPinElisionDuration is null)
-            {
-                return false;
-            }
-
-            if (!_pinElisionCache.TryGetValue(contentHash, out var expiry))
-            {
-                return false;
-            }
-
-            bool elide = expiry > _clock.UtcNow;
+            bool elide = _pinElisionCache?.Contains(contentHash) ?? false;
             if (elide)
             {
                 Tracer.Info(context, $"Eliding pin for content hash `{contentHash}`");

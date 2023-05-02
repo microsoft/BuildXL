@@ -4,9 +4,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Stats;
+using BuildXL.Cache.MemoizationStore.Interfaces;
 
 namespace BuildXL.Cache.Monitor.Library.IcM
 {

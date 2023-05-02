@@ -145,7 +145,7 @@ namespace BuildXL.Engine
             if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
             {
                 table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
-                table.AddStaticSystemMount("AppData", Environment.SpecialFolder.ApplicationData, allowCreateDirectory: true);
+                table.AddStaticSystemMount("AppData", Environment.SpecialFolder.ApplicationData, allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
                 table.AddStaticSystemMount("LocalAppData", Environment.SpecialFolder.LocalApplicationData, allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
             }
             else
@@ -154,7 +154,7 @@ namespace BuildXL.Engine
                 Contract.Assert(properties != null);
 
                 RegisterRedirectedMount(context, properties, table, "UserProfile", trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
-                RegisterRedirectedMount(context, properties, table, "AppData", allowCreateDirectory: true);
+                RegisterRedirectedMount(context, properties, table, "AppData", allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
                 RegisterRedirectedMount(context, properties, table, "LocalAppData", allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
             }
 

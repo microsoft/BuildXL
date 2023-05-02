@@ -79,6 +79,11 @@ bool GetSpecialCaseRulesForSpecialTools(
     __in  size_t absolutePathLength,
     __out FileAccessPolicy& policy);
 
+bool GetSpecialCaseRulesForWindows(
+    __in  PCWSTR absolutePath,
+    __in  size_t absolutePathLength,
+    __out FileAccessPolicy& policy);
+
 bool WantsWriteAccess(DWORD access);
 bool WantsReadAccess(DWORD access);
 bool WantsReadOnlyAccess(DWORD access);

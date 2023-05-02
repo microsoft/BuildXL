@@ -48,19 +48,22 @@ void PolicyResult::InitializeFromCursor(CanonicalizedPathType const& canonicaliz
     PolicySearchCursor newCursor = FindFileAccessPolicyInTreeEx(policySearchCursor, translatedSearchSuffix, searchSuffixLength);
     Initialize(canonicalizedPath, newCursor);
 
-    if (GetSpecialCaseRulesForCoverageAndSpecialDevices(translatedSearchSuffix, searchSuffixLength, canonicalizedPath.Type, /*out*/ m_policy)) {
+    if (GetSpecialCaseRulesForWindows(translatedSearchSuffix, searchSuffixLength, /*out*/ m_policy)) 
+    {
 #if SUPER_VERBOSE
-        Dbg(L"match (special case rules.1): %s - policySearchCursor: %x, searchSuffix: %s", canonicalizedPath.GetPathString(), policySearchCursor, searchSuffix);
+        Dbg(L"match (special case rules for Windows): %s - policySearchCursor: %x, searchSuffix: %s", canonicalizedPath.GetPathString(), policySearchCursor, searchSuffix);
 #endif // SUPER_VERBOSE
     }
-    else
-    {
-        if (GetSpecialCaseRulesForSpecialTools(translatedSearchSuffix, searchSuffixLength, /*out*/ m_policy))
-        {
+    else if (GetSpecialCaseRulesForCoverageAndSpecialDevices(translatedSearchSuffix, searchSuffixLength, canonicalizedPath.Type, /*out*/ m_policy)) {
 #if SUPER_VERBOSE
-            Dbg(L"match (special case rules.2): %s - policySearchCursor: %x, searchSuffix: %s", canonicalizedPath.GetPathString(), policySearchCursor, searchSuffix);
+        Dbg(L"match (special case rules for coverage and special devices): %s - policySearchCursor: %x, searchSuffix: %s", canonicalizedPath.GetPathString(), policySearchCursor, searchSuffix);
 #endif // SUPER_VERBOSE
-        }
+    }
+    else if (GetSpecialCaseRulesForSpecialTools(translatedSearchSuffix, searchSuffixLength, /*out*/ m_policy))
+    {
+#if SUPER_VERBOSE
+            Dbg(L"match (special case rules for special tools): %s - policySearchCursor: %x, searchSuffix: %s", canonicalizedPath.GetPathString(), policySearchCursor, searchSuffix);
+#endif // SUPER_VERBOSE
     }
 }
 

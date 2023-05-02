@@ -177,6 +177,34 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
     }
 }
 
+bool GetSpecialCaseRulesForWindows(
+    __in  PCWSTR absolutePath,
+    __in  size_t absolutePathLength,
+    __out FileAccessPolicy& policy)
+{
+    assert(absolutePath);
+    assert(absolutePathLength == wcslen(absolutePath));
+
+    size_t rootLength = GetRootLength(absolutePath);
+    if (HasPrefix(absolutePath + rootLength, L"$Extend\\$Deleted"))
+    {
+        // Windows can have an "unlink" behavior where deleted files are not really deleted if there's an opened handle.
+        // This behavior is possible because a process can open a file with FILE_SHARE_DELETE that makes other processes able to delete it.
+        // If a file is opened by specifying the FILE_SHARE_DELETE flag for the CreateFile function and another process tries to delete it,
+        // the file is actually moved to the “\$Extend\$Deleted” directory on the same volume. When the last handle to such a file is closed,
+        // it's deleted as usual. When the file system is mounted, all existing files in the “\$Extend\$Deleted” directory, if any, are deleted,
+        // The same logic also applies to deleted directories.
+        // Details can be found in this unofficial documentation: https://dfir.ru/2020/03/21/the-extenddeleted-directory/
+#if SUPER_VERBOSE
+        Dbg(L"special case: files in staged deletion: %s", absolutePath);
+#endif // SUPER_VERBOSE
+        policy = FileAccessPolicy::FileAccessPolicy_AllowAll;
+        return true;
+    }
+
+    return false;
+}
+
 // Some perform file accesses, which don't yet fall into any configurable file access manifest category.
 // These files now can be allowlisted, but there are already users deployed without the allowlisting feature
 // that rely on these file accesses not blocked.

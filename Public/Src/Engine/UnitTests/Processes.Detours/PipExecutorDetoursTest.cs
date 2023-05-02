@@ -27,6 +27,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using AssemblyHelper = BuildXL.Utilities.Core.AssemblyHelper;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using Microsoft.Win32.SafeHandles;
 
 #pragma warning disable AsyncFixer02
 
@@ -644,7 +645,7 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                AbsolutePath createdFile = tempFiles.GetFileName(pathTable, "testFile.txt");
+                AbsolutePath deletedFile = tempFiles.GetFileName(pathTable, "testFile.txt");
 
                 var process = CreateDetourProcess(
                     context,
@@ -654,7 +655,7 @@ namespace Test.BuildXL.Processes.Detours
                     inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
-                        FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(createdFile), FileExistence.Optional)),
+                        FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(deletedFile), FileExistence.Optional)),
                     outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
 
@@ -682,6 +683,63 @@ namespace Test.BuildXL.Processes.Detours
                     VerifyNormalSuccess(context, result);
 
                     XAssert.IsTrue(result.ExitCode == 0, $"Exit code: {result.ExitCode}");
+                }
+            }
+        }
+
+        [Fact]
+        public async Task CallDeleteFileOnSharedDeleteOpenedFile()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string inputDir = tempFiles.GetDirectory("input");
+                string testFile = tempFiles.GetFileName(inputDir, "Test1.txt");
+
+                File.WriteAllText(testFile, string.Empty);
+
+                OpenFileResult openTestFileResult = FileUtilities.TryCreateOrOpenFile(
+                    testFile,
+                    FileDesiredAccess.GenericRead,
+                    FileShare.ReadWrite | FileShare.Delete,
+                    FileMode.Open, FileFlagsAndAttributes.FileAttributeNormal,
+                    out SafeFileHandle fileHandle);
+
+                XAssert.IsTrue(openTestFileResult.Succeeded);
+                XAssert.IsFalse(fileHandle.IsInvalid);
+
+                using (fileHandle)
+                {
+                    AbsolutePath deletedFile = AbsolutePath.Create(pathTable, testFile);
+                    var process = CreateDetourProcess(
+                        context,
+                        pathTable,
+                        tempFiles,
+                        argumentStr: "CallDeleteFileTest",
+                        inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                        inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                        outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                            FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(deletedFile), FileExistence.Optional)),
+                        outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                        untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                    SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                        pathTable: pathTable,
+                        ignoreSetFileInformationByHandle: false,
+                        ignoreZwRenameFileInformation: false,
+                        monitorNtCreate: true,
+                        ignoreReparsePoints: false,
+                        disableDetours: false,
+                        context: context,
+                        pip: process,
+                        errorString: out _);
+
+                    VerifyNormalSuccess(context, result);
+
+                    // Ensure there is not reported write to the staging $Extend\$Deleted directory.
+                    XAssert.IsFalse(result.AllReportedFileAccesses.Select(rfa => rfa.GetPath(pathTable)).Any(p => p.Contains("$Extend\\$Deleted")));
                 }
             }
         }
@@ -4174,9 +4232,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string executable = CmdHelper.CmdX64;
 
                 XAssert.IsTrue(File.Exists(executable));
@@ -4252,9 +4307,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string workingDirectory = tempFiles.RootDirectory;
                 Contract.Assume(workingDirectory != null);
                 AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(pathTable, workingDirectory);
@@ -4374,9 +4426,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string workingDirectory = tempFiles.RootDirectory;
                 Contract.Assume(workingDirectory != null);
 
@@ -4424,9 +4473,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string workingDirectory = tempFiles.RootDirectory;
                 Contract.Assume(workingDirectory != null);
 
@@ -4490,9 +4536,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string workingDirectory = tempFiles.RootDirectory;
                 Contract.Assume(workingDirectory != null);
 
@@ -4534,9 +4577,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string workingDirectory = tempFiles.RootDirectory;
                 Contract.Assume(workingDirectory != null);
 
@@ -4578,9 +4618,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string workingDirectory = tempFiles.RootDirectory;
                 Contract.Assume(workingDirectory != null);
 
@@ -4621,9 +4658,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string workingDirectory = tempFiles.RootDirectory;
                 Contract.Assume(workingDirectory != null);
 
@@ -4666,9 +4700,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string workingDirectory = tempFiles.RootDirectory;
                 Contract.Assume(workingDirectory != null);
 
@@ -4712,9 +4743,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string workingDirectory = tempFiles.RootDirectory;
                 Contract.Assume(workingDirectory != null);
                 AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(pathTable, workingDirectory);
@@ -4778,9 +4806,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string executable = CmdHelper.CmdX64;
 
                 XAssert.IsTrue(File.Exists(executable));
@@ -4856,9 +4881,6 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string executable = CmdHelper.CmdX64;
 
                 XAssert.IsTrue(File.Exists(executable));

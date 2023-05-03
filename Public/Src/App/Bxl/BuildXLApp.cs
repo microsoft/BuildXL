@@ -1014,7 +1014,7 @@ namespace BuildXL
             LoggingContext topLevelContext = new LoggingContext(
                 relatedActivityId,
                 Branding.ProductExecutableName,
-                new LoggingContext.SessionInfo(sessionId.ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
+                new LoggingContext.SessionInfo(sessionId, ComputeEnvironment(m_configuration), relatedActivityId));
 
             using (PerformanceMeasurement pm = PerformanceMeasurement.StartWithoutStatistic(
                 topLevelContext,

@@ -23,9 +23,14 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public sealed class SessionInfo
         {
             /// <summary>
-            /// Unique ID which will be assigned to a given session.
+            /// String representation of <see cref="ActivityId"/>
             /// </summary>
             public readonly string Id;
+
+            /// <summary>
+            /// Unique ID which will be assigned to a given session.
+            /// </summary>
+            public readonly Guid ActivityId;
 
             /// <summary>
             /// Identifies the environment the code is being run in, e.g., dev, test, prod
@@ -39,31 +44,20 @@ namespace BuildXL.Utilities.Instrumentation.Common
             public readonly Guid RelatedActivityId;
 
             /// <summary>
-            /// Gets the related session id for the session
+            /// Gets the string representation of <see cref="RelatedActivityId"/>
             /// </summary>
             public readonly string RelatedId;
 
             /// <summary>
             /// Create a new session info
             /// </summary>
-            public SessionInfo(string id, string environment, Guid relatedActivityId)
+            public SessionInfo(Guid id, string environment, Guid relatedActivityId)
             {
-                // Currently we use Guids as session identifiers.
-                // Verify that the passed string is actually a Guid.
-                Contract.Requires(StringIsGuid(id));
-
-                Id = id;
+                ActivityId = id;
+                Id = ActivityId.ToString();
                 Environment = environment;
                 RelatedActivityId = relatedActivityId;
                 RelatedId = relatedActivityId.ToString();
-            }
-
-            /// <summary>
-            /// Check if a string is a Guid
-            /// </summary>
-            public static bool StringIsGuid(string s)
-            {
-                return Guid.TryParse(s, out _);
             }
 
             /// <inheritdoc />
@@ -163,14 +157,14 @@ namespace BuildXL.Utilities.Instrumentation.Common
         }
 
         /// <summary>
-        /// Creates a new Context for use as the root Context of the application
+        /// Creates a new Context, instantiating a new <see cref="SessionInfo"/>. Typically used for unit tests.
         /// </summary>
         /// <param name="loggerComponentInfo">The component that calls the log, e.g. Class.Method.</param>
         /// <param name="environment">Identifies the environment the code is being run in, e.g., dev, test, prod.
         /// It is best to limit the variability of these identifiers if bucketing by them in SkypeRV's heuristics API</param>
         /// <param name="logger">The logger instance to delegate to.</param>
         public LoggingContext(string loggerComponentInfo, string? environment = null, ILogger? logger = null)
-            : this(Guid.NewGuid(), loggerComponentInfo, new SessionInfo(Guid.NewGuid().ToString(), environment ?? DefaultEnvironment, Guid.Empty), logger: logger)
+            : this(Guid.NewGuid(), loggerComponentInfo, new SessionInfo(Guid.NewGuid(), environment ?? DefaultEnvironment, Guid.Empty), logger: logger)
         {
         }
 

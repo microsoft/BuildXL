@@ -476,8 +476,7 @@ namespace Test.BuildXL.Processes.Detours
         private static LoggingContext CreateLoggingContext()
         {
             Guid sessionId = Guid.NewGuid();
-            string sessionIdStr = sessionId.ToString("N");
-            return new LoggingContext(sessionId, nameof(SubstituteProcessExecutionTests), new LoggingContext.SessionInfo(sessionIdStr, "TestEnv", sessionId));
+            return new LoggingContext(sessionId, nameof(SubstituteProcessExecutionTests), new LoggingContext.SessionInfo(sessionId, "TestEnv", sessionId));
         }
 
         /// <summary>

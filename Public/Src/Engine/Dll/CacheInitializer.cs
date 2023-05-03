@@ -355,7 +355,9 @@ namespace BuildXL.Engine
                     return cacheConfigData.Failure;
                 }
 
-                Possible<ICacheCoreCache> maybeCache = await CacheFactory.InitializeCacheAsync(cacheConfigData.Result, loggingContext.ActivityId, config);
+                // Each nested LoggingContext creates a new ActivityId in the traditional ETW style. We want the cache associated with
+                // the root level ActivityId of the session for ease of tracking across components. Hence we use the ActivityId on Session.
+                Possible<ICacheCoreCache> maybeCache = await CacheFactory.InitializeCacheAsync(cacheConfigData.Result, loggingContext.Session.ActivityId, config);
 
                 if (!maybeCache.Succeeded)
                 {

@@ -317,11 +317,13 @@ namespace BuildXL.Engine.Distribution
             Logger.Log.DistributionAttachReceived(m_appLoggingContext, buildStartData.SessionId, orchestratorName);
             BuildStartData = buildStartData;
 
+            Guid sessionIdFromAttach = Guid.Parse(buildStartData.SessionId);
+
             // The app-level logging context has a wrong session id. Fix it now that we know the right one.
             m_appLoggingContext = new LoggingContext(
                 m_appLoggingContext.ActivityId,
                 m_appLoggingContext.LoggerComponentInfo,
-                new LoggingContext.SessionInfo(buildStartData.SessionId, m_appLoggingContext.Session.Environment, m_appLoggingContext.Session.RelatedActivityId),
+                new LoggingContext.SessionInfo(sessionIdFromAttach, m_appLoggingContext.Session.Environment, m_appLoggingContext.Session.RelatedActivityId),
                 m_appLoggingContext);
 
             if (!m_orchestratorInitialized) // The orchestrator client is already initialized if the worker know its location at the start of the build

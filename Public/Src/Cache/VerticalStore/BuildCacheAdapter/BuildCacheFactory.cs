@@ -75,8 +75,9 @@ namespace BuildXL.Cache.BuildCacheAdapter
 
             Config cacheConfig = possibleCacheConfig.Result;
 
-            try
-            {
+           try
+           {
+                Microsoft.VisualStudio.Services.WebApi.VssClientHttpRequestSettings.Default.SessionId = activityId;
                 var logPath = new AbsolutePath(cacheConfig.CacheLogPath);
                 var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
 

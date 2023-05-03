@@ -195,6 +195,7 @@ extern ZwQueryDirectoryFile_t Real_ZwQueryDirectoryFile;
 extern ZwSetInformationFile_t Real_ZwSetInformationFile;
 
 extern CreatePipe_t Real_CreatePipe;
+extern DeviceIoControl_t Real_DeviceIoControl;
 
 #if MEASURE_DETOURED_NT_CLOSE_IMPACT
 extern volatile LONG g_msTimeToPopulatePoolList;

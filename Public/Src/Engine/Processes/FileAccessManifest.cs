@@ -98,6 +98,7 @@ namespace BuildXL.Processes
             EnableLinuxSandboxLogging = false;
             AlwaysRemoteInjectDetoursFrom32BitProcess = false;
             UnconditionallyEnableLinuxPTraceSandbox = false;
+            IgnoreDeviceIoControlGetReparsePoint = true; // TODO: Change this when customers onboard the feature.
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -520,6 +521,15 @@ namespace BuildXL.Processes
                         SetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxPTraceSandbox, value);
                     }
                 }
+        }
+
+        /// <summary>
+        /// When enabled, DeviceIoControl (case FSCTL_GET_REPARSE_POINT) is detoured 
+        /// </summary>
+        public bool IgnoreDeviceIoControlGetReparsePoint
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.IgnoreDeviceIoControlGetReparsePoint);
+            set => SetExtraFlag(FileAccessManifestExtraFlag.IgnoreDeviceIoControlGetReparsePoint, value);
         }
 
         /// <summary>
@@ -1278,6 +1288,7 @@ namespace BuildXL.Processes
             EnableLinuxSandboxLogging = 0x8,
             AlwaysRemoteInjectDetoursFrom32BitProcess = 0x10,
             UnconditionallyEnableLinuxPTraceSandbox = 0x20,
+            IgnoreDeviceIoControlGetReparsePoint = 0x40,
         }
 
         private readonly struct FileAccessScope

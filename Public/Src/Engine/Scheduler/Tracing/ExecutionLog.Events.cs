@@ -488,6 +488,10 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public bool ExplicitlyReportDirectoryProbes;
 
+        /// <summary>
+        /// Whether /ignoreDeviceIoControlGetReparsePoint flag was passed to BuildXL.
+        /// </summary>
+        public bool IgnoreDeviceIoControlGetReparsePoint;
 
         /// <inheritdoc />
         public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
@@ -521,6 +525,7 @@ namespace BuildXL.Scheduler.Tracing
             ValidateDistribution = salts.ValidateDistribution;
             RequiredKextVersionNumber = salts.RequiredKextVersionNumber;
             ExplicitlyReportDirectoryProbes = salts.ExplicitlyReportDirectoryProbes;
+            IgnoreDeviceIoControlGetReparsePoint = salts.IgnoreDeviceIoControlGetReparsePoint;
         }
 
         /// <summary>
@@ -554,7 +559,8 @@ namespace BuildXL.Scheduler.Tracing
                        validateDistribution: ValidateDistribution,
                        pipWarningsPromotedToErrors: PipWarningsPromotedToErrors,
                        requiredKextVersionNumber: RequiredKextVersionNumber,
-                       explicitlyReportDirectoryProbes: ExplicitlyReportDirectoryProbes
+                       explicitlyReportDirectoryProbes: ExplicitlyReportDirectoryProbes,
+                       ignoreDeviceIoControlGetReparsePoint: IgnoreDeviceIoControlGetReparsePoint
                    )
                    {
                        // Constructor appends EngineEnvironmentSettings.FingerprintSalt
@@ -591,6 +597,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(RequiredKextVersionNumber);
             writer.Write(IgnoreFullReparsePointResolving);
             writer.Write(ExplicitlyReportDirectoryProbes);
+            writer.Write(IgnoreDeviceIoControlGetReparsePoint);
         }
 
         /// <inheritdoc />
@@ -620,6 +627,7 @@ namespace BuildXL.Scheduler.Tracing
             RequiredKextVersionNumber = reader.ReadString();
             IgnoreFullReparsePointResolving = reader.ReadBoolean();
             ExplicitlyReportDirectoryProbes = reader.ReadBoolean();
+            IgnoreDeviceIoControlGetReparsePoint = reader.ReadBoolean();
         }
     }
 

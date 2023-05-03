@@ -1499,6 +1499,10 @@ namespace BuildXL
                             "pluginPaths",
                             opt => schedulingConfiguration.PluginLocations.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
 
+                        OptionHandlerFactory.CreateBoolOption(
+                            "IgnoreDeviceIoControlGetReparsePoint",
+                            sign => { sandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint = sign; }),
+
                         /////////// ATTENTION
                         // When you insert new options, maintain the alphabetical order as much as possible, at least
                         // according to the long names of the options. For details, please read the constraints specified as notes

@@ -94,26 +94,12 @@ namespace Test.BuildXL.Processes.Detours
             bool probeDirectorySymlinkAsDirectory = false,
             bool ignoreFullReparsePointResolving = true,
             List<AbsolutePath> directoriesToEnableFullReparsePointParsing = null,
-            bool preserveFileSharingBehaviour = false)
+            bool preserveFileSharingBehaviour = false,
+            bool ignoreDeviceIoControlGetReparsePoint = true,
+            DirectoryTranslator directoryTranslator = null)
         {
             errorString = null;
-
-            var directoryTranslator = new DirectoryTranslator();
-
-            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
-            {
-                directoryTranslator.AddTranslation(substSource, substTarget);
-            }
-
-            directoryTranslator.AddDirectoryTranslationFromEnvironment();
-
-            if (directoriesToTranslate != null)
-            {
-                foreach (var translateDirectoryData in directoriesToTranslate)
-                {
-                    directoryTranslator.AddTranslation(translateDirectoryData.FromPath, translateDirectoryData.ToPath, context.PathTable);
-                }
-            }
+            directoryTranslator ??= CreateDirectoryTranslator(context, directoriesToTranslate);
 
             directoryTranslator.Seal();
 
@@ -142,12 +128,14 @@ namespace Test.BuildXL.Processes.Detours
                 EnforceAccessPoliciesOnDirectoryCreation = enforceAccessPoliciesOnDirectoryCreation,
                 FailUnexpectedFileAccesses = unexpectedFileAccessesAreErrors,
                 DirectoriesToEnableFullReparsePointParsing = directoriesToEnableFullReparsePointParsing,
-                PreserveFileSharingBehaviour = preserveFileSharingBehaviour
+                PreserveFileSharingBehaviour = preserveFileSharingBehaviour,
+                IgnoreDeviceIoControlGetReparsePoint = ignoreDeviceIoControlGetReparsePoint,
             };
 
             var loggingContext = CreateLoggingContextForTest();
 
-            var configuration = new ConfigurationImpl() { 
+            var configuration = new ConfigurationImpl()
+            {
                 Sandbox = sandboxConfiguration,
                 Distribution = new DistributionConfiguration { ValidateDistribution = false },
                 Engine = new EngineConfiguration { DisableConHostSharing = false },
@@ -172,6 +160,28 @@ namespace Test.BuildXL.Processes.Detours
                 directoryTranslator: directoryTranslator,
                 tempDirectoryCleaner: MoveDeleteCleaner,
                 detoursListener: detoursListener).RunAsync(sandboxConnection: GetSandboxConnection());
+        }
+
+        private DirectoryTranslator CreateDirectoryTranslator(BuildXLContext context, List<TranslateDirectoryData> directoriesToTranslate)
+        {
+            var directoryTranslator = new DirectoryTranslator();
+
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                directoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
+            directoryTranslator.AddDirectoryTranslationFromEnvironment();
+
+            if (directoriesToTranslate != null)
+            {
+                foreach (var translateDirectoryData in directoriesToTranslate)
+                {
+                    directoryTranslator.AddTranslation(translateDirectoryData.FromPath, translateDirectoryData.ToPath, context.PathTable);
+                }
+            }
+
+            return directoryTranslator;
         }
 
         [Fact]
@@ -8166,6 +8176,71 @@ namespace Test.BuildXL.Processes.Detours
                 {
                     XAssert.IsTrue(testPaths.FindIndex(0, path => path != null && path.EndsWith(filename)) != -1, $"Could not find filename '{filename.Replace("\n", "\\n").Replace("\r", "\\r")}' in reported file acesses.");
                 }
+            }
+        }
+
+        /// <summary>
+        /// The test from native side is expected to read a symlink file.lnk via DeviceIoControl and write the retrieved target to an output file out.txt. What we are trying to verify here is that the detoured call applies
+        /// a translation to the returned target.
+        /// </summary>
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallDeviceIOControlGetReparsePoint()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                // Create a symlink file.lnk -> target.lnk
+                var target = tempFiles.GetFileName("target.lnk");
+                File.WriteAllText(target, string.Empty);
+
+                var symlink = tempFiles.GetFileName("file.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink, target, true));
+
+                // Configure a directory translation tempFiles.RootDirectory -> B:\
+                string targetDirTranslation = $"B:{Path.DirectorySeparatorChar}";
+                var dirTranslator = new DirectoryTranslator();
+                dirTranslator.AddTranslation(tempFiles.RootDirectory, targetDirTranslation);
+                dirTranslator.Seal();
+
+                var symlinkPath = dirTranslator.Translate(AbsolutePath.Create(pathTable, symlink), pathTable);
+
+                var output = tempFiles.GetFileName("out.txt");
+                var outputPath = dirTranslator.Translate(AbsolutePath.Create(pathTable, output), pathTable);
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDeviceIOControlGetReparsePoint",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(symlinkPath) }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(new FileArtifactWithAttributes[] { FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(outputPath), FileExistence.Optional) }),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: false,
+                    ignoreDeviceIoControlGetReparsePoint: false,
+                    directoryTranslator: dirTranslator);
+
+                VerifyNormalSuccess(context, result);
+
+                // Retrieve the target as it was returned from the device io control call and compare it with the translated target. This validates the result was actually translated.
+                string getReparsePointResult = File.ReadAllText(output);
+                XAssert.AreEqual(AbsolutePath.Create(pathTable, getReparsePointResult), dirTranslator.Translate(AbsolutePath.Create(pathTable, target), pathTable));
             }
         }
 

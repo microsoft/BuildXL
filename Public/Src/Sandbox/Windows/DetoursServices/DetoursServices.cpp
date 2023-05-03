@@ -354,6 +354,7 @@ ZwQueryDirectoryFile_t Real_ZwQueryDirectoryFile;
 ZwSetInformationFile_t Real_ZwSetInformationFile;
 
 CreatePipe_t Real_CreatePipe;
+DeviceIoControl_t Real_DeviceIoControl;
 
 // Value used to signal the the exit code of the current process cannot be retrieved
 #define PROCESS_EXIT_CODE_CANNOT_BE_RETRIEVED 0xFFFFFF9A
@@ -1303,6 +1304,7 @@ static bool DllProcessAttach()
             ATTACH(ZwSetInformationFile);
 
             ATTACH(CreatePipe);
+            ATTACH(DeviceIoControl);
 #pragma warning( pop )
         }
         else {

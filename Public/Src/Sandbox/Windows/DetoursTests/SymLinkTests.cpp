@@ -935,3 +935,63 @@ int CallDirectoryEnumerationThroughDirectorySymlink()
     FindClose(hFind);
     return (int)dwError;
 }
+
+int CallDeviceIOControlGetReparsePoint()
+{
+    // Open source symlink
+    HANDLE hFile = CreateFileW(
+            L"file.lnk",
+            0,
+            0,
+            NULL,
+            OPEN_EXISTING,
+            FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+            NULL);
+    
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    // Allocate MAX_PATH to be safe
+    const DWORD neededBufSize =
+      FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer) +
+      2 * MAX_PATH * sizeof(WCHAR);
+
+    BYTE buffer[neededBufSize];
+
+    // Call DeviceIoControl to retrieve the target of the symlink
+    DWORD lpBytesReturned;
+    bool result = DeviceIoControl(
+        hFile, 
+        FSCTL_GET_REPARSE_POINT, 
+        NULL, 
+        0,
+        buffer, 
+        sizeof(buffer), 
+        &lpBytesReturned, 
+        nullptr);
+   
+    CloseHandle(hFile);
+    
+    if (!result)
+    {
+        return (int)GetLastError();
+    }
+
+    REPARSE_DATA_BUFFER* reparseData = (REPARSE_DATA_BUFFER*)buffer;
+
+    // Retrieve the target of the symlink and write it to disk so we can verify on managed side that the target was 
+    // actually translated
+    std::wstring target;
+    target.assign(
+            reparseData->SymbolicLinkReparseBuffer.PathBuffer + reparseData->SymbolicLinkReparseBuffer.PrintNameOffset / sizeof(WCHAR),
+            (size_t)reparseData->SymbolicLinkReparseBuffer.PrintNameLength / sizeof(WCHAR));
+
+    FILE* output;
+    fopen_s(&output, "out.txt","w");
+    fprintf(output, "%ws", target.c_str());
+    fclose(output);
+
+    return (int)GetLastError();
+}

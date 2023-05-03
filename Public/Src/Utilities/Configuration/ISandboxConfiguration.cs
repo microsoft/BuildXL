@@ -328,5 +328,10 @@ namespace BuildXL.Utilities.Configuration
         /// When turned on, this option also implies <see cref="EnableLinuxPTraceSandbox"/>.
         /// </remarks>
         public bool UnconditionallyEnableLinuxPTraceSandbox { get; }
+
+        /// <summary>
+        /// Ignores DeviceIoControl calls, in particular the case of FSCTL_GET_REPARSE_POINT
+        /// </summary>
+        bool IgnoreDeviceIoControlGetReparsePoint { get; }
     }
 }

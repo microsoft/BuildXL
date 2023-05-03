@@ -590,6 +590,18 @@ BOOL WINAPI Detoured_CreatePipe(
     _In_           DWORD                 nSize
 );
 
+// See DeviceIoControl on: https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-deviceiocontrol
+BOOL WINAPI Detoured_DeviceIoControl(
+  _In_                HANDLE       hDevice,
+  _In_                DWORD        dwIoControlCode,
+  _In_opt_            LPVOID       lpInBuffer,
+  _In_                DWORD        nInBufferSize,
+  _Out_               LPVOID       lpOutBuffer,
+  _In_                DWORD        nOutBufferSize,
+  _Out_               LPDWORD      lpBytesReturned,
+  _Out_               LPOVERLAPPED lpOverlapped
+);
+
 /*
 
 // ---------------------------

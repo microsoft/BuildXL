@@ -307,6 +307,52 @@ static void GetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataB
 }
 
 /// <summary>
+/// Sets target name on <code>REPARSE_DATA_BUFFER</code> for both print and substitute names. 
+/// See https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_reparse_data_buffer for details.
+/// Assumes the provided buffer is large enough to hold the target name.
+/// Sets both the print name and the substitute name (depending on the consumer, one or both may be used).
+/// </summary>
+static void SetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataBuffer, _In_ DWORD reparsePointType, _In_ wstring& target)
+{
+    USHORT targetLengthInBytes = (USHORT)(target.length() * sizeof(WCHAR));
+
+    // In both cases we put the print name at the beginning of the buffer, followed by the substitute name.
+    // The order of these is up to the implementation.
+    if (reparsePointType == IO_REPARSE_TAG_SYMLINK)
+    {
+        memcpy(
+            pReparseDataBuffer->SymbolicLinkReparseBuffer.PathBuffer,
+            target.c_str(),
+            targetLengthInBytes);
+        pReparseDataBuffer->SymbolicLinkReparseBuffer.PrintNameLength = targetLengthInBytes;
+        pReparseDataBuffer->SymbolicLinkReparseBuffer.PrintNameOffset = 0;
+
+        memcpy(
+            pReparseDataBuffer->SymbolicLinkReparseBuffer.PathBuffer + targetLengthInBytes / sizeof(WCHAR),
+            target.c_str(),
+            targetLengthInBytes);
+        pReparseDataBuffer->SymbolicLinkReparseBuffer.SubstituteNameLength = targetLengthInBytes;
+        pReparseDataBuffer->SymbolicLinkReparseBuffer.SubstituteNameOffset = targetLengthInBytes;
+    }
+    else if (reparsePointType == IO_REPARSE_TAG_MOUNT_POINT)
+    {
+        memcpy(
+            pReparseDataBuffer->MountPointReparseBuffer.PathBuffer,
+            target.c_str(),
+            targetLengthInBytes);
+        pReparseDataBuffer->MountPointReparseBuffer.PrintNameLength = targetLengthInBytes;
+        pReparseDataBuffer->MountPointReparseBuffer.PrintNameOffset = 0;
+
+        memcpy(
+            pReparseDataBuffer->MountPointReparseBuffer.PathBuffer + targetLengthInBytes / sizeof(WCHAR),
+            target.c_str(),
+            targetLengthInBytes);
+        pReparseDataBuffer->MountPointReparseBuffer.SubstituteNameLength = targetLengthInBytes;
+        pReparseDataBuffer->MountPointReparseBuffer.SubstituteNameOffset = targetLengthInBytes;
+    }
+}
+
+/// <summary>
 /// Get the reparse point target via DeviceIoControl
 /// </summary>
 static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& target, const PolicyResult& policyResult)
@@ -7053,6 +7099,83 @@ BOOL WINAPI Detoured_CreatePipe(
     // for file accesses from those APIs (they are not what the application calls).
     DetouredScope scope;
     return Real_CreatePipe(hReadPipe, hWritePipe, lpPipeAttributes, nSize);
+}
+
+/// <summary>
+/// We are only detouring the FSCTL_GET_REPARSE_POINT control code in order to apply a proper translation if needed. This is in sync
+/// with the treatment we give to GetFinalPathNameByHandle, where translations (if defined) are applied to the result.
+/// Observe it is not necessary to enforce policies/report accesses for the FSCTL_GET_REPARSE_POINT case: a handle to the reparse point
+/// source needs to be provided (which we presumably already detoured and reported) and the call returns a string with the target file path
+/// without actually implying a file operation on it.
+/// </summary>
+IMPLEMENTED(Detoured_DeviceIoControl)
+BOOL WINAPI Detoured_DeviceIoControl(
+  _In_                HANDLE       hDevice,
+  _In_                DWORD        dwIoControlCode,
+  _In_opt_            LPVOID       lpInBuffer,
+  _In_                DWORD        nInBufferSize,
+  _Out_               LPVOID       lpOutBuffer,
+  _In_                DWORD        nOutBufferSize,
+  _Out_               LPDWORD      lpBytesReturned,
+  _Out_               LPOVERLAPPED lpOverlapped
+)
+{
+    DetouredScope scope;
+
+    auto result = Real_DeviceIoControl(
+        hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer, nOutBufferSize, lpBytesReturned, lpOverlapped);
+
+    if (scope.Detoured_IsDisabled() ||
+        IgnoreDeviceIoControlGetReparsePoint() ||
+        // We are only interested in the FSCTL_GET_REPARSE_POINT control code.
+        dwIoControlCode != FSCTL_GET_REPARSE_POINT || 
+        // If the call fails, no need to translate anything
+        !result)
+    {
+        return result;
+    }
+
+    PREPARSE_DATA_BUFFER pReparseDataBuffer = (PREPARSE_DATA_BUFFER)lpOutBuffer;
+    DWORD reparsePointType = pReparseDataBuffer->ReparseTag;
+
+    // Only interested in symlinks/mountpoints reparse point types
+    if (!IsActionableReparsePointType(reparsePointType))
+    {
+        return result;
+    }
+
+    DWORD lastError = GetLastError();
+
+    // Retrieve the target name from the reparse data buffer and translate it
+    std::wstring target;
+    GetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, target);
+
+    std::wstring translation;
+    TranslateFilePath(target, translation, false);
+
+    // If the translation returned back the same path, nothing to do.
+    if (target == translation)
+    {
+        SetLastError(lastError);
+        return result;
+    }
+
+    // Check that the translation will fit in the provided buffer.
+    // The translation will be used for both print and substitute name, so we need a buffer that can hold both
+    // The paths are stored without the null terminating char, so no need to account for it
+    if (translation.length() * 2 * sizeof(WCHAR) > nOutBufferSize)
+    {
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+        *lpBytesReturned = 0;
+        return 0;
+    }
+
+    // Update the returned structure with the translated path
+    SetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, translation);
+    *lpBytesReturned = (USHORT) translation.length() * 2 * sizeof(WCHAR);
+
+    SetLastError(lastError);
+    return result;
 }
 
 #undef IMPLEMENTED

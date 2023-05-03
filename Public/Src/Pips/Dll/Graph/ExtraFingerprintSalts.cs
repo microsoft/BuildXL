@@ -47,7 +47,8 @@ namespace BuildXL.Pips.Graph
                         pipWarningsPromotedToErrors: false,
                         validateDistribution: false,
                         requiredKextVersionNumber: s_requiredKextVersionNumber,
-                        explicitlyReportDirectoryProbes: false
+                        explicitlyReportDirectoryProbes: false,
+                        ignoreDeviceIoControlGetReparsePoint: true // Remove this flag from the fingerprint once we validated there are no breaking changes
             );
 
         /// <summary>
@@ -92,7 +93,8 @@ namespace BuildXL.Pips.Graph
                 fingerprintSalt,
                 searchPathToolsHash,
                 requiredKextVersionNumber: s_requiredKextVersionNumber,
-                config.Sandbox.ExplicitlyReportDirectoryProbes
+                config.Sandbox.ExplicitlyReportDirectoryProbes,
+                config.Sandbox.IgnoreDeviceIoControlGetReparsePoint
                 )
         {
         }
@@ -135,6 +137,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="searchPathToolsHash">The extra, optional salt of path fragments of tool locations for tools using search path enumeration.</param>
         /// <param name="requiredKextVersionNumber">The required kernel extension version number.</param>
         /// <param name="explicitlyReportDirectoryProbes">Whether /unsafe_explicitlyReportDirectoryProbes was passed to BuildXL.</param>
+        /// <param name="ignoreDeviceIoControlGetReparsePoint">Whether /ignoreDeviceIoControlGetReparsePoint was passed to BuildXL.</param>
         public ExtraFingerprintSalts(
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
@@ -158,7 +161,8 @@ namespace BuildXL.Pips.Graph
             string fingerprintSalt,
             ContentHash? searchPathToolsHash,
             string requiredKextVersionNumber,
-            bool explicitlyReportDirectoryProbes
+            bool explicitlyReportDirectoryProbes,
+            bool ignoreDeviceIoControlGetReparsePoint
             )
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
@@ -185,6 +189,7 @@ namespace BuildXL.Pips.Graph
             RequiredKextVersionNumber = requiredKextVersionNumber;
             m_calculatedSaltsFingerprint = null;
             ExplicitlyReportDirectoryProbes = explicitlyReportDirectoryProbes;
+            IgnoreDeviceIoControlGetReparsePoint = ignoreDeviceIoControlGetReparsePoint;
         }
 #pragma warning restore CS1572
 
@@ -312,6 +317,11 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public bool ExplicitlyReportDirectoryProbes { get; set; }
 
+        /// <summary>
+        /// Whether /ignoreDeviceIoControlGetReparsePoint flag was passed to BuildXL. (disabled by default)
+        /// </summary>
+        public bool IgnoreDeviceIoControlGetReparsePoint { get; set; }
+
         /// <nodoc />
         public static bool operator ==(ExtraFingerprintSalts left, ExtraFingerprintSalts right)
         {
@@ -354,7 +364,8 @@ namespace BuildXL.Pips.Graph
                 && other.PipWarningsPromotedToErrors == PipWarningsPromotedToErrors
                 && other.ValidateDistribution == ValidateDistribution
                 && other.RequiredKextVersionNumber.Equals(RequiredKextVersionNumber)
-                && other.ExplicitlyReportDirectoryProbes.Equals(ExplicitlyReportDirectoryProbes);
+                && other.ExplicitlyReportDirectoryProbes.Equals(ExplicitlyReportDirectoryProbes)
+                && other.IgnoreDeviceIoControlGetReparsePoint.Equals(IgnoreDeviceIoControlGetReparsePoint);
         }
 
         /// <inheritdoc />
@@ -391,6 +402,7 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ (RequiredKextVersionNumber?.GetHashCode() ?? 0);
                 hashCode = (hashCode * 397) ^ IgnoreFullReparsePointResolving.GetHashCode();
                 hashCode = (hashCode * 397) ^ ExplicitlyReportDirectoryProbes.GetHashCode();
+                hashCode = (hashCode * 397) ^ IgnoreDeviceIoControlGetReparsePoint.GetHashCode();
 
                 return hashCode;
             }
@@ -453,6 +465,14 @@ namespace BuildXL.Pips.Graph
             if (ExplicitlyReportDirectoryProbes)
             {
                 fingerprinter.Add(nameof(ExplicitlyReportDirectoryProbes), 1);
+            }
+
+            // We will eventually remove this flag from the fingerprint, but for now we want to trigger a cache
+            // miss only when DeviceIoControl is not ignored, so we can validate the feature is not a breaking change for
+            // customers.
+            if (!IgnoreDeviceIoControlGetReparsePoint)
+            {
+                fingerprinter.Add(nameof(IgnoreDeviceIoControlGetReparsePoint), 1);
             }
 
             fingerprinter.Add(nameof(FingerprintVersion), (int)FingerprintVersion);

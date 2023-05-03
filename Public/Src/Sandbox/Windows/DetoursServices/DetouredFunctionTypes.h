@@ -493,3 +493,14 @@ typedef BOOL(WINAPI* CreatePipe_t)(
     _In_opt_       LPSECURITY_ATTRIBUTES lpPipeAttributes,
     _In_           DWORD                 nSize
     );
+
+typedef BOOL(WINAPI* DeviceIoControl_t)(
+  _In_                HANDLE       hDevice,
+  _In_                DWORD        dwIoControlCode,
+  _In_opt_            LPVOID       lpInBuffer,
+  _In_                DWORD        nInBufferSize,
+  _Out_               LPVOID       lpOutBuffer,
+  _In_                DWORD        nOutBufferSize,
+  _Out_               LPDWORD      lpBytesReturned,
+  _Out_               LPOVERLAPPED lpOverlapped
+);

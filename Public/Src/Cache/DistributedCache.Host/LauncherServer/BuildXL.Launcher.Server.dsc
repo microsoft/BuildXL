@@ -30,6 +30,8 @@ namespace LauncherServer {
             importFrom("Azure.Identity").pkg,
             importFrom("Azure.Core").pkg,
             importFrom("Microsoft.Identity.Client").pkg,
+            // TODO: this should be part of Microsoft.Identity.Client dependencies, but there seems to be a bug in the spec generation and the dependency is left out.
+            importFrom("Microsoft.IdentityModel.Abstractions").pkg,
 
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcAspNetCorePackages(),

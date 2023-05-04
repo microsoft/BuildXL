@@ -35,6 +35,8 @@ namespace Library {
             importFrom("System.Private.ServiceModel").pkg,
             importFrom("System.ServiceModel.Http").pkg,
             importFrom("Microsoft.Identity.Client").pkg,
+            // TODO: this should be part of Microsoft.Identity.Client dependencies, but there seems to be a bug in the spec generation and the dependency is left out.
+            importFrom("Microsoft.IdentityModel.Abstractions").pkg,
 
             importFrom("Azure.Identity").pkg,
             importFrom("Azure.Core").pkg,

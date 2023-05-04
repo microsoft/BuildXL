@@ -203,14 +203,14 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                         }
 
                         // Returning null as the content hash list to indicate that the new value was accepted.
-                        return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, determinism));
+                        return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, determinism), contentHashCount: contentHashListWithDeterminism.ContentHashList?.Hashes?.Count);
                     }
 
                     // If we didn't accept the new value because it is the same as before, just with a not
                     // necessarily better determinism, then let the user know.
                     if (oldContentHashList.Equals(contentHashList))
                     {
-                        return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, oldDeterminism));
+                        return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, oldDeterminism), contentHashCount: oldContentHashList?.Hashes?.Count);
                     }
 
                     // If we didn't accept a deterministic tool's data, then we're in an inconsistent state

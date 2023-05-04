@@ -48,8 +48,10 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         [Fact]
         public void SucceededTrue()
         {
-            Assert.True(new AddOrGetContentHashListResult(
-                new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None)).Succeeded);
+            var result = new AddOrGetContentHashListResult(
+                new ContentHashListWithDeterminism(ContentHashList.Random(contentHashCount: 10), CacheDeterminism.None));
+            Assert.True(result.Succeeded);
+            Assert.True(result.ToString().Contains("ContentHashCount=[10]"));
         }
 
         [Fact]

@@ -69,6 +69,15 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="AddOrGetContentHashListResult" /> class.
         /// </summary>
+        public AddOrGetContentHashListResult(ContentHashListWithDeterminism contentHashListWithDeterminism, long? contentHashCount)
+            : this(contentHashListWithDeterminism)
+        {
+            _contentHashCount = contentHashCount;
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="AddOrGetContentHashListResult" /> class.
+        /// </summary>
         public AddOrGetContentHashListResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
@@ -119,6 +128,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// </remarks>
         public readonly ContentHashListWithDeterminism ContentHashListWithDeterminism;
 
+        private readonly long? _contentHashCount;
+
         /// <inheritdoc />
         public bool Equals(AddOrGetContentHashListResult? other)
         {
@@ -151,7 +162,10 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
             }
 
             var addOrGet = ContentHashListWithDeterminism.ContentHashList != null ? "get" : "add";
-            return $"{Code} {addOrGet} ContentHashList=[{ContentHashListWithDeterminism.ContentHashList}], Determinism=[{ContentHashListWithDeterminism.Determinism}]]";
+
+            var count = _contentHashCount ?? ContentHashListWithDeterminism.ContentHashList?.Hashes.Count ?? -1;
+            return $"{Code} {addOrGet} ContentHashList=[{ContentHashListWithDeterminism.ContentHashList}], Determinism=[{ContentHashListWithDeterminism.Determinism}], " +
+                $"ContentHashCount=[{count}]]";
         }
     }
 }

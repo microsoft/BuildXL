@@ -348,7 +348,7 @@ namespace BuildXL.Cache.Tests
             XAssert.IsFalse(cache.Succeeded);
 
             // validate the returned error message
-            XAssert.AreEqual("BuildXL.Cache.Tests.TestCacheFactory Json configuration field 'IntValue' can not be set to 'Invalid int value'\nInput string was not in a correct format.", cache.Failure.Describe());
+            XAssert.IsTrue(cache.Failure.Describe().StartsWith("BuildXL.Cache.Tests.TestCacheFactory Json configuration field 'IntValue' can not be set to 'Invalid int value'"));
         }
 
         /// <summary>

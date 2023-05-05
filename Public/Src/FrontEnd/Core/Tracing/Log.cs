@@ -1003,7 +1003,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
-            Message = "Workspace memory was not collected successfully. This indicates a memory leak that drastically increase memory footprint during evaluation phase",
+            Message = "Workspace memory was not collected. This increases memory footprint during evaluation phase.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void FrontEndWorkspaceMemoryNotCollected(LoggingContext context);
 

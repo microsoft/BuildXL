@@ -340,9 +340,6 @@ namespace BuildXL.FrontEnd.Core
         {
             if (!FrontEndConfiguration.ConstructAndSaveBindingFingerprint())
             {
-                Logger.FailToReuseFrontEndSnapshot(
-                    LoggingContext,
-                    "Binding fingerprint is disabled. Please use 'constructAndSaveBindingFingerprint' option to turn it on");
                 return default(Possible<Workspace>);
             }
 

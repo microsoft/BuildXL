@@ -23,8 +23,8 @@ namespace BuildXL.Native.IO
         /// as the vanilla BuildXL build for Windows and skip Unix implementations completely
         /// </remarks>
         private static readonly IFileSystemExtensions s_fileSystemExtensions = OperatingSystemHelper.IsUnixOS
-            ? new FileSystemExtensionsWin()
-            : new FileSystemExtensionsUnix();
+            ? new FileSystemExtensionsUnix()
+            : new FileSystemExtensionsWin();
 
         /// <see cref="IFileSystemExtensions.IsCopyOnWriteSupportedByEnlistmentVolume"/>
         public static bool IsCopyOnWriteSupportedByEnlistmentVolume

@@ -308,8 +308,6 @@ bool PTraceSandbox::AllTraceesHaveExited()
 {
     BXL_LOG_DEBUG(m_bxl, "[PTrace] Removing process '%d' from ptrace tracee table.", m_traceePid);
 
-    Handleexit();
-
     m_traceeTable.erase(std::remove_if
     (
         m_traceeTable.begin(),
@@ -324,6 +322,8 @@ bool PTraceSandbox::AllTraceesHaveExited()
         // Workaround for the PID of this runner process being reported to bxl
         m_bxl->SendExitReport(getpid());
     }
+
+    Handleexit();
 
     return shouldExit;
 }

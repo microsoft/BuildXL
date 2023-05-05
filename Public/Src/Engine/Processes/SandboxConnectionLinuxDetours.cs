@@ -37,6 +37,14 @@ namespace BuildXL.Processes
         // a length, which could take any positive value.
         private const int EndOfReportsSentinel = -21;
 
+        private static readonly string s_detoursLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libDetours.so");
+        private static readonly string s_auditLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libBxlAudit.so");
+
+        /// <summary>
+        /// Environment variable containing the path to the file access manifest to be read by the detoured process.
+        /// </summary>
+        public static readonly string BuildXLFamPathEnvVarName = "__BUILDXL_FAM_PATH";
+
         internal sealed class PathCacheRecord
         {
             internal RequestedAccess RequestedAccess { get; set; }
@@ -76,6 +84,11 @@ namespace BuildXL.Processes
         {
             internal SandboxedProcessUnix Process { get; }
             internal string ReportsFifoPath { get; }
+            /// <summary>
+            /// This fifo is used to communication between the process and BuildXL for non-file access related messages.
+            /// We use a second pipe here because it is possible for the reports pipe to drain slow due to a large number of messages.
+            /// </summary>
+            internal string SecondaryFifoPath { get; }
             internal string FamPath { get; }
 
             private readonly Sandbox.ManagedFailureCallback m_failureCallback;
@@ -94,7 +107,9 @@ namespace BuildXL.Processes
 
             private readonly CancellableTimedAction m_activeProcessesChecker;
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
+            private readonly Lazy<SafeFileHandle> m_lazySecondaryFifoWriteHandle;
             private readonly Thread m_workerThread;
+            private readonly Thread m_secondaryWorkerThread;
             private readonly ActionBlockSlim<(PooledObjectWrapper<byte[]> wrapper, int length)> m_accessReportProcessingBlock;
 
             private int m_stopRequestCounter;
@@ -104,7 +119,7 @@ namespace BuildXL.Processes
 
             private static ArrayPool<byte> ByteArrayPool { get; } = new ArrayPool<byte>(4096);
 
-            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath,  bool isInTestMode)
+            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string secondaryFifoPath, string famPath,  bool isInTestMode)
             {
                 m_isInTestMode = isInTestMode;
                 m_stopRequestCounter = 0;
@@ -112,6 +127,7 @@ namespace BuildXL.Processes
                 m_failureCallback = failureCallback;
                 Process = process;
                 ReportsFifoPath = reportsFifoPath;
+                SecondaryFifoPath = secondaryFifoPath;
                 FamPath = famPath;
 
                 m_pathCache = new Dictionary<string, PathCacheRecord>();
@@ -122,11 +138,7 @@ namespace BuildXL.Processes
 
                 // create a write handle (used to keep the fifo open, i.e.,
                 // the 'read' syscall won't receive EOF until we close this writer
-                m_lazyWriteHandle = new Lazy<SafeFileHandle>(() =>
-                {
-                    Process.LogDebug($"Opening FIFO '{ReportsFifoPath}' for writing");
-                    return IO.Open(ReportsFifoPath, IO.OpenFlags.O_WRONLY, 0);
-                });
+                m_lazyWriteHandle = GetLazyWriteHandle(ReportsFifoPath);
 
                 // action block where parsing and processing of received ActionReport bytes is done
                 m_accessReportProcessingBlock = ActionBlockSlim.Create<(PooledObjectWrapper<byte[]> wrapper, int length)>(
@@ -136,9 +148,30 @@ namespace BuildXL.Processes
                     );
 
                 // start a background thread for reading from the FIFO
-                m_workerThread = new Thread(StartReceivingAccessReports);
+                m_workerThread = new Thread(() => StartReceivingAccessReports(ReportsFifoPath, m_lazyWriteHandle));
                 m_workerThread.IsBackground = true;
                 m_workerThread.Priority = ThreadPriority.Highest;
+
+                // Second thread for reading the secondary FIFO
+                // The secondary pipe is used here to allow for messages that are higher priority (such as ptrace notifcations)
+                // to be delivered back to the managed layer faster if the fifo used for file access reports is congested.
+                if (!string.IsNullOrEmpty(SecondaryFifoPath))
+                {
+                    m_lazySecondaryFifoWriteHandle = GetLazyWriteHandle(SecondaryFifoPath);
+
+                    m_secondaryWorkerThread = new Thread(() => StartReceivingAccessReports(SecondaryFifoPath, m_lazySecondaryFifoWriteHandle));
+                    m_secondaryWorkerThread.IsBackground = true;
+                    m_secondaryWorkerThread.Priority = ThreadPriority.Highest;
+                }
+            }
+
+            private Lazy<SafeFileHandle> GetLazyWriteHandle(string path)
+            {
+                return new Lazy<SafeFileHandle>(() =>
+                {
+                    Process.LogDebug($"Opening FIFO '{path}' for writing");
+                    return IO.Open(path, IO.OpenFlags.O_WRONLY, 0);
+                });
             }
 
             /// <summary>
@@ -147,6 +180,10 @@ namespace BuildXL.Processes
             internal void Start()
             {
                 m_workerThread.Start();
+                if (!string.IsNullOrEmpty(SecondaryFifoPath))
+                {
+                    m_secondaryWorkerThread.Start();
+                }
             }
 
             private void CheckActiveProcesses()
@@ -202,9 +239,11 @@ namespace BuildXL.Processes
                 // was preferred.
                 try
                 {
-                    using var fileStream = new FileStream(m_lazyWriteHandle.Value, FileAccess.Write);
-                    using var binaryWriter = new BinaryWriter(fileStream);
-                    binaryWriter.Write(EndOfReportsSentinel);
+                    writeEndOfReportSentinal(m_lazyWriteHandle);   
+                    if (!string.IsNullOrEmpty(SecondaryFifoPath))
+                    {
+                        writeEndOfReportSentinal(m_lazySecondaryFifoWriteHandle);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -214,7 +253,18 @@ namespace BuildXL.Processes
                 { 
                     Process.LogDebug($"Closing the write handle for FIFO '{ReportsFifoPath}'");
                     m_lazyWriteHandle.Value.Dispose();
+                    if (!string.IsNullOrEmpty(SecondaryFifoPath))
+                    {
+                        m_lazySecondaryFifoWriteHandle.Value.Dispose();
+                    }
                     m_activeProcessesChecker.Cancel();
+                }
+
+                void writeEndOfReportSentinal(Lazy<SafeFileHandle> handle)
+                {
+                    using var fileStream = new FileStream(handle.Value, FileAccess.Write);
+                    using var binaryWriter = new BinaryWriter(fileStream);
+                    binaryWriter.Write(EndOfReportsSentinel);
                 }
             }
 
@@ -306,6 +356,10 @@ namespace BuildXL.Processes
                     // 'StartReceivingAccessReports' may remain stuck forever.
                     LogDebug("Waiting for the worker thread to complete");
                     m_workerThread.Join();
+                    if (!string.IsNullOrEmpty(SecondaryFifoPath))
+                    {
+                        m_secondaryWorkerThread.Join();
+                    }
                 }
             }
 
@@ -361,10 +415,12 @@ namespace BuildXL.Processes
                     {
                         RemovePid(report.Pid);
                     }
-                    else
+                    // We don't want to check the path cache for statically linked processes
+                    // because we rely on this report to start the ptrace sandbox
+                    else if (report.Operation != FileOperation.OpStaticallyLinkedProcess)
                     {
                         var pathStr = path.ToString();
-                        // check the path cache (only when the message is not about process tree)
+                        // check the path cache (only when the message is not about process tree)                        
                         if (GetOrCreateCacheRecord(pathStr).CheckCacheHitAndUpdate(access))
                         {
                             LogDebug($"Cache hit for access report: ({pathStr}, {access})");
@@ -430,10 +486,8 @@ namespace BuildXL.Processes
             /// <summary>
             /// The method backing the <see cref="m_workerThread"/> thread.
             /// </summary>
-            private void StartReceivingAccessReports()
+            private void StartReceivingAccessReports(string fifoName, Lazy<SafeFileHandle> fifoHandle)
             {
-                var fifoName = ReportsFifoPath;
-
                 // opening FIFO for reading (blocks until there is at least one writer connected)
                 LogDebug($"Opening FIFO '{fifoName}' for reading");
                 using var readHandle = IO.Open(fifoName, IO.OpenFlags.O_RDONLY, 0);
@@ -444,7 +498,7 @@ namespace BuildXL.Processes
                 }
 
                 // make sure that m_lazyWriteHandle has been created
-                Analysis.IgnoreResult(m_lazyWriteHandle.Value);
+                Analysis.IgnoreResult(fifoHandle.Value);
 
                 byte[] messageLengthBytes = new byte[sizeof(int)];
                 while (true)
@@ -460,7 +514,7 @@ namespace BuildXL.Processes
 
                     if (numRead < 0) // error
                     {
-                        LogError($"Read from FIFO {ReportsFifoPath} failed with return value {numRead}.");
+                        LogError($"Read from FIFO {fifoName} failed with return value {numRead}.");
                         break;
                     }
 
@@ -481,7 +535,7 @@ namespace BuildXL.Processes
                     numRead = Read(readHandle, messageBytes.Instance, 0, messageLength);
                     if (numRead < messageLength)
                     {
-                        LogError($"Read from FIFO {ReportsFifoPath} failed: read only {numRead} out of {messageLength} bytes.");
+                        LogError($"Read from FIFO {fifoName} failed: read only {numRead} out of {messageLength} bytes.");
                         messageBytes.Dispose();
                         break;
                     }
@@ -505,24 +559,9 @@ namespace BuildXL.Processes
         public bool IsInTestMode { get; }
 
         /// <summary>
-        /// Name of PTrace daemon file.
-        /// </summary>
-        public const string PTraceDaemonFileName = "ptracedaemon";
-
-        /// <summary>
         /// Name of PTrace runner file.
         /// </summary>
         public const string PTraceRunnerFileName = "ptracerunner";
-
-        /// <summary>
-        /// Path to the ptracerunner
-        /// </summary>
-        private static readonly string s_ptraceRunnerFile = SandboxedProcessUnix.GetDeploymentFileFullPath(PTraceRunnerFileName);
-
-        /// <summary>
-        /// Message queue name used for communication with the ptrace daemon process
-        /// </summary>
-        public static readonly string LinuxSandboxPTraceMqName = "/BUILDXLPTRACEMQ";
 
         private readonly ConcurrentDictionary<long, Info> m_pipProcesses = new();
 
@@ -561,17 +600,14 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private static readonly string s_detoursLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libDetours.so");
-        private static readonly string s_auditLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libBxlAudit.so");
-
         /// <inheritdoc />
         public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
             var detoursLibPath = info.RootJailInfo.CopyToRootJailIfNeeded(s_detoursLibFile);
-            (_, string famPath) = GetPaths(info.RootJailInfo, uniqueName);
+            (_, _, string famPath) = GetPaths(info.RootJailInfo, uniqueName);
 
             yield return ("__BUILDXL_ROOT_PID", "1"); // CODESYNC: Public/Src/Sandbox/Linux/common.h (temp solution for breakaway processes)
-            yield return ("__BUILDXL_FAM_PATH", info.RootJailInfo.ToPathInsideRootJail(famPath));
+            yield return (BuildXLFamPathEnvVarName, info.RootJailInfo.ToPathInsideRootJail(famPath));
             yield return ("__BUILDXL_DETOURS_PATH", detoursLibPath);
 
             if (info.RootJailInfo?.DisableSandboxing != true)
@@ -589,21 +625,19 @@ namespace BuildXL.Processes
             {
                 yield return ("LD_AUDIT", info.RootJailInfo.CopyToRootJailIfNeeded(s_auditLibFile) + ":" + info.EnvironmentVariables.TryGetValue("LD_AUDIT", string.Empty));
             }
-
-            // CODESYNC: Public/Src/Engine/Scheduler/PTraceDaemon.cs
-            if (info.FileAccessManifest.EnableLinuxPTraceSandbox || info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox)
-            {
-                yield return ("__BUILDXL_PTRACE_MQ_NAME", LinuxSandboxPTraceMqName);
-                yield return ("__BUILDXL_PTRACE_RUNNER_PATH", info.RootJailInfo.CopyToRootJailIfNeeded(s_ptraceRunnerFile));
-            }
         }
 
-        private (string fifo, string fam) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)
+        /// <summary>
+        /// Returns the paths for the FIFO and FAM based on the unique name for a pip.
+        /// </summary>
+        public static (string fifo, string secondaryFifo, string fam) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)
         {
             string rootDir = rootJailInfo?.RootJail ?? Path.GetTempPath();
             string fifoPath = Path.Combine(rootDir, $"bxl_{uniqueName}.fifo");
+            // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.cpp
+            string secondaryFifoPath = Path.Combine(rootDir, $"bxl_{uniqueName}.fifo2");
             string famPath = Path.ChangeExtension(fifoPath, ".fam");
-            return (fifo: fifoPath, fam: famPath);
+            return (fifo: fifoPath, secondaryFifo: secondaryFifoPath, fam: famPath);
         }
 
         /// <inheritdoc />
@@ -624,7 +658,7 @@ namespace BuildXL.Processes
             Contract.Requires(!process.Started);
             Contract.Requires(process.PipId != 0);
 
-            (string fifoPath, string famPath) = GetPaths(process.RootJailInfo, process.UniqueName);
+            (string fifoPath, string secondaryFifoPath, string famPath) = GetPaths(process.RootJailInfo, process.UniqueName);
             
             if (IsInTestMode)
             {
@@ -649,16 +683,20 @@ namespace BuildXL.Processes
             process.LogDebug($"Saved FAM to '{famPath}'");
 
             // create a FIFO (named pipe)
-            Analysis.IgnoreResult(FileUtilities.TryDeleteFile(fifoPath, retryOnFailure: false));
-            if (IO.MkFifo(fifoPath, IO.FilePermissions.S_IRWXU) != 0)
+            createNewFifo(fifoPath);
+
+            // Secondary fifo is only used by the ptrace sandbox for now
+            if (fam.EnableLinuxPTraceSandbox)
             {
-                throw new BuildXLException($"Creating FIFO {fifoPath} failed. (errno: {Marshal.GetLastWin32Error()})");
+                createNewFifo(secondaryFifoPath);
+            }
+            else
+            {
+                secondaryFifoPath = string.Empty;
             }
 
-            process.LogDebug($"Created FIFO at '{fifoPath}'");
-
             // create and save info for this pip
-            var info = new Info(m_failureCallback, process, fifoPath, famPath, IsInTestMode);
+            var info = new Info(m_failureCallback, process, fifoPath, secondaryFifoPath, famPath, IsInTestMode);
             if (!m_pipProcesses.TryAdd(process.PipId, info))
             {
                 throw new BuildXLException($"Process with PidId {process.PipId} already exists");
@@ -668,6 +706,17 @@ namespace BuildXL.Processes
             reportCompletion.ContinueWith(t => info.Dispose(), TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.RunContinuationsAsynchronously);
 
             info.Start();
+
+            void createNewFifo(string fifo)
+            {
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(fifo, retryOnFailure: false));
+                if (IO.MkFifo(fifo, IO.FilePermissions.S_IRWXU) != 0)
+                {
+                    throw new BuildXLException($"Creating FIFO {fifo} failed. (errno: {Marshal.GetLastWin32Error()})");
+                }
+
+                process.LogDebug($"Created FIFO at '{fifo}'");
+            }
         }
 
         /// <inheritdoc />

@@ -225,8 +225,8 @@ private:
     char progFullPath_[PATH_MAX];
     char detoursLibFullPath_[PATH_MAX];
     char famPath_[PATH_MAX];
-    char ptraceMqName_[NAME_MAX];
     char forcedPTraceProcessNamesList_[PATH_MAX];
+    char secondaryReportPath_[PATH_MAX];
 
     std::timed_mutex cacheMtx_;
     std::unordered_map<es_event_type_t, std::unordered_set<std::string>> cache_;
@@ -252,8 +252,7 @@ private:
 
     void InitFam();
     void InitDetoursLibPath();
-    void InitPTraceMq();
-    bool Send(const char *buf, size_t bufsiz);
+    bool Send(const char *buf, size_t bufsiz, bool useSecondaryPipe = false);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
     char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
     void report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath = nullptr, mode_t mode = 0, int error = 0, bool checkCache = true);
@@ -320,7 +319,7 @@ private:
 public:
     static BxlObserver* GetInstance();
 
-    bool SendReport(const AccessReport &report, bool isDebugMessage = false);
+    bool SendReport(const AccessReport &report, bool isDebugMessage = false, bool useSecondaryPipe = false);
     bool SendReport(const AccessReportGroup &report);
     // Specialization for the exit report event. 
     // We may need to send an exit report on exit handlers after destructors
@@ -330,6 +329,7 @@ public:
 
     const char* GetProgramPath() { return progFullPath_; }
     const char* GetReportsPath() { int len; return IsValid() ? pip_->GetReportsPath(&len) : NULL; }
+    const char* GetSecondaryReportsPath() { return secondaryReportPath_; }
     const char* GetDetoursLibPath() { return detoursLibFullPath_; }
 
     void report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode = 0);
@@ -399,7 +399,6 @@ public:
     // Enumerates a specified directory
     bool EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);
 
-    const char* getPTraceMqName() const { return IsPTraceEnabled() ? ptraceMqName_ : ""; }
     const char* getFamPath() const { return famPath_; };
 
     inline bool LogDebugEnabled()

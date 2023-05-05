@@ -646,11 +646,6 @@ namespace BuildXL.Scheduler
         private int m_firstExecutedPip;
 
         /// <summary>
-        /// PTrace Daemon responsible for attaching ptrace to statically linked processes on Linux.
-        /// </summary>
-        private readonly PTraceDaemon m_pTraceDaemon;
-
-        /// <summary>
         /// Retrieve the count of pips in all the different states
         /// </summary>
         /// <param name="totalPips">Total number of pips</param>
@@ -1498,12 +1493,6 @@ namespace BuildXL.Scheduler
             {
                 Logger.Log.CreationTimeNotSupported(m_loggingContext);
             }
-
-            // This is a linux specific component that is responsible for running the ptrace sandbox daemon which is necessary to detect file accesses on statically linked processes
-            if (OperatingSystemHelper.IsLinuxOS && m_configuration.Sandbox.EnableLinuxPTraceSandbox)
-            {
-                m_pTraceDaemon = new PTraceDaemon(loggingContext);
-            }
         }
 
         /// <summary>
@@ -1581,11 +1570,6 @@ namespace BuildXL.Scheduler
 
             m_executePhaseLoggingContext = loggingContext;
             m_serviceManager.Start(loggingContext, OperationTracker);
-
-            if (OperatingSystemHelper.IsLinuxOS && m_configuration.Sandbox.EnableLinuxPTraceSandbox)
-            {
-                m_pTraceDaemon.Start();
-            }
 
             if (PipGraph.ApiServerMoniker.IsValid)
             {
@@ -1777,11 +1761,6 @@ namespace BuildXL.Scheduler
 
                 // Complete writing out PackedExecution log (on orchestrator only, since exporter is only created on orchestrator)
                 m_packedExecutionExporter?.Analyze();
-
-                if (OperatingSystemHelper.IsLinuxOS && m_configuration.Sandbox.EnableLinuxPTraceSandbox)
-                {
-                    await m_pTraceDaemon.Stop();
-                }
 
                 return !HasFailed && shutdownServicesSucceeded;
             }

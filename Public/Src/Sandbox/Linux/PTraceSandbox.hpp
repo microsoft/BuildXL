@@ -33,19 +33,19 @@ public:
     /**
      * Attach the tracer to the provided pid.
      */
-    void AttachToProcess(pid_t traceePid, pid_t parentPid, std::string exe, std::string mq);
+    void AttachToProcess(pid_t traceePid, std::string exe, std::string semaphoreName);
 
     /*
      * @brief Executes the provided child process under the ptrace sandbox
      * @return The return value from exec if the child fails to execute
      */
-    int ExecuteWithPTraceSandbox(const char *file, char *const argv[], char *const envp[], const char *mq, const char *fam);
+    int ExecuteWithPTraceSandbox(const char *file, char *const argv[], char *const envp[], const char *fam);
 
 private:
     BxlObserver *m_bxl;
     pid_t m_traceePid = 0;
     const char* const m_emptyStr = "";
-    std::vector<std::tuple<pid_t, pid_t, std::string>> m_traceeTable; // tracee pid, parent pid, tracee exe path
+    std::vector<std::tuple<pid_t, std::string>> m_traceeTable; // tracee pid, tracee exe path
 
     /**
      * Removes a process that has exited from the tracee table and returns true if all tracees have exited
@@ -55,7 +55,7 @@ private:
     /**
      * Finds the parent process in the tracee table for a given PID.
      */
-    std::vector<std::tuple<pid_t, pid_t, std::string>>::iterator FindParentProcess(pid_t pid);
+    std::vector<std::tuple<pid_t, std::string>>::iterator FindProcess(pid_t pid);
 
     void HandleSysCallGeneric(int syscallNumber);
 

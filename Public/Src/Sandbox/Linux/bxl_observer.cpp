@@ -34,8 +34,6 @@ BxlObserver::BxlObserver()
 
     InitFam();
     InitDetoursLibPath();
-    // NOTE: this needs to be called after InitFam() because it relies on the flags from the file access manifest.
-    InitPTraceMq();
 
     const char* const forcedprocesses = getenv(BxlPTraceForcedProcessNames);
     if (!is_null_or_empty(forcedprocesses))
@@ -58,6 +56,17 @@ BxlObserver::BxlObserver()
         
         forcedPTraceProcessNames_.emplace_back(start, end - start);
     }
+
+    // FAM must be initialized before the report path can be obtained
+    if (CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
+    {
+        strlcpy(secondaryReportPath_, GetReportsPath(), PATH_MAX);
+        auto reportLength = strnlen(secondaryReportPath_, PATH_MAX);
+
+        // CODESYNC: Public/Src/Engine/Processes/SandboxConnectionLinuxDetours.cs
+        secondaryReportPath_[reportLength] = '2';
+        secondaryReportPath_[reportLength + 1] = '\0';
+    }
 }
 
 void BxlObserver::InitDetoursLibPath()
@@ -71,23 +80,6 @@ void BxlObserver::InitDetoursLibPath()
     {
         detoursLibFullPath_[0] = '\0';
     }
-}
-
-void BxlObserver::InitPTraceMq()
-{
-    if (!IsPTraceEnabled())
-    {
-        return;
-    }
-
-    const char *mqname = getenv(BxlPTraceMqName);
-
-    if (is_null_or_empty(mqname))
-    {
-        _fatal_undefined_env(BxlPTraceMqName);
-    }
-
-    strlcpy(ptraceMqName_, mqname, NAME_MAX);
 }
 
 void BxlObserver::InitFam()
@@ -255,7 +247,7 @@ bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const st
     return !it->second.insert(path).second;
 }
 
-bool BxlObserver::Send(const char *buf, size_t bufsiz)
+bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe)
 {
     if (!real_open)
     {
@@ -268,7 +260,7 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz)
         _fatal("Cannot atomically send a buffer whose size (%ld) is greater than PIPE_BUF (%d)", bufsiz, PIPE_BUF);
     }
 
-    const char *reportsPath = GetReportsPath();
+    const char *reportsPath = useSecondaryPipe ? GetSecondaryReportsPath() : GetReportsPath();
     int logFd = real_open(reportsPath, O_WRONLY | O_APPEND, 0);
     if (logFd == -1)
     {
@@ -313,7 +305,7 @@ bool BxlObserver::SendReport(const AccessReportGroup &report)
     return result;
 }
 
-bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage)
+bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bool useSecondaryPipe)
 {
     // there is no central sendbox process here (i.e., there is an instance of this
     // guy in every child process), so counting process tree size is not feasible
@@ -349,7 +341,7 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage)
     }
 
     *(uint*)(buffer) = numWritten;
-    return Send(buffer, std::min(numWritten + PrefixLength, PIPE_BUF));
+    return Send(buffer, std::min(numWritten + PrefixLength, PIPE_BUF), useSecondaryPipe);
 }
 
 void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode)
@@ -642,18 +634,12 @@ bool BxlObserver::IsPTraceForced(const char *path)
 
 bool BxlObserver::check_and_report_statically_linked_process(const char *path)
 {
-    // If the ptrace sandbox is unconditionally enabled, then there is no need to check anything else
-    if (CheckUnconditionallyEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
-    {
-        return true;
-    }
-
     if (!CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
     {
         return false;
     }
 
-    if (IsPTraceForced(path))
+    if (IsPTraceForced(path) || CheckUnconditionallyEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
     {
         // We force ptrace for this process. 
         // Send a "statically linked" report so that the managed side can track it.
@@ -674,7 +660,7 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
         };
 
         strlcpy(report.path, path, sizeof(report.path));
-        SendReport(report);
+        SendReport(report, /* isDebugMessage */ false, /* useSecondaryPipe */ true);
         return true;
     }
 
@@ -726,7 +712,7 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
 
         strlcpy(report.path, path, sizeof(report.path));
 
-        SendReport(report);
+        SendReport(report, /* isDebugMessage */ false, /* useSecondaryPipe */ true);
     }
 
     staticallyLinkedProcessCache_.push_back(std::make_pair(key, isStaticallyLinked));
@@ -1048,7 +1034,6 @@ char** BxlObserver::ensureEnvs(char *const envp[])
         newEnvp = ensure_env_value(newEnvp, BxlEnvFamPath, "");
         newEnvp = ensure_env_value(newEnvp, BxlEnvDetoursPath, "");
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
-        newEnvp = ensure_env_value(newEnvp, BxlPTraceMqName, "");
         newEnvp = ensure_env_value(newEnvp, BxlPTraceForcedProcessNames, "");
         return newEnvp;
     }
@@ -1062,9 +1047,8 @@ char** BxlObserver::ensureEnvs(char *const envp[])
 
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath, famPath_);
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath, detoursLibFullPath_);
-        newEnvp = ensure_env_value_with_log(newEnvp, BxlPTraceMqName, ptraceMqName_);
-        newEnvp = ensure_env_value_with_log(newEnvp, BxlPTraceForcedProcessNames, forcedPTraceProcessNamesList_);
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
+        newEnvp = ensure_env_value_with_log(newEnvp, BxlPTraceForcedProcessNames, forcedPTraceProcessNamesList_);
 
         return newEnvp;
     }

@@ -1272,5 +1272,15 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = "[{pipDescription}] The following processes '{exePath}' are statically linked and their file accesses may not be reported by the sandbox.")]
         public abstract void LinuxSandboxReportedStaticallyLinkedBinary(LoggingContext context, string pipDescription, string exePath);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PTraceRunnerError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "PTraceRunner logged the following error: {content}")]
+        internal abstract void PTraceRunnerError(LoggingContext loggingContext, string content);
+
     }
 }

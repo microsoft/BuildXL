@@ -3,7 +3,7 @@
 
 #include "PTraceSandbox.hpp"
 
-bool verifyargs(BxlObserver *bxl, pid_t traceepid, pid_t parentpid, std::string exe, std::string mqname)
+bool verifyargs(BxlObserver *bxl, pid_t traceepid, std::string exe)
 {
     bool valid = true;
 
@@ -14,26 +14,14 @@ bool verifyargs(BxlObserver *bxl, pid_t traceepid, pid_t parentpid, std::string 
 
     if (traceepid < 0)
     {
-        BXL_LOG_DEBUG(bxl, "[PTraceRunner] Invalid traceepid '%d' provided.", traceepid);
-        valid = false;
-    }
-
-    if (parentpid < 0)
-    {
-        // Parent pid is not critical to running the sandbox, if it's not provided then it's not a big deal
-        BXL_LOG_DEBUG(bxl, "[PTraceRunner] Invalid parentpid '%d' provided.", traceepid);
-    }
-
-    if (mqname.length() == 0 || mqname[0] != '/')
-    {
-        BXL_LOG_DEBUG(bxl, "[PTraceRunner] Invalid message queue name '%s'.", mqname.c_str());
+        BXL_LOG_DEBUG(bxl, "Invalid traceepid '%d' provided.", traceepid);
         valid = false;
     }
 
     if (exe.length() == 0)
     {
         // exe is not critical to running the sandbox
-        BXL_LOG_DEBUG(bxl, "[PTraceRunner] Invalid exe '%s'.", mqname.c_str());
+        BXL_LOG_DEBUG(bxl, "Invalid exe '%s'.", exe.c_str());
     }
 
     return valid;
@@ -47,12 +35,11 @@ int main(int argc, char **argv)
 {
     int opt;
     pid_t traceepid;
-    pid_t parentpid;
     std::string exe;
-    std::string mq;
+    std::string semaphoreName = "/";
     
     // Parse arguments
-    while((opt = getopt(argc, argv, "cpxm")) != -1)
+    while((opt = getopt(argc, argv, "cx")) != -1)
     {
         switch (opt)
         {
@@ -60,17 +47,9 @@ int main(int argc, char **argv)
                 // -c <pid of process to trace>
                 traceepid = atoi(argv[optind]);
                 break;
-            case 'p':
-                // -p <pid of parent process of process being traced>
-                parentpid = atoi(argv[optind]);
-                break;
             case 'x':
                 // -x <path to statically linked executable>
                 exe = std::string(argv[optind]);
-                break;
-            case 'm':
-                // -m </mqname>
-                mq = std::string(argv[optind]);
                 break;
         }
     }
@@ -79,14 +58,15 @@ int main(int argc, char **argv)
     PTraceSandbox sandbox(bxl);
 
     // FAM path will be verified by the BxlObserver constructor
-    if (!verifyargs(bxl, traceepid, parentpid, exe, mq))
+    if (!verifyargs(bxl, traceepid, exe))
     {
+        std::cerr << "Verify args failed failed: " << strerror(errno) << std::endl;
         _exit(-1);
     }
 
-    BXL_LOG_DEBUG(bxl, "[PTraceRunner:%d] Attaching to process %d", getpid(), traceepid);
+    semaphoreName.append(std::to_string(traceepid));
 
-    sandbox.AttachToProcess(traceepid, parentpid, exe, mq);
+    sandbox.AttachToProcess(traceepid, exe, semaphoreName);
 
     _exit(0);
 }

@@ -520,9 +520,6 @@ namespace BuildXL.Scheduler.Tracing
 
         CreationTimeNotSupported = 14537,
 
-        PTraceDaemonVerbose = 14538,
-        PTraceDaemonError = 14539,
-
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

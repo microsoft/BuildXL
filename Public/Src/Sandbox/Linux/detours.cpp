@@ -187,7 +187,7 @@ static int handle_exec_with_ptrace(const char *file, char *const argv[], char *c
     envp = bxl->RemoveLDPreloadFromEnv(envp);
 
     PTraceSandbox ptraceSandbox(bxl);
-    auto result = ptraceSandbox.ExecuteWithPTraceSandbox(file, argv, envp, bxl->getPTraceMqName(), bxl->getFamPath());
+    auto result = ptraceSandbox.ExecuteWithPTraceSandbox(file, argv, envp, bxl->getFamPath());
 
     bxl->report_exec("execve", argv[0], file, /* error */ errno);
 

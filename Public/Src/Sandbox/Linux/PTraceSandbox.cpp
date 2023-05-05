@@ -5,7 +5,7 @@
 #include "PTraceSandbox.hpp"
 #include <linux/filter.h>
 #include <linux/seccomp.h>
-#include <mqueue.h>
+#include <semaphore.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/reg.h>
@@ -47,7 +47,7 @@ PTraceSandbox::~PTraceSandbox()
 {
 }
 
-int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, char *const argv[], char *const envp[], const char *mq, const char *fam)
+int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, char *const argv[], char *const envp[], const char *fam)
 {
     // Allow this process to be traced by the daemon process
     prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
@@ -119,50 +119,59 @@ int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, char *const argv[]
         .filter = filter,
     };
 
+    // NOTE: sem_open must be called before we set the seccomp filter
+    std::string semaphoreName = "/" + std::to_string(getpid());
+    sem_t *semaphoreTracee = sem_open(semaphoreName.c_str(), O_CREAT, 0644, 0);
+    if (semaphoreTracee == NULL || semaphoreTracee == SEM_FAILED)
+    {
+        BXL_LOG_DEBUG(m_bxl, "[PTrace] sem_open failed with: '%s'", strerror(errno));
+        m_bxl->real__exit(-1);
+    }
+
+    struct timespec ts;
+    if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+    {
+        m_bxl->real_fprintf(stderr, "[BuildXL] clock_gettime failed: '%s'\n", strerror(errno));
+        m_bxl->real__exit(-1);
+    }
+    ts.tv_sec += 15; // Waiting up to 15 seconds and then assuming something went wrong with the ptrace runner
+
+    // Wait for the ptracerunner to post to this semaphore to indicate that it has attached successfully
+    auto waitResult = sem_timedwait(semaphoreTracee, &ts);
+    auto semWaitErrno = errno;
+
+    // Regardless of whether we timed out or not, close/unlink the semaphore
+    sem_close(semaphoreTracee);
+    sem_unlink(semaphoreName.c_str());
+
+    if (waitResult == -1)
+    {
+        // Tracer failed to attach within 15 seconds
+        m_bxl->real_fprintf(stderr, "[PTrace] PTraceRunner failed to respond within 15 seconds with error: '%s'\n", strerror(semWaitErrno));
+        m_bxl->real__exit(-1);
+    }
+
     // This prctl call prevents the child process from having a higher privilege than its parent
     // It is necessary to make the next PR_SET_SECCOMP call work (or else the parent process would need to run as root)
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
         BXL_LOG_DEBUG(m_bxl, "prctl(PR_SET_NO_NEW_PRIVS) failed %d\n", 1);
         m_bxl->real_printf("prctl(PR_SET_NO_NEW_PRIVS) failed\n");
-        m_bxl->real__exit(1);
+        m_bxl->real__exit(-1);
     }
 
     // Sets the seccomp filter
+    // NOTE: Do not run anything other than execve after this statement
     if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == -1) {
         BXL_LOG_DEBUG(m_bxl, "PR_SET_SECCOMP with SECCOMP_MODE_FILTER failed %d\n", 1);
         m_bxl->real_printf("PR_SET_SECCOMP with SECCOMP_MODE_FILTER failed\n");
-        m_bxl->real__exit(1);
+        m_bxl->real__exit(-1);
     }
-
-    // Send message to ptrace daemon to start tracing this process
-    char buffer[PTRACED_MQ_MSG_SIZE];
-    mqd_t mqdes = mq_open(mq, O_WRONLY);
-
-    // null termination not necessary here, messages are sent based on the provided length
-    auto size = snprintf(
-        buffer,
-        PTRACED_MQ_MSG_SIZE,
-        "%d|%d|%d|%s|%s", run, getpid(), getppid(), file, fam
-    );
-
-    auto res = mq_send(mqdes, buffer, size, /* msg_prio */ 0);
-    mq_close(mqdes);
-
-    if (res == -1)
-    {
-        // Failed to send a message to start the tracer, write to stderr to allow the user to know why the process died
-        m_bxl->real_fprintf(stderr, "[BuildXL] Failed to send request to ptrace daemon with error: '%s'\n", strerror(errno));
-        _exit(-1);
-    }
-
-    // Sleep here to allow for the tracer to attach
-    sleep(2);
 
     // Finally perform the exec syscall, this call to exec along with the syscalls from the child process should be filtered and reported to the tracer by seccomp
     return m_bxl->real_execvpe(file, argv, envp);
 }
 
-void PTraceSandbox::AttachToProcess(pid_t traceePid, pid_t parentPid, std::string exe, std::string mq)
+void PTraceSandbox::AttachToProcess(pid_t traceePid, std::string exe, std::string semaphoreName)
 {
     BXL_LOG_DEBUG(m_bxl, "[PTrace] Starting tracer PID '%d' to trace PID '%d'", getpid(), traceePid);
 
@@ -187,11 +196,21 @@ void PTraceSandbox::AttachToProcess(pid_t traceePid, pid_t parentPid, std::strin
     }
 
     m_traceePid = traceePid;
-    m_traceeTable.push_back(std::make_tuple(traceePid, parentPid, exe));
+    m_traceeTable.push_back(std::make_tuple(traceePid, exe));
     m_bxl->disable_fd_table();
 
     // Resume child
     ptrace(PTRACE_SYSCALL, m_traceePid, 0, 0);
+
+    // Attach complete, signal the semaphore for the child to resume
+    sem_t *semaphore = sem_open(semaphoreName.c_str(), O_CREAT, 0644, 0);
+    if (semaphore == NULL)
+    {
+        BXL_LOG_DEBUG(m_bxl, "[PTrace] sem_open failed with: '%s'", strerror(errno));
+        _exit(-1);
+    }
+    sem_post(semaphore); // Increment the semaphore to unblock the traced process
+    sem_close(semaphore);
 
     // Main loop that handles signals from the child
     // wait should get signalled from the following:
@@ -283,15 +302,6 @@ void PTraceSandbox::AttachToProcess(pid_t traceePid, pid_t parentPid, std::strin
             ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
         }
     }
-
-    // Send exit notification to daemon, this will have it collect our exit status
-    char buffer[PTRACED_MQ_MSG_SIZE];
-    mqd_t mqdes = mq_open(mq.c_str(), O_WRONLY);
-    auto size = snprintf(buffer, PTRACED_MQ_MSG_SIZE, "%d|%d", exitnotification, getpid());
-    auto mqres = mq_send(mqdes, buffer, size, /* msg_prio */ 0);
-    mq_close(mqdes);
-
-    BXL_LOG_DEBUG(m_bxl, "[PTrace] Exit notification result '%d', errno '%d'", mqres, errno);
 }
 
 bool PTraceSandbox::AllTraceesHaveExited()
@@ -304,7 +314,7 @@ bool PTraceSandbox::AllTraceesHaveExited()
     (
         m_traceeTable.begin(),
         m_traceeTable.end(),
-        [this](const std::tuple<pid_t, pid_t, std::string>& item) { return std::get<0>(item) == m_traceePid; }
+        [this](const std::tuple<pid_t, std::string>& item) { return std::get<0>(item) == m_traceePid; }
     ), m_traceeTable.end());
 
     auto shouldExit = m_traceeTable.size() == 0;
@@ -497,13 +507,13 @@ void PTraceSandbox::ReportCreate(std::string syscallName, int dirfd, const char 
     m_bxl->report_access(syscallName.c_str(), event, checkCache);
 }
 
-std::vector<std::tuple<pid_t, pid_t, std::string>>::iterator PTraceSandbox::FindParentProcess(pid_t pid)
+std::vector<std::tuple<pid_t, std::string>>::iterator PTraceSandbox::FindProcess(pid_t pid)
 {
     return std::find_if
     (
         m_traceeTable.begin(),
         m_traceeTable.end(),
-        [pid](const std::tuple<pid_t, pid_t, std::string>& item) { return std::get<0>(item) == pid; }
+        [pid](const std::tuple<pid_t, std::string>& item) { return std::get<0>(item) == pid; }
     );
 }
 
@@ -515,31 +525,28 @@ void PTraceSandbox::HandleChildProcess(const char *syscall)
     ptrace(PTRACE_GETEVENTMSG, m_traceePid, NULL, (long) &newPid);
 
     // Find the parent pid for this tracee
-    auto maybeParent = FindParentProcess(newPid);
-    pid_t traceeppid;
+    auto maybeParent = FindProcess(m_traceePid);
     std::string exePath;
     
     // Best effort to get the ppid/exe of the tracee here. There's no nice way to do this from outside the process
     if (maybeParent != m_traceeTable.end())
     {
-        traceeppid = std::get<1>(maybeParent[0]);
-        exePath = std::get<2>(maybeParent[0]);
+        exePath = std::get<1>(maybeParent[0]);
     }
     else
     {
         // This case isn't expected to happen as long as ptrace works properly, but in case it does, we will report 0 as the ppid.
-        traceeppid = 0;
         exePath = m_bxl->GetProgramPath();
     }
 
     // Parent PID = m_traceePid (the current process being traced)
     // New child PID = newPid
-    IOEvent event(m_traceePid, newPid, traceeppid, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, /* mode */ 0, false, /* error */ 0);
+    IOEvent event(m_traceePid, newPid, /*traceeppid*/0, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, /* mode */ 0, false, /* error */ 0);
     m_bxl->report_access(syscall, event);
 
     // Record the new child tracee
     // When PTRACE_O_TRACEFORK/CLONE/VFORK is set, the child process is automatically ptraced as well
-    m_traceeTable.push_back(std::make_tuple(newPid, m_traceePid, exePath));
+    m_traceeTable.push_back(std::make_tuple(newPid, exePath));
 
     BXL_LOG_DEBUG(m_bxl, "[PTrace] Added new tracee with PID '%d'", newPid);
 

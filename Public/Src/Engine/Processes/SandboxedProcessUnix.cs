@@ -15,8 +15,10 @@ using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
 using static BuildXL.Interop.Unix.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
@@ -52,6 +54,10 @@ namespace BuildXL.Processes
         private bool HasProcessExitBeenReceived => m_processExitTimeNs != ulong.MaxValue;
 
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
+
+        private readonly LoggingContext m_loggingContext;
+
+        private readonly IList<AsyncProcessExecutor> m_ptraceRunners;
 
         /// <summary>
         /// Id of the underlying pip.
@@ -112,6 +118,11 @@ namespace BuildXL.Processes
         /// </summary>
         internal static readonly string EnvExecutable = OperatingSystemHelper.IsLinuxOS ? EnsureDeploymentFile("bxl-env", setExecuteBit: true) : "/usr/bin/env";
 
+        /// <summary>
+        /// Path to the ptrace runner to be used if the ptrace sandbox is enabled.
+        /// </summary>
+        internal static readonly string PTraceRunnerExecutable = EnsureDeploymentFile(SandboxConnectionLinuxDetours.PTraceRunnerFileName, setExecuteBit: true);
+
         internal static string GetDeploymentFileFullPath(string relativePath)
         {
             var deploymentDir = Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()) ?? string.Empty;
@@ -167,6 +178,8 @@ namespace BuildXL.Processes
             ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
             IgnoreReportedAccesses = ignoreReportedAccesses;
             RootJailInfo = info.RootJailInfo;
+            m_loggingContext = info.LoggingContext;
+            m_ptraceRunners = new List<AsyncProcessExecutor>();
 
             if (info.MonitoringConfig is not null && info.MonitoringConfig.MonitoringEnabled)
             {
@@ -477,6 +490,14 @@ namespace BuildXL.Processes
             {
                 var statsJson = JsonSerializer.Serialize(m_pipKextStats.Value);
                 LogDebug($"Process Kext Stats: {statsJson}");
+            }
+
+            // If ptrace runners have not finished yet, then do that now
+            foreach (var ptraceRunner in m_ptraceRunners)
+            {
+                ptraceRunner.WaitForExitAsync().Wait();
+                ptraceRunner.WaitForStdOutAndStdErrAsync().Wait();
+                ptraceRunner.Dispose();
             }
 
             base.Dispose();
@@ -842,6 +863,12 @@ namespace BuildXL.Processes
                     m_processExitTimeNs = report.Statistics.EnqueueTime;
                 }
 
+                // The process is statically linked, a ptrace runner needs to be started up
+                if (report.Operation == FileOperation.OpStaticallyLinkedProcess)
+                {
+                    StartPTraceRunner(report.Pid, reportPath);
+                }
+
                 var pathExists = true;
 
                 // special handling for MAC_LOOKUP:
@@ -1035,6 +1062,37 @@ namespace BuildXL.Processes
 
             return
                 I($"{operation}:{pid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{path}|{isDirectory}|e:{report.Statistics.EnqueueTime}|h:{processTime}us|q:{queueTime}us");
+        }
+
+        private void StartPTraceRunner(int pid, string path)
+        {
+            var paths = SandboxConnectionLinuxDetours.GetPaths(RootJailInfo, UniqueName);
+            var args = $"-c {pid} -x {path}";
+            var process = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo(PTraceRunnerExecutable, args)
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    WorkingDirectory = Path.GetDirectoryName(PTraceRunnerExecutable)
+                },
+                EnableRaisingEvents = true
+            };
+            
+            process.StartInfo.Environment[SandboxConnectionLinuxDetours.BuildXLFamPathEnvVarName] = paths.fam;
+
+            var ptraceRunner = new AsyncProcessExecutor
+            (
+                process,
+                TimeSpan.FromSeconds(1),
+                // The runner will only log to stderr if there's a problem, other logs go to the main log using the fifo
+                errorBuilder: line => { if (line != null) { Logger.Log.PTraceRunnerError(m_loggingContext, line); } }
+            );
+
+            m_ptraceRunners.Add(ptraceRunner);
+            ptraceRunner.Start();
         }
     }
 }

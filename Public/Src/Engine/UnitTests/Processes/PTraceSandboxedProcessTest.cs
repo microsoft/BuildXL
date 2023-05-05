@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Processes;
-using BuildXL.Scheduler;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -23,16 +22,12 @@ namespace Test.BuildXL.Processes
     public sealed class PTraceSandboxedProcessTest : SandboxedProcessTestBase
     {
         private ITestOutputHelper TestOutput { get; }
-        private readonly PTraceDaemon m_pTraceDaemon;
 
         public PTraceSandboxedProcessTest(ITestOutputHelper output)
             : base(output)
         {
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             TestOutput = output;
-            // Since this test runs the sandbox on its own, it will also need to start the daemon process
-            m_pTraceDaemon = new PTraceDaemon(LoggingContext);
-            m_pTraceDaemon.Start();
         }
 
         [Fact]
@@ -64,19 +59,21 @@ namespace Test.BuildXL.Processes
             Directory.CreateDirectory(renamedDirectoryOld);
             File.WriteAllText(renamePathOld, "This file should be deleted then recreated");
 
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.FailUnexpectedFileAccesses = false;
+            fam.ReportUnexpectedFileAccesses = true;
+            fam.EnableLinuxPTraceSandbox = true;
+
             var staticProcessInfo = ToProcessInfo(
                 ToProcess(new Operation[]
                 {
                     Operation.SpawnExe(Context.PathTable, staticProcessArtifact, arguments: "0"),
                     Operation.WriteFile(CreateOutputFileArtifact()),
                 }),
-                workingDirectory: workingDirectory.Path.ToString(Context.PathTable)
+                workingDirectory: workingDirectory.Path.ToString(Context.PathTable),
+                fileAccessManifest: fam
             );
-
-            staticProcessInfo.FileAccessManifest.ReportFileAccesses = true;
-            staticProcessInfo.FileAccessManifest.EnableLinuxPTraceSandbox = true;
-            staticProcessInfo.FileAccessManifest.ExplicitlyReportDirectoryProbes = true;
-            staticProcessInfo.FileAccessManifest.ReportUnexpectedFileAccesses = true;
 
             var result = await RunProcess(staticProcessInfo);
 
@@ -167,6 +164,8 @@ namespace Test.BuildXL.Processes
             result.AllUnexpectedFileAccesses.Single(fa =>
                 fa.Operation == ReportedFileOperation.KAuthCreateDir &&
                 fa.Error == 0);
+
+            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary, 2);
         }
 
         [Fact]
@@ -180,7 +179,6 @@ namespace Test.BuildXL.Processes
             var fam = new FileAccessManifest(Context.PathTable);
             fam.ReportFileAccesses = true;
             fam.EnableLinuxPTraceSandbox = true;
-            fam.UnconditionallyEnableLinuxPTraceSandbox = false;
 
             // Create a directory but make sure we perform it on an existing file
             var info = ToProcessInfo(
@@ -206,7 +204,7 @@ namespace Test.BuildXL.Processes
             var result = await RunProcess(info);
 
             // When PTrace is forced, the process is being reported as statically linked 
-            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary);            
+            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary);
         }
 
         [Fact]
@@ -261,6 +259,8 @@ namespace Test.BuildXL.Processes
             result.FileAccesses.Single(fa =>
                 fa.Operation == ReportedFileOperation.KAuthDeleteDir &&
                 fa.Error == 0);
+
+            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary, 2);
         }
     }
 }

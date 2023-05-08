@@ -1654,10 +1654,10 @@ namespace BuildXL.Scheduler
 
             Contract.Assert(!HasFailed || m_executePhaseLoggingContext.ErrorWasLogged, "Scheduler encountered errors during execution, but none were logged.");
 
-            if (!IsDistributedWorker && !HasFailed)
+            if (!IsDistributedWorker && !HasFailed && !m_schedulerCancellationTokenSource.IsCancellationRequested)
             {
-                RetrievePipStateCounts(out _, out _, out _, out long runningPips, out _, out _, out _, out _);
-                Contract.Assert(runningPips == 0, "There are still pips at running state at the end of the build.");
+                RetrievePipStateCounts(out _, out _, out long waitingPips, out long runningPips, out _, out long failedPips, out long skippedPips, out _);
+                Contract.Assert(runningPips == 0, $"There are still pips at running state at the end of the build. WaitingPips: {waitingPips}, RunningPips: {runningPips}, FailedPips: {failedPips}, SkippedPips: {skippedPips}.");
             }
 
             // We want TimeToFirstPipExecuted to always have a value. Mark the end of the execute phase as when the first

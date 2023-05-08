@@ -122,6 +122,12 @@ jobs:
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
       
  # Publish compliance build logs
+  - task: CopyFiles@2
+    displayName: Copy compliance build intermediate files
+    inputs:
+      Contents: '$(Build.SourcesDirectory)/Out/Objects/**/guardianOut_*/**'
+      targetFolder: $(ComplianceBuild.LogsDirectory)/ComplianceBuildIntermediateFiles
+
   - task: PublishPipelineArtifact@0
     displayName: Upload compliance build logs
     condition: always()

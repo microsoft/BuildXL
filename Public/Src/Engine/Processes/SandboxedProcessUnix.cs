@@ -121,7 +121,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Path to the ptrace runner to be used if the ptrace sandbox is enabled.
         /// </summary>
-        internal static readonly string PTraceRunnerExecutable = EnsureDeploymentFile(SandboxConnectionLinuxDetours.PTraceRunnerFileName, setExecuteBit: true);
+        internal static readonly Lazy<string> PTraceRunnerExecutable = new(() => EnsureDeploymentFile(SandboxConnectionLinuxDetours.PTraceRunnerFileName, setExecuteBit: true));
 
         internal static string GetDeploymentFileFullPath(string relativePath)
         {
@@ -1070,13 +1070,13 @@ namespace BuildXL.Processes
             var args = $"-c {pid} -x {path}";
             var process = new System.Diagnostics.Process
             {
-                StartInfo = new System.Diagnostics.ProcessStartInfo(PTraceRunnerExecutable, args)
+                StartInfo = new System.Diagnostics.ProcessStartInfo(PTraceRunnerExecutable.Value, args)
                 {
                     CreateNoWindow = true,
                     UseShellExecute = false,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
-                    WorkingDirectory = Path.GetDirectoryName(PTraceRunnerExecutable)
+                    WorkingDirectory = Path.GetDirectoryName(PTraceRunnerExecutable.Value)
                 },
                 EnableRaisingEvents = true
             };

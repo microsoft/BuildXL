@@ -451,6 +451,7 @@ export function runQTest(args: QTestArguments): Result {
                 allowUndeclaredSourceReads: isJSProject,
                 enforceWeakFingerprintAugmentation: isJSProject ? true : undefined,
                 outputs: outputs,
+                sourceRewritePolicy: args.safeSourceRewritesAreAllowed ? args.safeSourceRewritesAreAllowed : "sourceRewritesAreErrors"
             },
             changeAffectedInputListWrittenFileArg
         )
@@ -658,6 +659,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
      * List of DBS.QTest.exe arguments can be found here: https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/QTest/QTestExe/QTestExeArgumentObject.cs
     */
     additionalQTestArgumentsFile?: File;
+    /** Allows safe rewrites over source code files */
+    safeSourceRewritesAreAllowed?: SourceRewritePolicy;
     /** Nested tool options */
     tools?: {
         /** 

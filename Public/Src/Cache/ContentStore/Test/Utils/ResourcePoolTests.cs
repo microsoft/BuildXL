@@ -21,6 +21,7 @@ using BuildXL.Utilities.Core.Tracing;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
+using Xunit.Abstractions;
 
 #nullable enable
 
@@ -257,8 +258,9 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
         public async Task ResourceInvalidationRespectsReferenceCountBeforeShutdown()
         {
             var stopLatch = TaskUtilities.CreateMutex(taken: true);
+            var firstUseIsDone = new TaskCompletionSource<object>();
             Task? outstandingTask = null;
-
+            
             CounterCollection<ResourcePoolCounters>? counters = null;
 
             await RunTest<Key, Resource>(async (context, pool) =>
@@ -273,14 +275,10 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                         wrapper2.ReferenceCount.Should().Be(2);
                         stopLatch.Release();
 
-                        try
-                        {
-                            await Task.Delay(Timeout.InfiniteTimeSpan, wrapper2.ShutdownToken);
-                        }
-                        catch (TaskCanceledException) { }
+                        // Waiting for the first UseAsync to be done before checking the states
+                        await firstUseIsDone.Task;
 
                         wrapper2.ReferenceCount.Should().Be(1);
-
                         counters[ResourcePoolCounters.CreatedResources].Value.Should().Be(1);
                         counters[ResourcePoolCounters.ReleasedResources].Value.Should().Be(0);
                         counters[ResourcePoolCounters.ShutdownAttempts].Value.Should().Be(0);
@@ -293,6 +291,9 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
 
                     return BoolResult.Success;
                 }).ShouldBeSuccess();
+
+                // Notifying that the first UseAsync is done.
+                firstUseIsDone.SetResult(string.Empty);
             });
 
             Contract.AssertNotNull(counters);

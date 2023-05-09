@@ -243,12 +243,10 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             (IContentStore topLevelStore, DistributedContentStore primaryDistributedStore) result = default;
 
-            var coldStorage = Services.ColdStorage.InstanceOrDefault();
-
             var distributedStore =
-                CreateDistributedContentStore(OrderedResolvedCacheSettings[0], coldStorage, dls =>
-                    CreateMultiplexedStore(settings =>
-                        CreateFileSystemContentStore(settings, dls, coldStorage)));
+                CreateDistributedContentStore(OrderedResolvedCacheSettings[0], dls =>
+                                                                                   CreateMultiplexedStore(settings =>
+                                                                                       CreateFileSystemContentStore(settings, dls)));
             result.topLevelStore = distributedStore;
             result.primaryDistributedStore = distributedStore;
 
@@ -257,7 +255,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public DistributedContentStore CreateDistributedContentStore(
             ResolvedNamedCacheSettings resolvedSettings,
-            ColdStorage coldStorage,
             Func<IDistributedLocationStore, IContentStore> innerStoreFactory)
         {
             _logger.Debug("Creating a distributed content store");
@@ -270,14 +267,15 @@ namespace BuildXL.Cache.Host.Service.Internal
                     Services.ContentLocationStoreFactory.Instance,
                     _distributedContentStoreSettings,
                     distributedCopier: _copier,
-                    coldStorage: coldStorage,
                     clock: _arguments.Overrides.Clock);
 
             _logger.Debug("Created Distributed content store.");
             return contentStore;
         }
 
-        public IContentStore CreateFileSystemContentStore(ResolvedNamedCacheSettings resolvedCacheSettings, IDistributedLocationStore distributedStore, ColdStorage coldStorage = null)
+        public IContentStore CreateFileSystemContentStore(
+            ResolvedNamedCacheSettings resolvedCacheSettings,
+            IDistributedLocationStore distributedStore)
         {
             var contentStoreSettings = FromDistributedSettings(_distributedSettings);
 
@@ -285,7 +283,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(resolvedCacheSettings.Settings.CacheSizeQuotaString)));
 
             return ContentStoreFactory.CreateContentStore(_fileSystem, resolvedCacheSettings.ResolvedCacheRootPath,
-                        contentStoreSettings: contentStoreSettings, distributedStore: distributedStore, configurationModel: configurationModel, coldStorage);
+                        contentStoreSettings: contentStoreSettings, distributedStore: distributedStore, configurationModel: configurationModel);
         }
 
         public MultiplexedContentStore CreateMultiplexedStore(Func<ResolvedNamedCacheSettings, IContentStore> createContentStore)

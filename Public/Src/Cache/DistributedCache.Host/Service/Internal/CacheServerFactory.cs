@@ -247,8 +247,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             // call to CreateTopLevelStore
             var topLevelAndPrimaryStore = factory.CreateTopLevelStore();
 
-            IColdStorage coldStorage = topLevelAndPrimaryStore.primaryDistributedStore.ColdStorage;
-
             if (distributedSettings.EnableMetadataStore || distributedSettings.EnableDistributedCache)
             {
                 _logger.Always("Creating distributed server with content and metadata store");
@@ -295,8 +293,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     cacheFactory,
                     localServerConfiguration,
                     capabilities: distributedSettings.EnablePublishingCache ? Capabilities.All : Capabilities.AllNonPublishing,
-                    factory.GetAdditionalEndpoints(),
-                    coldStorage);
+                    factory.GetAdditionalEndpoints());
             }
             else
             {
@@ -309,8 +306,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName,
                     _ => topLevelAndPrimaryStore.topLevelStore,
                     localServerConfiguration,
-                    factory.GetAdditionalEndpoints(),
-                    coldStorage);
+                    factory.GetAdditionalEndpoints());
             }
         }
 

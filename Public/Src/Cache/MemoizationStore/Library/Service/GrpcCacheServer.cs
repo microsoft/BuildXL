@@ -72,9 +72,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             Capabilities serviceCapabilities,
             ISessionHandler<ICacheSession, LocalCacheServerSessionData> sessionHandler,
             Dictionary<string, IContentStore> storesByName,
-            LocalServerConfiguration? localServerConfiguration = null,
-            IColdStorage? coldStorage = null)
-            : base(logger, serviceCapabilities, new SessionHandlerAdapter(sessionHandler), storesByName, localServerConfiguration, coldStorage)
+            LocalServerConfiguration? localServerConfiguration = null)
+            : base(logger, serviceCapabilities, new SessionHandlerAdapter(sessionHandler), storesByName, localServerConfiguration)
         {
             _cacheSessionHandler = sessionHandler;
 

@@ -22,9 +22,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public OptionalServiceDefinition<IGlobalCacheService> GlobalCacheService { get; init; }
 
         /// <nodoc />
-        public OptionalServiceDefinition<ColdStorage> ColdStorage { get; init; }
-
-        /// <nodoc />
         public OptionalServiceDefinition<IRoleObserver> RoleObserver { get; init; }
 
         /// <nodoc />
@@ -162,8 +159,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 Configuration,
                 CheckpointManager.Instance,
                 MasterElectionMechanism.Instance,
-                ClusterStateManager.Instance,
-                Dependencies?.ColdStorage.InstanceOrDefault());
+                ClusterStateManager.Instance);
         }
 
         private CentralStreamStorage CreateCentralStorage()

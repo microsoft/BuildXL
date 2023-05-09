@@ -62,11 +62,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     new ContentStoreConfiguration(new MaxSizeQuota(hardExpression: maxRetentionMb + "MB", softExpression: softRetentionMb + "MB")),
                     ConfigurationSelection.RequireAndUseInProcessConfiguration),
                 settings: new ContentStoreSettings()
-                {
-                    TraceFileSystemContentStoreDiagnosticMessages = Configuration.TraceFileSystemContentStoreDiagnosticMessages,
-                    SelfCheckSettings = Configuration.SelfCheckSettings,
-                    UsePhysicalSizeInQuotaKeeper = Configuration.UsePhysicalSizeInQuotaKeeper,
-                });
+                          {
+                              TraceFileSystemContentStoreDiagnosticMessages = Configuration.TraceFileSystemContentStoreDiagnosticMessages,
+                              SelfCheckSettings = Configuration.SelfCheckSettings,
+                              UsePhysicalSizeInQuotaKeeper = Configuration.UsePhysicalSizeInQuotaKeeper,
+                          });
 
             LinkLifetime(fallbackStorage);
             LinkLifetime(PrivateCas);

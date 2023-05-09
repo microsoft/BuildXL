@@ -18,7 +18,6 @@ using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -33,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         private readonly DirectoryLock _directoryLock;
-        private readonly ContentStoreTracer _tracer = new ContentStoreTracer(nameof(FileSystemContentStore));
+        private readonly ContentStoreTracer _tracer = new(nameof(FileSystemContentStore));
 
         /// <summary>
         ///     Gets the underlying store implementation.
@@ -44,61 +43,15 @@ namespace BuildXL.Cache.ContentStore.Stores
         protected override Tracer Tracer => _tracer;
 
         /// <summary>
-        /// Backward-compat constructor.
-        /// </summary>
-        public FileSystemContentStore(
-            IAbsFileSystem fileSystem,
-            IClock clock,
-            AbsolutePath rootPath,
-            ConfigurationModel configurationModel,
-            NagleQueue<ContentHash> nagleQueue,
-#pragma warning disable IDE0060 // Remove unused parameter
-            RefCountdown sensitiveSessionCount,
-#pragma warning restore IDE0060 // Remove unused parameter
-            DistributedEvictionSettings distributedEvictionSettings,
-            bool checkFiles,
-            TrimBulkAsync trimBulkAsync)
-            : this(
-                fileSystem,
-                clock,
-                rootPath,
-                configurationModel,
-                nagleQueue,
-                distributedEvictionSettings,
-                trimBulkAsync,
-                settings: new ContentStoreSettings() {CheckFiles = checkFiles})
-        {
-
-        }
-
-        /// <summary>
-        /// Backward-compat constructor.
-        /// </summary>
-        public FileSystemContentStore(
-            IAbsFileSystem fileSystem,
-            IClock clock,
-            AbsolutePath rootPath,
-            ConfigurationModel? configurationModel = null,
-            NagleQueue<ContentHash>? nagleQueue = null,
-            DistributedEvictionSettings? distributedEvictionSettings = null,
-            TrimBulkAsync? trimBulkAsync = null,
-            ContentStoreSettings? settings = null,
-            IColdStorage? coldStorage = null)
-        : this(fileSystem, clock, rootPath, configurationModel, distributedEvictionSettings?.DistributedStore, settings, coldStorage)
-        {
-        }
-
-        /// <summary>
         ///     Initializes a new instance of the <see cref="FileSystemContentStore" /> class.
         /// </summary>
         public FileSystemContentStore(
             IAbsFileSystem fileSystem,
             IClock clock,
             AbsolutePath rootPath,
-            ConfigurationModel? configurationModel,
-            IDistributedLocationStore? distributedStore,
-            ContentStoreSettings? settings,
-            IColdStorage? coldStorage)
+            ConfigurationModel? configurationModel = null,
+            IDistributedLocationStore? distributedStore = null,
+            ContentStoreSettings? settings = null)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
@@ -121,8 +74,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 rootPath,
                 configurationModel,
                 settings,
-                distributedStore,
-                coldStorage);
+                distributedStore);
         }
 
         /// <inheritdoc />

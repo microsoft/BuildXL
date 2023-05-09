@@ -73,9 +73,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public IServiceDefinition<RocksDbContentMetadataStore> RocksDbContentMetadataStore { get; }
 
         /// <nodoc />
-        public OptionalServiceDefinition<ColdStorage> ColdStorage { get; }
-
-        /// <nodoc />
         public OptionalServiceDefinition<IRoleObserver> RoleObserver { get; }
 
         /// <nodoc />
@@ -110,11 +107,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
             ContentLocationStoreServices = Create(() => ContentLocationStoreFactory.Instance.Services);
 
-            ColdStorage = CreateOptional(() => DistributedContentSettings.ColdStorageSettings != null, () =>
-            {
-                return new ColdStorage(Arguments.FileSystem, DistributedContentSettings.ColdStorageSettings, Arguments.DistributedContentCopier);
-            });
-
             ContentLocationStoreFactory = Create(() =>
             {
                 return new ContentLocationStoreFactory(
@@ -126,7 +118,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                         Dependencies = new ContentLocationStoreServicesDependencies()
                         {
                             GlobalCacheService = GlobalCacheService.UnsafeGetServiceDefinition().AsOptional<IGlobalCacheService>(),
-                            ColdStorage = ColdStorage,
                             RoleObserver = RoleObserver,
                             DistributedContentSettings = CreateOptional(() => true, () => DistributedContentSettings),
                             GlobalCacheCheckpointManager = GlobalCacheCheckpointManager.AsOptional()

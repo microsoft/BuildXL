@@ -126,12 +126,12 @@ namespace BuildXL.Cache.Host.Service
                 DeploymentUtilities.GetCasRootPath(targetDirectory),
                 new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota($"{settings.RetentionSizeGb}GB"))),
                 settings: new ContentStoreSettings()
-                {
-                    TraceFileSystemContentStoreDiagnosticMessages = true,
+                          {
+                              TraceFileSystemContentStoreDiagnosticMessages = true,
 
-                    // Disable empty file shortcuts to ensure all content is always placed on disk
-                    UseEmptyContentShortcut = false
-                });
+                              // Disable empty file shortcuts to ensure all content is always placed on disk
+                              UseEmptyContentShortcut = false
+                          });
 
             FileSystem = fileSystem;
 

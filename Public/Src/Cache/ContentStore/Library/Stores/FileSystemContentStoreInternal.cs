@@ -165,8 +165,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly FileSystemContentStoreInternalChecker _checker;
 
         private Timer? _selfCheckTimer;
-
-        private readonly IColdStorage? _coldStorage;
         
         /// <nodoc />
         public FileSystemContentStoreInternal(
@@ -175,8 +173,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             AbsolutePath rootPath,
             ConfigurationModel? configurationModel = null,
             ContentStoreSettings? settings = null,
-            IDistributedLocationStore? distributedStore = null,
-            IColdStorage? coldStorage = null)
+            IDistributedLocationStore? distributedStore = null)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
@@ -211,8 +208,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             _maxPinSize = -1;
 
             _checker = new FileSystemContentStoreInternalChecker(FileSystem, Clock, RootPath, _tracer, _settings.SelfCheckSettings, this);
-
-            _coldStorage = coldStorage;
         }
 
         /// <summary>
@@ -457,13 +452,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     dueTime: TimeSpan.Zero,
                     period: Timeout.InfiniteTimeSpan);
             }
-
-            if (_coldStorage != null)
-            {
-                // Startup time for the ColdStorage can be very high so we don't wait for it to end
-                _coldStorage.StartupAsync(context).FireAndForget(context);
-            }
-
+            
             return result;
         }
 
@@ -501,11 +490,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (statsResult)
             {
                 _tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet, prefix: "FileSystemContentStoreStats");
-            }
-
-            if (_coldStorage != null)
-            {
-                result &= await _coldStorage.ShutdownAsync(context);
             }
 
             return result;
@@ -1766,49 +1750,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             return evictResult.ToDeleteResult(contentHash);
         }
 
-        public Task BeforeEvictAsync(Context context, ContentHash contentHash)
-        {
-            if (_coldStorage == null)
-            {
-                return Task.CompletedTask;
-            }
-
-            var operationContext = new OperationContext(context);
-            var msg = $"ContentHash=[{contentHash}]";
-            return operationContext.PerformOperationAsync(
-                _tracer,
-                async () =>
-                {
-                    DisposableFile disposableFile = new DisposableFile(context, FileSystem, GetTemporaryFileName(contentHash));
-                    PlaceFileResult result = await PlaceFileAsync(
-                        context,
-                        contentHash,
-                        disposableFile.Path,
-                        FileAccessMode.ReadOnly,
-                        FileReplacementMode.FailIfExists,
-                        FileRealizationMode.HardLink).ThrowIfFailureAsync();
-
-                    _coldStorage.PutFileAsync(context, contentHash, disposableFile, CancellationToken.None).FireAndForget(context);
-
-                    return BoolResult.Success;
-                },
-                extraStartMessage: msg,
-                extraEndMessage: _ => msg,
-                traceErrorsOnly: true).IgnoreFailure();
-        }
-
         private async Task<EvictResult> EvictCoreAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool force, bool onlyUnlinked, OnEvictedCallback? evictedCallback, bool acquireLock = false)
         {
             ContentHash contentHash = contentHashInfo.ContentHash;
-
-            // Don't copy content that we must delete to ColdStorage (for example: invalid content)
-            if (!force)
-            {
-                // If this happens inside of the using statement, we hang: LockSet does not provide reentrant locks, so the
-                // PlaceFile operation inside BeforeEvict will hang when it tries to acquire the lock again. Changing this
-                // is nontrivial and complex, so we'd rather send some files that aren't evicted to cold storage instead.
-                await BeforeEvictAsync(context, contentHash);
-            }
 
             long pinnedSize = 0;
             using (LockSet<ContentHash>.LockHandle? contentHashHandle = acquireLock ? await _lockSet.AcquireAsync(contentHash) : _lockSet.TryAcquire(contentHash))

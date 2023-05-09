@@ -157,8 +157,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly MachineLocationResolver.Settings _machineListSettings = new();
 
-        private readonly ColdStorage? _coldStorage;
-
         private readonly ReadOnlyArray<PartitionId> _evictionPartitions;
 
         private readonly byte[] _machineHash;
@@ -171,8 +169,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LocalLocationStoreConfiguration configuration,
             CheckpointManager checkpointManager,
             IMasterElectionMechanism masterElectionMechanism,
-            ClusterStateManager clusterStateManager,
-            ColdStorage? coldStorage)
+            ClusterStateManager clusterStateManager)
         {
             Contract.RequiresNotNull(clock);
             Contract.RequiresNotNull(configuration);
@@ -185,7 +182,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ClusterStateManager = clusterStateManager;
 
             _checkpointRegistry = checkpointManager.CheckpointRegistry;
-            _coldStorage = coldStorage;
             _evictionPartitions = PartitionId.GetPartitions(Configuration.Settings.EvictionPartitionCount);
 
             _machineHash = MurmurHash3.Create(Encoding.UTF8.GetBytes(Configuration.PrimaryMachineLocation.Path ?? string.Empty)).ToByteArray();
@@ -623,12 +619,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         var checkpointState = await _checkpointRegistry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
                         var leadershipState = await MasterElectionMechanism.GetRoleAsync(context).ThrowIfFailureAsync();
-
-                        if (_coldStorage != null)
-                        {
-                            // We update the ColdStorage consistent-hashing ring on every heartbeat in case the cluster state has changed 
-                            _coldStorage.UpdateRingAsync(context, ClusterState).FireAndForget(context);
-                        }
 
                         await ProcessStateAsync(context, checkpointState, leadershipState, inline, forceRestore).ThrowIfFailureAsync();
 

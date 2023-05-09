@@ -342,9 +342,6 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int MaxRetryCount { get; set; } = 32;
 
-        [DataMember]
-        public ColdStorageSettings ColdStorageSettings { get; set; }
-
         #region DistributedContentCopier
 
         [DataMember]

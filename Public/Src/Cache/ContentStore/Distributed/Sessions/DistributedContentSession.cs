@@ -77,8 +77,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         internal readonly IContentLocationStore ContentLocationStore;
 
-        private readonly ColdStorage _coldStorage;
-
         /// <summary>
         /// The machine location for the current cache.
         /// </summary>
@@ -120,7 +118,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             DistributedContentCopier contentCopier,
             DistributedContentStore distributedContentStore,
             MachineLocation localMachineLocation,
-            ColdStorage coldStorage,
             DistributedContentStoreSettings settings = default)
             : base(name)
         {
@@ -138,8 +135,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             _remotePinner = PinFromMultiLevelContentLocationStore;
             DistributedCopier = contentCopier;
             PutAndPlaceFileGate = new SemaphoreSlim(Settings.MaximumConcurrentPutAndPlaceFileOperations);
-
-            _coldStorage = coldStorage;
 
             _buildRingMachinesCache = new ExpiringValue<MachineLocation[]>(
                 Settings.ProactiveCopyInRingMachineLocationsExpiryCache,
@@ -768,28 +763,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                                                                            globalGetBulkResult,
                                                                                            reason);
                                                                                    };
-
-            // If ColdStorage is ON try to place files from it before use remote locations
-            if (_coldStorage != null)
-            {
-                return Workflows.RunWithFallback(
-                    hashesWithPaths,
-                    initialFunc: async args => { return await _coldStorage.FetchThenPutBulkAsync(context, args, Inner); },
-                    fallbackFunc: initialFunc,
-                    secondFallbackFunc: fallbackFunc,
-                    thirdFallbackFunc: async args =>
-                                       {
-                                           var coldStorageGetBulkResult = _coldStorage.GetBulkLocations(context, args);
-                                           return await FetchFromContentLocationStoreThenPutAsync(
-                                               context,
-                                               args,
-                                               GetBulkOrigin.ColdStorage,
-                                               urgencyHint,
-                                               coldStorageGetBulkResult,
-                                               reason);
-                                       },
-                    isSuccessFunc: result => IsPlaceFileSuccess(result));
-            }
 
             return Workflows.RunWithFallback(
                 hashesWithPaths,

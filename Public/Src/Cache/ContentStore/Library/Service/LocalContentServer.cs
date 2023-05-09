@@ -49,12 +49,10 @@ namespace BuildXL.Cache.ContentStore.Service
             string scenario,
             Func<AbsolutePath, IContentStore> contentStoreFactory,
             LocalServerConfiguration localContentServerConfiguration,
-            IGrpcServiceEndpoint[]? additionalEndpoints = null,
-            IColdStorage? coldStorage = null)
+            IGrpcServiceEndpoint[]? additionalEndpoints = null)
         : base(logger, fileSystem, grpcHost, scenario, contentStoreFactory, localContentServerConfiguration, additionalEndpoints)
         {
-            // System.Diagnostics.Debugger.Launch();
-            GrpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName, localContentServerConfiguration, coldStorage);
+            GrpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName, localContentServerConfiguration);
         }
 
         /// <inheritdoc />

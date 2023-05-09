@@ -81,9 +81,9 @@ namespace BuildXL.Cache.Host.Service
                 DeploymentUtilities.GetCasRootPath(Root),
                 new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota($"{Configuration.RetentionSizeGb}GB"))),
                 settings: new ContentStoreSettings()
-                {
-                    TraceFileSystemContentStoreDiagnosticMessages = true,
-                });
+                          {
+                              TraceFileSystemContentStoreDiagnosticMessages = true,
+                          });
         }
 
         /// <inheritdoc />

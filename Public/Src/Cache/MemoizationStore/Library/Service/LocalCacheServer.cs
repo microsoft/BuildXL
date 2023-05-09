@@ -51,8 +51,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             Func<AbsolutePath, ICache> cacheFactory,
             LocalServerConfiguration localContentServerConfiguration,
             Capabilities capabilities,
-            IGrpcServiceEndpoint[]? additionalEndpoints = null,
-            IColdStorage? coldStorage = null)
+            IGrpcServiceEndpoint[]? additionalEndpoints = null)
         : base(logger, fileSystem, grpcHost, scenario, cacheFactory, localContentServerConfiguration, additionalEndpoints)
         {
             // This must agree with the base class' StoresByName to avoid "missing content store" errors from Grpc, and
@@ -71,7 +70,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                     nameof(cacheFactory));
             });
 
-            _grpcCacheServer = new GrpcCacheServer(logger, capabilities, this, storesByNameAsContentStore, localContentServerConfiguration, coldStorage);
+            _grpcCacheServer = new GrpcCacheServer(logger, capabilities, this, storesByNameAsContentStore, localContentServerConfiguration);
         }
 
         /// <inheritdoc />

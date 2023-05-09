@@ -79,9 +79,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         protected override Tracer Tracer => _tracer;
 
         private readonly IContentLocationStore _contentLocationStore;
-
-        public ColdStorage? ColdStorage { get; }
-
+        
         internal IContentLocationStore ContentLocationStore => NotNull(_contentLocationStore, nameof(_contentLocationStore));
 
         private readonly DistributedContentStoreSettings _settings;
@@ -112,7 +110,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ContentLocationStoreFactory contentLocationStoreFactory,
             DistributedContentStoreSettings settings,
             DistributedContentCopier distributedCopier,
-            ColdStorage coldStorage,
             IClock? clock = null)
         {
             Contract.Requires(settings != null);
@@ -124,8 +121,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _copierWorkingDirectory = new DisposableDirectory(distributedCopier.FileSystem, localCacheRoot / "Temp");
 
             _settings = settings;
-
-            ColdStorage = coldStorage;
 
             InnerContentStore = innerContentStoreFunc(this);
             _contentLocationStore = contentLocationStoreFactory.Create(LocalMachineLocation, InnerContentStore as ILocalContentStore);
@@ -501,7 +496,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             _distributedCopier,
                             this,
                             LocalMachineLocation,
-                            ColdStorage,
                             settings: _settings);
                     return new CreateSessionResult<IContentSession>(session);
                 }

@@ -114,13 +114,13 @@ namespace BuildXL.Cache.Host.Service
                 DeploymentUtilities.GetCasRootPath(deploymentRoot),
                 new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota($"{retentionSizeGb}GB"))),
                 settings: new ContentStoreSettings()
-                {
-                    TraceFileSystemContentStoreDiagnosticMessages = true,
-                    CheckFiles = false,
+                          {
+                              TraceFileSystemContentStoreDiagnosticMessages = true,
+                              CheckFiles = false,
 
-                    // Disable empty file shortcuts to ensure all content is always placed on disk
-                    UseEmptyContentShortcut = false
-                });
+                              // Disable empty file shortcuts to ensure all content is always placed on disk
+                              UseEmptyContentShortcut = false
+                          });
             FileSystem = fileSystem;
             DropExeFilePath = dropExeFilePath;
             DropToken = dropToken;

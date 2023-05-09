@@ -12,7 +12,7 @@
 @if /I "%~1"=="/h" goto :Help
 @if /I "%~1"=="/help" goto :Help
 
-powershell.exe -ExecutionPolicy Bypass %~dpn0.ps1 %*
+powershell.exe -NoProfile -ExecutionPolicy Bypass %~dpn0.ps1 %*
 @exit /b %ERRORLEVEL%
 
 :Run64
@@ -20,4 +20,4 @@ powershell.exe -ExecutionPolicy Bypass %~dpn0.ps1 %*
 @exit /b %ERRORLEVEL%
 
 :Help
-@powershell.exe -ExecutionPolicy Bypass Get-Help %~dpn0.ps1 -Detailed
+@powershell.exe -NoProfile -ExecutionPolicy Bypass Get-Help %~dpn0.ps1 -Detailed

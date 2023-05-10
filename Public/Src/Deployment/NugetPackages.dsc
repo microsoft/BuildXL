@@ -11,6 +11,7 @@ namespace NugetPackages {
     export declare const qualifier : { configuration: "debug" | "release" };
     const defaultTargetFramework = Managed.TargetFrameworks.DefaultTargetFramework;
     
+    // Windows Qualifiers
     const net472packageQualifier = {
         targetFramework: "net472",
         targetRuntime: "win-x64"
@@ -31,8 +32,24 @@ namespace NugetPackages {
         targetRuntime: "win-x64"
     };
 
+    // macOS Qualifiers
     const osxPackageQualifier = { targetFramework: "netstandard2.0", targetRuntime: "osx-x64" };
-    const linuxPackageQualifier = { targetFramework: "netstandard2.0", targetRuntime: "linux-x64" };
+
+    // Linux Qualifiers
+    const netStandardLinuxPackageQualifier = {
+        targetFramework: "netstandard2.0",
+        targetRuntime: "linux-x64"
+    };
+
+    const net6LinuxPackageQualifier = {
+        targetFramework: "net6.0",
+        targetRuntime: "linux-x64"
+    };
+    
+    const net7LinuxPackageQualifier = {
+        targetFramework: "net7.0",
+        targetRuntime: "linux-x64"
+    };
 
     const canBuildAllPackagesOnThisHost = Context.getCurrentHost().os === "win";
 
@@ -169,7 +186,7 @@ namespace NugetPackages {
             ...addIfLazy(Context.getCurrentHost().os === "unix", () => [{
                 subfolder: r`runtimes/linux-x64/native/`,
                 contents: [
-                    ...importFrom("BuildXL.Utilities").withQualifier(linuxPackageQualifier).Native.nativeLinux,
+                    ...importFrom("BuildXL.Utilities").withQualifier(netStandardLinuxPackageQualifier).Native.nativeLinux,
                 ],
             }]),
         ]
@@ -248,7 +265,22 @@ namespace NugetPackages {
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
         ],
-        deploymentOptions: reducedDeploymentOptions,
+        deploymentOptions: reducedDeploymentOptions
+    });
+
+    const processesLinux = packAssemblies({
+        id: `${packageNamePrefix}.Processes.linux-x64`,
+        assemblies: [
+            importFrom("BuildXL.Engine").withQualifier(net6LinuxPackageQualifier).Processes.dll,
+            importFrom("BuildXL.Engine").withQualifier(net7LinuxPackageQualifier).Processes.dll
+        ],
+        dependencies: [
+            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
+            // Therefore for now we manually declare these.
+            buildXLUtilitiesCoreIdentity,
+            buildXLNativeIdentity,
+        ],
+        deploymentOptions: reducedDeploymentOptions
     });
 
     const engineCache = packAssemblies({
@@ -423,7 +455,8 @@ namespace NugetPackages {
                 toolsAdoBuildRunner,
             ]),
             ...addIfLazy(!BuildXLSdk.Flags.genVSSolution && Context.getCurrentHost().os === "unix", () => [
-                linuxX64
+                linuxX64,
+                processesLinux
             ]),
         ]
     };

@@ -59,6 +59,9 @@ namespace Processes {
                 MacServices.Deployment.sandboxMonitor,
                 MacServices.Deployment.sandboxLoadScripts
             ]),
+            ...addIfLazy(Context.getCurrentHost().os === "unix" && qualifier.targetRuntime === "linux-x64", () => [
+                importFrom("BuildXL.Sandbox.Linux").Deployment.natives,
+            ]),
         ],
     });
 }

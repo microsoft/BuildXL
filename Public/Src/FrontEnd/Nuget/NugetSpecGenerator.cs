@@ -37,28 +37,26 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly IEsrpSignConfiguration m_esrpSignConfiguration;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 16;
+        public const int SpecGenerationFormatVersion = 17;
 
         /// <nodoc />
         public NugetSpecGenerator(
             PathTable pathTable, 
-            NugetAnalyzedPackage analyzedPackage, 
-            IReadOnlyDictionary<string, string> repositories,
-            AbsolutePath sourceDirectory,
-            int? timeoutInMinutes = null,
-            IEsrpSignConfiguration esrpSignConfiguration = null)
+            NugetAnalyzedPackage analyzedPackage,
+            INugetResolverSettings nugetResolverSettings,
+            AbsolutePath sourceDirectory)
         {
             m_pathTable = pathTable;
             m_analyzedPackage = analyzedPackage;
-            m_repositories = repositories;
+            m_repositories = nugetResolverSettings.Repositories;
             m_packageOnDisk = analyzedPackage.PackageOnDisk;
-            m_nugetFrameworkMonikers = new NugetFrameworkMonikers(pathTable.StringTable);
+            m_nugetFrameworkMonikers = new NugetFrameworkMonikers(pathTable.StringTable, nugetResolverSettings);
             m_sourceDirectory = sourceDirectory;
-            m_timeoutInMinutes = timeoutInMinutes;
+            m_timeoutInMinutes = nugetResolverSettings.Configuration?.DownloadTimeoutMin;
 
             m_xmlExtension = PathAtom.Create(pathTable.StringTable, ".xml");
             m_pdbExtension = PathAtom.Create(pathTable.StringTable, ".pdb");
-            m_esrpSignConfiguration = esrpSignConfiguration;
+            m_esrpSignConfiguration = nugetResolverSettings.EsrpSignConfiguration;
         }
 
         /// <summary>

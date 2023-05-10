@@ -326,7 +326,7 @@ namespace BuildXL.FrontEnd.Nuget
             var resolverFolder = m_host.GetFolderForFrontEnd(NugetResolverName);
             m_resolverOutputLayout = new NugetResolverOutputLayout(PathTable, resolverFolder);
 
-            m_nugetFrameworkMonikers = new NugetFrameworkMonikers(context.StringTable);
+            m_nugetFrameworkMonikers = new NugetFrameworkMonikers(context.StringTable, m_resolverSettings);
 
             return true;
         }
@@ -929,8 +929,7 @@ namespace BuildXL.FrontEnd.Nuget
             // No-op if the directory exists
             FileUtilities.CreateDirectory(packageSpecDirStr);
             
-            var nugetSpecGenerator = new NugetSpecGenerator(PathTable, analyzedPackage, m_resolverSettings.Repositories, 
-                m_configuration.Layout.SourceDirectory, m_resolverSettings.Configuration.DownloadTimeoutMin, m_resolverSettings.EsrpSignConfiguration);
+            var nugetSpecGenerator = new NugetSpecGenerator(PathTable, analyzedPackage, m_resolverSettings, m_configuration.Layout.SourceDirectory);
 
             var possibleProjectFile = TryWriteSourceFile(
                 analyzedPackage.PackageOnDisk.Package,
@@ -985,7 +984,8 @@ namespace BuildXL.FrontEnd.Nuget
                 packageOnDisk,
                 m_packageRegistry.AllPackagesById,
                 doNotEnforceDependencyVersions,
-                credentialProviderPath);
+                credentialProviderPath,
+                m_resolverSettings);
 
             if (result == null)
             {
@@ -1072,7 +1072,8 @@ namespace BuildXL.FrontEnd.Nuget
                                         "pkgDepSkips=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToSkip),
                                         "pkgDepsIgnore=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToIgnore),
                                         "forceFullOnly=" + (package.ForceFullFrameworkQualifiersOnly ? "1" : "0"),
-                                        "esrpSignConfiguration=" + (m_resolverSettings.EsrpSignConfiguration != null ? "1" : "0")
+                                        "esrpSignConfiguration=" + (m_resolverSettings.EsrpSignConfiguration != null ? "1" : "0"),
+                                        "IncludeMonikersInNuspecDependencies=" + (m_resolverSettings.IncludeMonikersInNuspecDependencies == true ? "1" : "0")
                                     };
             
             return  restoreFingerPrint + "&" + string.Join("&", fingerprintParams);

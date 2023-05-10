@@ -87,6 +87,13 @@ interface NuGetResolver extends ResolverBase {
      * Specify Esrp sign configuration to sign the dll and exe binary files in nuget packages with Microsoft Certificate
      */
     esrpSignConfiguration?: EsrpSignConfiguration;
+
+    /**
+     * When true, includes in the analysis nuget package dependencies whose target frameworks are expressed using a
+     * moniker (e.g. 'net6.0') in addition to the usual framework name (e.g. '.NETCoreAppv6.0').
+     * Temporary flag to be able to deploy this change. Monikers should be always considered afterwards.
+     */
+    includeMonikersInNuspecDependencies?: boolean;
 }
 
 interface DownloadResolver extends ResolverBase {

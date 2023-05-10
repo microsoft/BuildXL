@@ -43,6 +43,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DoNotEnforceDependencyVersions = template.DoNotEnforceDependencyVersions;
             EsrpSignConfiguration = template.EsrpSignConfiguration == null 
                 ? null : new EsrpSignConfiguration(template.EsrpSignConfiguration, pathRemapper);
+            
+            IncludeMonikersInNuspecDependencies = template.IncludeMonikersInNuspecDependencies;
         }
 
         /// <inheritdoc />
@@ -67,5 +69,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IEsrpSignConfiguration EsrpSignConfiguration { get; set; }
+
+        /// <inheritdoc />
+        public bool? IncludeMonikersInNuspecDependencies { get; set; }
     }
 }

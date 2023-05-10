@@ -34,7 +34,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
         public NugetFrameworkMonikersTest()
         {
             m_context = FrontEndContext.CreateInstanceForTesting();
-            m_monikers = new NugetFrameworkMonikers(m_context.StringTable);
+            m_monikers = new NugetFrameworkMonikers(m_context.StringTable, new NugetResolverSettings());
             m_packageGenerator = new PackageGenerator(m_context, m_monikers);
         }
 
@@ -44,7 +44,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
             // Perform a random sample for some target framework moniker scenarios. Otherwise there are too many combinations.
             // This just guarantees a basic functionality of the moniker management and spec generator functionality.
             var stringTable = new PathTable().StringTable;
-            var monikers = new NugetFrameworkMonikers(stringTable);
+            var monikers = new NugetFrameworkMonikers(stringTable, new NugetResolverSettings());
 
             // Public member
             Assert.Equal("net451", monikers.Net451.ToString(stringTable));

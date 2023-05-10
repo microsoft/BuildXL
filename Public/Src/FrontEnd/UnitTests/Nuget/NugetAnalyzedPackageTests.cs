@@ -35,7 +35,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
         public NugetAnalyzedPackageTests()
         {
             m_context = FrontEndContext.CreateInstanceForTesting();
-            m_monikers = new NugetFrameworkMonikers(m_context.StringTable);
+            m_monikers = new NugetFrameworkMonikers(m_context.StringTable, new NugetResolverSettings());
             m_packageGenerator = new PackageGenerator(m_context, m_monikers);
         }
 

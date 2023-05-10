@@ -130,6 +130,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly Dictionary<string, INugetPackage> m_packagesOnConfig;
         private readonly bool m_doNotEnforceDependencyVersions;
         private readonly NugetRelativePathComparer m_nugetRelativePathComparer;
+        private readonly INugetResolverSettings m_nugetResolverSettings;
 
         /// <nodoc/>
         private NugetAnalyzedPackage(
@@ -138,7 +139,8 @@ namespace BuildXL.FrontEnd.Nuget
             PackageOnDisk packageOnDisk,
             Dictionary<string, INugetPackage> packagesOnConfig,
             bool doNotEnforceDependencyVersions,
-            AbsolutePath credentialProviderPath)
+            AbsolutePath credentialProviderPath,
+            INugetResolverSettings nugetResolverSettings)
         {
             m_context = context;
             PackageOnDisk = packageOnDisk;
@@ -153,6 +155,7 @@ namespace BuildXL.FrontEnd.Nuget
             DependenciesPerFramework = new MultiValueDictionary<PathAtom, INugetPackage>();
             CredentialProviderPath = credentialProviderPath;
             m_nugetRelativePathComparer = new NugetRelativePathComparer(m_context.StringTable);
+            m_nugetResolverSettings = nugetResolverSettings;
         }
 
         /// <summary>
@@ -168,13 +171,14 @@ namespace BuildXL.FrontEnd.Nuget
             PackageOnDisk packageOnDisk,
             Dictionary<string, INugetPackage> packagesOnConfig,
             bool doNotEnforceDependencyVersions,
-            AbsolutePath credentialProviderPath)
+            AbsolutePath credentialProviderPath,
+            INugetResolverSettings nugetResolverSettings)
         {
             Contract.Requires(context != null);
             Contract.Requires(packageOnDisk != null);
 
             var analyzedPackage = new NugetAnalyzedPackage(context, nugetFrameworkMonikers, packageOnDisk,
-                packagesOnConfig, doNotEnforceDependencyVersions, credentialProviderPath);
+                packagesOnConfig, doNotEnforceDependencyVersions, credentialProviderPath, nugetResolverSettings);
 
             analyzedPackage.ParseManagedSemantics();
             if (nuSpec != null && !analyzedPackage.TryParseDependenciesFromNuSpec(nuSpec))
@@ -406,7 +410,16 @@ namespace BuildXL.FrontEnd.Nuget
 
             foreach (var group in groups)
             {
-                if (group.Attribute("targetFramework") != null && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(group.Attribute("targetFramework").Value, out Moniker targetFramework))
+                if (group.Attribute("targetFramework") != null &&
+                    group.Attribute("targetFramework").Value is string targetFrameworkAttribute &&
+                    (
+                        // The attribute may come as a target framework (e.g. ".NETCoreApp2.1")
+                        NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(targetFrameworkAttribute, out Moniker targetFramework) ||
+                        // Or it may come as a moniker directly (e.g. "net6.0")
+                        m_nugetResolverSettings.IncludeMonikersInNuspecDependencies == true &&
+                        Moniker.TryCreate(m_context.StringTable, targetFrameworkAttribute, out var targetFrameworkAttributeMoniker) && 
+                        NugetFrameworkMonikers.WellknownMonikers.TryGetValue(targetFrameworkAttributeMoniker, out targetFramework))
+                    )
                 {
                     if (group.Elements().Any())
                     {

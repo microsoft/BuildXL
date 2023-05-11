@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -616,7 +617,18 @@ namespace BuildXL.Utilities
         private double? GetProcessCpu(Process currentProcess)
         {
             // Processor time consumed by this process
-            TimeSpan processTimeCurrentValue = currentProcess.TotalProcessorTime;
+            TimeSpan processTimeCurrentValue;
+
+            try
+            {
+                processTimeCurrentValue = currentProcess.TotalProcessorTime;
+            }
+            catch (Win32Exception)
+            {
+                // Occasionally, we get an 'Unable to retrieve the specified information about the process or thread.'
+                return null;
+            }
+
             DateTime processTimeCurrentCollectedAt = DateTime.UtcNow;
 
             if (m_processTimeLastCollectedAt == DateTime.MinValue)

@@ -80,24 +80,24 @@ jobs:
     env:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
-  
-  - powershell: |
-      $bxlWithRemotingLogDir = "$(BuildXL.LogsDirectory)"
-      $statsContent = Get-Content -Path (Join-Path $bxlWithRemotingLogDir "BuildXL.stats") | Out-String
-      $stats = ConvertFrom-StringData -StringData $statsContent
-      $runDistributedCount = $stats.Get_Item("PipExecution.ProcessesExecutedRemotely")
-      
-      Write-Host "Pips run on remote workers: $runDistributedCount"
 
-      if ($runDistributedCount -eq 0)
-      {
-          Write-Error "##[error]No process pip ran in distributed workers."
-          exit 1
-      }
-            
-      exit 0
-    displayName: 'Validate that distribution happened'
-    condition: and(succeeded(), eq(variables['BUILDXL_DISTRIBUTED_ROLE'], 'BuildXLOrchestrator')) 
+  - ${{ if eq(parameters.Role, 'Orchestrator') }}:
+    - powershell: |
+        $bxlWithRemotingLogDir = "$(BuildXL.LogsDirectory)"
+        $statsContent = Get-Content -Path (Join-Path $bxlWithRemotingLogDir "BuildXL.stats") | Out-String
+        $stats = ConvertFrom-StringData -StringData $statsContent
+        $runDistributedCount = $stats.Get_Item("PipExecution.ProcessesExecutedRemotely")
+        
+        Write-Host "Pips run on remote workers: $runDistributedCount"
+
+        if ($runDistributedCount -eq 0)
+        {
+            Write-Error "##[error]No process pip ran in distributed workers."
+            exit 1
+        }
+              
+        exit 0
+      displayName: 'Validate that distribution happened'
 
   - task: PublishPipelineArtifact@1
     displayName: 'Upload logs'

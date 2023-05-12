@@ -19,7 +19,7 @@ export const complianceLogLevel : GuardianLogLevel = Environment.hasVariable(log
 
 const autoGenerateBaselines = Environment.getFlag(guardianGenerateBaselines);
 const autoGenerateSuppressions = !autoGenerateBaselines && Environment.getFlag(guardianGenerateSuppressions);
-const complianceBaselineSuppressionLocation = d`${Context.getMount("SourceRoot").path}/.config/buildxl/compliance`;
+const complianceBaselineSuppressionLocation = Environment.hasVariable(guardianBaselineSuppressionDirectory) ? d`${Environment.getStringValue(guardianBaselineSuppressionDirectory)}` : d`${Context.getMount("SourceRoot").path}/.config/buildxl/compliance`;
 
 // Drop related
 const dropEnabled = Environment.hasVariable("BUILDXL_COMPLIANCE_BUILD_DROP_CONFIG");

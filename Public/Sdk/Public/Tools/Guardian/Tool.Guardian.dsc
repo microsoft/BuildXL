@@ -25,13 +25,11 @@ const cloudBuildTempDirectory = cloudbuildToolPath ? d`${cloudbuildToolPath.pare
 const guardianUntrackedDirectories = addIfLazy(Context.getCurrentHost().os === "win", () => [
     // Accessed by the Guardian CLI
     d`${Context.getMount("ProgramFilesX86").path}/dotnet`,
-    d`${Context.getMount("ProgramFiles").path}/dotnet`,
     ...addIf(cloudBuildDotNetDirectory !== undefined, cloudBuildDotNetDirectory),
     d`${Context.getMount("ProgramData").path}/Microsoft/NetFramework`,
     d`${Context.getMount("ProgramData").path}/Microsoft/VisualStudio/Setup`,
     // Config files accessed by nuget during Guardian install phase
     d`${Context.getMount("ProgramFilesX86").path}/Nuget`,
-    d`${Context.getMount("ProgramFiles").path}/Nuget`,
     d`${Context.getMount("LocalLow").path}`,
     // Nuget artifacts credential provider
     d`${Context.getMount("UserProfile").path}/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
@@ -43,9 +41,8 @@ const guardianUntrackedDirectories = addIfLazy(Context.getCurrentHost().os === "
     // The temp directory on cloudbuild will always be created under X:\a\b\temp, when the cloudbuild drop is at X:\a\b\c\d (this location is not expected to change between builds)
     // TODO: Remove this line once the Guardian team fixes this bug to use the temp directory specified in TEMP/TMP instead.
     ...addIf(cloudBuildTempDirectory !== undefined, cloudBuildTempDirectory),
-    // Accessed by Microsoft.Guardian.Cli, not clear on why this occurs yet
-    d`${Context.getMount("ProgramFiles").path}/Mellanox/MLNX_VPI`,
-    d`${Context.getMount("ProgramFiles").path}/MICROSOFT MONITORING AGENT`,
+    // Accessed by Microsoft.Guardian.Cli
+    d`${Context.getMount("ProgramFiles").path}`,
 ]);
 
 /**

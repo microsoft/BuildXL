@@ -3917,7 +3917,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "RecordFileForBuildManifest received an event after GenerateBuildManifestFileList invocation. Entry count: {entryCount}. First entry [DropName: '{dropName}', RelativePath: '{relativePath}', AzureArtifactsHash: '{azureArtifactsHash}' ].")]
+            Message = "RecordFileForBuildManifest received an event after GetBuildManifesFileList invocation. Entry count: {entryCount}. First entry [DropName: '{dropName}', RelativePath: '{relativePath}', AzureArtifactsHash: '{azureArtifactsHash}' ].")]
         internal abstract void RecordFileForBuildManifestAfterGenerateBuildManifestFileList(LoggingContext loggingContext, int entryCount, string dropName, string relativePath, string azureArtifactsHash);
 
         [GeneratedEvent(
@@ -3944,7 +3944,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "GenerateBuildManifestFileList successfully generated a list of {fileListCount} files for Drop: '{dropName}'.")]
+            Message = "GetBuildManifesFileList successfully generated a list of {fileListCount} files for Drop: '{dropName}'.")]
         internal abstract void GenerateBuildManifestFileListResult(LoggingContext loggingContext, string dropName, int fileListCount);
 
         [GeneratedEvent(

@@ -13,29 +13,36 @@ using System.Text;
 namespace BuildXL.Ipc.ExternalApi.Commands
 {
     /// <summary>
-    /// Command corresponding to the <see cref="Client.GenerateBuildManifestFileList"/> API operation.
+    /// Command corresponding to the <see cref="Client.GetBuildManifesFileList"/> API operation.
     /// </summary>
-    public sealed class GenerateBuildManifestFileListCommand : Command<GenerateBuildManifestFileListResult>
+    public sealed class GetBuildManifesFileListCommand : Command<GetBuildManifesFileListResult>
     {
         /// <summary>
         /// DropName to identify which drop the Build Manifest is being generated for.
         /// </summary>
         public string DropName { get; }
 
+        /// <summary>
+        /// The number of files to include.
+        /// </summary>
+        public int Count { get; }
+
         /// <nodoc />
-        public GenerateBuildManifestFileListCommand(string dropName)
+        public GetBuildManifesFileListCommand(string dropName, int count)
         {
+            Contract.Assert(count > 0);
             DropName = dropName;
+            Count = count;
         }
 
         /// <inheritdoc />
-        public override bool TryParseResult(string result, out GenerateBuildManifestFileListResult commandResult)
+        public override bool TryParseResult(string result, out GetBuildManifesFileListResult commandResult)
         {
-            return GenerateBuildManifestFileListResult.TryParse(result, out commandResult);
+            return GetBuildManifesFileListResult.TryParse(result, out commandResult);
         }
 
         /// <inheritdoc />
-        public override string RenderResult(GenerateBuildManifestFileListResult commandResult)
+        public override string RenderResult(GetBuildManifesFileListResult commandResult)
         {
             Contract.Requires(commandResult != null);
 
@@ -45,11 +52,12 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         internal override void InternalSerialize(BinaryWriter writer)
         {
             writer.Write(DropName);
+            writer.Write(Count);
         }
 
         internal static Command InternalDeserialize(BinaryReader reader)
         {
-            return new GenerateBuildManifestFileListCommand(reader.ReadString());
+            return new GetBuildManifesFileListCommand(reader.ReadString(),reader.ReadInt32());
         }
     }
 
@@ -170,12 +178,17 @@ namespace BuildXL.Ipc.ExternalApi.Commands
     /// <summary>
     /// Result of creating a build manifest file list for a drop
     /// </summary>
-    public sealed class GenerateBuildManifestFileListResult
+    public sealed class GetBuildManifesFileListResult
     {
         /// <summary>
         /// List of files added to drop. Returns null if the operation failed.
         /// </summary>
         public List<BuildManifestFileInfo> FileList { get; }
+
+        /// <summary>
+        /// Whether there are still data available that were not included due to limits specified in the request.
+        /// </summary>
+        public bool HasMoreData { get; }
 
         /// <summary>
         /// The result of the operation
@@ -187,28 +200,29 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         /// </summary>
         public string Error { get; }
 
-        private GenerateBuildManifestFileListResult(OperationStatus status, List<BuildManifestFileInfo> fileList, string errorMessage)
+        private GetBuildManifesFileListResult(OperationStatus status, List<BuildManifestFileInfo> fileList, string errorMessage, bool hasMoreData)
         {
             FileList = fileList;
             Status = status;
             Error = errorMessage;
+            HasMoreData = hasMoreData;
         }
 
         /// <nodoc />
-        public static GenerateBuildManifestFileListResult CreateForSuccess(List<BuildManifestFileInfo> fileList)
+        public static GetBuildManifesFileListResult CreateForSuccess(List<BuildManifestFileInfo> fileList, bool hasMoreData)
         {
             Contract.Requires(fileList != null);
 
-            return new GenerateBuildManifestFileListResult(OperationStatus.Success, fileList, null);
+            return new GetBuildManifesFileListResult(OperationStatus.Success, fileList, null, hasMoreData);
         }
 
         /// <nodoc />
-        public static GenerateBuildManifestFileListResult CreateForFailure(OperationStatus status, string errorMessage)
+        public static GetBuildManifesFileListResult CreateForFailure(OperationStatus status, string errorMessage)
         {
             Contract.Requires(!string.IsNullOrEmpty(errorMessage));
             Contract.Requires(status != OperationStatus.Success);
 
-            return new GenerateBuildManifestFileListResult(status, null, errorMessage);
+            return new GetBuildManifesFileListResult(status, null, errorMessage, false);
         }
 
         /// <nodoc />
@@ -221,6 +235,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
             if (Status == OperationStatus.Success)
             {
                 sb.AppendLine($"{FileList.Count}");
+                sb.AppendLine(HasMoreData ? "1" : "0");
 
                 foreach (BuildManifestFileInfo fileInfo in FileList)
                 {
@@ -236,7 +251,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         }
 
         /// <nodoc />
-        public static bool TryParse(string renderedResult, out GenerateBuildManifestFileListResult result)
+        public static bool TryParse(string renderedResult, out GetBuildManifesFileListResult result)
         {
             using var reader = new StringReader(renderedResult);
             var statusValue = reader.ReadLine();
@@ -263,6 +278,12 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                     return false;
                 }
 
+                if (!int.TryParse(reader.ReadLine(), out var hasMoreData))
+                {
+                    result = null;
+                    return false;
+                }
+
                 for (int i = 0; i < numberOfFiles; i++)
                 {
                     string val = reader.ReadLine();
@@ -275,7 +296,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                     fileList.Add(buildManifestFileInfo);
                 }
 
-                result = CreateForSuccess(fileList);
+                result = CreateForSuccess(fileList, hasMoreData == 1);
             }
             else
             {

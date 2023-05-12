@@ -181,12 +181,14 @@ namespace Test.BuildXL.Ipc
         }
 
         [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(5)]
-        public async Task TestGenerateBuildManifestDataAsync(int count)
+        [InlineData(0, 2)]
+        [InlineData(1, 2)]
+        [InlineData(5, 5)]
+        [InlineData(5, 10)]
+        public async Task TestGenerateBuildManifestDataAsync(int count, int filesToRequest)
         {
             string dropName = "DropName";
+            bool hasMoreData = filesToRequest < count;
             List<BuildManifestFileInfo> expectedData = new List<BuildManifestFileInfo>();
 
             for (int i = 0; i < count; i++)
@@ -196,15 +198,16 @@ namespace Test.BuildXL.Ipc
 
             using var apiClient = CreateApiClient(ipcOperation =>
             {
-                var cmd = (GenerateBuildManifestFileListCommand)Command.Deserialize(ipcOperation.Payload);
+                var cmd = (GetBuildManifesFileListCommand)Command.Deserialize(ipcOperation.Payload);
                 XAssert.AreEqual(dropName, cmd.DropName);
-                return IpcResult.Success(cmd.RenderResult(GenerateBuildManifestFileListResult.CreateForSuccess(expectedData)));
+                return IpcResult.Success(cmd.RenderResult(GetBuildManifesFileListResult.CreateForSuccess(expectedData.Take(filesToRequest).ToList(), hasMoreData)));
             });
 
-            var maybeResult = await apiClient.GenerateBuildManifestFileList(dropName);
+            var maybeResult = await apiClient.GetBuildManifesFileList(dropName, filesToRequest);
             XAssert.PossiblySucceeded(maybeResult);
-            XAssert.AreEqual(GenerateBuildManifestFileListResult.OperationStatus.Success, maybeResult.Result.Status);
-            XAssert.IsTrue(expectedData.SequenceEqual(maybeResult.Result.FileList));
+            XAssert.AreEqual(GetBuildManifesFileListResult.OperationStatus.Success, maybeResult.Result.Status);
+            XAssert.IsTrue(expectedData.Take(filesToRequest).SequenceEqual(maybeResult.Result.FileList));
+            XAssert.AreEqual(hasMoreData, maybeResult.Result.HasMoreData);
         }
 
         [Fact]
@@ -235,41 +238,43 @@ namespace Test.BuildXL.Ipc
             var files = new List<BuildManifestFileInfo>();
 
             // OperationStatus.Success, empty list
-            var expected = GenerateBuildManifestFileListResult.CreateForSuccess(files);
-            var success = GenerateBuildManifestFileListResult.TryParse(expected.Render(), out var actual);
+            var expected = GetBuildManifesFileListResult.CreateForSuccess(files, hasMoreData: true);
+            var success = GetBuildManifesFileListResult.TryParse(expected.Render(), out var actual);
             XAssert.IsTrue(success);
             XAssert.IsTrue(resultsAreEqual(expected, actual));
+
 
             // OperationStatus.Success, non-empty list
             files.Add(new BuildManifestFileInfo("path", new ContentHash(HashType.Vso0), new[] { new ContentHash(HashType.SHA1) }));
-            expected = GenerateBuildManifestFileListResult.CreateForSuccess(files);
-            success = GenerateBuildManifestFileListResult.TryParse(expected.Render(), out actual);
+            expected = GetBuildManifesFileListResult.CreateForSuccess(files, hasMoreData: false);
+            success = GetBuildManifesFileListResult.TryParse(expected.Render(), out actual);
             XAssert.IsTrue(success);
             XAssert.IsTrue(resultsAreEqual(expected, actual));
 
-            expected = GenerateBuildManifestFileListResult.CreateForFailure(GenerateBuildManifestFileListResult.OperationStatus.InternalError, "error");
-            success = GenerateBuildManifestFileListResult.TryParse(expected.Render(), out actual);
+            expected = GetBuildManifesFileListResult.CreateForFailure(GetBuildManifesFileListResult.OperationStatus.InternalError, "error");
+            success = GetBuildManifesFileListResult.TryParse(expected.Render(), out actual);
             XAssert.IsTrue(success);
             XAssert.IsTrue(resultsAreEqual(expected, actual));
 
-            expected = GenerateBuildManifestFileListResult.CreateForFailure(GenerateBuildManifestFileListResult.OperationStatus.UserError, $"multi{Environment.NewLine}line{Environment.NewLine}error");
-            success = GenerateBuildManifestFileListResult.TryParse(expected.Render(), out actual);
+            expected = GetBuildManifesFileListResult.CreateForFailure(GetBuildManifesFileListResult.OperationStatus.UserError, $"multi{Environment.NewLine}line{Environment.NewLine}error");
+            success = GetBuildManifesFileListResult.TryParse(expected.Render(), out actual);
             XAssert.IsTrue(success);
             XAssert.IsTrue(resultsAreEqual(expected, actual));
 
-            static bool resultsAreEqual(GenerateBuildManifestFileListResult l, GenerateBuildManifestFileListResult r)
+            static bool resultsAreEqual(GetBuildManifesFileListResult l, GetBuildManifesFileListResult r)
             {
                 return l.Status == r.Status
                     && l.Error == r.Error
                     && (l.FileList != null && r.FileList != null && l.FileList.SequenceEqual(r.FileList)
-                        || l.FileList == null && r.FileList == null);
+                        || l.FileList == null && r.FileList == null)
+                    && l.HasMoreData == r.HasMoreData;
             }
         }
 
         [Fact]
         public void TestGenerateBuildManifestFileListCommandParsingRejectsMalformedString()
         {
-            GenerateBuildManifestFileListCommand cmd = new GenerateBuildManifestFileListCommand("dropName");
+            GetBuildManifesFileListCommand cmd = new GetBuildManifesFileListCommand("dropName", 10);
 
             XAssert.IsFalse(cmd.TryParseResult("NaN", out _));
 
@@ -281,7 +286,7 @@ namespace Test.BuildXL.Ipc
             XAssert.IsFalse(cmd.TryParseResult(sb.ToString(), out _));
 
             sb.Clear();
-            sb.AppendLine($"{(byte)GenerateBuildManifestFileListResult.OperationStatus.Success}");
+            sb.AppendLine($"{(byte)GetBuildManifesFileListResult.OperationStatus.Success}");
             sb.AppendLine($"1");
             sb.AppendLine($"invalid|count");
             XAssert.IsFalse(cmd.TryParseResult(sb.ToString(), out _));

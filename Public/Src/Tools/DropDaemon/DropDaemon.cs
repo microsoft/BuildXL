@@ -41,7 +41,7 @@ using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json.Linq;
 using SBOMCore;
 using Tool.ServicePipDaemon;
-using static BuildXL.Ipc.ExternalApi.Commands.GenerateBuildManifestFileListResult;
+using static BuildXL.Ipc.ExternalApi.Commands.GetBuildManifesFileListResult;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using static Tool.ServicePipDaemon.Statics;
 
@@ -811,25 +811,38 @@ namespace Tool.DropDaemon
         {
             Contract.Requires(dropConfig.GenerateBuildManifest, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
 
-            var bxlResult = await ApiClient.GenerateBuildManifestFileList(FullyQualifiedDropName(dropConfig));
+            const int NumberOfFilePerRequest = 10_000;
+            string fullDropName = FullyQualifiedDropName(dropConfig);
+            IEnumerable<BuildXL.Ipc.ExternalApi.Commands.BuildManifestFileInfo> fileList = Enumerable.Empty<BuildXL.Ipc.ExternalApi.Commands.BuildManifestFileInfo>();
+            bool hasMoreData = false;
 
-            if (!bxlResult.Succeeded)
+            do
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {dropConfig.Name}. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
-            }
+                m_logger.Info($"Calling GetBuildManifesFileList - drop: '{fullDropName}', count: {NumberOfFilePerRequest}.");
+                var bxlResult = await ApiClient.GetBuildManifesFileList(fullDropName, NumberOfFilePerRequest);
 
-            if (bxlResult.Result.Status == OperationStatus.InternalError)
-            {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"Failed to create build manifest file list for Drop: {dropConfig.Name}. Failure: {bxlResult.Result.Error}");
-            }
-            else if (bxlResult.Result.Status == OperationStatus.UserError)
-            {
-                return new IpcResult(IpcResultStatus.InvalidInput, $"Failed to create build manifest file list for Drop: {dropConfig.Name}. Failure: {bxlResult.Result.Error}");
-            }
+                if (!bxlResult.Succeeded)
+                {
+                    return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {dropConfig.Name}. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
+                }
 
-            Contract.Assert(bxlResult.Result.Status == OperationStatus.Success);
+                if (bxlResult.Result.Status == OperationStatus.InternalError)
+                {
+                    return new IpcResult(IpcResultStatus.ExecutionError, $"Failed to create build manifest file list for Drop: {dropConfig.Name}. Failure: {bxlResult.Result.Error}");
+                }
+                else if (bxlResult.Result.Status == OperationStatus.UserError)
+                {
+                    return new IpcResult(IpcResultStatus.InvalidInput, $"Failed to create build manifest file list for Drop: {dropConfig.Name}. Failure: {bxlResult.Result.Error}");
+                }
 
-            IEnumerable<SBOMFile> manifestFileList = bxlResult.Result.FileList.Select(fileInfo => ToSbomFile(fileInfo));
+                Contract.Assert(bxlResult.Result.Status == OperationStatus.Success);
+
+                m_logger.Info($"Received GetBuildManifesFileListResult - drop: '{fullDropName}', count: {bxlResult.Result.FileList.Count}, hasMoreData: {bxlResult.Result.HasMoreData}.");
+                fileList = fileList.Concat(bxlResult.Result.FileList);
+                hasMoreData = bxlResult.Result.HasMoreData;
+            } while (hasMoreData);
+
+            IEnumerable<SBOMFile> manifestFileList = fileList.Select(ToSbomFile);
 
             string sbomGenerationRootDirectory = null;
             var logger = GetDropSpecificLogger(dropConfig);
@@ -840,7 +853,7 @@ namespace Tool.DropDaemon
                     m_bsiMetadataExtractor = new BsiMetadataExtractor(DropServiceConfig.BsiFileLocation);
                 }
 
-                var sbomPackageName = string.IsNullOrEmpty(dropConfig.SbomPackageName) ? FullyQualifiedDropName(dropConfig) : dropConfig.SbomPackageName;
+                var sbomPackageName = string.IsNullOrEmpty(dropConfig.SbomPackageName) ? fullDropName : dropConfig.SbomPackageName;
                 var metadata = m_bsiMetadataExtractor.ProduceSbomMetadata("BuildXL", sbomPackageName, dropConfig.SbomPackageVersion);
 
                 // Create a temporary directory to be the root path of SBOM generation 
@@ -895,7 +908,7 @@ namespace Tool.DropDaemon
                          throw new InvalidOperationException($"The path {filePath} is not under {sbomGenerationRootDirectory}");
                      }
                      var relativeDropPath = filePath.Substring(sbomGenerationRootDirectory.Length);
-                     var dropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), filePath, relativeDropPath);
+                     var dropItem = new DropItemForFile(fullDropName, filePath, relativeDropPath);
                      dropItems.Add(dropItem);
                      filesToSign.Add((filePath, fileName));
                  });

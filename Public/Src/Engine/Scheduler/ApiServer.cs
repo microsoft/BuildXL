@@ -25,6 +25,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
+using System.Collections.Concurrent;
 
 namespace BuildXL.Scheduler
 {
@@ -46,6 +47,7 @@ namespace BuildXL.Scheduler
         private readonly ConcurrentBigMap<ContentHash, IReadOnlyList<ContentHash>> m_inMemoryBuildManifestStore;
         private readonly ConcurrentBigMap<string, long> m_receivedStatistics;
         private readonly bool m_verifyFileContentOnRequestedHashComputation;
+        private readonly ConcurrentDictionary<string, Possible<(List<BuildManifestFileInfo>, int position)>> m_buildManifestFileListCache;
         private LoggingContext m_loggingContext;
         // Build manifest requires HistoricMetadataCache. If it's not available, we need to log a warning on the
         // first build manifest API call. 
@@ -99,6 +101,7 @@ namespace BuildXL.Scheduler
             m_receivedStatistics = new ConcurrentBigMap<string, long>();
             m_verifyFileContentOnRequestedHashComputation = verifyFileContentOnBuildManifestHashComputation;
             m_hashTypePoolForHashComputation = Pools.CreateListPool<HashType>();
+            m_buildManifestFileListCache = new();
         }
 
         /// <summary>
@@ -328,10 +331,10 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            var generateBuildManifestDataCmd = cmd as GenerateBuildManifestFileListCommand;
+            var generateBuildManifestDataCmd = cmd as GetBuildManifesFileListCommand;
             if (generateBuildManifestDataCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteGenerateBuildManifestFileListAsync, generateBuildManifestDataCmd, BuildManifestCounters.TotalGenerateBuildManifestFileListCalls);
+                var result = await ExecuteCommandWithStats(ExecuteGenerateBuildManifestFileListAsync, generateBuildManifestDataCmd, BuildManifestCounters.TotalGetBuildManifestFileListCalls);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -441,27 +444,59 @@ namespace BuildXL.Scheduler
             return IpcResult.Success(cmd.RenderResult(succeeded));
         }
 
-        private Task<IIpcResult> ExecuteGenerateBuildManifestFileListAsync(GenerateBuildManifestFileListCommand cmd)
+        private Task<IIpcResult> ExecuteGenerateBuildManifestFileListAsync(GetBuildManifesFileListCommand cmd)
             => Task.FromResult(ExecuteGenerateBuildManifestFileList(cmd));
 
         /// <summary>
-        /// Executes <see cref="GenerateBuildManifestFileListCommand"/>. Generates a list of file hashes required for BuildManifest.json file
-        /// for given <see cref="GenerateBuildManifestFileListCommand.DropName"/>.
+        /// Executes <see cref="GetBuildManifesFileListCommand"/>. Generates a list of file hashes required for BuildManifest.json file
+        /// for given <see cref="GetBuildManifesFileListCommand.DropName"/>.
         /// </summary>
-        private IIpcResult ExecuteGenerateBuildManifestFileList(GenerateBuildManifestFileListCommand cmd)
+        private IIpcResult ExecuteGenerateBuildManifestFileList(GetBuildManifesFileListCommand cmd)
         {
             Contract.Requires(cmd != null);
             Contract.Requires(m_buildManifestGenerator != null, "Build Manifest data can only be generated on orchestrator");
 
-            GenerateBuildManifestFileListResult result;
+            GetBuildManifesFileListResult result;
+            Possible<(List<BuildManifestFileInfo> fileList, int position)> possibleFileList;
 
-            if (!m_buildManifestGenerator.TryGenerateBuildManifestFileList(cmd.DropName, out string error, out var buildManifestFileList))
+            // Check if we have already created a file list for this drop name.
+            if (!m_buildManifestFileListCache.TryGetValue(cmd.DropName, out possibleFileList))
             {
-                result = GenerateBuildManifestFileListResult.CreateForFailure(GenerateBuildManifestFileListResult.OperationStatus.UserError, error);
+                if (!m_buildManifestGenerator.TryGenerateBuildManifestFileList(cmd.DropName, out string error, out var fileList))
+                {
+                    possibleFileList = new Failure<string>(error);
+                    m_buildManifestFileListCache[cmd.DropName] = possibleFileList;
+                }
+                else
+                {
+                    possibleFileList = (fileList, 0);
+                    m_buildManifestFileListCache[cmd.DropName] = possibleFileList;
+                }
+            }
+
+            if (!possibleFileList.Succeeded)
+            {
+                result = GetBuildManifesFileListResult.CreateForFailure(GetBuildManifesFileListResult.OperationStatus.UserError, possibleFileList.Failure.Describe());
             }
             else
             {
-                result = GenerateBuildManifestFileListResult.CreateForSuccess(buildManifestFileList);
+                var fileList = possibleFileList.Result.fileList;
+                var position = possibleFileList.Result.position;
+                // There might be fewer items than requested.
+                int length = Math.Min(cmd.Count, fileList.Count - position);
+                bool hasMoreData = position + length < fileList.Count;
+                result = GetBuildManifesFileListResult.CreateForSuccess(fileList.GetRange(position, length), hasMoreData);
+                if (!hasMoreData)
+                {
+                    // All entries have been delivered. Store the failure into the cache, so (1) the memory could be cleaned, and (2) we can return
+                    // an error if the file list requested again for this drop.
+                    m_buildManifestFileListCache[cmd.DropName] = new Failure<string>($"There are no more entries in the file list for the drop '{cmd.DropName}'");
+                }
+                else
+                {
+                    // Update the position.
+                    m_buildManifestFileListCache[cmd.DropName] = (fileList, position + length);
+                }
             }
 
             // We always return a 'success' here because a call to the API Server was successful.
@@ -872,13 +907,13 @@ namespace BuildXL.Scheduler
         RegisterHashesDuration,
 
         /// <summary>
-        /// Number of <see cref="GenerateBuildManifestFileListCommand"/> calls
+        /// Number of <see cref="GetBuildManifesFileListCommand"/> calls
         /// </summary>
         [CounterType(CounterType.Numeric)]
-        TotalGenerateBuildManifestFileListCalls,
+        TotalGetBuildManifestFileListCalls,
 
         /// <summary>
-        /// Number of failed file hash computations during <see cref="GenerateBuildManifestFileListCommand"/> calls
+        /// Number of failed file hash computations during <see cref="GetBuildManifesFileListCommand"/> calls
         /// </summary>
         [CounterType(CounterType.Numeric)]
         TotalHashFileFailures,

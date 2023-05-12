@@ -72,8 +72,8 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                         return LogMessageCommand.InternalDeserialize(reader);
                     case nameof(RegisterFilesForBuildManifestCommand):
                         return RegisterFilesForBuildManifestCommand.InternalDeserialize(reader);
-                    case nameof(GenerateBuildManifestFileListCommand):
-                        return GenerateBuildManifestFileListCommand.InternalDeserialize(reader);
+                    case nameof(GetBuildManifesFileListCommand):
+                        return GetBuildManifesFileListCommand.InternalDeserialize(reader);
                     case nameof(ReportServicePipIsReadyCommand):
                         return ReportServicePipIsReadyCommand.InternalDeserialize(reader);
                     case nameof(RecomputeContentHashCommand):

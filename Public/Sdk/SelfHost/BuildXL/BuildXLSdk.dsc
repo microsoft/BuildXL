@@ -959,7 +959,9 @@ function getTestFramework(args: Managed.TestArguments) : Managed.TestFramework {
 function processTestArguments(args: Managed.TestArguments) : Managed.TestArguments {
     args = processArguments(args, "library");
 
-    let xunitSemaphoreLimit = Environment.hasVariable(envVarNamePrefix + "xunitSemaphoreCount") ? Environment.getNumberValue(envVarNamePrefix + "xunitSemaphoreCount") : 8; 
+    let xunitSemaphoreLimit = Environment.hasVariable(envVarNamePrefix + "xunitSemaphoreCount")
+        ? Environment.getNumberValue(envVarNamePrefix + "xunitSemaphoreCount")
+        : undefined;
     let testFramework = getTestFramework(args);
 
     args = Object.merge<Managed.TestArguments>({
@@ -987,9 +989,10 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
             parallel: "none",
             tools: {
                 exec: {
-                    acquireSemaphores: [
-                        {name: "BuildXL.xunit_semaphore", incrementBy: 1, limit: xunitSemaphoreLimit}
-                    ],
+                    weight: 2,
+                    acquireSemaphores: xunitSemaphoreLimit !== undefined
+                        ? [ {name: "BuildXL.xunit_semaphore", incrementBy: 1, limit: xunitSemaphoreLimit} ]
+                        : undefined,
                     errorRegex: " \b",
                     unsafe: {
                         // allowing process dumps to be written to /cores on macOS

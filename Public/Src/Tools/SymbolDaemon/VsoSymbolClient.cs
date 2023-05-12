@@ -221,6 +221,7 @@ namespace Tool.SymbolDaemon
         private async Task ProcessBatchedFilesAsync(List<BatchedSymbolFile> batch)
         {
             var batchNumber = Interlocked.Increment(ref m_batchCount);
+            var localCounters = new CounterCollection<SymbolClientCounter>();
 
             try
             {
@@ -232,23 +233,32 @@ namespace Tool.SymbolDaemon
                     file => file.File.DebugEntries.Select(entry => CreateDebugEntry(entry, DomainId, file.File)))
                     .ToList();
 
-
+                // Make the first call (aka 'associate') to the endpoint. Some entries might not be added if the endpoint does not have content associated with them.
                 var resultOfAssociateCall = await AssociateAsync(debugEntriesToAssociate);
                 var entriesWithMissingBlobs = resultOfAssociateCall.Where(e => e.Status == DebugEntryStatus.BlobMissing).ToList();
-                var missingBlobsToFilesMap = SetResultForAssociatedFiles(batch, entriesWithMissingBlobs);
+                (Dictionary<BlobIdentifier, BatchedSymbolFile> missingBlobsMap, List<BatchedSymbolFile> pendingFiles) missingBlobsAndPendingFiles = SetResultForAssociatedFiles(batch, entriesWithMissingBlobs, localCounters);
 
-                // materialize all files that we need to upload
-                var materializedFiles = await TaskUtilities.SafeWhenAll(missingBlobsToFilesMap.Values.Select(static file => file.File.EnsureMaterializedAsync()));
+                // Materialize all files that we need to upload.
+                await TaskUtilities.SafeWhenAll(missingBlobsAndPendingFiles.missingBlobsMap.Values.Select(static file => file.File.EnsureMaterializedAsync()));
 
-                await UploadAndAssociateAsync(entriesWithMissingBlobs, missingBlobsToFilesMap);
+                // Upload the content and make the second call to the endpoint.
+                await UploadAndAssociateAsync(entriesWithMissingBlobs, missingBlobsAndPendingFiles.missingBlobsMap);
 
-                m_counters.AddToCounter(SymbolClientCounter.NumFilesUploaded, missingBlobsToFilesMap.Count);
-                m_counters.AddToCounter(SymbolClientCounter.TotalUploadSize, materializedFiles.Sum(f => f.Length));
+                // Missing blobs were uploaded, we can safely mark pending files as associated.
+                missingBlobsAndPendingFiles.pendingFiles.ForEach(file => MarkFileAsAssociatedAndUpdateCounters(localCounters, file));
 
-                missingBlobsToFilesMap.Values.ForEach(static file => file.ResultTaskSource.TrySetResult(AddDebugEntryResult.UploadedAndAssociated));
+                localCounters.AddToCounter(SymbolClientCounter.NumFilesUploaded, missingBlobsAndPendingFiles.missingBlobsMap.Count);
+                localCounters.AddToCounter(SymbolClientCounter.TotalFileUploadSizeBytes, missingBlobsAndPendingFiles.missingBlobsMap.Sum(kvp => kvp.Value.File.FileLength));
+                // count all debug entries from the uploaded files as uploaded debug entries
+                localCounters.AddToCounter(SymbolClientCounter.NumDebugEntriesUploaded, missingBlobsAndPendingFiles.missingBlobsMap.Sum(kvp => kvp.Value.File.DebugEntries.Count));
+                localCounters.AddToCounter(SymbolClientCounter.TotalDebugEntryUploadSizeBytes, missingBlobsAndPendingFiles.missingBlobsMap.Sum(kvp => kvp.Value.File.FileLength * kvp.Value.File.DebugEntries.Count));
 
-                // double-check that all files were processed
-                Contract.Assert(batch.All(f => f.ResultTaskSource.Task.IsCompleted));
+                missingBlobsAndPendingFiles.missingBlobsMap.Values.ForEach(static file => file.ResultTaskSource.TrySetResult(AddDebugEntryResult.UploadedAndAssociated));
+
+                // Double-check that all files were processed.
+                Contract.Assert(batch.All(static f => f.ResultTaskSource.Task.IsCompleted));
+
+                validateAndUpdateCounters();
 
                 m_logger.Info($"Finished processing batch #{batchNumber}.");
             }
@@ -260,6 +270,48 @@ namespace Tool.SymbolDaemon
                        batch.Select(item => $"'{item.File.FullFilePath}', Hash:'{item.File.Hash}', DebugEntries.Count: {item.File.DebugEntries.Count}, Task.IsCompleted:{item.ResultTaskSource.Task.IsCompleted}")));
 
                 batch.ForEach(f => f.ResultTaskSource.TrySetException(e));
+            }
+
+            void validateAndUpdateCounters()
+            {
+                // Validate the counters.
+                int totalDebugEntryCount = batch.Sum(f => f.File.DebugEntries.Count);
+                long totalFileSize = batch.Sum(f => f.File.FileLength);
+                long totalDebugEntrySize = batch.Sum(f => f.File.FileLength * f.File.DebugEntries.Count);
+                Contract.Assert(
+                    localCounters.GetCounterValue(SymbolClientCounter.NumFilesAssociated) + localCounters.GetCounterValue(SymbolClientCounter.NumFilesUploaded) == batch.Count,
+                    $"File count mismatch: {localCounters.GetCounterValue(SymbolClientCounter.NumFilesAssociated)} + {localCounters.GetCounterValue(SymbolClientCounter.NumFilesUploaded)} != {batch.Count}");
+                Contract.Assert(
+                    localCounters.GetCounterValue(SymbolClientCounter.NumDebugEntriesAssociated) + localCounters.GetCounterValue(SymbolClientCounter.NumDebugEntriesUploaded) == totalDebugEntryCount,
+                    $"DebugEntry count mismatch: {localCounters.GetCounterValue(SymbolClientCounter.NumDebugEntriesAssociated)} + {localCounters.GetCounterValue(SymbolClientCounter.NumDebugEntriesUploaded)} != {totalDebugEntryCount}");
+                Contract.Assert(
+                    localCounters.GetCounterValue(SymbolClientCounter.TotalFileAssociateSizeBytes) + localCounters.GetCounterValue(SymbolClientCounter.TotalFileUploadSizeBytes) == totalFileSize,
+                    $"File size mismatch: {localCounters.GetCounterValue(SymbolClientCounter.TotalFileAssociateSizeBytes)} + {localCounters.GetCounterValue(SymbolClientCounter.TotalFileUploadSizeBytes)} != {totalFileSize}");
+                Contract.Assert(
+                    localCounters.GetCounterValue(SymbolClientCounter.TotalDebugEntryAssociateSizeBytes) + localCounters.GetCounterValue(SymbolClientCounter.TotalDebugEntryUploadSizeBytes) == totalDebugEntrySize,
+                    $"DebugEntry size mismatch: {localCounters.GetCounterValue(SymbolClientCounter.TotalDebugEntryAssociateSizeBytes)} + {localCounters.GetCounterValue(SymbolClientCounter.TotalDebugEntryUploadSizeBytes)} != {totalDebugEntrySize}");
+
+                // Local counters are valid, move their values to the main counter collection.
+                foreach (var counter in EnumTraits<SymbolClientCounter>.EnumerateValues())
+                {
+                    switch (counter)
+                    {
+                        case SymbolClientCounter.NumDebugEntriesAssociated:
+                        case SymbolClientCounter.NumFilesAssociated:
+                        case SymbolClientCounter.NumDebugEntriesUploaded:
+                        case SymbolClientCounter.NumFilesUploaded:
+                        case SymbolClientCounter.TotalDebugEntryAssociateSizeBytes:
+                        case SymbolClientCounter.TotalFileAssociateSizeBytes:
+                        case SymbolClientCounter.TotalDebugEntryUploadSizeBytes:
+                        case SymbolClientCounter.TotalFileUploadSizeBytes:
+                            m_counters.AddToCounter(counter, localCounters.GetCounterValue(counter));
+                            break;
+                        default:
+                            // No other counter should have been used.
+                            Contract.Assert(localCounters.GetCounterValue(counter) == 0, $"Counter {counter} must have a value of 0, but it has a value of {localCounters.GetCounterValue(counter)}.");
+                            break;
+                    }
+                }
             }
         }
 
@@ -303,7 +355,10 @@ namespace Tool.SymbolDaemon
             return result;
         }
 
-        private Dictionary<BlobIdentifier, BatchedSymbolFile> SetResultForAssociatedFiles(List<BatchedSymbolFile> batch, List<DebugEntry> entriesWithMissingBlobs)
+        private static (Dictionary<BlobIdentifier, BatchedSymbolFile>, List<BatchedSymbolFile>) SetResultForAssociatedFiles(
+            List<BatchedSymbolFile> batch,
+            List<DebugEntry> entriesWithMissingBlobs,
+            CounterCollection<SymbolClientCounter> counters)
         {
             // A single file might contain multiple DebugEntries, however, all them will share the same BlobIdentifier.
             // Because of that, we only need to check the BlobIdentifier of the first entry for each file.
@@ -311,6 +366,7 @@ namespace Tool.SymbolDaemon
 
             var missingBlobIds = new HashSet<BlobIdentifier>(entriesWithMissingBlobs.Select(e => e.BlobIdentifier));
             var blobIdToFileMap = new Dictionary<BlobIdentifier, BatchedSymbolFile>();
+            var pendindAssociatedFiles = new List<BatchedSymbolFile>();
             foreach (var file in batch)
             {
                 // DebugEntries list is always non-empty at this point
@@ -320,25 +376,35 @@ namespace Tool.SymbolDaemon
                     // DebugEntries might or might not be the same. Since Upload call is isolated from the Associate call,
                     // and the only thing needed for upload is content's location, add the first file to the map and mark
                     // other files as Associated (the entries from those files will still be a part of the second Associate call). 
+                    // The reason we mark files associated instead uploaded is that these files would be classified as 'associated'
+                    // if they were a part of a batch that is processed after this batch.
                     if (!blobIdToFileMap.ContainsKey(file.File.DebugEntries[0].BlobIdentifier))
                     {
                         blobIdToFileMap.Add(file.File.DebugEntries[0].BlobIdentifier, file);
                     }
                     else
                     {
-                        file.ResultTaskSource.TrySetResult(AddDebugEntryResult.Associated);
-                        m_counters.IncrementCounter(SymbolClientCounter.NumFilesAssociated);
-                        m_counters.AddToCounter(SymbolClientCounter.TotalAssociateSize, file.File.FileLength);
+                        pendindAssociatedFiles.Add(file);
                     }
                 }
                 else
                 {
-                    file.ResultTaskSource.TrySetResult(AddDebugEntryResult.Associated);
-                    m_counters.IncrementCounter(SymbolClientCounter.NumFilesAssociated);
+                    MarkFileAsAssociatedAndUpdateCounters(counters, file);
                 }
             }
 
-            return blobIdToFileMap;
+            return (blobIdToFileMap, pendindAssociatedFiles);
+        }
+
+        private static void MarkFileAsAssociatedAndUpdateCounters(CounterCollection<SymbolClientCounter> counters, BatchedSymbolFile file)
+        {
+            file.ResultTaskSource.TrySetResult(AddDebugEntryResult.Associated);
+
+            counters.IncrementCounter(SymbolClientCounter.NumFilesAssociated);
+            counters.AddToCounter(SymbolClientCounter.TotalFileAssociateSizeBytes, file.File.FileLength);
+            counters.AddToCounter(SymbolClientCounter.NumDebugEntriesAssociated, file.File.DebugEntries.Count);
+            // all debug entries are from the same file, i.e., they have the same length
+            counters.AddToCounter(SymbolClientCounter.TotalDebugEntryAssociateSizeBytes, file.File.FileLength * file.File.DebugEntries.Count);
         }
 
         private async Task UploadAndAssociateAsync(List<DebugEntry> entriesWithMissingBlobs, Dictionary<BlobIdentifier, BatchedSymbolFile> missingBlobsToFilesMap)
@@ -500,13 +566,41 @@ namespace Tool.SymbolDaemon
 
             NumFilesWithoutDebugEntries,
 
+            NumDebugEntriesAssociated,
+
             NumFilesAssociated,
+
+            NumDebugEntriesUploaded,
 
             NumFilesUploaded,
 
-            TotalAssociateSize,
+            /// <summary>
+            /// Total size of all associated debug entries.
+            /// </summary>
+            TotalDebugEntryAssociateSizeBytes,
 
-            TotalUploadSize,
+            /// <summary>
+            /// Total size of all associated files.
+            /// </summary>
+            /// <remarks>
+            /// A single file can have multiple debug entries. In such a case, the file size will be included once in this
+            /// counter and 'debug entry' count times in the 'debug entry' variant of this counter.
+            /// </remarks>
+            TotalFileAssociateSizeBytes,
+
+            /// <summary>
+            /// Total size of all uploaded debug entries.
+            /// </summary>
+            TotalDebugEntryUploadSizeBytes,
+
+            /// <summary>
+            /// Total size of all uploaded files.
+            /// </summary>
+            /// <remarks>
+            /// A single file can have multiple debug entries. In such a case, the file size will be included once in this
+            /// counter and 'debug entry' count times in the 'debug entry' variant of this counter.
+            /// </remarks>
+            TotalFileUploadSizeBytes,
         }
 
         /// <summary>

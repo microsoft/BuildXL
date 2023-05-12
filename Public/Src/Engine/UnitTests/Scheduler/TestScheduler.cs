@@ -80,7 +80,8 @@ namespace Test.BuildXL.Scheduler
                 journalState: journalState, 
                 vmInitializer: vmInitializer,
                 testHooks: testHooks,
-                fileTimestampTracker: fileTimestampTracker)
+                fileTimestampTracker: fileTimestampTracker,
+                isTestScheduler: true)
         {
             m_testPipQueue = pipQueue;
 

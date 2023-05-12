@@ -309,6 +309,11 @@ namespace BuildXL.Scheduler
         private readonly SchedulerTestHooks m_testHooks;
 
         /// <summary>
+        /// Whether this is a scheduler used for testing
+        /// </summary>
+        private readonly bool m_isTestScheduler;
+
+        /// <summary>
         /// Whether the current BuildXL instance serves as a orchestrator node in the distributed build and has workers attached.
         /// </summary>
         public bool AnyRemoteWorkers => m_workers.Count > 1;
@@ -1177,7 +1182,8 @@ namespace BuildXL.Scheduler
             JournalState journalState = null,
             VmInitializer vmInitializer = null,
             SchedulerTestHooks testHooks = null,
-            FileTimestampTracker fileTimestampTracker = null)
+            FileTimestampTracker fileTimestampTracker = null,
+            bool isTestScheduler = false)
         {
             Contract.Requires(graph != null);
             Contract.Requires(pipQueue != null);
@@ -1493,6 +1499,8 @@ namespace BuildXL.Scheduler
             {
                 Logger.Log.CreationTimeNotSupported(m_loggingContext);
             }
+
+            m_isTestScheduler = isTestScheduler;
         }
 
         /// <summary>
@@ -1654,7 +1662,7 @@ namespace BuildXL.Scheduler
 
             Contract.Assert(!HasFailed || m_executePhaseLoggingContext.ErrorWasLogged, "Scheduler encountered errors during execution, but none were logged.");
 
-            if (!IsDistributedWorker && !HasFailed && !m_schedulerCancellationTokenSource.IsCancellationRequested)
+            if (!IsDistributedWorker && !HasFailed && !m_isTestScheduler)
             {
                 RetrievePipStateCounts(out _, out _, out long waitingPips, out long runningPips, out _, out long failedPips, out long skippedPips, out _);
                 Contract.Assert(runningPips == 0, $"There are still pips at running state at the end of the build. WaitingPips: {waitingPips}, RunningPips: {runningPips}, FailedPips: {failedPips}, SkippedPips: {skippedPips}.");

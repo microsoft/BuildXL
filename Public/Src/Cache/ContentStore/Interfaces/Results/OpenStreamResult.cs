@@ -133,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        protected override string GetSuccessString() => $"{Code} Size={StreamWithLength?.Length}{this.GetDiagnosticsMessageForTracing()}";
+        protected override string GetSuccessString() => $"{Code} Size={Stream?.Length}{this.GetDiagnosticsMessageForTracing()}";
 
         /// <inheritdoc />
         public override string ToString()
@@ -143,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 case ResultCode.Error:
                     return GetErrorString();
                 default:
-                    return $"{Code} Size={StreamWithLength?.Length}{this.GetDiagnosticsMessageForTracing()}";
+                    return $"{Code} Size={Stream?.Length}{this.GetDiagnosticsMessageForTracing()}";
             }
         }
     }

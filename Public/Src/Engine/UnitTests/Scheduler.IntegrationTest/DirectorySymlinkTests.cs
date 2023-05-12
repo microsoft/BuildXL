@@ -713,7 +713,40 @@ Versions/sym-sym-A -> sym-A/
             RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
+        [TheoryIfSupported(requiresSymlinkPermission:true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestDeclaringDirectorySymlinkAsOutputFile(bool declareOutput)
+        {
+            var outputRoot = CreateUniquePath("root", ObjectRoot);
+            var symlinkPath = outputRoot.Combine(Context.PathTable, "dirSymlink");
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.CreateSymlink(DirectoryArtifact.CreateWithZeroPartialSealId(symlinkPath), "target", Operation.SymbolicLinkFlag.DIRECTORY, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact(outputRoot))
+            });
+
+            if (declareOutput)
+            {
+                pipBuilder.AddOutputFile(symlinkPath);
+            }
+
+            SchedulePipBuilder(pipBuilder);
+
+            if (declareOutput)
+            {
+                RunScheduler().AssertSuccess();
+            }
+            else
+            {
+                RunScheduler().AssertFailure();
+
+                // Expect a DFA and the TestProcess to fail the access due to it being blocked
+                SetExpectedFailures(expectedErrorCount: 2, expectedWarningCount: 0, "Disallowed file accesse");
+            }
+        }
+
+        
         public void EnumeratingAndDeletingDirectoriesWithDirectorySymlinks()
         {
             AbsolutePath rootDirAbsPath = CreateUniqueObjPath("layout");

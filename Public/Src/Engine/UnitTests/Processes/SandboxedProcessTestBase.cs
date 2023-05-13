@@ -85,7 +85,7 @@ namespace Test.BuildXL.Processes
                 Arguments = process.Arguments.ToString(Context.PathTable),
                 Timeout = TimeSpan.FromMinutes(15),
                 EnvironmentVariables = BuildParameters.GetFactory().PopulateFromDictionary(envVars),
-                TimeoutDumpDirectory = Path.Combine(TemporaryDirectory, "1234"),
+                TimeoutDumpDirectory = Path.Combine(TemporaryDirectory, "TimeoutDump"),
             };
 
             if (fileAccessManifest == null)

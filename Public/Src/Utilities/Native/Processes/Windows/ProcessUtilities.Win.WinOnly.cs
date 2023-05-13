@@ -519,7 +519,10 @@ namespace BuildXL.Native.Processes.Windows
             /// </summary>
             public ulong UniqueProcessId;
 
-            private readonly IntPtr Reserved3;
+           /// <summary>
+           /// Contains a unique identifier for the parent process.
+           /// </summary>
+           public IntPtr InheritedFromUniqueProcessId;
         }
     }
 

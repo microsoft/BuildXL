@@ -19,7 +19,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using FileUtilities = BuildXL.Native.IO.FileUtilities;
-
+using ProcessDumperEvent = BuildXL.Processes.Tracing.LogEventId;
 #pragma warning disable AsyncFixer02
 
 namespace Test.BuildXL.Processes
@@ -240,6 +240,8 @@ namespace Test.BuildXL.Processes
             XAssert.IsTrue(result.TimedOut);
             XAssert.IsTrue(result.Killed);
             XAssert.AreEqual(ExitCodes.Timeout, result.ExitCode);
+            // This event is logged when a timed out process is dumped sucessfully.
+            AssertVerboseEventLogged(ProcessDumperEvent.DumpSurvivingPipProcessChildrenStatus, 1);
         }
 
         [Fact]
@@ -379,6 +381,127 @@ namespace Test.BuildXL.Processes
             }
         }
 
+        /// <summary>
+        /// Checks if process A and B are dumped successfully.
+        /// </summary>
+        ///                Root
+        ///                 |
+        ///              -------
+        ///                |   |     
+        ///                A   B
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task SurvivorsShouldBeDumped()
+        {
+            var testProcessName = Path.GetFileNameWithoutExtension(TestProcessExecutable.Path.ToString(Context.PathTable));
+
+            string pidDirectory = Path.Combine(TemporaryDirectory, "pids");
+            Directory.CreateDirectory(pidDirectory);
+
+            string childAPidFile = Path.Combine(pidDirectory, "childA");
+            string childBPidFile = Path.Combine(pidDirectory, "childB");
+
+            string dumpDirectory = Path.Combine(TemporaryDirectory, "dumps");
+            Directory.CreateDirectory(dumpDirectory);
+
+            // Two process A and B are created.
+            var info = ToProcessInfo(ToProcess(
+                Operation.SpawnAndWritePidFile(
+                    Context.PathTable,
+                    waitToFinish: false,
+                    pidFile: FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, childAPidFile)),
+                    doNotInfer: false,
+                    Operation.Block()),
+                Operation.SpawnAndWritePidFile(
+                    Context.PathTable,
+                    waitToFinish: false,
+                    pidFile: FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, childBPidFile)),
+                    doNotInfer: false,
+                    Operation.Block())));
+            info.SurvivingPipProcessChildrenDumpDirectory = dumpDirectory;
+
+            var result = await RunProcess(info);
+
+            XAssert.AreEqual(0, result.ExitCode);
+            XAssert.IsNotNull(result.SurvivingChildProcesses);
+
+            XAssert.IsTrue(File.Exists(childAPidFile));
+            XAssert.IsTrue(File.Exists(childBPidFile));
+
+            int childAPid = int.Parse(File.ReadAllText(childAPidFile));
+            int childBPid = int.Parse(File.ReadAllText(childBPidFile));
+
+            var zippedDumpFiles = Directory.EnumerateFiles(dumpDirectory, "*.zip");
+            // Process A and B are dumped successfully hence two dump files are created.
+            // These files follow the pattern-> immediateParentProcessId-processId-processName.
+            XAssert.IsTrue(
+                zippedDumpFiles.Any(z => z.EndsWith($"_{childAPid}_{testProcessName}.zip")),
+                $"Looking for a file with prefix: _{childAPid}_{testProcessName}.zip, but found files: {string.Join("; ", zippedDumpFiles)}");
+            XAssert.IsTrue(
+                zippedDumpFiles.Any(z => z.EndsWith($"_{childBPid}_{testProcessName}.zip")),
+                $"Looking for a file with prefix: _{childBPid}_{testProcessName}.zip, but found files: {string.Join("; ", zippedDumpFiles)}");
+        }
+
+        /// <summary>
+        /// Checks if dumping occurs successfully when A exists before C completes.
+        /// </summary>
+        ///                Root
+        ///                 |
+        ///              -------
+        ///                |        
+        ///                A   
+        ///                |
+        ///              -----
+        ///                |            
+        ///                C 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task DumpSurvivngOrphanChildProcess()
+        {
+            var testProcessName = Path.GetFileNameWithoutExtension(TestProcessExecutable.Path.ToString(Context.PathTable));
+
+            string pidDirectory = Path.Combine(TemporaryDirectory, "pids");
+            Directory.CreateDirectory(pidDirectory);
+
+            string childAPidFile = Path.Combine(pidDirectory, "childA");
+            string childCPidFile = Path.Combine(pidDirectory, "childC");
+
+            string dumpDirectory = Path.Combine(TemporaryDirectory, "dumps");
+            Directory.CreateDirectory(dumpDirectory);
+
+            // Create process A, C.
+            var info = ToProcessInfo(ToProcess(
+                Operation.SpawnAndWritePidFile(
+                    Context.PathTable,
+                    waitToFinish: false,
+                    pidFile: FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, childAPidFile)),
+                    doNotInfer: false,
+                    Operation.SpawnAndWritePidFile(Context.PathTable, waitToFinish: false, pidFile: FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, childCPidFile)), doNotInfer: false, Operation.Block()) 
+                    )));
+
+            info.SurvivingPipProcessChildrenDumpDirectory = dumpDirectory;
+
+            var result = await RunProcess(info);
+
+            XAssert.AreEqual(0, result.ExitCode);
+            // SurvivingChildren should not be null as process C was dumped successfully.
+            XAssert.IsNotNull(result.SurvivingChildProcesses);
+            XAssert.IsTrue(File.Exists(childCPidFile));
+            XAssert.IsTrue(File.Exists(childAPidFile));
+
+            // Obtain process ids.
+            int childCPid = int.Parse(File.ReadAllText(childCPidFile));
+            int childAPid = int.Parse(File.ReadAllText(childAPidFile));
+
+            var zippedDumpFiles = Directory.EnumerateFiles(dumpDirectory, "*.zip");
+            // If we are able to dump a process successfully, dump file should exists.
+            // Every dump file should have the following file name structure-> - immediatedParentProcessId-childProcessId-processName.
+            // If the immediate parent process has exited then the parentProcessId is 0.
+            XAssert.IsTrue(
+                zippedDumpFiles.Any(z => z.EndsWith($"_{childAPid}_{childCPid}_{testProcessName}.zip")),
+               $"Looking for a file with prefix: _{childAPid}_{childCPid}_{testProcessName}.zip, but found files: {string.Join("; ", zippedDumpFiles)}");
+            // Process A is not dumped since it has exited.
+            XAssert.IsFalse(zippedDumpFiles.Any(z => z.EndsWith($"_{childAPid}_{testProcessName}.zip")));
+        }
+
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
@@ -447,7 +570,7 @@ namespace Test.BuildXL.Processes
                 XAssert.IsTrue(
                     result.SurvivingChildProcesses.Count() >= 2,
                     "Unexpected survivors (cmd and conhost were present, but extras were as well): {0}",
-                    survivorNamesJoined);
+                    survivorNamesJoined);                
             }
             else
             {
@@ -1542,9 +1665,7 @@ namespace Test.BuildXL.Processes
                         envVarToReset)
                 }));
             info.FileAccessManifest.ReportFileAccesses = true;
-
-            var result = await RunProcess(info);
-
+            var result = await RunProcess(info);   
             XAssert.AreEqual(0, result.ExitCode);
 
             var observedAccesses = result.FileAccesses

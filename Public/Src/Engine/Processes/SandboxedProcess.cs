@@ -730,141 +730,6 @@ namespace BuildXL.Processes
             SetResult(result);
         }
 
-        private Dictionary<uint, ReportedProcess>? GetSurvivingChildProcesses(JobObject jobObject)
-        {
-            if (!jobObject.TryGetProcessIds(m_loggingContext, out uint[]? survivingChildProcessIds) || survivingChildProcessIds!.Length == 0)
-            {
-                return null;
-            }
-
-            var survivingChildProcesses = new Dictionary<uint, ReportedProcess>();
-
-            foreach (uint processId in survivingChildProcessIds)
-            {
-                using (SafeProcessHandle processHandle = ProcessUtilities.OpenProcess(
-                    ProcessSecurityAndAccessRights.PROCESS_QUERY_INFORMATION |
-                    ProcessSecurityAndAccessRights.PROCESS_VM_READ,
-                    false,
-                    processId))
-                {
-                    if (!jobObject.ContainsProcess(processHandle))
-                    {
-                        // We are too late: process handle is invalid because it closed already,
-                        // or process id got reused by another process.
-                        continue;
-                    }
-
-                    if (!ProcessUtilities.GetExitCodeProcess(processHandle, out int exitCode))
-                    {
-                        // we are too late: process id got reused by another process
-                        continue;
-                    }
-
-                    using (PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder())
-                    {
-                        StringBuilder sb = wrap.Instance;
-                        if (sb.Capacity < MaxProcessPathLength)
-                        {
-                            sb.Capacity = MaxProcessPathLength;
-                        }
-
-                        if (ProcessUtilities.GetModuleFileNameEx(processHandle, IntPtr.Zero, sb, (uint)sb.Capacity) <= 0)
-                        {
-                            // we are probably too late
-                            continue;
-                        }
-
-                        // Attempt to read the process arguments (command line) from the process
-                        // memory. This is not fatal if it does not succeed.
-                        string processArgs = string.Empty;
-
-                        var basicInfoSize = (uint)Marshal.SizeOf<Native.Processes.Windows.ProcessUtilitiesWin.PROCESS_BASIC_INFORMATION>();
-                        var basicInfoPtr = Marshal.AllocHGlobal((int)basicInfoSize);
-                        uint basicInfoReadLen;
-                        try
-                        {
-                            if (Native.Processes.Windows.ProcessUtilitiesWin.NtQueryInformationProcess(
-                                processHandle,
-                                Native.Processes.Windows.ProcessUtilitiesWin.ProcessInformationClass.ProcessBasicInformation,
-                                basicInfoPtr, basicInfoSize, out basicInfoReadLen) == 0)
-                            {
-                                Native.Processes.Windows.ProcessUtilitiesWin.PROCESS_BASIC_INFORMATION basicInformation = Marshal.PtrToStructure<Native.Processes.Windows.ProcessUtilitiesWin.PROCESS_BASIC_INFORMATION>(basicInfoPtr);
-                                Contract.Assert(basicInformation.UniqueProcessId == processId);
-
-                                // NativeMethods.ReadProcessStructure and NativeMethods.ReadUnicodeString handle null\zero addresses
-                                // passed into them. Since these are all value types, then there is no need to do any type
-                                // of checking as passing zero through will just result in an empty process args string.
-                                var peb = Native.Processes.Windows.ProcessUtilitiesWin.ReadProcessStructure<Native.Processes.Windows.ProcessUtilitiesWin.PEB>(processHandle, basicInformation.PebBaseAddress);
-                                var processParameters = Native.Processes.Windows.ProcessUtilitiesWin.ReadProcessStructure<Native.Processes.Windows.ProcessUtilitiesWin.RTL_USER_PROCESS_PARAMETERS>(processHandle, peb.ProcessParameters);
-                                processArgs = Native.Processes.Windows.ProcessUtilitiesWin.ReadProcessUnicodeString(processHandle, processParameters.CommandLine);
-                            }
-                        }
-                        finally
-                        {
-                            Marshal.FreeHGlobal(basicInfoPtr);
-                        }
-
-                        string path = sb.ToString();
-                        survivingChildProcesses.Add(processId, new ReportedProcess(processId, path, processArgs));
-                        DumpSurvivingPipProcessChildren((int)processId);
-                    }
-                }
-            }
-
-            return survivingChildProcesses;
-        }
-
-        private void DumpSurvivingPipProcessChildren(int processId)
-        {
-            if (m_survivingPipProcessChildrenDumpDirectory == null)
-            {
-                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, processId.ToString(), $"Failed due to missing SurvivingPipProcessChildrenDumpDirectory.");
-                return;
-            }
-
-            if (TryGetProcessById(processId, out var childProcess))
-            {
-                string dumpPath = Path.Combine(m_survivingPipProcessChildrenDumpDirectory, $"SurvivingChildProcess_{processId}.zip");
-                if (!ProcessDumper.TryDumpProcess(childProcess!, dumpPath, out Exception dumpException, compress: true))
-                {
-                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, childProcess!.ProcessName, $"Failed with Exception: {dumpException?.Message}");
-                }
-                else
-                {
-                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, childProcess!.ProcessName, $"Succeeded at path: {dumpPath}");
-                }
-            }
-        }
-
-        private bool TryGetProcessById(int pid, out System.Diagnostics.Process? process)
-        {
-            process = null;
-            try
-            {
-                process = System.Diagnostics.Process.GetProcessById(pid);
-                // Process.GetProcessById returns an object that is not fully initialized. Instead, the fields are populated the first time they are accessed.
-                // Because of that if a process exits before the object is initialized, reading any of the properties will result in an InvalidOperationException
-                // exception. Force initialization be querying the process name. Local function is used here just to make sure that the compiler does not
-                // optimize away the property access.
-                doNothing(process.ProcessName);
-                return true;
-            }
-            catch (ArgumentException aEx)
-            {
-                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, pid.ToString(), $"Failed with Exception: {aEx.Message}");
-            }
-            catch (InvalidOperationException ioEx)
-            {
-                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, pid.ToString(), $"Failed with Exception: {ioEx.Message}");
-            }
-            return false;
-
-            void doNothing(string _)
-            {
-                // no-op
-            }
-        }
-
         private bool ShouldWaitForSurvivingChildProcesses(JobObject jobObject)
         {
             if (m_allowedSurvivingChildProcessNames == null || m_allowedSurvivingChildProcessNames.Length == 0)
@@ -873,7 +738,11 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            Dictionary<uint, ReportedProcess>? survivingChildProcesses = GetSurvivingChildProcesses(jobObject);
+            Dictionary<uint, ReportedProcess>? survivingChildProcesses = JobObjectProcessDumper.GetAndOptionallyDumpProcesses(jobObject: jobObject,
+                                                                               loggingContext: m_loggingContext, 
+                                                                               survivingPipProcessDumpDirectory: m_survivingPipProcessChildrenDumpDirectory, 
+                                                                               dumpProcess: false,
+                                                                               out Exception? dumpException);
             if (survivingChildProcesses != null && survivingChildProcesses.Count > 0)
             {
                 foreach (string processPath in survivingChildProcesses.Select(kvp => kvp.Value.Path))
@@ -899,9 +768,17 @@ namespace BuildXL.Processes
             return false;
         }
 
+        private Dictionary<uint, ReportedProcess>? GetSurvivingChildProcesses(JobObject jobObject, bool shouldDumpProcess = false) =>
+        JobObjectProcessDumper.GetAndOptionallyDumpProcesses(
+                jobObject: jobObject,
+                loggingContext: m_loggingContext,
+                survivingPipProcessDumpDirectory: m_survivingPipProcessChildrenDumpDirectory,
+                dumpProcess: shouldDumpProcess,
+                out Exception? _);
+
         private void HandleSurvivingChildProcesses(JobObject jobObject)
         {
-            m_survivingChildProcesses = GetSurvivingChildProcesses(jobObject);
+            m_survivingChildProcesses = GetSurvivingChildProcesses(jobObject, shouldDumpProcess: true);
 
             if (m_survivingChildProcesses != null && m_survivingChildProcesses.Count > 0)
             {

@@ -154,6 +154,9 @@ namespace BuildXL.Processes
 
         /// <summary>
         /// Attempts to dump all processes in a process tree. Any files existing in the dump directory will be deleted.
+        /// This method utilizes WMI query to obtain child processes. One of the issues with this method is it cannot retrieve childprocesses if the parent does not exist. This method is supposed to be utilized when the OS is non-windows or when there is no scope of using JobObject ex: ExternalSandboxedProcess and UnSandboxedProcess.
+        /// But another implementation of this method is available in JobObjectProcessDumper.cs which makes use of Jobobject to retrieve child processes and this resolves the above issue. Refer DetouredProcess or SandboxedProcess for reference on its usage.
+        /// This new implementation is suggested to be used in all future scenarios where there is a scope of utilizing JobObject in Windows OS.
         /// </summary>
         public static bool TryDumpProcessAndChildren(int parentProcessId, string dumpDirectory, out Exception primaryDumpCreationException, int maxTreeDepth = 20, Action<string> debugLogger = null)
         {
@@ -233,11 +236,12 @@ namespace BuildXL.Processes
                     // relying on querying for pid and start times.
                     continue;
                 }
-                
+
                 var dumpPath = Path.Combine(dumpDirectory, process.Key + ".dmp");
                 if (!TryDumpProcess(p, dumpPath, out var e, debugLogger: debugLogger))
                 {
-                    if (e != null) {
+                    if (e != null)
+                    {
                         Contract.Assume(e != null, $"Exception should not be null on failure. Dump-path: {dumpPath}");
                     }
                     primaryDumpCreationException = primaryDumpCreationException ?? e;

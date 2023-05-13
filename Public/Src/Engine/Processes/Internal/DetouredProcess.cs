@@ -98,7 +98,7 @@ namespace BuildXL.Processes.Internal
         /// </remarks>
         private long m_extendedTimeoutMs;
         private readonly System.Diagnostics.Stopwatch m_suspendStopwatch = new System.Diagnostics.Stopwatch();
-       
+
 #region public getters
 
         /// <summary>
@@ -208,7 +208,6 @@ namespace BuildXL.Processes.Internal
         /// </remarks>
         public void Kill(int exitCode)
         {
-            
             if (Interlocked.Increment(ref m_killedCallFlag) > 1)
             {
                 return;
@@ -216,7 +215,6 @@ namespace BuildXL.Processes.Internal
             // Notify the injected that the process is being killed
             m_processInjector?.OnKilled();
             LogDiagnostics($"Process will be killed with exit code {exitCode}");
-            
             var processHandle = m_processHandle;
             if (processHandle != null && !processHandle.IsInvalid && !processHandle.IsClosed)
             {
@@ -817,7 +815,6 @@ namespace BuildXL.Processes.Internal
         public VisitJobObjectResult TryVisitJobObjectProcesses(Action<SafeProcessHandle, uint> actionForProcess)
         {
             Contract.Requires(HasStarted);
-            
             // Accessing jobObject needs to be protected by m_queryJobDataLock.
             // After we collected the child process ids, we might dispose the job object and the child process might be invalid.
             // Acquiring the reader lock will prevent the job object from disposing. 
@@ -949,13 +946,18 @@ namespace BuildXL.Processes.Internal
                     Exception dumpCreationException;
 
                     if (!string.IsNullOrEmpty(DumpFileDirectory)
-                        && DumpCreationException == null 
-                        && !ProcessDumper.TryDumpProcessAndChildren(
-                            parentProcessId: m_processId,
-                            dumpDirectory: DumpFileDirectory,
-                            primaryDumpCreationException: out dumpCreationException))
+                        && DumpCreationException == null)
                     {
-                        DumpCreationException = dumpCreationException;
+                        var survivingProcesses = JobObjectProcessDumper.GetAndOptionallyDumpProcesses(
+                            jobObject: m_job,
+                            loggingContext: m_loggingContext,
+                            survivingPipProcessDumpDirectory: DumpFileDirectory,
+                            dumpProcess: true,
+                            dumpException: out dumpCreationException);
+                        if (dumpCreationException != null)
+                        {
+                            DumpCreationException = dumpCreationException;
+                        }
                     }
                 }
 

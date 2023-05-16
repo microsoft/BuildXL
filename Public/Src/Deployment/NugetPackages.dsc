@@ -364,7 +364,8 @@ namespace NugetPackages {
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
 
-            importFrom("Microsoft.Azure.EventHubs").withQualifier(net472packageQualifier).pkg,
+            importFrom("Azure.Messaging.EventHubs").withQualifier(net472packageQualifier).pkg,
+            importFrom("Azure.Core.Amqp").withQualifier(net472packageQualifier).pkg,
             importFrom("Microsoft.Azure.Amqp").withQualifier(net472packageQualifier).pkg,
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472packageQualifier).pkg,
             ...BuildXLSdk.withQualifier(net472packageQualifier).bclAsyncPackages,

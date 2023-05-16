@@ -15,12 +15,12 @@ namespace BuildXL.Cache.Host.Test
         [Fact]
         public void RoundTrip()
         {
-            Uri uri = new Uri("sb://www.bing.com");
+            string uri = "sb://www.bing.com";
             string ehName = "eventHub";
             string identity = Guid.NewGuid().ToString();
-            var newUriString = ManagedIdentityUriHelper.BuildString(uri, ehName, identity);
+            var newUriString = ManagedIdentityUriHelper.BuildString(new Uri(uri), ehName, identity);
 
-            ManagedIdentityUriHelper.TryParseForManagedIdentity(newUriString, out Uri? eventHubNamespaceUri, out string? foundEventHubName, out string? foundManagedIdentityId)
+            ManagedIdentityUriHelper.TryParseForManagedIdentity(newUriString, out string? eventHubNamespaceUri, out string? foundEventHubName, out string? foundManagedIdentityId)
                 .Should().BeTrue();
 
             eventHubNamespaceUri.Should().Be(uri);
@@ -37,12 +37,12 @@ namespace BuildXL.Cache.Host.Test
 
             ManagedIdentityUriHelper.TryParseForManagedIdentity(
                 $"{uri}/?name={eventHubName}&identity={identity}",
-                out Uri? foundEventHubNamespaceUri,
+                out string? foundEventHubNamespaceUri,
                 out string? foundEventHubName,
                 out string? foundManagedIdentityId)
                     .Should().BeTrue();
 
-            foundEventHubNamespaceUri.Should().Be(uri);
+            foundEventHubNamespaceUri.Should().Be(uri.ToLower());
             foundEventHubName.Should().Be(eventHubName);
             foundManagedIdentityId.Should().Be(identity);
         }

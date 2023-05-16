@@ -28,7 +28,7 @@ using System.Threading;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Serialization;
-using Microsoft.Azure.EventHubs;
+using Azure.Messaging.EventHubs;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache
@@ -177,7 +177,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             configuration.Hub.EventStream.Count.Should().BeGreaterThan(0);
             foreach (var rawEvent in configuration.Hub.EventStream)
             {
-                rawEvent.Body.Count.Should().BeLessOrEqualTo(ContentLocationEventDataSerializer.MaxEventDataPayloadSize);
+                rawEvent.Body.Length.Should().BeLessOrEqualTo(ContentLocationEventDataSerializer.MaxEventDataPayloadSize);
             }
 
             if (canSplit)

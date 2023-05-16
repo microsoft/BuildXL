@@ -8,6 +8,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 # Overview
 * [Introduction](../README.md)
 * [Why BuildXL?](Wiki/WhyBuildXL.md)
+* [Cross platform](Wiki/cross-platform.md)
 * [Demos](../Public/Src/Demos/Demos.md)
 
 # Project Documentation

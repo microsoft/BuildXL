@@ -11,6 +11,7 @@ export const filesPerCredScanCall = "[Tool.Guardian]complianceFilesPerCredScanCa
 export const filesPerPolicheckCall = "[Tool.Guardian]complianceFilesPerPolicheckCall";
 const logLevel = "[Tool.Guardian]complianceLogLevel";
 const enabledTools = "[Tool.Guardian]enabledTools";
+export const policheckUserExclusionPath = "[Tool.Guardian]policheckUserExclusionPath";
 
 // Export config file directory for tools to use
 @@public

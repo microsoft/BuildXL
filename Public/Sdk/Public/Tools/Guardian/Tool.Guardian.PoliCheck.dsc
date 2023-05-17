@@ -4,6 +4,7 @@
 import {Transformer} from "Sdk.Transformers";
 
 const guardianPoliCheckConfigFile = createConfigurationFile(poliCheckConfiguration(), p`${guardianConfigFileDirectory.path}/poliCheckConfiguration.gdnconfig`);
+const useUserExclusion = Environment.hasVariable(policheckUserExclusionPath);
 
 export function addPoliCheckCalls(rootDirectory : Directory, guardianToolRoot : StaticDirectory, packageDirectory : StaticDirectory, guardianDrop : Directory, files : File[]) : Transformer.ExecuteResult[] {
     let results : MutableSet<Transformer.ExecuteResult> = MutableSet.empty<Transformer.ExecuteResult>();
@@ -23,9 +24,14 @@ export function addPoliCheckCalls(rootDirectory : Directory, guardianToolRoot : 
         const txtFile = Transformer.writeAllLines(p`${poliCheckWorkDir.path}/listfiles.txt`, scanPaths);
 
         const environmentVariables : Transformer.EnvironmentVariable[] = [
-            {name: "TF_BUILD", value: true}
+            {name: "TF_BUILD", value: true},
+            ...addIf(useUserExclusion, {name: "Policheck.UserExclusionPath", value: Environment.getFileValue(policheckUserExclusionPath)}),
         ];
-        const dependencies = [txtFile, ...scannedFiles];
+        const dependencies = [
+            txtFile, 
+            ...scannedFiles, 
+            ...addIf(useUserExclusion, Environment.getFileValue(policheckUserExclusionPath)),
+        ];
         const sarifName = `policheck_${i.toString()}.sarif`;
 
         results.add(createGuardianCall(
@@ -52,6 +58,21 @@ export function addPoliCheckCalls(rootDirectory : Directory, guardianToolRoot : 
 }
 
 function poliCheckConfiguration() : Object {
+    let arguments = useUserExclusion ? {
+        "ListFile": "listfiles.txt",
+        "TermTables": 9,
+        "ExcludeGlobalTermTable": false,
+        "CommentScanning": 0,
+        "SubfolderScanning": 1,
+        "UserExclusionPath": "$(Policheck.UserExclusionPath)"
+    } : {
+        "ListFile": "listfiles.txt",
+        "TermTables": 9,
+        "ExcludeGlobalTermTable": false,
+        "CommentScanning": 0,
+        "SubfolderScanning": 1
+    };
+
     return {
         "fileVersion": "1.1.2",
         "tools": [
@@ -61,14 +82,7 @@ function poliCheckConfiguration() : Object {
                     "name": "policheck",
                     "version": "latest"
                 },
-                "arguments": {
-                    "ListFile": "listfiles.txt",
-                    "TermTables": 9,
-                    "ExcludeGlobalTermTable": false,
-                    "CommentScanning": 0,
-                    "SubfolderScanning": 1,
-                    "HistoryManagement": 0
-                },
+                "arguments": arguments,
                 "outputExtension": "xml",
                 "successfulExitCodes": [
                     0

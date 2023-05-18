@@ -66,10 +66,7 @@ namespace Main {
             importFrom("Newtonsoft.Json").pkg,
             importFrom("Azure.Identity").pkg,
             ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
-            
-            BuildXLSdk.isDotNetCore
-                ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg
-                : importFrom("Grpc.Core.Api").pkg,
+            importFrom("Grpc.Core.Api").pkg,
         ],
         internalsVisibleTo: [
             "IntegrationTest.BuildXL.Scheduler",

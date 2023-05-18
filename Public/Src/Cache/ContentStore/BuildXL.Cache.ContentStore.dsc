@@ -17,6 +17,7 @@ export const NetFx = BuildXLSdk.NetFx;
 export const kustoPackages = [
     importFrom("Microsoft.Azure.Kusto.Data").pkg,
     importFrom("Microsoft.Azure.Kusto.Cloud.Platform").pkg,
+    ...addIf(!BuildXLSdk.isDotNetCore, importFrom("System.Security.AccessControl").pkg),
     importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
     importFrom("Azure.ResourceManager.Kusto").pkg,
     importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
@@ -98,9 +99,7 @@ export function getGrpcPackagesWithoutNetStandard() : Managed.ManagedNugetPackag
     return [
         ...getProtobufPackages(),
         importFrom("Grpc.Core").pkg,
-         BuildXLSdk.isDotNetCore
-            ? importFrom("Grpc.Core.Api").withQualifier({ targetFramework: "netstandard2.1" }).pkg
-            : importFrom("Grpc.Core.Api").pkg,
+        importFrom("Grpc.Core.Api").pkg,
         ...BuildXLSdk.bclAsyncPackages,
     ];
 }

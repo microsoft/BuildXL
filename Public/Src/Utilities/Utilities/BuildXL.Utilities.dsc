@@ -35,7 +35,7 @@ export const dll = BuildXLSdk.library({
             })
         ]),
         ...BuildXLSdk.tplPackages,
-        BuildXLSdk.asyncInterfacesPackage,
+        importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
         importFrom("Newtonsoft.Json").pkg,
         ...BuildXLSdk.systemMemoryDeployment,
     ],

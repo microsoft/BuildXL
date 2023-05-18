@@ -58,7 +58,7 @@ namespace LanguageService.Server {
             importFrom("Microsoft.VisualStudio.LanguageServer.Protocol").pkg,
         ],
         runtimeReferences: [
-            importFrom("Nerdbank.Streams").withQualifier({targetFramework:"netstandard2.1"}).pkg,
+            importFrom("Nerdbank.Streams").pkg,
             importFrom("System.IO.Pipelines").pkg, 
             importFrom("System.Collections.Immutable.ForVBCS").pkg, 
         ],

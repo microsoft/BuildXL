@@ -12,7 +12,7 @@ namespace Library {
         sources: globR(d`.`,"*.cs"),
         nullable: true,
         references: [
-            BuildXLSdk.asyncInterfacesPackage,
+            importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
             ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
             importFrom("Microsoft.IdentityModel.Abstractions").pkg,
             importFrom("System.Memory.Data").pkg,

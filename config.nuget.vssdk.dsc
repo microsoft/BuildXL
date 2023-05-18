@@ -6,7 +6,7 @@ export const pkgs = [
     { id: "Microsoft.VisualStudio.Composition", version: "14.2.19-pre" },
     { id: "Microsoft.VisualStudio.CoreUtility", version: "15.4.27004" },
     { id: "Microsoft.VisualStudio.ImageCatalog", version: "15.8.28010" },
-    { id: "Microsoft.VisualStudio.Imaging.Interop.14.0.DesignTime", version: "14.3.26930" },
+    { id: "Microsoft.VisualStudio.Imaging.Interop.14.0.DesignTime", version: "17.5.33428.366" },
     { id: "Microsoft.VisualStudio.Imaging", version: "15.8.28010", dependentPackageIdsToSkip: ["Microsoft.VisualStudio.Utilities"] }, // Have to cut this dependency because it is 46 only and this package is 45 compatible
     { id: "Microsoft.VisualStudio.LanguageServer.Protocol", version: "17.0.4103-g225b54d231" },
     { id: "Microsoft.VisualStudio.ProjectAggregator", version: "17.0.0-previews-3-31605-261" },

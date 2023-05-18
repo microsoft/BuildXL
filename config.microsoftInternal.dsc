@@ -77,7 +77,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Sbom.Adapters", version: "0.2.6" },
     { id: "Microsoft.ComponentDetection.Contracts", version: "2.0.2" },
     { id: "Microsoft.Sbom.Contracts", version: "0.2.6" },
-    { id: "Microsoft.Sbom.Extensions", version: "0.2.6" },
+    { id: "Microsoft.Sbom.Extensions", version: "0.2.6", dependentPackageIdsToSkip: ["System.Text.Json"] },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
 
     // Process remoting

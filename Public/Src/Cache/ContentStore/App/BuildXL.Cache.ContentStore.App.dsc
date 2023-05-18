@@ -43,7 +43,7 @@ namespace App {
 
             ...getAzureBlobStorageSdkPackages(true),
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
-            BuildXLSdk.asyncInterfacesPackage
+            importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
         ],
         tools: {
             csc: {

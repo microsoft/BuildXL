@@ -66,6 +66,7 @@ namespace LanguageService.Server {
             importFrom("Nerdbank.Streams").pkg,
             importFrom("Validation").pkg,
             importFrom("System.IO.Pipelines").pkg, 
+            importFrom("Microsoft.Bcl.AsyncInterfaces").pkg
         ],
     });
 }

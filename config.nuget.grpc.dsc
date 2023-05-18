@@ -10,9 +10,9 @@ const grpcCoreVersion = "2.51.0";
 
 export const pkgs = [
     // grpc
-    { id: "Grpc.Net.Client", version: grpcNetVersion}, 
+    { id: "Grpc.Net.Client", version: grpcNetVersion, dependentPackageIdsToSkip: [ "Microsoft.Extensions.Logging.Abstractions" ]}, 
     { id: "Grpc.Net.Client.Web", version: grpcNetVersion},  
-    { id: "Grpc.Net.ClientFactory", version: grpcNetVersion},  
+    { id: "Grpc.Net.ClientFactory", version: grpcNetVersion, dependentPackageIdsToSkip: [ "Microsoft.Extensions.Http" ]},  
     { id: "Grpc.Net.Common", version: grpcNetVersion},
     { id: "Grpc.AspNetCore.Server.ClientFactory", version: grpcNetVersion},
     { id: "Grpc.AspNetCore.Server", version: grpcNetVersion},

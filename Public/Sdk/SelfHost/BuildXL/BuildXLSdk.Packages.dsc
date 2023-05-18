@@ -13,17 +13,10 @@ export const systemThreadingChannelsPackages : Managed.ManagedNugetPackage[] =
         : [];
 
 @@public
-export const asyncInterfacesPackage : Managed.ManagedNugetPackage = 
-    // .NET Core version is tricky, because there are some crucial differences between .netcoreapp and netstandard
-    (isDotNetCore 
-    ? importFrom("Microsoft.Bcl.AsyncInterfaces").withQualifier({targetFramework: "netstandard2.1"}).pkg
-    : importFrom("Microsoft.Bcl.AsyncInterfaces").pkg);
-
-@@public
 export const bclAsyncPackages : Managed.ManagedNugetPackage[] = [
         importFrom("System.Threading.Tasks.Extensions").pkg,
         importFrom("System.Linq.Async").pkg,
-        asyncInterfacesPackage
+        importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
     ];
 
 @@public

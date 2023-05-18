@@ -154,7 +154,7 @@ config({
                 { id: "Microsoft.Extensions.Globalization.CultureInfoCache", version: "1.0.0-rc1-final" },
                 { id: "Microsoft.Extensions.MemoryPool", version: "1.0.0-rc1-final" },
                 { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.1.0" },
-                { id: "Microsoft.Extensions.Http", version: "3.1.0" },
+                { id: "Microsoft.Extensions.Http", version: "7.0.0", dependentPackageIdsToSkip: ["Microsoft.Extensions.DependencyInjection.Abstractions"]},
 
                 { id: "Microsoft.Tpl.Dataflow", version: "4.5.24" },
                 { id: "Microsoft.TypeScript.Compiler", version: "1.8" },
@@ -209,7 +209,7 @@ config({
                 { id: "Microsoft.IdentityModel.Abstractions", version: "6.29.0" },
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.18.4" },
                 { id: "Azure.Core", version: "1.31.0", 
-                    dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors" ] },
+                    dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors", "Microsoft.Bcl.AsyncInterfaces" ] },
                 { id: "System.Memory.Data", version: "6.0.0",
                     dependentPackageIdsToSkip: [ "System.Memory", "System.Text.Json" ] },
 
@@ -223,6 +223,8 @@ config({
                 // Azure Blob Storage SDK V9
                 { id: "WindowsAzure.Storage", version: "9.3.3" },
                 { id: "Microsoft.Data.Services.Client", version: "5.8.2" },
+                { id: "Microsoft.Data.OData", version: "5.8.4" },
+                { id: "Microsoft.Data.Edm", version: "5.8.4" },
                 { id: "System.Spatial", version: "5.8.2" },
 
                 // Azure Blob Storage SDK V12
@@ -312,7 +314,7 @@ config({
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
                 { id: "Microsoft.Build", version: "17.0.0",
-                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json", "System.Collections.Immutable"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
+                    dependentPackageIdsToSkip: ["System.Reflection.Metadata", "System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json", "System.Collections.Immutable"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
                 },
                 { id: "Microsoft.Build.Runtime", version: "17.0.0",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory"],
@@ -363,7 +365,7 @@ config({
                 { id: "Microsoft.Azure.Kusto.Tools", version: "7.2.1" },
                 { id: "Azure.ResourceManager.Kusto", version: "1.1.0" },
 
-                { id: "Microsoft.Azure.Kusto.Cloud.Platform", version: "11.2.1" },
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform", version: "11.2.1",  dependentPackageIdsToSkip: [ "System.Security.AccessControl" ] },
                 { id: "Microsoft.Azure.Kusto.Cloud.Platform.Aad", version: "11.2.1" },
 
                 { id: "Azure.ResourceManager", version: "1.3.2" },
@@ -403,6 +405,9 @@ config({
             ],
 
             doNotEnforceDependencyVersions: true,
+
+            // TODO: remove when this becomes the default.
+            includeMonikersInNuspecDependencies: true,
         },
 
         importFile(f`config.microsoftInternal.dsc`).resolver,

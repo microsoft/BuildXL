@@ -63,7 +63,6 @@ namespace DistributedTest {
                 NetFx.System.Xml.Linq.dll
             ),
             ...addIf(BuildXLSdk.isFullFramework,
-                importFrom("Azure.Core.Amqp").pkg,
                 importFrom("Microsoft.Azure.Amqp").pkg,
                 importFrom("Microsoft.Azure.Services.AppAuthentication").pkg,
                 importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,

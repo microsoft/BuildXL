@@ -7,7 +7,7 @@ namespace Distributed {
     
     @@public
     export const eventHubPackages = [
-        importFrom("Azure.Messaging.EventHubs").pkg,
+        importFrom("Microsoft.Azure.EventHubs").pkg,
         importFrom("Azure.Identity").pkg,
         importFrom("Azure.Core").pkg,
         importFrom("Microsoft.Azure.Services.AppAuthentication").pkg,
@@ -19,7 +19,6 @@ namespace Distributed {
                 importFrom("Microsoft.IdentityModel.Logging").pkg 
               ] 
             : []),
-        importFrom("Azure.Core.Amqp").pkg,
         importFrom("Microsoft.Azure.Amqp").pkg,
     ];
 

@@ -18,7 +18,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using Azure.Messaging.EventHubs;
+using Microsoft.Azure.EventHubs;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
@@ -589,10 +589,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 {
                     if (eventTimeUtc == null)
                     {
-                        eventTimeUtc = message.EnqueuedTime.UtcDateTime;
+                        Contract.Assert(message.SystemProperties != null, "Either eventTimeUtc argument must be provided or message.SystemProperties must not be null. Did you forget to provide eventTimeUtc arguments in tests?");
+                        eventTimeUtc = message.SystemProperties.EnqueuedTimeUtc;
                     }
 
-                    return _reader.DeserializeSequence(message.Body, reader => ContentLocationEventData.Deserialize(reader, eventTimeUtc.Value));
+                    var data = message.Body;
+                    return _reader.DeserializeSequence(data.AsMemory(), reader => ContentLocationEventData.Deserialize(reader, eventTimeUtc.Value));
                 });
         }
 
@@ -605,10 +607,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     {
                         if (eventTimeUtc == null)
                         {
-                            eventTimeUtc = message.EnqueuedTime.UtcDateTime;
+                            Contract.Assert(
+                                message.SystemProperties != null,
+                                "Either eventTimeUtc argument must be provided or message.SystemProperties must not be null. Did you forget to provide eventTimeUtc arguments in tests?");
+                            eventTimeUtc = message.SystemProperties.EnqueuedTimeUtc;
                         }
 
-                        var dataReader = message.Body.Span.AsReader();
+                        var dataReader = message.Body.AsSpan().AsReader();
                         var result = new List<ContentLocationEventData>();
                         while (!dataReader.IsEnd)
                         {
@@ -622,7 +627,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             {
                 Tracer.Error(context, e, "Unexpected error deserializing events with span-based reader. Falling back to BxlReader.");
                 // Printing at least some portion of the blob to figure out whats the issue is.
-                Tracer.Debug(context, $"Non-deserializable blob. Size: {message.Body.Length}, Blob: {message.Body.Span.SpanToHex(512)}");
+                Tracer.Debug(context, $"Non-deserializable blob. Size: {message.Body.Count}, Blob: {HexHelper.SpanToHex(message.Body.AsSpan(start: 0, length: 512))}");
                 return DeserializeEventsLegacy(message, eventTimeUtc);
             }
         }

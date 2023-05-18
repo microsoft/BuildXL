@@ -37,6 +37,7 @@ using BuildXL.Utilities.Collections;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Microsoft.Azure.Amqp.Framing;
 using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;

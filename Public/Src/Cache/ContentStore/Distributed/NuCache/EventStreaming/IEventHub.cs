@@ -7,7 +7,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using Azure.Messaging.EventHubs;
+using Microsoft.Azure.EventHubs;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -57,26 +57,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             return BoolResult.Success;
         }
-    }
-
-    /// <summary>
-    /// A handler interface for the receive operation for Azure.Messaging.EventHubs
-    /// <summary>
-    public interface IPartitionReceiveHandler
-    {
-        /// <summary>
-        /// Gets or sets the maximum batch size.
-        /// </summary>
-        int MaxBatchSize { get; set; }
-
-        /// <summary>
-        /// Implement this method to specify the action to be performed on the received events.
-        /// </summary>
-        Task ProcessEventsAsync(System.Collections.Generic.IEnumerable<EventData> events);
-
-        /// <summary>
-        /// Implement in order to handle exceptions that are thrown during receipt of events.
-        /// </summary>
-        Task ProcessErrorAsync(System.Exception error);
     }
 }

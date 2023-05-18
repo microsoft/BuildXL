@@ -26,14 +26,14 @@ namespace BuildXL.Cache.Host.Configuration
             return eventHubNamespaceUri.AbsoluteUri + '?' + CreateQueryVariable(EventHubNameOption, eventHubName) + '&' + CreateQueryVariable(ManagedIdentityIdOption, managedIdentityId);
         }
 
-        public static bool TryParseForManagedIdentity(string uriString, [NotNullWhen(true)] out string? eventHubNamespace, [NotNullWhen(true)] out string? eventHubName, [NotNullWhen(true)] out string? managedIdentityId)
+        public static bool TryParseForManagedIdentity(string uriString, [NotNullWhen(true)] out Uri? eventHubNamespaceUri, [NotNullWhen(true)] out string? eventHubName, [NotNullWhen(true)] out string? managedIdentityId)
         {
             if (Uri.TryCreate(uriString, UriKind.Absolute, out Uri? uri))
             {
                 NameValueCollection? queryVariables = HttpUtility.ParseQueryString(uri.Query);
                 if (queryVariables.Count > 0)
                 {
-                    eventHubNamespace = uri.Scheme + Uri.SchemeDelimiter + uri.Host;
+                    eventHubNamespaceUri = new Uri(uri.Scheme + Uri.SchemeDelimiter + uri.Host);
                     eventHubName = queryVariables[EventHubNameOption];
                     managedIdentityId = queryVariables[ManagedIdentityIdOption];
 
@@ -44,7 +44,7 @@ namespace BuildXL.Cache.Host.Configuration
                 }
             }
 
-            eventHubNamespace = null;
+            eventHubNamespaceUri = null;
             eventHubName = null;
             managedIdentityId = null;
             return false;

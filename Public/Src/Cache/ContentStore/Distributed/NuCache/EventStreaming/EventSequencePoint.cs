@@ -3,7 +3,7 @@
 
 using System;
 using System.Text.Json.Serialization;
-using Azure.Messaging.EventHubs.Consumer;
+using Microsoft.Azure.EventHubs;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {

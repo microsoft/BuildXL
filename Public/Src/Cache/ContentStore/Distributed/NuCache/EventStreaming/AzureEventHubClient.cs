@@ -9,11 +9,8 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core.Tasks;
-using Azure.Messaging.EventHubs;
-using Azure.Messaging.EventHubs.Producer;
-using Azure.Messaging.EventHubs.Consumer;
-using System.Collections.Generic;
-using Azure.Identity;
+using Microsoft.Azure.EventHubs;
+using Microsoft.Azure.Services.AppAuthentication;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -24,10 +21,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     {
         private const string PartitionId = "0";
 
+        private EventHubClient _eventHubClient;
+        private PartitionSender _partitionSender;
         private readonly EventHubContentLocationEventStoreConfiguration _configuration;
 
-        private EventHubProducerClient _partitionSender;
-        private PartitionReceiverWrapper _partitionReceiver;
+        private readonly string _hostName = Guid.NewGuid().ToString();
+
+        private PartitionReceiver _partitionReceiver;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(AzureEventHubClient));
@@ -45,15 +45,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             if (_partitionReceiver == null)
             {
-                if (ManagedIdentityUriHelper.TryParseForManagedIdentity(_configuration.EventHubConnectionString, out string eventHubNamespace, out string eventHubName, out string managedIdentityId))
-                {
-                    _partitionReceiver = new PartitionReceiverWrapper(_configuration.ConsumerGroupName, PartitionId, GetInitialOffset(context, sequencePoint), eventHubNamespace, eventHubName, new DefaultAzureCredential());
-                }
-                else
-                {
-                    _partitionReceiver = new PartitionReceiverWrapper(_configuration.ConsumerGroupName, PartitionId, GetInitialOffset(context, sequencePoint), _configuration.EventHubConnectionString, _configuration.EventHubName);
-                }
-                _partitionReceiver.SetReceiveHandler(context, processor);
+                _partitionReceiver = _eventHubClient.CreateReceiver(
+                    _configuration.ConsumerGroupName,
+                    PartitionId,
+                    GetInitialOffset(context, sequencePoint),
+                    new ReceiverOptions()
+                    {
+                        Identifier = _hostName
+                    });
+
+                _partitionReceiver.SetReceiveHandler(processor);
             }
 
             return BoolResult.Success;
@@ -80,14 +81,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             // Retry behavior in the Azure Event Hubs Client Library is controlled by the RetryPolicy property on the EventHubClient class.
             // The default policy retries with exponential backoff when Azure Event Hub returns a transient EventHubsException or an OperationCanceledException.
-            if (ManagedIdentityUriHelper.TryParseForManagedIdentity(_configuration.EventHubConnectionString, out string eventHubNamespace, out string eventHubName, out string managedIdentityId))
+            if (ManagedIdentityUriHelper.TryParseForManagedIdentity(_configuration.EventHubConnectionString, out Uri eventHubNamespaceUri, out string eventHubName, out string managedIdentityId))
             {
-                _partitionSender = new EventHubProducerClient(eventHubNamespace, eventHubName, new DefaultAzureCredential());
+                // https://docs.microsoft.com/en-us/dotnet/api/overview/azure/service-to-service-authentication#connection-string-support
+                var tokenProvider = new ManagedIdentityTokenProvider(new AzureServiceTokenProvider($"RunAs=App;AppId={managedIdentityId}"));
+                _eventHubClient = EventHubClient.CreateWithTokenProvider(
+                    eventHubNamespaceUri,
+                    eventHubName,
+                    tokenProvider);
             }
             else
             {
-                _partitionSender = new EventHubProducerClient(_configuration.EventHubConnectionString, _configuration.EventHubName);
+                var connectionStringBuilder =
+                    new EventHubsConnectionStringBuilder(_configuration.EventHubConnectionString)
+                    {
+                        EntityPath = _configuration.EventHubName,
+                    };
+
+                _eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
             }
+
+            _partitionSender = _eventHubClient.CreatePartitionSender(PartitionId);
 
             return BoolResult.Success;
         }
@@ -102,9 +116,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 await _partitionSender.CloseAsync();
             }
 
-            if (_partitionReceiver != null)
+            if (_eventHubClient != null)
             {
-                await _partitionReceiver.CloseAsync();
+                await _eventHubClient.CloseAsync();
             }
 
             return await base.ShutdownCoreAsync(context);
@@ -116,13 +130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             context.Token.ThrowIfCancellationRequested();
             try
             {
-                // Each element in a separate call because partial success is not possible
-                var eventDataAsList = new List<EventData> {eventData};
-                var sendEventOptions = new SendEventOptions
-                {
-                    PartitionId = PartitionId
-                };
-                await _partitionSender.SendAsync(eventDataAsList, sendEventOptions);
+                await _partitionSender.SendAsync(eventData);
             }
             catch (InvalidOperationException) when(context.Token.IsCancellationRequested || ShutdownStarted)
             {

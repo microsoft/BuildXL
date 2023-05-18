@@ -12,8 +12,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Threading;
-using Azure.Messaging.EventHubs;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
+using Microsoft.Azure.EventHubs;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -99,6 +98,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public sealed class EventHub
         {
+            // EventData system property names (copied from event hub codebase)
+            private const string EnqueuedTimeUtcName = "x-opt-enqueued-time";
+            private const string SequenceNumberName = "x-opt-sequence-number";
+
+            private readonly PropertyInfo _systemPropertiesPropertyInfo = typeof(EventData).GetProperty(nameof(EventData.SystemProperties));
             private readonly List<EventData> _eventStream = new List<EventData>();
 
             internal IReadOnlyList<EventData> EventStream => _eventStream;
@@ -116,18 +120,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     handler = OnEvent;
 
-                    // We need to modify some readonly values so we create a new instance
-                    var eventDataWrapper = new EventDataWrapper(
-                        eventBody: eventData.EventBody,
-                        properties: eventData.Properties,
-                        systemProperties: eventData.SystemProperties,
-                        sequenceNumber: (long)_eventStream.Count,
-                        offset: eventData.Offset,
-                        enqueuedTime: DateTimeOffset.Now,
-                        partitionKey: eventData.PartitionKey
-                        );
+                    _eventStream.Add(eventData);
 
-                    _eventStream.Add(eventDataWrapper);
+                    // HACK: Use reflect to set system properties property since its internal
+                    _systemPropertiesPropertyInfo.SetValue(eventData, Activator.CreateInstance(typeof(EventData.SystemPropertiesCollection), nonPublic: true));
+
+                    eventData.SystemProperties[SequenceNumberName] = (long)_eventStream.Count;
+                    eventData.SystemProperties[EnqueuedTimeUtcName] = DateTime.UtcNow;
                 }
 
                 handler?.Invoke(eventData);
@@ -154,11 +153,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 if (sequencePoint.SequenceNumber != null)
                 {
-                    return eventData.SequenceNumber < sequencePoint.SequenceNumber.Value;
+                    return eventData.SystemProperties.SequenceNumber < sequencePoint.SequenceNumber.Value;
                 }
                 else
                 {
-                    return eventData.EnqueuedTime.UtcDateTime < sequencePoint.EventStartCursorTimeUtc.Value;
+                    return eventData.SystemProperties.EnqueuedTimeUtc < sequencePoint.EventStartCursorTimeUtc.Value;
                 }
             }
         }

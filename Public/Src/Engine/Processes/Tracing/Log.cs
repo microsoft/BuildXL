@@ -1274,6 +1274,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void LinuxSandboxReportedStaticallyLinkedBinary(LoggingContext context, string pipDescription, string exePath);
 
         [GeneratedEvent(
+            (int)LogEventId.PTraceSandboxLaunchedForPip,
+            EventLevel = Level.Verbose,
+            EventGenerators = EventGenerators.LocalOnly,
+            Keywords = (int)((Keywords.UserMessage) | Keywords.Diagnostics),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Ptrace sandbox was launched for the following processes '{exePath}'.")]
+        public abstract void PTraceSandboxLaunchedForPip(LoggingContext context, string pipDescription, string exePath);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PTraceRunnerError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

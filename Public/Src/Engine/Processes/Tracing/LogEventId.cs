@@ -141,7 +141,7 @@ namespace BuildXL.Processes.Tracing
         LogMacKextFailure = 10103,
         LinuxSandboxReportedStaticallyLinkedBinary = 10104,
         PTraceRunnerError = 10105,
-
+        PTraceSandboxLaunchedForPip = 10106,
 
         //// Container related errors
         FailedToMergeOutputsToOriginalLocation = 12202,

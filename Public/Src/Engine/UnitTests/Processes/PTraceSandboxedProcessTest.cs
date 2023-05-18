@@ -77,7 +77,7 @@ namespace Test.BuildXL.Processes
 
             var result = await RunProcess(staticProcessInfo);
 
-            AllowWarningEventMaybeLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary);
+            AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip);
 
             var expectedAccesses = new List<(string, ReportedFileOperation)>()
             {
@@ -165,7 +165,7 @@ namespace Test.BuildXL.Processes
                 fa.Operation == ReportedFileOperation.KAuthCreateDir &&
                 fa.Error == 0);
 
-            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary, 2);
+            AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 2);
         }
 
         [Fact]
@@ -204,7 +204,7 @@ namespace Test.BuildXL.Processes
             var result = await RunProcess(info);
 
             // When PTrace is forced, the process is being reported as statically linked 
-            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary);
+            AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip);
         }
 
         [Fact]
@@ -260,7 +260,7 @@ namespace Test.BuildXL.Processes
                 fa.Operation == ReportedFileOperation.KAuthDeleteDir &&
                 fa.Error == 0);
 
-            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary, 2);
+            AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 2);
         }
     }
 }

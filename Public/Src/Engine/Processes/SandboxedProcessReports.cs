@@ -160,7 +160,18 @@ namespace BuildXL.Processes
             // Dump any detected statically linked processes for this pip
             if (m_staticallyLinkedProcesses?.Any() == true)
             {
-                Tracing.Logger.Log.LinuxSandboxReportedStaticallyLinkedBinary(m_loggingContext, PipDescription, string.Join(", ", m_staticallyLinkedProcesses.Select(p => p.ToString(m_pathTable))));
+                var exePath = string.Join(", ", m_staticallyLinkedProcesses.Select(p => p.ToString(m_pathTable)));
+
+                // If the ptrace sandbox is enabled, just log this as a verbose message to facilitate debugging scenarios. Otherwise, print a warning, since this is a case where we could
+                // be missing accesses
+                if (m_manifest.EnableLinuxPTraceSandbox)
+                {
+                    Tracing.Logger.Log.PTraceSandboxLaunchedForPip(m_loggingContext, PipDescription, exePath);
+                }
+                else
+                {
+                    Tracing.Logger.Log.LinuxSandboxReportedStaticallyLinkedBinary(m_loggingContext, PipDescription, exePath);
+                }
             }
         }
 

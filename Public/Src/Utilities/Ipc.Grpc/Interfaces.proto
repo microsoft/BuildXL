@@ -13,11 +13,11 @@ enum IpcResultStatus {
     // This is defined here for consistency but should not be a result of an RPC
     ConnectionError = 2;
 
-    // Indicates that an error occured on the client while communicating with the server.
+    // Indicates that an error occurred on the client while communicating with the server.
     // This is defined here for consistency but should not be a result of an RPC
     TransmissionError = 3;
 
-    // Indicates that an error occured on the server while executing the operation.
+    // Indicates that an error occurred on the server while executing the operation.
     ExecutionError = 4;
 
     // Indicates that the user input is invalid.

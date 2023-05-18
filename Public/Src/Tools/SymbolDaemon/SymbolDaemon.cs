@@ -15,8 +15,9 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
-using BuildXL.Utilities.Core;
+using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities.CLI;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Symbol.App.Core.Tracing;
@@ -160,7 +161,7 @@ namespace Tool.SymbolDaemon
             IsRequired = false,
             DefaultValue = true,
         });
-        
+
         internal static readonly StrOption PersonalAccessTokenEnv = RegisterSymbolConfigOption(new StrOption("PersonalAccessTokenEnv")
         {
             ShortName = "patenv",
@@ -730,20 +731,11 @@ namespace Tool.SymbolDaemon
         /// </summary>
         protected override async Task<IIpcResult> DoCreateAsync(string name = null)
         {
-            // TODO(olkonone): add logging
-            Request createRequestResult;
+            var dropCreationEvent = await HandleResultAndSendSymbolEtwEventAsync(InternalCreateAsync());
 
-            try
-            {
-                createRequestResult = await InternalCreateAsync();
-            }
-            catch (Exception e)
-            {
-                return new IpcResult(IpcResultStatus.GenericError, e.DemystifyToString());
-            }
-
-            // get and return RequestId ?
-            return IpcResult.Success(I($"Symbol request '{RequestName}' created (assigned request ID: '{createRequestResult.Id}')."));
+            return dropCreationEvent.Succeeded
+                ? IpcResult.Success(I($"Symbol request '{RequestName}' created (url: '{dropCreationEvent.DropUrl}')."))
+                : new IpcResult(IpcResultStatus.GenericError, dropCreationEvent.ErrorMessage);
         }
 
         /// <summary>
@@ -777,19 +769,11 @@ namespace Tool.SymbolDaemon
         /// </summary>
         protected override async Task<IIpcResult> DoFinalizeAsync()
         {
-            // TODO(olkonone): add logging
-            Request finalizeRequestResult;
+            var dropFinalizationEvent = await HandleResultAndSendSymbolEtwEventAsync(InternalFinalizeAsync());
 
-            try
-            {
-                finalizeRequestResult = await InternalFinalizeAsync();
-            }
-            catch (Exception e)
-            {
-                return new IpcResult(IpcResultStatus.GenericError, e.DemystifyToString());
-            }
-
-            return IpcResult.Success(I($"Symbol request '{RequestName}' finalized; the request expires on '{finalizeRequestResult.ExpirationDate}'."));
+            return dropFinalizationEvent.Succeeded
+               ? IpcResult.Success(I($"Symbol request '{RequestName}' finalized."))
+               : new IpcResult(IpcResultStatus.GenericError, dropFinalizationEvent.ErrorMessage);
         }
 
         /// <nodoc />
@@ -805,17 +789,27 @@ namespace Tool.SymbolDaemon
             base.Dispose();
         }
 
-        private async Task<Request> InternalCreateAsync()
+        private async Task<DropCreationEvent> InternalCreateAsync()
         {
             var symbolClient = await m_symbolServiceClientTask;
             var result = await symbolClient.CreateAsync();
 
             Contract.Assert(result.Status == RequestStatus.Created);
 
-            return result;
+            var serializedResult = SymbolRequesToString(result);
+            m_logger.Info($"CreateAsync completed:{Environment.NewLine}{serializedResult}");
+
+            return new DropCreationEvent()
+            {
+                Succeeded = true,
+                DropUrl = result.Url.ToString(),
+                // For Symbols, expiration is set during finalization, so we are using a value we will be assigning later.
+                DropExpirationInDays = (int)SymbolConfig.Retention.TotalDays,
+                AdditionalInformation = serializedResult
+            };
         }
 
-        private async Task<Request> InternalFinalizeAsync()
+        private async Task<DropFinalizationEvent> InternalFinalizeAsync()
         {
             var symbolClient = await m_symbolServiceClientTask;
             var result = await symbolClient.FinalizeAsync();
@@ -823,7 +817,14 @@ namespace Tool.SymbolDaemon
             Contract.Assert(result.Status == RequestStatus.Sealed);
             Contract.Assert(result.ExpirationDate.HasValue);
 
-            return result;
+            var serializedResult = SymbolRequesToString(result);
+            m_logger.Info($"FinalizeAsync completed:{Environment.NewLine}{serializedResult}");
+
+            return new DropFinalizationEvent()
+            {
+                Succeeded = true,
+                DropUrl = result.Url.ToString(),
+            };
         }
 
         private async Task ReportStatisticsAsync()
@@ -868,6 +869,47 @@ namespace Tool.SymbolDaemon
             else
             {
                 m_logger.Warning("No stats recorded by symbol client of type " + symbolClient.GetType().Name);
+            }
+        }
+
+        private async Task<T> HandleResultAndSendSymbolEtwEventAsync<T>(Task<T> task) where T : DropOperationBaseEvent
+        {
+            var sw = Stopwatch.StartNew();
+            T dropEvent;
+            try
+            {
+                dropEvent = await task;
+            }
+            catch (Exception e)
+            {
+                dropEvent = Activator.CreateInstance<T>();
+                dropEvent.Succeeded = false;
+                dropEvent.ErrorMessage = e.DemystifyToString();
+                // For symbols, url is something that is only defined for successful operations
+                // (it's based on a requestId which is not available until successful execution of 'symbol create').
+                dropEvent.DropUrl = null;
+            }
+
+            // common properties: execution time, drop type
+            dropEvent.ElapsedTimeTicks = sw.ElapsedTicks;
+            dropEvent.DropType = "SymbolIndex";
+
+            // send event
+            m_etwLogger.Log(dropEvent);
+
+            return dropEvent;
+        }
+
+        private static string SymbolRequesToString(Request request)
+        {
+            try
+            {
+                return request.ToJson();
+            }
+            catch (Exception e)
+            {
+                // The value is only used for debugging, so it's not a big deal if we fail to create the string.
+                return $"Failed to serialized Request. Exception: {e}";
             }
         }
     }

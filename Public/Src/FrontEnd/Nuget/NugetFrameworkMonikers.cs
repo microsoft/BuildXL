@@ -171,7 +171,7 @@ namespace BuildXL.FrontEnd.Nuget
             NetCoreApp22  = Register(stringTable, "netcoreapp2.2",  ".NETCoreApp2.2", NetCoreVersionHistory);
 
             // TODO: temporary until we incorporate this change. This is the right position for NetStandard2.1
-            if (nugetResolverSettings.IncludeMonikersInNuspecDependencies == true)
+            if (nugetResolverSettings.IncludeMonikersInNuspecDependencies != false)
             {
                 // Netstandard2.1 supports NetCoreApp 3.0 and above
                 NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1", NetCoreVersionHistory);
@@ -184,7 +184,7 @@ namespace BuildXL.FrontEnd.Nuget
             Net70         = Register(stringTable, "net7.0",  ".NETCoreApp7.0", NetCoreVersionHistory);
 
             // TODO: temporary until we incorporate this change. This is not the right position for NetStandard2.1 since it does supports NetCoreApp 3.0 and above
-            if (nugetResolverSettings.IncludeMonikersInNuspecDependencies != true)
+            if (nugetResolverSettings.IncludeMonikersInNuspecDependencies == false)
             {
                 NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1", NetCoreVersionHistory);
             }

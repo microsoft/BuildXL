@@ -17,7 +17,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 {
     public class NuSpecGeneratorTests
     {
-        private const int CurrentSpecGenVersion = 17;
+        private const int CurrentSpecGenVersion = 18;
 
         private readonly ITestOutputHelper m_output;
         private readonly FrontEndContext m_context;
@@ -81,7 +81,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 import * as Managed from ""Sdk.Managed"";
 
 export declare const qualifier: {{
-    targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""net5.0"" | ""net6.0"" | ""net7.0"" | ""netstandard2.1"",
+    targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netstandard2.1"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""net5.0"" | ""net6.0"" | ""net7.0"",
     targetRuntime: ""win-x64"" | ""osx-x64"" | ""linux-x64"",
 }};
 
@@ -139,12 +139,12 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
         case ""netcoreapp2.0"":
         case ""netcoreapp2.1"":
         case ""netcoreapp2.2"":
+        case ""netstandard2.1"":
         case ""netcoreapp3.0"":
         case ""netcoreapp3.1"":
         case ""net5.0"":
         case ""net6.0"":
         case ""net7.0"":
-        case ""netstandard2.1"":
             return Managed.Factory.createNugetPackage(
                 ""TestPkg"",
                 ""1.999"",
@@ -162,7 +162,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
 )();";
             XAssert.AreEqual(expectedSpec.Trim(), text.Trim());
 
-            const string CurrentSpecHash = "389DDEC476E584D1F438DF4855BB73D2D1F7141E";
+            const string CurrentSpecHash = "F6694FF449BFDBF54E9C2E14FEACD2594C978930";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 
@@ -177,7 +177,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
             string expectedSpec = @"import * as NugetDownloader from ""BuildXL.Tools.NugetDownloader"";
 
 export declare const qualifier: {
-    targetFramework: ""net10"" | ""net11"" | ""net20"" | ""net35"" | ""net40"" | ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard1.0"" | ""netstandard1.1"" | ""netstandard1.2"" | ""netstandard1.3"" | ""netstandard1.4"" | ""netstandard1.5"" | ""netstandard1.6"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""net5.0"" | ""net6.0"" | ""net7.0"" | ""netstandard2.1"",
+    targetFramework: ""net10"" | ""net11"" | ""net20"" | ""net35"" | ""net40"" | ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard1.0"" | ""netstandard1.1"" | ""netstandard1.2"" | ""netstandard1.3"" | ""netstandard1.4"" | ""netstandard1.5"" | ""netstandard1.6"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netstandard2.1"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""net5.0"" | ""net6.0"" | ""net7.0"",
     targetRuntime: ""win-x64"" | ""osx-x64"" | ""linux-x64"",
 };
 
@@ -202,7 +202,7 @@ export const pkg: NugetPackage = {
 };";
             XAssert.ArrayEqual(SplitToLines(expectedSpec), SplitToLines(text));
 
-            const string CurrentSpecHash = "481E34BEF6E4DCF2256669E23E2C0B56D43E8BD7";
+            const string CurrentSpecHash = "814D3EC294A4955616DFEE3EFF197C6612AD33BB";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 

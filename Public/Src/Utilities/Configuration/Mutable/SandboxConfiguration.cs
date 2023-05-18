@@ -53,7 +53,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DirectoriesToEnableFullReparsePointParsing = new List<AbsolutePath>();
             ExplicitlyReportDirectoryProbes = OperatingSystemHelper.IsLinuxOS;
             PreserveFileSharingBehaviour = false;
-            EnableLinuxPTraceSandbox = false;
+            EnableLinuxPTraceSandbox = true;
             AlwaysRemoteInjectDetoursFrom32BitProcess = true;
             UnconditionallyEnableLinuxPTraceSandbox = false;
             // TODO: flip the default once we have verified this is not a breaking change

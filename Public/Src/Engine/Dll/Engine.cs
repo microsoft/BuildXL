@@ -1361,8 +1361,8 @@ namespace BuildXL.Engine
                 mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.SkipFlaggingSharedOpaqueOutputs = true;
             }
 
-            // Override ptrace option if objdump is not installed
-            if (!UnixObjectFileDumpUtils.IsObjDumpInstalled.Value && mutableConfig.Sandbox.EnableLinuxPTraceSandbox)
+            // On Linux, override ptrace option if objdump is not installed
+            if (OperatingSystemHelper.IsLinuxOS && !UnixObjectFileDumpUtils.IsObjDumpInstalled.Value && mutableConfig.Sandbox.EnableLinuxPTraceSandbox)
             {
                 mutableConfig.Sandbox.EnableLinuxPTraceSandbox = false;
                 Logger.Log.ObjDumpNotInstalled(loggingContext);

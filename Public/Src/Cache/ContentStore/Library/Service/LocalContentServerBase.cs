@@ -123,8 +123,8 @@ namespace BuildXL.Cache.ContentStore.Service
         private readonly ConcurrentDictionary<int, ISessionHandle<TSession, TSessionData>> _sessionHandles;
         private IntervalTimer? _sessionExpirationCheckTimer;
 
-        private readonly Dictionary<string, AbsolutePath> _tempFolderForStreamsByCacheName = new Dictionary<string, AbsolutePath>();
-        private readonly ConcurrentDictionary<int, DisposableDirectory> _tempDirectoryForStreamsBySessionId = new ConcurrentDictionary<int, DisposableDirectory>();
+        private readonly Dictionary<string, AbsolutePath> _tempFolderForStreamsByCacheName = new(StringComparer.InvariantCultureIgnoreCase);
+        private readonly ConcurrentDictionary<int, DisposableDirectory> _tempDirectoryForStreamsBySessionId = new();
 
         private int _lastSessionId;
 
@@ -196,7 +196,7 @@ namespace BuildXL.Cache.ContentStore.Service
             _serviceReadinessChecker = new ServiceReadinessChecker(logger, scenario);
             _sessionHandles = new ConcurrentDictionary<int, ISessionHandle<TSession, TSessionData>>();
 
-            var storesByName = new Dictionary<string, TStore>();
+            var storesByName = new Dictionary<string, TStore>(StringComparer.InvariantCultureIgnoreCase);
             foreach (var kvp in configuration.NamedCacheRoots)
             {
                 fileSystem.CreateDirectory(kvp.Value);

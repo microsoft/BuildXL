@@ -71,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Service
             GrpcPortFileName = grpcPortFileName;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             ProactivePushCountLimit = proactivePushCountLimit;
-            _namedCacheRoots = new Dictionary<string, AbsolutePath>();
+            _namedCacheRoots = new Dictionary<string, AbsolutePath>(StringComparer.InvariantCultureIgnoreCase);
             AsyncSessionShutdownTimeout = asyncSessionShutdownTimeout;
             Initialize();
         }
@@ -308,7 +308,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 GracefulShutdownSeconds = DefaultGracefulShutdownSeconds;
             }
 
-            _namedCacheRoots ??= new Dictionary<string, AbsolutePath>();
+            _namedCacheRoots ??= new Dictionary<string, AbsolutePath>(StringComparer.InvariantCultureIgnoreCase);
 
             if (_namedCacheRootsRaw == null)
             {

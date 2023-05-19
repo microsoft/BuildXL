@@ -670,8 +670,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                         info);
                                     return r == CreateHardLinkResult.Success;
                                 },
-                                onContentNotInCache: primaryPath => Task.FromResult(false),
-                                announceAddOnSuccess: false);
+                                onContentNotInCache: primaryPath => Task.FromResult(false));
                         }
                         else
                         {
@@ -829,8 +828,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                                  }
 
                                                  return Task.FromResult(result);
-                                             },
-                        announceAddOnSuccess: false);
+                                             });
 
                     if (putInternalSucceeded)
                     {
@@ -1030,8 +1028,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             long contentSize,
             PinContext? pinContext,
             OnContentAlreadyExistsInCache onContentAlreadyInCache,
-            OnContentNotInCache onContentNotInCache,
-            bool announceAddOnSuccess = true)
+            OnContentNotInCache onContentNotInCache)
         {
             Contract.Assert(QuotaKeeper != null);
 
@@ -1085,7 +1082,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 _tracer.AddPutBytes(addedContentSize);
             }
 
-            if (_announcer != null && addedContentSize > 0 && announceAddOnSuccess)
+            if (_announcer != null && addedContentSize > 0)
             {
                 await _announcer.ContentAdded(new ContentHashWithSize(contentHash, addedContentSize));
             }

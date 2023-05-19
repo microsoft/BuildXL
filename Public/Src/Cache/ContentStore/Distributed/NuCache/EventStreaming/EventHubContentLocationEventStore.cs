@@ -23,8 +23,10 @@ using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Tracing;
-using Microsoft.Azure.EventHubs;
+using Azure.Messaging.EventHubs;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
+using System.IO;
+using System.Net.Sockets;
 
 #nullable enable
 
@@ -188,8 +190,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                 Tracer.Info(
                     context,
-                    $"{Tracer.Name}: Sending {eventNumber}/{events.Length} event. OpId={operationId}, Epoch='{_configuration.Epoch}', Size={eventData.Body.Count}.");
-                counters[SentMessagesTotalSize].Add(eventData.Body.Count);
+                    $"{Tracer.Name}: Sending {eventNumber}/{events.Length} event. OpId={operationId}, Epoch='{_configuration.Epoch}', Size={eventData.Body.Length}.");
+                counters[SentMessagesTotalSize].Add(eventData.Body.Length);
                 eventData.Properties[OperationIdEventKey] = operationId.ToString();
 
                 // Even though event hub client has it's own built-in retry strategy, we have to wrap all the calls into a separate
@@ -200,7 +202,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     {
                         await _eventHubClient.SendAsync(context, eventData);
                     }
-                    catch (ServerBusyException exception)
+                    catch (EventHubsException exception) when (exception.Reason == EventHubsException.FailureReason.ServiceBusy)
                     {
                         // TODO: Verify that the HResult is 50002. Documentation shows that this should be the error code for throttling,
                         // but documentation is done for Microsoft.ServiceBus.Messaging.ServerBusyException and not Microsoft.Azure.EventHubs.ServerBusyException
@@ -330,18 +332,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                             var sender = TryGetMessageSender(message) ?? "Unknown sender";
 
-                            var eventTimeUtc = message.SystemProperties.EnqueuedTimeUtc;
+                            var eventTimeUtc = message.EnqueuedTime.UtcDateTime;
                             var eventProcessingDelay = DateTime.UtcNow - eventTimeUtc;
                             EventQueueDelays[input.EventQueueDelayIndex] = eventProcessingDelay; // Need to check if index is valid and has entry in list
 
                             // Creating nested context with operationId as a guid. This helps to correlate operations on a worker and a master machines.
                             context = CreateNestedContext(context, operationId?.ToString());
 
-                            Tracer.Info(context, $"{Tracer.Name}.ReceivedEvent: ProcessingDelay={eventProcessingDelay}, Sender={sender}, OpId={operationId}, SeqNo={message.SystemProperties.SequenceNumber}, EQT={eventTimeUtc}, Filter={eventFilter}, Size={message.Body.Count}.");
+                            Tracer.Info(context, $"{Tracer.Name}.ReceivedEvent: ProcessingDelay={eventProcessingDelay}, Sender={sender}, OpId={operationId}, SeqNo={message.SequenceNumber}, EQT={eventTimeUtc}, Filter={eventFilter}, Size={message.Body.Length}.");
 
                             Tracer.TrackMetric(context, EventProcessingDelayInSecondsMetricName, (long)eventProcessingDelay.TotalSeconds);
 
-                            counters[ReceivedMessagesTotalSize].Add(message.Body.Count);
+                            counters[ReceivedMessagesTotalSize].Add(message.Body.Length);
                             counters[ReceivedEventBatchCount].Increment();
                             CacheActivityTracker.AddValue(CaSaaSActivityTrackingCounters.ProcessedEventHubMessages, value: 1);
 
@@ -529,7 +531,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             {
                 Context = context;
                 Store = store;
-                SequenceNumber = messages[messages.Count - 1].SystemProperties.SequenceNumber;
+                SequenceNumber = messages[messages.Count - 1].SequenceNumber;
                 _remainingMessageCount = messages.Count;
                 store._pendingEventProcessingStates.Enqueue(this);
             }
@@ -596,27 +598,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private static class TransientEventHubErrorDetectionStrategy
         {
-            public static bool IsRetryable(Exception exception)
+            public static bool IsRetryable(Exception? exception)
             {
                 if (exception is AggregateException ae)
                 {
                     return ae.InnerExceptions.All(e => IsRetryable(e));
                 }
 
-                if (Microsoft.Azure.EventHubs.RetryPolicy.IsRetryableException(exception))
+                if (exception is TimeoutException || (exception is EventHubsException eh && eh.Reason == EventHubsException.FailureReason.ServiceBusy))
                 {
                     return true;
                 }
 
-                // IsRetryableException covers TaskCanceledException, EventHubException, OperationCanceledException and SocketException
-
-                // Need to cover some additional cases here.
-                if (exception is TimeoutException || exception is ServerBusyException)
+                if (exception is OperationCanceledException)
                 {
-                    return true;
+                    exception = exception.InnerException;
                 }
 
-                return false;
+                switch (exception)
+                {
+                    case null:
+                        return false;
+
+                    case EventHubsException ex:
+                        return ex.IsTransient;
+
+                    case TimeoutException _:
+                    case SocketException _:
+                    case IOException _:
+                    case UnauthorizedAccessException _:
+                        return true;
+
+                    default:
+                        return false;
+                }
             }
         }
     }

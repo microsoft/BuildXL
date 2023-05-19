@@ -15,7 +15,7 @@ namespace Library {
             importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
             ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
             importFrom("Microsoft.IdentityModel.Abstractions").pkg,
-            importFrom("System.Memory.Data").pkg,
+            importFrom("System.Memory.Data").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("NLog").pkg,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,

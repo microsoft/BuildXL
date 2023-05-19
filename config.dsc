@@ -83,7 +83,8 @@ config({
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "4.5.1" },
+                { id: "System.Diagnostics.DiagnosticSource", version: "4.6.0",
+                    dependentPackageIdsToSkip: ["System.Memory"] },
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
@@ -187,8 +188,9 @@ config({
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
                 // Event hubs
-                { id: "Microsoft.Azure.Amqp", version: "2.5.10" },
-                { id: "Microsoft.Azure.EventHubs", version: "4.3.2",
+                { id: "Microsoft.Azure.Amqp", version: "2.6.1" },
+                { id: "Azure.Core.Amqp", version: "1.3.0"},
+                { id: "Azure.Messaging.EventHubs", version: "5.9.0",
                     dependentPackageIdsToSkip: ["System.Net.Http", "System.Reflection.TypeExtensions", "System.Runtime.Serialization.Primitives", "Newtonsoft.Json", "System.Diagnostics.DiagnosticSource"],
                 },
                 { id: "Microsoft.Azure.KeyVault.Core", version: "1.0.0" },
@@ -209,7 +211,7 @@ config({
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.18.4" },
                 { id: "Azure.Core", version: "1.31.0", 
                     dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors", "Microsoft.Bcl.AsyncInterfaces" ] },
-                { id: "System.Memory.Data", version: "6.0.0",
+                { id: "System.Memory.Data", version: "1.0.2",
                     dependentPackageIdsToSkip: [ "System.Memory", "System.Text.Json" ] },
 
                 // Package sets

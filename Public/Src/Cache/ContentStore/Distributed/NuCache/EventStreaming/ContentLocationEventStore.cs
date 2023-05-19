@@ -619,7 +619,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <summary>
         /// Starts receiving events from the event store. 
-        /// NOTE: This may be called event if the event store is already processing events. It is the responsibility of the event store to handle this appropriately.
+        /// NOTE: This may be called even if the event store is already processing events. It is the responsibility of the event store to handle this appropriately.
         /// </summary>
         public BoolResult StartProcessing(OperationContext context, EventSequencePoint sequencePoint)
         {

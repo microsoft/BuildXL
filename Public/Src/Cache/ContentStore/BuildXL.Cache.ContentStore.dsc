@@ -28,7 +28,7 @@ export const kustoPackages = [
 @@public
 export function getSerializationPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
-        importFrom("System.Memory.Data").pkg,
+        importFrom("System.Memory.Data").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         ...getSystemTextJson(includeNetStandard),
         ...getSerializationPackagesWithoutNetStandard()
     ];

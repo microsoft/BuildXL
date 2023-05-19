@@ -187,6 +187,24 @@ config({
         }
 
         [Fact]
+        public void ParseWindowsPath()
+        {
+            string code = @"
+config({
+    mounts: [
+        {
+            name: a`Foo`,
+            path: p`C:/Foo`,
+            trackSourceFileChanges: true,
+            isReadable: true
+        },
+    ]
+});";
+
+            var configuration = ParseConfigurationSuccessfully(code);
+        }
+
+        [Fact]
         public void ConvertFailsWithUnknownConfigureFormat()
         {
             // TODO:ST: need to check error message. Currently it carries low-level information.

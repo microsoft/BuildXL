@@ -221,7 +221,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             {
                 int length = path.Length;
                 if ((length >= 1 && (path[0] == DirectorySeparatorChar || path[0] == AltDirectorySeparatorChar)) ||
-                    (length >= 2 && path[1] == VolumeSeparatorChar))
+                    (length >= 2 && path[1] == VolumeSeparatorChar && OperatingSystemHelper.IsWindowsOS))
                 {
                     return true;
                 }

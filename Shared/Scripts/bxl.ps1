@@ -155,12 +155,19 @@ param(
     [Parameter(Mandatory=$false)]
     [string]$AnyBuildClientDir,
 
+    [Parameter(Mandatory=$false)]
+    [string]$GenerateFlagsMd = $true,
+
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$DominoArguments
 )
 
 $ErrorActionPreference = "Stop";
 Set-StrictMode -Version Latest;
+
+if ($GenerateFlagsMd) {
+    & "$(Get-Location)/Shared/Scripts/HelpTextToMarkdown.ps1" -ResxFile "$(Get-Location)/Public/Src/App/Bxl/Strings.resx" -Output "$(Get-Location)/Documentation/Wiki/Flags.md"
+}
 
 # Drive letter used as a canonical enlistment root.
 $NormalizationDrive = "B:";

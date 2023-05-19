@@ -47,3 +47,8 @@ A cornerstone of BuildXL is reliable caching. This as achieved through an observ
 Sandboxing is limited to observation of the machine local filesystem. Among other things, registry access, communication between processes on the machine, and communication to other machines are not tracked by BuildXL. Build graphs containing processes that access these resources may not be correctly cached by BuildXL since those dependencies are not tracked.
 
 The sandbox implementation varies based on the platform. See the [Sandboxing](../Specs/Sandboxing.md) document for more details.
+
+## Feedback
+See something missing you want added to this page? Contact the BuildXL team using one of the links below:</br>
+ * Microsoft Internal: [aka.ms/buildxl](https://aka.ms/buildxl)
+ * External: Open a [Github Issue](https://github.com/microsoft/BuildXL/issues/new)

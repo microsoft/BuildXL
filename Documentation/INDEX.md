@@ -78,6 +78,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [Symlinks and Junctions](Wiki/Advanced-Features/Symlinks-and-Junctions.md)
 * [Timestamp Faking](Wiki/Advanced-Features/Timestamp-Faking.md)
 * [Unsafe Flags](Wiki/How-To-Run-BuildXL/Unsafe-flags.md)
+* [All Flags](Wiki/Flags.md)
 
 # Development guide
 * [Contributing](../CONTRIBUTING.md)

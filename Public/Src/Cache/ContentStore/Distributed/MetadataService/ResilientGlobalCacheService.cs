@@ -27,6 +27,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     {
         public CheckpointManagerConfiguration Checkpoint { get; init; }
 
+        public bool DisableWriteBehindLog { get; init; }
+
         public bool EnableBackgroundRestoreCheckpoint { get; init; }
 
         public int MaxEventParallelism { get; set; }
@@ -63,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     {
         private const string LogCursorKey = "ResilientContentMetadataService.LogCursor";
 
-        private readonly ContentMetadataEventStream _eventStream;
+        private readonly IContentMetadataEventStream _eventStream;
         private readonly GlobalCacheServiceConfiguration _configuration;
         private readonly CheckpointManager _checkpointManager;
         private readonly RocksDbContentMetadataStore _store;
@@ -79,8 +81,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private readonly IClock _clock;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(ResilientGlobalCacheService));
-
-        internal ContentMetadataEventStream EventStream => _eventStream;
 
         internal CheckpointManager CheckpointManager => _checkpointManager;
 
@@ -147,7 +147,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             GlobalCacheServiceConfiguration configuration,
             CheckpointManager checkpointManager,
             RocksDbContentMetadataStore store,
-            ContentMetadataEventStream eventStream,
+            IContentMetadataEventStream eventStream,
             IClock clock = null)
             : base(store)
         {
@@ -193,7 +193,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             if (!ShouldRetry(out var retryReason, out var errorMessage, isShutdown: true))
             {
                 // Stop logging
-                _eventStream.SetIsLogging(false);
+                _eventStream.Toggle(false);
 
                 // Seal the log
                 await _eventStream.CompleteOrChangeLogAsync(context);
@@ -221,7 +221,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _lastSuccessfulHeartbeat = _clock.UtcNow;
             if (_role != role)
             {
-                _eventStream.SetIsLogging(false);
+                _eventStream.Toggle(false);
                 _hasRestoredCheckpoint = false;
                 _role = role;
             }
@@ -249,7 +249,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         if (result.Succeeded)
                         {
                             _hasRestoredCheckpoint = true;
-                            _eventStream.SetIsLogging(true);
+                            _eventStream.Toggle(true);
                         }
                     }
                     finally

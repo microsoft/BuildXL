@@ -1,20 +1,22 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using ProtoBuf;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 
-namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
+namespace BuildXL.Cache.ContentStore.Distributed.MetadataService;
+
+public readonly record struct LogCursor
 {
-    [ProtoContract]
-    public struct LogCursor
+    public CheckpointLogId LogId => Block.LogId;
+        
+    public int LogBlockId => Block.LogBlockId;
+
+    public BlockReference Block { get; init; }
+        
+    public int SequenceNumber { get; init; }
+
+    public override string ToString()
     {
-        [ProtoMember(1)]
-        public CheckpointLogId LogId { get; init; }
-
-        [ProtoMember(2)]
-        public int LogBlockId { get; init; }
-
-        [ProtoMember(3)]
-        public int SequenceNumber { get; init; }
+        return $"{Block} SequenceNumber=[{SequenceNumber}]";
     }
 }

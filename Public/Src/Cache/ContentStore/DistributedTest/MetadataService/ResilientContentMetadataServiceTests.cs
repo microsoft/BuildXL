@@ -231,27 +231,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             {
                 Tracer.Info(operationContext, $"Running iteration {iteration}");
 
-                var blobVolatileEventStorage = new BlobWriteAheadEventStorage(new BlobEventStorageConfiguration()
-                {
-                    Credentials = new Interfaces.Secrets.AzureStorageCredentials(connectionString: storage.ConnectionString),
-                });
-
-                IWriteAheadEventStorage volatileEventStorage = new FailingVolatileEventStorage();
-                if (!volatileStorageFailure)
-                {
-                    volatileEventStorage = blobVolatileEventStorage;
-                }
-
-                IWriteBehindEventStorage persistentEventStorage = new FailingPersistentEventStorage();
-                if (!persistentStorageFailure)
-                {
-                    persistentEventStorage = new MockPersistentEventStorage();
-                }
+                var volatileEventStorage = new BlobWriteAheadEventStorage(
+                    new BlobEventStorageConfiguration
+                    {
+                        Credentials = new AzureStorageCredentials(connectionString: storage.ConnectionString),
+                    });
 
                 var contentMetadataEventStream = new ContentMetadataEventStream(
                     contentMetadataServiceConfiguration.EventStream,
-                    volatileEventStorage,
-                    persistentEventStorage);
+                    volatileEventStorage);
 
                 var rocksdbContentMetadataDatabaseConfiguration = new RocksDbContentMetadataDatabaseConfiguration(TestRootDirectoryPath / "ContentMetadataDatabase");
                 var rocksDbContentMetadataStore = new RocksDbContentMetadataStore(clock, new RocksDbContentMetadataStoreConfiguration()

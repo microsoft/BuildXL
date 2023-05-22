@@ -1010,6 +1010,9 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? ContentMetadataClientRetryDelta { get; set; }
 
         [DataMember]
+        public bool ContentMetadataDisableWriteBehindLog { get; set; } = false;
+
+        [DataMember]
         public TimeSpanSetting? ContentMetadataCheckpointMaxAge { get; set; } = null;
 
         [DataMember]
@@ -1020,9 +1023,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public string ContentMetadataCentralStorageContainerName { get; set; } = "contentmetadata";
-
-        [DataMember]
-        public bool ContentMetadataBatchVolatileWrites { get; set; } = true;
 
         [DataMember]
         public int? MetadataEntryStorageThreshold { get; set; }

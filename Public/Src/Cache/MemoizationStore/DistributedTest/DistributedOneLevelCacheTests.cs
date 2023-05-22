@@ -58,7 +58,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             ConfigureWithOneMaster();
         }
 
-        [Theory]
+        [Fact]
         public Task BasicDistributedAddAndGet()
         {
             // Add this to make sure that construction of a publishing cache works. Shouldn't affect the behavior of the rest of the build.

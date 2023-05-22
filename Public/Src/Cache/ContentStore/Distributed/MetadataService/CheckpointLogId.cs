@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using ProtoBuf;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
@@ -17,11 +18,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             Value = value;
         }
 
-        public static CheckpointLogId InitialLogId => new CheckpointLogId(0);
+        public static CheckpointLogId InitialLogId => new(0);
 
-        public static CheckpointLogId MaxValue => new CheckpointLogId(int.MaxValue);
+        public static CheckpointLogId MaxValue => new(int.MaxValue);
 
-        public CheckpointLogId Next() => new CheckpointLogId(Value + 1);
+        public CheckpointLogId Next() => new(Value + 1);
+
+        public CheckpointLogId Prev() => new(Value - 1);
 
         public string Serialize()
         {
@@ -41,6 +44,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public int CompareTo(CheckpointLogId other)
         {
             return Value.CompareTo(other.Value);
+        }
+
+        public BlockReference FirstBlock()
+        {
+            return new BlockReference(this, 0);
         }
     }
 }

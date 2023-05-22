@@ -270,6 +270,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 EnablePublishingCache = EnablePublishingCache,
 
                 GrpcCopyClientConnectOnStartup = true,
+                ContentMetadataDisableWriteBehindLog = true,
             };
 
             if (ProactiveCopyLocationThreshold.HasValue)
@@ -451,15 +452,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected override void InitializeTestRun(int storeCount)
         {
-            var persistentState = new MockPersistentEventStorageState();
             TestInfos = Enumerable.Range(0, storeCount).Select(i =>
             {
                 return new TestInfo(i)
                 {
                     Overrides = new TestHostOverrides(this, i)
-                    {
-                        PersistentState = persistentState
-                    }
                 };
             }).ToArray();
 
@@ -524,26 +521,10 @@ namespace ContentStoreTest.Distributed.Sessions
             private readonly LocalLocationStoreDistributedContentTestsBase<TStore, TSession> _tests;
             private readonly int _storeIndex;
 
-            public FailureMode PersistentFailureMode { get; set; } = FailureMode.None;
-            public FailureMode VolatileFailureMode { get; set; } = FailureMode.None;
-            public MockPersistentEventStorageState PersistentState { get; set; } = new MockPersistentEventStorageState();
-
             public TestHostOverrides(LocalLocationStoreDistributedContentTestsBase<TStore, TSession> tests, int storeIndex)
             {
                 _tests = tests;
                 _storeIndex = storeIndex;
-            }
-
-            public override IWriteBehindEventStorage Override(IWriteBehindEventStorage storage)
-            {
-                var failingStorage = new FailingPersistentEventStorage(PersistentFailureMode, storage);
-                return failingStorage;
-            }
-
-            public override IWriteAheadEventStorage Override(IWriteAheadEventStorage storage)
-            {
-                var failingStorage = new FailingVolatileEventStorage(VolatileFailureMode, storage);
-                return failingStorage;
             }
 
             public override IClock Clock => _tests.TestClock;

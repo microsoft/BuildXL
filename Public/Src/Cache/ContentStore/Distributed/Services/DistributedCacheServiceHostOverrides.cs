@@ -13,19 +13,9 @@ namespace BuildXL.Cache.Host.Service
     /// </summary>
     public class DistributedCacheServiceHostOverrides
     {
-        public static DistributedCacheServiceHostOverrides Default { get; } = new DistributedCacheServiceHostOverrides();
+        public static DistributedCacheServiceHostOverrides Default { get; } = new();
 
         public virtual IClock Clock { get; } = SystemClock.Instance;
-
-        public virtual IWriteAheadEventStorage Override(IWriteAheadEventStorage storage)
-        {
-            return storage;
-        }
-
-        public virtual IWriteBehindEventStorage Override(IWriteBehindEventStorage storage)
-        {
-            return storage;
-        }
 
         public virtual void Override(LocalLocationStoreConfiguration configuration) { }
 

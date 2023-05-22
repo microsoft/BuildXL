@@ -31,19 +31,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// The maximum frequency to write write-ahead events to storage
         /// </summary>
-        public TimeSpan MaxWriteAheadInterval { get; set; } = TimeSpan.Zero;
-
-        public bool BatchWriteAheadWrites { get; set; } = true;
+        public TimeSpan MinWriteAheadInterval { get; set; } = TimeSpan.Zero;
 
         public TimeSpan ShutdownTimeout { get; set; } = TimeSpan.FromSeconds(120);
     }
 
     /// <summary>
-    /// Manages writing events to log stream. First commits events to a write ahead
+    /// Manages writing events to a persistent log stream.
     ///
-    /// WriteBehind layout:
-    ///     logId.bin -> Log
-    ///     logId.seal -> [maybe some metadata about log?] (indicates log was fully written)
     /// WriteAhead layout:
     ///     logId|blockId -> [Event]*
     ///
@@ -51,54 +46,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// Log = [Block]*
     /// Block = [BlockId:int32][BlockByteLength:int32][EventCount:int32][Event]*
     /// </summary>
-    public partial class ContentMetadataEventStream : StartupShutdownComponentBase
+    public class ContentMetadataEventStream : StartupShutdownComponentBase, IContentMetadataEventStream
     {
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ContentMetadataEventStream));
+        protected override Tracer Tracer { get; } = new(nameof(ContentMetadataEventStream));
 
         private readonly ContentMetadataEventStreamConfiguration _configuration;
 
-        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
-
         internal IWriteAheadEventStorage WriteAheadEventStorage { get; }
 
-        private readonly IWriteBehindEventStorage _writeBehindEventStorage;
-
-        private readonly ObjectPool<LogEvent> _eventPool = new ObjectPool<LogEvent>(() => new LogEvent(), e => e.Reset());
+        private readonly ObjectPool<LogEvent> _eventPool = new(() => new LogEvent(), e => e.Reset());
 
         private readonly SemaphoreSlim _writeBehindCommitLock = TaskUtilities.CreateMutex();
-        private readonly ReaderWriterLockSlim _blockSwitchLock = new ReaderWriterLockSlim();
-        private LogBlock _currentBlock = new LogBlock();
-        private LogBlock _nextBlock = new LogBlock();
-        private bool _isLogging;
-
-        private readonly Stream _emptyStream = new MemoryStream();
+        private readonly ReaderWriterLockSlim _blockSwitchLock = new();
+        private LogBlock _currentBlock = new();
+        private LogBlock _nextBlock = new();
+        private bool _active;
 
         public ContentMetadataEventStream(
             ContentMetadataEventStreamConfiguration configuration,
-            IWriteAheadEventStorage volatileStorage,
-            IWriteBehindEventStorage persistentStorage)
+            IWriteAheadEventStorage volatileStorage)
         {
             _configuration = configuration;
             WriteAheadEventStorage = volatileStorage;
-            _writeBehindEventStorage = persistentStorage;
-
-            LinkLifetime(_writeBehindEventStorage);
             LinkLifetime(WriteAheadEventStorage);
 
             // Start the write behind commit loop which commits log events to write behind
             // storage at a specified interval
-            RunInBackground(nameof(WriteBehindCommitLoopAsync), WriteBehindCommitLoopAsync, fireAndForget: true);
+            RunInBackground(nameof(CommitLoopAsync), CommitLoopAsync, fireAndForget: true);
         }
 
-        protected override Task<BoolResult> ShutdownComponentAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
         {
             // Stop logging
-            SetIsLogging(false);
-            return BoolResult.SuccessTask;
+            Toggle(false);
+            _currentBlock.Events.Writer.TryComplete();
+            _nextBlock.Events.Writer.TryComplete();
+            await _currentBlock.WriteAheadCommitCompletion;
+            await _nextBlock.WriteAheadCommitCompletion;
+            return BoolResult.Success;
         }
 
         public Task<Result<CheckpointLogId>> BeforeCheckpointAsync(OperationContext context)
         {
+            // This function is essentially responsible for obtaining the highest persisted log ID and switching it to
+            // the next one. It also returns the highest persisted log ID so it can be stored in the checkpoint for
+            // later recovery in case of a crash.
             return context.PerformOperationAsync(Tracer, async () => Result.Success(await CompleteOrChangeLogAsync(context, moveToNextLog: true)));
         }
 
@@ -107,133 +99,148 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return context.PerformOperationAsync(Tracer, async () =>
             {
                 var nextLogId = new CheckpointLogId(logId.Value + 1);
-                await _writeBehindEventStorage.GarbageCollectAsync(context, nextLogId).ThrowIfFailure();
 
-                await WriteAheadEventStorage.GarbageCollectAsync(context, new BlockReference()
-                {
-                    LogId = nextLogId,
-                }).IgnoreFailure();
+                // We ignore the failure here because: (a) it's already logged, and (b) we don't want to fail the
+                // caller because this method is called repeatedly. Failure doesn't affect system correctness other
+                // than the fact that we might accumulate some garbage for a short period of time.
+                await WriteAheadEventStorage.GarbageCollectAsync(context, new BlockReference { LogId = nextLogId, }).IgnoreFailure();
 
                 return BoolResult.Success;
             });
         }
 
-        public void SetIsLogging(bool isLogging)
+        public void Toggle(bool active)
         {
             using (_blockSwitchLock.AcquireWriteLock())
             {
-                _isLogging = isLogging;
+                _active = active;
             }
         }
 
         /// <summary>
-        /// Reads the log events from the write behind store and write ahead store (if log is not sealed in write behind)
+        /// Reads the log events
         /// </summary>
         public Task<Result<CheckpointLogId>> ReadEventsAsync(OperationContext context, CheckpointLogId logId, Func<ServiceRequestBase, ValueTask> handleEvent)
         {
-            int blockId = -1;
-            int eventCount = 0;
-            long totalBytes = 0;
-            int lastWriteBehindBlock = -1;
+            long blocks = 0;
+            long events = 0;
+            long bytes = 0;
 
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
-                    while (true)
+                    for (var hasMoreLogs = true; hasMoreLogs; logId = logId.Next())
                     {
-                        int operationReadEvents = 0;
-                        long bytes = 0;
-                        lastWriteBehindBlock = -1;
-                        int foundBlocks = 0;
-                        bool isSealed = false;
-
-                        // Read the log events from write behind store
-                        await context.PerformOperationAsync(
-                            Tracer,
-                            async () =>
-                            {
-                                isSealed = await _writeBehindEventStorage.IsSealedAsync(context, logId).ThrowIfFailureAsync();
-
-                                var writeBehindResult = await _writeBehindEventStorage.ReadAsync(context, logId).ThrowIfFailureAsync();
-                                if (writeBehindResult.HasValue)
-                                {
-                                    using var writeBehindStream = writeBehindResult.Value;
-                                    using var writeBehindReader = BuildXLReader.Create(writeBehindStream);
-
-                                    bytes = writeBehindStream.Length;
-                                    totalBytes += bytes;
-                                    while (writeBehindStream.Position != writeBehindStream.Length)
-                                    {
-                                        foundBlocks++;
-                                        foreach (var item in LogBlock.ReadBlockEventsWithHeader(writeBehindReader, out blockId))
-                                        {
-                                            operationReadEvents++;
-                                            eventCount++;
-                                            await handleEvent(item);
-                                        }
-                                    }
-
-                                    lastWriteBehindBlock = blockId;
-                                }
-
-                                return BoolResult.Success;
-                            },
-                            caller: "ReadWriteBehindEventsAsync",
-                            extraEndMessage: _ => $"IsSealed=[{isSealed}], LogId=[{logId}], BlockId=[{blockId}], Bytes=[{bytes}] Events=[{operationReadEvents}]").IgnoreFailure();
-
-                        if (!isSealed)
+                        bool hasMoreBlocks = true;
+                        for (int blockId = 0; hasMoreBlocks; blockId++)
                         {
-                            // The log isn't sealed in the writeBehind storage. Writer likely crashed and didn't get to seal,
-                            // so we need to recover log entries for confirmed transactions from global store.
-                            bool moveNext = true;
-                            while (moveNext)
-                            {
-                                moveNext = (await context.PerformOperationAsync(
-                                    Tracer,
-                                    async () =>
-                                    {
-                                        operationReadEvents = 0;
-                                        blockId++;
-                                        bytes = 0;
-                                        var writeAheadResult = await WriteAheadEventStorage.ReadAsync(context, (logId, blockId)).ThrowIfFailureAsync();
-                                        if (writeAheadResult.TryGetValue(out var readBlock))
-                                        {
-                                            foundBlocks++;
-                                            using var writeAheadStream = new MemoryStream(readBlock.ToArray());
-                                            bytes = writeAheadStream.Length;
-                                            totalBytes += bytes;
-                                            using var writeAheadReader = BuildXLReader.Create(writeAheadStream);
-                                            foreach (var item in LogBlock.ReadBlockEvents(writeAheadReader, readBlock.Length))
-                                            {
-                                                operationReadEvents++;
-                                                eventCount++;
-                                                await handleEvent(item);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            return Result.Success(false);
-                                        }
+                            blocks++;
 
-                                        return Result.Success(true);
-                                    },
-                                    caller: "ReadWriteAheadEventsAsync",
-                                    extraEndMessage: _ => $"LogId=[{logId}], BlockId=[{blockId}], Bytes=[{bytes}], Events=[{operationReadEvents}]")).GetValueOrDefault();
+                            var reference = new BlockReference(logId, blockId);
+
+                            // The call below can only fail when there's a non-retriable Azure storage issue, at which
+                            // point we have no alternative other than to give up.
+                            var result = await processBlock(context, reference).ThrowIfFailureAsync();
+                            events += result.Events;
+                            bytes += result.Length;
+
+                            // We can only land here if either the data was successfully processed, or we had to skip
+                            // some number of entries. The non-existence of a blob is the signal that we're done
+                            // reading.
+                            if (!result.Exists)
+                            {
+                                hasMoreBlocks = false;
+                                if (blockId == 0)
+                                {
+                                    hasMoreLogs = false;
+                                }
                             }
                         }
-
-                        if (!isSealed && foundBlocks == 0)
-                        {
-                            break;
-                        }
-
-                        logId = logId.Next();
                     }
 
-                    return Result.Success(logId);
+                    // The for loop above will increment the logId one last time when we have determined there are no
+                    // more logs. The Prev below ensures we return the actual log ID we meant to return.
+                    return Result.Success(logId.Prev());
                 },
-                extraEndMessage: r => $"LogId=[{r.GetValueOrDefault()}] LastWriteBehindBlock=[{lastWriteBehindBlock}], BlockId=[{blockId}], Bytes=[{totalBytes}], Events=[{eventCount}]");
+                extraEndMessage: r => $"LogId=[{r.GetValueOrDefault()}] Blocks=[{blocks}] Bytes=[{bytes}] Events=[{events}]");
+
+            Task<Result<ProcessBlockResult>> processBlock(OperationContext context, BlockReference blockId)
+            {
+                var events = 0;
+                var bytes = 0;
+
+                return context.PerformOperationAsync(
+                    Tracer,
+                    async () =>
+                    {
+                        // It is important that this block remain outside of the try-catch below. The reason is that
+                        // the following line can only fail if there's a problem talking with storage, and the problem
+                        // is persistent.
+                        // If we put it inside the try-catch, the method will return that the block exists, even though
+                        // it might not. In doing so, it will cause a never-ending loop in ReadEventsAsync.
+                        var writeAheadResult = await WriteAheadEventStorage.ReadAsync(context, blockId).ThrowIfFailureAsync();
+                        if (!writeAheadResult.TryGetValue(out var readBlock))
+                        {
+                            return Result.Success(ProcessBlockResult.NonExisting);
+                        }
+
+                        try
+                        {
+                            bytes = readBlock.Length;
+
+                            using var writeAheadStream = new MemoryStream(readBlock.ToArray());
+                            using var writeAheadReader = BuildXLReader.Create(writeAheadStream);
+                            foreach (var item in LogBlock.ReadBlockEvents(writeAheadReader, readBlock.Length))
+                            {
+                                try
+                                {
+                                    await handleEvent(item);
+                                }
+                                catch (Exception exception)
+                                {
+                                    var cursor = new LogCursor()
+                                                 {
+                                                     Block = blockId, SequenceNumber = events
+                                                 };
+                                    Tracer.Error(context, exception, $"Failure while handling event. Event will be skipped. Cursor=[{cursor}]");
+                                }
+
+                                events++;
+                            }
+
+                            return Result.Success(new ProcessBlockResult(Exists: true, bytes, events));
+                        }
+                        catch (Exception exception)
+                        {
+                            // This catch is intentional and meant to prevent deserialization issues in a single block
+                            // from preventing restore from completing successfully.
+                            var cursor = new LogCursor()
+                                         {
+                                             Block = blockId,
+                                             SequenceNumber = events
+                                         };
+                            Tracer.Error(context, exception, $"Failure while traversing events in block. Remaining events will be skipped. Cursor=[{cursor}]");
+                            return Result.Success(new ProcessBlockResult(Exists: true, bytes, events));
+                        }
+                    },
+                    caller: "ReadWriteAheadEventsAsync",
+                    extraEndMessage: result =>
+                                     {
+                                         var extra = string.Empty;
+                                         if (result.Succeeded)
+                                         {
+                                             extra = $" Length=[{result.Value?.Length ?? -1}] Events=[{result.Value?.Events ?? -1}]";
+                                         }
+
+                                         return $"{blockId}{extra}";
+                                     });
+            }
+        }
+
+        private record ProcessBlockResult(bool Exists, long Length, long Events)
+        {
+            public static readonly ProcessBlockResult NonExisting = new(Exists: false, 0, 0);
         }
 
         public async Task<bool> WriteEventAsync(OperationContext context, ServiceRequestBase request)
@@ -247,68 +254,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             request.BlockId = block.QualifiedBlockId;
 
-            if (_configuration.BatchWriteAheadWrites)
-            {
-                await block.Events.Writer.WriteAsync(logEvent);
-                await logEvent.Completion.Task;
-            }
-            else
-            {
-                await WriteAheadEventStorage.AppendAsync(context, block.QualifiedBlockId, logEvent.GetBytes())
-                    .FireAndForgetErrorsAsync(context);
-            }
+            await block.Events.Writer.WriteAsync(logEvent);
+            await logEvent.WriteAheadWriteCompleted.Task;
 
             return true;
         }
 
         public Task<BoolResult> ClearAsync(OperationContext context)
         {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                var r1 = WriteAheadEventStorage.GarbageCollectAsync(context, BlockReference.MaxValue);
-                var r2 = _writeBehindEventStorage.GarbageCollectAsync(context, CheckpointLogId.MaxValue);
-                await Task.WhenAll(r1, r2);
-                return (await r1) & (await r2);
-            });
-        }
-
-        private Task<BoolResult> CommitWriteBehindAsync(OperationContext context, LogBlock block)
-        {
-            var msg = $"{block.QualifiedBlockId} EventCount={block.EventCount} Length={block.Length}";
-            return context.PerformOperationAsync(
-                Tracer,
-                () =>
-                {
-                    var stream = block.PreparePersist();
-                    return _writeBehindEventStorage.AppendAsync(context, block.QualifiedBlockId, stream);
-                },
-                extraStartMessage: msg,
-                extraEndMessage: _ => msg);
+            return context.PerformOperationAsync(Tracer, () => WriteAheadEventStorage.GarbageCollectAsync(context, BlockReference.MaxValue));
         }
 
         private async Task WriteAheadCommitLoopAsync(OperationContext context, LogBlock block)
         {
+            // We need to yield here to ensure we don't block the caller. This is important because the caller is
+            // the same task that is responsible for triggering block changes.
             await Task.Yield();
-
-            using var cancelContext = context.WithCancellationToken(block.WriteAheadCommitCancellation.Token);
-            context = cancelContext;
 
             var sw = Stopwatch.StartNew();
 
             LogEvent writeAheadCommit = new LogEvent();
             var reader = block.Events.Reader;
-            while (await reader.WaitToReadAsync(context.Token))
+            while (await reader.WaitToReadAsync())
             {
                 block.PendingWriteAheadLogEvents.Clear();
                 writeAheadCommit.Reset();
 
                 while (reader.TryRead(out var logEvent))
                 {
-                    if (!logEvent.Completion.Task.IsCompleted)
-                    {
-                        block.PendingWriteAheadLogEvents.Add(logEvent);
-                        logEvent.CopyTo(writeAheadCommit.Stream);
-                    }
+                    Contract.Assert(!logEvent.WriteAheadWriteCompleted.Task.IsCompleted);
+                    block.PendingWriteAheadLogEvents.Add(logEvent);
+                    logEvent.CopyTo(writeAheadCommit.Stream);
                 }
 
                 if (block.PendingWriteAheadLogEvents.Count == 0)
@@ -316,26 +292,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     continue;
                 }
 
+                // The following call is what actually persists the block. It will only ever fail if we have retried
+                // enough that we're unwilling to retry further. If this fails, the error will be logged, and there's
+                // really nothing we can do here other than move on to the next block.
                 await WriteAheadEventStorage.AppendAsync(context, block.QualifiedBlockId, writeAheadCommit.GetBytes())
                     .FireAndForgetErrorsAsync(context);
 
                 foreach (var completion in block.PendingWriteAheadLogEvents)
                 {
-                    completion.Completion.TrySetResult(true);
+                    completion.WriteAheadWriteCompleted.TrySetResult(true);
                 }
 
-                var elapsedTimeSinceLastWrite = sw.Elapsed;
-                var waitTime = _configuration.MaxWriteAheadInterval - elapsedTimeSinceLastWrite;
-                if (waitTime > TimeSpan.Zero)
+                // The following code is meant to ensure that we don't write too often into storage.
+                try
                 {
-                    await Task.Delay(waitTime, context.Token);
+                    var elapsedTimeSinceLastWrite = sw.Elapsed;
+                    var waitTime = _configuration.MinWriteAheadInterval - elapsedTimeSinceLastWrite;
+                    if (waitTime > TimeSpan.Zero)
+                    {
+                        await Task.Delay(waitTime, context.Token);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Tracer.Error(context, exception, "Failure while waiting for next write ahead commit.");
                 }
 
                 sw.Restart();
             }
         }
 
-        private async Task<BoolResult> WriteBehindCommitLoopAsync(OperationContext context)
+        private async Task<BoolResult> CommitLoopAsync(OperationContext context)
         {
             while (!context.Token.IsCancellationRequested)
             {
@@ -346,19 +333,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     continue;
                 }
 
-                await WriteBehindCommitLoopIterationAsync(new OperationContext(context, CancellationToken.None))
+                await CommitLoopIterationAsync(context)
                     .FireAndForgetErrorsAsync(context);
             }
 
             return BoolResult.Success;
         }
 
-        public async Task<(bool committed, LogCursor cursor)> WriteBehindCommitLoopIterationAsync(
+        /// <summary>
+        /// This method is responsible for ensuring data is persisted in the write ahead log. It gets called from two
+        /// places:
+        ///  1. <see cref="CommitLoopAsync"/>
+        ///  2. <see cref="CompleteOrChangeLogAsync"/>
+        ///
+        /// GCS will write events into a single log at any given time. Each log gets a log ID (a number). In order to
+        /// allow us to write atomically, events are written in blocks, which also get an ID (a number); and within a
+        /// block events are assigned a sequence number. <see cref="LogCursor"/> identifies a specific event as (log
+        /// ID, block ID, sequence number).
+        ///
+        /// 
+        /// </summary>
+        public async Task<(bool committed, LogCursor cursor)> CommitLoopIterationAsync(
             OperationContext context,
             CheckpointLogId? nextLogId = null,
             bool moveToNextLog = false)
         {
             Contract.Requires(!moveToNextLog || nextLogId == null);
+
+            // We don't want to allow cancellations to happen during a commit because it is a critical operation.
+            context = context.WithoutCancellationToken();
 
             using (await _writeBehindCommitLock.AcquireAsync())
             {
@@ -367,31 +370,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     nextLogId = block.QualifiedBlockId.LogId.Next();
                 }
+                
+                BlockReference nextBlockId = nextLogId?.FirstBlock() ?? _currentBlock.QualifiedBlockId.Next();
 
-                BlockReference nextBlockId = nextLogId != null
-                    ? (nextLogId.Value, 0)
-                    : (_currentBlock.QualifiedBlockId.LogId, _currentBlock.QualifiedBlockId.LogBlockId + 1);
-
-                if (nextBlockId.LogBlockId == 0)
-                {
-                    // Create the new empty log
-                    // We do this so we can distinguish case where there is no log from a crash before first block is written
-                    await _writeBehindEventStorage.AppendAsync(context, nextBlockId, _emptyStream)
-                        .FireAndForgetErrorsAsync(context);
-                }
-
+                // Ensure any errors that may have happened in the next block are logged into the current context
                 await _nextBlock.WriteAheadCommitCompletion
                     .FireAndForgetErrorsAsync(context);
 
+                // Create a new block and set it as active
                 using (_blockSwitchLock.AcquireWriteLock())
                 {
                     _nextBlock.Reset(nextBlockId);
-
-                    var tmp = _currentBlock;
-                    _currentBlock = _nextBlock;
-                    _nextBlock = tmp;
+                    (_currentBlock, _nextBlock) = (_nextBlock, _currentBlock);
+                    block.Events.Writer.Complete();
                 }
 
+                // Start the background task that ensures the new block commits
                 _currentBlock.WriteAheadCommitCompletion = WriteAheadCommitLoopAsync(context, _currentBlock)
                     .FireAndForgetErrorsAsync(context, operation: nameof(LogBlock.WriteAheadCommitCompletion));
 
@@ -399,15 +393,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 if (block.IsInitialized)
                 {
-                    var commitResult = await CommitWriteBehindAsync(context, block);
-                    block.WriteAheadCommitCancellation.Cancel();
-                    committed = commitResult.Succeeded;
+                    await block.WriteAheadCommitCompletion;
+                    committed = true;
                 }
 
                 return (committed, new LogCursor()
                 {
-                    LogId = block.QualifiedBlockId.LogId,
-                    LogBlockId = block.QualifiedBlockId.LogBlockId,
+                    Block = block.QualifiedBlockId,
                     SequenceNumber = block.EventCount
                 });
             }
@@ -420,13 +412,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    var (committed, cursor) = await WriteBehindCommitLoopIterationAsync(context, newLogId, moveToNextLog: moveToNextLog);
-
-                    // If we are not starting a new log and last block was successfully committed, we can seal the log
-                    if (newLogId == null && committed)
-                    {
-                        await _writeBehindEventStorage.SealAsync(context, cursor.LogId).FireAndForgetErrorsAsync(context);
-                    }
+                    var (_, cursor) = await CommitLoopIterationAsync(context, newLogId, moveToNextLog: moveToNextLog);
 
                     return Result.Success(cursor.LogId);
                 },
@@ -438,21 +424,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (_blockSwitchLock.AcquireReadLock())
             {
-                if (!_isLogging || !_currentBlock.IsInitialized)
+                block = _currentBlock;
+
+                if (!_active || !block.IsInitialized)
                 {
                     block = null;
                     return false;
                 }
 
-                block = _currentBlock;
-                _currentBlock.Add(logEvent);
-
-                logEvent.CancellationRegistration = _currentBlock.WriteAheadCommitCancellation.Token.Register(static (completion) =>
-                {
-                    ((TaskCompletionSource<bool>)completion).TrySetResult(false);
-                },
-                logEvent.Completion.CompletionSource);
-
+                block.Add(logEvent);
                 return true;
             }
         }
@@ -478,15 +458,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private class LogBlock
         {
-            public CancellationTokenSource WriteAheadCommitCancellation { get; private set; } = new CancellationTokenSource();
             public Task WriteAheadCommitCompletion { get; set; } = Task.CompletedTask;
             public List<LogEvent> PendingWriteAheadLogEvents { get; } = new List<LogEvent>();
 
-            public Channel<LogEvent> Events { get; } = Channel.CreateUnbounded<LogEvent>();
+            public Channel<LogEvent> Events { get; private set; } = Channel.CreateUnbounded<LogEvent>();
 
             private readonly ReaderWriterLockSlim _streamLock = new ReaderWriterLockSlim();
 
+            /// <summary>
+            /// This field will be false when the instance is created and true as soon as it's first reset.
+            /// </summary>
             public bool IsInitialized { get; private set; }
+
             public BlockReference QualifiedBlockId { get; private set; }
             private int _placeholderStartPosition;
             private int _eventsStartPosition;
@@ -520,23 +503,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
-            public MemoryStream PreparePersist()
-            {
-                var stream = new MemoryStream(_bytes, 0, _eventsStartPosition + Length);
-                var writer = new BinaryWriter(stream);
-                stream.Position = _placeholderStartPosition;
-
-                // Write block byte length over placeholder
-                writer.Write(Length);
-
-                // Write block piece count over placeholder
-                writer.Write(EventCount);
-
-                stream.Position = 0;
-
-                return stream;
-            }
-
             public void Reset(BlockReference qualifiedBlockId)
             {
                 IsInitialized = true;
@@ -544,10 +510,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Length = 0;
 
                 PendingWriteAheadLogEvents.Clear();
-                WriteAheadCommitCancellation = new CancellationTokenSource();
-
                 QualifiedBlockId = qualifiedBlockId;
-
+                Events = Channel.CreateUnbounded<LogEvent>();
                 var stream = new MemoryStream(_bytes);
                 var writer = new BinaryWriter(stream);
 
@@ -565,15 +529,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 writer.Write((int)0);
 
                 _eventsStartPosition = (int)stream.Position;
-            }
-
-            public static IEnumerable<ServiceRequestBase> ReadBlockEventsWithHeader(BuildXLReader reader, out int blockId)
-            {
-                blockId = reader.ReadInt32();
-                var blockByteLength = reader.ReadInt32();
-                var blockEventCount = reader.ReadInt32();
-
-                return ReadBlockEvents(reader, blockByteLength, blockEventCount);
             }
 
             public static IEnumerable<ServiceRequestBase> ReadBlockEvents(BuildXLReader reader, int blockEventByteLength, int? blockEventCount = null)
@@ -595,11 +550,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private class LogEvent
         {
-            public MemoryStream Stream { get; } = new MemoryStream();
+            public MemoryStream Stream { get; } = new();
 
-            public TaskSourceSlim<bool> Completion { get; set; } = TaskSourceSlim.Create<bool>();
-
-            public CancellationTokenRegistration? CancellationRegistration { get; set; }
+            public TaskSourceSlim<bool> WriteAheadWriteCompleted { get; private set; } = TaskSourceSlim.Create<bool>();
 
             public ReadOnlyMemory<byte> GetBytes()
             {
@@ -609,9 +562,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public void Reset()
             {
-                CancellationRegistration?.Dispose();
                 Stream.SetLength(0);
-                Completion = TaskSourceSlim.Create<bool>();
+                WriteAheadWriteCompleted = TaskSourceSlim.Create<bool>();
             }
 
             internal void CopyTo(MemoryStream stream)

@@ -133,6 +133,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             return new GlobalCacheServiceConfiguration()
             {
+                DisableWriteBehindLog = DistributedContentSettings.ContentMetadataDisableWriteBehindLog,
                 EnableBackgroundRestoreCheckpoint = DistributedContentSettings.GlobalCacheBackgroundRestore,
                 MaxOperationConcurrency = DistributedContentSettings.MetadataStoreMaxOperationConcurrency,
                 MaxOperationQueueLength = DistributedContentSettings.MetadataStoreMaxOperationQueueLength,
@@ -152,10 +153,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 },
                 EventStream = new ContentMetadataEventStreamConfiguration()
                 {
-                    BatchWriteAheadWrites = DistributedContentSettings.ContentMetadataBatchVolatileWrites,
                     ShutdownTimeout = DistributedContentSettings.ContentMetadataShutdownTimeout,
                     LogBlockRefreshInterval = DistributedContentSettings.ContentMetadataPersistInterval,
-                    MaxWriteAheadInterval = DistributedContentSettings.ContentMetadataMaxWriteAheadInterval
+                    MinWriteAheadInterval = DistributedContentSettings.ContentMetadataMaxWriteAheadInterval
                 },
                 Checkpoint = ContentLocationStoreConfiguration.Checkpoint with
                 {
@@ -292,17 +292,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 ContainerName = "volatileeventstorage"
             };
 
-            var volatileEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
+            var writeAheadEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
+            IContentMetadataEventStream eventStream;
+            if (configuration.DisableWriteBehindLog)
+            {
+                eventStream = new ContentMetadataEventStream(
+                    configuration.EventStream,
+                    writeAheadEventStorage);
+            }
+            else
+            {
+                var writeBehindEventStorage = new BlobWriteBehindEventStorage(configuration.PersistentEventStorage);
+
+                eventStream = new ContentMetadataEventStreamV0(
+                    configuration.EventStream,
+                    writeAheadEventStorage,
+                    writeBehindEventStorage);
+            }
 
             var checkpointManager = GlobalCacheCheckpointManager.Instance;
-
-            var persistentEventStorage = Arguments.Overrides.Override(new BlobWriteBehindEventStorage(configuration.PersistentEventStorage));
-
-            var eventStream = new ContentMetadataEventStream(
-                configuration.EventStream,
-                Arguments.Overrides.Override(volatileEventStorage),
-                persistentEventStorage);
-
             var service = new ResilientGlobalCacheService(
                 configuration,
                 checkpointManager,

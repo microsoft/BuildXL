@@ -13,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
     /// This interface represents a place where we store volatile logs for usage within the
-    /// <see cref="ContentMetadataEventStream"/>. 
+    /// <see cref="IContentMetadataEventStream"/>. 
     ///
     /// This is used as a fast, potentially volatile storage for the logs that are generated. The append to this log is
     /// performed inline with the operations, so if this is slow, then all operations are slow.

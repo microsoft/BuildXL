@@ -1,7 +1,6 @@
 ﻿// Copyright (C) Microsoft Corporation. All Rights Reserved.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -72,6 +72,19 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <nodoc />
         [DataMember]
         public TimeSpan RemotePutElisionDuration { get; set; } = TimeSpan.FromDays(1);
+
+        /// <summary>
+        /// Optionally, the temp directory to use when ingesting content.
+        /// When not specified, content is stream directly from the remote cache to the local cache.
+        ///   This mode can be advantageous when downloading from the remote cache occurs as a single stream.
+        ///   (e.g. RPC within CloudBuild)
+        /// When specified, content is placed to a temp file in this folder and then put into the local cache. 
+        ///   This should be on the same volume as the local CAS to potentially use hard links or CoW instead of full copies.
+        ///   This mode can be advantageous when downloading from the remote cache occurs in parallel streams. 
+        ///   (e.g. downloading large files from VSTS L3)
+        /// </summary>
+        [DataMember]
+        public string TempDir { get; set; } = null;
     }
 
     /// <summary>
@@ -83,6 +96,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(TwoLevelCacheSession));
 
+        private readonly DisposableDirectory _tempFolder;
         private readonly ICacheSession _localCacheSession;
         private readonly ICacheSession _remoteCacheSession;
         private readonly TwoLevelCacheConfiguration _config;
@@ -118,6 +132,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             _putElisionCache = _config.SkipRemotePutIfAlreadyExistsInLocal
                 ? new VolatileSet<ContentHash>(clock)
                 : null;
+
+            if (_config.TempDir != null)
+            {
+                _tempFolder = new DisposableDirectory(
+                    PassThroughFileSystem.Default,
+                    new AbsolutePath(_config.TempDir) / $"{nameof(TwoLevelCacheSession)}Temp");
+            }
         }
 
         /// <inheritdoc />
@@ -162,6 +183,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         {
             _remoteCacheSession.Dispose();
             _localCacheSession.Dispose();
+            _tempFolder?.Dispose();
         }
 
         /// <inheritdoc />
@@ -382,18 +404,51 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
         private async Task<ResultBase> IngestFileFromRemoteAsync(Context context, ContentHash contentHash, UrgencyHint urgencyHint, CancellationToken cts)
         {
-            OpenStreamResult openStreamResult = await _remoteCacheSession.OpenStreamAsync(context, contentHash, cts, urgencyHint);
-            if (!openStreamResult.Succeeded)
+            // see TwoLevelCacheConfiguration.TempDir for context on why there are two paths here.
+            if (_tempFolder is null)
             {
-                return openStreamResult;
-            }
+                OpenStreamResult openStreamResult = await _remoteCacheSession.OpenStreamAsync(context, contentHash, cts, urgencyHint);
+                if (!openStreamResult.Succeeded)
+                {
+                    return openStreamResult;
+                }
 
-            PutResult localPutResult = await _localCacheSession.PutStreamAsync(context, contentHash, openStreamResult.Stream, cts, urgencyHint);
-            if (!localPutResult)
+                PutResult localPutResult = await _localCacheSession.PutStreamAsync(context, contentHash, openStreamResult.Stream, cts, urgencyHint);
+                if (!localPutResult)
+                {
+                    return localPutResult;
+                }
+            }
+            else
             {
-                return localPutResult;
-            }
+                AbsolutePath tempFilePath = _tempFolder.CreateRandomFileName();
+                bool fileMoved = false;
 
+                try
+                {
+                    var placeFromRemoteResult = await _remoteCacheSession.PlaceFileAsync(context, contentHash, tempFilePath, FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists, FileRealizationMode.Move, cts);
+                    if (!placeFromRemoteResult.Succeeded)
+                    {
+                        return placeFromRemoteResult;
+                    }
+
+                    var putIntoLocalResult = await _localCacheSession.PutFileAsync(context, contentHash, tempFilePath, FileRealizationMode.Move, cts);
+                    if (!putIntoLocalResult.Succeeded)
+                    {
+                        return putIntoLocalResult;
+                    }
+
+                    fileMoved = true;
+                }
+                finally
+                {
+                    if (!fileMoved && File.Exists(tempFilePath.Path))
+                    {
+                        File.Delete(tempFilePath.Path);
+                    }
+                }
+            }
+            
             _putElisionCache?.Add(contentHash, _config.RemotePutElisionDuration);
 
             return BoolResult.Success;

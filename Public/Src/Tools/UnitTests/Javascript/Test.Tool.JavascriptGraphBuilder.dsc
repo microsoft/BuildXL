@@ -43,6 +43,10 @@ namespace Test.Tool.JavascriptGraphBuilder {
                         d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019`,
                         d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2019`,
                     ]),
+                ],
+                untrackedPaths: [
+                    ...addIfLazy(Context.isWindowsOS() && Environment.getDirectoryValue("CommonProgramFiles") !== undefined,
+                        () => [f`${Environment.getDirectoryValue("CommonProgramFiles")}/SSL/openssl.cnf`])
                 ]
             }
         }

@@ -2470,7 +2470,10 @@ namespace BuildXL.Scheduler
                 ExecutionSampler.LimitingResource limitingResource = ExecutionSampler.LimitingResource.Other;
                 if (m_performanceAggregator != null)
                 {
-                    limitingResource = ExecutionSampler.OnPerfSample(m_performanceAggregator, readyProcessPips: m_processStateCountersSnapshot[PipState.Ready], executinProcessPips: LocalWorker.RunningPipExecutorProcesses.Count, lastConcurrencyLimiter: m_chooseWorkerCpu.LastConcurrencyLimiter);
+                    limitingResource = ExecutionSampler.OnPerfSample(
+                        m_performanceAggregator,
+                        pendingProcessPips: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot.RunningCount - LocalWorker.RunningPipExecutorProcesses.Count,
+                        lastConcurrencyLimiter: m_chooseWorkerCpu.LastConcurrencyLimiter);
                 }
 
                 m_processStateCountersSnapshot.AggregateByPipTypes(m_pipStateCountersSnapshots, s_processPipTypesToLogStats);

@@ -36,10 +36,9 @@ namespace BuildXL.Scheduler
         /// Updates the limiting resource based on observed state
         /// </summary>
         /// <param name="aggregator">Performance Aggregator</param>
-        /// <param name="readyProcessPips">Process pips whose graph dependencies have been satisfied but are not currently executing</param>
-        /// <param name="executinProcessPips">Number of process pips that are currently executing</param>
+        /// <param name="pendingProcessPips">Process pips whose graph dependencies have been satisfied but are not currently executing</param>
         /// <param name="lastConcurrencyLimiter">The most recent limiting worker resource</param>
-        internal LimitingResource OnPerfSample(PerformanceCollector.Aggregator aggregator, long readyProcessPips, long executinProcessPips, WorkerResource? lastConcurrencyLimiter)
+        internal LimitingResource OnPerfSample(PerformanceCollector.Aggregator aggregator, long pendingProcessPips, WorkerResource? lastConcurrencyLimiter)
         {
             if (m_lastSnapshotUtc == DateTime.MinValue)
             {
@@ -48,7 +47,7 @@ namespace BuildXL.Scheduler
                 return LimitingResource.Other;
             }
 
-            LimitingResource limitingResource = DetermineLimitingResource(aggregator, readyProcessPips, executinProcessPips, lastConcurrencyLimiter);
+            LimitingResource limitingResource = DetermineLimitingResource(aggregator, pendingProcessPips, lastConcurrencyLimiter);
             UpdateAggregations(limitingResource);
 
             return limitingResource;
@@ -57,7 +56,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Determines what build execution is being limited by for the sample period
         /// </summary>
-        private LimitingResource DetermineLimitingResource(PerformanceCollector.Aggregator aggregator, long readyProcessPips, long executingProcessPips, WorkerResource? lastConcurrencyLimiter)
+        private LimitingResource DetermineLimitingResource(PerformanceCollector.Aggregator aggregator, long pendingProcessPips, WorkerResource? lastConcurrencyLimiter)
         {
             // (1) We first focus on the specific limiting resources such as not launching processes due to projected memory, user-specified semaphores.
 
@@ -115,7 +114,7 @@ namespace BuildXL.Scheduler
 
             // Then we look for low-ish available ready pips. This isn't zero because we are sampling and we might
             // just hit a sample where the queue wasn't completely drained. The number 3 isn't very scientific
-            if (readyProcessPips < 3)
+            if (pendingProcessPips < 3)
             {
                 return LimitingResource.GraphShape;
             }

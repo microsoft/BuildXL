@@ -36,30 +36,11 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             /// content has been obtained from GetContentHashList.
             /// </summary>
             public TimeSpan MetadataPinElisionDuration { get; init; } = TimeSpan.FromHours(1);
-
-            internal Configuration Sanitize()
-            {
-                return this with
-                {
-                    Universe = Coerce(Universe),
-                    Namespace = Coerce(Namespace),
-                };
-            }
-
-            private static string Coerce(string name)
-            {
-                name = name.ToLowerInvariant();
-                name = Regex.Replace(name, "[^a-z0-9]", "", RegexOptions.CultureInvariant);
-
-                return name;
-            }
         }
 
         /// <nodoc />
         public static ICache Create(Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
         {
-            configuration = configuration.Sanitize();
-
             BlobCacheContainerName.CheckValidUniverseAndNamespace(configuration.Universe, configuration.Namespace);
 
             var topology = new ShardedBlobCacheTopology(

@@ -31,6 +31,10 @@ namespace Tool.DropDaemon
         public const string CatalogFilename = "manifest.cat";
         /// <nodoc/>
         public const string DropCatalogFilePath = ManifestFileDestination + CatalogFilename;
+        /// <nodoc/>
+        public const string BcdeFileName = "bcde-output.json";
+        /// <nodoc/>
+        public const string DropBcdeFilePath = ManifestFileDestination + BcdeFileName;
 
         private const int ExecutableMaxRuntimeInMinute = 15;
         private const string CdfFileName = "manifest.cdf";

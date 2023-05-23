@@ -338,6 +338,14 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultEnableArtifactTracer,
         });
 
+        internal static readonly BoolOption UploadBcdeFileToDrop = RegisterConfigOption(new BoolOption("uploadBcdeFileToDrop")
+        {
+            ShortName = "ubcdef",
+            HelpText = "Upload BCDE file to Drop",
+            IsRequired = false,
+            DefaultValue = DropConfig.DefaultUploadBcdeFileToDrop,
+        });
+
         // ==============================================================================
         // 'addfile' and 'addartifacts' parameters
         // ==============================================================================
@@ -782,6 +790,16 @@ namespace Tool.DropDaemon
                 return buildManifestResult;
             }
 
+            if (dropConfig.UploadBcdeFileToDrop)
+            {
+                var bcdeUploadResult = await UploadBcdeFileAsync(dropConfig);
+                if (!bcdeUploadResult.Succeeded)
+                {
+                    logger.Error($"[FINALIZE ({dropConfig.Name})] Failure occurred during BCDE file upload: {bcdeUploadResult.Payload}");
+                    return bcdeUploadResult;
+                }
+            }
+
             return IpcResult.Success();
         }
 
@@ -800,6 +818,31 @@ namespace Tool.DropDaemon
 
             var bsiDropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), DropServiceConfig.BsiFileLocation, relativeDropPath: BuildManifestHelper.DropBsiPath);
             return await AddFileAsync(bsiDropItem);
+        }
+
+        /// <summary>
+        /// Uploads the bcde-output.json(Component detection output file) for the given drop.
+        /// Should be called only when DropConfig.UploadBcdeFileToDrop is true.
+        /// </summary>
+        private async Task<IIpcResult> UploadBcdeFileAsync(DropConfig dropConfig)
+        {
+            Contract.Requires(dropConfig.UploadBcdeFileToDrop, "UploadBcdeFileToDrop API called even though this feature is disabled in DropConfig");
+
+            // Read Path for bcde output from environment, this should already be set by Cloudbuild
+            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
+
+            if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
+            {
+                // This should only happen if CG didn't run before the build.
+                return new IpcResult(IpcResultStatus.ExecutionError, "UploadBcdeFileToDrop parameter is not set. This indicates that component detection did not run before the build.");
+            }
+            else if (!System.IO.File.Exists(bcdeOutputJsonPath))
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, $"Component detection output file not found at path: '{bcdeOutputJsonPath}'");
+            }
+
+            var bcdeDropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), bcdeOutputJsonPath, relativeDropPath: BuildManifestHelper.DropBcdeFilePath);
+            return await AddFileAsync(bcdeDropItem);
         }
 
         /// <summary>
@@ -1431,7 +1474,8 @@ namespace Tool.DropDaemon
                 sbomPackageName: conf.Get(SbomPackageName),
                 sbomPackageVersion: conf.Get(SbomPackageVersion),
                 reportTelemetry: conf.Get(ReportIndidualDropTelemetry),
-                personalAccessTokenEnv: conf.Get(PersonalAccessTokenEnv));
+                personalAccessTokenEnv: conf.Get(PersonalAccessTokenEnv),
+                uploadBcdeFileToDrop: conf.Get(UploadBcdeFileToDrop));
         }
 
         private static T RegisterConfigOption<T>(T option) where T : Option => RegisterOption(ConfigOptions, option);

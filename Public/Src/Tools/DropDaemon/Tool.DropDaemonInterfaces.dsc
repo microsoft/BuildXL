@@ -125,6 +125,9 @@ export interface DropCreateArguments extends DropSettings, DaemonSettings, DropO
  
     /** Should the generated SBOMs be signed. */
     signBuildManifest?: boolean;
+
+    /** Should the BCDE file (component Detection output file) be uploaded to the drop. */
+    uploadBcdeFileToDrop?: boolean;
 }
 
 /**

@@ -78,6 +78,11 @@ namespace Tool.DropDaemon
         public bool SignBuildManifest { get; }
 
         /// <summary>
+        /// Upload bcde-output.json (component detection output file) to drop flag.
+        /// </summary>
+        public bool UploadBcdeFileToDrop { get; }
+
+        /// <summary>
         ///     Optional custom SBOM Package Name.
         /// </summary>
         public string SbomPackageName { get; }
@@ -131,6 +136,9 @@ namespace Tool.DropDaemon
         public static bool DefaultSignBuildManifest { get; } = true;
 
         /// <nodoc/>
+        public static bool DefaultUploadBcdeFileToDrop { get; } = false;
+
+        /// <nodoc/>
         public static bool DefaultEnableArtifactTracer { get; } = false;
         #endregion
 
@@ -155,7 +163,8 @@ namespace Tool.DropDaemon
             string sbomPackageName = null,
             string sbomPackageVersion = null,
             bool? reportTelemetry = null,
-            string personalAccessTokenEnv = null)
+            string personalAccessTokenEnv = null,
+            bool? uploadBcdeFileToDrop = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -173,6 +182,7 @@ namespace Tool.DropDaemon
             SbomPackageVersion = sbomPackageVersion;
             ReportTelemetry = reportTelemetry ?? false;
             PersonalAccessTokenEnv = personalAccessTokenEnv;
+            UploadBcdeFileToDrop = uploadBcdeFileToDrop ?? DefaultUploadBcdeFileToDrop;
         }
     }
 }

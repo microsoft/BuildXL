@@ -3,9 +3,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner.Vsts;
@@ -22,7 +25,7 @@ namespace BuildXL.AdoBuildRunner.Build
         private readonly IApi m_vstsApi;
 
         private readonly IBuildExecutor m_executor;
-
+        private readonly BuildContext m_buildContext;
         private readonly string[] m_buildArguments;
 
         private readonly ILogger m_logger;
@@ -33,24 +36,53 @@ namespace BuildXL.AdoBuildRunner.Build
         /// </summary>
         /// <param name="vstsApi">Interface to interact with VSTS API</param>
         /// <param name="executor">Interface to execute the build engine</param>
+        /// <param name="buildContext">The build context</param>
         /// <param name="args">Build CLI arguments</param>
         /// <param name="logger">Interface to log build info</param>
-        public BuildManager(IApi vstsApi, IBuildExecutor executor, string[] args, ILogger logger)
+        public BuildManager(IApi vstsApi, IBuildExecutor executor, BuildContext buildContext, string[] args, ILogger logger)
         {
             m_vstsApi = vstsApi;
             m_executor = executor;
+            m_buildContext = buildContext;
             m_logger = logger;
             m_buildArguments = args;
         }
 
         /// <summary>
+        /// Computes a related session id that will be consistent across the jobs in the parallel builds run by this manager
+        /// </summary>
+        private string ComputeRelatedSessionId()
+        {
+            string attemptNumber = Environment.GetEnvironmentVariable(Constants.JobAttemptVariableName)!;
+            string startTime = m_buildContext.StartTime.ToString("MMdd_HHmmss");
+            var r = GuidFromString($"{m_buildContext.TeamProjectId}-{m_buildContext.BuildId}-{startTime}-{attemptNumber}");
+            m_logger.Info($"Computed related session id for this build: {r}");
+            return r;
+        }
+
+#pragma warning disable CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
+        private static string GuidFromString(string value)
+        {
+            using var hash = SHA1.Create();
+            byte[] bytesToHash = Encoding.Unicode.GetBytes(value);
+            hash.TransformFinalBlock(bytesToHash, 0, bytesToHash.Length);
+            Contract.Assert(hash.Hash is not null);
+            // Guid takes a 16-byte array
+            byte[] low16 = new byte[16];
+            Array.Copy(hash.Hash, low16, 16);
+            return new Guid(low16).ToString("D");
+        }
+#pragma warning restore CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
+
+
+        /// <summary>
         /// Executes a build depending on orchestrator / worker context
         /// </summary>
         /// <returns>The exit code returned by the worker process</returns>
-        public async Task<int> BuildAsync(BuildContext buildContext)
+        public async Task<int> BuildAsync()
         {
             // Possibly extend context with additional info that can influence the build environment as needed
-            m_executor.PrepareBuildEnvironment(buildContext);
+            m_executor.PrepareBuildEnvironment(m_buildContext);
 
             m_logger.Info($@"Value of the job position in the phase: {m_vstsApi.JobPositionInPhase}");
             m_logger.Info($@"Value of the total jobs in the phase: {m_vstsApi.TotalJobsInPhase}");
@@ -60,7 +92,7 @@ namespace BuildXL.AdoBuildRunner.Build
             // Only one agent participating in the build, hence a singe machine build
             if (m_vstsApi.TotalJobsInPhase == 1)
             {
-                returnCode = m_executor.ExecuteSingleMachineBuild(buildContext, m_buildArguments);
+                returnCode = m_executor.ExecuteSingleMachineBuild(m_buildContext, m_buildArguments);
                 PublishRoleInEnvironment(isOrchestrator: true);
                 LogExitCode(returnCode);
             }
@@ -77,7 +109,7 @@ namespace BuildXL.AdoBuildRunner.Build
                     $"/dynamicBuildWorkerSlots:{numDynamicWorkers}"
                 };
 
-                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(buildContext, buildArguments.ToArray());
+                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(m_buildContext, ComputeRelatedSessionId(), buildArguments.ToArray());
 
                 await m_vstsApi.SetBuildResult(success: returnCode == 0);
                 PublishRoleInEnvironment(isOrchestrator: true);
@@ -86,7 +118,7 @@ namespace BuildXL.AdoBuildRunner.Build
             // Any agent spawned < total number of agents is a dedicated worker
             else
             {
-                m_executor.InitializeAsWorker(buildContext, m_buildArguments);
+                m_executor.InitializeAsWorker(m_buildContext, m_buildArguments);
 
                 await m_vstsApi.WaitForOrchestratorToBeReady();
                 var orchestratorInfo = (await m_vstsApi.GetOrchestratorAddressInformationAsync()).FirstOrDefault();
@@ -100,8 +132,13 @@ namespace BuildXL.AdoBuildRunner.Build
 
                 await m_vstsApi.SetMachineReadyToBuild(GetAgentHostName(), GetAgentIPAddress(false), GetAgentIPAddress(true));
 
-                buildContext.OrchestratorLocation = $"{orchestratorInfo[Constants.MachineIpV4Address]}:{Constants.MachineGrpcPort}";
-                returnCode = m_executor.ExecuteDistributedBuildAsWorker(buildContext, m_buildArguments);
+                var buildInfo = new BuildInfo
+                {
+                    OrchestratorLocation = $"{orchestratorInfo[Constants.MachineIpV4Address]}",
+                    RelatedSessionId = ComputeRelatedSessionId()
+                };
+
+                returnCode = m_executor.ExecuteDistributedBuildAsWorker(m_buildContext, buildInfo, m_buildArguments);
                 LogExitCode(returnCode);
                 PublishRoleInEnvironment(isOrchestrator: false);
 

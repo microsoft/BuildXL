@@ -28,9 +28,10 @@ namespace BuildXL.AdoBuildRunner.Build
         /// Execute a build with a given context and arguments as orchestrator
         /// </summary>
         /// <param name="buildContext">Information about the build setup</param>
+        /// <param name="relatedSessionId">The related session id for this build</param>
         /// <param name="buildArguments">Arguments to be executed when synchronization succeeds</param>
         /// <returns>Status code of the build argument execution</returns>
-        int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments);
+        int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string relatedSessionId, string[] buildArguments);
 
         /// <summary>
         /// Perfrorm any work before setting the machine "ready" to build
@@ -43,8 +44,9 @@ namespace BuildXL.AdoBuildRunner.Build
         ///  Execute a build with a given context and arguments as worker
         /// </summary>
         /// <param name="buildContext">The build context</param>
+        /// <param name="buildInfo">The distributed build session information</param>
         /// <param name="buildArguments">Arguments to be executed when synchronization succeeds</param>
         /// <returns>Status code of the build argument execution</returns>
-        int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments);
+        int ExecuteDistributedBuildAsWorker(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments);
     }
 }

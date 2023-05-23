@@ -88,9 +88,10 @@ namespace BuildXL.AdoBuildRunner.Vsts
         Task<IEnumerable<IDictionary<string, string>>> GetOrchestratorAddressInformationAsync();
 
         /// <summary>
-        /// Gets the build context from the ADO build run information 
+        /// Gets the build context from the ADO build run information
         /// </summary>
-        Task<BuildContext> GetBuildContextAsync();
+        Task<BuildContext> GetBuildContextAsync(string buildKey);
+
         /// <summary>
         /// Indicate that this machine is ready to build using a timeline record
         /// </summary>
@@ -108,6 +109,18 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// </summary>
         /// <returns></returns>
         Task WaitForOrchestratorToBeReady();
+
+        /// <summary>
+        /// Wait until the orchestrator is ready and return its address
+        /// </summary>
+        /// <returns></returns>
+        Task<BuildInfo> WaitForBuildInfo(BuildContext buildContext);
+       
+        /// <summary>
+        /// Publish the orchestrator address
+        /// </summary>
+        /// <returns></returns>
+        Task PublishBuildInfo(BuildContext buildContext, BuildInfo buildInfo);
 
         /// <summary>
         /// Wait until the orchestrator is finished, and indicate success or failure of the build

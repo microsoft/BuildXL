@@ -43,7 +43,7 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments)
+        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string relatedSessionId, string[] buildArguments)
         {
             // The ping executor does need the informations of all the workers
             m_vstsApi.WaitForOtherWorkersToBeReady().GetAwaiter().GetResult();
@@ -73,7 +73,7 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments)
+        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments)
         {
             Logger.Info($@"Launching ping & connectivity test as worker");
             WaitMessageFromOrchestrator().GetAwaiter().GetResult();

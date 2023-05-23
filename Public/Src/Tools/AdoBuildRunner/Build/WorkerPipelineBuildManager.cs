@@ -15,6 +15,7 @@ namespace BuildXL.AdoBuildRunner.Build
     public class WorkerPipelineBuildManager
     {
         private readonly IApi m_vstsApi;
+
         private readonly IBuildExecutor m_executor;
 
         private readonly string[] m_buildArguments;
@@ -26,9 +27,9 @@ namespace BuildXL.AdoBuildRunner.Build
         /// to orchestrate a distributed build
         /// </summary>
         /// <param name="vstsApi">Interface to interact with VSTS API</param>
-        /// <param name="buildContext">Build context</param>
         /// <param name="executor">Interface to execute the build engine</param>
         /// <param name="args">Build CLI arguments</param>
+        /// <param name="buildContext">Build context</param>
         /// <param name="logger">Interface to log build info</param>
         public WorkerPipelineBuildManager(IApi vstsApi, IBuildExecutor executor, BuildContext buildContext, string[] args, ILogger logger)
         {
@@ -43,7 +44,7 @@ namespace BuildXL.AdoBuildRunner.Build
         /// Executes a build depending on orchestrator / worker context
         /// </summary>
         /// <returns>The exit code returned by the worker process</returns>
-        public Task<int> BuildAsync(bool isOrchestrator)
+        public async Task<int> BuildAsync(bool isOrchestrator)
         {
             // Possibly extend context with additional info that can influence the build environment as needed
             m_executor.PrepareBuildEnvironment(m_buildContext);
@@ -52,18 +53,20 @@ namespace BuildXL.AdoBuildRunner.Build
 
             if (isOrchestrator)
             {
-                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(m_buildContext, m_buildArguments);
-                // await m_vstsApi.SetBuildResult(success: returnCode == 0); -- TODO: Maybe workers want to query this
-                LogExitCode(returnCode);
+                // The orchestrator creates the build info and publishes it to the build properties
+                var buildInfo = new BuildInfo { RelatedSessionId = Guid.NewGuid().ToString("D"), OrchestratorLocation = m_buildContext.AgentMachineName  };
+                await m_vstsApi.PublishBuildInfo(m_buildContext, buildInfo);
+                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(m_buildContext, buildInfo.RelatedSessionId, m_buildArguments);
             }
             else
             {
-                m_executor.InitializeAsWorker(m_buildContext, m_buildArguments);
-                returnCode = m_executor.ExecuteDistributedBuildAsWorker(m_buildContext, m_buildArguments);
-                LogExitCode(returnCode);
+                // Get the build info from the orchestrator build
+                var buildInfo = await m_vstsApi.WaitForBuildInfo(m_buildContext);
+                returnCode = m_executor.ExecuteDistributedBuildAsWorker(m_buildContext, buildInfo, m_buildArguments);
             }
 
-            return Task.FromResult(returnCode);
+            LogExitCode(returnCode);
+            return returnCode;
         }
 
         private void LogExitCode(int returnCode)

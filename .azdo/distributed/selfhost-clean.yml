@@ -80,7 +80,8 @@ jobs:
     env:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
-
+      AdoBuildRunnerInvocationKey: SelfhostClean
+  
   - ${{ if eq(parameters.Role, 'Orchestrator') }}:
     - powershell: |
         $bxlWithRemotingLogDir = "$(BuildXL.LogsDirectory)"

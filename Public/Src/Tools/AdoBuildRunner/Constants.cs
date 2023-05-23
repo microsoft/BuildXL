@@ -64,6 +64,16 @@ namespace BuildXL.AdoBuildRunner
         public const string TotalJobsInPhaseVarName = "SYSTEM_TOTALJOBSINPHASE";
 
         /// <summary>
+        /// Name of the environment variable that contains the job id (an identifier for a job unique within a pipeline)
+        /// </summary>
+        public const string JobIdVariableName = "SYSTEM_JOBID";
+
+        /// <summary>
+        /// Name of the environment variable that contains the name of the job (the identifier used to express dependencies, different than the display name)
+        /// </summary>
+        public const string JobNameVariableName = "SYSTEM_JOBNAME";
+
+        /// <summary>
         /// Name of the variable of the id of the timeline of the build
         /// </summary>
         public const string TimelineIdVarName = "SYSTEM_TIMELINEID";
@@ -77,6 +87,11 @@ namespace BuildXL.AdoBuildRunner
         /// Name of the variable of the Url of the build repository
         /// </summary>
         public const string RepositoryUrlVariableName = "BUILD_REPOSITORY_URI";
+
+        /// <summary>
+        /// Name of the variable of the Url of the ADO collection (e.g. 
+        /// </summary>
+        public const string CollectionUrlVariableName = "SYSTEM_COLLECTIONURI";
 
         /// <summary>
         /// Name of the variable of the current task's display name
@@ -153,13 +168,7 @@ namespace BuildXL.AdoBuildRunner
         public const string BuildRoleOrchestrator = "BuildXLOrchestrator";
 
         /// <nodoc />
-        public const string RelatedSessionIdParameter = "BuildXLRelatedSessionId";
-
-        /// <nodoc />
         public const string TriggeringAdoBuildIdParameter = "BuildXLTriggeringAdoBuildId";
-
-        /// <nodoc />
-        public const string OrchestratorLocationParameter = "BuildXLOrchestratorLocation";
 
         /// <nodoc />
         public const string BuildRoleWorker = "BuildXLWorker";
@@ -194,6 +203,11 @@ namespace BuildXL.AdoBuildRunner
         /// Should be either "Orchestrator" or "Worker"
         /// </summary>
         public const string AdoBuildRunnerPipelineRole = "AdoBuildRunnerWorkerPipelineRole";
+
+        /// <summary>
+        /// Disambiguates builds that might run as part of the same pipeline
+        /// </summary>
+        public const string AdoBuildRunnerInvocationKey = "AdoBuildRunnerInvocationKey";
 
         /// <summary>
         /// The time the agent waits before re-checking if the other agents are ready

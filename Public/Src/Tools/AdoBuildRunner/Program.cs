@@ -57,16 +57,16 @@ namespace BuildXL.AdoBuildRunner
             {
                 var api = new Api(logger);
 
-                var buildContext = await api.GetBuildContextAsync();
 
                 IBuildExecutor executor;
                 if (args[0] == "ping")
                 {
                     // ping mode - for debugging purposes
+                    var buildContext = await api.GetBuildContextAsync("ping");
                     logger.Info("Performing connectivity test");
                     executor = new PingExecutor(logger, api);
-                    var buildManager = new BuildManager(api, executor, args, logger);
-                    return await buildManager.BuildAsync(buildContext);
+                    var buildManager = new BuildManager(api, executor, buildContext, args, logger);
+                    return await buildManager.BuildAsync();
                 }
                 else if (args[0] == "launchworkers")
                 {
@@ -75,26 +75,28 @@ namespace BuildXL.AdoBuildRunner
                         throw new CoordinationException("launchworkers mode's first argument must be an integer representing the worker pipeline id");
                     }
 
-                    var wq = new WorkerQueuer(buildContext, logger, api);
+                    var wq = new WorkerQueuer(logger, api);
                     await wq.QueueWorkerPipelineAsync(pipelineId, args.Skip(2).ToArray());
                     return 0;
                 }
                 else
                 {
                     logger.Info($"Trying to coordinate build for command: {string.Join(" ", args)}");
-                    
+
                     // Carry out the build.
                     // For now, we explicitly mark the role with an environment
                     // variable. When we discontinue the "non-worker-pipeline" approach, we can
                     // infer the role from the parameters, but for now there is no easy way
                     // to distinguish runs using the "worker-pipeline" model from ones who don't
                     var role = Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerPipelineRole);
+                    
                     executor = new BuildExecutor(logger);
 
                     if (string.IsNullOrEmpty(role))
                     {
-                        var buildManager = new BuildManager(api, executor, args, logger);
-                        return await buildManager.BuildAsync(buildContext);
+                        var buildContext = await api.GetBuildContextAsync("ParallelBuild");
+                        var buildManager = new BuildManager(api, executor, buildContext, args, logger);
+                        return await buildManager.BuildAsync();
                     }
                     else 
                     {
@@ -105,6 +107,19 @@ namespace BuildXL.AdoBuildRunner
                             throw new CoordinationException($"{Constants.AdoBuildRunnerPipelineRole} must be 'Worker' or 'Orchestrator'");
                         }
 
+                        // A build key has to be specified to disambiguate between multiple builds
+                        // running as part of the same pipeline. This value is used to communicate
+                        // the build information (orchestrator location, session id) to the workers. 
+                        var invocationKey = Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerInvocationKey);
+
+                        if (string.IsNullOrEmpty(invocationKey))
+                        {
+                            throw new CoordinationException($"The environment variable {Constants.AdoBuildRunnerInvocationKey} must be set (to a value that is unique within a particular pipeline run): " +
+                                $"it is used to disambiguate between multiple builds running as part of the same pipeline (e.g.: debug, ship, test...) " +
+                                $"and to communicate the build information to the worker pipeline");
+                        }
+
+                        var buildContext = await api.GetBuildContextAsync(invocationKey);
                         var buildManager = new WorkerPipelineBuildManager(api, executor, buildContext, args, logger);
                         return await buildManager.BuildAsync(isOrchestrator);
                     }

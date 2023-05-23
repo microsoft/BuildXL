@@ -53,7 +53,8 @@ namespace BuildXL.AdoBuildRunner.Vsts
     public class AdoLink
     {
         /// <nodoc />
-        [DataMember]
+        [JsonPropertyName("href")]
+        [DataMember(Name = "href")]
         public string Href { get; set; }
     }
 
@@ -62,16 +63,14 @@ namespace BuildXL.AdoBuildRunner.Vsts
     public class AdoLinks
     {
         /// <nodoc />
-        [DataMember]
+        [JsonPropertyName("self")]
+        [DataMember(Name = "self")]
         public AdoLink Self { get; set; }
 
         /// <nodoc />
-        [DataMember]
+        [JsonPropertyName("web")]
+        [DataMember(Name = "web")]
         public AdoLink Web { get; set; }
-
-        /// <nodoc />
-        [DataMember]
-        public AdoLink Timeline { get; set; } 
     }
 
     /// <nodoc />
@@ -81,7 +80,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <nodoc />
         [JsonPropertyName("_links")]
         [DataMember(Name = "_links")]
-        public AdoLinks Links;
+        public AdoLinks Links { get; set; }
 
         /// <nodoc />
         [JsonPropertyName("triggerInfo")]

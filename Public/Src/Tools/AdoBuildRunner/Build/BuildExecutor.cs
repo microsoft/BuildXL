@@ -95,7 +95,7 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string[] buildArguments)
+        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string relatedSessionId, string[] buildArguments)
         {
             Logger.Info($@"Launching distributed build as orchestrator");
 
@@ -103,13 +103,13 @@ namespace BuildXL.AdoBuildRunner.Build
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
                 $" /distributedBuildRole:master" +
                 $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
-                $" /relatedActivityId:{buildContext.RelatedSessionId}",
+                $" /relatedActivityId:{relatedSessionId}",
                 buildContext.SourcesDirectory
             );
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, string[] buildArguments)
+        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments)
         {
             Logger.Info($@"Launching distributed build as worker");
 
@@ -118,8 +118,8 @@ namespace BuildXL.AdoBuildRunner.Build
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
                 $" /distributedBuildRole:worker" +
                 $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
-                $" /distributedBuildOrchestratorLocation:{buildContext.OrchestratorLocation}" +
-                $" /relatedActivityId:{buildContext.RelatedSessionId}",
+                $" /distributedBuildOrchestratorLocation:{buildInfo.OrchestratorLocation}:{Constants.MachineGrpcPort}" +
+                $" /relatedActivityId:{buildInfo.RelatedSessionId}",
                 buildContext.SourcesDirectory
             );
         }

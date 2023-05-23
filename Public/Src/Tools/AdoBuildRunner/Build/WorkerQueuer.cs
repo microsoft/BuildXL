@@ -20,14 +20,12 @@ namespace BuildXL.AdoBuildRunner.Build
     public class WorkerQueuer
     {
         private readonly IApi m_api;
-        private readonly BuildContext m_buildContext;
         private readonly ILogger m_logger;
 
         /// <nodoc />
-        public WorkerQueuer(BuildContext context, ILogger logger, IApi api)
+        public WorkerQueuer(ILogger logger, IApi api)
         {
             m_api = api;
-            m_buildContext = context;
             m_logger = logger;
         }
 
@@ -55,13 +53,9 @@ namespace BuildXL.AdoBuildRunner.Build
                 }
             }
 
-            var ip = BuildManager.GetAgentIPAddress(ipv6: false);
-
             // Include information for the worker pipeline in the trigger info
             var triggerInfo = new Dictionary<string, string>()
             {
-                [Constants.OrchestratorLocationParameter] = $"{ip}:{Constants.MachineGrpcPort}",
-                [Constants.RelatedSessionIdParameter] = m_buildContext.RelatedSessionId,
                 [Constants.TriggeringAdoBuildIdParameter] = m_api.BuildId,
             };
 
@@ -71,7 +65,7 @@ namespace BuildXL.AdoBuildRunner.Build
             return m_api.QueueBuildAsync(pipelineId, sourceBranch, sourceVersion, queueTimeVars, templateParams, triggerInfo);
         }
 
-        private bool TryExtractKeyValuePair(string optName, string arg, Dictionary<string, string> targetDict)
+        private static bool TryExtractKeyValuePair(string optName, string arg, Dictionary<string, string> targetDict)
         {
             var trimmed = arg.Trim();
             if (trimmed.StartsWith(optName))

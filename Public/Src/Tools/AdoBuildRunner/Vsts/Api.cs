@@ -3,16 +3,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner.Build;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Common;
+using Microsoft.VisualStudio.Services.WebApi;
 using TimelineRecord = Microsoft.TeamFoundation.DistributedTask.WebApi.TimelineRecord;
 
 #nullable enable
@@ -57,7 +56,13 @@ namespace BuildXL.AdoBuildRunner.Vsts
         public int JobPositionInPhase { get; }
 
         /// <nodoc />
+        public string JobId { get; }
+
+        /// <nodoc />
         public string AgentName { get; }
+        
+        /// <nodoc />
+        public string AgentMachineName { get; }
 
         /// <nodoc />
         public string SourcesDirectory { get; }
@@ -77,7 +82,20 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <nodoc />
         public string RepositoryUrl { get; }
 
-        private VstsHttpRelay m_http;
+        /// <nodoc />
+        public string CollectionUrl { get; }
+
+        /// <summary>
+        /// We use bare HTTP for some methods that do not have a library interface
+        /// </summary>
+        private readonly VstsHttpRelay m_http;
+
+        /// <summary>
+        /// Generate a build URL from a build id
+        /// </summary>
+        /// <param name="buildId"></param>
+        /// <returns></returns>
+        private string GetBuildLinkFromId(int buildId) => $"{CollectionUrl}/{TeamProject}/_build/results?buildid={buildId}";
 
         /// <nodoc />
         public Api(ILogger logger)
@@ -89,11 +107,14 @@ namespace BuildXL.AdoBuildRunner.Vsts
             ServerUri = Environment.GetEnvironmentVariable(Constants.ServerUriVarName)!;
             AccessToken = Environment.GetEnvironmentVariable(Constants.AccessTokenVarName)!;
             AgentName = Environment.GetEnvironmentVariable(Constants.AgentNameVarName)!;
+            AgentMachineName = Environment.GetEnvironmentVariable(Constants.AgentMachineNameVarName)!;
             SourcesDirectory = Environment.GetEnvironmentVariable(Constants.SourcesDirectoryVarName)!;
             TeamProjectId = Environment.GetEnvironmentVariable(Constants.TeamProjectIdVarName)!;
             TimelineId = Environment.GetEnvironmentVariable(Constants.TimelineIdVarName)!;
+            JobId = Environment.GetEnvironmentVariable(Constants.JobIdVariableName)!;
             PlanId = Environment.GetEnvironmentVariable(Constants.PlanIdVarName)!;
             RepositoryUrl = Environment.GetEnvironmentVariable(Constants.RepositoryUrlVariableName)!;
+            CollectionUrl = Environment.GetEnvironmentVariable(Constants.CollectionUrlVariableName)!;
 
             m_http = new VstsHttpRelay(AccessToken, logger);
 
@@ -173,6 +194,12 @@ namespace BuildXL.AdoBuildRunner.Vsts
             return GetAddressInformationAsync(AgentType.Orchestrator);
         }
 
+        private Task<PropertiesCollection> GetBuildProperties(int buildId)
+        {
+            // Get properties for this build if a build id is not specified
+            return m_buildClient.GetBuildPropertiesAsync(new Guid(TeamProjectId), buildId);
+        }
+
         private async Task<List<TimelineRecord>> GetTimelineRecords()
         {
             var currentTask = Environment.GetEnvironmentVariable(Constants.TaskDisplayNameVariableName);
@@ -186,34 +213,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
             return records;
         }
 
-
-        private async Task<string> ComputeRelatedSessionIdAsync()
-        {
-            // If we don't have an externally specified related session id, we calculate it based on this run
-            // This will be the case on orchestrator runs, that will set the parameter for the workers:
-            // it is here that the value for this parameter will be computed.
-            string attemptNumber = Environment.GetEnvironmentVariable(Constants.JobAttemptVariableName)!;
-            string startTime = (await GetBuildStartTimeAsync()).ToString("MMdd_HHmmss");
-            var r = GuidFromString($"{TeamProjectId}-{BuildId}-{startTime}-{attemptNumber}");
-            m_logger.Info($"Computed related session id for this build: {r}");
-            return r;
-        }
-
-#pragma warning disable CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
-        private static string GuidFromString(string value)
-        {
-            using var hash = SHA1.Create();
-            byte[] bytesToHash = Encoding.Unicode.GetBytes(value);
-            hash.TransformFinalBlock(bytesToHash, 0, bytesToHash.Length);
-            Contract.Assert(hash.Hash is not null);
-            // Guid takes a 16-byte array
-            byte[] low16 = new byte[16];
-            Array.Copy(hash.Hash, low16, 16);
-            return new Guid(low16).ToString("D");
-        }
-#pragma warning restore CA5350 // GuidFromString uses a weak cryptographic algorithm SHA1.
-
-
         /// <inherit />
         private async Task<DateTime> GetBuildStartTimeAsync()
         {
@@ -224,6 +223,104 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
             var build = await m_buildClient.GetBuildAsync(new Guid(TeamProjectId), buildId);
             return build.StartTime.GetValueOrDefault();
+        }
+
+        private Task AddBuildProperty(int buildId, string property, string value)
+        {
+            // UpdateBuildProperties is ultimately an HTTP PATCH: the new properties specified will be added to the existing ones
+            // in an atomic fashion. So we don't have to worry about multiple builds concurrently calling UpdateBuildPropertiesAsync
+            // as long as the keys don't clash.
+            PropertiesCollection patch = new()
+            {
+                { property, value }
+            };
+
+            return m_buildClient.UpdateBuildPropertiesAsync(patch, new Guid(TeamProjectId), buildId);
+        }
+
+        /// <inherit />
+        public async Task PublishBuildInfo(BuildContext buildContext, BuildInfo buildInfo)
+        {
+            // Check that the build identifier was not used before - this is to catch user specification errors 
+            // where some pipeline uses the same identifier for two different BuildXL invocations.
+            // Note that this check is racing against a concurrent update, but this doesn't matter because
+            // we expect to catch it most of times, and that's all we need for the error to be surfaced and fixed.
+            var buildId = int.Parse(BuildId);
+            var properties = await GetBuildProperties(buildId);
+            if (properties.ContainsKey(buildContext.InvocationKey))
+            {
+                LogAndThrow($"A build with identifier '{buildContext.InvocationKey}' is already running in this pipeline. " +
+                    $"Identifiers (set through the environment variable '{Constants.AdoBuildRunnerInvocationKey}') should be unique" +
+                    $" for invocations within the same ADO Build.");
+            }
+
+            await AddBuildProperty(buildId, buildContext.InvocationKey, buildInfo.Serialize());
+        }
+
+        /// <summary>
+        /// With knowledge of the build id running the orchestrator for this build, we perform two verifications
+        /// to try to surface any configuration errors. 
+        /// 
+        /// (1) A sanity check that the branch and commit for this run are consistent with the orchestrator run.
+        ///     This is to ensure a minimum of consistency in the sources for all the workers: of course, there are
+        ///     other ways in which the different pipelines might end up with different sources before launch time,
+        ///     but we should verify this bare minimum 
+        /// 
+        /// (2) If multiple workers query the same build with the same invocation key, we want to make sure they are all
+        ///     coming from the same job. This is to prevent user errors where different worker pipelines are using the
+        ///     same invocation key and are triggered by the same orchestrator pipeline (this may happen, for example,
+        ///     if there are two different builds happening in the same pipeline).
+        /// </summary>
+        /// <remarks>
+        /// The second check is racy: it is technically possible that multiple concurrent agents query the build properties 
+        /// at the same time, not notice the other one, and then 'last-one-wins' updating the properties.
+        /// However, it is enough for catching this specification error that this is just unlikely (which it is) and not impossible.
+        /// </remarks>
+        private async Task VerifyWorkerCorrectness(BuildContext buildContext, int orchestratorBuildId)
+        {
+            var orchestratorBuild = await m_buildClient.GetBuildAsync(TeamProject, orchestratorBuildId);
+            
+            // (1) Source branch / version should match
+            var localSourceBranch = Environment.GetEnvironmentVariable(Constants.SourceBranchVariableName);
+            var localSourceVersion = Environment.GetEnvironmentVariable(Constants.SourceVersionVariableName);
+            if (orchestratorBuild.SourceBranch != localSourceBranch || orchestratorBuild.SourceVersion != localSourceVersion)
+            {
+                LogAndThrow($"Version control mismatch between the orchestrator build. Ensure the worker pipeline is triggered with the same sources as the orchestrator pipeline." + Environment.NewLine
+                            + $"This build: SourceBranch='{localSourceBranch}', SourceVersion='{localSourceVersion}'" + Environment.NewLine
+                            + $"Orchestrator build (id={orchestratorBuildId}): SourceBranch='{orchestratorBuild.SourceBranch}', SourceVersion='{orchestratorBuild.SourceVersion}'");
+            }
+
+            // (2) One-to-one correspondence between a jobs in a worker pipeline, and an orchestrator
+            if (JobPositionInPhase != 1)
+            {
+                // Only do this once per 'parallel group', i.e., only for the first agent in a parallel strategy context
+                // (this means only one worker per distributed build). This is because there is no value that we can
+                // reliably use that is unique to a job but shared amongst the parallel agents of the same 'job'.
+                // But because parallel agents running the same job are exact replicas of each other (modulo 'JobPositionInPhase')
+                // this is okay: the point of this verification is to surface any misconfiguration quickly by virtue of it
+                // failing 'most of the time', and as long as the first agent fails with the appropriate message (even though
+                // the other agent will continue), our intention is satisfied.
+                return;
+            }
+
+            var properties = await GetBuildProperties(orchestratorBuildId);
+            var workerInvocationSentinel = $"{buildContext.InvocationKey}__workerjobid";
+            if (properties.ContainsKey(workerInvocationSentinel))
+            {
+                var value = properties.GetValue(workerInvocationSentinel, string.Empty);
+                if (value != JobId)
+                {
+                    LogAndThrow($"All workers participating in the build '{buildContext.InvocationKey}' must originate from the same parallel job. This failure probably means that some pipeline specification is duplicating invocation keys");
+                }
+            }
+            else
+            {
+                m_logger?.Info($"No property found with the key {workerInvocationSentinel}");
+            }
+
+            // "Claim" this invocation key for this job by publishing the sentinel in the properties,
+            // so subsequent jobs that may be running in different will fail the above check
+            await AddBuildProperty(orchestratorBuildId, workerInvocationSentinel, "1");
         }
 
         /// <inherit />
@@ -324,6 +421,47 @@ namespace BuildXL.AdoBuildRunner.Vsts
             return WaitForAgentsToBeReady(AgentType.Orchestrator);
         }
 
+        /// <inherit />
+        public async Task<BuildInfo> WaitForBuildInfo(BuildContext buildContext)
+        {
+            var triggerInfo = await m_http.GetBuildTriggerInfoAsync();
+            if (triggerInfo == null)
+            {
+                LogAndThrow("TriggerInfo is required to query the BuildInfo");
+            }
+
+            int triggeringBuildId = 0;
+            if (!triggerInfo.TryGetValue(Constants.TriggeringAdoBuildIdParameter, out string? triggeringBuildIdString) || !int.TryParse(triggeringBuildIdString, out triggeringBuildId))
+            {
+                LogAndThrow($"A worker build needs the value {Constants.TriggeringAdoBuildIdParameter} in the trigger info to be set to the orchestrator's ADO build id to connect to the build. Found this value for: {triggeringBuildIdString}");
+            }
+
+            var elapsedTime = 0;
+
+            m_logger.Info($"Orchestrator build: {GetBuildLinkFromId(triggeringBuildId)}");
+
+            // At this point we can perform the sanity checks for the workers against the orchestrator
+            await VerifyWorkerCorrectness(buildContext, triggeringBuildId);
+
+            m_logger.Info($"Querying the build properties of build {triggeringBuildId} for the build information");
+            while (elapsedTime < m_maxWaitingTimeSeconds)
+            {
+                var properties = await GetBuildProperties(triggeringBuildId);
+                var maybeInfo = properties.GetValue<string?>(buildContext.InvocationKey, null);
+                if (maybeInfo != null)
+                {
+                    return BuildInfo.Deserialize(maybeInfo);
+                }
+
+                m_logger.Info($"Couldn't find the build info in the build properties: retrying in {Constants.PollRetryPeriodInSeconds} Seconds(s)...");
+                await Task.Delay(TimeSpan.FromSeconds(Constants.PollRetryPeriodInSeconds));
+                elapsedTime += Constants.PollRetryPeriodInSeconds;
+            }
+
+            LogAndThrow($"Waiting for orchestrator address failed after {m_maxWaitingTimeSeconds} seconds. Aborting...");
+            return null;
+        }
+
         private async Task WaitForAgentsToBeReady(AgentType type)
         {
             var otherAgentsAreReady = false;
@@ -375,6 +513,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             return m_http.QueuePipelineAsync(pipelineId, sourceBranch, sourceVersion, parameters, templateParameters, triggerInfo);
         }
 
+        [DoesNotReturn]
         private void LogAndThrow(string error)
         {
             CoordinationException.LogAndThrow(m_logger, error);
@@ -384,28 +523,19 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// Gets the build context from the parameters and environment of this 
         /// </summary>
         /// <returns></returns>
-        public async Task<BuildContext> GetBuildContextAsync()
+        public async Task<BuildContext> GetBuildContextAsync(string invocationId)
         {
-            var triggerInfo = await m_http.GetBuildTriggerInfoAsync();  
-            var relatedSessionId = triggerInfo.TryGetValue(Constants.RelatedSessionIdParameter, out var specifiedId) 
-                ? specifiedId : await ComputeRelatedSessionIdAsync();
-
             var buildContext = new BuildContext()
             {
-                RelatedSessionId = relatedSessionId,
+                InvocationKey = invocationId,
+                StartTime = await GetBuildStartTimeAsync(),
                 BuildId = BuildId,
+                AgentMachineName = AgentMachineName,
                 SourcesDirectory = SourcesDirectory,
                 RepositoryUrl = RepositoryUrl,
                 ServerUrl = ServerUri,
                 TeamProjectId = TeamProjectId,
             };
-
-            if (triggerInfo.ContainsKey(Constants.OrchestratorLocationParameter))
-            {
-                // This build was triggered by an orchestrator pipeline
-                buildContext.OrchestratorLocation = triggerInfo[Constants.OrchestratorLocationParameter];
-                buildContext.OrchestratorBuildId = triggerInfo[Constants.TriggeringAdoBuildIdParameter];
-            }
 
             return buildContext;
         }

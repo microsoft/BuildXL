@@ -8,6 +8,7 @@ using System;
 using AdoBuildRunner.Vsts;
 using System.Collections.Generic;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 #nullable enable
 
@@ -22,6 +23,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         private readonly ILogger m_logger;
         private HttpClient Client => (m_httpClient ??= GetClient());
         private HttpClient? m_httpClient;
+        private readonly static JsonSerializerOptions s_jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
 
         /// <nodoc />
         public static string GetVstsCollectionUri()
@@ -75,19 +77,18 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 var vstsUri = GetVstsCollectionUri();
 
                 var uri = $"{vstsUri}{GetProject()}/_apis/{Endpoint}?api-version=7.1-preview.7";
-                m_logger?.Info($"[QueuePipelineAsync] POST {uri}: {Environment.NewLine}{Newtonsoft.Json.JsonConvert.SerializeObject(payload)}");
+                m_logger?.Info($"[QueuePipelineAsync] Queuing build: {Environment.NewLine}{Newtonsoft.Json.JsonConvert.SerializeObject(payload)}");
 
-                var respo = await Client.PostAsJsonAsync(uri, payload);
-                var responseStr = await respo.Content.ReadAsStringAsync();
-
-                if (!respo.IsSuccessStatusCode)
+                var res = await Client.PostAsJsonAsync(uri, payload);
+                if (!res.IsSuccessStatusCode)
                 {
+                    var responseStr = await res.Content.ReadAsStringAsync();
                     throw new Exception($"QueuePipelineAsync failed: {responseStr}");
                 }
                 else
                 {
-                    m_logger?.Info("[QueuePipelineAsync] Response:");
-                    m_logger?.Info(responseStr);
+                    var build = await res.Content.ReadFromJsonAsync<BuildData>(s_jsonSerializerOptions);
+                    m_logger?.Info($"[QueuePipelineAsync] Queued build: {build?.Links.Web.Href}");
                 }
             }
             catch (Exception ex)
@@ -108,19 +109,16 @@ namespace BuildXL.AdoBuildRunner.Vsts
             try
             {
                 var vstsUri = GetVstsCollectionUri();
-
                 var uri = $"{vstsUri}{GetProject()}/_apis/{endpoint}?api-version=7.1-preview.7";
                 var res = await Client.GetAsync(uri);
 
-                var response = await res.Content.ReadAsStringAsync();
-
                 if (!res.IsSuccessStatusCode)
                 {
+                    var response = await res.Content.ReadAsStringAsync();
                     throw new Exception($"QueuePipelineAsync failed: {response}");
                 }
 
-
-                var buildParamsData = await res.Content.ReadFromJsonAsync<BuildData>();
+                var buildParamsData = await res.Content.ReadFromJsonAsync<BuildData>(s_jsonSerializerOptions);
                 return buildParamsData!.TriggerInfo ?? new Dictionary<string, string>();               
             }
             catch (Exception ex)

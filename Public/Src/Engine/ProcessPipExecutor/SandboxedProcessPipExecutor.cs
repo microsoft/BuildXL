@@ -3421,7 +3421,11 @@ namespace BuildXL.ProcessPipExecutor
                         else if (m_staleOutputsUnderSharedOpaqueDirectories != null
                             && m_staleOutputsUnderSharedOpaqueDirectories.TryGetValue(directoryOutput.Path, out var staleOutputs))
                         {
-                            foreach (var output in staleOutputs)
+                            // Delete stale shared opaque outputs but spare undeclared rewrites: these files were there before the pip started so they act as undeclared sources to the pip
+                            // We shouldn't delete sources under any circumstances. The undeclared source could have been modified by a previous attempt, so we could be not resetting the state of
+                            // the pip completely, but this is the same compromise we take for rewritten sources in general doing back to back builds. It also aligns with how we scrub shared opaque
+                            // in general (beyond this particular retry case)
+                            foreach (var output in staleOutputs.Where(fa => !fa.IsUndeclaredFileRewrite))
                             {
                                 // For external VM processes, if the output file cannot be deleted, we can retry it on the VM
                                 // Therefore, don't throw an exception yet.

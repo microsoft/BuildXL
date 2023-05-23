@@ -2367,6 +2367,63 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void RewrittenSourcesAreNoteCleanedOnRetryExitCode()
+        {
+            Configuration.Schedule.ProcessRetries = 1;
+
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            DirectoryArtifact sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+            FileArtifact sodOutput = CreateOutputFileArtifact(root: sharedOpaqueDir, prefix: "sod-file");
+            FileArtifact source = CreateSourceFile(root: sharedOpaqueDirPath, prefix: "source");
+            File.WriteAllText(source.Path.ToString(Context.PathTable), "0");
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // a dummy output so the engine does not complain about a pip with no outputs
+                Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt"))),
+                // if the sourcefile contains "0", create sodOutput. This operation fails if the source is absent.
+                Operation.WriteFileIfInputEqual(sodOutput, ToString(source.Path), "0"),
+                // Do a same-content rewrite, so the file keeps the same content but gets tagged as a rewrite (delete it first,
+                // since the WriteFile operation appends)
+                Operation.DeleteFile(source, doNotInfer: true),
+                Operation.WriteFile(source, content: "0", doNotInfer: true),
+                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, failExitCode: 42)
+            });
+            builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
+            builder.AddUntrackedFile(stateFile.Path);
+            builder.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            
+            // Allow for safe rewrites
+            builder.Options |= Process.Options.AllowUndeclaredSourceReads;
+            builder.RewritePolicy = RewritePolicy.DefaultSafe;
+
+            SchedulePipBuilder(builder);
+
+            var result = RunScheduler();
+
+            // That the operation succeeds means that the source file was not cleaned on retry, otherwise WriteFileIfInputEqual
+            // fails
+            result.AssertSuccess();
+            AssertVerboseEventLogged(LogEventId.PipWillBeRetriedDueToExitCode, 1);
+
+            /*
+             *  pip starts
+             *  source file contains "0" -> sodOutput is created
+             *  source file is rewritten with 0
+             *  pip exits with a retriable exit code
+             *
+             *  pip is retried 
+             *  previous outputs must be cleaned but the source file should be spared
+             *  source must contains "0" -> sodOutput is created
+             */
+            XAssert.IsTrue(File.Exists(ToString(source.Path)));
+            XAssert.IsTrue(File.Exists(ToString(sodOutput.Path)));
+        }
+
+        [Fact]
         public void TreatAPathAsBothFileAndDirectoryIsHandled()
         {
             // Creates a pip that writes and deletes a file and later creates a directory using the same path

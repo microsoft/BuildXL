@@ -1,52 +1,123 @@
 # Core concepts
-This document describes the core concepts with which BuildXL models and optimizes a build. This is meant to describe how BuildXL works at a high level.
 
-## Pips
-A pip (for Primitive Indivisible Process). The smallest unit of work tracked by BuildXL's dependency graph. Generally these are process invocations but may also include other primitives like `WriteFile` or `CopyFile` pips, [Service and IPC Pips](./Service-Pips.md). A pip can also represent coarser-grained operations: for example, in MSBuild and [JavaScript](Frontends/js-onboarding.md) projects a pip encapsulates a project-level call.
+BuildXL is a general-purpose build engine that supports correct and reliable cached and incremental builds, and
+single-machine as well as distributed builds in both Windows and Linux platforms. BuildXL has also been proven to
+scale to large codebases (e.g., Windows/Office repositories) where builds can consist of millions of processes with 
+terabytes of outputs. BuildXL relies on runtime file-access monitoring for correct caching and distribution.
 
-## Build phases:
-A BuildXL build consists of two core phases:
+## Pips and pip graph
 
-* **Evaluation**: 
-  In the evaluation phase, BuildXL build specifications are *evaluated* to produce a dependency graph. Build-time tools do not execute in this phase, but source code must be available to calculate fingerprints for the graph. This may also be referred to as "Graph Construction"
+The BuildXL engine takes a build graph (a directed acyclic dependency graph) as an input and executes
+each node in the graph according to the dependency order. The node in the build graph is called a *pip* (for Primitive 
+Indivisible Process), and thus the build graph itself is called a *pip graph*.
 
-* **Execution**:
-  In the execution phase, BuildXL schedules a dependency graph produced in the *evaluation* phase for execution. Build specifications have already been evaluated by the time this phase starts, and thus are unable to observe the concrete outputs of any build tools. While scheduling a graph, BuildXL may determine that some artifacts are already cached based on their evaluation-time fingerprints.
+In general, one can think of a pip as a process that BuildXL launches during the build. A pip consists of
+information for executing the process, i.e., executable, arguments, and working directory. A pip can also specify
+input/output files/directories, environment variables, paths/directories that file-access monitoring should ignore (also
+referred to as *untracked* directories/paths). In particular, when a pip *P*'s outputs are specified as another
+pip *Q*'s inputs, then there is a dependency edge in the pip graph from *Q* to *P*.
 
-The BuildXL command line supports the `/phase` parameter which controls which phases run. There are technically some more granular phases under the two listed above. By default all phases are run.
+A process pip can represent a simple compilation pip, like executing a compiler tool. A process pip can also represent
+a coarse-grained operation, like encapsulating a project-level call in MsBuild or JavaScript projects, or even
+a call to another build engine.
 
-## Build graph
-BuildXL represents a build's dependency information as a directed acyclic graph (DAG). Edges represent the flow of data from one build step to another. Each node in the graph represents a task (a pip) and produces one or more _artifacts_, files and directories.
+For efficient builds, besides process pips, BuildXL also has write-file and copy-file pips. A *write-file pip* is used
+to write a string content to a file, while a *copy-file pip* is used to copy a file to a specified output location. The
+execution of a write-file or a copy-file pip does not launch any process; BuildXL simply calls an API for writing 
+a file or for copying a file, respectively.
 
-The representation of tools and their dependencies as first-class artifacts is beneficial to reliability as well as the expressive power of specifications:
+BuildXL also has so-called service and IPC pips. A *service pip* represents a long running or background process.
+An *IPC pip* is used to talk to the service pip to perform some action. For example, to implement a drop functionality,
+BuildXL can use a service pip to represent a drop service, and for each relevant produced file, use an IPC pip to instruct
+the drop service to drop the file to the specified end point. Details on service and IPC pips can be found in
+[Service & IPC pips](./Service-Pips.md).
 
-* Changes to build tools / SDKs result in dependent code being rebuilt.
-* A checked-in or installed tool (a source artifact) can alternatively be produced from within the same build (as an output artifact). This same substitution principle also applies to compiling checked-in versus generated code.
+## Build phases
 
-## Deferred execution: Building the dependency graph
-Since the DScript specification language is purely-functional, specifications cannot observe the outputs of pips (including success or failure indication). Instead, evaluation of a specification produces a _dependency graph_ that may optionally be scheduled for execution later. Since some parts of the generated graph may already
-be up-to-date, the existence of a pip in the graph does not guarantee that it will be executed when the graph is scheduled. 
+A BuildXL build consists of 2 phases, as shown by the following figure:
 
-DScript specifications represent pips and their dependencies as function calls and explicit data-flow, e.g. ``var exe = link(objA, objB);``. In the mental model of specification authors, the incantation of these function calls should be seen as a declaration of *how* to build an artifact 'from scratch' (such as ``exe``), rather than as a synchronous execution of a program at that instant.
+![BuildXL Build](./BuildXLBuild.png)
 
-## Fingerprinting, caching, and incrementality
-From the perspective of a specification author, every software artifact built using BuildXL is built from scratch. In practice, BuildXL can substitute equivalent, cached results:
+### Graph construction phase
 
-* In the DScript language, a particular function will return the same value for a particular set of arguments.
-* In a dependency graph, an artifact should be identical (assuming deterministic tools) so long as none of its transitive dependencies change.
+The graph construction phase is responsible for constructing a pip graph. BuildXL supports various frontends. DScript
+frontend is the native build language for BuildXL. DScript is a TypeScript language describing dependencies (or data flow)
+between pips in the build. 
 
-Executing build tools such as compilers and linkers tends to be much more expensive than the evaluation of a build specification. As such, we will focus on BuildXL's approach to fingerprinting and caching artifacts from *process* pips.
+BuildXL understands MsBuild and JavaScript projects using MsBuild and JavaScript frontends, respectively. The MsBuild
+frontend calls MsBuild static graph API to create a MsBuild project graph, which in turn is converted into a pip graph where
+each of the pip represent a project-level call. Similarly, the JavaScript frontend calls a build graph adapter that
+understand various JavaScript orchestrators to create a project graph. Currently, the JavaScript frontend supports
+Rush, Yarn, and Lage orchestrators.
 
-When a process pip is executed, all declared input files to the process are available (since all dependencies must have finished executing) with known content hashes. First, BuildXL computes a _fingerprint_ for the process by hashing its static description (command-line, environment block, etc.) and input hashes (content hashes of declared inputs, such as source files). The fingerprint acts as a key to lookup a _cache descriptor_, which (if found) details the results some prior and equivalent execution - primarily, a cache descriptor records the hashes of prior outputs.
+BuildXL has frontends for CMake/Ninja Ninja specifications. The frontends run CMake/Ninja, and rely on a plugin to create a Ninja process graph that is then converted into a pip graph.
 
-If a cache descriptor is found, and all of its required output content is available, then the prior execution as described by the descriptor is reusable. This is a _cache hit_. [The actual two phase cache lookup algorithm](Advanced-Features/Two-Phase-Cache-Lookup.md) is slightly more complicated in practice, but at a high level this is how caching in BuildXL works.
+BuildXL has frontends that can handle using packages or downloading files during the build. Currently, BuildXL only supports
+using NuGet pacakages.
 
-## Sandboxing
-A cornerstone of BuildXL is reliable caching. This as achieved through an observation based sandbox. This allows BuildXL to verify that all of a pip's filesystem based dependencies are tracked during fingerprinting. Pips observed to consume files that are not declared as dependencies will not be eligible for caching and produce an error or warning depending on configuration.
+A build specification can use multiple frontends at the same time. For example, BuildXL's selfhost builds use DScript, NuGet,
+and download frontends at the same time.
 
-Sandboxing is limited to observation of the machine local filesystem. Among other things, registry access, communication between processes on the machine, and communication to other machines are not tracked by BuildXL. Build graphs containing processes that access these resources may not be correctly cached by BuildXL since those dependencies are not tracked.
+Note that during this phase BuildXL only constructs a pip graph, but does not execute any pip. Since the graph construction
+can be expensive, the constructed pip graph itself can be cached by observing files, directories, and environment variables
+used during the graph construction. 
 
-The sandbox implementation varies based on the platform. See the [Sandboxing](../Specs/Sandboxing.md) document for more details.
+Details on BuildXL frontends can be found in [Frontends](./Frontends.md).
+
+### Execution phase
+
+In this phase BuildXL executes each pip in the graph according to the dependency order. Particularly for each process pip,
+the scheduler checks if the pip has a cache hit, and if it does, then the pip's outputs are deployed from the cache.
+Otherwise, the pip will be executed in a *sandbox* that has a runtime file-access monitoring capability.
+After the execution, the pip's specification as well as the observations from the sandbox are used as a key (or
+fingerprint) for caching the pip's outputs.
+
+## Sandboxing / Runtime file-access monitoring
+
+BuildXL executes process pips in a sandbox that has a runtime file-access monitoring capability. This runtime monitoring
+produces an observation set that will be used as part of the cache key. The observations include file reads, (absent)
+file probes, and directory enumerations. This runtime monitoring allows BuildXL to verify that all dependencies are
+tracked. If, during its execution, a process pip is observed to consume files that are not declared as its dependencies,
+then BuildXL will issue a file-access violation error and make the pip not eligible for caching.
+
+For Windows builds, BuildXL implements the file-access monitoring using
+the [Detours](https://www.microsoft.com/en-us/research/project/detours/) technology.
+For Linux builds, BuildXL implements the file-access monitoring using a combination of
+[interpose](https://www.jayconrod.com/posts/23/tutorial-function-interposition-in-linux) and
+[ptrace](https://man7.org/linux/man-pages/man2/ptrace.2.html).
+
+Details on sandboxing and runtime monitoring can be found in [Sandboxing](../Specs/Sandboxing.md).
+
+## Caching
+
+After the execution, the pip's (static) specification as well as the observations from the sandbox are used as a key for
+caching the pip's outputs.
+
+![Sandbox and caching](SandboxCaching.png)
+
+BuildXL computes a fingerprint from the pip's specification, which includes the executable path, the arguments, the working
+directory, specified environment variables, etc. For files specified statically as inputs (or dependencies), BuildXL
+computes fingerprints based on their contents (**not** timestamp), and includes these fingerprints as part of the cache key.
+
+The observations resulting from the runtime monitoring are also used to compute the cache key. These observations
+include: file reads, (absent) file probes, and directory enumerations. For file reads, BuildXL uses the content
+fingerprint of the read file. For directory enumerations, BuildXL computes the directory membership fingerprint.
+Thus, if the read file changes, or if a file is added or removed from an enumerated directory, then in the next build,
+the pip will get a cache miss and will be executed.
+
+Details on how BuildXL performs caching can be found in
+[Two-Phase Cache Lookup](Advanced-Features/Two-Phase-Cache-Lookup.md).
+
+## Distributed builds
+
+BuildXL supports distributed builds in the CloudBuild (internal) and Azure DevOps platforms. In a distributed
+build, one machine runs BuildXL as the orchestrator, while other machines run BuildXL as workers. The orchestrator
+is responsible for constructing the pip graph, and for scheduling the executions of the pips. The workers receive
+instruction from the orchestrator to execute pips. 
+
+BuildXL relies on a remote L3 cache and/or a peer-to-peer cache for distributed builds. When a process pip executes
+on a worker, its outputs are pushed to the cache, so that the dependent pips, that need those outputs and run
+on different workers, can pull those outputs from the cache before their executions begin.
 
 ## Feedback
 See something missing you want added to this page? Contact the BuildXL team using one of the links below:</br>

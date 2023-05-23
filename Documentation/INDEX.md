@@ -11,7 +11,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 
 # Onboarding to BuildXL
 * [Frontends](Wiki/Frontends.md)
-* [Frontends - DScript](Wiki/DScript/Introduction.md)
+* [Frontends - DScript](Wiki/Working-With-DScript/Main.md)
 * [Frontends - Download](Wiki/Frontends/Download.md)
 * [Frontends - Javascript](Wiki/Frontends/js-onboarding.md)
 * [Demos](../Public/Src/Demos/Demos.md)
@@ -32,6 +32,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [DScript - Debugging](Wiki/DScript/Debugging.md)
 * [DScript - vs. Typescript](Wiki/DScript/DScript-vs-Typescript.md)
 * [DScript - Enumerations](Wiki/DScript/Enums-vs-typed-strings.md)
+* [DScript - Evaluation Semantics](Wiki/DScript/Evaluation-Semantics.md)
 * [DScript - Functions](Wiki/DScript/Functions.md)
 * [DScript - Globbling](Wiki/DScript/Globbing.md)
 * [DScript - Import and Export](Wiki/DScript/Import-export.md)

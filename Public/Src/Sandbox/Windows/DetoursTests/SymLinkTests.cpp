@@ -853,6 +853,26 @@ int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve()
     return 0;
 }
 
+int CallDeleteSymlinkUnderDirectorySymlinkWithFullSymlinkResolution()
+{
+    HANDLE hFile = CreateFileW(
+        L"D.lnk\\f.lnk",
+        GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_DELETE_ON_CLOSE,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+    return 0;
+}
+
 int CallOpenNonExistentFileThroughDirectorySymlink()
 {
     HANDLE hFile = CreateFileW(

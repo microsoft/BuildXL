@@ -8080,6 +8080,82 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallDeleteSymlinkUnderDirectorySymlinkWithFullSymlinkResolution()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var d = tempFiles.GetDirectory(pathTable, "D");
+
+                // Create file symlink D\f.lnk -> D\f.txt
+                var fTxt = tempFiles.GetFileName(pathTable, @"D\f.txt");
+                File.WriteAllText(fTxt.Expand(pathTable).ExpandedPath, string.Empty);
+                var fLnk = tempFiles.GetFileName(pathTable, @"D\f.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(fLnk.Expand(pathTable).ExpandedPath, "f.txt", isTargetFile: true));
+
+                // Create directory symlink D.lnk -> D
+                var dLnk = tempFiles.GetFileName(pathTable, @"D.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(dLnk.Expand(pathTable).ExpandedPath, "D", isTargetFile: false));
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDeleteSymlinkUnderDirectorySymlinkWithFullSymlinkResolution",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(
+                        new FileArtifact[]
+                        {
+                            FileArtifact.CreateSourceFile(dLnk)
+                        }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreNonCreateFileReparsePoints: false,
+                    ignoreFullReparsePointResolving: false);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    new[]
+                    {
+                        (dLnk, RequestedAccess.Read, FileAccessStatus.Allowed),  // Read D.lnk
+                        (fLnk, RequestedAccess.Write, FileAccessStatus.Denied),  // Write/Delete D\f.lnk
+                    },
+                    new[]
+                    {
+                        fTxt,                                                 // No reported access of D\f.txt
+                        tempFiles.GetFileName(pathTable, @"D.lnk\f.lnk")      // No reported access of D.lnk\f.lnk
+                    });
+
+                var fTxtExistence = FileUtilities.TryProbePathExistence(fTxt.Expand(pathTable).ExpandedPath, false);
+                XAssert.PossiblySucceeded(fTxtExistence);
+                XAssert.AreEqual(PathExistence.ExistsAsFile, fTxtExistence.Result);
+
+                var fLnkExistence = FileUtilities.TryProbePathExistence(fLnk.Expand(pathTable).ExpandedPath, false);
+                XAssert.PossiblySucceeded(fLnkExistence);
+                XAssert.AreEqual(PathExistence.Nonexistent, fLnkExistence.Result);
+            }
+        }
+
         /// <summary>
         /// Verfies that a trailing slash at the end of a directory specified in a MoveFile call
         /// does not cause the call to return name invalid.

@@ -491,7 +491,6 @@ Epilogue:
 /// </remarks>
 static bool ShouldResolveReparsePointsInPath(
     _In_     const CanonicalizedPath& path,
-    _In_     DWORD                    dwDesiredAccess,
     _In_     DWORD                    dwFlagsAndAttributes,
     _In_     const PolicyResult&      policyResult)
 {
@@ -508,22 +507,6 @@ static bool ShouldResolveReparsePointsInPath(
     // Untracked scopes never need full reparse point resolution
     if (policyResult.IndicateUntracked())
     {
-        return false;
-    }
-
-    // BuildXL can delete file by opening a handle using 'FILE_FLAG_DELETE_ON_CLOSE' attribute or 'DELETE' access (Posix delete).
-    // If we try to delete a symbolic link, it's important to not do full resolving as only the link
-    // itself should be deleted, not its targets.
-    bool reparsePointDeletion =
-        ((dwDesiredAccess & DELETE) != 0 || (dwFlagsAndAttributes & FILE_FLAG_DELETE_ON_CLOSE) != 0)
-        && FlagsAndAttributesContainReparsePointFlag(dwFlagsAndAttributes);
-
-    if (reparsePointDeletion)
-    {
-        // TODO: Deciding not to traverse symlink chain based on reparse point deletion is probably not correct
-        //       because the desired access can be set to read/write, which can be used to access the target.
-        // We pass 'true' for isDirectory because we don't know whether this pass is a directory or not, and !isDirectory is used to optimize the perf of this function only.
-        PathCache_Invalidate(path.GetPathStringWithoutTypePrefix(), true, policyResult);
         return false;
     }
 
@@ -1662,7 +1645,7 @@ static bool AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
 
     const CanonicalizedPath path = policyResult.GetCanonicalizedPath();
 
-    if (ShouldResolveReparsePointsInPath(path, opContext.DesiredAccess, opContext.FlagsAndAttributes, policyResult))
+    if (ShouldResolveReparsePointsInPath(path, opContext.FlagsAndAttributes, policyResult))
     {
         wstring fullyResolvedPath;
         bool accessResult = EnforceChainOfReparsePointAccesses(
@@ -1680,6 +1663,18 @@ static bool AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
             &fullyResolvedPath,
             false, // Never enforce access checks and reporting on the fully resolved path - let the caller decide through 'skipAdjustingContextAndPolicy' and subsuquent 'ReportFileAccess(...)' calls.
             preserveLastReparsePoint);
+
+        // Delete from the cache if it is reparse point deletion.
+        // Note that in the opContext all options and attributes passed from Nt/ZwCreateFile have been translated into those for CreateFileW.
+        bool reparsePointDeletion =
+            FlagsAndAttributesContainReparsePointFlag(opContext.FlagsAndAttributes)    // File/directory is opened with reparse point flag.
+            && ((opContext.DesiredAccess & DELETE) != 0                                // Nt/ZwCreateFile for making the file eligible for deletion.
+                || (opContext.FlagsAndAttributes & FILE_FLAG_DELETE_ON_CLOSE) != 0);   // Delete when the last handle to the file is closed.
+
+        if (reparsePointDeletion)
+        {
+            PathCache_Invalidate(path.GetPathStringWithoutTypePrefix(), true, policyResult);
+        }
 
         if (!accessResult)
         {
@@ -3170,7 +3165,6 @@ HANDLE WINAPI Detoured_CreateFileW(
         hTemplateFile);
 
     error = GetLastError();
-
     FileReadContext readContext;
     readContext.InferExistenceFromError(error);
     readContext.OpenedDirectory = IsHandleOrPathToDirectory(
@@ -3246,7 +3240,7 @@ HANDLE WINAPI Detoured_CreateFileW(
     bool isHandleToReparsePoint = (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
     bool shouldReportAccessCheck = true;
 
-    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath(), opContext.DesiredAccess, opContext.FlagsAndAttributes, policyResult);
+    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath(), opContext.FlagsAndAttributes, policyResult);
     if (shouldResolveReparsePointsInPath)
     {
         bool accessResult = EnforceChainOfReparsePointAccesses(
@@ -6601,7 +6595,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
 
     bool isHandleToReparsePoint = (CreateOptions & FILE_OPEN_REPARSE_POINT) != 0;
     bool shouldReportAccessCheck = true;
-    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath(), opContext.DesiredAccess, opContext.FlagsAndAttributes, policyResult);
+    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath(), opContext.FlagsAndAttributes, policyResult);
 
     if (shouldResolveReparsePointsInPath)
     {
@@ -6918,7 +6912,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     bool isHandleToReparsePoint = (CreateOptions & FILE_OPEN_REPARSE_POINT) != 0;
     bool shouldReportAccessCheck = true;
 
-    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath(), opContext.DesiredAccess, opContext.FlagsAndAttributes, policyResult);
+    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath(), opContext.FlagsAndAttributes, policyResult);
     if (shouldResolveReparsePointsInPath)
     {
         NTSTATUS ntStatus;

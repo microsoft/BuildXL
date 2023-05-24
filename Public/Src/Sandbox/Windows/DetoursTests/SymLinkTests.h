@@ -63,6 +63,7 @@ int CallValidateFileSymlinkAccesses();
 int CallOpenFileThroughMultipleDirectorySymlinks();
 int CallOpenFileThroughDirectorySymlinksSelectivelyEnforce();
 int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve();
+int CallDeleteSymlinkUnderDirectorySymlinkWithFullSymlinkResolution();
 int CallOpenNonExistentFileThroughDirectorySymlink();
 int CallNtOpenNonExistentFileThroughDirectorySymlink();
 int CallDirectoryEnumerationThroughDirectorySymlink();

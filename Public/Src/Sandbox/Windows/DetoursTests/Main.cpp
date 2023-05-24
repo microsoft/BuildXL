@@ -1276,6 +1276,7 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallOpenFileThroughMultipleDirectorySymlinks);
     IF_COMMAND(CallOpenFileThroughDirectorySymlinksSelectivelyEnforce);
     IF_COMMAND(CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve);
+    IF_COMMAND(CallDeleteSymlinkUnderDirectorySymlinkWithFullSymlinkResolution);
     IF_COMMAND(CallOpenNonExistentFileThroughDirectorySymlink);
     IF_COMMAND(CallNtOpenNonExistentFileThroughDirectorySymlink);
     IF_COMMAND(CallDirectoryEnumerationThroughDirectorySymlink);

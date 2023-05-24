@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.IO;
 using System.Net.NetworkInformation;
 
 namespace BuildXL.Utilities
@@ -76,7 +78,7 @@ namespace BuildXL.Utilities
                 m_startSentBytes = stats.BytesSent;
                 m_startReceivedBytes = stats.BytesReceived;
             }
-            catch (NetworkInformationException)
+            catch (Exception e) when (e is NetworkInformationException || e is IOException)
             {
                 m_startSentBytes = 0;
                 m_startReceivedBytes = 0;
@@ -116,7 +118,7 @@ namespace BuildXL.Utilities
 
                 TotalBytes = TotalSentBytes + TotalReceivedBytes;
             }
-            catch (NetworkInformationException)
+            catch (Exception e) when (e is NetworkInformationException || e is IOException)
             {
                 TotalSentBytes = 0;
                 TotalReceivedBytes = 0;

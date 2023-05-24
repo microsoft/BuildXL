@@ -371,6 +371,7 @@ namespace NugetPackages {
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472packageQualifier).pkg,
             ...BuildXLSdk.withQualifier(net472packageQualifier).bclAsyncPackages,
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472packageQualifier).getGrpcPackagesWithoutNetStandard(),
+            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net6PackageQualifier).getGrpcDotNetPackages(),
             // Including the following reference is the most correct thing to do, but it causes a conflict in NuGet 
             // because we reference things inconsistently. If someone depends on the ProtoBuf.Net functionality, they 
             // must themselves refer to the required packages.

@@ -105,7 +105,7 @@ export function getGrpcPackagesWithoutNetStandard() : Managed.ManagedNugetPackag
 }
 
 @@public
-export function getGrpcDotNetPackages() : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
+export function getGrpcDotNetPackages() : Managed.ManagedNugetPackage[] {
     return [
         ...addIfLazy(BuildXLSdk.isDotNetCoreOrStandard, () => [
                   importFrom("Grpc.Net.Common").pkg,

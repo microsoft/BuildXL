@@ -45,7 +45,7 @@ namespace Library {
             ...getGrpcPackages(true),
             ...getGrpcDotNetPackages(),
 
-            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg, // required by grpc.net packages
+            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg, // required by grpc.net packages
             ...BuildXLSdk.bclAsyncPackages,
 
             importFrom("Polly").pkg,
@@ -62,7 +62,7 @@ namespace Library {
             importFrom("Sdk.Protocols.Grpc").Deployment.runtimeContent,
         ],
         // Expcluding the following dll from being deployed to avoid double write issues during evaluation.
-        runtimeContentToSkip: [importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg],
+        runtimeContentToSkip: [importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg],
         allowUnsafeBlocks: true,
         skipDocumentationGeneration: true,
         nullable: true,

@@ -10,7 +10,7 @@ namespace Authentication {
             Utilities.Core.dll,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("Microsoft.Artifacts.Authentication").pkg,
-            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg,
+            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg,
             importFrom("Microsoft.Identity.Client.Broker").pkg,
             importFrom("Microsoft.Identity.Client.NativeInterop").pkg,
             importFrom("Microsoft.Identity.Client").pkg,
@@ -28,7 +28,7 @@ namespace Authentication {
             "Test.BuildXL.Utilities.Authentication"
         ],
         runtimeContentToSkip : [
-            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg,
+            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg,
         ],
         runtimeContent: [
             importFrom("Microsoft.Identity.Client.NativeInterop").Contents.all.getFile(r`runtimes/win-x64/native/msalruntime.dll`),,

@@ -23,7 +23,7 @@ namespace Ipc {
         ],
 
         runtimeContentToSkip : [
-            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg,
+            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg,
         ],
     });
 }

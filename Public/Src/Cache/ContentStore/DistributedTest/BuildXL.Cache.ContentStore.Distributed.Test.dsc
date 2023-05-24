@@ -100,7 +100,7 @@ namespace DistributedTest {
 
             ...getGrpcPackages(true),
             
-            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg, // required by grpc.net packages
+            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg, // required by grpc.net packages
 
             ...getProtobufNetPackages(true),
             ...BuildXLSdk.getSystemMemoryPackages(true),
@@ -132,7 +132,7 @@ namespace DistributedTest {
         runtimeContent: [
             // Need to add the dll explicitely to avoid runtime failures for net472
              // required by grpc.net packages
-            ...(BuildXLSdk.isFullFramework ? [importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg] : []),
+            ...(BuildXLSdk.isFullFramework ? [importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg] : []),
             {
                 subfolder: r`azurite`,
                 contents: [

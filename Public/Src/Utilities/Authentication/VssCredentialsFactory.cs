@@ -1,21 +1,55 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using Microsoft.Identity.Client;
-using Microsoft.Identity.Client.Extensions.Msal;
-using Microsoft.VisualStudio.Services.Client;
-using Microsoft.VisualStudio.Services.Common;
 using System;
 using System.Diagnostics.ContractsLight;
-using System.IO;
-using System.Linq;
 using System.Net;
 using System.Security;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
+using Microsoft.Artifacts.Authentication;
+using Microsoft.Extensions.Logging;
+using Microsoft.Identity.Client.Broker;
+using Microsoft.VisualStudio.Services.Client;
+using Microsoft.VisualStudio.Services.Common;
 
 namespace BuildXL.Utilities.Authentication
 {
+    /// <summary>
+    /// This class creates a wrapper for ILogger to be used only by this authentication class.
+    /// This is done because this class is used by various different parts of BuildXL, each implementing their own logger without using Microsoft.Extensions.Logging.
+    /// </summary>
+    internal class VssCredentialFactoryLogger : ILogger
+    {
+        private readonly Action<string> m_logger;
+
+        /// <inheritdoc />
+        public VssCredentialFactoryLogger(Action<string> logger)
+        {
+            m_logger = logger;
+        }
+
+        /// <inheritdoc />
+        public IDisposable BeginScope<TState>(TState state)
+        {
+            // Not used by VssCredentialsFactory
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel)
+        {
+            return true;
+        }
+
+        /// <inheritdoc />
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        {
+            var message = formatter(state, exception);
+            m_logger($"[{logLevel}] {message}");
+        }
+    }
+
     /// <summary>
     /// Factory class for generating Vss credentials for build cache, drop, and symbol authentication.
     /// </summary>
@@ -24,9 +58,7 @@ namespace BuildXL.Utilities.Authentication
         private readonly SecureString m_pat;
         private readonly CredentialProviderHelper m_credentialHelper;
         private readonly VssCredentials m_credentials;
-        private readonly Action<string> m_logger;
-        private readonly string m_tokenCacheDirectory;
-        private readonly string m_tokenCacheFileName = "buildxl_msalcache";
+        private readonly ILogger m_logger;
 
         /// <summary>
         /// VssCredentialsFactory Constructor
@@ -56,18 +88,9 @@ namespace BuildXL.Utilities.Authentication
         public VssCredentialsFactory(SecureString pat, VssCredentials credentials, CredentialProviderHelper helper, Action<string> logger)
         {
             m_credentialHelper = helper;
-            m_logger = logger;
+            m_logger = new VssCredentialFactoryLogger(logger);
             m_pat = pat;
             m_credentials = credentials;
-
-            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            m_tokenCacheDirectory = OperatingSystemHelper.IsWindowsOS
-                ? Path.Combine(userProfile, "AppData", "Local", "BuildXL", "MsalTokenCache")
-                : Path.Combine(userProfile, ".BuildXL", "MsalTokenCache");
-            if (!Directory.Exists(m_tokenCacheDirectory))
-            {
-                Directory.CreateDirectory(m_tokenCacheDirectory);
-            }
         }
 
         /// <summary>
@@ -98,7 +121,7 @@ namespace BuildXL.Utilities.Authentication
 
                 if (credentialHelperResult.Result == CredentialHelperResultType.Success)
                 {
-                    m_logger($"[VssCredentialsFactory] {credentialHelperResult.CredentialType} acquired from credential provider.");
+                    m_logger.LogInformation($"[VssCredentialsFactory] {credentialHelperResult.CredentialType} acquired from credential provider.");
                     
                     switch (credentialHelperResult.CredentialType)
                     {
@@ -107,7 +130,7 @@ namespace BuildXL.Utilities.Authentication
                         case CredentialType.AadToken:
                             return new VssAadCredential(new VssAadToken(VsoAadConstants.TokenType, credentialHelperResult.Token));
                         default:
-                            m_logger($"[VssCredentialsFactory] Unsupported credential type returned by credential helper: {credentialHelperResult.CredentialType}.");
+                            m_logger.LogError($"[VssCredentialsFactory] Unsupported credential type returned by credential helper: {credentialHelperResult.CredentialType}.");
                             break;
                     }
                 }
@@ -116,7 +139,7 @@ namespace BuildXL.Utilities.Authentication
             // PAT authentication without a credential helper should be used on non-windows CI machines.
             if (m_pat != null)
             {
-                m_logger("[VssCredentialsFactory] PAT credentials used for authentication.");
+                m_logger.LogInformation("[VssCredentialsFactory] PAT credentials used for authentication.");
                 return GetPatCredentials(m_pat);
             }
 
@@ -124,115 +147,75 @@ namespace BuildXL.Utilities.Authentication
             {
                 // If we have already gotten to this point, and useAad is not set, then there's no way to do authentication
                 // Log this and return default vsscredentials. This will cause anything that requires authentication to fail later on.
-                m_logger("[VssCredentialsFactory] Unable to acquire authentication token.");
+                m_logger.LogError("[VssCredentialsFactory] Unable to acquire authentication token.");
                 return new VssCredentials();
             }
 
-            return await CreateVssCredentialsWithAadAsync();
+            return await CreateVssCredentialsWithAadAsync(baseUri);
         }
 
         /// <summary>
-        /// Calls MSAL to get authentication token with AAD.
+        /// Performs AAD authentication with MSAL.
         /// </summary>
-        /// <returns></returns>
-        /// <remarks>https://github.com/AzureAD/microsoft-authentication-library-for-dotnet/wiki/Acquiring-tokens-interactively</remarks>
-        public async Task<VssCredentials> CreateVssCredentialsWithAadAsync()
+        public async Task<VssCredentials> CreateVssCredentialsWithAadAsync(Uri baseUri)
         {
-            // 1. Configuration
-            var app = PublicClientApplicationBuilder
-                .Create(VsoAadConstants.Client)
-                .WithTenantId(VsoAadConstants.MicrosoftTenantId)
-                .WithRedirectUri(VsoAadConstants.RedirectUri)
+            var app = AzureArtifacts.CreateDefaultBuilder(new Uri(VsoAadConstants.MicrosoftAuthority))
+                .WithBroker(true, m_logger)
+                .WithLogging((Microsoft.Identity.Client.LogLevel level, string message, bool containsPii) =>
+                {
+                    switch (level)
+                    {
+                        case Microsoft.Identity.Client.LogLevel.Error:
+                            m_logger.LogError(message);
+                            break;
+                        case Microsoft.Identity.Client.LogLevel.Warning:
+                            m_logger.LogWarning(message);
+                            break;
+                        default:
+                            m_logger.LogInformation(message);
+                            break;
+                    }
+                })
                 .Build();
 
-            // 2. Token cache
-            // https://docs.microsoft.com/en-us/azure/active-directory/develop/msal-net-token-cache-serialization?tabs=desktop
-            // https://github.com/AzureAD/microsoft-authentication-extensions-for-dotnet/wiki/Cross-platform-Token-Cache
-            var storageProperties = new StorageCreationPropertiesBuilder(m_tokenCacheFileName, m_tokenCacheDirectory).Build();
-            var cacheHelper = await MsalCacheHelper.CreateAsync(storageProperties);
-            cacheHelper.RegisterCache(app.UserTokenCache);
+            var cache = await MsalCache.GetMsalCacheHelperAsync(MsalCache.DefaultMsalCacheLocation, m_logger);
+            cache.RegisterCache(app.UserTokenCache);
 
-            // 3. Try silent authentication
-            var accounts = await app.GetAccountsAsync();
-            var scopes = new string[] { VsoAadConstants.Scope };
-            AuthenticationResult result = null;
+            var providers = MsalTokenProviders.Get(app, m_logger);
+            var tokenRequest = new TokenRequest(baseUri)
+            {
+                IsInteractive = true
+            };
 
-            try
+            Microsoft.Identity.Client.AuthenticationResult result = null;
+            foreach (var provider in providers)
             {
-                result = await app.AcquireTokenSilent(scopes, accounts.FirstOrDefault())
-                    .ExecuteAsync();
-                m_logger("[VssCredentialsFactory] Successfully acquired authentication token through silent AAD authentication.");
-            }
-            catch (MsalUiRequiredException)
-            {
-                // 4. Interactive Authentication
-                m_logger("[VssCredentialsFactory] Unable to acquire authentication token through silent AAD authentication.");
-                // On Windows, we can try Integrated Windows Authentication which will fallback to interactive auth if that fails
-                result = OperatingSystemHelper.IsWindowsOS 
-                    ? await CreateVssCredentialsWithAadForWindowsAsync(app, scopes)
-                    : await CreateVssCredentialsWithAadInteractiveAsync(app, scopes);
-            }
-            catch (Exception ex)
-            {
-                m_logger($"[VssCredentialsFactory] Unable to acquire credentials with AAD with the following exception: '{ex}'");
+                if (provider.CanGetToken(tokenRequest))
+                {
+                    try
+                    {
+                        result = await provider.GetTokenAsync(tokenRequest);
+                        if (result != null)
+                        {
+                            break;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.LogInformation($"Exception occured when acquiring token with token provider '{provider.Name}': '{e}'");
+                    }
+                }
             }
 
-            if (result == null)
-            {
-                // Something went wrong during AAD auth, return null
-                m_logger($"[VssCredentialsFactory] Unable to acquire AAD token.");
-                return new VssAadCredential();
-            }
-
-            return new VssAadCredential(new VssAadToken(VsoAadConstants.TokenType, result.AccessToken));
-        }
-
-        /// <summary>
-        /// Tries integrated windows auth first before trying interactive authentication.
-        /// </summary>
-        /// <remarks>https://github.com/AzureAD/microsoft-authentication-library-for-dotnet/wiki/wam</remarks>
-        private async Task<AuthenticationResult> CreateVssCredentialsWithAadForWindowsAsync(IPublicClientApplication app, string[] scopes)
-        {
-            AuthenticationResult result = null;
-            try
-            {
-                result = await app.AcquireTokenByIntegratedWindowsAuth(scopes)
-                                  .ExecuteAsync();
-                m_logger("[VssCredentialsFactory] Integrated Windows Authentication was successful.");
-            }
-            catch (MsalUiRequiredException)
-            {
-                result = await CreateVssCredentialsWithAadInteractiveAsync(app, scopes);
-            }
-            catch (MsalServiceException serviceException)
-            {
-                m_logger($"[VssCredentialsFactory] Unable to acquire credentials with interactive Windows AAD auth with the following exception: '{serviceException}'");
-            }
-            catch (MsalClientException clientException)
-            {
-                m_logger($"[VssCredentialsFactory] Unable to acquire credentials with interactive Windows AAD auth with the following exception: '{clientException}'");
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Interactive authentication that will open a browser window for a user to sign in if they are not able to get silent auth or integrated windows auth.
-        /// </summary>
-        private async Task<AuthenticationResult> CreateVssCredentialsWithAadInteractiveAsync(IPublicClientApplication app, string[] scopes)
-        {
-            m_logger("[VssCredentialsFactory] Using interactive AAD authentication.");
-            var result = await app.AcquireTokenInteractive(scopes)
-                .WithPrompt(Prompt.SelectAccount)
-                .WithUseEmbeddedWebView(false)
-                .ExecuteAsync();
-            return result;
+            return result != null
+                ? new VssAadCredential(new VssAadToken(result.TokenType, result.AccessToken))
+                : new VssAadCredential(new VssAadToken(VsoAadConstants.TokenType, string.Empty));
         }
 
         /// <summary>
         /// Converts a PAT secure string to a VssCredential.
         /// </summary>
-        public VssCredentials GetPatCredentials(SecureString pat)
+        public static VssCredentials GetPatCredentials(SecureString pat)
         {
             return new VssBasicCredential(new NetworkCredential(string.Empty, pat));
         }

@@ -100,6 +100,10 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Security.CredScan.KnowledgeBase", version: "1.7.1.6", dependentPackageIdsToSkip: ["System.Text.Json"] },
     { id: "Microsoft.Security.CredScan.KnowledgeBase.Client", version: "1.7.1.6" },
     { id: "Microsoft.Security.CredScan.KnowledgeBase.Ruleset", version: "1.7.1.6" },
+
+    // Authentication
+    { id: "Microsoft.Artifacts.Authentication", version: "0.1.1" },
+    
 ] : [
 
     // Artifact packages and dependencies in OSS

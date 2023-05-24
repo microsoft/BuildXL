@@ -31,6 +31,25 @@ pool:
   name: BuildXL-DevOpsAgents-PME
 
 jobs:
+- ${{ if eq(parameters.Role, 'Orchestrator') }}:
+  - job: launchworkers
+    displayName: Agentless launch workers
+    pool: server
+    steps:
+      - task: InvokeRESTAPI@1
+        inputs:
+          connectionType: 'connectedServiceName' 
+          serviceConnection: BuildXL__PAT-TseBuild-AzureDevOps-MsEng__QueueBuild
+          method: 'POST'
+          body: |
+            {
+                "Definition": {"Id" : 13959 },
+                "TemplateParameters": { "Role": "Worker", "DropName": "${{ parameters.DropName }}" },
+                "TriggerInfo": { "BuildXLTriggeringAdoBuildId": "$(Build.BuildId)"},
+                "SourceBranch": "$(Build.SourceBranch)",
+                "SourceVersion": "$(Build.SourceVersion)"
+            }
+
 - job: Distributed_Clean
   ${{ if eq(parameters.Role, 'Worker') }}:
     strategy:
@@ -45,17 +64,7 @@ jobs:
       buildNumber: '${{ parameters.DropName }}'
       destinationPath: '$(Domino.DogfoodPackagePath)'
       rootPaths: 'release/win-x64'
-
-  - ${{ if eq(parameters.Role, 'Orchestrator') }}:
-    - task: PowerShell@2
-      inputs:
-        targetType: 'inline'
-        script: .\AdoBuildRunner.exe launchworkers 13959 /param:DropName=${{ parameters.DropName }} /param:Role=Worker
-        workingDirectory: $(Domino.DogfoodPackagePath)\release\win-x64
-      displayName: 'Trigger worker pipeline'
-      env:
-        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-
+      
   - checkout: self
     fetchDepth: 1
   

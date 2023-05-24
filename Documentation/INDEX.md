@@ -60,6 +60,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [Logging - Primary log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.log.md)
 * [Logging - Stats log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.stats.md)
 * [Logging - Trace file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.trace.md)
+* [Interpreting and Troubleshooting ADO Error Log Messages](Wiki/Interpreting-BXL-Outputs/Interpreting-ADO-Console-Error-Messages.md)
 * [Modules](Wiki/Modules.md)
 * [Mounts](Wiki/Advanced-Features/Mounts.md)
 * [Paged Hashes](Specs/PagedHash.md)

@@ -44,7 +44,9 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Files greater than this size are compressed if compression is used")] int? gzipBarrierSizeForGrpcCopies,
             [DefaultValue(null), Description("nLog configuration path. If empty, it is disabled")] string nLogConfigurationPath,
             [DefaultValue(null), Description("Whether to use Azure Blob logging or not")] string nLogToBlobStorageSecretName,
-            [DefaultValue(null), Description("If using Azure Blob logging, where to temporarily store logs")] string nLogToBlobStorageWorkspacePath
+            [DefaultValue(null), Description("If using Azure Blob logging, where to temporarily store logs")] string nLogToBlobStorageWorkspacePath,
+            [DefaultValue(false), Description("If true, a current cache service instance might act as a master")] bool masterEligible,
+            [DefaultValue(null), Description("An optional unique cache universe that can be used as the build Id as well")] string cacheUniverseAndBuildId
             )
         {
             // We don't actually support the cache name being anything different than this, so there is no point in
@@ -62,6 +64,12 @@ namespace BuildXL.Cache.ContentStore.App
                 Validate();
 
                 var dcs = JsonConvert.DeserializeObject<DistributedContentSettings>(File.ReadAllText(settingsPath));
+                dcs.IsMasterEligible = masterEligible;
+                if (!string.IsNullOrEmpty(cacheUniverseAndBuildId))
+                {
+                    dcs.KeySpacePrefix = cacheUniverseAndBuildId;
+                    GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.BuildId, cacheUniverseAndBuildId);
+                }
 
                 var host = new HostInfo(stampId, ringId, new List<string>());
 

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -150,7 +151,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            await Channel.ConnectAsync(SystemClock.Instance, _connectionTimeout);
+            try
+            {
+                await Channel.ConnectAsync(SystemClock.Instance, _connectionTimeout);
+            }
+            catch (OperationCanceledException e)
+            {
+                throw new TimeoutException($"Failed to connect to {Host}:{Port} in '{_connectionTimeout}'.", e);
+            }
+            
             return BoolResult.Success;
         }
 

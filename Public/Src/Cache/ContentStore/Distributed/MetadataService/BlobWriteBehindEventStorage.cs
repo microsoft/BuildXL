@@ -11,9 +11,75 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
+    /// <summary>
+    /// <see cref="IWriteBehindEventStorage"/> implementation that does nothing.
+    /// </summary>
+    public sealed class NullWriteBehindEventStorage : StartupShutdownSlimBase, IWriteBehindEventStorage
+    {
+        /// <inheritdoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(NullWriteBehindEventStorage));
+
+        /// <inheritdoc />
+        public Task<BoolResult> AppendAsync(OperationContext context, BlockReference cursor, Stream stream)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    return BoolResult.SuccessTask;
+                });
+        }
+
+        /// <inheritdoc />
+        public Task<Result<Optional<Stream>>> ReadAsync(OperationContext context, CheckpointLogId logId)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    return Task.FromResult(Result.Success(new Optional<Stream>()));
+                });
+        }
+
+        /// <inheritdoc />
+        public Task<Result<bool>> IsSealedAsync(OperationContext context, CheckpointLogId logId)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    return Task.FromResult(Result.Success(false));
+                });
+        }
+
+        /// <inheritdoc />
+        public Task<BoolResult> SealAsync(OperationContext context, CheckpointLogId logId)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    return BoolResult.SuccessTask;
+                });
+        }
+
+        /// <inheritdoc />
+        public Task<BoolResult> GarbageCollectAsync(OperationContext context, CheckpointLogId logId)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    return BoolResult.SuccessTask;
+                });
+        }
+    }
+
     /// <summary>
     /// Azure blob implementation of <see cref="IWriteBehindEventStorage"/>
     /// </summary>

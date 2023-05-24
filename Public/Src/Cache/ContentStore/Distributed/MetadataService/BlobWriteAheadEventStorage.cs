@@ -4,12 +4,58 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
+    /// <summary>
+    /// <see cref="IWriteAheadEventStorage"/> implementation that does nothing.
+    /// </summary>
+    public sealed class NullWriteAheadEventStorage : StartupShutdownSlimBase, IWriteAheadEventStorage
+    {
+        /// <inheritdoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(NullWriteAheadEventStorage));
+
+        /// <inheritdoc />
+        public Task<BoolResult> AppendAsync(OperationContext context, BlockReference cursor, ReadOnlyMemory<byte> data)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    return BoolResult.SuccessTask;
+                });
+        }
+
+        /// <inheritdoc />
+        public Task<Result<Optional<ReadOnlyMemory<byte>>>> ReadAsync(OperationContext context, BlockReference cursor)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    return Task.FromResult(Result.Success(Optional<ReadOnlyMemory<byte>>.Create(hasValue: false, ReadOnlyMemory<byte>.Empty)));
+                });
+        }
+
+        /// <inheritdoc />
+        public Task<BoolResult> GarbageCollectAsync(OperationContext context, BlockReference cursor)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    return BoolResult.SuccessTask;
+                });
+        }
+    }
+
     /// <summary>
     /// Azure blob implementation of <see cref="IWriteAheadEventStorage"/>
     /// </summary>

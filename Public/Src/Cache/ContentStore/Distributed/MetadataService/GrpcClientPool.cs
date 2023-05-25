@@ -3,8 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,163 +19,176 @@ using ProtoBuf.Grpc.Client;
 
 #nullable enable
 
-namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
+namespace BuildXL.Cache.ContentStore.Distributed.MetadataService;
+
+public class GenericGrpcClientAccessor<TService, TClient> : StartupShutdownComponentBase, IClientAccessor<MachineLocation, TClient>
+    where TService : class
+    where TClient : class
 {
-    public class GrpcClientAccessor<TService> : StartupShutdownComponentBase, IClientAccessor<MachineLocation, TService>
-        where TService : class
+    protected override Tracer Tracer { get; } = new Tracer($"{nameof(GenericGrpcClientAccessor<TService, TClient>)}<{typeof(TService).Name}, {typeof(TClient).Name}>");
+
+    private readonly ConditionalWeakTable<ConnectionHandle, TClient> _clientTable = new();
+    private readonly IClientAccessor<MachineLocation, ConnectionHandle> _connectionAccessor;
+    private readonly Func<TService, TClient> _factory;
+    private readonly LocalClient<TClient>? _localClient;
+
+    public GenericGrpcClientAccessor(IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor, Func<TService, TClient> factory, LocalClient<TClient>? localClient = null)
     {
-        protected override Tracer Tracer { get; } = new Tracer($"{nameof(GrpcClientAccessor<TService>)}<{typeof(TService).Name}>");
+        _connectionAccessor = connectionAccessor;
+        _factory = factory;
+        _localClient = localClient;
+        LinkLifetime(connectionAccessor);
 
-        private readonly ConditionalWeakTable<ConnectionHandle, TService> _clientTable = new ConditionalWeakTable<ConnectionHandle, TService>();
-        private readonly IClientAccessor<MachineLocation, ConnectionHandle> _connectionAccessor;
-        private readonly LocalClient<TService>? _localClient;
-
-        public GrpcClientAccessor(IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor, LocalClient<TService>? localClient = null)
+        if (_localClient != null)
         {
-            _connectionAccessor = connectionAccessor;
-            _localClient = localClient;
-            LinkLifetime(connectionAccessor);
+            LinkLifetime(_localClient);
+        }
+    }
 
-            if (_localClient != null)
-            {
-                LinkLifetime(_localClient);
-            }
+    public Task<TResult> UseAsync<TResult>(OperationContext context, MachineLocation key, Func<TClient, Task<TResult>> operation)
+    {
+        if (_localClient?.Location.Equals(key) == true)
+        {
+            return operation(_localClient.Client);
         }
 
-        public Task<TResult> UseAsync<TResult>(OperationContext context, MachineLocation key, Func<TService, Task<TResult>> operation)
-        {
-            if (_localClient?.Location.Equals(key) == true)
+        return _connectionAccessor.UseAsync(
+            context,
+            key,
+            connectionHandle =>
             {
-                return operation(_localClient.Client);
-            }
-
-            return _connectionAccessor.UseAsync(context, key, connectionHandle =>
-            {
-                var client = _clientTable.GetValue(connectionHandle, static h => h.Channel.CreateGrpcService<TService>(MetadataServiceSerializer.ClientFactory));
+                var client = _clientTable.GetValue(
+                    connectionHandle,
+                    h =>
+                    {
+                        var service = h.Channel.CreateGrpcService<TService>(
+                            MetadataServiceSerializer.ClientFactory);
+                        return _factory.Invoke(service);
+                    });
                 return operation(client);
             });
-        }
     }
+}
 
-    public class GrpcConnectionPool : StartupShutdownComponentBase, IClientAccessor<MachineLocation, ConnectionHandle>
+public class GrpcClientAccessor<TService> : GenericGrpcClientAccessor<TService, TService>
+    where TService : class
+{
+    public GrpcClientAccessor(IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor, LocalClient<TService>? localClient = null)
+        : base(connectionAccessor, x => x, localClient)
     {
-        protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcConnectionPool));
+    }
+}
 
-        private readonly ResourcePool<MachineLocation, ConnectionHandle> _pool;
+public class GrpcConnectionPool : StartupShutdownComponentBase, IClientAccessor<MachineLocation, ConnectionHandle>
+{
+    protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcConnectionPool));
 
-        /// <nodoc />
-        public GrpcConnectionPool(ConnectionPoolConfiguration configuration, OperationContext context, IClock? clock = null)
-        {
-            _pool = new ResourcePool<MachineLocation, ConnectionHandle>(
+    private readonly ResourcePool<MachineLocation, ConnectionHandle> _pool;
+
+    /// <nodoc />
+    public GrpcConnectionPool(ConnectionPoolConfiguration configuration, OperationContext context, IClock? clock = null)
+    {
+        _pool = new ResourcePool<MachineLocation, ConnectionHandle>(
+            context,
+            configuration,
+            location => new ConnectionHandle(
                 context,
-                configuration,
-                location => new ConnectionHandle(
-                    context,
-                    location,
-                    configuration.DefaultPort,
-                    grpcDotNetOptions: configuration.GrpcDotNetOptions,
-                    connectionTimeout: configuration.ConnectTimeout),
-                clock);
-        }
-
-        /// <inheritdoc />
-        protected override Task<BoolResult> ShutdownComponentAsync(OperationContext context)
-        {
-            _pool.Dispose();
-            return BoolResult.SuccessTask;
-        }
-
-        /// <nodoc />
-        public Task<TResult> UseAsync<TResult>(OperationContext context, MachineLocation key, Func<ConnectionHandle, Task<TResult>> operation)
-        {
-            return _pool.UseAsync(context, key, wrapper => operation(wrapper.Value));
-        }
+                location,
+                configuration.DefaultPort,
+                grpcDotNetOptions: configuration.GrpcDotNetOptions,
+                connectionTimeout: configuration.ConnectTimeout),
+            clock);
     }
 
-    public class ConnectionHandle : StartupShutdownSlimBase
+    /// <inheritdoc />
+    protected override Task<BoolResult> ShutdownComponentAsync(OperationContext context)
     {
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ConnectionHandle));
+        _pool.Dispose();
+        return BoolResult.SuccessTask;
+    }
 
-        public string Host { get; }
+    /// <nodoc />
+    public Task<TResult> UseAsync<TResult>(OperationContext context, MachineLocation key, Func<ConnectionHandle, Task<TResult>> operation)
+    {
+        return _pool.UseAsync(context, key, wrapper => operation(wrapper.Value));
+    }
+}
 
-        public int Port { get; }
+public class ConnectionHandle : StartupShutdownSlimBase
+{
+    protected override Tracer Tracer { get; } = new Tracer(nameof(ConnectionHandle));
 
-        internal ChannelBase Channel { get; }
+    public string Host { get; }
 
-        protected override string GetArgumentsMessage() => $"{Host}:{Port}";
+    public int Port { get; }
 
-        private readonly TimeSpan _connectionTimeout;
+    internal ChannelBase Channel { get; }
 
-        public ConnectionHandle(
-            OperationContext context,
-            MachineLocation location,
-            int defaultPort,
-            IEnumerable<ChannelOption>? grpcCoreOptions = null,
-            GrpcDotNetClientOptions? grpcDotNetOptions = null,
-            TimeSpan? connectionTimeout = null)
-        {
-            _connectionTimeout = connectionTimeout ?? Timeout.InfiniteTimeSpan;
+    protected override string GetArgumentsMessage() => $"{Host}:{Port}";
 
-            var hostInfo = location.ExtractHostInfo();
-            Host = hostInfo.host;
-            Port = hostInfo.port ?? defaultPort;
+    private readonly TimeSpan _connectionTimeout;
+
+    public ConnectionHandle(
+        OperationContext context,
+        MachineLocation location,
+        int defaultPort,
+        IEnumerable<ChannelOption>? grpcCoreOptions = null,
+        GrpcDotNetClientOptions? grpcDotNetOptions = null,
+        TimeSpan? connectionTimeout = null)
+    {
+        _connectionTimeout = connectionTimeout ?? Timeout.InfiniteTimeSpan;
+
+        var hostInfo = location.ExtractHostInfo();
+        Host = hostInfo.host;
+        Port = hostInfo.port ?? defaultPort;
 
 
-            var useGrpcDotNet = grpcDotNetOptions is not null || grpcCoreOptions is null;
+        var useGrpcDotNet = grpcDotNetOptions is not null || grpcCoreOptions is null;
 #if !NET6_0_OR_GREATER
-            useGrpcDotNet = false;
+        useGrpcDotNet = false;
 #endif
-            if (useGrpcDotNet)
-            {
-                grpcDotNetOptions ??= GrpcDotNetClientOptions.Default;
-                grpcCoreOptions = null;
-            }
-            else
-            {
-                grpcCoreOptions ??= ReadOnlyArray<ChannelOption>.Empty;
-                grpcDotNetOptions = null;
-            }
-
-            Channel = GrpcChannelFactory.CreateChannel(
-                context,
-                new ChannelCreationOptions(
-                    useGrpcDotNet,
-                    Host,
-                    Port,
-                    grpcCoreOptions,
-                    grpcDotNetOptions),
-                channelType: nameof(ConnectionHandle));
-        }
-
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        if (useGrpcDotNet)
         {
-            try
-            {
-                await Channel.ConnectAsync(SystemClock.Instance, _connectionTimeout);
-            }
-            catch (OperationCanceledException e)
-            {
-                throw new TimeoutException($"Failed to connect to {Host}:{Port} in '{_connectionTimeout}'.", e);
-            }
-            
-            return BoolResult.Success;
+            grpcDotNetOptions ??= GrpcDotNetClientOptions.Default;
+            grpcCoreOptions = null;
+        }
+        else
+        {
+            grpcCoreOptions ??= ReadOnlyArray<ChannelOption>.Empty;
+            grpcDotNetOptions = null;
         }
 
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            await Channel.ShutdownAsync();
-            return BoolResult.Success;
-        }
+        Channel = GrpcChannelFactory.CreateChannel(
+            context,
+            new ChannelCreationOptions(
+                useGrpcDotNet,
+                Host,
+                Port,
+                grpcCoreOptions,
+                grpcDotNetOptions),
+            channelType: nameof(ConnectionHandle));
     }
 
-    public class ConnectionPoolConfiguration : ResourcePoolConfiguration
+    protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
     {
-        public required int DefaultPort { get; init; }
-
-        public required TimeSpan ConnectTimeout { get; init; }
-
-        public required bool UseGrpcDotNet { get; init; }
-
-        public required GrpcDotNetClientOptions GrpcDotNetOptions { get; init; }
+        await Channel.ConnectAsync(SystemClock.Instance, _connectionTimeout);
+        return BoolResult.Success;
     }
+
+    protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+    {
+        await Channel.ShutdownAsync();
+        return BoolResult.Success;
+    }
+}
+
+public class ConnectionPoolConfiguration : ResourcePoolConfiguration
+{
+    public required int DefaultPort { get; init; }
+
+    public required TimeSpan ConnectTimeout { get; init; }
+
+    public required bool UseGrpcDotNet { get; init; }
+
+    public required GrpcDotNetClientOptions GrpcDotNetOptions { get; init; }
 }

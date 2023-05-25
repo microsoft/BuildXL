@@ -22,72 +22,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public const int DefaultParallelCopyFilesLimit = 8;
 
         /// <summary>
-        /// Delays for retries for file copies
-        /// </summary>
-        private static readonly List<TimeSpan> CacheCopierDefaultRetryIntervals = new List<TimeSpan>()
-        {
-            // retry the first 2 times quickly.
-            TimeSpan.FromMilliseconds(20),
-            TimeSpan.FromMilliseconds(200),
-
-            // then back-off exponentially.
-            TimeSpan.FromSeconds(1),
-            TimeSpan.FromSeconds(5),
-            TimeSpan.FromSeconds(10),
-            TimeSpan.FromSeconds(30),
-
-            // Borrowed from Empirical CacheV2 determined to be appropriate for general remote server restarts.
-            TimeSpan.FromSeconds(60),
-            TimeSpan.FromSeconds(120),
-        };
-
-        /// <summary>
-        /// Files smaller than this should use the untrusted hash.
-        /// </summary>
-        public long TrustedHashFileSizeBoundary { get; set; } = -1;
-
-        /// <summary>
-        /// Whether the underlying content store should be told to trust a hash when putting content.
-        /// </summary>
-        /// <remarks>
-        /// When trusted, then distributed file copier will hash the file and the store won't re-hash the file.
-        /// </remarks>
-        public bool UseTrustedHash(long fileSize)
-        {
-            // Only use trusted hash for files greater than _trustedHashFileSizeBoundary. Over a few weeks of data collection, smaller files appear to copy and put faster using the untrusted variant.
-            return fileSize >= TrustedHashFileSizeBoundary;
-        }
-
-        /// <summary>
-        /// Files longer than this will be hashed concurrently with the download.
-        /// All bytes downloaded before this boundary is met will be hashed inline.
-        /// </summary>
-        public long ParallelHashingFileSizeBoundary { get; set; }
-
-        /// <summary>
-        /// <see cref="CopySchedulerConfiguration"/>
-        /// </summary>
-        public CopySchedulerConfiguration CopyScheduler { get; set; } = new CopySchedulerConfiguration();
-
-        /// <summary>
         /// Maximum number of files to copy locally in parallel for a given operation
         /// </summary>
         public int ParallelCopyFilesLimit { get; set; } = DefaultParallelCopyFilesLimit;
-
-        /// <summary>
-        /// Delays for retries for file copies
-        /// </summary>
-        public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
-
-        /// <summary>
-        /// Per-copy bandwidth options that allow more aggressive copy cancellation for earlier attempts.
-        /// </summary>
-        public IReadOnlyList<BandwidthConfiguration> BandwidthConfigurations { get; set; }
-
-        /// <summary>
-        /// Controls the maximum total number of copy retry attempts
-        /// </summary>
-        public int MaxRetryCount { get; set; } = 32;
 
         /// <summary>
         /// The mode in which proactive copy should run
@@ -128,16 +65,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Whether to reject push copies based on whether we've evicted something younger recently.
         /// </summary>
         public bool ProactiveCopyRejectOldContent { get; set; } = false;
-
-        /// <summary>
-        /// Number of copy attempts which should be restricted in its number or replicas.
-        /// </summary>
-        public int CopyAttemptsWithRestrictedReplicas { get; set; } = 0;
-
-        /// <summary>
-        /// Number of replicas to attempt when a copy is being restricted.
-        /// </summary>
-        public int RestrictedCopyReplicaCount { get; set; } = 3;
 
         /// <summary>
         /// Whether to enable proactive replication

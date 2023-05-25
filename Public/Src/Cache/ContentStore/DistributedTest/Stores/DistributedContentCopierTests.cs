@@ -284,7 +284,7 @@ namespace ContentStoreTest.Distributed.Stores
             var contentCopier = new TestDistributedContentCopier(
                 rootDirectory,
                 // Need to use exactly one retry.
-                new DistributedContentStoreSettings()
+                new DistributedContentCopier.Configuration
                 {
                     RetryIntervalForCopies = Enumerable.Range(0, retries).Select(r => retryInterval).ToArray(),
                     CopyAttemptsWithRestrictedReplicas = copyAttemptsWithRestrictedReplicas,
@@ -325,17 +325,17 @@ namespace ContentStoreTest.Distributed.Stores
     {
         public TestDistributedContentCopier(
             AbsolutePath workingDirectory,
-            DistributedContentStoreSettings settings,
+            Configuration configuration,
             IAbsFileSystem fileSystem,
             IRemoteFileCopier fileCopier,
             IContentCommunicationManager copyRequester)
-            : base(settings, fileSystem, fileCopier, copyRequester, TestSystemClock.Instance, TestGlobal.Logger)
+            : base(configuration, fileSystem, fileCopier, copyRequester, TestSystemClock.Instance, TestGlobal.Logger)
         {
-            Settings = settings;
+            Settings = configuration;
             WorkingFolder = workingDirectory;
         }
 
-        public DistributedContentStoreSettings Settings { get; }
+        public Configuration Settings { get; }
 
         public AbsolutePath WorkingFolder { get; }
 

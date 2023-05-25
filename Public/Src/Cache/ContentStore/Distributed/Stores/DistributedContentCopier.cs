@@ -40,6 +40,75 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// </summary>
     public class DistributedContentCopier : StartupShutdownSlimBase
     {
+        public record Configuration
+        {
+            /// <summary>
+            /// Delays for retries for file copies
+            /// </summary>
+            private static readonly List<TimeSpan> CacheCopierDefaultRetryIntervals = new()
+                                                                                      {
+                                                                                          // retry the first 2 times quickly.
+                                                                                          TimeSpan.FromMilliseconds(20),
+                                                                                          TimeSpan.FromMilliseconds(200),
+
+                                                                                          // then back-off exponentially.
+                                                                                          TimeSpan.FromSeconds(1),
+                                                                                          TimeSpan.FromSeconds(5),
+                                                                                          TimeSpan.FromSeconds(10),
+                                                                                          TimeSpan.FromSeconds(30),
+
+                                                                                          // Borrowed from Empirical CacheV2 determined to be appropriate for general remote server restarts.
+                                                                                          TimeSpan.FromSeconds(60),
+                                                                                          TimeSpan.FromSeconds(120),
+                                                                                      };
+
+            /// <summary>
+            /// Number of copy attempts which should be restricted in its number or replicas.
+            /// </summary>
+            public int CopyAttemptsWithRestrictedReplicas { get; set; } = 0;
+
+            /// <summary>
+            /// Number of replicas to attempt when a copy is being restricted.
+            /// </summary>
+            public int RestrictedCopyReplicaCount { get; set; } = 3;
+
+            /// <summary>
+            /// Per-copy bandwidth options that allow more aggressive copy cancellation for earlier attempts.
+            /// </summary>
+            public IReadOnlyList<BandwidthConfiguration> BandwidthConfigurations { get; set; } = new List<BandwidthConfiguration>();
+
+            /// <summary>
+            /// Every time interval we trace a report on copy progression.
+            /// </summary>
+            public TimeSpan PeriodicCopyTracingInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+            /// <summary>
+            /// Files longer than this will be hashed concurrently with the download.
+            /// All bytes downloaded before this boundary is met will be hashed inline.
+            /// </summary>
+            public long ParallelHashingFileSizeBoundary { get; set; }
+
+            /// <summary>
+            /// Files smaller than this should use the untrusted hash.
+            /// </summary>
+            public long TrustedHashFileSizeBoundary { get; set; } = -1;
+
+            /// <summary>
+            /// <see cref="CopySchedulerConfiguration"/>
+            /// </summary>
+            public CopySchedulerConfiguration CopyScheduler { get; set; } = new CopySchedulerConfiguration();
+
+            /// <summary>
+            /// Delays for retries for file copies
+            /// </summary>
+            public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
+
+            /// <summary>
+            /// Controls the maximum total number of copy retry attempts
+            /// </summary>
+            public int MaxRetryCount { get; set; } = 32;
+        }
+
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly int _maxRetryCount;
         private readonly IRemoteFileCopier _remoteFileCopier;
@@ -47,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly IClock _clock;
 
-        private readonly DistributedContentStoreSettings _settings;
+        private readonly Configuration _configuration;
 
         private readonly ICopyScheduler _copyScheduler;
 
@@ -65,28 +134,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public override bool AllowMultipleStartupAndShutdowns { get; } = true;
 
-        /// <nodoc />
         public DistributedContentCopier(
-            DistributedContentStoreSettings settings,
+            Configuration configuration,
             IAbsFileSystem fileSystem,
             IRemoteFileCopier fileCopier,
             IContentCommunicationManager copyRequester,
             IClock clock,
             ILogger logger)
         {
-            Contract.Requires(settings.ParallelHashingFileSizeBoundary >= -1);
+            Contract.Requires(configuration.ParallelHashingFileSizeBoundary >= -1);
 
-            _settings = settings;
+            _configuration = configuration;
             _remoteFileCopier = fileCopier;
             CommunicationManager = copyRequester;
             FileSystem = fileSystem;
             _clock = clock;
 
             Context = new Context(logger);
-            _copyScheduler = settings.CopyScheduler.Create(Context);
+            _copyScheduler = configuration.CopyScheduler.Create(Context);
 
-            _retryIntervals = settings.RetryIntervalForCopies;
-            _maxRetryCount = settings.MaxRetryCount;
+            _retryIntervals = configuration.RetryIntervalForCopies;
+            _maxRetryCount = configuration.MaxRetryCount;
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -107,6 +175,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             return BoolResult.Success;
+        }
+
+        /// <summary>
+        /// Whether the underlying content store should be told to trust a hash when putting content.
+        /// </summary>
+        /// <remarks>
+        /// When trusted, then distributed file copier will hash the file and the store won't re-hash the file.
+        /// </remarks>
+        public bool UseTrustedHash(long fileSize)
+        {
+            // Only use trusted hash for files greater than _trustedHashFileSizeBoundary. Over a few weeks of data collection, smaller files appear to copy and put faster using the untrusted variant.
+            return fileSize >= _configuration.TrustedHashFileSizeBoundary;
         }
 
         public record CopyRequest(
@@ -188,8 +268,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
                     // Limit the number of replicas that we will go though if this is one of the first n restricted attempts.
-                    var maxReplicaCount = attemptCount < _settings.CopyAttemptsWithRestrictedReplicas
-                        ? _settings.RestrictedCopyReplicaCount
+                    var maxReplicaCount = attemptCount < _configuration.CopyAttemptsWithRestrictedReplicas
+                        ? _configuration.RestrictedCopyReplicaCount
                         : int.MaxValue;
                     maxReplicaCount = Math.Min(maxReplicaCount, locations.Count);
 
@@ -402,7 +482,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 attempt = -1;
             }
 
-            var bandwidthConfig = _settings.BandwidthConfigurations?.ElementAtOrDefault(attempt);
+            var bandwidthConfig = _configuration.BandwidthConfigurations?.ElementAtOrDefault(attempt);
 
             var copyOptions = new CopyOptions(bandwidthConfig);
             if (request != null)
@@ -522,7 +602,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     {
                                         var result = await TaskUtilitiesExtension.AwaitWithProgressReportingAsync(
                                                     task: CopyFileAsync(arguments.Context, sourcePath, tempLocation, hashInfo, arguments.Context.Token, options),
-                                                    period: _settings.PeriodicCopyTracingInterval,
+                                                    period: _configuration.PeriodicCopyTracingInterval,
                                                     action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{options.CopyStatistics.Bytes}]."),
                                                     reportImmediately: false,
                                                     reportAtEnd: false);
@@ -553,7 +633,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"size=[{result.Size ?? hashInfo.Size}] " +
                                 $"fromRing=[{sourcePath.FromRing}] " +
                                 $"reason={request.Reason} " +
-                                $"trusted={_settings.UseTrustedHash(result.Size ?? hashInfo.Size)} " +
+                                $"trusted={UseTrustedHash(result.Size ?? hashInfo.Size)} " +
                                 $"attempt={attemptCount} replica={replicaIndex} " +
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
                                 (result.TimeSpentWritingToDisk.HasValue ? $"writeTime={result.TimeSpentWritingToDisk.Value.TotalMilliseconds}ms " : string.Empty) +
@@ -751,10 +831,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             {
                 // If the file satisfy trusted hash file size boundary, then we hash during the copy (i.e. now) and won't hash when placing the file into the store.
                 // Otherwise we don't hash it now and the store will hash the file during put.
-                if (_settings.UseTrustedHash(hashInfo.Size))
+                if (UseTrustedHash(hashInfo.Size))
                 {
                     // If we know that the file is large, then hash concurrently from the start
-                    bool hashEntireFileConcurrently = _settings.ParallelHashingFileSizeBoundary >= 0 && hashInfo.Size > _settings.ParallelHashingFileSizeBoundary;
+                    bool hashEntireFileConcurrently = _configuration.ParallelHashingFileSizeBoundary >= 0 && hashInfo.Size > _configuration.ParallelHashingFileSizeBoundary;
 
                     // Since this is the only place where we hash the file during trusted copies, we attempt to get access to the bytes here,
                     //  to avoid an additional IO operation later. In case that the file is bigger than the ContentLocationStore permits or blobs
@@ -762,7 +842,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     using (Stream fileStream = FileSystem.OpenForWrite(tempDestinationPath, hashInfo.NullableSize, FileMode.Create, FileShare.Read | FileShare.Delete))
                     {
                         // Use hashInfo.Size since if it is -1 we will not have resized the stream and it will disable an optimization in dedup hashers which depends on file size.
-                        await using (HashingStream hashingStream = HashInfoLookup.GetContentHasher(hashInfo.ContentHash.HashType).CreateWriteHashingStream(hashInfo.Size, fileStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
+                        await using (HashingStream hashingStream = HashInfoLookup.GetContentHasher(hashInfo.ContentHash.HashType).CreateWriteHashingStream(hashInfo.Size, fileStream, hashEntireFileConcurrently ? 1 : _configuration.ParallelHashingFileSizeBoundary))
                         {
                             var copyFileResult = await _remoteFileCopier.CopyToAsync(
                                 new OperationContext(context, cts), location, hashingStream,

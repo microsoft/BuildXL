@@ -93,10 +93,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             _copier = new DistributedContentCopier(
-                _distributedContentStoreSettings,
+                CreateDistributedContentCopierConfiguration(arguments),
                 _fileSystem,
-                fileCopier: _arguments.Copier,
-                copyRequester: _arguments.CopyRequester,
+                fileCopier: _arguments.Copier!,
+                copyRequester: _arguments.CopyRequester!,
                 _arguments.Overrides.Clock,
                 _logger
             );
@@ -298,6 +298,23 @@ namespace BuildXL.Cache.Host.Service.Internal
             return new MultiplexedContentStore(contentStores, OrderedResolvedCacheSettings[0].Drive);
         }
 
+        private static DistributedContentCopier.Configuration CreateDistributedContentCopierConfiguration(DistributedCacheServiceArguments arguments)
+        {
+            var distributedSettings = arguments.Configuration.DistributedContentSettings;
+
+            return new DistributedContentCopier.Configuration
+                   {
+                       TrustedHashFileSizeBoundary = distributedSettings.TrustedHashFileSizeBoundary,
+                       ParallelHashingFileSizeBoundary = distributedSettings.ParallelHashingFileSizeBoundary,
+                       RetryIntervalForCopies = distributedSettings.RetryIntervalForCopies,
+                       BandwidthConfigurations = FromDistributedSettings(distributedSettings.BandwidthConfigurations),
+                       MaxRetryCount = distributedSettings.MaxRetryCount,
+                       RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
+                       CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
+                       CopyScheduler = CopySchedulerConfiguration.FromDistributedContentSettings(distributedSettings),
+                   };
+        }
+
         private static DistributedContentStoreSettings CreateDistributedStoreSettings(
             DistributedCacheServiceArguments arguments,
             LocalLocationStoreConfiguration contentLocationStoreConfiguration)
@@ -313,12 +330,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var distributedContentStoreSettings = new DistributedContentStoreSettings()
             {
-                TrustedHashFileSizeBoundary = distributedSettings.TrustedHashFileSizeBoundary,
-                ParallelHashingFileSizeBoundary = distributedSettings.ParallelHashingFileSizeBoundary,
+
                 PinConfiguration = pinConfiguration,
-                RetryIntervalForCopies = distributedSettings.RetryIntervalForCopies,
-                BandwidthConfigurations = FromDistributedSettings(distributedSettings.BandwidthConfigurations),
-                MaxRetryCount = distributedSettings.MaxRetryCount,
                 ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), distributedSettings.ProactiveCopyMode),
                 PushProactiveCopies = distributedSettings.PushProactiveCopies,
                 ProactiveCopyOnPut = distributedSettings.ProactiveCopyOnPut,
@@ -326,8 +339,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ProactiveCopyUsePreferredLocations = distributedSettings.ProactiveCopyUsePreferredLocations,
                 ProactiveCopyLocationsThreshold = distributedSettings.ProactiveCopyLocationsThreshold,
                 ProactiveCopyRejectOldContent = distributedSettings.ProactiveCopyRejectOldContent,
-                RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
-                CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
                 PeriodicCopyTracingInterval = TimeSpan.FromMinutes(distributedSettings.PeriodicCopyTracingIntervalMinutes),
                 DelayForProactiveReplication = TimeSpan.FromSeconds(distributedSettings.ProactiveReplicationDelaySeconds),
                 ProactiveReplicationCopyLimit = distributedSettings.ProactiveReplicationCopyLimit,
@@ -354,8 +365,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             ApplyIfNotNull(distributedSettings.MaximumConcurrentPutAndPlaceFileOperations, v => distributedContentStoreSettings.MaximumConcurrentPutAndPlaceFileOperations = v);
-
-            distributedContentStoreSettings.CopyScheduler = CopySchedulerConfiguration.FromDistributedContentSettings(distributedSettings);
             arguments.Overrides.Override(distributedContentStoreSettings);
 
             return distributedContentStoreSettings;

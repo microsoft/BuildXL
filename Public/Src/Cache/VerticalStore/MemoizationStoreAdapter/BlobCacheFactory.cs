@@ -122,7 +122,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         private static MemoizationStore.Interfaces.Caches.ICache CreateCache(Config configuration)
         {
             var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
-            Contract.Assert(!string.IsNullOrEmpty(connectionString), $"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}'.");
+
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new InvalidOperationException($"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}'.");
+            }
+
             var credentials = new ContentStore.Interfaces.Secrets.AzureStorageCredentials(connectionString);
             var accountName = BlobCacheStorageAccountName.Parse(credentials.GetAccountName());
 

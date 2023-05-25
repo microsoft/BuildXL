@@ -13,19 +13,28 @@ namespace BuildXL.Cache.Interfaces
     public class CacheConstructionFailure : CacheBaseFailure
     {
         private readonly string m_cacheId;
-        private readonly Exception m_rootCause;
+        private readonly string m_rootCause;
+
+        /// <summary>
+        /// Failure to create a cache
+        /// </summary>
+        /// <param name="cacheId">The cache ID</param>
+        /// <param name="rootCause">The root cause (optional)</param>
+        public CacheConstructionFailure(string cacheId, string rootCause = null)
+        {
+            Contract.Requires(cacheId != null);
+
+            m_cacheId = cacheId;
+            m_rootCause = rootCause;
+        }
 
         /// <summary>
         /// Failure to create a cache
         /// </summary>
         /// <param name="cacheId">The cache ID</param>
         /// <param name="rootCause">The root cause exception (optional)</param>
-        public CacheConstructionFailure(string cacheId, Exception rootCause = null)
+        public CacheConstructionFailure(string cacheId, Exception rootCause = null) : this(cacheId, rootCause.Message)
         {
-            Contract.Requires(cacheId != null);
-
-            m_cacheId = cacheId;
-            m_rootCause = rootCause;
         }
 
         /// <inheritdoc />

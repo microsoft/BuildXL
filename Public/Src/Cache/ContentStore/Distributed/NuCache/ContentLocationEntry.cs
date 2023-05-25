@@ -24,12 +24,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public const long MissingSize = -1;
 
-        /// <nodoc />
-        public const int BytesInFileSize = sizeof(long);
-
-        /// <nodoc />
-        public const int BitsInFileSize = BytesInFileSize * 8;
-
         private readonly UnixTime? _creationTimeUtc;
 
         /// <summary>

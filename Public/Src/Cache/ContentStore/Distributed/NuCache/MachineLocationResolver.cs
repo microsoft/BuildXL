@@ -113,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // This method won't throw/fail if the machine id is unknown.
 
             // Send master to the back. If there is no master, then the master's machine ID will be invalid
-            if (master.IsValid() && master.Equals(machineId) == true)
+            if (master.Valid && master.Equals(machineId) == true)
             {
                 return int.MaxValue;
             }

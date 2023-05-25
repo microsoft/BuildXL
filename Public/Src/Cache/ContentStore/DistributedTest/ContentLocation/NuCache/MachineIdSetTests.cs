@@ -20,10 +20,10 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         {
             var set1 = CreateMachineIdSet(format);
 
-            set1 = set1.Add(MachineId.FromIndex(1));
-            set1.GetMachineIdIndex(MachineId.FromIndex(1)).Should().Be(0);
-            set1.GetMachineIdIndex(MachineId.FromIndex(2)).Should().Be(-1);
-        }
+            set1 = set1.Add(1.AsMachineId());
+            set1.GetMachineIdIndex(1.AsMachineId()).Should().Be(0);
+            set1.GetMachineIdIndex(2.AsMachineId()).Should().Be(-1);
+        }   
 
         [Theory]
         [InlineData(MachineIdSet.SetFormat.Array)]
@@ -33,7 +33,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         {
             var set1 = MachineIdSet.Empty;
 
-            set1 = set1.Add(MachineId.FromIndex(1));
+            set1 = set1.Add(1.AsMachineId());
             set1[1].Should().BeTrue();
         }
 
@@ -205,16 +205,16 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             set1[1].Should().BeTrue();
             set1[2].Should().BeTrue();
 
-            set1 = set1.Remove(MachineId.FromIndex(1));
+            set1 = set1.Remove(1.AsMachineId());
             set1[1].Should().BeFalse();
 
-            set1 = set1.Add(MachineId.FromIndex(1));
+            set1 = set1.Add(1.AsMachineId());
             set1[1].Should().BeTrue();
         }
 
         private MachineIdSet CreateMachineIdSet(int startByteOffset, int length, params int[] setBits)
         {
-            return new BitMachineIdSet(new byte[length], startByteOffset).Add(setBits.Select(b => MachineId.FromIndex(b)).ToArray());
+            return new BitMachineIdSet(new byte[length], startByteOffset).Add(setBits.Select(b => b.AsMachineId()).ToArray());
         }
 
         private MachineIdSet MachineSet(params int[] setBits)

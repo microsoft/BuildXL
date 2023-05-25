@@ -14,7 +14,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {
     internal static class MachineIdExtensions
     {
-        public static MachineId AsMachineId(this int index) => MachineId.FromIndex(index);
+        public static MachineId AsMachineId(this int index) => new(index);
 
         public static T NotNull<T>(this T instance,
 #if NET5_0_OR_GREATER
@@ -319,7 +319,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
         private LocationChangeMachineIdSet MachineSet(params int[] machineIdIndices)
         {
-            return MachineSet(machineIdIndices.Select(idx => LocationChange.CreateAdd(MachineId.FromIndex(idx))).ToArray());
+            return MachineSet(machineIdIndices.Select(idx => LocationChange.CreateAdd(idx.AsMachineId())).ToArray());
         }
 
         private LocationChangeMachineIdSet MachineSet(params LocationChange[] locationChanges)

@@ -161,7 +161,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public Result<(ClusterStateMachine Next, MachineRecord Previous)> Heartbeat(MachineId machineId, DateTime nowUtc, MachineState state)
         {
-            if (!machineId.IsValid())
+            if (!machineId.Valid)
             {
                 // This will only happen when operating in DistributedContentConsumerOnly mode. These machines get
                 // registered with an invalid machine ID, so this is the expected response of heartbeat.

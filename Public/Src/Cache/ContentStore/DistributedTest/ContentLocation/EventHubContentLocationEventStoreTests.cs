@@ -24,6 +24,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using ContentStoreTest.Distributed.ContentLocation.NuCache;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -68,7 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
                 eventStore.StartProcessing(context, sequencePoint).ShouldBeSuccess();
 
-                eventStore.AddLocations(context, MachineId.FromIndex(0), new[] { new ContentHashWithSize(ContentHash.Random(), 1) }).ShouldBeSuccess();
+                eventStore.AddLocations(context, 0.AsMachineId(), new[] { new ContentHashWithSize(ContentHash.Random(), 1) }).ShouldBeSuccess();
 
                 (await eventStore.ShutdownAsync(context)).ShouldBeSuccess();
 

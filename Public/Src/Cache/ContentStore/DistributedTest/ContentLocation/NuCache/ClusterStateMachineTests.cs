@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
@@ -14,6 +15,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
     public class ClusterStateMachineTests
     {
         private readonly MemoryClock _clock = new MemoryClock();
+
+        // WARNING: DO NOT DISABLE THIS TEST. READ BELOW.
+        [Fact]
+        public void MachineIdSerialization()
+        {
+            // This test is testing that serialization for: ClusterStateMachine, MachineRecord, and MachineId is
+            // entirely backwards-compatible. If it isn't, a change can break a stamp by breaking either ClusterState,
+            // RocksDbContentLocationDatabase, or both of them, and completely obliterate the cluster.
+
+            var clusterState = new ClusterStateMachine();
+            (clusterState, _) = clusterState.RegisterMachine(MachineLocation.Create("node", 1234), DateTime.MinValue);
+
+            var str = JsonUtilities.JsonSerialize(clusterState, indent: false);
+            str.Should().BeEquivalentTo(@"{""NextMachineId"":2,""Records"":[{""Id"":1,""Location"":""grpc://node:1234/"",""State"":""Open"",""LastHeartbeatTimeUtc"":""0001-01-01T00:00:00""}]}");
+
+            var deserialized = JsonUtilities.JsonDeserialize<ClusterStateMachine>(str);
+            deserialized.NextMachineId.Should().Be(clusterState.NextMachineId);
+            deserialized.Records.Count.Should().Be(1);
+        }
 
         [Fact]
         public void RegisterNewMachineUsesCorrectDefaults()

@@ -1595,7 +1595,11 @@ namespace BuildXL
                     // if not explicitly disabled, enable user profile redirect and force the location
                     if (!enableProfileRedirect.HasValue || enableProfileRedirect.Value)
                     {
-                        layoutConfiguration.RedirectedUserProfileJunctionRoot = AbsolutePath.Create(pathTable, RedirectedUserProfileLocationInCloudBuild);
+                        if (!layoutConfiguration.RedirectedUserProfileJunctionRoot.IsValid)
+                        {
+                            layoutConfiguration.RedirectedUserProfileJunctionRoot = AbsolutePath.Create(pathTable, RedirectedUserProfileLocationInCloudBuild);
+                        }
+
                         enableProfileRedirect = true;
                     }
 

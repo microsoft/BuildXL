@@ -115,21 +115,8 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
             if (FileSystem.HibernatedSessionsExists(rootPath, HibernatedSessionsFileName))
             {
-                HibernatedSessions<HibernatedCacheSessionInfo> datas;
-                try
-                {
-                    datas = Config.ProtectHibernatedSessionData
-                        ? await FileSystem.ReadProtectedHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName)
-                        : await FileSystem.ReadHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName);
-                }
-                catch (Exception e)
-                {
-                    Tracer.Debug(context, $"Failed to read {(Config.ProtectHibernatedSessionData ? "protected" : "unprotected")} hibernated cache sessions. Attempting to read {(Config.ProtectHibernatedSessionData ? "unprotected" : "protected")} data. Exception: {e}");
-                    datas = Config.ProtectHibernatedSessionData
-                        ? await FileSystem.ReadHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName)
-                        : await FileSystem.ReadProtectedHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName);
-                }
-
+                HibernatedSessions<HibernatedCacheSessionInfo> datas = await FileSystem.ReadHibernatedSessionsAsync<HibernatedCacheSessionInfo>(rootPath, HibernatedSessionsFileName);
+                
                 foreach (var data in datas.Sessions)
                 {
                     infoDictionary[data.Id] = data;
@@ -192,7 +179,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <inheritdoc />
-        protected override async Task HibernateSessionsAsync(
+        protected override Task HibernateSessionsAsync(
             Context context,
             IDictionary<int, ISessionHandle<ICacheSession, LocalCacheServerSessionData>> sessionHandles)
         {
@@ -221,32 +208,14 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 }
             }
             var hibernatedSessions = new HibernatedSessions<HibernatedCacheSessionInfo>(sessionInfoList);
-
-            if (Config.ProtectHibernatedSessionData)
-            {
-                try
-                {
-                    await hibernatedSessions.WriteProtectedAsync(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
-                }
-                catch (Exception e) when (e is NotSupportedException)
-                {
-                    Tracer.Debug(context, e, "Failed to protect hibernated sessions because it is not supported by the current OS. " +
-                        $"Attempting to hibernate while unprotected.");
-                    hibernatedSessions.Write(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
-                }
-            }
-            else
-            {
-                // Saving unprotected data to avoid errors reading it (WindowsCryptographicException: Key not valid for use in specified state)
-                hibernatedSessions.Write(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
-            }
+            hibernatedSessions.Write(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
 
             var contentHandles = new Dictionary<int, ISessionHandle<IContentSession, LocalContentServerSessionData>>(sessionHandles.Count);
             foreach (var keyValuePair in sessionHandles)
             {
                 contentHandles[keyValuePair.Key] = keyValuePair.Value;
             }
-            await LocalContentServer.HibernateSessionsAsync(context, contentHandles, Config, Tracer, FileSystem);
+            return LocalContentServer.HibernateSessionsAsync(context, contentHandles, Config, Tracer, FileSystem);
         }
 
         /// <inheritdoc />

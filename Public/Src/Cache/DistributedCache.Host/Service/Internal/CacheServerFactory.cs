@@ -347,7 +347,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             localCasServiceSettings.GrpcCoreServerOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcCoreServerOptions = value);
             localCasServiceSettings.GrpcEnvironmentOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcEnvironmentOptions = value);
             localCasServiceSettings.DoNotShutdownSessionsInUse.ApplyIfNotNull(value => localContentServerConfiguration.DoNotShutdownSessionsInUse = value);
-            localCasServiceSettings.ProtectHibernatedSessionData.ApplyIfNotNull(value => localContentServerConfiguration.ProtectHibernatedSessionData = value);
             localCasServiceSettings.UseGrpcDotNet.ApplyIfNotNull(value => localContentServerConfiguration.UseGrpcDotNet = value);
             localCasServiceSettings.GrpcDotNetServerOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcDotNetServerOptions = value);
             return localContentServerConfiguration;

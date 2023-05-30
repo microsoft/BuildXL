@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using Microsoft.VisualBasic;
-using System.Security.Cryptography;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -43,25 +42,6 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <summary>
-        ///     Deserialize hibernated sessions information from the standard filename in the given directory.
-        /// </summary>
-        public static async Task<HibernatedSessions<TInfo>> ReadProtectedHibernatedSessionsAsync<TInfo>(this IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
-        {
-            Contract.Requires(rootPath != null);
-
-            var jsonPath = rootPath / fileName;
-
-            using var fileStreamWithLength = fileSystem.OpenReadOnly(jsonPath, FileShare.None);
-            var bytes = new byte[fileStreamWithLength.Length];
-            await fileStreamWithLength.Stream.ReadAsync(bytes, 0, (int)fileStreamWithLength.Length);
-
-            var protectedBytes = ProtectedData.Unprotect(bytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
-
-            using var stream = new MemoryStream(protectedBytes);
-            return stream.DeserializeFromJSON<HibernatedSessions<TInfo>>();
-        }
-
-        /// <summary>
         ///     Serialize hibernated session information to the standard filename in the given directory.
         /// </summary>
         public static void Write<TInfo>(this HibernatedSessions<TInfo> sessions, IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
@@ -79,37 +59,6 @@ namespace BuildXL.Cache.ContentStore.Service
                 using (var stream = fileSystem.Open(jsonTempPath, FileAccess.Write, FileMode.Create, FileShare.None))
                 {
                     sessions.SerializeToJSON(stream);
-                }
-
-                fileSystem.MoveFile(jsonTempPath, jsonPath, replaceExisting: true);
-            }
-        }
-
-        /// <summary>
-        ///     Serialize hibernated session information to the standard filename in the given directory.
-        /// </summary>
-        public static async Task WriteProtectedAsync<TInfo>(this HibernatedSessions<TInfo> sessions, IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
-        {
-            Contract.Requires(rootPath != null);
-
-            // Due to abnormal process termination, the file that we'll be writing can be corrupted.
-            // To prevent this issue we first write the file into a temporary location and then we "move it" into a final location.
-
-            using (var tempFolder = new DisposableDirectory(fileSystem, rootPath / "Temp"))
-            {
-                var jsonTempPath = tempFolder.CreateRandomFileName();
-                var jsonPath = rootPath / fileName;
-
-                using (var memoryStream = new MemoryStream())
-                {
-                    sessions.SerializeToJSON(memoryStream);
-
-                    var bytes = memoryStream.ToArray();
-
-                    var protectedBytes = ProtectedData.Protect(bytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
-
-                    using var fileStream = fileSystem.Open(jsonTempPath, FileAccess.Write, FileMode.Create, FileShare.None);
-                    await fileStream.Stream.WriteAsync(protectedBytes, 0, protectedBytes.Length);
                 }
 
                 fileSystem.MoveFile(jsonTempPath, jsonPath, replaceExisting: true);

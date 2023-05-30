@@ -21,10 +21,6 @@ namespace Library {
                 NetFx.System.Security.dll
             ),
 
-            ...addIf(BuildXLSdk.isDotNetCoreOrStandard,
-                BuildXLSdk.withWinRuntime(importFrom("System.Security.Cryptography.ProtectedData").pkg, r`runtimes/win/lib/netstandard2.0`)
-            ),
-
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             systemMemoryPackage,
             

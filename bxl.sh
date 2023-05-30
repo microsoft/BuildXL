@@ -288,7 +288,7 @@ fi
 # If this is an internal build running on ADO, the nuget authentication is non-interactive and therefore we need to setup
 # VSS_NUGET_EXTERNAL_FEED_ENDPOINTS if not configured, so the Microsoft credential provider can pick that up. The script assumes the corresponding
 # secrets to be exposed in the environment
-if [[ -n "$ADOBuild" && (! -n $VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)]];then
+if [[ -n "$arg_Internal" && -n "$ADOBuild" && (! -n $VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)]];then
 
     if [[ (! -n $PAT1esSharedAssets) ]]; then
         print_error "Environment variable PAT1esSharedAssets is not set."

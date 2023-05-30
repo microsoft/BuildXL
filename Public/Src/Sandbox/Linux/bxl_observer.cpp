@@ -22,17 +22,29 @@ BxlObserver* BxlObserver::GetInstance()
 
 BxlObserver::BxlObserver()
 {
-    real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
+    // These environment variables are set by BuildXL if ptrace is in use because the tracer runs in a separate process.
+    const char *ptracePid = getenv(BxlPTraceTracedPid);
+    bool isPTrace = !is_null_or_empty(ptracePid);
+
+    if (isPTrace)
+    {
+        const char *ptracePath = getenv(BxlPTraceTracedPath);
+        strlcpy(progFullPath_, ptracePath, PATH_MAX);
+    }
+    else
+    {
+        real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
+    }
 
     disposed_ = false;
-    const char *rootPidStr = getenv(BxlEnvRootPid);
+    const char *rootPidStr = isPTrace ? ptracePid : getenv(BxlEnvRootPid);
     rootPid_ = is_null_or_empty(rootPidStr) ? -1 : atoi(rootPidStr);
     // value of "1" -> special case, set by BuildXL for the root process
     if (rootPid_ == 1) {
         rootPid_ = getpid();
     }
 
-    InitFam();
+    InitFam(isPTrace ? rootPid_ : getpid());
     InitDetoursLibPath();
 
     const char* const forcedprocesses = getenv(BxlPTraceForcedProcessNames);
@@ -82,7 +94,7 @@ void BxlObserver::InitDetoursLibPath()
     }
 }
 
-void BxlObserver::InitFam()
+void BxlObserver::InitFam(pid_t pid)
 {
     // read FAM env var
     const char *famPath = getenv(BxlEnvFamPath);
@@ -112,7 +124,7 @@ void BxlObserver::InitFam()
     real_fclose(famFile);
 
     // create SandboxedPip (which parses FAM and throws on error)
-    pip_ = shared_ptr<SandboxedPip>(new SandboxedPip(getpid(), famPayload, famLength));
+    pip_ = shared_ptr<SandboxedPip>(new SandboxedPip(pid, famPayload, famLength));
     free(famPayload);
 
     // create sandbox
@@ -121,15 +133,15 @@ void BxlObserver::InitFam()
     // initialize sandbox
     if (!sandbox_->TrackRootProcess(pip_))
     {
-        _fatal("Could not track root process %s:%d", __progname, getpid());
+        _fatal("Could not track root process %s:%d", __progname, pid);
     }
 
-    process_ = sandbox_->FindTrackedProcess(getpid());
+    process_ = sandbox_->FindTrackedProcess(pid);
     process_->SetPath(progFullPath_);
     sandbox_->SetAccessReportCallback(HandleAccessReport);
 }
 
-void BxlObserver::LogDebug(const char *fmt, ...)
+void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...)
 {
     if (LogDebugEnabled())
     {
@@ -137,7 +149,7 @@ void BxlObserver::LogDebug(const char *fmt, ...)
         AccessReport debugReport = 
         {
             .operation          = kOpDebugMessage,
-            .pid                = getpid(),
+            .pid                = pid,
             .rootPid            = pip_->GetProcessId(),
             .requestedAccess    = (int)RequestedAccess::Read,
             .status             = FileAccessStatus::FileAccessStatus_Allowed,
@@ -344,17 +356,17 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bo
     return Send(buffer, std::min(numWritten + PrefixLength, PIPE_BUF), useSecondaryPipe);
 }
 
-void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode)
+void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode, pid_t associatedPid)
 {
     if (IsMonitoringChildProcesses())
     {
         // first report 'procName' as is (without trying to resolve it) to ensure that a process name is reported before anything else
-        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, procName, empty_str_, mode, error);
-        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file, mode, /*flags*/ 0, error);
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, procName, empty_str_, mode, error, /* checkCache */ true, associatedPid);
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file, mode, /*flags*/ 0, error, /* checkCache */ true, associatedPid);
     }
 }
 
-void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode, int error, bool checkCache)
+void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode, int error, bool checkCache, pid_t associatedPid)
 {
     if (reportPath == nullptr || secondPath == nullptr) 
     {
@@ -363,13 +375,13 @@ void BxlObserver::report_access(const char *syscallName, es_event_type_t eventTy
         return;
     }
     
-    report_access_internal(syscallName, eventType, reportPath, secondPath, mode, error, checkCache);
+    report_access_internal(syscallName, eventType, reportPath, secondPath, mode, error, checkCache, associatedPid);
 }
 
-void BxlObserver::report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode, int error, bool checkCache)
+void BxlObserver::report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode, int error, bool checkCache, pid_t associatedPid)
 {
     AccessReportGroup report;
-    create_access_internal(syscallName, eventType, reportPath, secondPath, report, mode, checkCache);
+    create_access_internal(syscallName, eventType, reportPath, secondPath, report, mode, checkCache, associatedPid);
     report.SetErrno(error);
     SendReport(report);
 }
@@ -382,10 +394,10 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_t
         return sNotChecked;
     }
 
-    return create_access_internal(syscallName, eventType, reportPath, secondPath, reportGroup, mode, checkCache);
+    return create_access_internal(syscallName, eventType, reportPath, secondPath, reportGroup, mode, checkCache, associatedPid);
 }
 
-AccessCheckResult BxlObserver::create_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache)
+AccessCheckResult BxlObserver::create_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache, pid_t associatedPid)
 {
     secondPath = secondPath == nullptr ? empty_str_ : secondPath;  
     if (checkCache && IsCacheHit(eventType, std::move(std::string(reportPath)), std::move(std::string(secondPath))))
@@ -409,7 +421,7 @@ AccessCheckResult BxlObserver::create_access_internal(const char *syscallName, e
         ? std::string(reportPath)
         : std::string(progFullPath_);
 
-    IOEvent event(getpid(), 0, getppid(), eventType, ES_ACTION_TYPE_NOTIFY, std::move(std::string(reportPath)), std::move(std::string(secondPath)), std::move(execPath), mode, false);
+    IOEvent event(associatedPid == 0 ? getpid() : associatedPid, 0, getppid(), eventType, ES_ACTION_TYPE_NOTIFY, std::move(std::string(reportPath)), std::move(std::string(secondPath)), std::move(execPath), mode, false);
     return create_access(syscallName, event, reportGroup, /* checkCache */ false /* because already checked cache above */);
 }
 
@@ -430,8 +442,9 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, IOEvent &e
     }
 
     AccessCheckResult result = sNotChecked;
+    pid_t pid = event.GetPid() == 0 ? getpid() : event.GetPid();
 
-    if (IsEnabled())
+    if (IsEnabled(pid))
     {
         IOHandler handler(sandbox_);
         handler.SetProcess(process_);
@@ -461,7 +474,7 @@ void BxlObserver::report_access(const char *syscallName, es_event_type_t eventTy
         return;
     }
 
-    report_access_internal(syscallName, eventType, normalized.c_str(), /*secondPath*/ nullptr , mode, error, checkCache);
+    report_access_internal(syscallName, eventType, normalized.c_str(), /*secondPath*/ nullptr , mode, error, checkCache, associatedPid);
 }
 
 AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &reportGroup, mode_t mode, int flags, bool checkCache, pid_t associatedPid)
@@ -478,18 +491,18 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_t
         return sNotChecked;
     }
 
-    return create_access_internal(syscallName, eventType, normalize_path(pathname, flags).c_str(), nullptr, reportGroup, mode, checkCache);
+    return create_access_internal(syscallName, eventType, normalize_path(pathname, flags).c_str(), nullptr, reportGroup, mode, checkCache, associatedPid);
 }
 
-void BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error)
+void BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error, pid_t associatedPid)
 {   
     AccessReportGroup report;
-    create_access_fd(syscallName, eventType, fd, report);
+    create_access_fd(syscallName, eventType, fd, report, associatedPid);
     report.SetErrno(error);
     SendReport(report);
 }
 
-AccessCheckResult BxlObserver::create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &report)
+AccessCheckResult BxlObserver::create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &report, pid_t associatedPid)
 {   
     mode_t mode = get_mode(fd);
 
@@ -503,7 +516,7 @@ AccessCheckResult BxlObserver::create_access_fd(const char *syscallName, es_even
 
     // Only reports when fd_to_path succeeded.
     return fullpath.length() > 0
-        ? create_access_internal(syscallName, eventType, fullpath.c_str(), /* secondPath */ nullptr, report, mode)
+        ? create_access_internal(syscallName, eventType, fullpath.c_str(), /* secondPath */ nullptr, report, mode, /* checkCache */ true, associatedPid)
         : sNotChecked;
 }
 

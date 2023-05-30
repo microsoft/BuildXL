@@ -1082,6 +1082,8 @@ namespace BuildXL.Processes
             };
             
             process.StartInfo.Environment[SandboxConnectionLinuxDetours.BuildXLFamPathEnvVarName] = paths.fam;
+            process.StartInfo.Environment[SandboxConnectionLinuxDetours.BuildXLTracedProcessPid] = pid.ToString();
+            process.StartInfo.Environment[SandboxConnectionLinuxDetours.BuildXLTracedProcessPath] = path;
 
             var ptraceRunner = new AsyncProcessExecutor
             (

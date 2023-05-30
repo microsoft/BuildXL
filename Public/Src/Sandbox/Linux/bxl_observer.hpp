@@ -250,13 +250,13 @@ private:
     std::vector<std::pair<std::string, bool>> staticallyLinkedProcessCache_;
     std::vector<std::string> forcedPTraceProcessNames_;
 
-    void InitFam();
+    void InitFam(pid_t pid);
     void InitDetoursLibPath();
     bool Send(const char *buf, size_t bufsiz, bool useSecondaryPipe = false);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
     char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
-    void report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath = nullptr, mode_t mode = 0, int error = 0, bool checkCache = true);
-    AccessCheckResult create_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true);
+    void report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath = nullptr, mode_t mode = 0, int error = 0, bool checkCache = true, pid_t associatedPid = 0);
+    AccessCheckResult create_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true, pid_t associatedPid = 0);
     ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t associatedPid = 0);
 
     bool IsMonitoringChildProcesses() const { return !pip_ || CheckMonitorChildProcesses(pip_->GetFamFlags()); }
@@ -264,13 +264,13 @@ private:
     bool IsPTraceForced(const char *path);
 
     inline bool IsValid() const             { return sandbox_ != NULL; }
-    inline bool IsEnabled() const
+    inline bool IsEnabled(pid_t pid) const
     {
         return
             // successfully initialized
             IsValid() &&
             // NOT (child processes should break away AND this is a child process)
-            !(pip_->AllowChildProcessesToBreakAway() && getpid() != rootPid_);
+            !(pip_->AllowChildProcessesToBreakAway() && pid != rootPid_);
     }
 
     void PrintArgs(std::stringstream& str, bool isFirst)
@@ -302,14 +302,14 @@ private:
     {
         return snprintf(
             buffer, maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s|%d\n",
-            __progname, report.pid < 0 ? getpid() : report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, path, report.isDirectory);
+            __progname, report.pid <= 0 ? getpid() : report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, path, report.isDirectory);
     }
 
     static BxlObserver *sInstance;
     static AccessCheckResult sNotChecked;
 
 #if _DEBUG
-   #define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) bxl->LogDebug("[%s:%d] " fmt, __progname, getpid(), __VA_ARGS__);
+   #define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) { pid_t pid = getpid(); bxl->LogDebug(pid, "[%s:%d] " fmt, __progname, pid, __VA_ARGS__); }
 #else
     #define BXL_LOG_DEBUG(bxl, fmt, ...)
 #endif
@@ -332,7 +332,7 @@ public:
     const char* GetSecondaryReportsPath() { return secondaryReportPath_; }
     const char* GetDetoursLibPath() { return detoursLibFullPath_; }
 
-    void report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode = 0);
+    void report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode = 0, pid_t associatedPid = 0);
     void report_audit_objopen(const char *fullpath)
     {
         IOEvent event(ES_EVENT_TYPE_NOTIFY_OPEN, ES_ACTION_TYPE_NOTIFY, fullpath, progFullPath_, S_IFREG);
@@ -345,9 +345,6 @@ public:
         return remove_path_from_LDPRELOAD(envp, detoursLibFullPath_);
     }
 
-    // TODO [pgunasekara]: All of the create_access/report_access functions below should take associatedPid as an argument
-    //                     When running with ptrace the tracer that does the reports has a different pid from the tracee, which is the process being traced.
-    //                     Thus, to have a correct report, e.g., to get the tracee's working dir, the tracer needs to know the pid of the tracee, which is passed as the associatedpid parameter
     // The following functions create an access report and performs an access check. They do not report the created access to managed BuildXL.
     // The created access report is returned as an out param in the given 'report' param. The returned report is ready to be sent with the exception of
     // setting the operation error. In operations where the error is reported back, the typical flow is creating the report, performing the operation, 
@@ -355,16 +352,18 @@ public:
     AccessCheckResult create_access(const char *syscallName, IOEvent &event, AccessReportGroup &report, bool checkCache = true);
     // In this method (and immediately below) 'mode' is provided on a best effort basis. If 0 is passed for mode, it will be
     // explicitly computed
+    // NOTE: The associatedPid value for the create_access and report_access functions below take a default value of 0 because they are only set by the ptrace sandbox.
+    //       If a value of 0 is set for associatedPid, then it is safe to assume that the report is from the interpose sandbox.
     AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &report, mode_t mode = 0, int oflags = 0, bool checkCache = true, pid_t associatedPid = 0);
     AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true, pid_t associatedPid = 0);
-    AccessCheckResult create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &reportGroup);
+    AccessCheckResult create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &reportGroup, pid_t associatedPid = 0);
     AccessCheckResult create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &reportGroup, int oflags = 0, bool getModeWithFd = true, pid_t associatedPid = 0);
 
     // The following functions are the create_* equivalent of the ones above but the access is reported to managed BuildXL
     void report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
     void report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0, int error = 0, bool checkCache = true, pid_t associatedPid = 0);
-    void report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode = 0, int error = 0, bool checkCache = true);
-    void report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error);
+    void report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode = 0, int error = 0, bool checkCache = true, pid_t associatedPid = 0);
+    void report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error, pid_t associatedPid = 0);
     void report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags, bool getModeWithFd = true, pid_t associatedPid = 0, int error = 0);
 
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
@@ -413,7 +412,7 @@ public:
         return CheckEnableLinuxSandboxLogging(pip_->GetFamExtraFlags());
     }
 
-    void LogDebug(const char *fmt, ...);
+    void LogDebug(pid_t pid, const char *fmt, ...);
 
     mode_t get_mode(const char *path)
     {
@@ -488,7 +487,8 @@ public:
      */
     bool should_deny(AccessCheckResult &check)
     {
-        return IsEnabled() && check.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
+        // getpid() can be used for IsEnabled() here because this function will not be called for the ptrace sandbox
+        return IsEnabled(getpid()) && check.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
     }
 
     GEN_FN_DEF(void*, dlopen, const char *filename, int flags);

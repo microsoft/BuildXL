@@ -10,5 +10,7 @@
 #define BxlEnvDetoursPath "__BUILDXL_DETOURS_PATH"
 #define BxlPTraceRunnerPath "__BUILDXL_PTRACE_RUNNER_PATH"
 #define BxlPTraceForcedProcessNames "__BUILDXL_PTRACE_FORCED_PROCESSES"
+#define BxlPTraceTracedPid "__BUILDXL_TRACED_PID"
+#define BxlPTraceTracedPath "__BUILDXL_TRACED_PATH"
 
 #endif //COMMON_H

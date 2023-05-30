@@ -48,9 +48,9 @@ private:
     std::vector<std::tuple<pid_t, std::string>> m_traceeTable; // tracee pid, tracee exe path
 
     /**
-     * Removes a process that has exited from the tracee table and returns true if all tracees have exited
+     * Removes the current pid from the tracee table and reports its exit
      */
-    bool AllTraceesHaveExited();
+    void RemoveFromTraceeTable();
 
     /**
      * Finds the parent process in the tracee table for a given PID.

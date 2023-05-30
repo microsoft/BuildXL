@@ -45,6 +45,16 @@ namespace BuildXL.Processes
         /// </summary>
         public static readonly string BuildXLFamPathEnvVarName = "__BUILDXL_FAM_PATH";
 
+        /// <summary>
+        /// Environment variable containing the PID for the ptracerunner process to trace when it is launched.
+        /// </summary>
+        public static readonly string BuildXLTracedProcessPid = "__BUILDXL_TRACED_PID";
+
+        /// <summary>
+        /// Environment variable containing the path to a ptraced process for the ptracerunner process to use.
+        /// </summary>
+        public static readonly string BuildXLTracedProcessPath = "__BUILDXL_TRACED_PATH";
+
         internal sealed class PathCacheRecord
         {
             internal RequestedAccess RequestedAccess { get; set; }

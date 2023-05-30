@@ -56,18 +56,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             public string CacheLogPath { get; set; }
 
             /// <summary>
-            /// Path to the root of VFS cas
-            /// </summary>
-            [DefaultValue(null)]
-            public string VfsCasRoot { get; set; }
-
-            /// <summary>
-            /// Indicates whether symlinks should be used to specify VFS files
-            /// </summary>
-            [DefaultValue(true)]
-            public bool UseVfsSymlinks { get; set; } = true;
-
-            /// <summary>
             /// If true, use a different CAS for streams, specified by <see cref="StreamCAS"/>.
             /// </summary>
             public bool UseStreamCAS { get; set; }
@@ -138,10 +126,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue(60 * 60)]
             public int RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds { get; set; }
-
-            /// <nodoc />
-            [DefaultValue(500_000)]
-            public int RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; }
 
             /// <nodoc />
             [DefaultValue(null)]
@@ -253,13 +237,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             Config cacheConfig = possibleCacheConfig.Result;
 
-            return await InitializeCacheAsync(cacheConfig, activityId);
+            return await InitializeCacheAsync(cacheConfig);
         }
 
         /// <summary>
         /// Create cache using configuration
         /// </summary>
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(Config cacheConfig, Guid activityId)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(Config cacheConfig)
         {
             Contract.Requires(cacheConfig != null);
 

@@ -91,21 +91,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue(0)]
             public uint LogFlushIntervalSeconds { get; set; }
 
-            [DefaultValue(false)]
-            public bool ReplaceExistingOnPlaceFile { get; set; }
-
-            /// <summary>
-            /// Path to the root of VFS cas
-            /// </summary>
-            [DefaultValue(null)]
-            public string VfsCasRoot { get; set; }
-
-            /// <summary>
-            /// Indicates whether symlinks should be used to specify VFS files
-            /// </summary>
-            [DefaultValue(true)]
-            public bool VfsUseSymlinks { get; set; } = true;
-
             /// <nodoc />
             [DefaultValue(null)]
             public GrpcEnvironmentOptions GrpcEnvironmentOptions { get; set; }
@@ -113,12 +98,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue(null)]
             public GrpcCoreClientOptions GrpcCoreClientOptions { get; set; }
-
-            [DefaultValue(false)]
-            public bool EnableBlobL3Publishing { get; set; }
-
-            [DefaultValue("BlobCacheFactoryConnectionString")]
-            public string BlobL3PublishingPatEnvironmentVariable { get; set; }
         }
 
         /// <inheritdoc />
@@ -166,43 +145,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         {
             var clientConfiguration = CreateClientConfiguration(configuration, logger);
 
-            MemoizationStore.Interfaces.Caches.ICache cache;
-            if (configuration.EnableBlobL3Publishing)
-            {
-                var personalAccessToken = Environment.GetEnvironmentVariable(configuration.BlobL3PublishingPatEnvironmentVariable);
-                if (string.IsNullOrEmpty(personalAccessToken))
-                {
-                    logger.Error("Attempt to use L3 cache without a personal access token. Moving forward anyways...");
-                }
-
-                var storageCredential = new AzureStorageCredentials(connectionString: personalAccessToken!);
-
-                var accountName = BlobCacheStorageAccountName.Parse(storageCredential.GetAccountName());
-                PublishingCacheConfiguration publishingConfiguration =
-                    new AzureBlobStoragePublishingCacheConfiguration()
-                    {
-                        Configuration = new AzureBlobStorageCacheFactory.Configuration(
-                            ShardingScheme: new ShardingScheme(
-                                ShardingAlgorithm.SingleShard,
-                                new() { accountName }),
-                            Universe: configuration.CacheName,
-                            Namespace: "default")
-                    };
-
-                cache = LocalCache.CreatePublishingRpcCache(
-                    logger,
-                    clientConfiguration,
-                    publishingConfiguration,
-                    personalAccessToken);
-            }
-            else
-            {
-                cache = LocalCache.CreateRpcCache(logger, clientConfiguration);
-            }
-
+            MemoizationStore.Interfaces.Caches.ICache cache = LocalCache.CreateRpcCache(logger, clientConfiguration);
             var statisticsFilePath = new AbsolutePath(logPath.Path + ".stats");
 
-            return new MemoizationStoreAdapterCache(configuration.CacheId, cache, logger, statisticsFilePath, configuration.ReplaceExistingOnPlaceFile);
+            return new MemoizationStoreAdapterCache(configuration.CacheId, cache, logger, statisticsFilePath);
         }
 
         private static ServiceClientContentStoreConfiguration CreateClientConfiguration(Config configuration, ILogger logger)

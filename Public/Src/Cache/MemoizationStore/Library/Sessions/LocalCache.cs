@@ -124,25 +124,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             return new ServiceClientCache(logger, fileSystem, serviceClientCacheConfiguration);
         }
 
-        /// <summary>
-        ///     Both content and metadata are entirely backed by an out-of-proc L2 cache, and asynchronously published to an L3 cache
-        /// </summary>
-        public static ICache CreatePublishingRpcCache(
-            ILogger logger,
-            ServiceClientContentStoreConfiguration serviceClientCacheConfiguration,
-            PublishingCacheConfiguration publishingConfiguration,
-            string personalAccessToken)
-        {
-            var fileSystem = new PassThroughFileSystem(logger);
-
-            return new ServiceClientPublishingCache(
-                logger,
-                fileSystem,
-                serviceClientCacheConfiguration,
-                publishingConfiguration,
-                personalAccessToken);
-        }
-
         private LocalCache(IAbsFileSystem fileSystem, Func<IContentStore> contentStoreFunc, Func<IMemoizationStore> memoizationStoreFunc, Guid id)
             : base(contentStoreFunc, memoizationStoreFunc, id)
         {

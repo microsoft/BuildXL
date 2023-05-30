@@ -25,6 +25,9 @@ export const linkTool = createMsvcTool(a`Link.exe`, "Microsoft Linker");
 @@public
 export const libTool = createMsvcTool(a`Lib.exe`, "Microsoft Library Manager");
 
+@@public 
+export const espXEngineDll = pkgContents.getFile(r`lib/native/bin/${"Host" + qualifier.platform}/${qualifier.platform}/EspXEngine.dll`);
+
 export namespace AtlMfc {
     @@public
     export const include = pkgContents.ensureContents({subFolder: r`${rootFolder}/atlmfc/include`});

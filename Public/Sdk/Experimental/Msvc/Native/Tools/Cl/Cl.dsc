@@ -244,8 +244,8 @@ function evaluateOneSourceFile(
         Cmd.option("/Fo", Artifact.output(objOutFile)),
         Cmd.option("/Fd", Artifact.output(pdbOutFile)),
         ...(analysisOutFile ? [
+            Cmd.option("/analyze:plugin", Artifact.input(importFrom("VisualCpp").espXEngineDll)),
             Cmd.argument("/analyze"),
-            Cmd.argument("/analyze:quiet"),
             Cmd.option("/analyze:log", Artifact.output(analysisOutFile))
         ] : []),
 
@@ -267,7 +267,23 @@ function evaluateOneSourceFile(
         ],
         unsafe: {
             childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").clToolBreakawayProcesses,
-        }
+        },
+        environmentVariables: [
+			...addIf(analysisOutFile !== undefined,
+				{
+					name: "caexcludepath",
+					value: "%include%",
+				},
+				{
+					name: "esp.annotationbuildlevel",
+					value: "ignore",
+				},
+				{
+					name: "esp.extensions",
+					value: "cppcorecheck.dll",
+				}
+			),
+        ],
     });
 
     let compOutput = <CompilationOutput> {
@@ -859,7 +875,7 @@ export interface ClOptions {
     enableOptimizedDebugInformation?: boolean;
 
     /** Enables code analysis functionality that identifies common coding defects. */
-    @@Tool.option("/analyze")
+    @@Tool.option("/analyze:plugin")
     enablePreFast?: boolean;
 
     /**

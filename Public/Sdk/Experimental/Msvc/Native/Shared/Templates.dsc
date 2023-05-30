@@ -43,7 +43,7 @@ namespace Templates {
 
     @@public
     export const nativeBuildersClRunnerTemplate: Cl.Arguments = {
-        enablePreFast: true,
+        enablePreFast: false,
         treatWarningAsError: true,
         warningLevel: ClQ.ClWarningLevel.enableAllWarnings,
         bufferSecurityCheck: true,

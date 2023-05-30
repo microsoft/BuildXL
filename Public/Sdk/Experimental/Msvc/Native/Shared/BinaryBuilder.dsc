@@ -126,7 +126,7 @@ namespace Binary {
     /** The default BuildXL-specific CL arguments */
     const defaultClTemplate = <Cl.Arguments>{
         // from default template
-        enablePreFast: true,
+        enablePreFast: false,
         treatWarningAsError: true,
         warningLevel: Cl.ClWarningLevel.enableAllWarnings,
         bufferSecurityCheck: true,

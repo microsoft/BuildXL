@@ -25,7 +25,7 @@ namespace BuildXL.Utilities.Serialization
         private readonly BxlArrayBufferWriter<byte>? m_bufferWriter;
 
         // Re-computing the remaining length instead of computing it on the fly, because
-        // we access 'RemainingLength' property on a hot path and it's cheaper to update
+        // we access 'RemainingLength' property on a hot path and its cheaper to update
         // two fields once the position has changed instead of re-computing the property all the time.
         private int m_remainingLength;
 
@@ -42,19 +42,27 @@ namespace BuildXL.Utilities.Serialization
         public int Position
         {
             readonly get => m_position;
+            
+            // Position change is on an a very hot path. Making it inlinable is very important.
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 if (m_bufferWriter is not null)
                 {
-                    var count = value - m_position;
-                    if (count > 0)
-                    {
-                        m_bufferWriter.Advance(count);
-                    }
+                    AdvanceBuffer(m_bufferWriter, value);
                 }
 
                 m_position = value;
                 m_remainingLength = Span.Length - m_position;
+            }
+        }
+
+        private void AdvanceBuffer(BxlArrayBufferWriter<byte> bufferWriter, int value)
+        {
+            var count = value - m_position;
+            if (count > 0)
+            {
+                bufferWriter.Advance(count);
             }
         }
 

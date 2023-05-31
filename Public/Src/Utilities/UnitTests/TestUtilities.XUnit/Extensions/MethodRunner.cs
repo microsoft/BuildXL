@@ -85,7 +85,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
             // the console runner crashed with stack overflow or similar unrecoverable error.
 
             // For now, only failing fast for the cache part, because there are a lot of cases when the contracts are violated for bxl part.
-            bool failFastOnContractViolation = testCase.DisplayName.Contains("ContentStore");
+            bool failFastOnContractViolation = testCase.DisplayName.Contains("ContentStore") && !testCase.Traits.ContainsKey("DisableFailFast");
 
             // Some tests modify console streams
             // Capture them so they can be restored

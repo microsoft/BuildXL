@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache;
 /// <summary>
 /// Represents id of a machine.
 /// </summary>
-public readonly record struct MachineId(int Index) : IEquatable<int>
+public readonly record struct MachineId(int Index) : IEquatable<int>, IComparable<MachineId>
 {
     /// <summary>
     /// The minimum valid MachineId.
@@ -68,5 +68,10 @@ public readonly record struct MachineId(int Index) : IEquatable<int>
     public override string ToString()
     {
         return Index.ToString();
+    }
+
+    public int CompareTo(MachineId other)
+    {
+        return Index.CompareTo(other.Index);
     }
 }

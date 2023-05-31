@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
@@ -66,6 +67,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 MachineIdSet.Empty,
                 46456,
                 new UnixTime(1)));
+        }
+
+        [Fact]
+        public void ChangeStampRoundtrip()
+        {
+            var model = MetadataServiceSerializer.TypeModel;
+
+            var value = ChangeStamp.Create(new SequenceNumber(1123), DateTime.UtcNow, ChangeStampOperation.Add);
+            CheckSerializationRoundtrip(model, value);
         }
 
         [Fact]

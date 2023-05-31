@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using Grpc.Core;
 using ProtoBuf;
 using ProtoBuf.Grpc.Configuration;
@@ -61,7 +62,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             model.SetSurrogate<MachineLocation, string>(Convert, Convert);
             model.SetSurrogate<Format<BitMachineIdSet>, (byte[] data, int offset)>(Convert, Convert);
 
+            model.SetSurrogate<ChangeStamp, long>(ChangeStampToLong, LongToChangeStamp);
+
             return model;
+        }
+
+        private static ChangeStamp LongToChangeStamp(long instance)
+        {
+            return new ChangeStamp { RawData = instance };
+        }
+
+        private static long ChangeStampToLong(ChangeStamp ts)
+        {
+            return ts.RawData;
         }
 
         public static Metadata.Entry CreateContextIdHeaderEntry(string contextId)

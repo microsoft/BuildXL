@@ -83,10 +83,17 @@ namespace BuildXL.Interop.Unix
                 return ERROR;
             }
 
+            // DriveInfo is not accurate because it uses statfs, which can't distinguish ext2/ext3/ext4.
+            // Instead of calling API, we read /proc/mounts file, sort the path based on length, find the closest match, then get the file system type.
             return Try(() =>
                 {
-                    var di = new DriveInfo(path);
-                    fsTypeName.Append(di.DriveFormat);
+                    var mounts = File.ReadAllLines("/proc/mounts");
+                    var dirFsTypes = mounts
+                        .Select(l => l.Split(' '))
+                        .Select(s => (s[1], s[2])) // select mount point (s[1]) and file system type (s[2])
+                        .OrderByDescending(i => i.Item1.Length);
+                    var dirAndType = dirFsTypes.FirstOrDefault(d => path.StartsWith(d.Item1));
+                    fsTypeName.Append(dirAndType.Item1 == null ? "UNKNOWN" : dirAndType.Item2);
                     return 0;
                 },
                 ERROR);

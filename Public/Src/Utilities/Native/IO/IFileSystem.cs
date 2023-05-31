@@ -558,6 +558,8 @@ namespace BuildXL.Native.IO
         ///
         /// On Unix, file version is currently based on file timestamp. Some Unix/Apple file systems (or file system drivers), e.g., HFS, only have one-second precision. So
         /// if a file is written twice in sub-second, then its timestamp does not change.
+        /// A special case is <see cref="FileSystemType.EXT4"/> has a nanosecond (or high) precision timestamp, but the Linux kernel itself doesn't update the clock every nanosecond, so the timestamp itself is not accurate.
+        /// As an experiment, we create a small program that repeatedly writes a content to a file on ext4 filesystem, and when running the program, we notice that the file (modified) timestamp only changes after several writes.
         /// </remarks>
         bool CheckIfVolumeSupportsPreciseFileVersionByHandle(SafeFileHandle fileHandle);
 

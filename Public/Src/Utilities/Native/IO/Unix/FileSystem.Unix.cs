@@ -1005,7 +1005,8 @@ namespace BuildXL.Native.IO.Unix
                 // Nanosecond precision may not be supported, and
                 // either enlistment volume does not support precise file version, or
                 // the volume where the file resides does not support precise file version.
-                // Use the modified timestamp. Yes, this can result in unreliability.
+                // Use the modified timestamp. See TryEstablishVersionedFileIdentityByHandle below. The lastModification timestamp is modified when establishing the file verison
+                // Yes, this can result in unreliability.
                 sec = statBuffer.TimeLastModification;
                 nsec = statBuffer.TimeNSecLastModification;
             }

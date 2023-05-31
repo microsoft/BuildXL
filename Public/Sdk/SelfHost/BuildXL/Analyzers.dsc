@@ -17,7 +17,8 @@ export function getAnalyzerDlls(contents: StaticDirectory): Managed.Binary[] {
 export function getAnalyzers(args: Arguments) : Managed.Binary[] {
     let result = [
         ...getAnalyzerDlls(importFrom("AsyncFixer").Contents.all),
-        ...getAnalyzerDlls(importFrom("ErrorProne.NET.CoreAnalyzers").Contents.all)
+        ...getAnalyzerDlls(importFrom("ErrorProne.NET.CoreAnalyzers").Contents.all),
+        ...getAnalyzerDlls(importFrom("protobuf-net.BuildTools").Contents.all)
     ];
 
     // FxCop analyzers, when we turn them back on we can uncomment these

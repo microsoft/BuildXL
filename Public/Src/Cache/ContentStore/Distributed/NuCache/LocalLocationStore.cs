@@ -131,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private bool _repairPendingToHandle = false;
 
-        public ClusterStateManager ClusterStateManager { get; private set; }
+        public ClusterStateManager ClusterStateManager { get; }
         internal ClusterState ClusterState => ClusterStateManager.ClusterState;
 
         private readonly SemaphoreSlim _databaseInvalidationGate = new SemaphoreSlim(1);
@@ -1089,7 +1089,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets content locations for a given <paramref name="hash"/> from a local database.
         /// </summary>
-        private bool TryGetContentLocations(OperationContext context, ShortHash hash, [NotNullWhen(true)] out ContentLocationEntry entry)
+        private bool TryGetContentLocations(OperationContext context, ShortHash hash, [NotNullWhen(true)] out ContentLocationEntry? entry)
         {
             using (Counters[ContentLocationStoreCounters.DatabaseGet].Start())
             {
@@ -2194,19 +2194,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             /// <inheritdoc />
-            public (ContentInfo localInfo, ContentLocationEntry distributedEntry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash)
+            public (ContentInfo localInfo, ContentLocationEntry? distributedEntry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash)
             {
                 ContentInfo localInfo = default;
-                bool foundLocalInfo = _machineInfo.LocalContentStore?.TryGetContentInfo(hash, out localInfo) ?? false;
-
+                var foundLocalInfo = _machineInfo.LocalContentStore?.TryGetContentInfo(hash, out localInfo);
+                
+                // Need to find the entry from the dtabase even if TryGetContentInfo returns false.
                 bool foundDistributedEntry = _localLocationStore.TryGetContentLocations(context, hash, out var distributedEntry);
 
-                if (foundLocalInfo
+                if (foundLocalInfo == true
                     && foundDistributedEntry
                     && distributedEntry.LastAccessTimeUtc.ToDateTime() > localInfo.LastAccessTimeUtc)
                 {
                     // Update the local content store with distributed last access time if it is newer (within some margin of error specified by TargetRange)
-                    _machineInfo.LocalContentStore.UpdateLastAccessTimeIfNewer(hash, distributedEntry.LastAccessTimeUtc.ToDateTime());
+                    _machineInfo.LocalContentStore!.UpdateLastAccessTimeIfNewer(hash, distributedEntry.LastAccessTimeUtc.ToDateTime());
                     _localLocationStore.Counters[ContentLocationStoreCounters.StaleLastAccessTimeUpdates].Increment();
                 }
 

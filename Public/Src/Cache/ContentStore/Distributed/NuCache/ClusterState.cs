@@ -232,13 +232,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal bool IsDesignatedLocation(MachineId machineId, ContentHash hash, bool includeExpired)
         {
-            if (BinManager == null)
-            {
-                return false;
-            }
-
-            var locations = BinManager.GetDesignatedLocations(hash, includeExpired);
-            if (!locations.Succeeded)
+            var locations = BinManager?.GetDesignatedLocations(hash, includeExpired);
+            if (locations == null || !locations.Succeeded)
             {
                 return false;
             }

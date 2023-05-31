@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Tries to obtain <see cref="ContentInfo"/> from a store and <see cref="ContentLocationEntry"/> from a content location database.
         /// </summary>
-        (ContentInfo localInfo, ContentLocationEntry distributedEntry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash);
+        (ContentInfo localInfo, ContentLocationEntry? distributedEntry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash);
     }
 
     /// <summary>

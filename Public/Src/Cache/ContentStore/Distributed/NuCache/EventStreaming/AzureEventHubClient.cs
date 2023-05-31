@@ -47,7 +47,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             {
                 if (ManagedIdentityUriHelper.TryParseForManagedIdentity(_configuration.EventHubConnectionString, out string eventHubNamespace, out string eventHubName, out string managedIdentityId))
                 {
-                    _partitionReceiver = new PartitionReceiverWrapper(_configuration.ConsumerGroupName, PartitionId, GetInitialOffset(context, sequencePoint), eventHubNamespace, eventHubName, new DefaultAzureCredential());
+                    _partitionReceiver = new PartitionReceiverWrapper(
+                        _configuration.ConsumerGroupName,
+                        PartitionId,
+                        GetInitialOffset(context, sequencePoint),
+                        eventHubNamespace,
+                        eventHubName,
+                        new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = managedIdentityId }));
                 }
                 else
                 {
@@ -82,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             // The default policy retries with exponential backoff when Azure Event Hub returns a transient EventHubsException or an OperationCanceledException.
             if (ManagedIdentityUriHelper.TryParseForManagedIdentity(_configuration.EventHubConnectionString, out string eventHubNamespace, out string eventHubName, out string managedIdentityId))
             {
-                _partitionSender = new EventHubProducerClient(eventHubNamespace, eventHubName, new DefaultAzureCredential());
+                _partitionSender = new EventHubProducerClient(eventHubNamespace, eventHubName, new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = managedIdentityId }));
             }
             else
             {

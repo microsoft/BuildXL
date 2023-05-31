@@ -33,7 +33,7 @@ namespace BuildXL.Cache.Host.Configuration
                 NameValueCollection? queryVariables = HttpUtility.ParseQueryString(uri.Query);
                 if (queryVariables.Count > 0)
                 {
-                    eventHubNamespace = uri.Scheme + Uri.SchemeDelimiter + uri.Host;
+                    eventHubNamespace = uri.Host;
                     eventHubName = queryVariables[EventHubNameOption];
                     managedIdentityId = queryVariables[ManagedIdentityIdOption];
 

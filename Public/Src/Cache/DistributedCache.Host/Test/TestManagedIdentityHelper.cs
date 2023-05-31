@@ -20,10 +20,10 @@ namespace BuildXL.Cache.Host.Test
             string identity = Guid.NewGuid().ToString();
             var newUriString = ManagedIdentityUriHelper.BuildString(new Uri(uri), ehName, identity);
 
-            ManagedIdentityUriHelper.TryParseForManagedIdentity(newUriString, out string? eventHubNamespaceUri, out string? foundEventHubName, out string? foundManagedIdentityId)
+            ManagedIdentityUriHelper.TryParseForManagedIdentity(newUriString, out string? eventHubNamespace, out string? foundEventHubName, out string? foundManagedIdentityId)
                 .Should().BeTrue();
 
-            eventHubNamespaceUri.Should().Be(uri);
+            eventHubNamespace.Should().Be(new Uri(uri, UriKind.Absolute).Host);
             foundEventHubName.Should().Be(ehName);
             foundManagedIdentityId.Should().Be(identity);
         }
@@ -37,12 +37,12 @@ namespace BuildXL.Cache.Host.Test
 
             ManagedIdentityUriHelper.TryParseForManagedIdentity(
                 $"{uri}/?name={eventHubName}&identity={identity}",
-                out string? foundEventHubNamespaceUri,
+                out string? foundEventHubNamespace,
                 out string? foundEventHubName,
                 out string? foundManagedIdentityId)
                     .Should().BeTrue();
 
-            foundEventHubNamespaceUri.Should().Be(uri.ToLower());
+            foundEventHubNamespace.Should().Be(new Uri(uri, UriKind.Absolute).Host);
             foundEventHubName.Should().Be(eventHubName);
             foundManagedIdentityId.Should().Be(identity);
         }

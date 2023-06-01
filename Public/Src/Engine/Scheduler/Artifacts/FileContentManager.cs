@@ -2290,27 +2290,28 @@ namespace BuildXL.Scheduler.Artifacts
 
                                 Possible<ContentMaterializationResult> possiblyPlaced = await PlaceSingleFileAsync(operationContext, state, materializationFileIndex, materializationFile);
 
-                                var result = possiblyPlaced.Then(materializationResult =>
-                                {
-                                    state.SetMaterializationSuccess(
-                                        fileIndex: materializationFileIndex,
-                                        origin: possiblyPlaced.Result.Origin,
-                                        operationContext: operationContext);
-
-                                    return m_host.ReportFileArtifactPlaced(file, materializationInfo);
-                                });
-                                
-                                if (!result.Succeeded)
+                                Possible<Unit> finalResult = possiblyPlaced
+                                                                .Then(_ => m_host.ReportFileArtifactPlaced(file, materializationInfo))
+                                                                .Then(_ =>
+                                                                {
+                                                                    state.SetMaterializationSuccess(
+                                                                        fileIndex: materializationFileIndex,
+                                                                        origin: possiblyPlaced.Result.Origin,
+                                                                        operationContext: operationContext);
+                                                                    return Unit.Void;
+                                                                });
+                                if (!finalResult.Succeeded)
                                 {
                                     Logger.Log.StorageCacheGetContentWarning(
                                         operationContext,
                                         pipDescription: pipInfo.Description,
                                         contentHash: hash.ToHex(),
                                         destinationPath: file.Path.ToString(pathTable),
-                                        errorMessage: result.Failure.DescribeIncludingInnerFailures());
+                                        errorMessage: finalResult.Failure.DescribeIncludingInnerFailures());
+
                                     state.SetMaterializationFailure(fileIndex: materializationFileIndex);
 
-                                    if (result.Failure is FailToDeleteForMaterializationFailure)
+                                    if (finalResult.Failure is FailToDeleteForMaterializationFailure)
                                     {
                                         userError = true;
                                     }

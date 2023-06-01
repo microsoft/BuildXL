@@ -410,9 +410,6 @@ config({
             ],
 
             doNotEnforceDependencyVersions: true,
-
-            // TODO: remove when this becomes the default.
-            includeMonikersInNuspecDependencies: true,
         },
 
         importFile(f`config.microsoftInternal.dsc`).resolver,

@@ -170,24 +170,14 @@ namespace BuildXL.FrontEnd.Nuget
             NetCoreApp21  = Register(stringTable, "netcoreapp2.1",  ".NETCoreApp2.1", NetCoreVersionHistory);
             NetCoreApp22  = Register(stringTable, "netcoreapp2.2",  ".NETCoreApp2.2", NetCoreVersionHistory);
 
-            // TODO: temporary until we incorporate this change. This is the right position for NetStandard2.1
-            if (nugetResolverSettings.IncludeMonikersInNuspecDependencies != false)
-            {
-                // Netstandard2.1 supports NetCoreApp 3.0 and above
-                NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1", NetCoreVersionHistory);
-            }
+            // Netstandard2.1 supports NetCoreApp 3.0 and above
+            NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1", NetCoreVersionHistory);
 
             NetCoreApp30  = Register(stringTable, "netcoreapp3.0",  ".NETCoreApp3.0", NetCoreVersionHistory);
             NetCoreApp31  = Register(stringTable, "netcoreapp3.1",  ".NETCoreApp3.1", NetCoreVersionHistory);
             NetApp50      = Register(stringTable, "net5.0",  ".NETCoreApp5.0", NetCoreVersionHistory);
             Net60         = Register(stringTable, "net6.0",  ".NETCoreApp6.0", NetCoreVersionHistory);
             Net70         = Register(stringTable, "net7.0",  ".NETCoreApp7.0", NetCoreVersionHistory);
-
-            // TODO: temporary until we incorporate this change. This is not the right position for NetStandard2.1 since it does supports NetCoreApp 3.0 and above
-            if (nugetResolverSettings.IncludeMonikersInNuspecDependencies == false)
-            {
-                NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1", NetCoreVersionHistory);
-            }
 
             NetCoreAppVersionHistory = new List<PathAtom>() { NetCoreApp20, NetCoreApp21, NetCoreApp22, NetCoreApp30, NetCoreApp31, NetApp50, Net60, Net70 };
 

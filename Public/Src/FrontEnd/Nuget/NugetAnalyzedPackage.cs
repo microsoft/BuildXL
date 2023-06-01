@@ -416,7 +416,6 @@ namespace BuildXL.FrontEnd.Nuget
                         // The attribute may come as a target framework (e.g. ".NETCoreApp2.1")
                         NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(targetFrameworkAttribute, out Moniker targetFramework) ||
                         // Or it may come as a moniker directly (e.g. "net6.0")
-                        m_nugetResolverSettings.IncludeMonikersInNuspecDependencies != false &&
                         Moniker.TryCreate(m_context.StringTable, targetFrameworkAttribute, out var targetFrameworkAttributeMoniker) && 
                         NugetFrameworkMonikers.WellknownMonikers.TryGetValue(targetFrameworkAttributeMoniker, out targetFramework))
                     )

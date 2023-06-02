@@ -1,13 +1,53 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
-# 0.1.0-20230424.4  (Release [293854](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=293854) Released 4/26/2023)
--	Documentation update for pip environment variables
--	Fix for crash when CloudBuild timeout is hit
--	Documentation for weak fingerprint augmentation
--	Fixes for nuget resolver
--	Allow forcing PTrace linux sandbox for specific processes
--	Reliability fixes for PTrace sandbox
+# 0.1.0-20230526.0 (Release [301868](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=301868) Released 6/01/2023)
+- Flip default for the includeMonikersInNuspecDependencies setting in NugetResolver 
+- Intermediate symlinks are now resolved when deleting symlinks under directory symlinks
+- Add the output file of component detection to produced drops
+- Fix the deletion of rewritten sources on pip retry
+- Fix calculation for graph shape limiting resource
+
+# 0.1.0-20230518.3 (Release [299901](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=299901) Released 5/24/2023)
+- Paginate results in GenerateBuildManifestFileList API
+- Various fixes to the Guardian SDK
+- Enable the ptrace sandbox by default on Linux
+
+# 0.1.0-20230512.2 (Release [298428](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=298428) Released 5/18/2023)
+- Allow safe source rewrites for QTest
+- Log full output for pips in compliance builds
+- Copy output files from policheck for compliance build
+- Consider monikers in nuspec dependency target frameworks
+- Various bug fixes
+
+# 0.1.0-20230505.4 (Release [296804](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=296804) Released 5/10/2023)
+- Complete missing USN change reasons
+- Added missing parenthesis in journal debug info
+- Make frontend less aggressive for expected use cases
+- Fix selection of OS-specific FileSystemExtensions 
+- Translate the result of DeviceIoControl (FSCTL_GET_REPARSE_POINT case) under an unsafe flag
+- Track AppData in Linux
+
+# 0.1.0-20230428.1 (Release [294986](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=294986) Released 5/03/2023)
+- Update .net 7 to 7.0.5
+- Debug info for USN journalling feature.
+- Untrack Microsoft monitoring agent.
+- Add an option to send logs to Kusto.
+- Fix for SaveFileChangeTrackerAsync: NullRef bug.
+- Use env when launching root process with ptrace.
+- Set size on DebugEntry on Symbol API request.
+- Untrack locallow folder in Guardian SDK.
+- Address OverflowException in JumpConsistent Hashing.
+- Report PID from ptracesandbox to report_access calls.
+- Fix ProcessCachedWithAllowlistedFileMonitoringViolations test on Linux
+
+# 0.1.0-20230424.4 (Release [293854](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=293854) Released 4/26/2023)
+- Documentation update for pip environment variables
+- Fix for crash when CloudBuild timeout is hit
+- Documentation for weak fingerprint augmentation
+- Fixes for nuget resolver
+- Allow forcing PTrace linux sandbox for specific processes
+- Reliability fixes for PTrace sandbox
 
 # 0.1.0-20230414.2.1 (Release [292538](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=292538) Released 4/19/2023)
 - Track source changes in ProgramData
@@ -20,10 +60,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various bug fixes
 
 # 0.1.0-20230407.6 (Release [289924](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=289924) Released 4/12/2023)
--	Track source changes in UserProfile and LocalAppData by default
--	Embed sources into PDBs for internal builds
--	Migrate Bond to Protobuf for cache serialization
--	Bug fixes and perf improvements
+- Track source changes in UserProfile and LocalAppData by default
+- Embed sources into PDBs for internal builds
+- Migrate Bond to Protobuf for cache serialization
+- Bug fixes and perf improvements
+
+# 0.1.0-20230331.2 (Release [288278](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=288278) Released 4/05/2023)
+- Fix grouping commands for Lage resolver
+- Change the log message on ADO console for DX64 errors
+- Temporarily skip signing nuget packages
+- Add an option to disable sending XLG events from workers
+- Correct negative ResourcePaused count
 
 # 0.1.0-20230324.3.2 (Release [287737](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=287737) Released 3/30/2023)
 - Optimize allow list check for undeclared accesses

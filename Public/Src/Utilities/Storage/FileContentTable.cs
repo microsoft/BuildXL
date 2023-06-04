@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -60,7 +61,7 @@ namespace BuildXL.Storage
     /// </remarks>
     public sealed class FileContentTable : IFileChangeTrackingObserver
     {
-        private static readonly FileEnvelope s_fileEnvelope = new FileEnvelope(name: "FileContentTable." + ContentHashingUtilities.HashInfo.Name, version: 19);
+        private static readonly FileEnvelope s_fileEnvelope = new(name: "FileContentTable." + ContentHashingUtilities.HashInfo.Name, version: 19);
 
         /// <summary>
         /// Default time-to-live (TTL) for new entries to a <see cref="FileContentTable"/>.
@@ -71,7 +72,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// These are the (global file ID) -> (USN, hash) mappings recorded or retrieved in this session.
         /// </summary>
-        private readonly ConcurrentBigMap<FileIdAndVolumeId, Entry> m_entries = new ConcurrentBigMap<FileIdAndVolumeId, Entry>();
+        private readonly ConcurrentBigMap<FileIdAndVolumeId, Entry> m_entries = new();
 
         /// <summary>
         /// In the event a volume has a disabled change journal or not all files have USNs (journal enabled after last write to a
@@ -89,7 +90,7 @@ namespace BuildXL.Storage
         /// </summary>
         public CounterCollection<FileContentTableCounters> Counters { get; } = new CounterCollection<FileContentTableCounters>();
 
-        private readonly ObserverData m_observerData = new ObserverData();
+        private readonly ObserverData m_observerData = new();
         private readonly LoggingContext m_loggingContext;
 
         /// <summary>
@@ -147,15 +148,16 @@ namespace BuildXL.Storage
             EntryTimeToLive = entryTimeToLive;
 
             // Copy entries, discarding the stale ones and decrementing TTLs
-            foreach (KeyValuePair<FileIdAndVolumeId, Entry> kvp in other.m_entries)
-            {
-                var entry = kvp.Value;
-                if (entry.TimeToLive > 0)
-                {
-                    ushort newTimeToLive = (ushort)(Math.Min(entryTimeToLive, entry.TimeToLive - 1));
-                    m_entries[kvp.Key] = entry.WithTimeToLive(newTimeToLive);
-                }
-            }
+            // The use of ConvertUnsafe is for performance reasons. Adding/updating items to a ConcurrentBigMap is expensive
+            // because it involves finding the item in the map, as well as, particularly for update, acquiring a lock.
+            m_entries = other.m_entries.ConvertUnsafe(e => e.TimeToLive > 0
+                ? e.WithTimeToLive((ushort)Math.Min(entryTimeToLive, e.TimeToLive - 1))
+                : new Entry(e.Usn, default /* Invalid hash as a marker */, e.Length, e.TimeToLive));
+            m_entries
+                .Where(kvp => !kvp.Value.Hash.IsValid)
+                .Select(kvp => kvp.Key)
+                .ToList()
+                .ForEach(k => m_entries.RemoveKey(k));
         }
 
         /// <summary>

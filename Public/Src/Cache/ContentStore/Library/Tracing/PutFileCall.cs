@@ -8,6 +8,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Tracing
@@ -107,6 +108,12 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <inheritdoc />
         protected override PutResult CreateErrorResult(Exception exception)
         {
+            if (Token.IsCancellationRequested && exception is ObjectDisposedException {ObjectName: nameof(PinContext)})
+            {
+                // Avoid polluting the logs by returning a special result for cancellation due to pin context disposal.
+                return new PutResult(new OperationCanceledException(Token), _contentHash);
+            }
+
             return new PutResult(exception, _contentHash);
         }
 

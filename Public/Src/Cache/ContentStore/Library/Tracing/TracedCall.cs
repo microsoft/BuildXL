@@ -21,8 +21,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
     {
         private readonly Stopwatch _stopwatch = new Stopwatch();
 
-        private readonly CancellationToken _token; // Optional cancellation token for a current operation.
-
         /// <summary>
         ///     The tracer instance.
         /// </summary>
@@ -32,6 +30,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
         ///     The call tracing context.
         /// </summary>
         protected Context Context { get; }
+
+        /// <summary>
+        ///     An optional cancellation token for the current operation.
+        /// </summary>
+        protected CancellationToken Token { get; }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="TracedCall{TTracer, TResult}"/> class without a counter.
@@ -49,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             Tracer = tracer;
             Context = context;
-            _token = context.Token;
+            Token = context.Token;
         }
 
         /// <summary>
@@ -76,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             {
                 Result = CreateErrorResult(exception);
 
-                if (_token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(exception))
+                if (Token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(exception))
                 {
                     Result.MarkCancelled();
                 }
@@ -84,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             finally
             {
                 _stopwatch.Stop();
-                Result.SetDuration(_stopwatch.Elapsed);
+                Result!.SetDuration(_stopwatch.Elapsed);
             }
 
             return Result;
@@ -104,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             {
                 Result = CreateErrorResult(exception);
 
-                if (_token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(exception))
+                if (Token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(exception))
                 {
                     Result.MarkCancelled();
                 }

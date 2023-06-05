@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected override bool TraceErrorsOnly => true; // This type adds nothing in terms of tracing. So configure it to trace errors only.
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="ReadOnlyFileSystemContentSession" /> class.
+        ///     Initializes a new instance of the <see cref="FileSystemContentSession" /> class.
         /// </summary>
         public FileSystemContentSession(string name, FileSystemContentStoreInternal store, ImplicitPin implicitPin)
             : base(name)

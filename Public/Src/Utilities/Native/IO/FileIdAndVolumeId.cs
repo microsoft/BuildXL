@@ -2,6 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using BuildXL.Utilities;
@@ -20,6 +23,11 @@ namespace BuildXL.Native.IO
     public readonly struct FileIdAndVolumeId : IEquatable<FileIdAndVolumeId>
     {
         internal static readonly int Size = Marshal.SizeOf<FileIdAndVolumeId>();
+
+        /// <summary>
+        /// Comparer instance.
+        /// </summary>
+        public static readonly Comparer ComparerInstance = new();
 
         /// <summary>
         /// Volume containing the file.
@@ -83,6 +91,18 @@ namespace BuildXL.Native.IO
         public static FileIdAndVolumeId Deserialize(BinaryReader reader)
         {
             return new FileIdAndVolumeId(reader.ReadUInt64(), FileId.Deserialize(reader));
+        }
+
+        /// <summary>
+        /// Default comparer.
+        /// </summary>
+        public class Comparer : IEqualityComparer<FileIdAndVolumeId>
+        {
+            /// <inheritdoc/>
+            public bool Equals(FileIdAndVolumeId x, FileIdAndVolumeId y) => x.Equals(y);
+
+            /// <inheritdoc/>
+            public int GetHashCode([DisallowNull] FileIdAndVolumeId obj) => obj.GetHashCode();
         }
     }
 }

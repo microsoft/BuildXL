@@ -34,10 +34,5 @@ namespace BuildXL.Utilities.Authentication
         /// https://github.com/AzureAD/microsoft-authentication-library-for-dotnet/wiki/System-Browser-on-.Net-Core
         /// </summary>
         public const string RedirectUri = "http://localhost";
-
-        /// <summary>
-        /// Production Microsoft Authority
-        /// </summary>
-        public const string MicrosoftAuthority = $"https://login.microsoftonline.com/{MicrosoftTenantId}";
     }
 }

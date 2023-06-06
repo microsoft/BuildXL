@@ -56,5 +56,12 @@ namespace BuildXL.Ipc.MultiplexingSocketBasedIpc
                 maxConcurrentClients: config.MaxConcurrentClients,
                 maxConcurrentRequestsPerClient: config.MaxConcurrentRequestsPerClient);
         }
+
+        IServer IIpcProvider.GetServer(IServerConfig config) => throw new NotSupportedException();
+
+        void IIpcProvider.UnsafeSetConnectionStringForMoniker(IpcMoniker ipcMoniker, string connectionString)
+        {
+            m_moniker2connectionString[ipcMoniker.Id] = new Lazy<string>(() => connectionString);
+        }
     }
 }

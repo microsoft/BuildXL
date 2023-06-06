@@ -31,6 +31,12 @@ namespace Test.BuildXL.Scheduler.Utils
 
         /// <inheritdoc />
         public IServer GetServer(string connectionString, IServerConfig config) => DummyIpcServer.Instance;
+
+        /// <inheritdoc />
+        public IServer GetServer(IServerConfig config) => throw new System.NotImplementedException();
+
+        /// <inheritdoc />
+        public void UnsafeSetConnectionStringForMoniker(IpcMoniker ipcMoniker, string connectionString) => throw new System.NotImplementedException();
     }
 
     /// <summary>
@@ -43,6 +49,8 @@ namespace Test.BuildXL.Scheduler.Utils
         public Task Completion => global::BuildXL.Utilities.Core.Tasks.Unit.VoidTask;
 
         public IServerConfig Config => null;
+
+        public Task<string> ConnectionString => throw new System.NotImplementedException();
 
         public void Dispose() { }
 

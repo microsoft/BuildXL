@@ -122,6 +122,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeServicePipDependencies;
         private SymbolAtom m_executeServiceTrackableTag;
         private SymbolAtom m_executeServiceTrackableTagDisplayName;
+        private SymbolAtom m_executeServiceMoniker;
         private SymbolAtom m_executeDescription;
         private SymbolAtom m_executeAbsentPathProbeInUndeclaredOpaqueMode;
         private SymbolAtom m_executeAdditionalTempDirectories;
@@ -267,6 +268,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeServicePipDependencies = Symbol("servicePipDependencies");
             m_executeServiceTrackableTag = Symbol("serviceTrackableTag");
             m_executeServiceTrackableTagDisplayName = Symbol("serviceTrackableTagDisplayName");
+            m_executeServiceMoniker = Symbol("moniker");
             m_executeDescription = Symbol("description");
             m_executeAdditionalTempDirectories = Symbol("additionalTempDirectories");
             m_executeWarningRegex = Symbol("warningRegex");
@@ -633,8 +635,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 var trackableTagDisplayName = string.IsNullOrEmpty(trackableTagDisplayNameString)
                     ? StringId.Invalid
                     : StringId.Create(context.StringTable, trackableTagDisplayNameString);
-
                 processBuilder.SetServiceTrackableTag(trackableTag, trackableTagDisplayName);
+                processBuilder.ServiceMoniker = Converter.ExtractValue<IpcMoniker>(obj, m_executeServiceMoniker, allowUndefined: false);
             }
 
             // Light process flag.

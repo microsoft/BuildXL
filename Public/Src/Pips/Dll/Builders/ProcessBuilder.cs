@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Ipc.Common;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
@@ -166,6 +167,9 @@ namespace BuildXL.Pips.Builders
 
         /// <nodoc />
         public ReadOnlyArray<PipId> FinalizationPipIds { get; set; } = ReadOnlyArray<PipId>.Empty;
+
+        /// <nodoc />
+        public IpcMoniker? ServiceMoniker { get; set; }
 
         private StringId m_serviceTrackableTag;
         private StringId m_serviceTrackableTagDisplayName;
@@ -678,6 +682,10 @@ namespace BuildXL.Pips.Builders
                 }
             }
 
+            var monikerId = ServiceMoniker.HasValue
+                ? StringId.Create(m_pathTable.StringTable, ServiceMoniker.Value.Id)
+                : StringId.Invalid;
+
             var serviceInfo = ServiceKind == ServicePipKind.None
                 ? ServiceInfo.None
                 : new ServiceInfo(
@@ -686,7 +694,8 @@ namespace BuildXL.Pips.Builders
                        servicePipDependencies: ReadOnlyArray<PipId>.From(m_servicePipDependencies.Instance),
                        finalizationPipIds: FinalizationPipIds,
                        tagToTrack: m_serviceTrackableTag,
-                       displayNameForTag: m_serviceTrackableTagDisplayName);
+                       displayNameForTag: m_serviceTrackableTagDisplayName,
+                       monikerId: monikerId);
 
             processOutputs = new ProcessOutputs(
                 outputFileMap,

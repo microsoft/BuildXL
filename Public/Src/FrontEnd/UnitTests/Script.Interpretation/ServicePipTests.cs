@@ -38,7 +38,8 @@ const servicePip = Transformer.createService({
     tool: tool,
     arguments: [],
     workingDirectory: out,
-    serviceShutdownCmd: shutdownCmd 
+    serviceShutdownCmd: shutdownCmd,
+    moniker: Transformer.getNewIpcMoniker()
 });
 
 export const result = servicePip.serviceId;
@@ -67,7 +68,8 @@ const servicePip1 = Transformer.createService({
     tool: tool,
     arguments: [],
     workingDirectory: out,
-    serviceShutdownCmd: shutdownCmd
+    serviceShutdownCmd: shutdownCmd,
+    moniker: Transformer.getNewIpcMoniker()
 });
 
 const servicePip2 = Transformer.createService(<any>{
@@ -75,9 +77,10 @@ const servicePip2 = Transformer.createService(<any>{
     arguments: [],
     workingDirectory: out,
     serviceShutdownCmd: shutdownCmd, 
+    moniker: Transformer.getNewIpcMoniker(),
     // the line below doesn't typecheck, so here we are testing that when the 
     // typechecker is off we don't fail with a Contract exception
-    servicePipDependencies: [ servicePip1.serviceId ] 
+    servicePipDependencies: [ servicePip1.serviceId ]
 });
 ";
             EvaluateExpressionWithNoErrors(code, "servicePip2");
@@ -93,6 +96,7 @@ const servicePip2 = Transformer.createService(<any>{
             tool: { exe: f`dummy.exe` },
             arguments: [],
             workingDirectory: Context.getNewOutputDirectory('d1'),
+            moniker: Transformer.getNewIpcMoniker()
         });
         ";
             EvaluateWithDiagnosticId(code, LogEventId.UnexpectedValueTypeOnConversion);
@@ -137,7 +141,8 @@ const servicePip2 = Transformer.createService(<any>{
             serviceShutdownCmd: shutdownCmd,
             // the line below doesn't typecheck, so here we are testing that when the 
             // typechecker is off we don't fail with a Contract exception
-            servicePipDependencies: []
+            servicePipDependencies: [],
+            moniker: Transformer.getNewIpcMoniker()
         });
 
         export const result = servicePip.serviceId;

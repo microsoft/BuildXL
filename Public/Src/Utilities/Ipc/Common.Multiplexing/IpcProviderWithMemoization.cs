@@ -80,6 +80,11 @@ namespace BuildXL.Ipc.Common.Multiplexing
         }
 
         /// <summary>
+        /// Not supported. Use <see cref="GetServer(string, IServerConfig)"/> instead.
+        /// </summary>
+        public IServer GetServer(IServerConfig config) => throw new NotSupportedException();
+
+        /// <summary>
         /// Requests stop on each memoized client and server and returns a task that waits until all of them have completed.
         /// </summary>
         public Task Stop()
@@ -139,6 +144,13 @@ namespace BuildXL.Ipc.Common.Multiplexing
 
                 map.Clear();
             }
+        }
+
+        /// <inheritdoc />
+        public void UnsafeSetConnectionStringForMoniker(IpcMoniker ipcMoniker, string connectionString)
+        {
+            m_moniker2connectionString[ipcMoniker.Id] = connectionString;
+            m_provider.UnsafeSetConnectionStringForMoniker(ipcMoniker, connectionString);
         }
     }
 }

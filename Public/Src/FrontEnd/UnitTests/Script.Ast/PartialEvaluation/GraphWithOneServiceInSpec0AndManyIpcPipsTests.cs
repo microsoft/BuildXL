@@ -24,7 +24,7 @@ namespace Test.DScript.Ast.PartialEvaluation
     ///    / | \ /
     ///   2  3  4 
     ///   
-    /// this test class producess the following pip graph (where 'S' stands for service pip, 
+    /// this test class produces the following pip graph (where 'S' stands for service pip, 
     /// 'I' for IPC pip, 'F' for finalization pip, and 'Shutdown0' is the shutdown pip of service 'S0')
     ///
     ///   S0-I0-F0 Shutdown0
@@ -48,7 +48,7 @@ namespace Test.DScript.Ast.PartialEvaluation
         ///     export const service = startService('p{s}');
         ///     export const x{s} = ipcSend(service, 'p{s}', [ NS{j1}..x{j1}, ..., NS{jn}.x{jn} ]);
         ///     
-        /// For all dependendents of 'spec{s}', the content looks something like
+        /// For all dependents of 'spec{s}', the content looks something like
         ///
         ///     export const x{i} = ipcSend(
         ///         NS0.service, 

@@ -429,7 +429,7 @@ namespace Test.BuildXL.Scheduler
                     File.WriteAllText(source, "123");
 
                     // because omitDependencies: true, 'servicePip' would fail if it didn't receive permissions of 'clientPip'
-                    Process servicePip = CreateCopyProcess(env.Context, sourceAbsolutePath, destinationAbsolutePath, omitDependencies: true, serviceInfo: ServiceInfo.Service(new PipId(324)));
+                    Process servicePip = CreateCopyProcess(env.Context, sourceAbsolutePath, destinationAbsolutePath, omitDependencies: true, serviceInfo: ServiceInfo.Service(new PipId(324), new StringId(42)));
                     Process clientPip = CreateCopyProcess(env.Context, sourceAbsolutePath, destinationAbsolutePath2, serviceInfo: ServiceInfo.ServiceClient(new[] { servicePip.PipId }));
                     env.SetServicePipClients(new Dictionary<PipId, IReadOnlyCollection<Pip>>
                     {

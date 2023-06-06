@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
 
 namespace BuildXL.Ipc.Interfaces
 {
@@ -12,10 +13,20 @@ namespace BuildXL.Ipc.Interfaces
     public interface IServer : IStoppable
     {
         /// <summary>
-        /// The configuration used to create this server (via <see cref="IIpcProvider.GetServer"/>).
+        /// The configuration used to create this server (via <see cref="IIpcProvider.GetServer(string, IServerConfig)"/> or <see cref="IIpcProvider.GetServer(IServerConfig)"/>).
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
         IServerConfig Config { get; }
+
+        /// <summary>
+        /// The connection string used by this server.
+        /// </summary>
+        /// <remarks>
+        /// This value must be unique to the current instance of an IPC server. It might be different from the one originally
+        /// provided to <see cref="IIpcProvider.GetServer(string, IServerConfig)"/> if the original value allows for some leeway 
+        /// in the server creation (e.g., allows a server to pick a port instead of using the provided one).
+        /// </remarks>
+        Task<string> ConnectionString { get; }
 
         /// <summary>
         /// Starts serving requests from clients.

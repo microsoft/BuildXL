@@ -118,7 +118,8 @@ function startService(args: UberArguments, startCommand: string, shutdownCmdName
                 hasUntrackedChildProcesses: true,
             },
             serviceTrackableTag: symbolTag,
-            serviceTrackableTagDisplayName: "SymbolTrackerOverhangMs"
+            serviceTrackableTagDisplayName: "SymbolTrackerOverhangMs",
+            moniker: moniker
         })
     );
 

@@ -42,5 +42,12 @@ namespace BuildXL.Ipc.SocketBasedIpc
                 config,
                 new TcpIpConnectivity(TcpIpConnectivity.ParsePortNumber(connectionString)));
         }
+
+        IServer IIpcProvider.GetServer(IServerConfig config) => throw new NotSupportedException();
+
+        void IIpcProvider.UnsafeSetConnectionStringForMoniker(IpcMoniker ipcMoniker, string connectionString)
+        {
+            m_moniker2connectionString[ipcMoniker.Id] = connectionString;
+        }
     }
 }

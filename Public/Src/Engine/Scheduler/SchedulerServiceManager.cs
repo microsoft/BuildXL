@@ -8,14 +8,16 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Ipc.Common;
+using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler
 {
@@ -32,11 +34,14 @@ namespace BuildXL.Scheduler
         private readonly ConcurrentBigMap<PipId, ServiceTracking> m_startedServices = new ConcurrentBigMap<PipId, ServiceTracking>();
         private readonly Dictionary<PipId, PipId> m_finalizationPipToServicePipMap = new Dictionary<PipId, PipId>();
         private readonly ConcurrentDictionary<int, TaskSourceSlim<bool>> m_serviceReadiness = new();
+        private readonly Dictionary<PipId, StringId> m_servicePipToItsMonikerId = new();
+        private readonly ConcurrentDictionary<int, TaskSourceSlim<PipId>> m_serviceProcessIdToPipId = new();
 
         private readonly PipGraph m_pipGraph;
         private readonly PipExecutionContext m_context;
         private readonly ServicePipTracker m_servicePipTracker;
         private readonly SchedulerTestHooks m_testHooks;
+        private readonly IIpcProvider m_ipcProvider;
         private LoggingContext m_executePhaseLoggingContext;
         private OperationTracker m_operationTracker;
         private int m_runningServicesCount;
@@ -59,12 +64,13 @@ namespace BuildXL.Scheduler
         public int TotalServiceShutdownPipsCompleted => m_totalServiceShutdownPipsCompleted;
 
         /// <nodoc />
-        public SchedulerServiceManager(PipGraph pipGraph, PipExecutionContext context, ServicePipTracker pipTracker, SchedulerTestHooks testHooks)
+        public SchedulerServiceManager(PipGraph pipGraph, PipExecutionContext context, ServicePipTracker pipTracker, SchedulerTestHooks testHooks, IIpcProvider ipcProvider)
         {
             m_pipGraph = pipGraph;
             m_context = context;
             m_servicePipTracker = pipTracker;
             m_testHooks = testHooks;
+            m_ipcProvider = ipcProvider;
         }
 
         internal void Start(LoggingContext loggingContext, OperationTracker operationTracker)
@@ -81,6 +87,8 @@ namespace BuildXL.Scheduler
                 {
                     m_finalizationPipToServicePipMap[finalizationPipId] = servicePipId;
                 }
+
+                m_servicePipToItsMonikerId[servicePipId] = serviceMutable.ServiceInfo.MonikerId;
             }
 
             IsStarted = true;
@@ -113,7 +121,7 @@ namespace BuildXL.Scheduler
             {
                 servicePips = servicePips.Concat(new[] { serviceForFinalizationPip });
             }
-            
+
             if (!servicePips.Any())
             {
                 return true;
@@ -125,9 +133,19 @@ namespace BuildXL.Scheduler
             return results.All(succeeded => succeeded);
         }
 
-        public override void ReportServiceIsReady(int processId, string processName)
+        public override async Task ReportServiceIsReadyAsync(int processId, string processName, string newConnectionString)
         {
             Logger.Log.ScheduleServicePipReportedReady(m_executePhaseLoggingContext, processId, processName);
+            if (newConnectionString != null)
+            {
+                // Service could not use the provided connection string. Need to update the connection string in the ipc provider.
+                var pipId = await GetServicePipIdCompletionByProcessId(processId).Task;
+                var moniker = IpcMoniker.Create(m_servicePipToItsMonikerId[pipId].ToString(m_context.StringTable));
+                var originalConnectionString = m_ipcProvider.RenderConnectionString(moniker);
+                m_ipcProvider.UnsafeSetConnectionStringForMoniker(moniker, newConnectionString);
+                Logger.Log.ScheduleServicePipReportedDifferentConnectionString(m_executePhaseLoggingContext, processId, processName, originalConnectionString, newConnectionString);
+            }
+
             GetServiceReadyCompletionByProcessId(processId).TrySetResult(true);
         }
 
@@ -285,6 +303,15 @@ namespace BuildXL.Scheduler
 
                             if (isStartup)
                             {
+                                var pipIdCompletion = GetServicePipIdCompletionByProcessId(processId);
+                                if (!pipIdCompletion.TrySetResult(pipId))
+                                {
+                                    // We could not set pipId. This means that there is already a service that has the same process id. This should never happen.
+                                    // Task is already completed, so just get its value.
+                                    var existingServicePipId = pipIdCompletion.Task.GetAwaiter().GetResult();
+                                    Contract.Assert(false, $"Two services have the same process id. Pid: {processId}, existing service: [{m_pipGraph.GetPipFromPipId(existingServicePipId).GetDescription(m_context)}], new service: [{serviceProcess.GetDescription(m_context)}].");
+                                }
+
                                 // It's a startup of a service, so we need to wait for a call from that service before setting serviceLaunchCompletion.
                                 GetServiceReadyTaskByProcessId(pipDescription, processId).ContinueWith(tsk =>
                                 {
@@ -384,6 +411,13 @@ namespace BuildXL.Scheduler
             });
 
             return serviceReadyCompletion.Task;
+        }
+
+        private TaskSourceSlim<PipId> GetServicePipIdCompletionByProcessId(int pid)
+        {
+            return m_serviceProcessIdToPipId.GetOrAdd(
+                pid,
+                TaskSourceSlim.Create<PipId>());
         }
 
         /// <summary>

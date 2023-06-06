@@ -73,6 +73,9 @@ namespace BuildXL.Ipc.Common.Multiplexing
         /// <see cref="GenericServer{TClient}.Config"/>
         public IServerConfig Config => m_clientListener.Config;
 
+        /// <inheritdoc/>
+        public Task<string> ConnectionString => throw new NotImplementedException();
+
         /// <see cref="GenericServer{TClient}.Complete"/>
         public void RequestStop() => m_clientListener.Complete();
         #endregion

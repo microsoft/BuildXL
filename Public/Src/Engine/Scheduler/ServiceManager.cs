@@ -50,8 +50,9 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Marks a service with a particular <paramref name="processId"/> as ready.
         /// </summary>
-        public virtual void ReportServiceIsReady(int processId, string processName)
+        public virtual Task ReportServiceIsReadyAsync(int processId, string processName, string newConnectionString)
         {
+            return Task.CompletedTask;
         }
     }
 }

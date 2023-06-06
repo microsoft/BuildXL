@@ -25,12 +25,19 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         /// This is used just so we have more descriptive logging.
         /// </remarks>
         public string ProcessName { get; }
+        
+        /// <summary>
+        /// If set, contains a connection string used the server inside of a service pip
+        /// and indicated that the original connection string could not be used.
+        /// </summary>
+        public string NewConnectionString { get; }
 
         /// <nodoc />
-        public ReportServicePipIsReadyCommand(int processId, string processName)
+        public ReportServicePipIsReadyCommand(int processId, string processName, string newConnectionString)
         {
             ProcessId = processId;
             ProcessName = processName;
+            NewConnectionString = newConnectionString;
         }
 
         /// <inheritdoc />
@@ -49,14 +56,24 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         {
             writer.Write(ProcessId);
             writer.Write(ProcessName);
+            if (NewConnectionString != null)
+            {
+                writer.Write(true);
+                writer.Write(NewConnectionString);
+            }
+            else
+            {
+                writer.Write(false);
+            }
         }
 
         internal static Command InternalDeserialize(BinaryReader reader)
         {
             var processId = reader.ReadInt32();
             var processName = reader.ReadString();
+            var newConnectionString = reader.ReadBoolean() ? reader.ReadString() : null;
 
-            return new ReportServicePipIsReadyCommand(processId, processName);
+            return new ReportServicePipIsReadyCommand(processId, processName, newConnectionString);
         }
     }
 }

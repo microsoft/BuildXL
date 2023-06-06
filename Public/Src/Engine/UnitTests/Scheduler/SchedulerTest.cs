@@ -2112,7 +2112,7 @@ namespace Test.BuildXL.Scheduler
 
             servicePip = NewProcessBuilderWithPreDeterminedArgumentsFactory()
                 .WithOutputs(CreateOutputFileArtifact(prefix: "service-pip-out"))
-                .WithServiceInfo(ServiceInfo.Service(shutdownPip.PipId))
+                .WithServiceInfo(ServiceInfo.Service(shutdownPip.PipId, new StringId(42)))
                 .Build();
             XAssert.IsTrue(PipGraphBuilder.AddProcess(servicePip));
 
@@ -2174,7 +2174,7 @@ namespace Test.BuildXL.Scheduler
 
             var servicePip = NewProcessBuilderWithPreDeterminedArgumentsFactory()
                 .WithOutputs(CreateOutputFileArtifact())
-                .WithServiceInfo(ServiceInfo.Service(shutdownPip.PipId))
+                .WithServiceInfo(ServiceInfo.Service(shutdownPip.PipId, new StringId(42)))
                 .Build();
             XAssert.IsTrue(PipGraphBuilder.AddProcess(servicePip));
 

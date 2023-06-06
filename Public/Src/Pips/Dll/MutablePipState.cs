@@ -66,7 +66,7 @@ namespace BuildXL.Pips
                         pipAsIpc.IsServiceFinalization ? ServicePipKind.ServiceFinalization :
                         pipAsIpc.ServicePipDependencies.Any() ? ServicePipKind.ServiceClient :
                         ServicePipKind.None;
-                    var serviceInfo = new ServiceInfo(serviceKind, pipAsIpc.ServicePipDependencies);
+                    var serviceInfo = new ServiceInfo(serviceKind, pipAsIpc.ServicePipDependencies, monikerId: pipAsIpc.IpcInfo.IpcMonikerId);
                     mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight, default(RewritePolicy), AbsolutePath.Invalid, Process.MinPriority, pip.Provenance.ModuleId);
                     break;
                 case PipType.Process:

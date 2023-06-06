@@ -58,6 +58,11 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public StringId DisplayNameForTrackableTag { get; }
 
+        /// <summary>
+        /// Id of a moniker assigned to a service.
+        /// </summary>
+        public StringId MonikerId { get; }
+
         /// <nodoc />
         public ServiceInfo(
             ServicePipKind kind,
@@ -65,7 +70,8 @@ namespace BuildXL.Pips.Operations
             PipId shutdownProcessPipId = default(PipId),
             ReadOnlyArray<PipId> finalizationPipIds = default(ReadOnlyArray<PipId>),
             StringId tagToTrack = default(StringId),
-            StringId displayNameForTag = default(StringId))
+            StringId displayNameForTag = default(StringId),
+            StringId monikerId = default(StringId))
         {
             Kind = kind;
             ServicePipDependencies = servicePipDependencies.IsValid ? servicePipDependencies : ReadOnlyArray<PipId>.Empty;
@@ -73,6 +79,7 @@ namespace BuildXL.Pips.Operations
             FinalizationPipIds = finalizationPipIds.IsValid ? finalizationPipIds : ReadOnlyArray<PipId>.Empty;
             TagToTrack = tagToTrack;
             DisplayNameForTrackableTag = displayNameForTag;
+            MonikerId = monikerId;
 
             Contract.Assert(ServicePipDependencies.IsValid);
             Contract.Assert(FinalizationPipIds.IsValid);
@@ -113,14 +120,18 @@ namespace BuildXL.Pips.Operations
             Contract.Assert(
                 !TagToTrack.IsValid || Kind == ServicePipKind.Service,
                 "'TagToTrack' may only be specified when the pip is a 'Service'");
+
+            Contract.Assert(
+               Kind != ServicePipKind.Service || MonikerId.IsValid,
+               "A pip that is a 'Service' must have the 'MonikerId' specified");
         }
 
         /// <nodoc />
         public bool IsStartOrShutdownKind => Kind.IsStartOrShutdown();
 
-        internal static ServiceInfo Service(PipId shutdownPipId)
+        internal static ServiceInfo Service(PipId shutdownPipId, StringId monikerId)
         {
-            return new ServiceInfo(ServicePipKind.Service, shutdownProcessPipId: shutdownPipId);
+            return new ServiceInfo(ServicePipKind.Service, shutdownProcessPipId: shutdownPipId, monikerId: monikerId);
         }
 
         internal static ServiceInfo ServiceClient(IEnumerable<PipId> servicePipDependencies)
@@ -142,7 +153,8 @@ namespace BuildXL.Pips.Operations
             var finalizationPipIds = reader.ReadReadOnlyArray(r => ReadPipId(r));
             var tagToTrack = reader.ReadBoolean() ? reader.ReadStringId() : StringId.Invalid;
             var displayNameForTag = reader.ReadBoolean() ? reader.ReadStringId() : StringId.Invalid;
-            return new ServiceInfo(kind, servicePipDependencies, shutdownProcessPipId, finalizationPipIds, tagToTrack, displayNameForTag);
+            var monikerId = reader.ReadBoolean() ? reader.ReadStringId() : StringId.Invalid;
+            return new ServiceInfo(kind, servicePipDependencies, shutdownProcessPipId, finalizationPipIds, tagToTrack, displayNameForTag, monikerId);
         }
 
         internal static void InternalSerialize(BuildXLWriter writer, ServiceInfo info)
@@ -172,6 +184,12 @@ namespace BuildXL.Pips.Operations
             if (info.DisplayNameForTrackableTag.IsValid)
             {
                 writer.Write(info.DisplayNameForTrackableTag);
+            }
+
+            writer.Write(info.MonikerId.IsValid);
+            if (info.MonikerId.IsValid)
+            {
+                writer.Write(info.MonikerId);
             }
         }
 

@@ -414,6 +414,7 @@ namespace BuildXL.Scheduler.Tracing
         ServicePipWaitingToBecomeReady = 12007,
         ServicePipReportedReady = 12008,
         ServicePipSlowInitialization = 12009,
+        ServicePipReportedDifferentConnectionString = 12010,
 
         // BuildXL API server
         ApiServerForwarderIpcServerMessage = 12100,

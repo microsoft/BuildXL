@@ -5,14 +5,11 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Net.Sockets;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Common.Connectivity;
-using BuildXL.Ipc.Common.Multiplexing;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Ipc.Grpc;
+using Grpc.Core;
 
 namespace BuildXL.Ipc.GrpcBasedIpc
 {
@@ -46,6 +43,13 @@ namespace BuildXL.Ipc.GrpcBasedIpc
         IClient IIpcProvider.GetClient(string connectionString, IClientConfig config) => new Client(config, TcpIpConnectivity.ParsePortNumber(connectionString));
 
         IServer IIpcProvider.GetServer(string connectionString, IServerConfig config) => new GrpcIpcServer(TcpIpConnectivity.ParsePortNumber(connectionString), config);
+
+        IServer IIpcProvider.GetServer(IServerConfig config) => new GrpcIpcServer(ServerPort.PickUnused, config);
+
+        void IIpcProvider.UnsafeSetConnectionStringForMoniker(IpcMoniker ipcMoniker, string connectionString)
+        {
+            m_moniker2connectionString[ipcMoniker.Id] = new Lazy<string>(connectionString);
+        }
     }
 }
 

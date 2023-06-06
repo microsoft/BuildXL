@@ -70,15 +70,13 @@ namespace Test.BuildXL.Ipc
                 return string.Empty;
             }
 
-            public IClient GetClient(string connectionString, IClientConfig config)
-            {
-                throw new NotImplementedException();
-            }
+            public IClient GetClient(string connectionString, IClientConfig config) => throw new NotImplementedException();
 
-            public IServer GetServer(string connectionString, IServerConfig config)
-            {
-                throw new NotImplementedException();
-            }
+            public IServer GetServer(string connectionString, IServerConfig config) => throw new NotImplementedException();
+
+            public IServer GetServer(IServerConfig config) => throw new NotImplementedException();
+
+            public void UnsafeSetConnectionStringForMoniker(IpcMoniker ipcMoniker, string connectionString) => throw new NotImplementedException();
         }
     }
 }

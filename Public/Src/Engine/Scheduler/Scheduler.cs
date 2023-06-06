@@ -1282,14 +1282,13 @@ namespace BuildXL.Scheduler
             m_schedulerCancellationTokenSource = new CancellationTokenSource();
 
             m_testHooks = testHooks;
-            m_servicePipIds = new List<PipId>(graph.GetServicePipIds());
-            m_servicePipTracker = new ServicePipTracker(context);
-            m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker, m_testHooks);
-            m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
             m_ipcProvider = new IpcProviderWithMemoization(
                 ipcProvider ?? IpcFactory.GetProvider(),
                 defaultClientLogger: CreateLoggerForIpcClients(loggingContext));
-
+            m_servicePipIds = new List<PipId>(graph.GetServicePipIds());
+            m_servicePipTracker = new ServicePipTracker(context);
+            m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker, m_testHooks, m_ipcProvider);
+            m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
 
             OperationTracker = new OperationTracker(loggingContext, this);
             m_fileContentManager = new FileContentManager(this, OperationTracker);

@@ -400,6 +400,17 @@ namespace Transformer {
 
         /** A command for BuildXL to schedule after all client pips of this service pip. */
         serviceFinalizationCmds?: (ExecuteArguments | IpcSendArguments)[];
+        
+        /** Tag to associate other pips in a build with this service.
+          * If a tag is specified, the service will be registered with ServicePipTracker. */
+        serviceTrackableTag? : string;
+
+        /** Print-friendly name for the trackable tag. 
+          * Must be specified if serviceTrackableTag is specified. */
+        serviceTrackableTagDisplayName? : string;
+
+        /** A moniker assigned to this service. */
+        moniker : IpcMoniker;
     }
 
     @@public

@@ -25,6 +25,9 @@ using BuildXL.Utilities.Tracing;
 using Newtonsoft.Json.Linq;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Net.Http.Headers;
+using System.Net.Sockets;
 
 namespace Tool.ServicePipDaemon
 {
@@ -65,8 +68,10 @@ namespace Tool.ServicePipDaemon
         /// <nodoc />
         protected readonly ICloudBuildLogger m_etwLogger;
 
+        private readonly IIpcProvider m_ipcProvider;
+
         /// <nodoc />
-        protected readonly IServer m_server;
+        private IServer m_server;
 
         /// <nodoc />
         protected readonly IParser m_parser;
@@ -380,8 +385,8 @@ namespace Tool.ServicePipDaemon
             ApiClient = client;
             m_logger = logger;
 
-            rpcProvider = rpcProvider ?? IpcFactory.GetProvider();
-            m_server = rpcProvider.GetServer(Config.Moniker, Config);
+            m_ipcProvider = rpcProvider ?? IpcProvider;
+            m_server = m_ipcProvider.GetServer(Config.Moniker, Config);
 
             m_etwLogger = new BuildXLBasedCloudBuildLogger(Config.Logger, Config.EnableCloudBuildIntegration);
         }
@@ -393,14 +398,16 @@ namespace Tool.ServicePipDaemon
         /// </summary>
         public void Start()
         {
-            m_server.Start(this);
+            string connectionString = null;
+
+            startServerWithRetry();
 
             // some tests run without API Client, so there is no one to notify that the service is ready
             if (ApiClient != null)
             {
                 var process = Process.GetCurrentProcess();
-                m_logger.Verbose($"Reporting to BuildXL that the service is ready (pid: {process.Id}, processName: '{process.ProcessName}')");
-                var possibleResult = ApiClient.ReportServicePipIsReady(process.Id, process.ProcessName).GetAwaiter().GetResult();
+                m_logger.Verbose($"Reporting to BuildXL that the service is ready (pid: {process.Id}, processName: '{process.ProcessName}', newConnectionString: {connectionString ?? "null"})");
+                var possibleResult = ApiClient.ReportServicePipIsReady(process.Id, process.ProcessName, connectionString).GetAwaiter().GetResult();
                 if (!possibleResult.Succeeded)
                 {
                     m_logger.Error("Failed to notify BuildXL that the service is ready.");
@@ -408,6 +415,41 @@ namespace Tool.ServicePipDaemon
                 else
                 {
                     m_logger.Verbose("Successfully notified BuildXL that the service is ready.");
+                }
+            }
+
+            void startServerWithRetry()
+            {
+                try
+                {
+                    m_server.Start(this);
+                }
+                catch (IOException e)
+                {
+                    // Grpc server throws an IOException if it fails to bind to the specified port.
+                    // We can attempt to start a server on an unused port in this case. However, we can only do this
+                    // if there is a valid API Client, i.e., we can communicate this back to the BuildXL process.
+                    if (ApiClient != null)
+                    {
+                        try
+                        {
+                            m_logger.Warning($"Could not start a server using connection string '{Config.Moniker}', will attempt to start a server using a different connection string. Exception: {e}");
+                            m_server = m_ipcProvider.GetServer(m_server.Config);
+                            m_server.Start(this);
+                            // Success. Record the new connection string (the task has completed already because the server is running).
+                            connectionString = m_server.ConnectionString.GetAwaiter().GetResult();
+                            return;
+                        }
+                        catch (NotSupportedException)
+                        {
+                            // This provider requires a connection string to create a server. There is no successful code path at this point.
+                            // Log an error and swallow the exception, so the outer exception remains the true reason for a failure.
+                            m_logger.Error("Cannot retry server creation because the provider does not support this.");
+                        }
+                    }
+
+                    // If we are here, something went wrong (no api client, no provider support, etc.). Re-throw the original exception.
+                    throw;
                 }
             }
         }

@@ -370,7 +370,8 @@ namespace BuildXL.Scheduler.Graph
                 TranslatePipId(info.ShutdownPipId),
                 TranslatePipIds(info.FinalizationPipIds),
                 info.TagToTrack,
-                info.DisplayNameForTrackableTag);
+                info.DisplayNameForTrackableTag,
+                info.MonikerId);
         }
 
         private IpcPip TranslatePipIds(IpcPip pip)

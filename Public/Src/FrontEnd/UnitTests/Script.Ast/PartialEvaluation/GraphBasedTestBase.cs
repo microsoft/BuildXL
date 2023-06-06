@@ -361,6 +361,7 @@ export function startService(tag: string): Transformer.CreateServiceResult {
         consoleOutput: outDir.combine(`${tag}-start-stdout.txt`),
         serviceShutdownCmd: shutdownCmd,
         serviceFinalizationCmds: [ finalizeCmd ],
+        moniker: moniker,
     }).override<Transformer.CreateServiceResult>({moniker: moniker});
 }
 

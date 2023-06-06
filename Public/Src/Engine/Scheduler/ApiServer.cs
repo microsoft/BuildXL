@@ -676,13 +676,13 @@ namespace BuildXL.Scheduler
             return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
         }
 
-        private Task<IIpcResult> ExecuteReportServicePipIsReadyAsync(ReportServicePipIsReadyCommand cmd)
+        private async Task<IIpcResult> ExecuteReportServicePipIsReadyAsync(ReportServicePipIsReadyCommand cmd)
         {
             Contract.Requires(cmd != null);
 
-            m_serviceManger.ReportServiceIsReady(cmd.ProcessId, cmd.ProcessName);
+            await m_serviceManger.ReportServiceIsReadyAsync(cmd.ProcessId, cmd.ProcessName, cmd.NewConnectionString);
 
-            return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
+            return IpcResult.Success(cmd.RenderResult(true));
         }
 
         private async Task<IIpcResult> ExecuteRecomputeContentHashAsync(RecomputeContentHashCommand cmd)

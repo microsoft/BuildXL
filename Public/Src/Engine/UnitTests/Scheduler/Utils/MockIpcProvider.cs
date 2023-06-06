@@ -21,6 +21,8 @@ namespace Test.BuildXL.Scheduler.Utils
         string IIpcProvider.RenderConnectionString(IpcMoniker moniker) => RenderMonikerFn(moniker);
         IClient IIpcProvider.GetClient(string connectionString, IClientConfig config) => GetClientFn(connectionString, config);
         IServer IIpcProvider.GetServer(string connectionString, IServerConfig config) => GetServerFn(connectionString, config);
+        IServer IIpcProvider.GetServer(IServerConfig config) => throw new NotImplementedException();
+        void IIpcProvider.UnsafeSetConnectionStringForMoniker(IpcMoniker ipcMoniker, string connectionString) => throw new NotImplementedException();
     }
 
     /// <summary>
@@ -62,6 +64,7 @@ namespace Test.BuildXL.Scheduler.Utils
         internal Action<IIpcOperationExecutor> StartFn { get; set; } = new Action<IIpcOperationExecutor>(_ => { });
 
         IServerConfig IServer.Config => Config;
+        public Task<string> ConnectionString => throw new NotImplementedException();
         void IServer.Start(IIpcOperationExecutor executor)
         {
             Contract.Requires(executor != null);

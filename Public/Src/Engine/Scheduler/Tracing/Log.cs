@@ -3036,6 +3036,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleServicePipReportedReady(LoggingContext loggingContext, int processId, string processName);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ServicePipReportedDifferentConnectionString,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Service pip (pid: {processId}, process name: {processName}) reported that it is using a different connection string - original: '{originalConnectionString}', reported: '{newConnectionString}'.")]
+        internal abstract void ScheduleServicePipReportedDifferentConnectionString(LoggingContext loggingContext, int processId, string processName, string originalConnectionString, string newConnectionString);
+
+        [GeneratedEvent(
            (ushort)LogEventId.ServicePipSlowInitialization,
            EventGenerators = EventGenerators.LocalOnly,
            EventLevel = Level.Verbose,

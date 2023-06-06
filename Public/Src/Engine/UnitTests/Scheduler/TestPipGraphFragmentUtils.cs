@@ -51,6 +51,7 @@ namespace Test.BuildXL.Scheduler
             serviceProcessBuilder.ServiceKind = ServicePipKind.Service;
             serviceProcessBuilder.ShutDownProcessPipId = shutdownProcess.PipId;
             serviceProcessBuilder.FinalizationPipIds = ReadOnlyArray<PipId>.FromWithoutCopy(new[] { finalizationPip.PipId });
+            serviceProcessBuilder.ServiceMoniker = ipcMoniker;
             (Process serviceProcess, ProcessOutputs _) = fragment.ScheduleProcessBuilder(serviceProcessBuilder);
 
             var createProcessBuilder = fragment.GetIpcProcessBuilder();

@@ -4,6 +4,8 @@
 #if NET6_0_OR_GREATER
 
 using System;
+using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,7 +16,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
 using IpcResult = BuildXL.Ipc.Common.IpcResult;
-using static BuildXL.Ipc.GrpcBasedIpc.SerializationExtensions;
 
 namespace BuildXL.Ipc.GrpcBasedIpc
 {
@@ -28,6 +29,7 @@ namespace BuildXL.Ipc.GrpcBasedIpc
         private Server m_server;
         private readonly int m_port;
         private int m_lastOperationId = -1;
+        private readonly TaskSourceSlim<string> m_connectionString;
 
         private IIpcLogger Logger { get; }
 
@@ -36,11 +38,15 @@ namespace BuildXL.Ipc.GrpcBasedIpc
             Config = config;
             m_port = port;
             Logger = config.Logger ?? VoidLogger.Instance;
+            m_connectionString = TaskSourceSlim.Create<string>();
         }
 
         public IServerConfig Config { get; }
 
+        public Task<string> ConnectionString => m_connectionString.Task;
+
         public Task Completion => m_completionSource.Task;
+
         private readonly TaskCompletionSource m_completionSource = new();
 
         public override async Task<Grpc.IpcResult> Message(Grpc.IpcOperation request, ServerCallContext context)
@@ -119,7 +125,7 @@ namespace BuildXL.Ipc.GrpcBasedIpc
             catch (Exception e)
             {
                 // We don't fail on stop/shutdown but let's log the error.
-                Logger.Error("[GrpcIpcServer] An exception ocurred while stopping the service. Details: {0}", e.ToStringDemystified());
+                Logger.Error("[GrpcIpcServer] An exception occurred while stopping the service. Details: {0}", e.ToStringDemystified());
             }
 
             Logger.Verbose("[GrpcIpcServer] Stopped");
@@ -149,7 +155,17 @@ namespace BuildXL.Ipc.GrpcBasedIpc
                 Ports = { new ServerPort(IPAddress.Loopback.ToString(), m_port, ServerCredentials.Insecure) },
             };
 
-            m_server.Start();
+            try
+            {
+                m_server.Start();
+                // The server has started, so the port (we only specified one) must have been bound by now.
+                m_connectionString.TrySetResult(m_server.Ports.Single().BoundPort.ToString());
+            }
+            catch (IOException e)
+            {
+                m_connectionString.TrySetException(e);
+                throw;
+            }
         }
     }
 }

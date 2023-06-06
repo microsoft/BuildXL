@@ -118,9 +118,9 @@ namespace BuildXL.Ipc.ExternalApi
         /// <summary>
         /// Notifies the engine that the service pip has started successfully and is listening to the assigned port.
         /// </summary>
-        public Task<Possible<bool>> ReportServicePipIsReady(int processId, string processName)
+        public Task<Possible<bool>> ReportServicePipIsReady(int processId, string processName, string newConnectionString)
         {
-            return ExecuteCommand(new ReportServicePipIsReadyCommand(processId, processName));
+            return ExecuteCommand(new ReportServicePipIsReadyCommand(processId, processName, newConnectionString));
         }
 
         #endregion

@@ -173,7 +173,8 @@ export namespace DropDaemonRunner {
                     hasUntrackedChildProcesses: true,                    
                 },
                 serviceTrackableTag: dropTag,
-                serviceTrackableTagDisplayName: "DropTrackerOverhangMs"
+                serviceTrackableTagDisplayName: "DropTrackerOverhangMs",
+                moniker: moniker
             })
         );
         

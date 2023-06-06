@@ -34,7 +34,8 @@ namespace Sdk.Tests {
             workingDirectory: d`out/working-service`,
             consoleOutput: p`out/service-stdout.txt`,
             serviceShutdownCmd: shutdownCmd,
-            serviceFinalizationCmds: [ finalizationCmd ]
+            serviceFinalizationCmds: [ finalizationCmd ],
+            moniker: moniker
         });
 
         const staticDirectory = Transformer.sealDirectory({root: d`src/dir`, files: [f`src/dir/file.txt`]});

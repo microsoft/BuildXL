@@ -56,7 +56,8 @@ function startService(args: CombinedArguments, startCommand: string, shutdownCmd
                 hasUntrackedChildProcesses: true,
             },
             serviceTrackableTag: daemonTag,
-            serviceTrackableTagDisplayName: "MaterializationDaemonTrackerOverhangMs"
+            serviceTrackableTagDisplayName: "MaterializationDaemonTrackerOverhangMs",
+            moniker: moniker
         })
     );
     

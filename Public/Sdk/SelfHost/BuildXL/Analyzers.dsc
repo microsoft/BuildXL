@@ -15,26 +15,12 @@ export function getAnalyzerDlls(contents: StaticDirectory): Managed.Binary[] {
 
 /** Returns analyzers dlls used by the BuildXL team. */
 export function getAnalyzers(args: Arguments) : Managed.Binary[] {
-    let result = [
+    return [
         ...getAnalyzerDlls(importFrom("AsyncFixer").Contents.all),
         ...getAnalyzerDlls(importFrom("ErrorProne.NET.CoreAnalyzers").Contents.all),
-        ...getAnalyzerDlls(importFrom("protobuf-net.BuildTools").Contents.all)
+        ...getAnalyzerDlls(importFrom("protobuf-net.BuildTools").Contents.all),
+		...getAnalyzerDlls(importFrom("Microsoft.CodeAnalysis.NetAnalyzers").Contents.all),
+        ...getAnalyzerDlls(importFrom("Microsoft.CodeAnalysis.BannedApiAnalyzers").Contents.all),
+        ...addIfLazy(Flags.isMicrosoftInternal, () => [ ...getAnalyzerDlls(importFrom("Microsoft.Internal.Analyzers").Contents.all) ]),
     ];
-
-    // FxCop analyzers, when we turn them back on we can uncomment these
-    // result = [
-    //    ...result,
-    //    ...dlls(importFrom("Microsoft.CodeQuality.Analyzers").Contents.all),
-    //    ...dlls(importFrom("Microsoft.NetCore.Analyzers").Contents.all),
-    //    ...dlls(importFrom("Microsoft.NetFramework.Analyzers").Contents.all),
-    //];
-
-    if (args.enableStyleCopAnalyzers) {
-        result = [
-            ...result,
-            ...getAnalyzerDlls(importFrom("StyleCop.Analyzers").Contents.all),
-            ];
-    }
-    
-    return result;
 }

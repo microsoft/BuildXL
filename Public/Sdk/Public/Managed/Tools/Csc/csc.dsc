@@ -61,8 +61,8 @@ export function compile(inputArgs: Arguments) : Result {
     const outputDocPath = args.doc && p`${outputDirectory}/${args.doc}`;
     const outputRefPath = args.emitReferenceAssembly ? p`${outputDirectory}/ref/${args.out}` : undefined;
 
-    const roslynOutputDir = args.enableRoslynAnalyzers ? d`${outputDirectory}/roslynOutput/` : undefined;
-    const roslynOutputPath = args.enableRoslynAnalyzers ? p`${outputDirectory}/roslynOutput/${args.errorlog}` : undefined;
+    const roslynOutputDir = args.enableGuardian ? d`${outputDirectory}/roslynOutput/` : undefined;
+    const roslynOutputPath = args.enableGuardian ? p`${outputDirectory}/roslynOutput/${args.errorlog}` : undefined;
 
     // Using 'outputDirectory' as an output folder to make the error analysis simpler.
     // If we use a subfolder for generated files, the compiler will write the generated files there
@@ -237,7 +237,7 @@ export function compile(inputArgs: Arguments) : Result {
     let executeResult = Transformer.execute(cscExecuteArgs);
 
     // Use Guardian to analyze the RoslynAnalyzers reuslt files
-    if (args.enableRoslynAnalyzers) {
+    if (args.enableGuardian) {
         const roslynResultFiles = executeResult.getOutputFile(roslynOutputPath);
         const uniquePath = r`${outputDirectory.parent.name}/${args.out}`;
         RoslynAnalyzers.createRoslynCalls(roslynOutputDir, [...args.sources, roslynResultFiles], uniquePath);
@@ -453,8 +453,8 @@ export interface Arguments extends Transformer.RunnerArguments{
     /** Result logs that RoslynAnalyzers produce used by Guardian for analyzing and potentially breaking the build based on its findings.*/
     errorlog?: RelativePath;
 
-    /** Enable RoslynAnalyzers */
-    enableRoslynAnalyzers?: boolean
+    /** Enable Guardian */
+    enableGuardian?: boolean
 }
 
 @@public

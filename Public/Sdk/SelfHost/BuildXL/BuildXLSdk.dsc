@@ -41,7 +41,6 @@ const brandingDefines = [
     { key: "MainExecutableName", value: Branding.mainExecutableName},
 ];
 
-const buildXLRuleset = f`BuildXL.ruleset`;
 
 @@public
 export interface Arguments extends Managed.Arguments {
@@ -50,9 +49,6 @@ export interface Arguments extends Managed.Arguments {
 
     /** Allows projects that should be added as default references to skip adding these to avoid cycles */
     skipDefaultReferences?: boolean;
-
-    /** If true, StyleCop.Analyzers are enabled. */
-    enableStyleCopAnalyzers?: boolean;
 
     /** Root namespace.  If undefined, the value of the "assemblyName" field is used." */
     rootNamespace?: string;
@@ -281,7 +277,7 @@ namespace Flags {
      * We only want to enable it for PR builds not for local dev builds
      */
     @@public
-    export const enableRoslynAnalyzers = Environment.getFlag("[Sdk.BuildXL]enableRoslynAnalyzers") && isMicrosoftInternal;
+    export const enableGuardian = Environment.hasVariable("TOOLPATH_GUARDIAN") && isMicrosoftInternal;
 
     /**
      * Enable ESRP Signing
@@ -650,8 +646,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     args = Contracts.withRuntimeContracts(args, args.contractsLevel);
     
-    // Need to turn on an experiemtal feature of the compiler in order to use some of the analyzers.
-    let features = args.enableStyleCopAnalyzers ? ['IOperation'] : [];
+    let features = [];
     // Using strict mode if its enabled explicitely or if its not disabled explicitly,
     // but enabled by default.
     if (args.strictMode === true || (args.strictMode !== false && Flags.useCSharpCompilerStrictMode === true)) {
@@ -684,27 +679,12 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     let ruleset : File = undefined;
 
-    if (args.enableStyleCopAnalyzers) {
-        ruleset = buildXLRuleset;
-    }
+	// Required for v2.x Roslyn compilers
+	// Flow analysis is used to infer the nullability of variables within executable code. The inferred nullability of a variable is independent of the variable's declared nullability.
+	// Method calls are analyzed even when they are conditionally omitted. For instance, `Debug.Assert` in release mode.
+	features = features.push("flow-analysis");
+	ruleset = f`BuildXL.Recommend.Required.Error.ruleset`;
 
-    // Only add roslynanalyzers for microsoft internal build since Microsoft.Internal.Analyzers is for internal use
-    if (Flags.enableRoslynAnalyzers) {
-        analyzers = [
-            ...analyzers,
-            ...getAnalyzerDlls(importFrom("Microsoft.CodeAnalysis.NetAnalyzers").Contents.all),
-            ...getAnalyzerDlls(importFrom("Microsoft.Internal.Analyzers").pkg.contents)
-        ];
-
-        // Required for v2.x Roslyn compilers
-        // Flow analysis is used to infer the nullability of variables within executable code. The inferred nullability of a variable is independent of the variable's declared nullability.
-        // Method calls are analyzed even when they are conditionally omitted. For instance, `Debug.Assert` in release mode.
-        features = features.push("flow-analysis");
-
-        ruleset = f`BuildXL.Recommend.Required.Error.ruleset`;
-        args = args.merge<Managed.Arguments>({implicitSources: [buildXLRuleset]});
-    } 
-    
     args = Object.merge<Arguments>(
         {
             framework: framework,
@@ -746,12 +726,11 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
                     // TODO: Make analyzers supported in regular references by undestanding the structure in nuget packages
                     analyzers: analyzers,
-                    errorlog: Flags.enableRoslynAnalyzers ? r`${assemblyName}/roslyn.csproj.diagnostics.sarif` : undefined,
-                    enableRoslynAnalyzers: Flags.enableRoslynAnalyzers,
+                    errorlog: Flags.enableGuardian ? r`${assemblyName}/roslyn.csproj.diagnostics.sarif` : undefined,
+                    enableGuardian: Flags.enableGuardian,
 
                     features: features,
                     codeAnalysisRuleset: ruleset,
-                    additionalFiles: args.enableStyleCopAnalyzers ? [f`stylecop.json`] : [],
                     keyFile: args.skipAssemblySigning ? undefined : devKey,
                     shared: Flags.useManagedSharedCompilation,
                     embed: embedSources,

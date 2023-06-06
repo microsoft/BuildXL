@@ -138,8 +138,6 @@ config({
                 { id: "protobuf-net.BuildTools", version: "3.0.101" },
                 { id: "Microsoft.VisualStudio.Threading.Analyzers", version: "16.9.60"},
                 { id: "StructRecordGenerator", version: "0.4.0"},
-                
-                { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },
                 { id: "Text.Analyzers", version: "2.3.0-beta1" },
 
                 // MEF
@@ -721,7 +719,6 @@ config({
         r`link.exe`,
         r`sn.exe`,
         r`csc.exe`,
-        r`StyleCopCmd.exe`,
         r`BuildXL.LogGen.exe`,
         r`csc.exe`,
         r`ccrefgen.exe`,

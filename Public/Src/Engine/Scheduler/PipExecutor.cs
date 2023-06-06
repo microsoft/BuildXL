@@ -48,6 +48,7 @@ using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using System.Collections.Concurrent;
 
 namespace BuildXL.Scheduler
 {
@@ -3204,6 +3205,7 @@ namespace BuildXL.Scheduler
                 RunnableFromCacheResult.CacheHitData usableDescriptor;
                 if (maybeParsedDescriptor != null)
                 {
+                    var missingOutputs = Lazy.Create(() => new ConcurrentQueue<(string, string)>());
                     bool isContentAvailable =
                         await
                             TryLoadAvailableOutputContentAsync(
@@ -3215,13 +3217,12 @@ namespace BuildXL.Scheduler
                                 metadataHash: maybeParsedDescriptor.MetadataHash,
                                 standardOutput: maybeParsedDescriptor.StandardOutput,
                                 standardError: maybeParsedDescriptor.StandardError,
-                                onContentUnavailable: (file, hash) => {
-                                    if (pipCacheMiss.Value.MissedOutputs == null)
-                                    {
-                                        pipCacheMiss.Value.MissedOutputs = new();
-                                    }
-                                    pipCacheMiss.Value.MissedOutputs.Add((file.Path.ToString(environment.Context.PathTable), hash.ToHex()));
-                                });
+                                onContentUnavailable: (file, hash) => missingOutputs.Value.Enqueue((file.Path.ToString(environment.Context.PathTable), hash.ToHex())));
+
+                    if (missingOutputs.IsValueCreated && !missingOutputs.Value.IsEmpty)
+                    {
+                        pipCacheMiss.Value.MissedOutputs = missingOutputs.Value.ToList();
+                    }
 
                     if (!isContentAvailable)
                     {

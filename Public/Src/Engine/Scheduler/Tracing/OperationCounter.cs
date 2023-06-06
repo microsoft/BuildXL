@@ -12,6 +12,9 @@ namespace BuildXL.Scheduler
         FileContentManagerRestoreContentInCache,
 
         /// <nodoc/>
+        FileContentManagerHandleContentAvailabilityOuter,
+
+        /// <nodoc/>
         FileContentManagerHandleContentAvailability,
 
         /// <nodoc/>

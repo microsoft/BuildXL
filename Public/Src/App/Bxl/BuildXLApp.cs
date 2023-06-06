@@ -1066,6 +1066,7 @@ namespace BuildXL
                         utcNow.ToString("o", CultureInfo.InvariantCulture),
                         localNow.ToString("o", CultureInfo.InvariantCulture));
                     Logger.Log.StartupCurrentDirectory(loggingContext, Directory.GetCurrentDirectory());
+                    DetectProcessorGroupMisconfiguration(loggingContext, s_machineInfo);
                 },
                 (loggingContext) =>
                 {
@@ -1208,6 +1209,26 @@ namespace BuildXL
             string suffix = indexOfBreakWithinSuffix == -1 ? rawCommandLine.Substring(rawCommandLine.Length - trailingChars) : rawCommandLine.Substring(indexOfBreakWithinSuffix, rawCommandLine.Length - indexOfBreakWithinSuffix);
 
             return prefix + breakMarker + suffix;
+        }
+
+        /// <summary>
+        /// Detects .net processor group misconfiguration on machines with multiple processor groups.
+        /// </summary>
+        /// <remarks>
+        /// If .net is not configured to utilize all processor groups, the scheduler will not consider all available
+        /// cores when setting concurrency. Also the bxl.exe process itself will not be able to leverage all
+        /// processor groups.
+        /// </remarks>
+        private static void DetectProcessorGroupMisconfiguration(LoggingContext loggingContext, MachineInfo machineInfo)
+        {
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                string procEnvVar = Environment.GetEnvironmentVariable("NUMBER_OF_PROCESSORS");
+                if (procEnvVar != null && int.TryParse(procEnvVar, out int procCountParsed) && procCountParsed != machineInfo.ProcessorCount)
+                {
+                    Logger.Log.ProcessorCountMismatchWarning(loggingContext, s_machineInfo.ProcessorCount, procCountParsed);
+                }
+            }
         }
 
         /// <summary>

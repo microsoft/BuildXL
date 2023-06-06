@@ -32,6 +32,7 @@ namespace BuildXL.App.Tracing
         CancellationRequested = 470,
         TelemetryShutDown = 471,
         TelemetryShutDownException = 474,
+        ProcessorCountMismatchWarning = 475,
         TelemetryShutdownTimeout = 476,
 
         Channel = 502,

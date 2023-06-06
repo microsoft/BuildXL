@@ -69,6 +69,15 @@ namespace BuildXL.App.Tracing
         public abstract void StartupTimestamp(LoggingContext context, string timestamp, string localTimestamp);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ProcessorCountMismatchWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Message = "The DotNet runtime detected count of '{utilizedCount}' processor cores does not match '{systemCount}' retrieved via the NUMBER_OF_PROCESSORS environment variable. " +
+            "This may mean that DotNet is not configured to use all processor groups. " +
+            "Set the 'DOTNET_Thread_UseAllCpuGroups' and 'DOTNET_GCCpuGroup' environment variables to '1'. ")]
+        public abstract void ProcessorCountMismatchWarning(LoggingContext context, int utilizedCount, int systemCount);
+
+        [GeneratedEvent(
             (ushort)LogEventId.StartupCurrentDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

@@ -1,6 +1,11 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230601.0 (Release [303270](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=303270&_a=release-pipeline-progress)) Released 6/7/2023
+-	Correctly report process creation ID for the PTrace sandbox
+-	Correctly retrieve the Linux filesystem type
+-	Fix EventHub connection with managed identity
+
 # 0.1.0-20230526.0 (Release [301868](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=301868) Released 6/01/2023)
 - Flip default for the includeMonikersInNuspecDependencies setting in NugetResolver 
 - Intermediate symlinks are now resolved when deleting symlinks under directory symlinks

@@ -16,7 +16,7 @@ namespace LanguageService.Server {
 
     const buildEngineDirectory = Context.getBuildEngineDirectory ();
 
-    const sdkPreludePath = buildEngineDirectory.combine(r`Sdk\Sdk.prelude`);
+    const sdkPreludePath = buildEngineDirectory.combine(r`Sdk\Sdk.Prelude`);
 
     @@public
     export const test = BuildXLSdk.test({

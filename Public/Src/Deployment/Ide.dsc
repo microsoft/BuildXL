@@ -33,6 +33,17 @@ namespace Ide {
                     targetFileName: a`BuildXL.vscode.osx.vsix`,
                 }
             ]),
+            // The Linux extension is built only on Linux instead of cross compiling is so that all Linux artifacts that we publish are built on Linux end to end.
+            // While there is nothing Linux specific here (because its all dotnet/js) this follows the same pattern we have used for other Linux specific packages we publish
+            ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
+                {
+                    file: importFrom("BuildXL.Ide").withQualifier({
+                        targetFramework: BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
+                        targetRuntime: "linux-x64"}
+                        ).LanguageService.Server.vsix,
+                    targetFileName: a`BuildXL.vscode.linux.vsix`,
+                }
+            ]),
         ],
     };
 

@@ -537,7 +537,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "MessagePack",
-          "Version": "2.2.85"
+          "Version": "2.5.108"
         }
       }
     },
@@ -546,7 +546,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "MessagePack.Annotations",
-          "Version": "2.2.85"
+          "Version": "2.5.108"
         }
       }
     },
@@ -2382,7 +2382,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Threading",
-          "Version": "17.0.32-alpha"
+          "Version": "17.6.40"
         }
       }
     },
@@ -2391,7 +2391,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Threading.Analyzers",
-          "Version": "16.9.60"
+          "Version": "17.6.40"
         }
       }
     },
@@ -2418,7 +2418,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Validation",
-          "Version": "16.10.35"
+          "Version": "17.0.71"
         }
       }
     },
@@ -2499,7 +2499,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Nerdbank.Streams",
-          "Version": "2.6.81"
+          "Version": "2.9.112"
         }
       }
     },
@@ -2688,7 +2688,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "StreamJsonRpc",
-          "Version": "2.8.28"
+          "Version": "2.15.29"
         }
       }
     },

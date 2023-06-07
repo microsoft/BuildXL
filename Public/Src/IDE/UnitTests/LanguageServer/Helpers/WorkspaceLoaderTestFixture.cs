@@ -22,7 +22,6 @@ namespace BuildXL.Ide.LanguageServer.UnitTests.Helpers
 
         static WorkspaceLoaderTestFixture()
         {
-            AppDomain.CurrentDomain.AssemblyResolve += AssemblyLoaderHelper.Newtonsoft11DomainAssemblyResolve;  
         } 
 
         public ProviderContext ProviderContext { get; }
@@ -33,7 +32,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests.Helpers
 
         public WorkspaceLoaderTestFixture()
         {
-            m_rootPath = Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly())), @"testData");
+            m_rootPath = Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly())), @"testdata");
             m_appState = AppState.TryCreateWorkspace(new Uri(m_rootPath), progressHandler: null);
 
             var logger = Logger.CreateLogger();

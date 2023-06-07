@@ -24,7 +24,11 @@ namespace BuildXL.Utilities.Core
         public const int Fnv1Basis32 = unchecked((int)2166136261);
 
         private const long Fnv1Prime64 = 1099511628211;
-        private const long Fnv1Basis64 = unchecked((long)14695981039346656037);
+
+        /// <summary>
+        /// Initial hash value when using Fold(long, long).
+        /// </summary>
+        public const long Fnv1Basis64 = unchecked((long)14695981039346656037);
 #pragma warning restore SA1139 // Use literal suffix notation instead of casting
 
         /// <summary>
@@ -268,7 +272,26 @@ namespace BuildXL.Utilities.Core
             }
 
             int hash = Fnv1Basis32;
-            foreach (int value in values)
+            foreach (var value in values)
+            {
+                hash = Fold(hash, value);
+            }
+
+            return hash;
+        }
+
+        /// <summary>
+        /// Combines the specified values.
+        /// </summary>
+        public static long Combine(long[] values)
+        {
+            if (values == null)
+            {
+                return 0;
+            }
+            
+            long hash = Fnv1Basis64;
+            foreach (var value in values)
             {
                 hash = Fold(hash, value);
             }

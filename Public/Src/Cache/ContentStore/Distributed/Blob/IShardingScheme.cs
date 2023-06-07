@@ -12,6 +12,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// </summary>
 public interface IShardingScheme<in TKey, out TLocation>
 {
+    public ShardingAlgorithm Algorithm { get; }
+
     public IReadOnlyList<TLocation> Locations { get; }
 
     public TLocation Locate(TKey key);

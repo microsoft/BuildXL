@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
@@ -18,6 +20,29 @@ public class BlobCacheTests : TestWithOutput
     public BlobCacheTests(ITestOutputHelper output)
         : base(output)
     {
+    }
+
+    [Fact]
+    public void VersionStartsWithV()
+    {
+        // WARNING: this is related to serialization formats. DO NOT IGNORE THIS TEST FAILING.
+        foreach (var value in Enum.GetValues(typeof(BlobCacheVersion)).Cast<BlobCacheVersion>())
+        {
+            var serialized = value.ToString();
+            serialized.Should().StartWith("V", $"This is an assumption made in {nameof(BlobCacheContainerName)}");
+            serialized.Length.Should().BeLessOrEqualTo(BlobCacheContainerName.VersionReservedLength, $"This is an assumption made in {nameof(BlobCacheContainerName)}");
+        }
+    }
+
+    [Fact]
+    public void PurposeLengthIsAtMost10()
+    {
+        // WARNING: this is related to serialization formats. DO NOT IGNORE THIS TEST FAILING.
+        foreach (var value in Enum.GetValues(typeof(BlobCacheContainerPurpose)).Cast<BlobCacheContainerPurpose>())
+        {
+            var serialized = value.ToString();
+            serialized.Length.Should().BeLessOrEqualTo(BlobCacheContainerName.PurposeReservedLength, $"This is an assumption made in {nameof(BlobCacheContainerName)}");
+        }
     }
 
     [Fact]
@@ -50,7 +75,8 @@ public class BlobCacheTests : TestWithOutput
     [Fact]
     public void BlobCacheShardingKeyStabilityTests()
     {
-        // These tests assert that the hashes don't change across processes
+        // These tests assert that the hashes don't change across processes.
+        // WARNING: IF THIS TEST FAILS IT MEANS YOU HAVE ROYALLY SCREWED UP THE HASHING CODE. DO NOT IGNORE IT.
 
         // Chosen by fair dice roll. Guaranteed to be random.
         var bytes = new byte[] { 0x21, 0xfc, 0x81, 0x32, 0xdd, 0xfd, 0x24, 0x24, 0x0f, 0xbc, 0xb9, 0xdc, 0xfe, 0x7b, 0x85, 0xd3,
@@ -120,29 +146,36 @@ public class BlobCacheTests : TestWithOutput
     }
 
     [Fact]
+    [Trait("DisableFailFast", "true")]
     public void BlobContainerNameTests()
     {
-        var container = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Content, "universe123", "namespace123");
-        container.ContainerName.Should().BeEquivalentTo("contentv0uuniverse123-namespace123");
+        var container = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Content, "default", "universe123", "namespace123");
+        container.ContainerName.Should().BeEquivalentTo("contentv0-default-universe123-namespace123");
         var parsed = BlobCacheContainerName.Parse(container.ContainerName);
         parsed.Should().BeEquivalentTo(container);
 
         Assert.Throws<FormatException>(
             () =>
             {
-                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "UPPERCASE", "namespace");
+                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "default", "UPPERCASE", "namespace");
             });
 
         Assert.Throws<FormatException>(
             () =>
             {
-                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "good", "Bad");
+                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "default", "good", "Bad");
             });
 
         Assert.Throws<FormatException>(
             () =>
             {
-                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "waaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaayyyyyy", "tooooooooooooooooloopooooooooooooooooooooooooooooooooooooooooooooooooooong");
+                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "default", "waaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaayyyyyy", "tooooooooooooooooloopooooooooooooooooooooooooooooooooooooooooooooooooooong");
+            });
+
+        Assert.Throws<ContractException>(
+            () =>
+            {
+                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "defaultooooo", "wupp", "wopp");
             });
     }
 }

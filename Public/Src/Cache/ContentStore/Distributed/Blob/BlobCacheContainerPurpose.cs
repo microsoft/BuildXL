@@ -9,7 +9,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// Container's purpose.
 /// </summary>
 /// <remarks>
-/// This is tightly coupled with <see cref="BlobCacheContainerName"/>
+/// This is tightly coupled with <see cref="BlobCacheContainerName"/>. 
+///
+/// The purpose has <see cref="BlobCacheContainerName.PurposeReservedLength"/> characters reserved for it.
+///
+/// CODESYNC: <see cref="BlobCacheContainerName.Parse"/>
 /// </remarks>
 public enum BlobCacheContainerPurpose
 {

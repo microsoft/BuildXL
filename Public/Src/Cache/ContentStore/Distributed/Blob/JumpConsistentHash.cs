@@ -20,6 +20,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// </remarks>
 public record JumpConsistentHash<TShardId> : IShardingScheme<int, TShardId>
 {
+    public ShardingAlgorithm Algorithm => ShardingAlgorithm.JumpHash;
+
     public IReadOnlyList<TShardId> Locations { get; }
 
     public JumpConsistentHash(IReadOnlyList<TShardId> locations)

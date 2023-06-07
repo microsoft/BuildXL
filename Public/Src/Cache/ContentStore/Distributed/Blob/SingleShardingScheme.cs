@@ -15,6 +15,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// </remarks>
 public record SingleShardingScheme<TKey, TShardId> : IShardingScheme<TKey, TShardId>
 {
+    public ShardingAlgorithm Algorithm => ShardingAlgorithm.SingleShard;
+
     public IReadOnlyList<TShardId> Locations { get; }
 
     public SingleShardingScheme(TShardId location)

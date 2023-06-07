@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 
@@ -61,12 +62,51 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
 
         _scheme = _configuration.ShardingScheme.Create();
 
+        var matrices = GenerateMatrix(_scheme);
         _containers = Enum.GetValues(typeof(BlobCacheContainerPurpose)).Cast<BlobCacheContainerPurpose>().Select(
-            purpose => new BlobCacheContainerName(
-                BlobCacheVersion.V0,
-                purpose,
-                _configuration.Universe,
-                _configuration.Namespace)).ToArray();
+            purpose =>
+            {
+                // Different matrix implies different containers, and therefore different universes.
+                var matrix = purpose switch
+                {
+                    BlobCacheContainerPurpose.Content => matrices.Content,
+                    BlobCacheContainerPurpose.Metadata => matrices.Metadata,
+                    _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, $"Unknown value for {nameof(BlobCacheContainerPurpose)}: {purpose}"),
+                };
+
+                return new BlobCacheContainerName(
+                    BlobCacheVersion.V0,
+                    purpose,
+                    matrix,
+                    _configuration.Universe,
+                    _configuration.Namespace);
+            }).ToArray();
+    }
+
+    private (string Metadata, string Content) GenerateMatrix(IShardingScheme<int, BlobCacheStorageAccountName> scheme)
+    {
+        // The matrix here ensures that metadata does not overlap across sharding schemes. Basically, whenever we add
+        // or remove shards (or change the sharding algorithm), we will get a new salt. This salt will force us to use
+        // a different matrix for metadata.
+        //
+        // Hence, sharding changes imply no metadata hits, but they do not imply no content hits. This is on
+        // purpose because metadata hits guarantee content's existence, so we can't mess around with them.
+
+        // Generate a stable hash out of the sharding scheme.
+        var algorithm = (long)scheme.Algorithm;
+        var locations = _scheme.Locations.Select(location => HashCodeHelper.GetOrdinalIgnoreCaseHashCode64(location.AccountName)).ToArray();
+
+        var algorithmSalt = HashCodeHelper.Combine(HashCodeHelper.Fnv1Basis64, algorithm);
+        var locationsSalt = HashCodeHelper.Combine(locations);
+
+        var metadataSalt = HashCodeHelper.Combine(algorithmSalt, locationsSalt);
+        // TODO: Ideally, we'd like the following to be algorithmSalt, but that would mean that GC needs to track the
+        // salts differently for content and metadata.
+        var contentSalt = metadataSalt;
+
+        return (
+            Metadata: metadataSalt.ToString().Substring(0, 10),
+            Content: contentSalt.ToString().Substring(0, 10));
     }
 
     public async Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key)

@@ -228,6 +228,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 PrimaryLocation = Configuration.PrimaryMachineLocation,
                 AdditionalMachineLocations = Configuration.AdditionalMachineLocations,
                 UpdateInterval = Configuration.Checkpoint?.UpdateClusterStateInterval ?? TimeSpan.Zero,
+                RecomputeConfiguration = Configuration.BlobClusterStateStorageConfiguration.RecomputeConfiguration,
             };
 
             return new ClusterStateManager(clusterStateManagerConfiguration, new BlobClusterStateStorage(Configuration.BlobClusterStateStorageConfiguration, Clock), Clock);

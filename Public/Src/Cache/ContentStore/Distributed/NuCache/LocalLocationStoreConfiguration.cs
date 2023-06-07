@@ -40,16 +40,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// </summary>
     public record LocalLocationStoreConfiguration
     {
-        /// <summary>
-        /// The time before a machine is marked as closed from its last heartbeat as open.
-        /// </summary>
-        public TimeSpan MachineActiveToClosedInterval { get; set; } = TimeSpan.FromMinutes(10);
-
-        /// <summary>
-        /// The time before machines are marked as expired and locations are eligible for garbage collection from the local database
-        /// </summary>
-        public TimeSpan MachineActiveToExpiredInterval { get; set; } = TimeSpan.FromHours(1);
-
         /// <nodoc />
         public MetadataStoreMemoizationDatabaseConfiguration MetadataStoreMemoization { get; set; } = new MetadataStoreMemoizationDatabaseConfiguration();
 
@@ -82,12 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The default for <see cref="LocationEntryExpiry"/>
         /// </summary>
         public static readonly TimeSpan DefaultLocationEntryExpiry  = TimeSpan.FromHours(2);
-
-        /// <summary>
-        /// Interval between cluster state recomputations.
-        /// </summary>
-        public TimeSpan MachineStateRecomputeInterval { get; set; } = TimeSpan.FromMinutes(1);
-
+        
         /// <summary>
         /// The TTL on entries in a global store
         /// NOTE: This is NOT the same as ContentHashBumpTime (the TTL for entries in global store)

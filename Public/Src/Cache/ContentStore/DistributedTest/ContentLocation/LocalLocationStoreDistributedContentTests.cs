@@ -2412,7 +2412,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         false).ShouldBeSuccess();
 
                     // Add time so worker machine is inactive
-                    TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToExpiredInterval + TimeSpan.FromSeconds(1);
+                    TestClock.UtcNow += _configurations[context.GetMasterIndex()].BlobClusterStateStorageConfiguration!.RecomputeConfiguration.ActiveToExpired + TimeSpan.FromSeconds(1);
                     await master.LocalLocationStore.SetOrGetMachineStateAsync(context, MachineState.Unknown).ShouldBeSuccess();
 
                     masterResult = await master.GetBulkAsync(
@@ -2924,7 +2924,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 overrideDistributed: s =>
                 {
                     s.MachineActiveToClosedIntervalMinutes = null;
-                    s.MachineActiveToExpiredIntervalMinutes = null;
+                    s.MachineClosedToDeadExpiredIntervalMinutes = null;
                 });
 
             int machineCount = 2;
@@ -2967,7 +2967,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 overrideDistributed: s =>
                 {
                     s.MachineActiveToClosedIntervalMinutes = null;
-                    s.MachineActiveToExpiredIntervalMinutes = null;
+                    s.MachineClosedToDeadExpiredIntervalMinutes = null;
                 });
 
             int machineCount = 2;
@@ -3013,7 +3013,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 overrideDistributed: s =>
                 {
                     s.MachineActiveToClosedIntervalMinutes = null;
-                    s.MachineActiveToExpiredIntervalMinutes = null;
+                    s.MachineClosedToDeadExpiredIntervalMinutes = null;
                 });
 
             int machineCount = 2;
@@ -3046,7 +3046,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
 
-                    TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToExpiredInterval + TimeSpan.FromSeconds(1);
+                    TestClock.UtcNow += _configurations[context.GetMasterIndex()].BlobClusterStateStorageConfiguration.RecomputeConfiguration.ActiveToExpired + TimeSpan.FromSeconds(1);
                     await master.LocalLocationStore.SetOrGetMachineStateAsync(
                         ctx,
                         MachineState.Unknown).ShouldBeSuccess();
@@ -3091,7 +3091,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
 
                     // Move time forward and check that this machine transitions to closed when the master does heartbeat
-                    TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToClosedInterval + TimeSpan.FromSeconds(1);
+                    TestClock.UtcNow += _configurations[context.GetMasterIndex()].BlobClusterStateStorageConfiguration!.RecomputeConfiguration.ActiveToClosed + TimeSpan.FromSeconds(1);
                     await master.LocalLocationStore.SetOrGetMachineStateAsync(
                         ctx,
                         MachineState.Unknown).ShouldBeSuccess();

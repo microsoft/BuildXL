@@ -38,11 +38,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public DateTime LastUpdateTimeUtc { get; private set; } = DateTime.MinValue;
 
         /// <summary>
-        /// The time at which the machine was last in an inactive state
-        /// </summary>
-        public DateTime LastInactiveTime { get; set; }
-
-        /// <summary>
         /// The self-determined state of the machine as of the current time.
         /// </summary>
         /// <remarks>
@@ -261,13 +256,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _clusterStateCache = new QueryableClusterState(new ClusterStateMachine(), PrimaryMachineId);
         }
 
-        public BoolResult Update(OperationContext context, ClusterStateMachine stateMachine, DateTime? nowUtc = null)
+        public BoolResult Update(
+            OperationContext context,
+            ClusterStateMachine stateMachine,
+            ClusterStateRecomputeConfiguration? configuration = null,
+            DateTime? nowUtc = null)
         {
             // This is an operation just for performance tracking purposes (i.e., if this takes too long, it'd be
             // interesting to know).
             return context.PerformOperation(Tracer, () =>
             {
                 QueryableClusterState prevCache, nextCache;
+
+                if (configuration is not null)
+                {
+                    // The first thing we do is to transition the inactive machines. This is because the inactive
+                    // machines aren't stored by the ClusterStateManager to prevent clock skew issues from causing
+                    // incidents; therefore, inactive states are basically only representable in-memory.
+                    stateMachine = stateMachine.TransitionInactiveMachines(configuration, nowUtc!.Value);
+                }
 
                 // It is not impossible for this function to be called concurrently, hence this lock. It's very
                 // unlikely that it will be called concurrently in practice, though.
@@ -319,10 +326,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             foreach (var kvp in nextCache.RecordsByMachineId)
             {
-                if (!prevCache.RecordsByMachineId.ContainsKey(kvp.Key))
+                var current = kvp.Value;
+                
+                if (!prevCache.RecordsByMachineId.TryGetValue(kvp.Key, out var previous))
                 {
-                    var nextRecord = kvp.Value;
-                    Tracer.Debug(context, $"MachineMapping: Found new machine. Id=[{nextRecord.Id}] Location=[{nextRecord.Location}] State=[{nextRecord.State}]");
+                    Tracer.Debug(context, $"MachineMapping: Found new machine. Id=[{current.Id}] Location=[{current.Location}] State=[{current.State}]");
+                    continue;
+                }
+
+                if (!previous.Location.Equals(current.Location))
+                {
+                    Tracer.Warning(context, $"MachineIdReclamation: Id takeover detected. Id=[{kvp.Key}] Previous=[{previous}] Current=[{kvp.Value}]");
                 }
             }
         }

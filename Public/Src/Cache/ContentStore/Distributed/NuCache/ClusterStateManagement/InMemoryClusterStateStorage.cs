@@ -15,12 +15,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement
 {
     internal class InMemoryClusterStateStorage : StartupShutdownSlimBase, IClusterStateStorage
     {
-        protected override Tracer Tracer { get; } = new Tracer(nameof(InMemoryClusterStateStorage));
+        protected override Tracer Tracer { get; } = new(nameof(InMemoryClusterStateStorage));
 
-        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1);
+        private readonly SemaphoreSlim _lock = new(1);
         private readonly IClock _clock = SystemClock.Instance;
 
-        private ClusterStateMachine _clusterStateMachine = new ClusterStateMachine();
+        private ClusterStateMachine _clusterStateMachine = new();
+
+        // TODO: make configurable
+        private readonly ClusterStateRecomputeConfiguration _recomputeConfiguration = new();
 
         public Task<Result<IClusterStateStorage.HeartbeatOutput>> HeartbeatAsync(OperationContext context, IClusterStateStorage.HeartbeatInput request)
         {
@@ -47,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement
             return context.PerformOperationAsync(Tracer, async () =>
             {
                 using var guard = await _lock.AcquireAsync(context.Token);
-                var (currentState, assignedMachineIds) = _clusterStateMachine.RegisterMany(request, _clock.UtcNow);
+                var (currentState, assignedMachineIds) = _clusterStateMachine.RegisterMany(_recomputeConfiguration, request, _clock.UtcNow);
                 _clusterStateMachine = currentState;
 
                 var machineMappings = request.MachineLocations

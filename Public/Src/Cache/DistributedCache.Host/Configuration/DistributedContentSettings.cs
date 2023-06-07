@@ -764,7 +764,11 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, double.MaxValue)]
-        public double? MachineActiveToExpiredIntervalMinutes { get; set; }
+        public double? MachineClosedToDeadExpiredIntervalMinutes { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, double.MaxValue)]
+        public double? MachineDeadExpiredToDeadUnavailableIntervalMinutes { get; set; }
 
         // Files smaller than this will use the untrusted hash
         [DataMember]

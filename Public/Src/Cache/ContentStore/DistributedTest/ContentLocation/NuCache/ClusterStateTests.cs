@@ -25,12 +25,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var machineLocation = new MachineLocation(@"grpc://fun.com:123");
             var casedMachineLocation = new MachineLocation(@"grpc://FuN.com:123");
             var clusterStateMachine = new ClusterStateMachine();
+            var cfg = new ClusterStateRecomputeConfiguration();
 
             MachineId machineId;
             (clusterStateMachine, machineId) = clusterStateMachine.RegisterMachine(machineLocation, _clock.UtcNow);
 
             var clusterState = new ClusterState(machineId, new[] { new MachineMapping(machineId, machineLocation) });
-            clusterState.Update(context, clusterStateMachine, _clock.UtcNow).ThrowIfFailure();
+            clusterState.Update(context, clusterStateMachine, cfg, _clock.UtcNow).ThrowIfFailure();
 
             clusterState.TryResolve(machineId, out var resolvedMachineLocation).Should().BeTrue();
             resolvedMachineLocation.Equals(machineLocation).Should().BeTrue();

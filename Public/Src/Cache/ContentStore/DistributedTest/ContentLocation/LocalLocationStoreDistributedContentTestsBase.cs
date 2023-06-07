@@ -231,7 +231,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 UseDistributedCentralStorage = true,
                 MachineActiveToClosedIntervalMinutes = 5,
-                MachineActiveToExpiredIntervalMinutes = 10,
+                MachineClosedToDeadExpiredIntervalMinutes = 5,
 
                 SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,
 

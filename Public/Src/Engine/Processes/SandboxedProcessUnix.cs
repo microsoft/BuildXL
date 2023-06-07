@@ -277,6 +277,10 @@ namespace BuildXL.Processes
                 if (info.FileAccessManifest.EnableLinuxPTraceSandbox && 
                     (info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox || objDump.IsBinaryStaticallyLinked(info.FileName)))
                 {
+                    // This is a workaround for an issue that appears on Linux where some executables in the BuildXL
+                    // nuget/npm package may not have the execute bit set causing a permission denied error
+                    _ = FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName);
+
                     process.StartInfo.Arguments = $"{process.StartInfo.FileName} {process.StartInfo.Arguments}";
                     process.StartInfo.FileName = EnvExecutable;
                 }

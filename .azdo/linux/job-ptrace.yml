@@ -1,0 +1,109 @@
+jobs:
+- job: Selfhost_InternalPTrace
+  displayName: Build and Validate Selfhost with PTrace
+  pool:
+    name: BuildXL-DevOpsAgents-Linux-PME
+    os: linux
+
+  templateContext:
+    breakGlass:
+      justification: 'Because BuildXL downloads NuGet packages from the internet during the build (and there is no way to run "nuget restore" before the build because NuGet packages are specified in a BuildXL-specific way)'
+    inputs:
+    - input: checkout
+      repository: self
+      fetchDepth: 1
+    outputs:
+    - output: pipelineArtifact
+      targetPath: $(Build.SourcesDirectory)/Out/Logs
+      artifactName: BuildXL-Logs.InternalPTrace.$(System.JobName).$(System.JobAttempt)
+      condition: always()
+      continueOnError: true
+      displayName: Upload BuildXL Logs
+    sdl:
+      credscan:
+        enabled: false
+      antimalwareScan:
+        enabled: false
+      publishLogs:
+        enabled: false
+
+  timeoutInMinutes: 90
+
+  steps:
+  - task: UseDotNet@2
+    displayName: Use .NET Core sdk 6.x
+    inputs:
+      version: 6.x
+
+  - template: step-install-mono.yml
+
+  - bash: |
+      set -euo pipefail
+      echo "== Making sure source directory is clean =="
+      git clean -xdf -e Out/Cache
+    displayName: Cleaning up source directory
+
+  - bash: |
+      set -euo pipefail
+      mkdir -p Out
+      tee Out/CacheConfig.json << EOF
+      {
+      "RemoteIsReadOnly": false,
+      "SkipDeterminismRecovery":  true,
+      "RemoteConstructionTimeoutMilliseconds":  10000,
+      "Assembly":  "BuildXL.Cache.VerticalAggregator",
+      "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
+      "RemoteCache":  {
+                          "CacheServiceFingerprintEndpoint":  "https://mseng.artifacts.visualstudio.com/DefaultCollection",
+                          "RequiredContentKeepUntilHours":  1,
+                          "Assembly":  "BuildXL.Cache.BuildCacheAdapter",
+                          "CacheServiceContentEndpoint":  "https://mseng.vsblob.visualstudio.com/DefaultCollection",
+                          "Type":  "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory",
+                          "CacheLogPath":  "[BuildXLSelectedLogPath].Remote.log",
+                          "CacheId":  "L3Cache",
+                          "CacheNamespace":  "BuildXLSelfhost.Linux",
+                          "UseBlobContentHashLists":  true
+                      },
+      "LocalCache":  {
+                        "MaxCacheSizeInMB":  20240,
+                        "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+                        "UseStreamCAS":  true,
+                        "Type":  "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
+                        "CacheLogPath":  "[BuildXLSelectedLogPath]",
+                        "CacheRootPath":  "[BuildXLSelectedRootPath]",
+                        "CacheId":  "SelfhostCS2L1",
+                        "UseRocksDbMemoizationStore":  true
+                    }
+      }
+      EOF
+    displayName: Write cache config file
+
+  - bash: |
+      sudo mkdir /home/subst
+      sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
+    displayName: Bind /home/subst to sources directory  
+
+  - bash: |
+      set -eu
+      bash bxl.sh --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev
+    displayName: Build LKG
+    workingDirectory: /home/subst
+    env:
+      PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
+      PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
+
+  # This step currently only builds selfhost with the --minimal flag, but will be extended in the future to run more unit tests with ptrace
+  - bash: |
+      set -eu
+      bash bxl.sh /ado /cacheMiss:"[Bxl.Selfhost.Linux.PTrace]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- /logsDirectory:"Out/Logs/Build" --minimal --internal --use-dev "/p:BUILDXL_FINGERPRINT_SALT='Bxl.Selfhost.Linux.PTrace'" /forceEnableLinuxPTraceSandbox+ /injectCacheMisses:0.3
+    displayName: Build BXL with LKG and PTrace
+    workingDirectory: /home/subst
+    env:
+      PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
+      PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
+
+  - bash: sudo umount -v --lazy /home/subst
+    condition: always()
+    displayName: Unmount /home/subst

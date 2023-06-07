@@ -39,3 +39,5 @@ extends:
             Distributed: true
             ValidationName: InternalRelease
             BxlExtraArgs: --internal /q:ReleaseLinux
+        
+        - template: /.azdo/linux/job-ptrace.yml@self

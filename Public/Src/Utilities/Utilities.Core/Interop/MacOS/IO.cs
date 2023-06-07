@@ -455,6 +455,7 @@ namespace BuildXL.Interop.Unix
         public const string UsrBin          = "/usr/bin";
         public const string UsrInclude      = "/usr/include";
         public const string UsrLib          = "/usr/lib";
+        public const string UsrLib64        = "/usr/lib64";
         public const string UsrLibexec      = "/usr/libexec";
         public const string UsrShare        = "/usr/share";
         public const string UsrStandalone   = "/usr/standalone";

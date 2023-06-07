@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -10,21 +11,40 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    using static CheckpointManifest;
-    using AbsolutePath = Interfaces.FileSystem.AbsolutePath;
+    /// <summary>
+    /// This interface must be implemented by any database that can be checkpointed by <see cref="CheckpointManifest"/>
+    /// </summary>
+    public interface ICheckpointable : IStartupShutdownSlim
+    {
+        public BoolResult SaveCheckpoint(OperationContext context, AbsolutePath checkpointDirectory);
+
+        public BoolResult RestoreCheckpoint(OperationContext context, AbsolutePath checkpointDirectory);
+
+        public bool IsImmutable(AbsolutePath filePath);
+
+        public void SetGlobalEntry(string key, string? value);
+
+        public bool TryGetGlobalEntry(string key, [NotNullWhen(true)] out string? value);
+    }
 
     /// <summary>
     /// Helper class responsible for creating and restoring checkpoints of a local database.
@@ -36,14 +56,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Tracer WorkaroundTracer { get; set; } = new Tracer(nameof(CheckpointManager));
 
         private const string IncrementalCheckpointIdSuffix = "|Incremental";
-        private const string CheckpointInfoKey = "CheckpointManager.CheckpointState";
+        private const string CheckpointStateKey = "CheckpointManager.CheckpointState";
         private const string CheckpointManifestKey = "CheckpointManager.Manifest";
 
-        public ContentLocationDatabase Database { get; }
+        public ICheckpointable Database { get; }
+
         public ICheckpointRegistry CheckpointRegistry { get; }
 
-        private readonly ICheckpointObserver _checkpointObserver;
         public CentralStorage Storage { get; }
+
         private readonly IAbsFileSystem _fileSystem;
 
         private readonly AbsolutePath _checkpointStagingDirectory;
@@ -52,6 +73,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly CheckpointManagerConfiguration _configuration;
 
+        private readonly IClock _clock;
+
         /// <inheritdoc />
         public CheckpointManager(
             ContentLocationDatabase database,
@@ -59,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             CentralStorage storage,
             CheckpointManagerConfiguration configuration,
             CounterCollection<ContentLocationStoreCounters> counters,
-            ICheckpointObserver checkpointObserver = null)
+            IClock clock)
         {
             Database = database;
             CheckpointRegistry = checkpointRegistry;
@@ -67,12 +90,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _configuration = configuration;
             _fileSystem = new PassThroughFileSystem();
             _checkpointStagingDirectory = configuration.WorkingDirectory / "staging";
-            _checkpointObserver = checkpointObserver;
             Counters = counters;
+            _clock = clock;
 
             LinkLifetime(Database);
             LinkLifetime(CheckpointRegistry);
-            LinkLifetime(_checkpointObserver);
             LinkLifetime(Storage);
 
             if (_configuration.RestoreCheckpoints)
@@ -126,7 +148,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             context = context.CreateNested(Tracer.Name);
 
             string checkpointId = "Unknown";
-            string eventProcessingDelayMessage = maxEventProcessingDelay == null ? string.Empty : $" MaxEventProcessingDelay=[{maxEventProcessingDelay}]";
+            string eventProcessingDelayMessage =
+                maxEventProcessingDelay == null ? string.Empty : $" MaxEventProcessingDelay=[{maxEventProcessingDelay}]";
             var dbStats = new DatabaseStats();
             return context.PerformOperationAsync(
                 Tracer,
@@ -216,24 +239,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 incrementalCheckpointsPrefix + manifestFilePath.FileName,
                 garbageCollect: true).ThrowIfFailureAsync();
 
-            AddEntry(manifest, manifestFilePath.FileName, checkpointId);
+            AddEntryToManifest(manifest, manifestFilePath.FileName, checkpointId);
 
             // Add incremental suffix so consumer knows that the checkpoint is an incremental checkpoint
             checkpointId += IncrementalCheckpointIdSuffix;
 
-            var checkpointState = new CheckpointState(sequencePoint, checkpointId, Database.Clock.UtcNow, _configuration.PrimaryMachineLocation);
-
-            if (_checkpointObserver != null)
-            {
-                await _checkpointObserver.OnChangeCheckpointAsync(context, checkpointState, manifest).ThrowIfFailure();
-            }
+            var checkpointState = new CheckpointState(
+                StartSequencePoint: sequencePoint,
+                CheckpointId: checkpointId,
+                Manifest: manifest,
+                CheckpointTime: _clock.UtcNow,
+                Producer: _configuration.PrimaryMachineLocation);
 
             await CheckpointRegistry.RegisterCheckpointAsync(context, checkpointState).ThrowIfFailure();
 
             return checkpointId;
         }
 
-        private async Task<CheckpointManifest> UploadFilesAsync(OperationContext context, AbsolutePath basePath, IEnumerable<AbsolutePath> files, string incrementalCheckpointsPrefix)
+        private async Task<CheckpointManifest> UploadFilesAsync(
+            OperationContext context,
+            AbsolutePath basePath,
+            IEnumerable<AbsolutePath> files,
+            string incrementalCheckpointsPrefix)
         {
             // Since checkpoints are extremely large and upload incurs a hashing operation, not having incrementality
             // at this level means that we may need to hash >100GB of data every few minutes, which is a lot.
@@ -256,43 +283,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _configuration.IncrementalCheckpointDegreeOfParallelism,
                 context.Token,
                 action: async (_, file) =>
-                {
-                    var relativePath = file.Path.Substring(basePath.Path.Length + 1);
-
-                    bool attemptUpload = true;
-                    if (currentManifest.TryGetValue(relativePath, out var storageId) && Database.IsImmutable(file))
-                    {
-                        // File was present in last checkpoint. Just add it to the new incremental checkpoint info
-                        var touchResult = await Storage.TouchBlobAsync(
-                            context,
-                            file,
-                            storageId,
-                            isUploader: true,
-                            isImmutable: true);
-                        if (touchResult.Succeeded)
                         {
-                            AddEntry(newManifest, relativePath, storageId);
-                            attemptUpload = false;
+                            var relativePath = file.Path.Substring(basePath.Path.Length + 1);
 
-                            Interlocked.Increment(ref retainedCount);
-                            Interlocked.Add(ref retainedSize, _fileSystem.GetFileSize(file));
-                            Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploadSkipped].Increment();
-                        }
-                    }
+                            bool attemptUpload = true;
 
-                    if (attemptUpload)
-                    {
-                        storageId = await Storage.UploadFileAsync(
-                            context,
-                            file,
-                            incrementalCheckpointsPrefix + relativePath).ThrowIfFailureAsync();
-                        AddEntry(newManifest, relativePath, storageId);
+                            var entry = currentManifest?.TryGetValue(relativePath);
+                            if (entry is not null && Database.IsImmutable(file))
+                            {
+                                // File was present in last checkpoint. Just add it to the new incremental checkpoint info
+                                var touchResult = await Storage.TouchBlobAsync(
+                                    context,
+                                    file,
+                                    entry.StorageId,
+                                    isUploader: true,
+                                    isImmutable: true);
+                                if (touchResult.Succeeded)
+                                {
+                                    AddEntryToManifest(newManifest, relativePath, entry.StorageId);
+                                    attemptUpload = false;
 
-                        Interlocked.Increment(ref uploadCount);
-                        Interlocked.Add(ref uploadSize, _fileSystem.GetFileSize(file));
-                        Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploaded].Increment();
-                    }
-                },
+                                    Interlocked.Increment(ref retainedCount);
+                                    Interlocked.Add(ref retainedSize, _fileSystem.GetFileSize(file));
+                                    Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploadSkipped].Increment();
+                                }
+                            }
+
+                            if (attemptUpload)
+                            {
+                                var storageId = await Storage.UploadFileAsync(
+                                    context,
+                                    file,
+                                    incrementalCheckpointsPrefix + relativePath).ThrowIfFailureAsync();
+                                AddEntryToManifest(newManifest, relativePath, storageId);
+
+                                Interlocked.Increment(ref uploadCount);
+                                Interlocked.Add(ref uploadSize, _fileSystem.GetFileSize(file));
+                                Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploaded].Increment();
+                            }
+                        },
                 items: files.ToArray());
 
             Tracer.TrackMetric(context, "CheckpointUploadSize", uploadSize);
@@ -308,7 +337,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return newManifest;
         }
 
-        internal readonly static Regex RocksDbCorruptionRegex = new Regex(@".*Slot(?:1|2)(?:\/|\\)(?<name>.*\.sst).*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        internal static readonly Regex RocksDbCorruptionRegex = new Regex(
+            @".*Slot(?:1|2)(?:\/|\\)(?<name>.*\.sst).*",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         /// Restores the checkpoint for a given checkpoint id.
@@ -317,17 +348,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             context = context.CreateNested(Tracer.Name);
 
-            var checkpointId = checkpointState.CheckpointId;
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 async nestedContext =>
                 {
-                    // Remove the suffix to get the real checkpoint id used with central storage
-                    // NOTE: We allow null checkpoint id to restore 'empty' checkpoint
-                    checkpointId = string.IsNullOrEmpty(checkpointId)
-                        ? null
-                        : checkpointId.Substring(0, checkpointId.Length - IncrementalCheckpointIdSuffix.Length);
-
                     var checkpointFile = _checkpointStagingDirectory / (checkpointState.CheckpointTime.ToReadableString() + ".chkpt.txt");
                     var extractedCheckpointDirectory = _checkpointStagingDirectory / "chkpt";
 
@@ -339,44 +363,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         // Making sure that the extracted checkpoint directory exists before copying the files there.
                         _fileSystem.CreateDirectory(extractedCheckpointDirectory);
-                        
-                        CheckpointManifest checkpointManifest = new CheckpointManifest();
-                        if (checkpointId != null)
+
+                        var checkpointManifest = new CheckpointManifest();
+
+                        if (!string.IsNullOrEmpty(checkpointState.CheckpointId) || checkpointState.Manifest is not null)
                         {
-                            // Getting the checkpoint from the central store
-                            await Storage.TryGetFileAsync(
-                                nestedContext,
-                                checkpointId,
-                                checkpointFile,
-                                isImmutable: true).ThrowIfFailure();
-
-                            try
+                            if (checkpointState.Manifest is not null)
                             {
-                                checkpointManifest = LoadCheckpointManifest(checkpointFile);
+                                checkpointManifest = checkpointState.Manifest;
                             }
-                            catch (JsonException)
+                            else
                             {
-                                // The file download is direct to a FileStream and it's not guaranteed to match because
-                                // we don't actually have the hash of the file. It sometimes happens that the download
-                                // gets corrupted and we wind up with a non-parseable json. In such cases, we do an
-                                // explicit minor retry. We don't want an actual retry policy here because this is
-                                // already a very infrequent occurrence.
-                                // If this does fail, however, it can trigger a state of permanent breakage if it's the
-                                // leader that fails. The reason being that we'll keep on refreshing the master status
-                                // without being able to restore a checkpoint and make progress.
-                                await Storage.PruneInternalCacheAsync(context, checkpointId).IgnoreFailure();
-                                await Storage.TryGetFileAsync(
-                                    nestedContext,
-                                    checkpointId,
-                                    checkpointFile,
-                                    isImmutable: true).ThrowIfFailure();
-                                checkpointManifest = LoadCheckpointManifest(checkpointFile);
-                            }
-
-                            if (_checkpointObserver != null)
-                            {
-                                AddEntry(checkpointManifest, checkpointFile.FileName, checkpointId);
-                                await _checkpointObserver.OnChangeCheckpointAsync(context, checkpointState, checkpointManifest).ThrowIfFailureAsync();
+                                checkpointManifest = await DownloadCheckpointManifestAsync(nestedContext, checkpointState, checkpointFile);
                             }
 
                             await RestoreCheckpointIncrementalAsync(
@@ -397,9 +395,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             return restoreResult;
                         }
-                        
+
                         var attemptPrune = restoreResult.Diagnostics.Contains("block checksum mismatch")
-                            || restoreResult.Diagnostics.Contains("Bad table magic number");
+                                           || restoreResult.Diagnostics.Contains("Bad table magic number");
                         if (!attemptPrune)
                         {
                             return restoreResult;
@@ -415,18 +413,65 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                         var sstName = group.Value;
-                        if (!checkpointManifest.TryGetValue(sstName, out var sstStorageId))
+                        var entry = checkpointManifest.TryGetValue(sstName);
+                        if (entry is null)
                         {
-                            return new BoolResult(restoreResult, $"RocksDb corruption found for file `{sstName}`, but could not obtain storage id from checkpoint manifest");
+                            return new BoolResult(
+                                restoreResult,
+                                $"RocksDb corruption found for file `{sstName}`, but could not obtain storage id from checkpoint manifest");
                         }
 
-                        var pruneResult = await Storage.PruneInternalCacheAsync(context, sstStorageId);
+                        var pruneResult = await Storage.PruneInternalCacheAsync(context, entry.StorageId);
                         return pruneResult & restoreResult;
                     }
                 },
-                extraStartMessage: $"CheckpointId=[{checkpointId}]",
-                extraEndMessage: _ => $"CheckpointId=[{checkpointId}]",
+                extraStartMessage: $"CheckpointId=[{checkpointState.CheckpointId}]",
+                extraEndMessage: _ => $"CheckpointId=[{checkpointState.CheckpointId}]",
                 timeout: _configuration.RestoreCheckpointTimeout);
+        }
+
+        private async Task<CheckpointManifest> DownloadCheckpointManifestAsync(
+            OperationContext context,
+            CheckpointState checkpointState,
+            AbsolutePath manifestPath)
+        {
+            // Remove the suffix to get the real checkpoint id used with central storage
+            // NOTE: We allow null checkpoint id to restore 'empty' checkpoint
+            var checkpointId = string.IsNullOrEmpty(checkpointState.CheckpointId)
+                ? null
+                : checkpointState.CheckpointId.Substring(
+                    0,
+                    checkpointState.CheckpointId.Length - IncrementalCheckpointIdSuffix.Length);
+
+            // Getting the checkpoint from the central store
+            await Storage.TryGetFileAsync(
+                context,
+                checkpointId,
+                manifestPath,
+                isImmutable: true).ThrowIfFailure();
+
+            try
+            {
+                return LoadCheckpointManifest(manifestPath);
+            }
+            catch (JsonException)
+            {
+                // The file download is direct to a FileStream and it's not guaranteed to match because
+                // we don't actually have the hash of the file. It sometimes happens that the download
+                // gets corrupted and we wind up with a non-parseable json. In such cases, we do an
+                // explicit minor retry. We don't want an actual retry policy here because this is
+                // already a very infrequent occurrence.
+                // If this does fail, however, it can trigger a state of permanent breakage if it's the
+                // leader that fails. The reason being that we'll keep on refreshing the master status
+                // without being able to restore a checkpoint and make progress.
+                await Storage.PruneInternalCacheAsync(context, checkpointId).IgnoreFailure();
+                await Storage.TryGetFileAsync(
+                    context,
+                    checkpointId,
+                    manifestPath,
+                    isImmutable: true).ThrowIfFailure();
+                return LoadCheckpointManifest(manifestPath);
+            }
         }
 
         private Task<BoolResult> RestoreCheckpointIncrementalAsync(
@@ -442,13 +487,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         _configuration.IncrementalCheckpointDegreeOfParallelism,
                         context.Token,
                         action: async (addItem, entry) =>
-                        {
-                            await RestoreFileAsync(
-                                context,
-                                checkpointTargetDirectory,
-                                relativePath: entry.RelativePath,
-                                storageId: entry.StorageId).ThrowIfFailure();
-                        },
+                                {
+                                    await RestoreFileAsync(
+                                        context,
+                                        checkpointTargetDirectory,
+                                        relativePath: entry.RelativePath,
+                                        storageId: entry.StorageId).ThrowIfFailure();
+                                },
                         items: manifest.ContentByPath.ToArray());
 
                     return BoolResult.Success;
@@ -456,7 +501,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 extraEndMessage: _ => manifest.ToString());
         }
 
-        private Task<BoolResult> RestoreFileAsync(OperationContext context, AbsolutePath checkpointTargetDirectory, string relativePath, string storageId)
+        private Task<BoolResult> RestoreFileAsync(
+            OperationContext context,
+            AbsolutePath checkpointTargetDirectory,
+            string relativePath,
+            string storageId)
         {
             return context.PerformOperationAsync(
                 Tracer,
@@ -499,7 +548,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
-                Database.SetGlobalEntry(CheckpointInfoKey, $"{checkpointId},{checkpointTime}");
+                Database.SetGlobalEntry(CheckpointStateKey, $"{checkpointId},{checkpointTime}");
             }
             catch (Exception e)
             {
@@ -511,7 +560,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
-                if (Database.TryGetGlobalEntry(CheckpointInfoKey, out var checkpointText))
+                if (Database.TryGetGlobalEntry(CheckpointStateKey, out var checkpointText))
                 {
                     var segments = checkpointText.Split(',');
                     var id = segments[0];
@@ -522,7 +571,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     return null;
                 }
-
             }
             catch (Exception e)
             {
@@ -531,22 +579,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private void DumpCheckpointManifest(AbsolutePath path, CheckpointManifest checkpointInfo)
+        private void DumpCheckpointManifest(AbsolutePath path, CheckpointManifest manifest)
         {
-            File.WriteAllText(path.Path, checkpointInfo.ToJson());
+            File.WriteAllText(path.Path, JsonUtilities.JsonSerialize(manifest));
         }
 
         /// <nodoc />
         public static CheckpointManifest LoadCheckpointManifest(AbsolutePath checkpointFile)
         {
-            return CheckpointManifest.FromJson(File.ReadAllText(checkpointFile.ToString()));
+            return JsonUtilities.JsonDeserialize<CheckpointManifest>(File.ReadAllText(checkpointFile.ToString()));
         }
 
         private void DatabaseWriteManifest(OperationContext context, CheckpointManifest manifest)
         {
             try
             {
-                Database.SetGlobalEntry(CheckpointManifestKey, manifest.ToJson());
+                Database.SetGlobalEntry(CheckpointManifestKey, JsonUtilities.JsonSerialize(manifest, indent: true));
             }
             catch (Exception e)
             {
@@ -554,19 +602,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        internal CheckpointManifest DatabaseLoadManifest(OperationContext context)
+        internal CheckpointManifest? DatabaseLoadManifest(OperationContext context)
         {
             try
             {
-                if (Database.TryGetGlobalEntry(CheckpointManifestKey, out var value))
-                {
-                    return CheckpointManifest.FromJson(value);
-                }
-                else
-                {
-                    return new CheckpointManifest();
-                }
-
+                return Database.TryGetGlobalEntry(CheckpointManifestKey, out var value)
+                    ? JsonUtilities.JsonDeserialize<CheckpointManifest>(value)
+                    : new CheckpointManifest();
             }
             catch (Exception e)
             {
@@ -575,27 +617,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private ContentEntry AddEntry(CheckpointManifest manifest, string relativePath, string storageId)
+        private void AddEntryToManifest(CheckpointManifest manifest, string relativePath, string storageId)
         {
-            CachingCentralStorage storage = Storage as CachingCentralStorage;
+            var storage = (Storage as CachingCentralStorage)!;
 
+            // TODO: avoid doing this lookup by using information from the previous CheckpointManifest
             ContentHash hash = default;
-            long size = 0;
-            if (storage?.TryGetContentInfo(storageId, out hash, out size) != true)
+            if (storage?.TryGetContentInfo(storageId, out hash, out var size) != true)
             {
                 size = -1;
             }
 
-            var entry = new ContentEntry()
+            lock (manifest)
             {
-                Hash = hash,
-                Size = size,
-                StorageId = storageId,
-                RelativePath = relativePath
-            };
-
-            manifest.Add(entry);
-            return entry;
+                manifest.Add(new CheckpointManifestContentEntry(Hash: hash, Size: size, StorageId: storageId, RelativePath: relativePath));
+            }
         }
     }
 }

@@ -200,7 +200,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             CentralStorage = checkpointManager.Storage;
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
-            Database = checkpointManager.Database;
+
+            var contentLocationDatabase = checkpointManager.Database as ContentLocationDatabase;
+            Contract.RequiresNotNull(contentLocationDatabase, $"Invalid construction of {nameof(CheckpointManager)}");
+            Database = contentLocationDatabase;
 
             CheckpointManager = checkpointManager;
             EventStore = CreateEventStore(Configuration, subfolder: "main");

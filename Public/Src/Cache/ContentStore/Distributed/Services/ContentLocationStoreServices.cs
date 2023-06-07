@@ -148,7 +148,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 CheckpointRegistry.Instance,
                 centralStorage,
                 Configuration.Checkpoint,
-                new CounterCollection<ContentLocationStoreCounters>());
+                new CounterCollection<ContentLocationStoreCounters>(),
+                Clock);
         }
 
         private LocalLocationStore CreateLocalLocationStore()

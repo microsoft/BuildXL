@@ -5,6 +5,8 @@ using System;
 using System.Text.Json.Serialization;
 using Azure.Messaging.EventHubs.Consumer;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
     /// <summary>
@@ -15,18 +17,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public static EventSequencePoint Invalid { get; } = new();
 
         /// <summary>
-        /// Sequence number for processing events starting from a given point.
+        /// Sequence number for processing events starting from a given index.
         /// </summary>
         public long? SequenceNumber { get; init; }
 
-        /// <nodoc />
+        /// <summary>
+        /// Timestamp for processing events starting from a given point in time.
+        /// </summary>
         public DateTime? EventStartCursorTimeUtc { get; init; }
 
-        /// <nodoc />
-        [JsonIgnore]
-        public EventPosition EventPosition => SequenceNumber != null
-            ? EventPosition.FromSequenceNumber(SequenceNumber.Value)
-            : EventPosition.FromEnqueuedTime(EventStartCursorTimeUtc.Value);
+        /// <summary>
+        /// This is a cursor that doesn't map to either a <see cref="SequenceNumber"/> or a
+        /// <see cref="EventStartCursorTimeUtc"/>.
+        /// </summary>
+        public string? Cursor { get; init; }
 
         /// <nodoc />
         public EventSequencePoint()
@@ -46,20 +50,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             EventStartCursorTimeUtc = eventStartCursorTimeUtc;
         }
 
+        /// <nodoc />
+        public EventSequencePoint(string cursor)
+        {
+            Cursor = cursor;
+        }
+
         /// <inheritdoc />
         public override string ToString()
         {
-            if (SequenceNumber != null)
+            if (SequenceNumber is not null)
             {
-                return SequenceNumber.ToString();
+                return SequenceNumber.Value.ToString();
             }
 
-            if (EventStartCursorTimeUtc != null)
+            if (EventStartCursorTimeUtc is not null)
             {
-                return EventStartCursorTimeUtc.ToString();
+                return EventStartCursorTimeUtc.Value.ToString();
             }
 
-            return "Invalid";
+            return Cursor ?? "Invalid";
         }
     }
 }

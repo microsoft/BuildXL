@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Gets a hash code for a given sequence.
         /// </summary>
-        public static int SequenceHashCode<TSource>(this IEnumerable<TSource>? sequence, IEqualityComparer<TSource>? comparer = null)
+        public static int SequenceHashCode<TSource>(this IEnumerable<TSource>? sequence, IEqualityComparer<TSource>? comparer = null, int limit = 4)
         {
             if (sequence == null)
             {
@@ -45,10 +45,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             int result = 0;
 
-            // Looking for the first 4 elements only for performance reasons.
-            foreach (var e in sequence.Take(4))
+            foreach (var e in sequence.Take(limit))
             {
-                result = (result * 397) ^ comparer.GetHashCode(e!);
+                unchecked
+                {
+                    result = (result * 397) ^ comparer.GetHashCode(e!);
+                }
             }
 
             return result;

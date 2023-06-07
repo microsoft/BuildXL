@@ -13,6 +13,7 @@ using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Producer;
 using Azure.Messaging.EventHubs.Consumer;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using Azure.Identity;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
@@ -140,7 +141,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private EventPosition GetInitialOffset(OperationContext context, EventSequencePoint sequencePoint)
         {
             Tracer.Debug(context, $"Consuming events from '{sequencePoint}'.");
-            return sequencePoint.EventPosition;
+            Contract.Requires(sequencePoint.EventStartCursorTimeUtc != null || sequencePoint.SequenceNumber != null);
+
+            var position = sequencePoint.SequenceNumber is not null
+                ? EventPosition.FromSequenceNumber(sequencePoint.SequenceNumber!.Value)
+                : EventPosition.FromEnqueuedTime(sequencePoint.EventStartCursorTimeUtc!.Value);
+
+            return position; ;
         }
     }
 }

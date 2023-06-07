@@ -9,6 +9,7 @@ using System.Text.Json;
 using Xunit;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
+using System.Drawing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 {
@@ -129,11 +130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         public void CanJsonSerializeCheckpointManifest()
         {
             var test1 = new CheckpointManifest();
-            test1.Add(
-                new CheckpointManifest.ContentEntry()
-                {
-                    Hash = ContentHash.Random(), Size = 2032, StorageId = "stoId", RelativePath = "/path/to/file"
-                });
+            test1.Add(new CheckpointManifestContentEntry(Hash: ContentHash.Random(), Size: 2032, StorageId: "stoId", RelativePath: "/path/to/file"));
 
             TestJsonRoundtrip(
                 test1,
@@ -145,6 +142,56 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                         Assert.Equal(t0.ContentByPath[0], t1.ContentByPath[0]);
                     }
                 });
+        }
+
+        [Fact]
+        public void CanJsonDeserializeCheckpointManifest()
+        {
+            var serialized = @"{
+  ""ContentByPath"": [
+    {
+      ""Hash"": ""MD5:9777E590B9643C080FD001"",
+      ""RelativePath"": ""042962.sst"",
+      ""StorageId"": ""MD5:9777E590B9643C080FD00108D7DFDE93||DCS||incrementalCheckpoints/333718911.f65bf138-d818-499e-ae6f-054889f16e09/042962.sst.MD5.9777E590B9643C080FD00108D7DFDE93"",
+      ""Size"": 18324052
+    },
+    {
+      ""Hash"": ""MD5:C97CF3D1E8BABE3217698C"",
+      ""RelativePath"": ""044577.sst"",
+      ""StorageId"": ""MD5:C97CF3D1E8BABE3217698CFC804A4F9A||DCS||incrementalCheckpoints/333913557.5200551d-09eb-4a4b-affb-2661b466516a/044577.sst.MD5.C97CF3D1E8BABE3217698CFC804A4F9A"",
+      ""Size"": 19215778
+    }
+  ]
+}";
+            var test1 = new CheckpointManifest();
+            test1.Add(
+                new CheckpointManifestContentEntry(
+                    Hash: new ShortHash("MD5:9777E590B9643C080FD001"),
+                    Size: 18324052,
+                    StorageId:
+                    "MD5:9777E590B9643C080FD00108D7DFDE93||DCS||incrementalCheckpoints/333718911.f65bf138-d818-499e-ae6f-054889f16e09/042962.sst.MD5.9777E590B9643C080FD00108D7DFDE93",
+                    RelativePath: "042962.sst"));
+            test1.Add(
+                new CheckpointManifestContentEntry(
+                    Hash: new ShortHash("MD5:C97CF3D1E8BABE3217698C"),
+                    Size: 19215778,
+                    StorageId:
+                    "MD5:C97CF3D1E8BABE3217698CFC804A4F9A||DCS||incrementalCheckpoints/333913557.5200551d-09eb-4a4b-affb-2661b466516a/044577.sst.MD5.C97CF3D1E8BABE3217698CFC804A4F9A",
+                    RelativePath: "044577.sst"));
+
+            TestJsonRoundtrip(
+                test1,
+                (t0, t1, legacySerialized) =>
+                {
+                    Assert.Equal(t0.ContentByPath.Count, t1.ContentByPath.Count);
+                    if (!legacySerialized)
+                    {
+                        Assert.Equal(t0.ContentByPath[0], t1.ContentByPath[0]);
+                    }
+                });
+
+            var deserialized = JsonUtilities.JsonDeserialize<CheckpointManifest>(serialized);
+            Assert.True(test1.ContentByPath.SequenceEqual(deserialized.ContentByPath));
         }
 
         [Fact]

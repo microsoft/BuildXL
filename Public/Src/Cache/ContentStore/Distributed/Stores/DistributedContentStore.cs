@@ -38,16 +38,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// <summary>
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
-    public class DistributedContentStore : StartupShutdownComponentBase,
-        IContentStore,
-        IRepairStore,
-        IDistributedLocationStore,
-        IStreamStore,
-        ICopyRequestHandler,
-        IPushFileHandler,
-        IDeleteFileHandler,
-        IDistributedContentCopierHost,
-        IDistributedContentCopierHost2
+    public class DistributedContentStore
+        : StartupShutdownComponentBase,
+            IContentStore,
+            IRepairStore,
+            IDistributedLocationStore,
+            IStreamStore,
+            ICopyRequestHandler,
+            IPushFileHandler,
+            IDeleteFileHandler,
+            IDistributedContentCopierHost,
+            IDistributedContentCopierHost2
     {
         // Used for testing.
         internal enum Counters
@@ -68,6 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public MachineLocation LocalMachineLocation { get; }
 
         internal ContentLocationStoreFactory ContentLocationStoreFactory { get; }
+
         private readonly ContentStoreTracer _tracer = new ContentStoreTracer(nameof(DistributedContentStore));
         private readonly IClock _clock;
 
@@ -98,6 +100,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly DistributedContentCopier _distributedCopier;
         private readonly DisposableDirectory _copierWorkingDirectory;
         private Lazy<Task<Result<DistributedContentSession>>>? _proactiveCopySession;
+
         internal Lazy<Task<Result<DistributedContentSession>>> ProactiveCopySession => NotNull(_proactiveCopySession, nameof(_proactiveCopySession));
 
         private readonly DistributedContentSettings? _distributedContentSettings;
@@ -167,7 +170,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 return "";
             }
 
-            bool isPresentInGcs = GlobalCacheCheckpointManager.Database.TryGetEntry(context, info.Hash, out var entry) && entry.Locations.Contains(machineId);
+            bool isPresentInGcs = false;
+            var database = GlobalCacheCheckpointManager.Database;
+            if (database is ContentLocationDatabase cldb)
+            {
+                isPresentInGcs = cldb.TryGetEntry(context, info.Hash, out var entry) && entry.Locations.Contains(machineId);
+            }
 
             OperationKind originToKind(GetBulkOrigin? origin)
             {
@@ -185,9 +193,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             bool shouldError = _distributedContentSettings.GlobalCacheDatabaseValidationMode == DatabaseValidationMode.LogAndError
-                && result.Succeeded
-                && info.Origin == GetBulkOrigin.Local
-                && !isPresentInGcs;
+                               && result.Succeeded
+                               && info.Origin == GetBulkOrigin.Local
+                               && !isPresentInGcs;
 
             // Represent various aspects as parameters in operation so
             // they show up as separate dimensions on the metric in MDM.
@@ -226,7 +234,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             var sessionId = Guid.NewGuid().ToString();
 
             var operationContext = OperationContext(context.CreateNested(componentName: nameof(DistributedContentStore)));
-            return operationContext.PerformOperationAsync(_tracer,
+            return operationContext.PerformOperationAsync(
+                _tracer,
                 async () =>
                 {
                     // NOTE: We use ImplicitPin.None so that the OpenStream calls triggered by RequestCopy will only pull the content, NOT pin it in the local store.
@@ -266,11 +275,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
-            _cachingStorages = new[]
-            {
-                LocalLocationStore?.CentralStorage,
-                GlobalCacheCheckpointManager?.Storage
-            }.OfType<CachingCentralStorage>().ToArray();
+            _cachingStorages = new[] { LocalLocationStore?.CentralStorage, GlobalCacheCheckpointManager?.Storage }.OfType<CachingCentralStorage>()
+                .ToArray();
 
             if (_settings.EnableProactiveReplication
                 && _contentLocationStore is TransitioningContentLocationStore tcs
@@ -288,32 +294,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             TransitioningContentLocationStore contentLocationStore)
         {
             return context.PerformOperationAsync(
-                   Tracer,
-                   async () =>
-                   {
-                       var proactiveCopySession = await ProactiveCopySession.Value.ThrowIfFailureAsync();
+                    Tracer,
+                    async () =>
+                    {
+                        var proactiveCopySession = await ProactiveCopySession.Value.ThrowIfFailureAsync();
 
-                       await contentLocationStore.LocalLocationStore.EnsureInitializedAsync().ThrowIfFailure();
+                        await contentLocationStore.LocalLocationStore.EnsureInitializedAsync().ThrowIfFailure();
 
-                       while (!context.Token.IsCancellationRequested)
-                       {
-                           // Create task before starting operation to ensure uniform intervals assuming operation takes less than the delay.
-                           var delayTask = Task.Delay(_settings.ProactiveReplicationInterval, context.Token);
+                        while (!context.Token.IsCancellationRequested)
+                        {
+                            // Create task before starting operation to ensure uniform intervals assuming operation takes less than the delay.
+                            var delayTask = Task.Delay(_settings.ProactiveReplicationInterval, context.Token);
 
-                           await ProactiveReplicationIterationAsync(context, proactiveCopySession, localContentStore, contentLocationStore).ThrowIfFailure();
+                            await ProactiveReplicationIterationAsync(context, proactiveCopySession, localContentStore, contentLocationStore)
+                                .ThrowIfFailure();
 
-                           if (_settings.InlineOperationsForTests)
-                           {
-                               // Inlining is used only for testing purposes. In those cases,
-                               // we only perform one proactive replication.
-                               break;
-                           }
+                            if (_settings.InlineOperationsForTests)
+                            {
+                                // Inlining is used only for testing purposes. In those cases,
+                                // we only perform one proactive replication.
+                                break;
+                            }
 
-                           await delayTask;
-                       }
+                            await delayTask;
+                        }
 
-                       return BoolResult.Success;
-                   })
+                        return BoolResult.Success;
+                    })
                 .FireAndForgetOrInlineAsync(context, _settings.InlineOperationsForTests);
         }
 
@@ -331,7 +338,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     await Task.Yield();
 
                     var localContent = (await localContentStore.GetContentInfoAsync(context.Token))
-                        .OrderByDescending(info => info.LastAccessTimeUtc) // GetHashesInEvictionOrder expects entries to already be ordered by last access time.
+                        .OrderByDescending(
+                            info => info.LastAccessTimeUtc) // GetHashesInEvictionOrder expects entries to already be ordered by last access time.
                         .Select(info => new ContentHashWithLastAccessTimeAndReplicaCount(info.ContentHash, info.LastAccessTimeUtc))
                         .ToArray();
 
@@ -457,7 +465,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             return ProactivePushStatus.Error;
-        
         }
 
         /// <inheritdoc />
@@ -483,13 +490,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <inheritdoc />
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
-            return CreateSessionCall.Run(_tracer, OperationContext(context), name, () =>
-            {
-                CreateSessionResult<IContentSession> innerSessionResult = InnerContentStore.CreateSession(context, name, implicitPin);
-
-                if (innerSessionResult.Succeeded)
+            return CreateSessionCall.Run(
+                _tracer,
+                OperationContext(context),
+                name,
+                () =>
                 {
-                    var session = new DistributedContentSession(
+                    CreateSessionResult<IContentSession> innerSessionResult = InnerContentStore.CreateSession(context, name, implicitPin);
+
+                    if (innerSessionResult.Succeeded)
+                    {
+                        var session = new DistributedContentSession(
                             name,
                             innerSessionResult.Session,
                             ContentLocationStore,
@@ -497,33 +508,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             this,
                             LocalMachineLocation,
                             settings: _settings);
-                    return new CreateSessionResult<IContentSession>(session);
-                }
+                        return new CreateSessionResult<IContentSession>(session);
+                    }
 
-                return new CreateSessionResult<IContentSession>(innerSessionResult, "Could not initialize inner content session with error");
-            });
+                    return new CreateSessionResult<IContentSession>(innerSessionResult, "Could not initialize inner content session with error");
+                });
         }
 
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context)
         {
-            return GetStatsCall<ContentStoreTracer>.RunAsync(_tracer, OperationContext(context), async () =>
-            {
-                var result = await InnerContentStore.GetStatsAsync(context);
-                if (result.Succeeded)
+            return GetStatsCall<ContentStoreTracer>.RunAsync(
+                _tracer,
+                OperationContext(context),
+                async () =>
                 {
-                    var counterSet = result.CounterSet;
-                    if (_contentLocationStore != null)
+                    var result = await InnerContentStore.GetStatsAsync(context);
+                    if (result.Succeeded)
                     {
-                        var contentLocationStoreCounters = _contentLocationStore.GetCounters(context);
-                        counterSet.Merge(contentLocationStoreCounters, "ContentLocationStore.");
+                        var counterSet = result.CounterSet;
+                        if (_contentLocationStore != null)
+                        {
+                            var contentLocationStoreCounters = _contentLocationStore.GetCounters(context);
+                            counterSet.Merge(contentLocationStoreCounters, "ContentLocationStore.");
+                        }
+
+                        return new GetStatsResult(counterSet);
                     }
 
-                    return new GetStatsResult(counterSet);
-                }
-
-                return result;
-            });
+                    return result;
+                });
         }
 
         /// <summary>
@@ -544,7 +558,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool CanComputeLru => (_contentLocationStore as IDistributedLocationStore)?.CanComputeLru ?? false;
 
         /// <nodoc />
-        public Task<BoolResult> UnregisterAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken token, TimeSpan? minEffectiveAge = null)
+        public Task<BoolResult> UnregisterAsync(
+            Context context,
+            IReadOnlyList<ContentHash> contentHashes,
+            CancellationToken token,
+            TimeSpan? minEffectiveAge = null)
         {
             if (InnerContentStore is ILocalContentStore localContentStore)
             {
@@ -552,7 +570,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var filteredHashes = contentHashes.Where(hash => !localContentStore.Contains(hash)).ToList();
                 if (filteredHashes.Count != contentHashes.Count)
                 {
-                    Tracer.Debug(context, $"Hashes not unregistered because they are still present in local store: [{string.Join(",", contentHashes.Except(filteredHashes))}]");
+                    Tracer.Debug(
+                        context,
+                        $"Hashes not unregistered because they are still present in local store: [{string.Join(",", contentHashes.Except(filteredHashes))}]");
                     contentHashes = filteredHashes;
                 }
             }
@@ -571,7 +591,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <nodoc />
-        public IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrder(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
+        public IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrder(
+            Context context,
+            IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
             // Ensure startup was called then wait for it to complete successfully (or error)
             // This logic is important to avoid runtime errors when, for instance, QuotaKeeper tries
@@ -651,7 +673,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             return new OpenStreamResult($"{InnerContentStore} does not implement {nameof(IStreamStore)} in {nameof(DistributedContentStore)}.");
         }
 
-        Task<DeleteResult> IDeleteFileHandler.HandleDeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions) => DeleteAsync(context, contentHash, deleteOptions);
+        Task<DeleteResult> IDeleteFileHandler.HandleDeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions) =>
+            DeleteAsync(context, contentHash, deleteOptions);
 
         /// <inheritdoc />
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions)
@@ -703,7 +726,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var machineLocations = result.ContentHashesInfo[0].Locations;
                     if (machineLocations != null)
                     {
-                        return await _distributedCopier.DeleteAsync(operationContext, contentHash, deleteResult.ContentSize, machineLocations, deleteResultsMapping);
+                        return await _distributedCopier.DeleteAsync(
+                            operationContext,
+                            contentHash,
+                            deleteResult.ContentSize,
+                            machineLocations,
+                            deleteResultsMapping);
                     }
 
                     return new DistributedDeleteResult(contentHash, deleteResult.ContentSize, deleteResultsMapping);
@@ -715,7 +743,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             using var shutdownTracker = TrackShutdown(context, token);
             var operationContext = shutdownTracker.Context;
-            return operationContext.PerformOperationAsync(Tracer,
+            return operationContext.PerformOperationAsync(
+                Tracer,
                 async () =>
                 {
                     var session = await ProactiveCopySession.Value.ThrowIfFailureAsync();
@@ -741,7 +770,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     return result;
                 }
 
-                var registerResult = await ContentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, result.ContentSize) }, token, UrgencyHint.Nominal, touch: false);
+                var registerResult = await ContentLocationStore.RegisterLocalLocationAsync(
+                    context,
+                    new[] { new ContentHashWithSize(hash, result.ContentSize) },
+                    token,
+                    UrgencyHint.Nominal,
+                    touch: false);
                 if (!registerResult)
                 {
                     return new PutResult(registerResult);
@@ -772,7 +806,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     if (lls.Database.TryGetEntry(operationContext, hash, out var entry))
                     {
                         var effectiveLastAccessTimeResult =
-                            lls.GetEffectiveLastAccessTimes(operationContext, tcs, new ContentHashWithLastAccessTime[] { new ContentHashWithLastAccessTime(hash, entry.LastAccessTimeUtc.ToDateTime()) });
+                            lls.GetEffectiveLastAccessTimes(
+                                operationContext,
+                                tcs,
+                                new ContentHashWithLastAccessTime[]
+                                {
+                                    new ContentHashWithLastAccessTime(hash, entry.LastAccessTimeUtc.ToDateTime())
+                                });
                         if (effectiveLastAccessTimeResult.Succeeded)
                         {
                             var effectiveAge = effectiveLastAccessTimeResult.Value[0].EffectiveAge;

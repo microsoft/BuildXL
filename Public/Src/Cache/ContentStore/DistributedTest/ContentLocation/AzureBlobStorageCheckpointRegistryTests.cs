@@ -38,34 +38,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
         [Fact]
         public Task RegisterAndGetCheckpoint()
         {
-            return RunTest(async (context, registry, clock) =>
-            {
-                var now = clock.UtcNow;
+            return RunTest(
+                async (context, registry, clock) =>
+                {
+                    var now = clock.UtcNow;
 
-                var cs1 = CreateCheckpointState(clock);
-                await registry.RegisterCheckpointAsync(context, cs1).ThrowIfFailureAsync();
-                var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
+                    var cs1 = CreateCheckpointState(clock);
+                    await registry.RegisterCheckpointAsync(context, cs1).ThrowIfFailureAsync();
+                    var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
-                checkpointState.CheckpointId.Should().Be(cs1.CheckpointId);
-                checkpointState.CheckpointTime.Should().Be(cs1.CheckpointTime);
-                checkpointState.StartSequencePoint.Should().BeEquivalentTo(cs1.StartSequencePoint);
-                checkpointState.Producer.Should().BeEquivalentTo(cs1.Producer);
-            }, clock: new MemoryClock());
+                    checkpointState.CheckpointId.Should().Be(cs1.CheckpointId);
+                    checkpointState.CheckpointTime.Should().Be(cs1.CheckpointTime);
+                    checkpointState.StartSequencePoint.Should().BeEquivalentTo(cs1.StartSequencePoint);
+                    checkpointState.Producer.Should().BeEquivalentTo(cs1.Producer);
+                },
+                clock: new MemoryClock());
         }
 
         [Fact]
         public Task NewestCheckpointOverrides()
         {
-            return RunTest(async (context, registry, clock) =>
-            {
-                var cs1 = CreateCheckpointState(clock);
-                var cs2 = CreateCheckpointState(clock);
-                await registry.RegisterCheckpointAsync(context, cs1).ThrowIfFailureAsync();
-                await registry.RegisterCheckpointAsync(context, cs2).ThrowIfFailureAsync();
-                var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
+            return RunTest(
+                async (context, registry, clock) =>
+                {
+                    var cs1 = CreateCheckpointState(clock);
+                    var cs2 = CreateCheckpointState(clock);
+                    await registry.RegisterCheckpointAsync(context, cs1).ThrowIfFailureAsync();
+                    await registry.RegisterCheckpointAsync(context, cs2).ThrowIfFailureAsync();
+                    var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
-                checkpointState.CheckpointId.Should().Be(cs2.CheckpointId);
-            });
+                    checkpointState.CheckpointId.Should().Be(cs2.CheckpointId);
+                });
         }
 
         int _index = 0;
@@ -76,17 +79,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var checkpointId = "chkpt" + _index;
             var sequencePoint = new EventSequencePoint(sequenceNumber: index);
 
-            return new CheckpointState(sequencePoint, checkpointId, clock.UtcNow, M1);
+            return new CheckpointState(StartSequencePoint: sequencePoint, CheckpointId: checkpointId, CheckpointTime: clock.UtcNow, Producer: M1);
         }
 
         [Fact]
         public Task NoCheckpointReturnsInvalid()
         {
-            return RunTest(async (context, registry, clock) =>
-            {
-                var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
-                checkpointState.IsValid.Should().BeFalse();
-            });
+            return RunTest(
+                async (context, registry, clock) =>
+                {
+                    var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
+                    checkpointState.IsValid.Should().BeFalse();
+                });
         }
 
         private async Task RunTest(Func<OperationContext, AzureBlobStorageCheckpointRegistry, IClock, Task> runTest, IClock? clock = null)

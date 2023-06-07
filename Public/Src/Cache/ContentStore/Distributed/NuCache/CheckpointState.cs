@@ -15,12 +15,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public record CheckpointState(
         EventSequencePoint StartSequencePoint,
         string CheckpointId = "",
+        CheckpointManifest? Manifest = null,
         DateTime CheckpointTime = default,
         MachineLocation Producer = default)
     {
         /// <nodoc />
         [JsonIgnore]
-        public bool IsValid => !string.IsNullOrEmpty(CheckpointId);
+        public bool IsValid => !string.IsNullOrEmpty(CheckpointId) || Manifest is not null;
 
         /// <summary>
         /// This constructor is required for <see cref="AzureBlobStorageCheckpointRegistry"/>

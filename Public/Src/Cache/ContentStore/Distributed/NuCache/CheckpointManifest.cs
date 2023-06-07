@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities.Core;
 
@@ -14,135 +14,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Checkpoint state obtained from the central store.
     /// </summary>
-    /// <remarks>
-    /// This is not a record because .NET Core 3.1 does not support specifying constructors.
-    /// 
-    /// See: https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-immutability?pivots=dotnet-5-0
-    /// </remarks>
-    public class CheckpointManifest
+    public record CheckpointManifest
     {
         /// <nodoc />
-        [JsonIgnore]
-        private KeyedList<ShortHash, ContentEntry> Content { get; set; } = new();
+        public List<CheckpointManifestContentEntry> ContentByPath { get; init; } = new();
 
-        private KeyedList<string, ContentEntry> _contentByPath = new KeyedList<string, ContentEntry>();
-        /// <nodoc />
-        public KeyedList<string, ContentEntry> ContentByPath
+        public CheckpointManifestContentEntry? TryGetValue(string relativePath)
         {
-            get => _contentByPath;
-            set
-            {
-                _contentByPath = value;
-                Recompute();
-            }
+            return ContentByPath.FirstOrDefault(entry => entry.RelativePath.Equals(relativePath, StringComparison.InvariantCultureIgnoreCase));
         }
 
-        /// <nodoc />
-        [JsonIgnore]
-        public long TotalSize { get; set; }
-
-        /// <nodoc />
-        [JsonIgnore]
-        public bool MissingContentInfo { get; set; }
-
-        /// <nodoc />
-        [JsonIgnore]
-        public bool MissingSizeInfo { get; set; }
-
-        private void Recompute()
+        public void Add(CheckpointManifestContentEntry entry)
         {
-            if (ContentByPath != null)
-            {
-                foreach (var entry in ContentByPath)
-                {
-                    AddCore(entry);
-                }
-            }
+            ContentByPath.Add(entry);
         }
+    }
 
-        public void Add(ContentEntry entry)
+    public record CheckpointManifestContentEntry(ShortHash Hash, string RelativePath, string StorageId, long Size)
+    {
+#if NET_FRAMEWORK
+        /// <summary>
+        /// This parameterless constructor is required for System.Text.Json deserialization only in .NET Framework
+        /// </summary>
+        public CheckpointManifestContentEntry()
+            : this(default, string.Empty, string.Empty, 0)
         {
-            lock (ContentByPath)
-            {
-                if (ContentByPath.TryAdd(entry))
-                {
-                    AddCore(entry);
-                }
-            }
+
         }
-
-        private void AddCore(ContentEntry entry)
-        {
-            if (entry.Hash.HashType != HashType.Unknown)
-            {
-                Content.TryAdd(entry);
-            }
-            else
-            {
-                MissingContentInfo = true;
-            }
-
-            if (entry.Size > 0)
-            {
-                TotalSize += entry.Size;
-            }
-            else
-            {
-                MissingSizeInfo = true;
-            }
-        }
-
-        public bool TryGetValue(string relativePath, [NotNullWhen(true)] out string? storageId)
-        {
-            if (ContentByPath.TryGetValue(relativePath, out var entry))
-            {
-                storageId = entry.StorageId;
-                return true;
-            }
-            else
-            {
-                storageId = null;
-                return false;
-            }
-        }
-
-        public bool TryGetEntry(ShortHash hash, out ContentEntry entry)
-        {
-            return Content.TryGetValue(hash, out entry);
-        }
-
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return $"Content={ContentByPath.Count} TotalSizeMb={ByteSizeFormatter.ToMegabytes((ulong)TotalSize)} MissingContentInfo={MissingContentInfo} MissingSizeInfo={MissingSizeInfo}";
-        }
-
-        public record struct ContentEntry : IKeyedItem<ShortHash>, IKeyedItem<string>
-        {
-            public ShortHash Hash { get; set; }
-            public string RelativePath { get; set; }
-            public string StorageId { get; set; }
-            public long Size { get; set; }
-
-            public ShortHash GetKey()
-            {
-                return Hash;
-            }
-
-            string IKeyedItem<string>.GetKey()
-            {
-                return RelativePath;
-            }
-        }
-
-        public static CheckpointManifest FromJson(string serialized)
-        {
-            return JsonUtilities.JsonDeserialize<CheckpointManifest>(serialized);
-        }
-
-        public string ToJson()
-        {
-            return JsonUtilities.JsonSerialize(this, indent: true);
-        }
+#endif
     }
 }

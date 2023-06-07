@@ -263,7 +263,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                     blobCheckpointRegistry,
                     blobCentralStorage,
                     contentMetadataServiceConfiguration.Checkpoint,
-                    new CounterCollection<ContentLocationStoreCounters>());
+                    new CounterCollection<ContentLocationStoreCounters>(),
+                    clock);
                 var resilientContentMetadataService = new ResilientGlobalCacheService(
                     contentMetadataServiceConfiguration,
                     checkpointManager,

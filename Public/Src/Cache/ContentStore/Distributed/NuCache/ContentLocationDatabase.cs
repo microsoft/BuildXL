@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Interface for <see cref="ContentLocationDatabase"/>.
     /// </summary>
-    public interface IContentLocationDatabase
+    public interface IContentLocationDatabase: ICheckpointable
     {
         /// <summary>
         /// Tries to locate an entry for a given hash.

@@ -269,7 +269,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     CacheServiceCheckpointRegistry.Instance,
                     centralStorage,
                     configuration.Checkpoint,
-                    new CounterCollection<ContentLocationStoreCounters>());
+                    new CounterCollection<ContentLocationStoreCounters>(),
+                    clock);
 
             // This is done to ensure logging in Kusto is shown under a separate component. The need for this comes
             // from the fact that CheckpointManager per-se is used in our Kusto dashboards and monitoring queries to

@@ -61,7 +61,7 @@ namespace BuildXL.Storage
     /// </remarks>
     public sealed class FileContentTable : IFileChangeTrackingObserver
     {
-        private static readonly FileEnvelope s_fileEnvelope = new(name: "FileContentTable." + ContentHashingUtilities.HashInfo.Name, version: 20);
+        private static readonly FileEnvelope s_fileEnvelope = new(name: "FileContentTable." + ContentHashingUtilities.HashInfo.Name, version: 21);
 
         /// <summary>
         /// Default time-to-live (TTL) for new entries to a <see cref="FileContentTable"/>.
@@ -72,7 +72,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// These are the (global file ID) -> (USN, hash) mappings recorded or retrieved in this session.
         /// </summary>
-        private readonly ConcurrentDictionary<FileIdAndVolumeId, Entry> m_entries = new(1024, 1024);
+        private readonly ConcurrentBigMap<FileIdAndVolumeId, Entry> m_entries = new();
 
         /// <summary>
         /// In the event a volume has a disabled change journal or not all files have USNs (journal enabled after last write to a
@@ -148,38 +148,12 @@ namespace BuildXL.Storage
             EntryTimeToLive = entryTimeToLive;
 
             // Copy entries, discarding the stale ones and decrementing TTLs
-            //
-            // Previously, the m_entries' implementation uses ConcurrentBigMap, and it calls ConcurrentBigMap's ConvertUnsafe to cheaply
-            // copy the entries:
-            //
-            //   m_entries = other.m_entries.ConvertUnsafe(e => e.TimeToLive > 0
-            //       ? e.WithTimeToLive((ushort)Math.Min(entryTimeToLive, e.TimeToLive - 1))
-            //       : new Entry(e.Usn, default /* Invalid hash as a marker */, e.Length, e.TimeToLive));
-            //   m_entries
-            //       .Where(kvp => !kvp.Value.Hash.IsValid)
-            //       .Select(kvp => kvp.Key)
-            //       .ToList()
-            //       .ForEach(k => m_entries.RemoveKey(k));
-            //
-            // However, the enumeration implementation of ConcurrentBigMap seems to be buggy and causes
-            // the following exception:
-            // ---> System.IndexOutOfRangeException: Index was outside the bounds of the array.
-            //      at IEnumerator<TItem> BuildXL.Utilities.Collections.ConcurrentBigSet<TItem>+ItemsCollection.GetEnumerator() + MoveNext()
-            //      at List<TResult> System.Linq.Enumerable+WhereSelectEnumerableIterator<TSource, TResult>.ToList()
-            //      at List<TSource> System.Linq.Enumerable.ToList<TSource>(IEnumerable<TSource> source)
-            //      at new BuildXL.Storage.FileContentTable(FileContentTable other, LoggingContext loggingContext, ushort entryTimeToLive) in \.\Public\Src\Utilities\Storage\FileContentTable.cs:line 156
-            m_entries = new ConcurrentDictionary<FileIdAndVolumeId, Entry>(
-                1024,
-                other.m_entries
-                    .Where(kvp => kvp.Value.TimeToLive > 0)
-                    .Select(kvp => new KeyValuePair<FileIdAndVolumeId, Entry>(
-                        kvp.Key,
-                        kvp.Value.WithTimeToLive((ushort)Math.Min(entryTimeToLive, kvp.Value.TimeToLive - 1)))),
-#if NET_FRAMEWORK
-                FileIdAndVolumeId.ComparerInstance); // ConcurrentDictionary does not support null comparer on .NET Framework
-#else
-                null);
-#endif
+            m_entries = ConcurrentBigMap<FileIdAndVolumeId, Entry>.Create(items: other.m_entries
+                .Where(kvp => kvp.Value.TimeToLive > 0)
+                .Select(kvp => new KeyValuePair<FileIdAndVolumeId, Entry>(
+                    kvp.Key,
+                    kvp.Value.WithTimeToLive((ushort)Math.Min(entryTimeToLive, kvp.Value.TimeToLive - 1)))),
+                checkExistingItem: false);
         }
 
         /// <summary>
@@ -475,11 +449,12 @@ namespace BuildXL.Storage
                 // So, concurrently creating and recording (or even just recording) different links is possible, and
                 // keeping the last stored entry (rather than highest-USN entry) can introduce false positives.
                 var fileIdAndVolumeId = new FileIdAndVolumeId(strongIdentity.Value.VolumeSerialNumber, strongIdentity.Value.FileId);
-                
+
                 m_entries.AddOrUpdate(
                     fileIdAndVolumeId,
+                    (@this: this, path, newEntry),
                     addValueFactory: static (key, state) => state.newEntry,
-                    updateValueFactory: static (key, existingEntry, state) =>
+                    updateValueFactory: static (key, state, existingEntry) =>
                     {
                         FileContentTable @this = state.@this;
                         Entry newEntry = state.newEntry;
@@ -510,8 +485,7 @@ namespace BuildXL.Storage
                         }
 
                         return newEntry;
-                    },
-                    factoryArgument: (@this: this, path, newEntry));
+                    });
 
                 if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
                 {

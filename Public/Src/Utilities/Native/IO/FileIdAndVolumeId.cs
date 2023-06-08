@@ -25,11 +25,6 @@ namespace BuildXL.Native.IO
         internal static readonly int Size = Marshal.SizeOf<FileIdAndVolumeId>();
 
         /// <summary>
-        /// Comparer instance.
-        /// </summary>
-        public static readonly Comparer ComparerInstance = new();
-
-        /// <summary>
         /// Volume containing the file.
         /// </summary>
         public readonly ulong VolumeSerialNumber;
@@ -91,18 +86,6 @@ namespace BuildXL.Native.IO
         public static FileIdAndVolumeId Deserialize(BinaryReader reader)
         {
             return new FileIdAndVolumeId(reader.ReadUInt64(), FileId.Deserialize(reader));
-        }
-
-        /// <summary>
-        /// Default comparer.
-        /// </summary>
-        public class Comparer : IEqualityComparer<FileIdAndVolumeId>
-        {
-            /// <inheritdoc/>
-            public bool Equals(FileIdAndVolumeId x, FileIdAndVolumeId y) => x.Equals(y);
-
-            /// <inheritdoc/>
-            public int GetHashCode([DisallowNull] FileIdAndVolumeId obj) => obj.GetHashCode();
         }
     }
 }

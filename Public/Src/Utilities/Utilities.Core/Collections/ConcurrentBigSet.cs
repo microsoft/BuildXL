@@ -538,7 +538,7 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// This method assumes no concurrent accesses, and that the new item isn't already in the list
         /// </summary>
-        internal void UnsafeAddItems<TPendingItem>(IEnumerable<TPendingItem> pendingItems)
+        internal void UnsafeAddItems<TPendingItem>(IEnumerable<TPendingItem> pendingItems, bool checkExistingItem)
             where TPendingItem : IPendingSetItem<TItem>
         {
             Accessors accessors = m_accessors;
@@ -548,19 +548,30 @@ namespace BuildXL.Utilities.Collections
 
                 int lockNo = 0;
 
+                int bucketNo;
+                int headNodeIndex;
+
                 // Number of nodes searched to find the item or the total number of nodes if the item is not found
-                var result = FindItem(
-                    pendingItem,
-                    bucketHashCode,
-                    out int bucketNo,
-                    out int headNodeIndex,
-                    ref accessors,
-                    out int findCount,
-                    out int priorNodeIndex);
-                Contract.Assert(!result.IsFound);
+                if (checkExistingItem)
+                {
+                    var result = FindItem(
+                        pendingItem,
+                        bucketHashCode,
+                        out bucketNo,
+                        out headNodeIndex,
+                        ref accessors,
+                        out int findCount,
+                        out int priorNodeIndex);
+                    Contract.Assert(!result.IsFound);
+                }
+                else
+                {
+                    bucketNo = m_buckets.GetBucketNo(bucketHashCode);
+                    headNodeIndex = m_buckets[bucketNo];
+                }
 
                 // now make an item from the lookup value
-                TItem item = pendingItem.CreateOrUpdateItem(result.Item, false, out bool remove);
+                TItem item = pendingItem.CreateOrUpdateItem(default, false, out bool remove);
                 Contract.Assert(!remove, "Remove is only allowed when performing update operation");
                 SetBucketHeadNode(bucketNo, lockNo, bucketHashCode, headNodeIndex, item, ref accessors);
                 int countAfterAdd = Interlocked.Increment(ref m_count);

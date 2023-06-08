@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -164,6 +165,45 @@ namespace Test.BuildXL.Utilities
                         XAssert.AreEqual(expectedValue, map[i]);
                     }
                 }, parallel);
+        }
+
+        [Fact]
+        public void TestCopy()
+        {
+            const int Length = 10_000;
+            var map = ConcurrentBigMap<int, int>.Create(items: Enumerable.Range(0, Length).Select(i => new KeyValuePair<int, int>(i, i)), checkExistingItem: true);
+            var copy = ConcurrentBigMap<int, int>.Create(items: map, checkExistingItem: false);
+            Enumerable.Range(0, Length).ToList().ForEach(i =>
+            {
+                XAssert.AreEqual(map.Count, copy.Count);
+                XAssert.AreEqual(map.TryGetValue(i, out var mapValue), copy.TryGetValue(i, out var copyValue));
+                XAssert.AreEqual(mapValue, copyValue);
+            });
+        }
+
+        [Fact]
+        public void TestRemoveWhileEnumerateSingleThread()
+        {
+            const int Length = 10_000;
+            var map = ConcurrentBigMap<int, int>.Create(items: Enumerable.Range(0, Length).Select(i => new KeyValuePair<int, int>(i, i)), checkExistingItem: true);
+            var copy = ConcurrentBigMap<int, int>.Create(items: map, checkExistingItem: false);
+            
+            map.TryRemove(77, out _);
+            copy.TryRemove(77, out _);
+            copy.TryAdd(77, 12345);
+
+            foreach (var kvp in copy.Where(kvp => kvp.Key % 2 == 1))
+            {
+                copy.TryRemove(kvp.Key, out _);
+            }
+
+            Enumerable.Range(0, Length).ToList().ForEach(i =>
+            {
+                if (i % 2 == 1)
+                {
+                    XAssert.IsFalse(copy.ContainsKey(i));
+                }
+            });
         }
 
         private static void For(int count, Action<int> action, bool parallel)

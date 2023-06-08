@@ -76,17 +76,20 @@ namespace BuildXL.Utilities.Collections
         /// <param name="items">an enumeration of unique (!)  items to insert</param>
         /// <param name="keyComparer">the comparer for keys</param>
         /// <param name="valueComparer">the comparer for values used in compare exchange operations</param>
+        /// <param name="checkExistingItem">if true, checks if the item already exists in the backing set</param>
         public static ConcurrentBigMap<TKey, TValue> Create(
             int concurrencyLevel = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultConcurrencyLevel,
             int capacity = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultCapacity,
             int ratio = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultBucketToItemsRatio,
             IEnumerable<KeyValuePair<TKey, TValue>> items = null,
-            IEqualityComparer<TKey> keyComparer = null, IEqualityComparer<TValue> valueComparer = null)
+            IEqualityComparer<TKey> keyComparer = null,
+            IEqualityComparer<TValue> valueComparer = null,
+            bool checkExistingItem = true)
         {
             var result = new ConcurrentBigMap<TKey, TValue>(concurrencyLevel: concurrencyLevel, capacity: capacity, ratio: ratio, keyComparer: keyComparer, valueComparer: valueComparer);
             if (items != null)
             {
-                result.BackingSet.UnsafeAddItems(items.Select(item => result.CreateKeyValuePendingItem(item.Key, item.Value)));
+                result.BackingSet.UnsafeAddItems(items.Select(item => result.CreateKeyValuePendingItem(item.Key, item.Value)), checkExistingItem: checkExistingItem);
             }
 
             return result;

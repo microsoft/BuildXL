@@ -62,7 +62,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
 
         _scheme = _configuration.ShardingScheme.Create();
 
-        var matrices = GenerateMatrix(_scheme);
+        var matrices = GenerateMatrix(_configuration);
         _containers = Enum.GetValues(typeof(BlobCacheContainerPurpose)).Cast<BlobCacheContainerPurpose>().Select(
             purpose =>
             {
@@ -83,7 +83,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             }).ToArray();
     }
 
-    private (string Metadata, string Content) GenerateMatrix(IShardingScheme<int, BlobCacheStorageAccountName> scheme)
+    private (string Metadata, string Content) GenerateMatrix(Configuration configuration)
     {
         // The matrix here ensures that metadata does not overlap across sharding schemes. Basically, whenever we add
         // or remove shards (or change the sharding algorithm), we will get a new salt. This salt will force us to use
@@ -93,8 +93,8 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         // purpose because metadata hits guarantee content's existence, so we can't mess around with them.
 
         // Generate a stable hash out of the sharding scheme.
-        var algorithm = (long)scheme.Algorithm;
-        var locations = _scheme.Locations.Select(location => HashCodeHelper.GetOrdinalIgnoreCaseHashCode64(location.AccountName)).ToArray();
+        var algorithm = (long)configuration.ShardingScheme.Scheme;
+        var locations = configuration.ShardingScheme.Accounts.Select(location => HashCodeHelper.GetOrdinalIgnoreCaseHashCode64(location.AccountName)).ToArray();
 
         var algorithmSalt = HashCodeHelper.Combine(HashCodeHelper.Fnv1Basis64, algorithm);
         var locationsSalt = HashCodeHelper.Combine(locations);
@@ -112,6 +112,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
     public async Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key)
     {
         var account = _scheme.Locate(key.Key);
+        Contract.Assert(account is not null, $"Attempt to determine account for key `{key}` failed");
 
         // _containers is created with this same enum, so this index access is safe.
         var container = _containers[(int)key.Purpose];

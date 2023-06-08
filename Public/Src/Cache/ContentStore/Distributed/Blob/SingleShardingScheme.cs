@@ -1,8 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Blob;
@@ -15,17 +13,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// </remarks>
 public record SingleShardingScheme<TKey, TShardId> : IShardingScheme<TKey, TShardId>
 {
-    public ShardingAlgorithm Algorithm => ShardingAlgorithm.SingleShard;
-
-    public IReadOnlyList<TShardId> Locations { get; }
+    private readonly TShardId _location;
 
     public SingleShardingScheme(TShardId location)
     {
-        Locations = new List<TShardId>() { location };
+        _location = location;
     }
 
-    public TShardId Locate(TKey key)
+    public Shard<TShardId> Locate(TKey key)
     {
-        return Locations[0];
+        return _location;
     }
 }

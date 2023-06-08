@@ -16,13 +16,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// See: https://arxiv.org/pdf/1406.2294
 /// </summary>
 /// <remarks>
-/// This consistent hashing scheme is good for situations where servers don't go away ever, although we can add or remove shards.
+/// This consistent hashing scheme is good for situations where servers are never unavailable, although we can add or
+/// remove shards.
 /// </remarks>
 public record JumpConsistentHash<TShardId> : IShardingScheme<int, TShardId>
 {
-    public ShardingAlgorithm Algorithm => ShardingAlgorithm.JumpHash;
-
-    public IReadOnlyList<TShardId> Locations { get; }
+    private readonly IReadOnlyList<TShardId> _locations;
 
     public JumpConsistentHash(IReadOnlyList<TShardId> locations)
     {
@@ -31,16 +30,16 @@ public record JumpConsistentHash<TShardId> : IShardingScheme<int, TShardId>
             throw new ArgumentException(message: "There must be at least 1 shard", paramName: nameof(locations));
         }
 
-        Locations = locations;
+        _locations = locations;
     }
 
-    public TShardId Locate(int key)
+    public Shard<TShardId> Locate(int key)
     {
         // TODO: this could be made faster with a faster PRNG, or just avoiding the float arithmetic altogether.
         var random = new Random(key);
         int beforePreviousJump = 1;
         int beforeCurrentJump = 0;
-        while (beforeCurrentJump < Locations.Count)
+        while (beforeCurrentJump < _locations.Count)
         {
             beforePreviousJump = beforeCurrentJump;
             var r = random.NextDouble();
@@ -58,6 +57,6 @@ public record JumpConsistentHash<TShardId> : IShardingScheme<int, TShardId>
             }
         }
 
-        return Locations[beforePreviousJump];
+        return _locations[beforePreviousJump];
     }
 }

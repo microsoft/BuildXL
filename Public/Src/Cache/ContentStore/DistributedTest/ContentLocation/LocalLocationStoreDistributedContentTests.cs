@@ -258,7 +258,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var workerStore = context.GetLocalLocationStore(context.GetFirstWorkerIndex());
 
                     var workerSession = sessions[context.GetFirstWorkerIndex()];
-
+    
                     // Insert random file in session 0
                     await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 

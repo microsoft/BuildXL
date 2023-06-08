@@ -10,6 +10,13 @@ using System.Linq;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 
+/// <summary>
+/// Specifies a sharding algorithm to use.
+/// </summary>
+/// <remarks>
+/// This enum does not cover all available sharding algorithms, just the ones that are meant to be used with the Blob
+/// L3.
+/// </remarks>
 public enum ShardingAlgorithm
 {
     /// <summary>

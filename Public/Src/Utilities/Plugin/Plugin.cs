@@ -14,10 +14,20 @@ using BuildXL.Utilities.Core.Tasks;
 namespace BuildXL.Plugin
 {
     /// <nodoc />
+    public static class PluginConstants
+    {
+        /// <summary>
+        /// Name of the environment variable listing the capabilities of the currently loaded plugins
+        /// </summary>
+        public const string PluginCapabilitiesEnvVar = "[BUILDXL]LOADED_PLUGIN_CAPABILITIES";
+    }
+
+    /// <nodoc />
     public class Plugin : IPlugin
     {
         private readonly TaskSourceSlim<Unit> m_startCompletionTaskSoure;
         private bool m_disposed = false;
+
         /// <nodoc />
         public string FilePath { get; }
         /// <nodoc />

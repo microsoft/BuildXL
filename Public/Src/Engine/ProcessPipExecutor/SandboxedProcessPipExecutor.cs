@@ -2969,6 +2969,14 @@ namespace BuildXL.ProcessPipExecutor
                 }
             }
 
+            if (m_pluginEP != null)
+            {
+                environmentVariables = environmentVariables.Override(new[]
+                {
+                    new KeyValuePair<string, string>(PluginConstants.PluginCapabilitiesEnvVar, string.Join(",", m_pluginEP.LoadedPluginSupportedMessageTypes.Select(m => m.ToString())))
+                });
+            }
+
             return environmentVariables;
         }
 

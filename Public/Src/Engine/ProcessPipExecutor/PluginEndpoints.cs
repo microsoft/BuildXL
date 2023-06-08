@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
@@ -26,6 +27,17 @@ namespace BuildXL.ProcessPipExecutor
         /// Additional information about the process such as executable or arguments
         /// </summary>
         public SandboxedProcessInfo ProcessInfo { get; set; }
+
+        /// <summary>
+        /// Gets a list of the plugin message types that the loaded plugins can handle
+        /// </summary>
+        public HashSet<PluginMessageType> LoadedPluginSupportedMessageTypes
+        {
+            get
+            {
+                return m_pluginManager?.GetSupportedMessageTypesOfLoadedPlugins() ?? new HashSet<PluginMessageType>();
+            }
+        }
 
         /// <summary>
         /// Creates a wrapper to pass relevant information to PluginManager

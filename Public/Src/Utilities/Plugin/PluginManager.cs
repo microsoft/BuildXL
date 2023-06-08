@@ -107,6 +107,21 @@ namespace BuildXL.Plugin
         }
 
         /// <nodoc />
+        public HashSet<PluginMessageType> GetSupportedMessageTypesOfLoadedPlugins()
+        {
+            HashSet<PluginMessageType> result = new HashSet<PluginMessageType>();
+            foreach (PluginMessageType messageType in Enum.GetValues(typeof(PluginMessageType)).Cast<PluginMessageType>())
+            {
+                if (CanHandleMessage(messageType))
+                {
+                    result.Add(messageType);
+                }
+            }
+
+            return result;
+        }
+
+        /// <nodoc />
         private void EnsurePluginLoaded(IPlugin plugin)
         {
             if (!plugin.StartCompletionTask.IsCompleted)
@@ -133,7 +148,7 @@ namespace BuildXL.Plugin
             }
             catch(Exception e)
             {
-                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"grpc call with type {messageType.ToString()} failed with {e}");
+                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Grpc call with type {messageType.ToString()} failed with {e}");
                 return new Failure<T>(defaultReturnValue);
             }
         }
@@ -145,7 +160,7 @@ namespace BuildXL.Plugin
             {
                 if (!File.Exists(pluinCreationArgument.PluginPath) && pluinCreationArgument.RunInSeparateProcess)
                 {
-                    Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Can't Load plugin because {pluinCreationArgument.PluginPath} doesn't exist");
+                    Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Can't load plugin because {pluinCreationArgument.PluginPath} doesn't exist");
                     new Failure<IPlugin>(null);
                 }
 
@@ -190,7 +205,7 @@ namespace BuildXL.Plugin
             var messageType = PluginMessageType.ParseLogMessage;
             if (!m_pluginHandlers.TryGet(messageType, out plugin))
             {
-                return new Failure<string>($"no plugin is available to handle {messageType}");
+                return new Failure<string>($"No plugin is available to handle {messageType}");
             }
 
             return await CallWithEnsurePluginLoadedWrapperAsync(
@@ -211,7 +226,7 @@ namespace BuildXL.Plugin
             var messageType = PluginMessageType.ProcessResult;
             if (!m_pluginHandlers.TryGet(messageType, out plugin))
             {
-                return new Failure<string>($"no plugin is available to handle {messageType}");
+                return new Failure<string>($"No plugin is available to handle {messageType}");
             }
 
             return await CallWithEnsurePluginLoadedWrapperAsync(
@@ -274,15 +289,15 @@ namespace BuildXL.Plugin
                     }
                     else
                     {
-                        Tracing.Logger.Log.PluginManagerErrorMessage(m_loggingContext, $"Two plugins({plugin.FilePath} and {alreadyRegisteredPlugin.FilePath}) can hanlde {pluginMessageType} that we don't suuport this scenario");
+                        Tracing.Logger.Log.PluginManagerErrorMessage(m_loggingContext, $"Two plugins ({plugin.FilePath} and {alreadyRegisteredPlugin.FilePath}) can handle {pluginMessageType}. This scenario is not currently supported.");
                     }
                 }
-                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Supported Messagey Type for {plugin.Name} is {string.Join(",", messageType.Result)}");
+                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Supported message types for {plugin.Name} is {string.Join(",", messageType.Result)}");
                 plugin.SupportedMessageType = messageType.Result;
             }
             else
             {
-                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Can't get supported message tyep for {plugin.Name}");
+                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Can't get supported message types for {plugin.Name}");
             }
 
             return creationResult;

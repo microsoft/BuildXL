@@ -502,6 +502,14 @@ namespace BuildXL.App.Tracing
             Message = "An exception was occurred/swallowed when initializing performance collector: {exception}.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void PerformanceCollectorInitializationFailed(LoggingContext context, string exception);
+        
+        [GeneratedEvent(
+                    (ushort)LogEventId.PerformanceCollectorCollectionFailed,
+                    EventGenerators = EventGenerators.LocalOnly,
+                    EventLevel = Level.Warning,
+                    Message = "An unexpected failure occurred when performing a performance collection. The collection was skipped. Details: {exception}.",
+                    Keywords = (int)Keywords.UserMessage)]
+        public abstract void PerformanceCollectorCollectionFailed(LoggingContext context, string exception);
 
         [GeneratedEvent(
             (int)LogEventId.CbTimeoutReached,

@@ -71,5 +71,6 @@ namespace BuildXL.App.Tracing
         CbTimeoutTooLow = SharedLogEventId.CbTimeoutTooLow,
         CbTimeoutInvalid = 15003,
         CbTimeoutInfo = 15004,
+        PerformanceCollectorCollectionFailed = 15005,
     }
 }

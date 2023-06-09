@@ -2114,7 +2114,8 @@ namespace BuildXL
                     collector = new PerformanceCollector(
                         TimeSpan.FromMilliseconds(m_configuration.Logging.PerfCollectorFrequencyMs),
                         collectBytesHeld: m_configuration.Logging.LogMemory,
-                        errorHandler: (ex) => Logger.Log.PerformanceCollectorInitializationFailed(loggingContext, ex.Message),
+                        initializationErrorHandler: (ex) => Logger.Log.PerformanceCollectorInitializationFailed(loggingContext, ex.Message),
+                        collectionErrorHandler: ex => Logger.Log.PerformanceCollectorCollectionFailed(loggingContext, ex?.Message),
                         queryJobObject: BuildXLJobObjectCpu);
                 }
             }

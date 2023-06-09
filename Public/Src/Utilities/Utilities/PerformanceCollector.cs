@@ -41,6 +41,7 @@ namespace BuildXL.Utilities
         private readonly TimeSpan m_collectionFrequency;
         private readonly bool m_collectHeldBytesFromGC;
         private readonly TestHooks m_testHooks;
+        private readonly Action<Exception> m_errorHandler;
 
         // Objects that aggregate performance info during their lifetime
         private readonly HashSet<Aggregator> m_aggregators = new HashSet<Aggregator>();
@@ -109,7 +110,7 @@ namespace BuildXL.Utilities
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope",
             Justification = "Handle is owned by PerformanceCollector and is disposed on its disposal")]
-        public PerformanceCollector(TimeSpan collectionFrequency, bool logWmiCounters = true, bool collectBytesHeld = false, Action<Exception> errorHandler = null, TestHooks testHooks = null, Func<(ulong?, ulong?, ulong?)> queryJobObject = null)
+        public PerformanceCollector(TimeSpan collectionFrequency, bool logWmiCounters = true, bool collectBytesHeld = false, Action<Exception> initializationErrorHandler = null, Action<Exception> collectionErrorHandler = null, TestHooks testHooks = null, Func<(ulong?, ulong?, ulong?)> queryJobObject = null)
         {
             m_collectionFrequency = collectionFrequency;
             m_processorCount = Environment.ProcessorCount;
@@ -117,6 +118,7 @@ namespace BuildXL.Utilities
             m_testHooks = testHooks;
             m_queryJobObject = queryJobObject;
             m_logWmiCounters = logWmiCounters;
+            m_errorHandler = collectionErrorHandler;
 
             // Figure out which drives we want to get counters for
             List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)> drives = new List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)>();
@@ -152,7 +154,7 @@ namespace BuildXL.Utilities
 
             if (!OperatingSystemHelper.IsUnixOS)
             {
-                InitializeWMIAsync().Forget(errorHandler);
+                InitializeWMIAsync().Forget(initializationErrorHandler);
             }
 
             // Perform all initialization before starting the timer
@@ -212,8 +214,18 @@ namespace BuildXL.Utilities
                 }
             }
 
-            CollectOnce();
-            ReschedulerTimer();
+            try
+            {
+                CollectOnce();
+            }
+            catch (Exception e)
+            {
+                m_errorHandler?.Invoke(e);
+            }
+            finally
+            {
+                ReschedulerTimer();
+            }
         }
 
         private void CollectOnce()

@@ -542,16 +542,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return true;
             }
 
+            // The pacemaker doesn't support getting called with <1 active machines, but this can actually happen in
+            // cases where machines go away for a long time, they come back to Closed state, and they run this code as
+            // part of their usual restore loop (basically only ever happens in very small clusters).
+            var activeMachines = ClusterState.OpenMachines.Count;
+            if (activeMachines < 1)
+            {
+                return true;
+            }
+
             // At this point, we know we don't need to restore a checkpoint in this heartbeat, however, we can do so
             // anyways if the bucketing allows.
             var result = context.PerformOperation(Tracer, () =>
             {
-                var openMachines = ClusterState.OpenMachines.Count;
-                Contract.Assert(openMachines >= 1);
-
                 return Result.Success(RestoreCheckpointPacemaker.ShouldRestoreCheckpoint(
                     _machineHash,
-                    openMachines,
+                    activeMachines,
                     checkpointCreationTime,
                     Configuration.Checkpoint.CreateCheckpointInterval));
             }, messageFactory: r =>

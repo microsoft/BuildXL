@@ -939,9 +939,24 @@ namespace BuildXL.Engine
                 {
                     var remoteWorkerCount = mutableConfig.Distribution.RemoteWorkerCount;
 
+                    // Enable retries on another worker by default
+                    // CB default is higher, as builds will typically have more workers than on ADO
+                    mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker ??= mutableConfig.InCloudBuild() ? 3 : 1;
+
                     if (mutableConfig.Distribution.LowWorkersWarningThreshold == null)
                     {
-                        mutableConfig.Distribution.LowWorkersWarningThreshold = remoteWorkerCount/2;
+                        if (mutableConfig.InCloudBuild())
+                        {
+                            // On CB, where builds are we don't want to warn if a few workers are missing
+                            // If half the workers are missing, we probably have an issue, so let's use that as the threshold
+                            mutableConfig.Distribution.LowWorkersWarningThreshold = remoteWorkerCount / 2;
+                        }
+                        else
+                        {
+                            // On ADO distributed builds, by default we consider that any missing worker warrants a warning
+                            // (note we have to add 1 to account for the orchestrator machine)
+                            mutableConfig.Distribution.LowWorkersWarningThreshold = remoteWorkerCount + 1;
+                        }
                     }
                     else
                     {
@@ -1169,11 +1184,6 @@ namespace BuildXL.Engine
                 if (mutableConfig.Schedule.MinimumDiskSpaceForPipsGb == null)
                 {
                     mutableConfig.Schedule.MinimumDiskSpaceForPipsGb = 5;
-                }
-
-                if (mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker == null)
-                {
-                    mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker = 3;
                 }
 
                 // Enable fail fast for null reference exceptions caught by

@@ -25,19 +25,29 @@ extends:
         os: windows
 
     stages:
-    - stage: Build
+    - stage: Build_Public
+      displayName: Build (public)
       jobs:
       # Build and test selfhost with BuildXL
-      - ${{ if parameters.BuildSelfhost }}:
         - template: /.azdo/linux/job-selfhost.yml@self
           parameters:
             ValidationName: PublicRelease
             BxlExtraArgs: /q:ReleaseLinux
 
-        - template: /.azdo/linux/job-selfhost.yml@self
-          parameters:
-            Distributed: true
-            ValidationName: InternalRelease
-            BxlExtraArgs: --internal /q:ReleaseLinux
-        
-        - template: /.azdo/linux/job-ptrace.yml@self
+    - stage: Build_Internal
+      displayName: Build (internal) 
+      dependsOn: []     # Run in parallel
+      jobs:
+      # Build and test selfhost with BuildXL
+      - template: /.azdo/linux/job-selfhost.yml@self
+        parameters:
+          Distributed: true
+          ValidationName: InternalRelease
+          BxlExtraArgs: --internal /q:ReleaseLinux        
+
+    - stage: Verify_PTrace
+      displayName: PTrace validation
+      dependsOn: []   # Run in parallel   
+      jobs:
+      # Build and test selfhost with BuildXL
+      - template: /.azdo/linux/job-ptrace.yml@self

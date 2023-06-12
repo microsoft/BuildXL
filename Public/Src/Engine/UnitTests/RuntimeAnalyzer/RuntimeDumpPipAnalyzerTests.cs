@@ -12,6 +12,7 @@ using Test.BuildXL.Scheduler;
 using Xunit;
 using Xunit.Abstractions;
 using Test.BuildXL.Executables.TestProcess;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.RuntimeAnalyzer
 {
@@ -156,6 +157,54 @@ namespace Test.BuildXL.RuntimeAnalyzer
 
             Assert.True(File.Exists(failingLogFile));
             Assert.False(File.Exists(passingLogFile));
+        }
+
+        /// <summary>
+        /// Test DumpPipLite run for pips failed due to DFA
+        /// </summary>
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestDumpPipLiteRunForDFAPips(bool failOnUnexpectedFileAccesses)
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = failOnUnexpectedFileAccesses;
+            // Process depends on unspecified input
+            var ops = new Operation[]
+            {
+                Operation.ReadFile(CreateSourceFile(), doNotInfer: true /* causes unspecified input */ ),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            };
+
+            var builder = CreatePipBuilder(ops);
+            // Create a graph with a Partial SealDirectory
+            DirectoryArtifact dir = SealDirectory(SourceRootPath, SealDirectoryKind.Partial /* don't specify input */ );
+            builder.AddInputDirectory(dir);
+
+            var processWithOutputs = SchedulePipBuilder(builder);
+            
+            var schedulerResult = RunScheduler();
+            if (failOnUnexpectedFileAccesses)
+            {
+                // Fail on unspecified input
+                schedulerResult.AssertFailure();
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            }
+            else
+            {
+                schedulerResult.AssertSuccess();
+                AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
+            }
+            AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+            AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
+
+            var logFolder = Path.Combine(schedulerResult.Config.Logging.LogsDirectory.ToString(Context.PathTable), "FailedPips");
+            var failingLogFile = Path.Combine(logFolder, $"{processWithOutputs.Process.FormattedSemiStableHash}.json");
+            
+            // Failed pip json should be dumped
+            Assert.True(File.Exists(failingLogFile), failingLogFile);
         }
     }
 }

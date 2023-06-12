@@ -129,7 +129,15 @@ namespace BuildXL.Scheduler.Tracing
         /// </remarks>
         public override void PipExecutionPerformance(PipExecutionPerformanceEventData data)
         {
-            if (data.ExecutionPerformance.ExecutionLevel == PipExecutionLevel.Failed && !m_loggingErrorOccured)
+            // Get the number of file access violations for this pip from ProcessPipExecutionPerformance if pip is a process pip
+            var fileAccessViolationCount = 0;
+            var processPerformance = data.ExecutionPerformance as ProcessPipExecutionPerformance;
+            if (m_pipTable.GetPipType(data.PipId) == PipType.Process && processPerformance != null)
+            {
+                fileAccessViolationCount = processPerformance.FileMonitoringViolations.Total;
+            }
+
+            if ((data.ExecutionPerformance.ExecutionLevel == PipExecutionLevel.Failed || fileAccessViolationCount > 0) && !m_loggingErrorOccured)
             {
                 var currentNumLogFiles = Interlocked.Increment(ref m_numLogFilesGenerated);
 
@@ -137,7 +145,7 @@ namespace BuildXL.Scheduler.Tracing
                 {
                     var pip = m_pipTable.HydratePip(data.PipId, PipQueryContext.DumpPipLiteAnalyzer);
                     ProcessExecutionMonitoringReportedEventData? dynamicData = null;
-                    
+
                     if (m_shouldDumpDynamicData)
                     {
                         m_dynamicDataDictionary.TryRemove(data.PipId, out dynamicData);

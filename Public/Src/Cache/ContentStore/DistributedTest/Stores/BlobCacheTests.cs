@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
@@ -177,5 +178,22 @@ public class BlobCacheTests : TestWithOutput
             {
                 var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "defaultooooo", "wupp", "wopp");
             });
+    }
+
+    [Fact]
+    public void MalyTest()
+    {
+        var account = "malystgacctfortesting";
+        var universe = "playground";
+        var @namespace = "default";
+
+        var scheme = new ShardingScheme(
+            ShardingAlgorithm.SingleShard,
+            new List<BlobCacheStorageAccountName>() { BlobCacheStorageAccountName.Parse(account) });
+        var matrix = ShardedBlobCacheTopology.GenerateMatrix(scheme);
+        var containers = ShardedBlobCacheTopology.GenerateContainerNames(universe, @namespace, scheme);
+        matrix.Content.Should().Be("4752270493");
+        matrix.Metadata.Should().Be("4752270493");
+        containers.Length.Should().Be(2);
     }
 }

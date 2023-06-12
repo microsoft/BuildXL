@@ -75,6 +75,12 @@ public record BlobCacheContainerName
         string universe,
         string @namespace)
     {
+        if (!LowercaseAlphanumericRegex.IsMatch(matrix))
+        {
+            throw new FormatException(
+                $"{nameof(matrix)} should be non-empty and composed of numbers and lower case letters. Matrix=[{matrix}]");
+        }
+
         CheckValidUniverseAndNamespace(universe, @namespace);
 
         Version = version;
@@ -163,6 +169,11 @@ public record BlobCacheContainerName
         var @namespace = match.Groups["namespace"].Value;
 
         return new BlobCacheContainerName(version, purpose, matrix, universe, @namespace);
+    }
+
+    public override int GetHashCode()
+    {
+        return ContainerName.GetHashCode();
     }
 
     public override string ToString()

@@ -27,16 +27,6 @@ public abstract record BlobCacheStorageAccountName
         }
 #pragma warning restore ERP022
     }
-
-    public override int GetHashCode()
-    {
-        return AccountName.GetHashCode();
-    }
-
-    public override string ToString()
-    {
-        return AccountName;
-    }
 }
 
 public sealed record BlobCacheStorageNonShardingAccountName : BlobCacheStorageAccountName
@@ -46,6 +36,16 @@ public sealed record BlobCacheStorageNonShardingAccountName : BlobCacheStorageAc
     public BlobCacheStorageNonShardingAccountName(string accountName)
     {
         AccountName = accountName;
+    }
+
+    public override int GetHashCode()
+    {
+        return AccountName.GetHashCode();
+    }
+
+    public override string ToString()
+    {
+        return AccountName;
     }
 }
 
@@ -124,5 +124,15 @@ public sealed record BlobCacheStorageShardingAccountName : BlobCacheStorageAccou
         }
 
         return new BlobCacheStorageShardingAccountName(match.Groups["unique"].Value, int.Parse(match.Groups["shard"].Value), match.Groups["purpose"].Value);
+    }
+
+    public override int GetHashCode()
+    {
+        return AccountName.GetHashCode();
+    }
+
+    public override string ToString()
+    {
+        return AccountName;
     }
 }

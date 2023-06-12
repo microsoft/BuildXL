@@ -61,9 +61,13 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         _configuration = configuration;
 
         _scheme = _configuration.ShardingScheme.Create();
+        _containers = GenerateContainerNames(_configuration.Universe, _configuration.Namespace, _configuration.ShardingScheme);
+    }
 
-        var matrices = GenerateMatrix(_configuration);
-        _containers = Enum.GetValues(typeof(BlobCacheContainerPurpose)).Cast<BlobCacheContainerPurpose>().Select(
+    internal static BlobCacheContainerName[] GenerateContainerNames(string universe, string @namespace, ShardingScheme scheme)
+    {
+        var matrices = GenerateMatrix(scheme);
+        return Enum.GetValues(typeof(BlobCacheContainerPurpose)).Cast<BlobCacheContainerPurpose>().Select(
             purpose =>
             {
                 // Different matrix implies different containers, and therefore different universes.
@@ -71,19 +75,22 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
                 {
                     BlobCacheContainerPurpose.Content => matrices.Content,
                     BlobCacheContainerPurpose.Metadata => matrices.Metadata,
-                    _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, $"Unknown value for {nameof(BlobCacheContainerPurpose)}: {purpose}"),
+                    _ => throw new ArgumentOutOfRangeException(
+                        nameof(purpose),
+                        purpose,
+                        $"Unknown value for {nameof(BlobCacheContainerPurpose)}: {purpose}"),
                 };
 
                 return new BlobCacheContainerName(
                     BlobCacheVersion.V0,
                     purpose,
                     matrix,
-                    _configuration.Universe,
-                    _configuration.Namespace);
+                    universe,
+                    @namespace);
             }).ToArray();
     }
 
-    private (string Metadata, string Content) GenerateMatrix(Configuration configuration)
+    internal static (string Metadata, string Content) GenerateMatrix(ShardingScheme scheme)
     {
         // The matrix here ensures that metadata does not overlap across sharding schemes. Basically, whenever we add
         // or remove shards (or change the sharding algorithm), we will get a new salt. This salt will force us to use
@@ -93,13 +100,13 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         // purpose because metadata hits guarantee content's existence, so we can't mess around with them.
 
         // Generate a stable hash out of the sharding scheme.
-        var algorithm = (long)configuration.ShardingScheme.Scheme;
-        var locations = configuration.ShardingScheme.Accounts.Select(location => HashCodeHelper.GetOrdinalIgnoreCaseHashCode64(location.AccountName)).ToArray();
+        var algorithm = (long)scheme.Scheme;
+        var locations = scheme.Accounts.Select(location => HashCodeHelper.GetOrdinalIgnoreCaseHashCode64(location.AccountName)).ToArray();
 
         var algorithmSalt = HashCodeHelper.Combine(HashCodeHelper.Fnv1Basis64, algorithm);
         var locationsSalt = HashCodeHelper.Combine(locations);
 
-        var metadataSalt = HashCodeHelper.Combine(algorithmSalt, locationsSalt);
+        var metadataSalt = Math.Abs(HashCodeHelper.Combine(algorithmSalt, locationsSalt));
         // TODO: Ideally, we'd like the following to be algorithmSalt, but that would mean that GC needs to track the
         // salts differently for content and metadata.
         var contentSalt = metadataSalt;

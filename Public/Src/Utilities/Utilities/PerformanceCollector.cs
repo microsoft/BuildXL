@@ -220,7 +220,32 @@ namespace BuildXL.Utilities
             }
             catch (Exception e)
             {
-                m_errorHandler?.Invoke(e);
+                Exception exceptionToReport = e;
+
+                // We've observed failures to collect the information on Linux (see bug #2070047)
+                // According to the dotnet team, this may happen if something happens reading/processing the process'
+                // stat file (see https://github.com/dotnet/runtime/issues/87356).
+                // Let's try to get the file contents to hopefully help understand this issue better.
+                // TODO: We can remove this after a number of instances (tracking with bug #2073411).
+                if (OperatingSystemHelper.IsLinuxOS)
+                {
+                    string procSelfStatDiagnostics = "/proc/self/stat contents:\n";
+                    try
+                    {
+                        procSelfStatDiagnostics += File.ReadAllText("/proc/self/stat");
+                    }
+#pragma warning disable EPC12 // Suspicious exception handling: only Message property is observed in exception block.
+                    catch (Exception ex)
+                    {
+                        procSelfStatDiagnostics += $"(Exception occurred while reading /proc/self/stat: {ex.Message})";
+                    }
+#pragma warning restore EPC12
+
+                    var fullMessage = $"Original exception message: {e.Message}.\n Debugging information: {procSelfStatDiagnostics}";
+                    exceptionToReport = new BuildXLException(fullMessage, e);
+                }
+
+                m_errorHandler?.Invoke(exceptionToReport);
             }
             finally
             {

@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
@@ -215,6 +214,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             (clusterState, ids) = clusterState.RegisterMany(cfg, new IClusterStateStorage.RegisterMachineInput(new[] { n3 }), _clock.UtcNow);
             var n3Id = ids[0];
 
+            clusterState.GetRecord(n3Id).ThrowIfFailure().Location.Should().Be(n3);
             n3Id.Index.Should().Be(1, "The machine ID for node3 should be 1 because it should have taken over node1's due to inactivity");
         }
     }

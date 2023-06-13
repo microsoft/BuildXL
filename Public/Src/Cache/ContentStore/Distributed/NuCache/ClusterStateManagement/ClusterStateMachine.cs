@@ -150,37 +150,47 @@ public record ClusterStateMachine
             state != MachineState.Unknown,
             $"Can't register machine ID `{machineId}` for location `{location}` with initial state `{state}`");
 
+        var addition = new MachineRecord
+                       {
+                           Id = machineId,
+                           Location = location,
+                           State = state,
+                           LastHeartbeatTimeUtc = nowUtc,
+                       };
+
         if (machineId.Index < NextMachineId)
         {
-            var status = GetRecord(machineId);
-            if (status.Succeeded)
+            bool inserted = false;
+            var records = new List<MachineRecord>();
+            foreach (var record in Records)
             {
-                var record = status.Value;
-                Contract.Assert(
-                    record.Location.Equals(location) || takeover,
-                    $"Machine id `{machineId}` has already been allocated to location `{record}` and so can't be allocated to `{location}`");
+                if (record.Id == machineId)
+                {
+                    // The record already exists. Update it.
+                    Contract.Assert(
+                        record.Location.Equals(location) || takeover,
+                        $"Machine id `{machineId}` has already been allocated to location `{record}` and so can't be allocated to `{location}`");
+                    records.Add(addition);
+                    inserted = true;
+                    continue;
+                }
 
-                // Heartbeat can only fail if the machine ID doesn't exist, and we know it does
-                return Heartbeat(machineId, nowUtc, state).ThrowIfFailure().Next;
+                if (record.Id.Index > machineId.Index && !inserted)
+                {
+                    // The record doesn't exist, and we've passed the point where it would have been. Insert it now and
+                    // make sure we don't go through this logic again
+                    records.Add(addition);
+                    inserted = true;
+                }
+
+                records.Add(record);
             }
-            else
-            {
-                var records = Records.ToList();
 
-                records.Add(
-                    new MachineRecord()
-                    {
-                        Id = machineId,
-                        Location = location,
-                        State = state,
-                        LastHeartbeatTimeUtc = nowUtc,
-                    });
+            Contract.Assert(
+                inserted,
+                $"Machine id `{machineId}` with location {location} should have been inserted but wasn't");
 
-                // We sort this list in order to ensure it is easy on the eyes when we need to manually inspect it
-                records.Sort((a, b) => a.Id.Index.CompareTo(b.Id.Index));
-
-                return this with { Records = records };
-            }
+            return this with { Records = records };
         }
         else
         {

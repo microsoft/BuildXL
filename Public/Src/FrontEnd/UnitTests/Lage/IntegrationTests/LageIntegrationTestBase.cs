@@ -17,6 +17,7 @@ using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities;
 using Test.DScript.Ast;
 using Xunit.Abstractions;
+using BuildXL.Native.IO;
 
 namespace Test.BuildXL.FrontEnd.Lage
 {
@@ -74,6 +75,12 @@ namespace Test.BuildXL.FrontEnd.Lage
 
             SourceRoot = Path.Combine(TestRoot, RelativeSourceRoot);
             OutDir = "target";
+
+            // TODO Bug 2073919- this is a temporary workaround to tests that are flakey due to the execute permission
+            // not correctly transiting through cache
+            AssertTrue(FileUtilities.TrySetExecutePermissionIfNeeded(PathToYarn).Succeeded);
+            AssertTrue(FileUtilities.TrySetExecutePermissionIfNeeded(PathToLage).Succeeded);
+            AssertTrue(FileUtilities.TrySetExecutePermissionIfNeeded(PathToNode).Succeeded);
         }
 
         /// <nodoc/>

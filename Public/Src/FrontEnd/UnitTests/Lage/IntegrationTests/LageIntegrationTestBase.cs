@@ -7,17 +7,17 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using BuildXL.Engine;
+using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities;
 using Test.DScript.Ast;
 using Xunit.Abstractions;
-using BuildXL.Native.IO;
 
 namespace Test.BuildXL.FrontEnd.Lage
 {

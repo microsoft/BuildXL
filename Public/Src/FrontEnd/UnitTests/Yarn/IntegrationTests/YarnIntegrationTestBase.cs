@@ -7,15 +7,15 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using BuildXL.Engine;
+using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities;
-using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast;
 using Xunit.Abstractions;
 
@@ -67,6 +67,11 @@ namespace Test.BuildXL.FrontEnd.Yarn
 
             SourceRoot = Path.Combine(TestRoot, RelativeSourceRoot);
             OutDir = "target";
+
+            // TODO Bug 2073919- this is a temporary workaround to tests that are flakey due to the execute permission
+            // not correctly transiting through cache
+            AssertTrue(FileUtilities.TrySetExecutePermissionIfNeeded(PathToYarn).Succeeded);
+            AssertTrue(FileUtilities.TrySetExecutePermissionIfNeeded(PathToNode).Succeeded);
         }
 
         protected SpecEvaluationBuilder Build(

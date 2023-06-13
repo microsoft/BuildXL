@@ -33,24 +33,19 @@ namespace Test.BuildXL.TestUtilities.Xunit
         Justification = "Test follow different pattern with Initialize and Cleanup.")]
     public abstract class XunitBuildXLTest : BuildXLTestBase, IDisposable
     {
-        private static readonly Lazy<ISandboxConnection> s_sandboxConnection =  new Lazy<ISandboxConnection>(() => CreateSandboxConnection(isInTestMode: true));
+        private static readonly Lazy<ISandboxConnection> s_macOSSandboxConnection =  new Lazy<ISandboxConnection>(() => CreateSandboxConnection(isInTestMode: true));
 
         /// <summary>
         /// Creates a new sandbox connection.
         /// </summary>
         public static ISandboxConnection CreateSandboxConnection(bool isInTestMode)
         {
-            ISandboxConnection sandboxConnection;
-            if (OperatingSystemHelper.IsLinuxOS)
-            {
-                sandboxConnection = new SandboxConnectionLinuxDetours(FailureCallback, isInTestMode: isInTestMode);
-            }
-            else if (OperatingSystemHelper.IsMacOS)
+            if (OperatingSystemHelper.IsMacOS)
             {
                 var kind = ReadSandboxKindFromEnvVars();
                 if (kind == SandboxKind.MacOsKext)
                 {
-                    sandboxConnection =  new SandboxConnectionKext(
+                    return new SandboxConnectionKext(
                         skipDisposingForTests: true,
                         config: new SandboxConnectionKext.Config
                         {
@@ -64,15 +59,11 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 }
                 else
                 {
-                    sandboxConnection = new SandboxConnection(kind, isInTestMode: isInTestMode);
+                    return new SandboxConnection(kind, isInTestMode: isInTestMode);
                 }
             }
-            else
-            {
-                sandboxConnection = null;
-            }
 
-            return sandboxConnection;
+            return null;
         }
 
         private static void FailureCallback(int status, string description)
@@ -100,13 +91,19 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <summary>
-        /// Returns a static kernel connection object. Unit tests would spam the kernel extension if they need sandboxing, so we
-        /// tunnel all requests through the same object to keep kernel memory and CPU utilization low. On Windows machines this
-        /// always returns null and causes no overhead for testing.
+        /// MacOS: Returns a static kernel connection object on macos. Unit tests would spam the kernel extension if they need sandboxing, so we
+        ///     tunnel all requests through the same object to keep kernel memory and CPU utilization low.
+        /// Windows: Always returns null and causes no overhead for testing.
+        /// Linux: Returns a new sandboxed connection on each call for the Linux sandbox because it does not use a kernel extension.
         /// </summary>
         public static ISandboxConnection GetSandboxConnection()
         {
-            return s_sandboxConnection.Value;
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                return new SandboxConnectionLinuxDetours(FailureCallback, isInTestMode: true);
+            }
+
+            return s_macOSSandboxConnection.Value;
         }
 
         /// <summary>

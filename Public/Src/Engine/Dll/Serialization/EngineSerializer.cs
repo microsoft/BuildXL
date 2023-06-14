@@ -486,6 +486,7 @@ namespace BuildXL.Engine
         {
             var engineCache = configuration.Layout.EngineCacheDirectory.ToString(pathTable);
             var fileContentTableFile = configuration.Layout.FileContentTableFile.ToString(pathTable);
+            var normalizedBuildEngineDirectory = configuration.Layout.NormalizedBuildEngineDirectory.ToString(pathTable);
 
             bool success = true;
             // Non-recursive directory enumeration to prevent deleting folders which are persisted build-over-build in the engine cache 
@@ -495,12 +496,16 @@ namespace BuildXL.Engine
                 if (!FileUtilities.IsDirectoryNoFollow(attributes))
                 {
                     var filePath = Path.Combine(engineCache, fileName);
-                    success &= SchedulerUtilities.TryLogAndMaybeRemoveCorruptFile(
-                        filePath, 
-                        configuration, 
-                        pathTable, 
-                        loggingContext,
-                        removeFile: filePath != fileContentTableFile /* exclude the file content table which can impact performance significantly if deleted */);
+                    // Don't do anything for nomalizedBuildEngineDirectory
+                    if (filePath != normalizedBuildEngineDirectory)
+                    {
+                        success &= SchedulerUtilities.TryLogAndMaybeRemoveCorruptFile(
+                            filePath,
+                            configuration,
+                            pathTable,
+                            loggingContext,
+                            removeFile: filePath != fileContentTableFile /* exclude the file content table which can impact performance significantly if deleted */);
+                    } 
                 }
             });
 

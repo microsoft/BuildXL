@@ -695,10 +695,7 @@ namespace BuildXL.Engine
                 layout.BuildEngineDirectory = AbsolutePath.Create(pathTable, assemblyLocation).GetParent(pathTable);
             }
 
-            if (OperatingSystemHelper.IsWindowsOS)
-            {
-                layout.NormalizedBuildEngineDirectory = layout.EngineCacheDirectory.Combine(pathTable, Strings.Layout_NormalizedBuildEngineDirectoryName);
-            }
+            layout.NormalizedBuildEngineDirectory = layout.EngineCacheDirectory.Combine(pathTable, Strings.Layout_NormalizedBuildEngineDirectoryName);
 
             if (!layout.FileContentTableFile.IsValid)
             {

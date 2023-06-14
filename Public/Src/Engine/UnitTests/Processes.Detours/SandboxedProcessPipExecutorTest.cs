@@ -1672,11 +1672,11 @@ namespace Test.BuildXL.Processes.Detours
 
             if (failedToCreateDump)
             {
-                SetExpectedFailures(2, 1, "DX0016", "DX0064", "DX2210");
+                SetExpectedFailures(1, 1, "DX0016", "DX2210");
             }
             else
             {
-                SetExpectedFailures(2, 0, "DX0016", "DX0064");
+                SetExpectedFailures(1, 0, "DX0016");
                 var files = Directory.GetFiles(expectedDumpPath);
                 Assert.True(files.Length >= 1, "Did not find dump file at: " + TestOutputDirectory);
             }

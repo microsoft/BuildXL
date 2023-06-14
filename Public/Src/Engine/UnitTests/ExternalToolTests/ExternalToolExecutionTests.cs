@@ -225,10 +225,8 @@ namespace ExternalToolTest.BuildXL.Scheduler
             builder.Options |= Process.Options.RequiresAdmin;
             
             ProcessWithOutputs process = SchedulePipBuilder(builder);
-
             RunScheduler().AssertFailure();
             AssertErrorEventLogged(ProcessesLogEventId.PipProcessTookTooLongError, count: 1);
-            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
 
             if (OperatingSystemHelper.IsUnixOS)
             {

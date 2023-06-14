@@ -1716,11 +1716,9 @@ namespace BuildXL.ProcessPipExecutor
 
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, stopwatch.Elapsed, $"(count: {observed.Length})");
 
-            TimeSpan time = primaryProcessTimes.TotalWallClockTime;
+            TimeSpan processTotalWallClockTime = primaryProcessTimes.TotalWallClockTime;
             if (result.TimedOut)
             {
-                LogTookTooLongError(result, m_timeout, time);
-
                 if (result.DumpCreationException != null)
                 {
                     Logger.Log.PipFailedToCreateDumpFile(
@@ -1737,9 +1735,9 @@ namespace BuildXL.ProcessPipExecutor
                     m_sandboxConfig.DefaultWarningTimeout,
                     m_sandboxConfig.WarningTimeoutMultiplier);
 
-                if (time > warningTimeout)
+                if (processTotalWallClockTime > warningTimeout)
                 {
-                    LogTookTooLongWarning(m_timeout, time, warningTimeout);
+                    LogTookTooLongWarning(m_timeout, processTotalWallClockTime, warningTimeout);
                 }
 
                 // There are cases where the process exit code is not successful and the injection has failed.
@@ -1927,7 +1925,7 @@ namespace BuildXL.ProcessPipExecutor
 
                 // We only checked if all outputs are present if exitedSuccessfullyAndGracefully is true. So if exitedSuccessfullyAndGracefully is false,
                 // we don't log anything at this respect.
-                LogErrorResult logErrorResult = await TryLogErrorAsync(result, (!exitedSuccessfullyAndGracefully || allOutputsPresent), failedDueToWritingToStdErr);
+                LogErrorResult logErrorResult = await TryLogErrorAsync(result, (!exitedSuccessfullyAndGracefully || allOutputsPresent), failedDueToWritingToStdErr, processTotalWallClockTime);
                 errorWasTruncated = logErrorResult.ErrorWasTruncated;
                 loggingSuccess = logErrorResult.Success;
             }
@@ -4696,11 +4694,26 @@ namespace BuildXL.ProcessPipExecutor
                 Bound(timeout.TotalMilliseconds));
         }
 
-        private void LogTookTooLongError(SandboxedProcessResult result, TimeSpan timeout, TimeSpan time)
+        private void LogTookTooLongError(SandboxedProcessResult result, TimeSpan timeout, TimeSpan time,
+                                         string stdError, string stdOut, bool errorWasTruncated, bool errorWasFiltered)
         {
             Contract.Assume(result.Killed);
             Analysis.IgnoreArgument(result);
             string dumpString = result.DumpFileDirectory ?? string.Empty;
+            string outputTolog;
+            string outputPathsToLog; 
+            string messageAboutPathsToLog;
+
+            FormatOutputAndPaths(
+                stdOut,
+                stdError,
+                result.StandardOutput.FileName,
+                result.StandardError.FileName,
+                out outputTolog,
+                out outputPathsToLog,
+                out messageAboutPathsToLog,
+                errorWasTruncated,
+                errorWasFiltered);
 
             Logger.Log.PipProcessTookTooLongError(
                 m_loggingContext,
@@ -4708,7 +4721,8 @@ namespace BuildXL.ProcessPipExecutor
                 m_pipDescription,
                 Bound(time.TotalMilliseconds),
                 Bound(timeout.TotalMilliseconds),
-                dumpString);
+                dumpString,
+                EnsureToolOutputIsNotEmpty(outputTolog));
         }
 
         private async Task<bool> TrySaveAndLogStandardErrorAsync(SandboxedProcessResult result)
@@ -5025,7 +5039,7 @@ namespace BuildXL.ProcessPipExecutor
             public readonly bool ErrorWasTruncated;
         }
 
-        private async Task<LogErrorResult> TryLogErrorAsync(SandboxedProcessResult result, bool allOutputsPresent, bool failedDueToWritingToStdErr)
+        private async Task<LogErrorResult> TryLogErrorAsync(SandboxedProcessResult result, bool allOutputsPresent, bool failedDueToWritingToStdErr, TimeSpan processTotalWallClockTime)
         {
             // Initializing error regex just before it is actually needed to save some cycles.
             if (!await TryInitializeErrorRegexAsync())
@@ -5075,8 +5089,15 @@ namespace BuildXL.ProcessPipExecutor
                 // Send the message to plugin if there is log parsing plugin available
                 standardError = await (m_pluginEP?.ProcessStdOutAndErrorAsync(standardError, true) ?? Task.FromResult(standardError));
                 standardOutput = await (m_pluginEP?.ProcessStdOutAndErrorAsync(standardOutput, true) ?? Task.FromResult(standardOutput));
-
-                LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, standardError, standardOutput, errorWasTruncated, standardErrorFilterResult.IsFiltered || standardOutputFilterResult.IsFiltered);
+                var errorFiltered = standardErrorFilterResult.IsFiltered || standardOutputFilterResult.IsFiltered;
+                if (!result.TimedOut)
+                {
+                    LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, standardError, standardOutput, errorWasTruncated, errorFiltered);
+                }
+                else
+                {
+                    LogTookTooLongError(result, m_timeout, processTotalWallClockTime, standardError, standardOutput, errorWasTruncated, errorFiltered);
+                }
 
                 return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);
             }
@@ -5155,7 +5176,14 @@ namespace BuildXL.ProcessPipExecutor
                                 }
                             }
 
-                            LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, stdError, stdOut, errorWasTruncated, false);
+                            if (!result.TimedOut)
+                            {
+                                LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, stdError, stdOut, errorWasTruncated, false);
+                            }
+                            else
+                            {
+                                LogTookTooLongError(result, m_timeout, processTotalWallClockTime, stdError, stdOut, errorWasTruncated, false);
+                            }
                         }
 
                         return true;
@@ -5200,9 +5228,9 @@ namespace BuildXL.ProcessPipExecutor
                 messageAboutPathsToLog,
                 AddTrailingNewLineIfNeeded(outputPathsToLog),
                 result.ExitCode,
-                optionalMessage,                
+                optionalMessage,
                 m_pip.GetShortDescription(m_context),
-                totalElapsedTimeMS);          
+                totalElapsedTimeMS);
 
         }
 

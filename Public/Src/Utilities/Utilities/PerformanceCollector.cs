@@ -121,15 +121,21 @@ namespace BuildXL.Utilities
             m_errorHandler = collectionErrorHandler;
 
             // Figure out which drives we want to get counters for
-            List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)> drives = new List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)>();
+            var drives = new Dictionary<string, (DriveInfo, SafeFileHandle, DISK_PERFORMANCE)>(OperatingSystemHelper.PathComparer);
 
             foreach (var drive in DriveInfo.GetDrives())
             {
+                // Occasionally, diskStat.Drive seems to have a duplicate diskName. Handle the conflict to avoid an exception so the build can continue.
+                if (drives.ContainsKey(drive.Name))
+                {
+                    continue;
+                }
+
                 if (drive.DriveType == DriveType.Fixed && drive.IsReady)
                 {
                     if (OperatingSystemHelper.IsUnixOS)
                     {
-                        drives.Add((drive, null, default));
+                        drives.Add(drive.Name, (drive, null, default));
                     }
                     else if (drive.Name.Length == 3 && drive.Name.EndsWith(@":\", StringComparison.OrdinalIgnoreCase))
                     {
@@ -137,7 +143,7 @@ namespace BuildXL.Utilities
                         SafeFileHandle handle = CreateFileW(path, FileDesiredAccess.None, FileShare.Read, IntPtr.Zero, FileMode.Open, FileFlagsAndAttributes.FileAttributeNormal, IntPtr.Zero);
                         if (!handle.IsClosed && !handle.IsInvalid)
                         {
-                            drives.Add((drive, handle, default));
+                            drives.Add(drive.Name, (drive, handle, default));
                         }
                         else
                         {
@@ -147,7 +153,7 @@ namespace BuildXL.Utilities
                 }
             }
 
-            m_drives = drives.ToArray();
+            m_drives = drives.Values.ToArray();
 
             // Initialize network telemetry objects
             InitializeNetworkMonitor();

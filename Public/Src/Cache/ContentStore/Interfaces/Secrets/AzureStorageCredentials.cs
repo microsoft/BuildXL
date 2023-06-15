@@ -65,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
                         return match.Groups["accountName"].Value;
                     }
 
-                    throw new InvalidOperationException($"Failed to match {nameof(s_storageUrlRegex)} to {nameof(PlainTextSecret)}");
+                    throw new InvalidOperationException($"The provided secret is malformed and the account name could not be retrieved.");
                 case UpdatingSasToken updatingSasToken:
                     return updatingSasToken.Token.StorageAccount;
                 default:

@@ -17,9 +17,10 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         : Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>
     {
         /// <nodoc />
-        public ContentHashListResult(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)
+        public ContentHashListResult(ContentHashListWithDeterminism contentHashListInfo, string replacementToken, DateTime? lastContentPinnedTime = null)
             : base((contentHashListInfo, replacementToken))
         {
+            LastContentPinnedTime = lastContentPinnedTime;
         }
 
         /// <nodoc />
@@ -44,6 +45,15 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// The source of <see cref="ContentHashList"/>.
         /// </summary>
         public ContentHashListSource Source { get; set; } = ContentHashListSource.Unknown;
+
+        /// <summary>
+        /// The time at which all the content of this content hash list was pinned
+        /// </summary>
+        /// <remarks>
+        /// This is only set when the memoization database retrieving this last supports this, and consumers can use this
+        /// to help feed a pin eliding heuristic
+        /// </remarks>
+        public DateTime? LastContentPinnedTime { get; set; }
 
         /// <nodoc />
         public void Deconstruct(

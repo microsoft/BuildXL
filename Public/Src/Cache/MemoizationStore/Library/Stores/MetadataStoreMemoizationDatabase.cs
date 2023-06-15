@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
@@ -35,6 +36,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             MetadataStoreMemoizationDatabaseConfiguration? configuration = null,
             CentralStreamStorage? centralStorage = null)
         {
+            Contract.Requires(configuration?.RetentionPolicy == null || configuration.RetentionPolicy >= TimeSpan.FromDays(1));
+
             _store = store;
             _centralStorage = centralStorage;
             _configuration = configuration ?? new MetadataStoreMemoizationDatabaseConfiguration();
@@ -58,6 +61,44 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             }
 
             return BoolResult.SuccessTask;
+        }
+
+        /// <inheritdoc/>
+        public override bool AssociatedContentNeedsPinning(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListResult contentHashListResult)
+        {
+            if (_configuration.DisablePreventivePinningForTests)
+            {
+                return false;
+            }
+
+            // We didn't find a last content pinned time or the retention policy is not configured: let's pin
+            if (contentHashListResult.LastContentPinnedTime == null || _configuration.RetentionPolicy == null)
+            {
+                return true;
+            }
+
+            // This is how old the content hash is wrt UtcNow
+            var contentHashAge = DateTime.UtcNow - contentHashListResult.LastContentPinnedTime;
+
+            // The pin can be elided if the content's age is smaller than the configured retention time, minus a random value between 0 and 12 hours (pins are not elided
+            // when they are 1 hour away from being evicted to avoid corner cases where there is an unexpectedly long time difference between content upload and metadata upload).
+            // The random value is to distribute the 'expensive pin' case across multiple builds and therefore mitigate the overall impact on a single build.
+            // Observe that Configuration.StorageAccountRetentionPolicy is guaranteed to be at least 1 day
+            var ageLimit = _configuration.RetentionPolicy - TimeSpan.FromHours(1) - TimeSpan.FromMinutes(new Random().Next(11 * 60));
+
+            return contentHashAge >= ageLimit;
+        }
+
+        /// <inheritdoc/>
+        public override async Task<Result<bool>> AssociatedContentWasPinnedAsync(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListResult contentHashListResult)
+        {
+            // If the store does not support pin notification, just return
+            if (_store is not IMetadataStoreWithContentPinNotification)
+            {
+                return new Result<bool>(true);
+            }
+
+            return await ((IMetadataStoreWithContentPinNotification)_store).NotifyContentWasPinnedAsync(context, strongFingerprint);
         }
 
         /// <inheritdoc />
@@ -107,7 +148,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
                 var result = new ContentHashListResult(
                     DeserializeContentHashListWithDeterminism(data),
-                    r.Value?.ReplacementToken ?? string.Empty);
+                    r.Value?.ReplacementToken ?? string.Empty,
+                    r.Value?.LastContentPinnedTime);
 
                 if (diagnostics != null)
                 {

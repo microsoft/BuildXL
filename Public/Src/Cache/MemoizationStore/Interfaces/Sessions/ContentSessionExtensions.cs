@@ -18,22 +18,25 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Ensure the existence of all related content by pinning it.
         /// </summary>
-        public static async Task<bool> EnsureContentIsAvailableAsync(this IContentSession contentSession, Context context, string componentName, ContentHashList contentHashList, CancellationToken cts)
+        /// <remarks>
+        /// On error, returns the first unsuccesful pin result.
+        /// </remarks>
+        public static async Task<PinResult> EnsureContentIsAvailableWithResultAsync(this IContentSession contentSession, Context context, string componentName, ContentHashList contentHashList, CancellationToken cts)
         {
             // If there is no contentSession in which to find content, then trivially no content is available.
             if (contentSession == null)
             {
-                return false;
+                return PinResult.ContentNotFound;
             }
 
             // If the contentHashList does not exist, then trivially all content is pinned.
             if (contentHashList == null)
             {
-                return true;
+                return PinResult.Success;
             }
 
             IEnumerable<Task<Indexed<PinResult>>> pinResultEnumerable = await contentSession.PinAsync(context, contentHashList.Hashes, cts).ConfigureAwait(false);
-            var pinSucceeded = true;
+
             foreach (var pinResultTask in pinResultEnumerable)
             {
                 var pinResult = await pinResultTask.ConfigureAwait(false);
@@ -44,11 +47,20 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                         context.Warning($"Pinning hash {contentHashList.Hashes[pinResult.Index]} failed with error {pinResult}", component: componentName);
                     }
 
-                    pinSucceeded = false;
+                    return pinResult.Item;
                 }
             }
 
-            return pinSucceeded;
+            return PinResult.Success;
+        }
+
+        /// <summary>
+        /// <see cref="EnsureContentIsAvailableWithResultAsync(IContentSession, Context, string, ContentHashList, CancellationToken)"/>
+        /// </summary>
+        public static async Task<bool> EnsureContentIsAvailableAsync(this IContentSession contentSession, Context context, string componentName, ContentHashList contentHashList, CancellationToken cts)
+        {
+            var pinResult = await EnsureContentIsAvailableWithResultAsync(contentSession, context, componentName, contentHashList, cts).ConfigureAwait(false);
+            return pinResult.Succeeded;
         }
     }
 }

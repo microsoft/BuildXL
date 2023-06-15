@@ -62,6 +62,24 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             ContentHashListWithDeterminism replacement);
 
         /// <summary>
+        /// Whether a given content hash list needs its associated content to be preemptively pinned
+        /// </summary>
+        /// <remarks>
+        /// This allows a <see cref="DatabaseMemoizationStore"/> to actually pin the content if this methods says so. This call returns false,
+        /// subtypes can change this behavior.
+        /// </remarks>
+        public virtual bool AssociatedContentNeedsPinning(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListResult contentHashListResult) => false;
+
+        /// <summary>
+        /// This method is called by the <see cref="DatabaseMemoizationStore"/> when the content specified in the give content hash list was successfully pinned.
+        /// Subtypes of this class can decide to update internal invariants when that happens
+        /// </summary>
+        /// <remarks>
+        /// This class implements this as a no-op, subtypes can add specific behavior.
+        /// </remarks>
+        public virtual Task<Result<bool>> AssociatedContentWasPinnedAsync(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListResult contentHashListResult) => Task.FromResult(new Result<bool>(true));
+
+        /// <summary>
         /// Registers the associated content for the strong fingerprint and content hash list
         /// </summary>
         public Task<BoolResult> RegisterAssociatedContentAsync(

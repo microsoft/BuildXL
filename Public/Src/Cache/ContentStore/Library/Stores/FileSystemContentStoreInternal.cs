@@ -89,6 +89,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         protected override Tracer Tracer => _tracer;
 
+        internal ContentStoreInternalTracer InternalTracer => _tracer;
+
         private readonly IDistributedLocationStore? _distributedStore;
 
         private readonly ContentStoreInternalTracer _tracer;

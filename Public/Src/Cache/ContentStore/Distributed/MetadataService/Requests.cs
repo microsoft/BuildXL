@@ -289,6 +289,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         [ProtoMember(4)]
         public string ExternalDataStorageId { get; set; }
 
+        /// <summary>
+        /// This field is set when the blob storage account is configured to do garbage collection
+        /// so we know when pins can be elided
+        /// </summary>
+        public DateTime? LastContentPinnedTime { get; set; }
+
         public override string ToString()
         {
             return $"ReplacementToken=[{ReplacementToken}] SequenceNumber=[{SequenceNumber}]";

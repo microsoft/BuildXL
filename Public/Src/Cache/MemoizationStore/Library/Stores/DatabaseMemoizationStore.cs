@@ -129,15 +129,39 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return Database.IncorporateStrongFingerprintsAsync(new OperationContext(context, cts), strongFingerprints);
         }
 
-        internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken token, bool preferShared = false)
+        internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken token, IContentSession contentSession, bool preferShared = false)
         {
             var ctx = new OperationContext(context, token);
             return ctx.PerformOperationAsync(_tracer, async () =>
             {
                 var result = await Database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: preferShared);
-                return result.Succeeded
-                    ? new GetContentHashListResult(result.Value.contentHashListInfo, result.Source)
-                    : new GetContentHashListResult(result, result.Source);
+
+                if (!result.Succeeded)
+                {
+                    return new GetContentHashListResult(result, result.Source);
+                }
+
+                // if the associated content needs preventive pinning, do it here
+                if (Database.AssociatedContentNeedsPinning(ctx, strongFingerprint, result))
+                {
+                    (ContentHashListWithDeterminism contentHashList, _, _) = result;
+                    var pinResult = await contentSession.EnsureContentIsAvailableWithResultAsync(ctx, Tracer.Name, contentHashList.ContentHashList, ctx.Token).ConfigureAwait(false);
+
+                    if (!pinResult.Succeeded)
+                    {
+                        return new GetContentHashListResult(pinResult, result.Source);
+                    }
+
+                    // All the associated content is now pinned. Update the last content pinned time on the content hash list entry
+                    var pinnedNotificationResult = await Database.AssociatedContentWasPinnedAsync(ctx, strongFingerprint, result);
+
+                    if (!pinnedNotificationResult.Succeeded)
+                    {
+                        return new GetContentHashListResult(pinResult, result.Source);
+                    }
+                }
+
+                return new GetContentHashListResult(result.Value.contentHashListInfo, result.Source);
             },
             extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}] PreferShared=[{preferShared}]",
             traceOperationStarted: false);

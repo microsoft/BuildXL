@@ -12,12 +12,12 @@ using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
@@ -36,7 +36,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     }
 
     /// <nodoc />
-    public class AzureBlobStorageMetadataStore : StartupShutdownComponentBase, IMetadataStoreWithIncorporation
+    public class AzureBlobStorageMetadataStore : StartupShutdownComponentBase, IMetadataStoreWithIncorporation, IMetadataStoreWithContentPinNotification
     {
         /// <nodoc />
         protected sealed override Tracer Tracer { get; } = new(nameof(AzureBlobStorageMetadataStore));
@@ -45,6 +45,14 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         private readonly BlobStorageClientAdapter _storageClientAdapter;
         private readonly IBlobCacheTopology _blobCacheTopology;
+
+        // The key used in the metadata dictionary to store the last time associated content was pinned for a given content hash list
+        private const string LastContentPinnedTime = "LastContentPinnedTime";
+
+        // We pool the metadata dictionary since it is used on every upload
+        private readonly ObjectPool<Dictionary<string, string>> _lastContentPinnedTime = new ObjectPool<Dictionary<string, string>>(
+            () => new Dictionary<string, string>(),
+            map => { map.Clear(); return map; });
 
         /// <nodoc />
         public AzureBlobStorageMetadataStore(
@@ -63,13 +71,62 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             SerializedMetadataEntry replacement,
             string expectedReplacementToken)
         {
+            DateTime now = DateTime.UtcNow;
+            using var metadataWrapper = _lastContentPinnedTime.GetInstance();
+            var metadata = metadataWrapper.Instance;
+            metadata[LastContentPinnedTime] = now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+
             var client = await GetStrongFingerprintClientAsync(context, strongFingerprint);
-            return await _storageClientAdapter.CompareUpdateContentAsync(
+            var result = await _storageClientAdapter.CompareUpdateContentAsync(
                 context,
                 client,
                 () => new MemoryStream(replacement.Data),
                 etag: expectedReplacementToken,
-                attempt: 0);
+                attempt: 0,
+                metadata: metadata);
+
+            // If the replacement was actually uploaded, then the associated content is assumed to have been uploaded
+            // immediately before, set the last content pin time to now
+            replacement.LastContentPinnedTime = now;
+
+            return result;
+        }
+
+        /// <summary>
+        /// Updates the last content pinned time in the associated strong fingerprint so <see cref="DateTime.UtcNow"/> is associated to it
+        /// </summary>
+        public Task<Result<bool>> NotifyContentWasPinnedAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            return NotifyContentWasPinnedInternalAsync(context, strongFingerprint, DateTime.UtcNow);
+        }
+
+        internal Task<Result<bool>> UpdateLastContentPinnedTimeForTestingAsync(OperationContext context, StrongFingerprint strongFingerprint, DateTime testDateTime)
+        {
+            return NotifyContentWasPinnedInternalAsync(context, strongFingerprint, testDateTime);
+        }
+
+        private async Task<Result<bool>> NotifyContentWasPinnedInternalAsync(OperationContext context, StrongFingerprint strongFingerprint, DateTime now)
+        {
+            PooledObjectWrapper<Dictionary<string, string>>? metadataWrapper = null;
+
+            metadataWrapper = _lastContentPinnedTime.GetInstance();
+            Dictionary<string, string>? metadata = metadataWrapper.Value.Instance;
+            metadata[LastContentPinnedTime] = now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+
+            try
+            {
+                var client = await GetStrongFingerprintClientAsync(context, strongFingerprint);
+                var result = await _storageClientAdapter.UpdateMetadataAsync(
+                    context,
+                    client,
+                    metadata);
+
+                return result;
+            }
+            finally
+            {
+                metadataWrapper?.Dispose();
+            }
         }
 
         /// <nodoc />
@@ -102,10 +159,20 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 async () =>
                 {
                     var client = await GetStrongFingerprintClientAsync(context, strongFingerprint);
-                    var state = await _storageClientAdapter.ReadStateAsync(context, client, static stream => new ValueTask<byte[]>(stream.ToArray()))
+                    BlobStorageClientAdapter.State<byte[]> state;
+
+                    DateTime? lastContentPinnedTime = null;
+                    
+                    state = await _storageClientAdapter.ReadStateAsync(context, client, static binaryData => new ValueTask<byte[]>(binaryData.ToArray()))
                         .ThrowIfFailureAsync();
 
-                    return Result.Success(new SerializedMetadataEntry() { ReplacementToken = state.ETag, Data = state.Value });
+                    if (state.Metadata?.TryGetValue(LastContentPinnedTime, out string? lastContentPinnedTimeString) == true)
+                    {
+                        // If the entry is there, then it should be parseable
+                        lastContentPinnedTime = DateTime.Parse(lastContentPinnedTimeString!, null, System.Globalization.DateTimeStyles.RoundtripKind);
+                    }
+                    
+                    return Result.Success(new SerializedMetadataEntry() { ReplacementToken = state.ETag, Data = state.Value, LastContentPinnedTime = lastContentPinnedTime });
                 });
         }
 

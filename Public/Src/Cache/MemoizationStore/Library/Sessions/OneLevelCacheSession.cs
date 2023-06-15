@@ -227,7 +227,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             {
                 var result = await withLevelSelectors.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
 
-                if (result.Succeeded && Parent is not null)
+                if (result.Succeeded && Parent is not null && !Parent.Configuration.DoNotElidePinsForGetLevelSelectors)
                 {
                     foreach (var selector in result.Value.Selectors)
                     {

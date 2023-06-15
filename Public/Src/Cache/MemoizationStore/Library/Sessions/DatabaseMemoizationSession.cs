@@ -36,7 +36,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             bool preferShared = urgencyHint == UrgencyHint.PreferShared;
-            return MemoizationStore.GetContentHashListAsync(context, strongFingerprint, cts, preferShared);
+            return MemoizationStore.GetContentHashListAsync(context, strongFingerprint, cts, _contentSession, preferShared);
         }
 
         /// <inheritdoc />

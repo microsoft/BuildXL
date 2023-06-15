@@ -35,7 +35,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         Guid Id,
         // Determines if the content session will be passed to the memoization store when constructing a non-readonly session.
         bool PassContentToMemoization,
-        TimeSpan? MetadataPinElisionDuration = null);
+        TimeSpan? MetadataPinElisionDuration = null,
+        // This is a temporary flag to disable pin elision for GetLevelSelectors until we can implement something similar to what we are doing with GetContentHashListAsync wrt preventing pinning.
+        bool DoNotElidePinsForGetLevelSelectors = false);
 
     /// <summary>
     ///     A reference implementation of <see cref="ICache"/> that represents a single level of content and metadata.

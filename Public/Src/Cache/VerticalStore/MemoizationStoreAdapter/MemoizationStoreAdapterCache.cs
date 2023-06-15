@@ -42,6 +42,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         private bool m_isShutdown;
         private readonly bool m_replaceExistingOnPlaceFile;
         private ImplicitPin m_implicitPin;
+        private readonly List<Action<Failure>> m_listeners = new List<Action<Failure>>();
+        private readonly List<Failure> m_stateDegradationFailuresOnInit;
 
         /// <summary>
         /// .ctor
@@ -52,13 +54,16 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <param name="statsFile">A file to write stats about the cache into.</param>
         /// <param name="replaceExistingOnPlaceFile">When true, replace existing file when placing file.</param>
         /// <param name="implicitPin">ImplicitPin to be used when creating sessions.</param>
+        /// <param name="precedingStateDegradationFailures">State degradation failures that happened before the creation of this cache, and that should be reported when the proper listener
+        /// <see cref="SuscribeForCacheStateDegredationFailures(Action{Failure})"/> is set</param>
         public MemoizationStoreAdapterCache(
             CacheId cacheId,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache innerCache,
             ILogger logger,
             AbsolutePath statsFile,
             bool replaceExistingOnPlaceFile = false,
-            ImplicitPin implicitPin = ImplicitPin.PutAndGet)
+            ImplicitPin implicitPin = ImplicitPin.PutAndGet,
+            List<Failure> precedingStateDegradationFailures = null)
         {
             Contract.Requires(cacheId != null);
             Contract.Requires(innerCache != null);
@@ -71,6 +76,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             m_fileSystem = new PassThroughFileSystem(m_logger);
             m_replaceExistingOnPlaceFile = replaceExistingOnPlaceFile;
             m_implicitPin = implicitPin;
+            m_stateDegradationFailuresOnInit = precedingStateDegradationFailures ?? new List<Failure>();
         }
 
         /// <summary>
@@ -293,7 +299,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         {
             Contract.Requires(!IsShutdown);
 
-            // No messages to return.
+            m_listeners.Add(notificationCallback);
+
+            // We didn't have the chance to notify the listener about the failures that happened before the listener was added.
+            foreach (var degradationFailures in m_stateDegradationFailuresOnInit)
+            {
+                notificationCallback(degradationFailures);
+            }
         }
 
         internal static async Task<T> WrapCacheForTestAsync<T>(

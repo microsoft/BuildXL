@@ -72,4 +72,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     {
         Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints);
     }
+
+    public interface IMetadataStoreWithContentPinNotification: IMetadataStore
+    {
+        /// <summary>
+        /// Notifies the store that all the content associated to the given strong fingerprint was pinned, allowing it to update any internal invariants
+        /// </summary>
+        Task<Result<bool>> NotifyContentWasPinnedAsync(OperationContext context, StrongFingerprint strongFingerprint);
+    }
 }

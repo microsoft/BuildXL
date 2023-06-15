@@ -64,6 +64,24 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue(0)]
             public uint LogFlushIntervalSeconds { get; set; }
 
+            /// <summary>
+            /// The configured number of days the storage account will retain blobs before deleting (or soft deleting) them based
+            /// on last access time. If content and metadata have different retention policies, the shortest retention period is expected here.
+            /// </summary>
+            /// <remarks>
+            /// By setting this value to reflect the storage account life management configuration policy, pin operations can be optimized.
+            /// If unset, pin operations will likely be costlier. If the value is set to a number larger than the storage account policy, that
+            /// can lead to build failures.
+            /// 
+            /// When enabled (a non-zero value), every time that a content hash list is stored, a last upload time is associated to it and stored as well.
+            /// This last upload time is deemed very close to the one used for storing all the corresponding content for that content hash list
+            /// (since typically that's the immediate step prior to storing the fingerprint). Whenever a content hash list is retrieved and has a last upload
+            /// time associated to it, the metadata store notifies the cache of it. The cache then uses that information to determine whether the content
+            /// associated to that fingerprint can be elided, based on the provided configured blob retention policy of the blob storage account.
+            /// </remarks>
+            [DefaultValue(0)]
+            public int RetentionPolicyInDays { get; set; }
+
             /// <nodoc />
             public Config()
             {
@@ -99,12 +117,20 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             {
                 var logPath = new AbsolutePath(configuration.CacheLogPath);
 
+                // If the retention period is not set, this is not a blocker for constructing the cache, but performance can be degraded. Report it.
+                var failures = new List<Failure>();
+                if (configuration.RetentionPolicyInDays == 0)
+                {
+                    failures.Add(new RetentionDaysNotSetFailure(configuration.CacheId));
+                }
+
                 var cache = new MemoizationStoreAdapterCache(
                     cacheId: configuration.CacheId,
                     innerCache: CreateCache(configuration),
                     logger: new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds),
-                    statsFile: new AbsolutePath(logPath.Path + ".stats"));
-
+                    statsFile: new AbsolutePath(logPath.Path + ".stats"),
+                    precedingStateDegradationFailures: failures);
+                
                 var startupResult = await cache.StartupAsync();
                 if (!startupResult.Succeeded)
                 {
@@ -127,14 +153,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             {
                 throw new InvalidOperationException($"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}'.");
             }
-
+            
             var credentials = new ContentStore.Interfaces.Secrets.AzureStorageCredentials(connectionString);
             var accountName = BlobCacheStorageAccountName.Parse(credentials.GetAccountName());
 
             var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
                 ShardingScheme: new ShardingScheme(ShardingAlgorithm.SingleShard, new List<BlobCacheStorageAccountName> { accountName }),
                 Universe: configuration.Universe,
-                Namespace: configuration.Namespace);
+                Namespace: configuration.Namespace,
+                RetentionPolicyInDays: configuration.RetentionPolicyInDays);
 
             return AzureBlobStorageCacheFactory.Create(factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
         }

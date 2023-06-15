@@ -71,6 +71,7 @@ namespace Library {
             "BuildXL.Cache.ContentStore.Distributed.Test",
             "BuildXL.Cache.Host.Test",
             "BuildXL.Cache.ContentStore.Distributed.Test.LongRunning",
+            "BuildXL.Cache.MemoizationStore.Distributed.Test",
         ],
     });
 }

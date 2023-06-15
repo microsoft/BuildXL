@@ -3,29 +3,31 @@
 
 using System;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
-using Xunit;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
+using Xunit;
 using Xunit.Abstractions;
-using BuildXL.Cache.MemoizationStore.Sessions;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
 {
     public abstract class MemoizationSessionTests : MemoizationSessionTestBase
     {
-        private const HashType ContentHashType = HashType.Vso0;
-        private const int RandomContentByteCount = 100;
+        /// <nodoc/>
+        protected const HashType ContentHashType = HashType.Vso0;
+
+        /// <nodoc/>
+        protected const int RandomContentByteCount = 100;
 
         protected MemoizationSessionTests(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger, ITestOutputHelper helper = null)
             : base(createFileSystemFunc, logger, helper)

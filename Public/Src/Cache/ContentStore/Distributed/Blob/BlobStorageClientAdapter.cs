@@ -96,7 +96,7 @@ public class BlobStorageClientAdapter
     /// WARNING: ETag here is a string instead of the ETag type to allow users not in this assembly not to directly
     /// reference the Storage SDK.
     /// </summary>
-    public record State<TState>(string? ETag = null, TState? Value = default);
+    public record State<TState>(string? ETag = null, TState? Value = default, IReadOnlyDictionary<string, string>? Metadata = null);
 
     /// <summary>
     /// Implements read modify write semantics against the blob. Modification is indicated by returning a new instance from <paramref path="transform"/>
@@ -239,40 +239,39 @@ public class BlobStorageClientAdapter
 
     public Task<Result<State<TState>>> ReadStateAsync<TState>(OperationContext context, BlobClient blob)
     {
-        return ReadStateAsync(context, blob, static stream => JsonUtilities.JsonDeserializeAsync<TState>(stream));
+        return ReadStateAsync(context, blob, static binaryData =>
+            {
+                using var stream = binaryData.ToStream();
+                return JsonUtilities.JsonDeserializeAsync<TState>(stream);
+            });
     }
 
     public Task<Result<State<TState>>> ReadStateAsync<TState>(
         OperationContext context,
         BlobClient blob,
-        Func<MemoryStream, ValueTask<TState>> readAsync)
+        Func<BinaryData, ValueTask<TState>> readAsync)
     {
         long length = -1;
         return context.PerformOperationWithTimeoutAsync(
             Tracer,
             async (context) =>
             {
-                using var stream = new MemoryStream();
                 string? etag;
                 try
                 {
-                    var response = await blob.DownloadToAsync(
-                        destination: stream,
-                        options: new BlobDownloadToOptions(),
-                        cancellationToken: context.Token);
-
+                    var content = await blob.DownloadContentAsync(context.Token);
+                    Response response = content.GetRawResponse();
+                    var metadata = (IReadOnlyDictionary<string, string>) content.Value.Details.Metadata;
                     etag = response.Headers.ETag.ToString();
+                    var value = await readAsync(content.Value.Content);
+
+                    return Result.Success(new State<TState>(etag, value, metadata));
                 }
                 catch (RequestFailedException e) when (e.Status == (int)HttpStatusCode.NotFound)
                 {
                     return Result.Success(new State<TState>());
                 }
-
-                length = stream.Length;
-                stream.Position = 0;
-                var value = await readAsync(stream);
-                return Result.Success(new State<TState>(etag, value));
-            },
+           },
             extraEndMessage: r =>
                              {
                                  if (!r.Succeeded)
@@ -314,7 +313,8 @@ public class BlobStorageClientAdapter
         Func<Stream> getValue,
         string? etag,
         int attempt,
-        [CallerMemberName] string? caller = null)
+        [CallerMemberName] string? caller = null,
+        IDictionary<string, string>? metadata = null)
     {
         long length = -1;
         return context.PerformOperationWithTimeoutAsync(
@@ -356,7 +356,7 @@ public class BlobStorageClientAdapter
 
                     try
                     {
-                        await blob.UploadAsync(value, conditions: accessCondition, cancellationToken: context.Token);
+                        await blob.UploadAsync(value, metadata: metadata, conditions: accessCondition, cancellationToken: context.Token);
                     }
                     catch (RequestFailedException exception)
                     {
@@ -413,6 +413,27 @@ public class BlobStorageClientAdapter
                     cancellationToken: context.Token);
 
                 return Result.Success<DateTimeOffset?>(response.Value.Details.LastAccessed, isNullAllowed: true);
+            },
+            traceOperationStarted: false,
+            extraEndMessage: _ => $"Path=[{blob.ToDisplayName()}]",
+            timeout: _configuration.StorageInteractionTimeout);
+    }
+
+    /// <summary>
+    /// Updates the metadata of an existing blob with the provided value
+    /// </summary>
+    public Task<Result<bool>> UpdateMetadataAsync(OperationContext context, BlobClient blob, IDictionary<string, string> metadata)
+    {
+        return context.PerformOperationWithTimeoutAsync(
+            Tracer,
+            async context =>
+            {
+                var response = await blob.SetMetadataAsync(
+                    metadata,
+                    conditions: new BlobRequestConditions() { IfMatch = ETag.All, },
+                    cancellationToken: context.Token);
+
+                return Result.Success<bool>(true);
             },
             traceOperationStarted: false,
             extraEndMessage: _ => $"Path=[{blob.ToDisplayName()}]",

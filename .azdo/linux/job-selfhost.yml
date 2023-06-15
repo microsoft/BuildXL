@@ -75,15 +75,12 @@ jobs:
       "Assembly":  "BuildXL.Cache.VerticalAggregator",
       "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
       "RemoteCache":  {
-                          "CacheServiceFingerprintEndpoint":  "https://mseng.artifacts.visualstudio.com/DefaultCollection",
-                          "RequiredContentKeepUntilHours":  1,
-                          "Assembly":  "BuildXL.Cache.BuildCacheAdapter",
-                          "CacheServiceContentEndpoint":  "https://mseng.vsblob.visualstudio.com/DefaultCollection",
-                          "Type":  "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory",
-                          "CacheLogPath":  "[BuildXLSelectedLogPath].Remote.log",
-                          "CacheId":  "L3Cache",
-                          "CacheNamespace":  "BuildXLSelfhost.Linux",
-                          "UseBlobContentHashLists":  true
+                        "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
+                        "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
+                        "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
+                        "CacheId": "L3Cache",
+                        "Universe": "blob3bxlselfhost",
+                        "RetentionPolicyInDays": 1
                       },
       "LocalCache":  {
                         "MaxCacheSizeInMB":  20240,
@@ -113,6 +110,7 @@ jobs:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
+      BlobCacheFactoryConnectionString: $(BuildXL-Selfhost-L3-ConnectionString)
       
   - bash: |
       echo "== Deleting Out/frontend/Nuget/tmp, Out/bin, Out/Bootstrap folders to reduce the size of the NuGet cache dir"
@@ -137,15 +135,12 @@ jobs:
       "Assembly":  "BuildXL.Cache.VerticalAggregator",
       "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
       "RemoteCache":  {
-                          "CacheServiceFingerprintEndpoint":  "https://mseng.artifacts.visualstudio.com/DefaultCollection",
-                          "RequiredContentKeepUntilHours":  1,
-                          "Assembly":  "BuildXL.Cache.BuildCacheAdapter",
-                          "CacheServiceContentEndpoint":  "https://mseng.vsblob.visualstudio.com/DefaultCollection",
-                          "Type":  "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory",
-                          "CacheLogPath":  "[BuildXLSelectedLogPath].Remote.log",
-                          "CacheId":  "L3Cache",
-                          "CacheNamespace":  "BuildXLSelfhost.Linux",
-                          "UseBlobContentHashLists":  true
+                        "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
+                        "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
+                        "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
+                        "CacheId": "L3Cache",
+                        "Universe": "blob3bxlselfhost",
+                        "RetentionPolicyInDays": 1
                       },
       "LocalCache":  {
                         "MaxCacheSizeInMB":  20240,
@@ -175,6 +170,7 @@ jobs:
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AdoBuildRunnerWaitForOrchestratorExit: true
+      BlobCacheFactoryConnectionString: $(BuildXL-Selfhost-L3-ConnectionString)
 
   - task: PublishTestResults@2
     displayName: Publish Test Results

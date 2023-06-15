@@ -1012,11 +1012,11 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerPendingMessageQueues,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
-            Message = "Pending message queues for pips were still active by the end of the build: this is unexpected. Any orphan messages have been logged. Details: IsUncleanExit: {isUncleanExit}. Pips: [{pipDetails}]")]
-        public abstract void DistributionWorkerPendingMessageQueues(LoggingContext context, bool isUncleanExit, string pipDetails);
+            Message = "Pending message queues for pips were still active by the end of the build: this is unexpected. Any orphan messages have been logged. Pips: [{pipDetails}]")]
+        public abstract void DistributionWorkerPendingMessageQueues(LoggingContext context, string pipDetails);
 
         #endregion
 

@@ -494,8 +494,13 @@ namespace BuildXL.Engine.Distribution
                     Tracing.Logger.Log.DistributionWorkerOrphanMessage(m_loggingContext, Pip.FormatSemiStableHash(orphan.PipId), orphan.Message.Text);
                 }
 
-                // Log to track the ocurrence of this. Remove 
-                Tracing.Logger.Log.DistributionWorkerPendingMessageQueues(m_loggingContext, m_uncleanExit, string.Join(", ", pendingPipDetails.ToArray()));
+                if (!m_uncleanExit)
+                {
+                    // This is unexpected - all messages should have been sent before
+                    // exiting gracefully. Let's fail so this is noticed if it starts to happens often. 
+                    Tracing.Logger.Log.DistributionWorkerPendingMessageQueues(m_loggingContext, string.Join(", ", pendingPipDetails.ToArray()));
+                    DistributionService.ExitAsync(failure: "NotifyPending message queues for pips were still active by the end of the build", isUnexpected: true).Forget();
+                }
             }
 
             DistributionService.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToOrchestrator, m_numBatchesSent);

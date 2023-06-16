@@ -1297,7 +1297,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{pipDescription}] Received ProcessCommandLine report without a matching ProcessStart repot for pid '{pid}'.")]
+            Message = "[{pipDescription}] Received ProcessCommandLine report without a matching ProcessStart report for pid '{pid}'.")]
         internal abstract void ReportArgsMismatch(LoggingContext loggingContext, string pipDescription, string pid);
 
     }

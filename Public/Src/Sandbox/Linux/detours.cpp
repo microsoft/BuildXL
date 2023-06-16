@@ -1240,6 +1240,7 @@ void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
 
     // report that a new process has been created 
     BxlObserver::GetInstance()->report_access("__init__", ES_EVENT_TYPE_NOTIFY_EXEC, __progname);
+    BxlObserver::GetInstance()->report_exec_args(getpid());
 }
 
 // ==========================

@@ -230,6 +230,11 @@ namespace BuildXL.Processes
         /// </summary>
         ProcessExit,
 
+        /// <summary>
+        /// Command line of a process reported by the Linux Sandbox
+        /// </summary>
+        ProcessCommandLine,
+
         #region Operation Names Reported by BuildXLSandbox (macOS sandbox implementation)
 #pragma warning disable CS1591 // disabling warning about missing API documentation"
         MacLookup,

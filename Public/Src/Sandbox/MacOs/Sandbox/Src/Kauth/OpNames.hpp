@@ -9,6 +9,7 @@
 #define FOR_ALL_OPERATIONS(macro_to_apply)                                                \
   macro_to_apply(OpProcessStart,                        "Process")                        \
   macro_to_apply(OpProcessExit,                         "ProcessExit")                    \
+  macro_to_apply(OpProcessCommandLine,                  "ProcessCommandLine")             \
   macro_to_apply(OpProcessTreeCompleted,                "ProcessTreeCompletedAck")        \
   macro_to_apply(OpFirstAllowWriteCheckInProcess,       "FirstAllowWriteCheckInProcess")  \
   macro_to_apply(OpStaticallyLinkedProcess,             "StaticallyLinkedProcess")        \

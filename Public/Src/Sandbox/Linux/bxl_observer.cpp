@@ -366,6 +366,61 @@ void BxlObserver::report_exec(const char *syscallName, const char *procName, con
     }
 }
 
+void BxlObserver::report_exec_args(pid_t pid)
+{
+    if (IsReportingProcessArgs())
+    {
+        char path[PATH_MAX] = { 0 };
+        int maxSize = PIPE_BUF + sizeof(uint) - 1;
+        char cmdLineBuffer[maxSize] = { 0 };
+        std::string cmdLine;
+        bool firstArg = true;
+
+        // /proc/<pid>/cmdline has a set of arguments separated by the null terminator
+        snprintf(path, PATH_MAX, "/proc/%d/cmdline", pid);
+
+        int fd = open(path, O_RDONLY);
+        int bytesRead = read(fd, cmdLineBuffer, maxSize);
+        char *end = cmdLineBuffer + bytesRead;
+
+        for (char *currentArg = cmdLineBuffer; currentArg < end; )
+        {
+            if (firstArg)
+            {
+                firstArg = false;
+            }
+            else
+            {
+                cmdLine.append(" ");
+            }
+            cmdLine.append(currentArg);
+
+            // Increment currentArg until the next null character is reached
+            while(*currentArg++);
+        }
+        close(fd);
+
+        AccessReport report =
+        {
+            .operation        = kOpProcessCommandLine,
+            .pid              = pid,
+            .rootPid          = pip_->GetProcessId(),
+            .requestedAccess  = (int) RequestedAccess::Read,
+            .status           = FileAccessStatus::FileAccessStatus_Allowed,
+            .reportExplicitly = (int) ReportLevel::Report,
+            .error            = 0,
+            .pipId            = pip_->GetPipId(),
+            .path             = {0},
+            .stats            = {0},
+            .isDirectory      = 0,
+            .shouldReport     = true,
+        };
+
+        strlcpy(report.path, cmdLine.c_str(), sizeof(report.path));
+        SendReport(report, /* isDebugMessage */ false, /* useSecondaryPipe */ false);
+    }
+}
+
 void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode, int error, bool checkCache, pid_t associatedPid)
 {
     if (reportPath == nullptr || secondPath == nullptr) 

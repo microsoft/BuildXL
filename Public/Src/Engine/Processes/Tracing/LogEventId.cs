@@ -142,6 +142,7 @@ namespace BuildXL.Processes.Tracing
         LinuxSandboxReportedStaticallyLinkedBinary = 10104,
         PTraceRunnerError = 10105,
         PTraceSandboxLaunchedForPip = 10106,
+        ReportArgsMismatch = 10107,
 
         //// Container related errors
         FailedToMergeOutputsToOriginalLocation = 12202,

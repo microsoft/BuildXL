@@ -128,6 +128,18 @@ namespace BuildXL.Processes
             m_reportedProcesses.Add(process);
         }
 
+        /// <summary>
+        /// Updates the arguments of a process that was already reported.
+        /// </summary>
+        public void UpdateProcessArgs(ReportedProcess process, string args)
+        {
+            var matchingProcess = m_reportedProcesses.FirstOrDefault(p => p.ProcessId == process.ProcessId);
+            if (matchingProcess != default)
+            {
+                matchingProcess.AppendArgs(args);
+            }
+        }
+
         private bool SkipOperation(ReportedFileOperation operation)
         {
             switch (operation)
@@ -135,6 +147,7 @@ namespace BuildXL.Processes
                 case ReportedFileOperation.ChangedReadWriteToReadAccess:
                 case ReportedFileOperation.FirstAllowWriteCheckInProcess:
                 case ReportedFileOperation.StaticallyLinkedProcess:
+                case ReportedFileOperation.ProcessCommandLine:
                     return true;
                 default:
                     return false;

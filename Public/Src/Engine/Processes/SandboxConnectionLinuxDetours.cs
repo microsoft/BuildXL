@@ -426,8 +426,9 @@ namespace BuildXL.Processes
                         RemovePid(report.Pid);
                     }
                     // We don't want to check the path cache for statically linked processes
-                    // because we rely on this report to start the ptrace sandbox
-                    else if (report.Operation != FileOperation.OpStaticallyLinkedProcess)
+                    // because we rely on this report to start the ptrace sandbox.
+                    // OpProcessCommandLine can also be skipped because its not a path, and shouldn't be cached.
+                    else if (report.Operation != FileOperation.OpStaticallyLinkedProcess && report.Operation != FileOperation.OpProcessCommandLine)
                     {
                         var pathStr = path.ToString();
                         // check the path cache (only when the message is not about process tree)                        

@@ -94,6 +94,7 @@ namespace BuildXL.Processes
                 { "MoveFileWithProgress_Dest", ReportedFileOperation.MoveFileWithProgressDest },
                 { "MultipleOperations", ReportedFileOperation.MultipleOperations },
                 { "CreateProcess", ReportedFileOperation.CreateProcess },
+                { "ProcessCommandLine", ReportedFileOperation.ProcessCommandLine },
                 { FileOperation.OpMacLookup.GetName(), ReportedFileOperation.MacLookup },
                 { FileOperation.OpMacReadlink.GetName(), ReportedFileOperation.MacReadlink },
                 { FileOperation.OpMacVNodeCreate.GetName(), ReportedFileOperation.MacVNodeCreate },

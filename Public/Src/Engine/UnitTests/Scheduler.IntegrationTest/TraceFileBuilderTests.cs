@@ -79,10 +79,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Obviously, the path of a trace file itself is not in the trace file.
             XAssert.IsFalse(traceFileContent.Contains(traceFilePath));
 
-            // On Windows, the following paths must appear exactly two times -- once in the command line of a test process (test infra
-            // puts details about all operations there) and once at their appropriate place in the file. On Unix, our sandbox is not
+            // On Windows and Linux, the following paths must appear exactly two times -- once in the command line of a test process (test infra
+            // puts details about all operations there) and once at their appropriate place in the file. On macOS, our sandbox is not
             // reporting process arguments, so there should be exactly one match.
-            var expectedMatchCount = OperatingSystemHelper.IsWindowsOS ? 2 : 1;
+            var expectedMatchCount = OperatingSystemHelper.IsMacOS ? 1 : 2;
             var regexOptions = OperatingSystemHelper.IsPathComparisonCaseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase;
             XAssert.AreEqual(expectedMatchCount, Regex.Matches(traceFileContent, Regex.Escape(inputPath), regexOptions).Count);
             XAssert.AreEqual(expectedMatchCount, Regex.Matches(traceFileContent, Regex.Escape(outputPath), regexOptions).Count);

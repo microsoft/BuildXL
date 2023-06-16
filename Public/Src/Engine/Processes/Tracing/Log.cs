@@ -1291,5 +1291,14 @@ namespace BuildXL.Processes.Tracing
             Message = "PTraceRunner logged the following error: {content}")]
         internal abstract void PTraceRunnerError(LoggingContext loggingContext, string content);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.ReportArgsMismatch,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Received ProcessCommandLine report without a matching ProcessStart repot for pid '{pid}'.")]
+        internal abstract void ReportArgsMismatch(LoggingContext loggingContext, string pipDescription, string pid);
+
     }
 }

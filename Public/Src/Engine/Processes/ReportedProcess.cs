@@ -29,7 +29,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// The command line arguments of  the process
         /// </summary>
-        public readonly string ProcessArgs;
+        public string ProcessArgs { get; private set; }
 
         /// <summary>
         /// The IO this process is responsible for.
@@ -89,6 +89,17 @@ namespace BuildXL.Processes
         public ReportedProcess(uint processId, string path)
             : this(processId, path, string.Empty)
         {
+        }
+
+        /// <summary>
+        /// Set process args only if it wasn't set to a non-empty string in the constructor.
+        /// </summary>
+        public void AppendArgs(string args)
+        {
+            if (string.IsNullOrEmpty(ProcessArgs))
+            {
+                ProcessArgs = args;
+            }
         }
 
         /// <nodoc />

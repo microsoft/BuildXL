@@ -150,7 +150,7 @@ namespace BuildXL.Processes
             }
         }
 
-        /// <summary>
+        /// <summary>ReportArgsMismatch
         /// Freezes the report disallowing further modification
         /// </summary>
         internal void Freeze()
@@ -753,6 +753,24 @@ namespace BuildXL.Processes
                 });
             }
 
+            // This is a special Linux-specific report, the path value contains the commandline for a process that was already reported.
+            if (operation == ReportedFileOperation.ProcessCommandLine)
+            {
+                // This should always return something valid because the Process report comes in before the commandline report
+                var matchingProcess = Processes.FirstOrDefault(p => p.ProcessId == processId);
+                if (matchingProcess == default)
+                {
+                    // This should not happen unless a report came out of order for some reason, we will log, but we don't need to fail the build.
+                    Tracing.Logger.Log.ReportArgsMismatch(m_loggingContext, PipDescription, $"{processId}");
+                    return true;
+                }
+
+                matchingProcess.AppendArgs(path);
+                m_traceBuilder?.UpdateProcessArgs(matchingProcess, path);
+
+                return true;
+            }
+
             // If there is a listener registered that disables the collection of data in the collections, just exit.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessCollect) == 0)
             {
@@ -874,7 +892,7 @@ namespace BuildXL.Processes
             }
 
             if (operation == ReportedFileOperation.StaticallyLinkedProcess)
-            {                
+            {
                 // The sandbox should automatically filter out duplicate process names
                 m_staticallyLinkedProcesses.Add(finalPath);
                 return true;

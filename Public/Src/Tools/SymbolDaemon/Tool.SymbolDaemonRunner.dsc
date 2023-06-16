@@ -432,6 +432,14 @@ function getExecuteArguments(command: string, args: UberArguments, ...additional
                 "--configFile ",
                 Artifact.input(args.symbolServiceConfigFile)
             ),
+            // Override enableCloudBuildIntegration
+            // CB integration controls whether ETW events are sent. Currently, everyone is using the default value, i.e., ETW is enabled.
+            // For now, we want to enable ETW only if there is an explicit ask.
+            // CODESYNC: applyCloudBuildDefaultsAndSetEnvVars
+            ...addIf(
+                command === "start",
+                Cmd.optionalBooleanFlag("--enableCloudBuildIntegration ", Environment.getFlag("BuildXLReportSymbolPublishingToCB"), "true", "false")
+            ),
         ],
         consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
         dependencies: [
@@ -512,7 +520,7 @@ const cbEnvironmentVariables: string[] = [
 function applyCloudBuildDefaultsAndSetEnvVars(args: SymbolCreateArguments): SymbolCreateArguments {
     const defaults : SymbolCreateArguments = {
         enableTelemetry: true,
-        enableCloudBuildIntegration: true,
+        enableCloudBuildIntegration: false,
         verbose: true,
         maxConnectRetries: 10,
         connectRetryDelayMillis: 3000,

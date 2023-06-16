@@ -11,17 +11,13 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Authentication;
-using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using BuildXL.Utilities.ParallelAlgorithms;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
-using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 using Microsoft.VisualStudio.Services.Content.Common.Tracing;
 using Microsoft.VisualStudio.Services.Symbol.App.Core;
 using Microsoft.VisualStudio.Services.Symbol.App.Core.Telemetry;
@@ -471,7 +467,7 @@ namespace Tool.SymbolDaemon
                 var result = await m_symbolClient.FinalizeRequestAsync(
                     RequestId,
                     ComputeExpirationDate(m_config.Retention),
-                    // isUpdateOperation == true => request will be marked as 'Sealed', 
+                    // isUpdateOperation != true => request will be marked as 'Sealed', 
                     // i.e., no more DebugEntries could be added to it 
                     isUpdateOperation: false,
                     token);

@@ -4,6 +4,13 @@
 * Linux is supported on Ubuntu 20.04. Other distros may work but are not well tested at this time.
 * macOS is not currently supported.
 
+## Linux Support
+The following features are not properly supported, or are only partially supported on Linux with the interpose and ptrace sandbox types.
+- Breakaway Processes
+
+The following features are not supported on the PTrace sandbox.
+- Blocking disallowed file accesses
+
 ## maOS Support History
 In the past there was a push to bring BuildXL to macOS to provide cached and distributed builds to the a number of Microsoft teams. BuildXL moved to .netcore and scrubbed the codebase to add Unix support. The core bxl executable can be cross compiled on Windows to run on macOS. The major component that needed to be rewritten for macOS is the file access monitoring layer. This is what allows BuildXL to provide reliable caching.
 

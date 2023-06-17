@@ -20,10 +20,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
 
 public class ContentTrackerTests
 {
-    public Task RunTest(Func<OperationContext, IContentTracker, Task> runTest)
+    public Task RunTest(Func<OperationContext, ILocalContentTracker, Task> runTest)
     {
         var context = new OperationContext(new Context(TestGlobal.Logger));
-        var contentTracker = new ContentTracker();
+        var contentTracker = new LocalContentTracker();
         return runTest(context, contentTracker);
     }
 

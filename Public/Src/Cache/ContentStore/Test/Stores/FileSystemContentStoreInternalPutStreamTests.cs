@@ -193,12 +193,12 @@ namespace ContentStoreTest.Stores
         {
             public bool ContentEvictedCalled { get; private set; } = false;
 
-            public Task ContentAdded(ContentHashWithSize item)
+            public Task ContentAdded(Context context, ContentHashWithSize item)
             {
                 return Task.FromResult(0);
             }
 
-            public Task ContentEvicted(ContentHashWithSize item)
+            public Task ContentEvicted(Context context, ContentHashWithSize item)
             {
                 ContentEvictedCalled = true;
                 return Task.FromResult(0);

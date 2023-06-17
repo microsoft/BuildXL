@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -31,7 +30,23 @@ public interface IContentTracker : IStartupShutdownSlim
     /// Obtain information about the location of content.
     /// </summary>
     public Task<Result<GetLocationsResponse>> GetLocationsAsync(OperationContext context, GetLocationsRequest request);
+}
 
+public static class ContentTrackerExtensions
+{
+    public static async Task<Result<ContentEntry>> GetSingleLocationAsync(this IContentTracker contentTracker, OperationContext context, ShortHash hash)
+    {
+        var result = await contentTracker.GetLocationsAsync(context, new GetLocationsRequest() { Hashes = new[] { hash }, });
+        return result.Select(v => v.Results.First());
+    }
+}
+
+/// <summary>
+/// The <see cref="ILocalContentTracker"/> represents an <see cref="IContentTracker"/> that is local to the machine
+/// it's running on (i.e., it does not communicate with other machines).
+/// </summary>
+public interface ILocalContentTracker : IContentTracker
+{
     /// <summary>
     /// Each <see cref="ChangeStamp"/> has a sequence number, which is used to determine the order in which operations
     /// happened to be able to order them. When a machine is performing an operation, the <see cref="ChangeStamp"/>

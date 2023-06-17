@@ -528,7 +528,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         [StackTraceHidden]
         public static async Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context, [CallerMemberName] string? caller = null) where T : ResultBase
         {
-            if (timeout == null || timeout.Value == TimeSpan.MaxValue)
+            if (timeout == null || timeout.Value == TimeSpan.MaxValue || timeout.Value == Timeout.InfiniteTimeSpan || timeout <= TimeSpan.Zero)
             {
                 return await operation(context);
             }

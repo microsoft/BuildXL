@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// Initializes a new instance of the <see cref="DisposableDirectory" /> class.
         /// </summary>
         public DisposableDirectory(IAbsFileSystem fileSystem)
-            : this(fileSystem, GetRandomFileName())
+            : this(fileSystem, AbsolutePath.CreateRandomName())
         {
         }
 
@@ -48,14 +48,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 
         private static AbsolutePath CreateRootPath(IAbsFileSystem fileSystem, string subpathSuffix)
         {
-            var path = fileSystem.GetTempPath() / "CloudStore" / subpathSuffix;
-            return path;
+            // We do things under the CloudStore folder to ensure that we don't accidentally clash with anything else
+            return fileSystem.GetTempPath() / "CloudStore" / subpathSuffix;
         }
 
         /// <summary>
         /// Create path to a randomly named file inside this directory.
         /// </summary>
-        public AbsolutePath CreateRandomFileName() => AbsolutePath.CreateRandomFileName(Path);
+        public AbsolutePath CreateRandomFileName()
+        {
+            return AbsolutePath.CreateRandomFileName(Path);
+        }
 
         /// <inheritdoc />
         public void Dispose()
@@ -71,12 +74,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             {
                 Debug.WriteLine("Unable to cleanup due to exception: {0}", exception);
             }
-        }
-
-        private static string GetRandomFileName()
-        {
-            // Don't use Path.GetRandomFileName(), it's not random enough when running multi-threaded.
-            return Guid.NewGuid().ToString("N").Substring(0, 12);
         }
     }
 }

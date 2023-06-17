@@ -18,7 +18,7 @@ using ProtoBuf.Grpc;
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 
 /// <summary>
-/// Server-side implementation of <see cref="IContentTracker"/> using gRPC.NET.
+/// Server-side implementation of <see cref="ILocalContentTracker"/> using gRPC.NET.
 /// </summary>
 /// <remarks>
 /// This class expects a high volume of requests and is designed to avoid logging because of it. We only log
@@ -29,14 +29,14 @@ public class GrpcContentTrackerService : StartupShutdownComponentBase, IGrpcCont
     /// <inheritdoc />
     protected override Tracer Tracer { get; } = new(nameof(GrpcContentTrackerService));
 
-    private readonly IContentTracker _contentTracker;
+    private readonly ILocalContentTracker _localContentTracker;
 
     private ILogger _logger = NullLogger.Instance;
 
-    public GrpcContentTrackerService(IContentTracker contentTracker)
+    public GrpcContentTrackerService(ILocalContentTracker localContentTracker)
     {
-        _contentTracker = contentTracker;
-        LinkLifetime(_contentTracker);
+        _localContentTracker = localContentTracker;
+        LinkLifetime(_localContentTracker);
     }
 
     /// <inheritdoc />
@@ -53,7 +53,7 @@ public class GrpcContentTrackerService : StartupShutdownComponentBase, IGrpcCont
 
         try
         {
-            await _contentTracker.UpdateLocationsAsync(operationContext, request).ThrowIfFailureAsync();
+            await _localContentTracker.UpdateLocationsAsync(operationContext, request).ThrowIfFailureAsync();
         }
         catch (Exception exception)
         {
@@ -69,7 +69,7 @@ public class GrpcContentTrackerService : StartupShutdownComponentBase, IGrpcCont
 
         try
         {
-            return await _contentTracker.GetLocationsAsync(operationContext, request).ThrowIfFailureAsync();
+            return await _localContentTracker.GetLocationsAsync(operationContext, request).ThrowIfFailureAsync();
         }
         catch (Exception exception)
         {

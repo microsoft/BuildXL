@@ -15,7 +15,7 @@ using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 
-public class GrpcContentTrackerClient : GrpcCodeFirstClient<IGrpcContentTracker>
+public class GrpcContentTrackerClient : GrpcCodeFirstClient<IGrpcContentTracker>, IContentTracker
 {
     public record Configuration(TimeSpan OperationTimeout, RetryPolicyConfiguration RetryPolicy);
 
@@ -36,6 +36,7 @@ public class GrpcContentTrackerClient : GrpcCodeFirstClient<IGrpcContentTracker>
 
     public Task<BoolResult> UpdateLocationsAsync(OperationContext context, UpdateLocationsRequest request)
     {
+        // TODO: this class should batch requests and send them in a single operation
         return ExecuteAsync(
             context,
             async (context, options, service) =>

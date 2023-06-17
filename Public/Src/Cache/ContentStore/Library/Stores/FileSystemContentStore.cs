@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Gets the underlying store implementation.
         /// </summary>
-        internal readonly FileSystemContentStoreInternal Store;
+        public readonly FileSystemContentStoreInternal Store;
 
         /// <inheritdoc />
         protected override Tracer Tracer => _tracer;

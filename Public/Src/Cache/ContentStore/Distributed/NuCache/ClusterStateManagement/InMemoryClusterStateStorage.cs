@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement
     internal class InMemoryClusterStateStorage : StartupShutdownSlimBase, IClusterStateStorage
     {
         protected override Tracer Tracer { get; } = new(nameof(InMemoryClusterStateStorage));
+
+        public override bool AllowMultipleStartupAndShutdowns => true;
 
         private readonly SemaphoreSlim _lock = new(1);
         private readonly IClock _clock = SystemClock.Instance;
@@ -47,18 +50,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement
 
         public Task<Result<IClusterStateStorage.RegisterMachineOutput>> RegisterMachinesAsync(OperationContext context, IClusterStateStorage.RegisterMachineInput request)
         {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                using var guard = await _lock.AcquireAsync(context.Token);
-                var (currentState, assignedMachineIds) = _clusterStateMachine.RegisterMany(_recomputeConfiguration, request, _clock.UtcNow);
-                _clusterStateMachine = currentState;
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    using var guard = await _lock.AcquireAsync(context.Token);
+                    var (currentState, assignedMachineIds) = _clusterStateMachine.RegisterMany(_recomputeConfiguration, request, _clock.UtcNow);
+                    Contract.Assert(
+                        assignedMachineIds.Length == request.MachineLocations.Count,
+                        $"Expected {request.MachineLocations.Count} locations to be assigned, but found {assignedMachineIds.Length} instead");
 
-                var machineMappings = request.MachineLocations
-                    .Zip(assignedMachineIds, (machineLocation, machineId) => new MachineMapping(machineId, machineLocation))
-                    .ToArray();
+                    _clusterStateMachine = currentState;
 
-                return Result.Success(new IClusterStateStorage.RegisterMachineOutput(_clusterStateMachine, machineMappings));
-            });
+                    var machineMappings = request.MachineLocations
+                        .Zip(assignedMachineIds, (machineLocation, machineId) => new MachineMapping(machineId, machineLocation))
+                        .ToArray();
+
+                    return Result.Success(new IClusterStateStorage.RegisterMachineOutput(_clusterStateMachine, machineMappings));
+                },
+                extraEndMessage: result =>
+                                 {
+                                     if (result.Succeeded)
+                                     {
+                                         var assignments = string.Join(", ", result.Value.MachineMappings.Select(m => m.ToString()));
+                                         return $"Assignments=[{assignments}]";
+                                     }
+                                     else
+                                     {
+                                         var locations = string.Join(", ", request.MachineLocations.Select(l => l.ToString()));
+                                         return $"Locations=[{locations}]";
+                                     }
+                                 });
         }
     }
 }

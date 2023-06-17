@@ -20,7 +20,7 @@ using static Grpc.Core.Metadata;
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 
 /// <summary>
-/// Entry in <see cref="ContentTracker"/> that holds information about a specific content hash.
+/// Entry in <see cref="LocalContentTracker"/> that holds information about a specific content hash.
 /// </summary>
 public class LastWriterWinsContentEntry
 {
@@ -63,11 +63,11 @@ public class LastWriterWinsContentEntry
     }
 }
 
-/// <inheritdoc cref="IContentTracker"/>
-public class ContentTracker : StartupShutdownComponentBase, IContentTracker
+/// <inheritdoc cref="ILocalContentTracker"/>
+public class LocalContentTracker : StartupShutdownComponentBase, ILocalContentTracker
 {
     /// <inheritdoc />
-    protected override Tracer Tracer { get; } = new(nameof(ContentTracker));
+    protected override Tracer Tracer { get; } = new(nameof(LocalContentTracker));
 
     // NOTE: We're using a ConcurrentDictionary here, but could use a ConcurrentBigMap if we wanted to. The reason
     // we're using this data structure is that it's more common and we want to avoid premature optimization.

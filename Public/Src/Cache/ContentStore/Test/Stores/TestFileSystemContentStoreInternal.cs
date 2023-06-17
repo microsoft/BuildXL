@@ -92,13 +92,13 @@ namespace ContentStoreTest.Stores
             return GetReplicaPathFor(contentHash, replicaIndex);
         }
 
-        public Task ContentAdded(ContentHashWithSize item)
+        public Task ContentAdded(Context context, ContentHashWithSize item)
         {
             _onContentAdded?.Invoke(item);
             return Task.FromResult(0);
         }
 
-        public Task ContentEvicted(ContentHashWithSize item)
+        public Task ContentEvicted(Context context, ContentHashWithSize item)
         {
             _onContentEvicted?.Invoke(item);
             return Task.FromResult(0);

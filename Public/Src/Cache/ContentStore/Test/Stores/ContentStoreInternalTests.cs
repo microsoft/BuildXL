@@ -890,13 +890,13 @@ namespace ContentStoreTest.Stores
         {
             public bool ContentAddedCalled { get; private set; } = false;
 
-            public Task ContentAdded(ContentHashWithSize item)
+            public Task ContentAdded(Context context, ContentHashWithSize item)
             {
                 ContentAddedCalled = true;
                 return Task.FromResult(0);
             }
 
-            public Task ContentEvicted(ContentHashWithSize item)
+            public Task ContentEvicted(Context context, ContentHashWithSize item)
             {
                 return Task.FromResult(0);
             }

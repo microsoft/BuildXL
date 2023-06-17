@@ -71,8 +71,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static AbsolutePath CreateRandomFileName(AbsolutePath directory)
         {
-            // Don't use Path.GetRandomFileName(), it's not random enough when running multi-threaded.
-            return directory / ("random-" + Guid.NewGuid().ToString("N").Substring(0, 12));
+            return directory / ("random-" + CreateRandomName());
+        }
+
+        /// <summary>
+        /// Obtain a random name.
+        /// </summary>
+        /// <remarks>
+        /// Don't use Path.GetRandomFileName(), it's not random enough when running multi-threaded.
+        /// </remarks>
+        public static string CreateRandomName()
+        {
+            return Guid.NewGuid().ToString("N").Substring(0, 12);
         }
 
         /// <summary>

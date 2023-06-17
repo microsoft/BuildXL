@@ -3,6 +3,7 @@
 
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -14,11 +15,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Inform subscribers content has been added.
         /// </summary>
-        Task ContentAdded(ContentHashWithSize item);
+        Task ContentAdded(Context context, ContentHashWithSize contentHashWithSize);
 
         /// <summary>
         ///     Inform subscribers content has been evicted.
         /// </summary>
-        Task ContentEvicted(ContentHashWithSize item);
+        Task ContentEvicted(Context context, ContentHashWithSize contentHashWithSize);
     }
 }

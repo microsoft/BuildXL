@@ -1086,7 +1086,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (_announcer != null && addedContentSize > 0)
             {
-                await _announcer.ContentAdded(new ContentHashWithSize(contentHash, addedContentSize));
+                await _announcer.ContentAdded(context, new ContentHashWithSize(contentHash, addedContentSize));
             }
 
             return (Success: true, ContentAlreadyExistsInCache: contentExistsInCache);
@@ -1858,7 +1858,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                 {
                                     foreach (var e in evictions)
                                     {
-                                        await _announcer.ContentEvicted(e);
+                                        await _announcer.ContentEvicted(context, e);
                                     }
                                 }
 
@@ -2350,7 +2350,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (_announcer != null)
                 {
-                    await _announcer.ContentAdded(new ContentHashWithSize(contentHash, info.LogicalFileSize));
+                    await _announcer.ContentAdded(context, new ContentHashWithSize(contentHash, info.LogicalFileSize));
                 }
 
                 info.ReplicaCount++;

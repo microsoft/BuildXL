@@ -74,12 +74,26 @@ extern const char *__progname;
 
 static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
 
+static const char GLIBC_23[] = "GLIBC_2.3";
+
 #define ARRAYSIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 
+/*
+ * When interposing versioned symbols from glibc, dlsym will always pick up the oldest version by default.
+ * This is done for compatibility, but can cause issues if a binary is expecting a newer version of the function.
+ * To get around this, GEN_FN_DEF_REAL_VERSIONED can be used with the glibc version in the format GLIBC_<major>.<minor>.
+ * An exact version must be passed as an argument here or else dlvsym will return NULL (this means the latest version cannot be passed all the time).
+ * 
+ * To check what version of a libc function a binary is using, dump it with the following command: objdump -t </path/to/binary> | grep <function_name>
+ */
 #ifdef ENABLE_INTERPOSING
     #define GEN_FN_DEF_REAL(ret, name, ...)                                         \
         typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
         const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name);
+
+    #define GEN_FN_DEF_REAL_VERSIONED(version, ret, name, ...)                      \
+        typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
+        const fn_real_##name real_##name = (fn_real_##name)dlvsym(RTLD_NEXT, #name, version);
 
     #define MAKE_BODY(B) \
         B \
@@ -102,6 +116,9 @@ static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
         typedef ret (*fn_real_##name)(__VA_ARGS__); \
         const fn_real_##name real_##name = (fn_real_##name)name;
 
+    #define GEN_FN_DEF_REAL_VERSIONED(version, ret, name, ...)       \
+        GEN_FN_DEF_REAL(ret, name)
+
     #define IGNORE_BODY(B)
 
     #define INTERPOSE(ret, name, ...) IGNORE_BODY
@@ -115,6 +132,13 @@ static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
 // to retrieve the details in case of the failure.                                                                                         
 #define GEN_FN_DEF(ret, name, ...)                                              \
     GEN_FN_DEF_REAL(ret, name, __VA_ARGS__)                                     \
+    GEN_FN_FWD(ret, name, __VA_ARGS__)
+
+#define GEN_FN_DEF_VERSIONED(version, ret, name, ...)                           \
+    GEN_FN_DEF_REAL_VERSIONED(version, ret, name, __VA_ARGS__)                  \
+    GEN_FN_FWD(ret, name, __VA_ARGS__)
+
+#define GEN_FN_FWD(ret, name, ...)                                              \
     template<typename ...TArgs> result_t<ret> fwd_##name(TArgs&& ...args)       \
     {                                                                           \
         ret result = real_##name(std::forward<TArgs>(args)...);                 \
@@ -296,8 +320,9 @@ private:
         return str.str();
     }
 
+    void relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullPath);
     void resolve_path(char *fullpath, bool followFinalSymlink);
-
+    
     // Builds the report to be sent over the FIFO in the given buffer
     inline int BuildReport(char* buffer, int maxMessageLength, const AccessReport &report, const char *path)
     {
@@ -340,6 +365,8 @@ public:
         IOEvent event(ES_EVENT_TYPE_NOTIFY_OPEN, ES_ACTION_TYPE_NOTIFY, fullpath, progFullPath_, S_IFREG);
         report_access("la_objopen", event, /* checkCache */ true);
     }
+
+    void report_intermediate_symlinks(const char *pathname);
 
     // Removes detours path from LD_PRELOAD from the given environment and returns the modified environment
     inline char** RemoveLDPreloadFromEnv(char *const envp[])
@@ -564,7 +591,9 @@ public:
     GEN_FN_DEF(int, symlinkat, const char *, int, const char *);
     GEN_FN_DEF(ssize_t, readlink, const char *, char *, size_t);
     GEN_FN_DEF(ssize_t, readlinkat, int, const char *, char *, size_t);
-    GEN_FN_DEF(char*, realpath, const char*, char*);
+    // This version of realpath handles null on the second argument differently: this behavior is crucial for the callers,
+    // and without explicit versioning dlsym would fall back to the older version which fails.
+    GEN_FN_DEF_VERSIONED(GLIBC_23, char*, realpath, const char*, char*);
     GEN_FN_DEF(DIR*, opendir, const char*);
     GEN_FN_DEF(DIR*, fdopendir, int);
     GEN_FN_DEF(int, utime, const char *filename, const struct utimbuf *times);

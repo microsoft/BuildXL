@@ -904,7 +904,63 @@ INTERPOSE(ssize_t, readlinkat, int fd, const char *path, char *buf, size_t bufsi
     return bxl->check_fwd_and_report_readlinkat(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, path, buf, bufsize);
 })
 
-INTERPOSE(DIR*, opendir, const char *name)({
+INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
+    // realpath is a glibc wrapper around readlink, however glibc calls an internal readlink that 
+    // is different from the wrapper we interpose, so it is necessary to interpose realpath directly,
+    // and we need to simulate and report any symlink resolutions that happen in the call. 
+    // It would be wrong to report a readlink on the full path or on intermediate paths
+    // that are not actually symlinks, because the intention of the caller of 'realpath' 
+    // is not to actually resolve a "known" symlink, but rather canonicalize a path that might or might
+    // not contain intermediate symlinks (and the implementation of the function itself only calls readlink on actual symlinks).
+    // So we should only report readlinks on the intermediate paths that actually end up being symlinks.
+    // We optimize by only doing this "realpath simulation" if the resolved path that is returned is different
+    // than the original path. 
+    // NOTE: Since this isn't a write operation, it shouldn't be an issue that we can't block this call.
+    // NOTE: There's no need for a corresponding interception in the PTrace sandbox, as this is not a syscall,
+    //       (the function will call the readlink syscall which we do intercept).
+    char *result = bxl->fwd_realpath(path, resolved_path).restore();
+    
+    if (path == nullptr) 
+    {
+        // This should have failed, nothing to do here
+        return result;
+    }
+
+    // We should report a probe on the path passed to realpath:
+    // if the full path is a symlink, we will report a readlink in the logic below,
+    // but when it's not, we must count this as a probe because realpath will
+    // indicate to the caller if this path was absent or not. 
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, path);
+
+    if (result == nullptr)
+    {
+        // realpath returned an error, but the original path is not null
+        // Let's try to report the intermediate symlinks anyway ourselves, because
+        // technically they could have been probed before any failure.
+        bxl->report_intermediate_symlinks(path);
+        return result;
+    }
+
+    // realpath succeeded. Let's report the intermediate symlinks if the result is
+    // different than the original path.
+    if (strcmp(path, result) != 0)
+    {
+        BXL_LOG_DEBUG(bxl, "[realpath] Resolving intermediate symlinks for '%s'", path);
+        bxl->report_intermediate_symlinks(path);
+
+        // Report a probe on the returned path, as the success of this function
+        // indicates to the caller that the path exists. 
+        bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, result);
+    }
+    else
+    {
+        BXL_LOG_DEBUG(bxl, "[realpath] Skipping sandbox symlink resolution for path '%s'", path);
+    }
+
+    return result;
+})
+
+INTERPOSE(DIR*, opremotendir, const char *name)({
     AccessReportGroup report;
     auto check = bxl->create_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, name, report);
     DIR *d = bxl->check_fwd_and_report_opendir(report, check, (DIR*)NULL, name);

@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Service
         public LocalContentServer(
             ILogger logger,
             IAbsFileSystem fileSystem,
-            ICacheServerGrpcHost? grpcHost,
+            IGrpcServerHost<LocalServerConfiguration>? grpcHost,
             string scenario,
             Func<AbsolutePath, IContentStore> contentStoreFactory,
             LocalServerConfiguration localContentServerConfiguration,

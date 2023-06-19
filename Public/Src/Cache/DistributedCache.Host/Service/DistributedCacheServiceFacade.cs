@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -57,7 +58,7 @@ namespace BuildXL.Cache.Host.Service
         public static Task RunWithConfigurationAsync(
             Context tracingContext,
             IDistributedCacheServiceHost host,
-            ICacheServerGrpcHost? grpcHost,
+            IGrpcServerHost<LocalServerConfiguration>? grpcHost,
             HostInfo hostInfo,
             ITelemetryFieldsProvider telemetryFieldsProvider,
             DistributedCacheServiceConfiguration config,

@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Security.Cryptography.Xml;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
@@ -98,7 +99,7 @@ namespace BuildXL.Launcher.Server
 
                     var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, secretsProviderKind, exposedSecretsFileName);
                     bool useGrpcDotNet = config.LocalCasSettings?.ServiceSettings?.UseGrpcDotNet == true;
-                    var grpcHost = useGrpcDotNet ? new GrpcDotNetInitializer() : null;
+                    var grpcHost = useGrpcDotNet ? new LocalContentServerGrpcDotNetHost() : null;
                     return (serviceHost, grpcHost);
                 },
                 requireServiceInterruptable: !standalone,
@@ -106,6 +107,24 @@ namespace BuildXL.Launcher.Server
         }
 
         private const string UseExternalServicesKey = "UseExternalServices";
+
+        public class LocalContentServerGrpcDotNetHost : GrpcDotNetHost, IGrpcServerHost<LocalServerConfiguration>
+        {
+            public Task<BoolResult> StartAsync(OperationContext context, LocalServerConfiguration configuration, IEnumerable<IGrpcServiceEndpoint> endpoints)
+            {
+                return StartAsync(context, Transform(configuration), endpoints);
+            }
+
+            public Task<BoolResult> StopAsync(OperationContext context, LocalServerConfiguration configuration)
+            {
+                return StopAsync(context, Transform(configuration));
+            }
+
+            public GrpcDotNetHostConfiguration Transform(LocalServerConfiguration configuration)
+            {
+                return new GrpcDotNetHostConfiguration(configuration.GrpcPort, configuration.GrpcDotNetServerOptions);
+            }
+        }
 
         /// <summary>
         /// Configures the host builder to use the given values as services rather than creating its own on

@@ -50,7 +50,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         /// <inheritdoc />
-        protected override ICacheServerGrpcHost GrpcHost { get; } = new GrpcDotNetInitializer();
+        protected override IGrpcServerHost<LocalServerConfiguration> GrpcHost { get; } = new CacheServiceStartup.LocalContentServerGrpcDotNetHost();
 
         protected override TestServerProvider CreateStore(Context context, DistributedCacheServiceArguments arguments)
         {

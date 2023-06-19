@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -202,7 +203,7 @@ namespace ContentStoreTest.Stores
         }
 
         // TODO ST: add derived type
-        protected virtual ICacheServerGrpcHost GrpcHost => null;
+        protected virtual IGrpcServerHost<LocalServerConfiguration> GrpcHost => null;
 
         private LocalContentServer CreateServer(
             string scenario,

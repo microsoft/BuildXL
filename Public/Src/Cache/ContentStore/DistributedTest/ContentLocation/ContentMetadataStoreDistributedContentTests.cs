@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Launcher.Server;
 using ContentStoreTest.Distributed.Redis;
@@ -36,7 +37,7 @@ namespace ContentStoreTest.Distributed.Sessions
         /// <inheritdoc />
         protected override bool UseGrpcDotNet => true;
         /// <inheritdoc />
-        protected override ICacheServerGrpcHost GrpcHost { get; } = new GrpcDotNetInitializer();
+        protected override IGrpcServerHost<LocalServerConfiguration> GrpcHost { get; } = new CacheServiceStartup.LocalContentServerGrpcDotNetHost();
     }
 #endif
 

@@ -38,7 +38,7 @@ namespace ContentStoreTest.Grpc
         }
 
         // TODO ST: add derived type
-        protected virtual ICacheServerGrpcHost GrpcHost => null;
+        protected virtual IGrpcServerHost<LocalServerConfiguration> GrpcHost => null;
 
         [Theory]
         [InlineData(DeleteResult.ResultCode.ContentNotFound, true)]

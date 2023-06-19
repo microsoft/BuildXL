@@ -27,7 +27,6 @@ using BuildXL.Cache.ContentStore.Utils;
 using Grpc.Core;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Core.Tasks;
 using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
 
@@ -78,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <summary>
     /// A special host for initializing and stopping gRPC.NET environment.
     /// </summary>
-    public interface ICacheServerGrpcHost
+    public interface IContentServerGrpcHost
     {
         /// <summary>
         /// Notifies the host immediately before the cache service is started in order to start the gRPC infrastructure.
@@ -115,7 +114,6 @@ namespace BuildXL.Cache.ContentStore.Service
         private const int CheckForExpiredSessionsPeriodMinutes = 1;
 
         private readonly IDisposable? _portDisposer; // Null if port should not be exposed.
-        private Server? _grpcServer;
         private readonly IGrpcServiceEndpoint[] _additionalEndpoints;
 
         private readonly ServiceReadinessChecker _serviceReadinessChecker;
@@ -128,7 +126,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private int _lastSessionId;
 
-        private readonly ICacheServerGrpcHost _grpcHost;
+        private readonly IGrpcServerHost<LocalServerConfiguration> _grpcHost;
 
         /// <nodoc />
         protected readonly LocalServerConfiguration Config;
@@ -166,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Service
         protected LocalContentServerBase(
             ILogger logger,
             IAbsFileSystem fileSystem,
-            ICacheServerGrpcHost? grpcHost,
+            IGrpcServerHost<LocalServerConfiguration>? grpcHost,
             string scenario,
             Func<AbsolutePath, TStore> contentStoreFactory,
             LocalServerConfiguration configuration,
@@ -178,7 +176,7 @@ namespace BuildXL.Cache.ContentStore.Service
             Contract.Requires(configuration.GrpcPort > 0, "GrpcPort must be provided");
 
             Contract.Requires(configuration.InitializeGrpcCoreServer || grpcHost != null, "grpcHost must be provided if 'InitializeGrpcCoreServer' is false.");
-            _grpcHost = grpcHost ?? new GrpcCoreHost(Tracer, this);
+            _grpcHost = grpcHost ?? new GrpcCoreHost();
 
             logger.Debug($"{Name} process id {Process.GetCurrentProcess().Id}");
             logger.Debug($"{Name} constructing {nameof(ServiceConfiguration)}: {configuration}");
@@ -348,7 +346,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
                 Tracer.Debug(context, $"Initializing gRPC Host at {Config.GrpcPort}. Id={InstanceId}");
                 // The error is traced already, ignoring it.
-                await _grpcHost.StartAsync(context, Config, this).IgnoreFailure();
+                await _grpcHost.StartAsync(context, Config, GrpcEndpoints).IgnoreFailure();
 
                 _serviceReadinessChecker.Ready(context);
 
@@ -359,95 +357,47 @@ namespace BuildXL.Cache.ContentStore.Service
             }
         }
 
-        private ServerCredentials? TryGetEncryptedCredentials(Context context)
-        {
-            var encryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
-            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionOptions.CertificateSubjectName, encryptionOptions.StoreLocation, out _);
-
-            if (keyCertPairResult.Succeeded)
-            {
-                Tracer.Debug(context, $"Found Grpc Encryption Certificate.");
-                return new SslServerCredentials(
-                    new List<KeyCertificatePair> { new KeyCertificatePair(keyCertPairResult.Value.CertificateChain, keyCertPairResult.Value.PrivateKey) },
-                    null,
-                    SslClientCertificateRequestType.DontRequest); //Since this is an internal channel, client certificate is not requested or verified.
-            }
-
-            Tracer.Error(context, message: $"Failed to get GRPC SSL Credentials: {keyCertPairResult}");
-            return null;
-        }
-
         /// <summary>
-        /// A host for gRPC.Core infrastructure.
+        /// Allows using encryption with the gRPC Core server
         /// </summary>
-        private class GrpcCoreHost : ICacheServerGrpcHost
+        private class GrpcCoreHost : GrpcCoreServerHost, IGrpcServerHost<LocalServerConfiguration>
         {
-            private readonly Tracer _tracer;
-            private readonly LocalContentServerBase<TStore, TSession, TSessionData> _this;
-
-            /// <nodoc />
-            public GrpcCoreHost(Tracer tracer, LocalContentServerBase<TStore, TSession, TSessionData> @this)
+            protected override ServerCredentials? TryGetEncryptedCredentials(OperationContext context)
             {
-                _tracer = tracer;
-                _this = @this;
+                var encryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
+                var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionOptions.CertificateSubjectName, encryptionOptions.StoreLocation, out _);
+
+                if (keyCertPairResult.Succeeded)
+                {
+                    Tracer.Debug(context, $"Found Grpc Encryption Certificate.");
+                    return new SslServerCredentials(
+                        new List<KeyCertificatePair> { new KeyCertificatePair(keyCertPairResult.Value.CertificateChain, keyCertPairResult.Value.PrivateKey) },
+                        null,
+                        SslClientCertificateRequestType.DontRequest); //Since this is an internal channel, client certificate is not requested or verified.
+                }
+
+                Tracer.Error(context, message: $"Failed to get GRPC SSL Credentials: {keyCertPairResult}");
+                return null;
             }
 
-            public Task<BoolResult> StartAsync(OperationContext context, LocalServerConfiguration configuration, ICacheServer cacheServer)
+            public Task<BoolResult> StartAsync(OperationContext context, LocalServerConfiguration configuration, IEnumerable<IGrpcServiceEndpoint> endpoints)
             {
-                _tracer.Debug(context, "Initializing gRPC.Core infrastructure");
-
-                _this.InitializeAndStartGrpcCoreServer(context, configuration);
-                return BoolResult.SuccessTask;
+                return StartAsync(context, Transform(configuration), endpoints);
             }
 
             public Task<BoolResult> StopAsync(OperationContext context, LocalServerConfiguration configuration)
             {
-                _tracer.Debug(context, "Stopping gRPC.Core infrastructure");
-                return BoolResult.SuccessTask;
-            }
-        }
-
-        private void InitializeAndStartGrpcCoreServer(Context context, LocalServerConfiguration config)
-        {
-            GrpcCoreServerOptions? grpcCoreServerOptions = config.GrpcCoreServerOptions;
-            GrpcEnvironment.WaitUntilInitialized();
-
-            bool? encryptionEnabled = grpcCoreServerOptions?.EncryptionEnabled;
-            Tracer.Info(context, $"Grpc Encryption Enabled = {encryptionEnabled == true}, Encrypted GRPC Port: {config.EncryptedGrpcPort}, Unencrypted GRPC Port: {config.GrpcPort}");
-
-            _grpcServer = new Server(GrpcEnvironment.GetServerOptions(grpcCoreServerOptions))
-            {
-                Ports = { new ServerPort(IPAddress.Any.ToString(), config.GrpcPort, ServerCredentials.Insecure)},
-                RequestCallTokensPerCompletionQueue = config.RequestCallTokensPerCompletionQueue,
-            };
-
-            if(encryptionEnabled == true)
-            {
-                try
-                {
-                    ServerCredentials? serverSSLCreds = TryGetEncryptedCredentials(context);
-                    if (serverSSLCreds != null)
-                    {
-                        _grpcServer.Ports.Add(new ServerPort(IPAddress.Any.ToString(), config.EncryptedGrpcPort, serverSSLCreds));
-                        Tracer.Debug(context, $"Server creating Encrypted Grpc channel on port {config.EncryptedGrpcPort}");
-                    }
-                    else
-                    {
-                        Tracer.Error(context, message: "Failed to get SSL Credentials. Not creating encrypted Grpc channel.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Tracer.Error(context, ex, "Creating SSL Secured Grpc Channel Failed.");
-                }
+                return StopAsync(context, Transform(configuration));
             }
 
-            foreach (var endpoint in GrpcEndpoints)
+            private GrpcCoreServerHostConfiguration Transform(LocalServerConfiguration configuration)
             {
-                endpoint.BindServices(_grpcServer.Services);
+                return new GrpcCoreServerHostConfiguration(
+                    configuration.GrpcPort,
+                    configuration.EncryptedGrpcPort,
+                    configuration.RequestCallTokensPerCompletionQueue,
+                    configuration.GrpcCoreServerOptions);
             }
-
-            _grpcServer.Start();
         }
 
         private async Task CheckForExpiredSessionsAsync(Context context)
@@ -598,10 +548,8 @@ namespace BuildXL.Cache.ContentStore.Service
 
             _portDisposer?.Dispose();
 
-            if (_grpcServer != null)
-            {
-                await _grpcServer.KillAsync();
-            }
+            Tracer.Debug(context, $"Stopping gRPC Host at {Config.GrpcPort}. Id={InstanceId}");
+            await _grpcHost.StopAsync(context, Config).IgnoreFailure();
 
             var success = BoolResult.Success;
 
@@ -613,9 +561,6 @@ namespace BuildXL.Cache.ContentStore.Service
             // Stop the session expiration timer.
             _sessionExpirationCheckTimer?.Dispose();
 
-            Tracer.Debug(context, $"Stopping gRPC Host at {Config.GrpcPort}. Id={InstanceId}");
-            // If the stop fails, the error would be traced.
-            await _grpcHost.StopAsync(context, Config).IgnoreFailure();
 
             // Hibernate dangling sessions in case we are shutdown unexpectedly to live clients.
             await HandleShutdownDanglingSessionsAsync(context);

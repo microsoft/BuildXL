@@ -46,7 +46,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         public LocalCacheServer(
             ILogger logger,
             IAbsFileSystem fileSystem,
-            ICacheServerGrpcHost? grpcHost,
+            IGrpcServerHost<LocalServerConfiguration>? grpcHost,
             string scenario,
             Func<AbsolutePath, ICache> cacheFactory,
             LocalServerConfiguration localContentServerConfiguration,

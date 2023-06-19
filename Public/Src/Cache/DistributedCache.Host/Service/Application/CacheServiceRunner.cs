@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
@@ -22,9 +23,9 @@ using BuildXL.Utilities.Core;
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
-    /// A factory method used for creating <see cref="IDistributedCacheServiceHost"/> and <see cref="ICacheServerGrpcHost"/>.
+    /// A factory method used for creating <see cref="IDistributedCacheServiceHost"/> and <see cref="IGrpcServerHost{TConfiguration}<LocalServerConfiguration>"/>.
     /// </summary>
-    public delegate (IDistributedCacheServiceHost serviceHost, ICacheServerGrpcHost grpcHost) CreateHostsDelegate(HostParameters hostParameters, DistributedCacheServiceConfiguration configuration, CancellationToken token);
+    public delegate (IDistributedCacheServiceHost serviceHost, IGrpcServerHost<LocalServerConfiguration> grpcHost) CreateHostsDelegate(HostParameters hostParameters, DistributedCacheServiceConfiguration configuration, CancellationToken token);
 
     /// <summary>
     /// A facade for running the cache service.

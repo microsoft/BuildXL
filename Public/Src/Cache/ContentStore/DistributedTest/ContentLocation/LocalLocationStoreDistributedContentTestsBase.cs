@@ -27,6 +27,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -122,7 +123,7 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool EnablePublishingCache { get; set; } = false;
 
         protected virtual bool UseGrpcDotNet => false;
-        protected virtual ICacheServerGrpcHost GrpcHost => null;
+        protected virtual IGrpcServerHost<LocalServerConfiguration> GrpcHost => null;
 
         public string MaxSize { get; set; } = "50 MB";
 

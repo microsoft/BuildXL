@@ -40,8 +40,10 @@ public class GrpcClusterStateStorageTests
 
         var clusterStateEndpoint = new ProtobufNetGrpcServiceEndpoint<IGrpcClusterStateStorage, GrpcClusterStateStorageService>(nameof(GrpcClusterStateStorageService), service);
 
-        var initializer = new GrpcDotNetInitializer();
-        await initializer.StartAsync(context, port, GrpcDotNetServerOptions.Default, new[] { clusterStateEndpoint }).ThrowIfFailureAsync();
+        var initializer = new GrpcDotNetHost();
+        var grpcHostConfiguration = new GrpcDotNetHostConfiguration(port, GrpcDotNetServerOptions.Default);
+        await initializer.StartAsync(context, grpcHostConfiguration, new[] { clusterStateEndpoint })
+            .ThrowIfFailureAsync();
 
         // Setup client-side
         var location = MachineLocation.Create(Environment.MachineName, port);
@@ -68,7 +70,7 @@ public class GrpcClusterStateStorageTests
         await clusterStateManager.ShutdownAsync(context).ThrowIfFailureAsync();
         await connectionHandle.ShutdownAsync(context).ThrowIfFailureAsync();
 
-        await initializer.StopAsync(context, port).ThrowIfFailureAsync();
+        await initializer.StopAsync(context, grpcHostConfiguration).ThrowIfFailureAsync();
 
         await service.ShutdownAsync(context).ThrowIfFailureAsync();
     }

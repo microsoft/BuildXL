@@ -40,7 +40,7 @@ namespace ContentStoreTest.Distributed.Stores
         {
         }
 
-        protected override ICacheServerGrpcHost GrpcHost { get; } = new GrpcDotNetInitializer();
+        protected override IGrpcServerHost<LocalServerConfiguration> GrpcHost { get; } = new CacheServiceStartup.LocalContentServerGrpcDotNetHost();
         protected override bool UseGrpcDotNetServer => true;
     }
 #endif
@@ -59,7 +59,7 @@ namespace ContentStoreTest.Distributed.Stores
         private readonly bool _useGrpcDotNetClient;
         
 
-        protected virtual ICacheServerGrpcHost GrpcHost => null;
+        protected virtual IGrpcServerHost<LocalServerConfiguration> GrpcHost => null;
 
         protected virtual bool UseGrpcDotNetServer => false;
 

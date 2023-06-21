@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Interfaces;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
+using Microsoft.VisualStudio.Services.BlobStore.WebApi.Contracts;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Drop.App.Core;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
@@ -98,6 +99,15 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
+        public Task FinalizeAsync(string dropName, bool enableAsyncFinalize, TimeSpan checkStatusInterval, CancellationToken cancellationToken)
+        {
+            return RetryAsync(
+                nameof(IDropServiceClient.FinalizeAsync),
+                (client, ct) => client.FinalizeAsync(dropName, enableAsyncFinalize, checkStatusInterval, ct),
+                cancellationToken);
+        }
+
+        /// <inheritdoc />
         public Task<DropItem> GetDropAsync(string dropName, CancellationToken cancellationToken)
         {
             return RetryAsync(
@@ -125,7 +135,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<Microsoft.VisualStudio.Services.Content.Common.IAsyncEnumerator<IEnumerable<BlobToFileMapping>>> ListFilePagesAsync(
+        public Task<IConcurrentIterator<IEnumerable<BlobToFileMapping>>> ListFilePagesAsync(
             string dropName,
             bool tryToRetrieveFromLocalCache,
             CancellationToken cancellationToken,
@@ -216,7 +226,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<Microsoft.VisualStudio.Services.Content.Common.IAsyncEnumerator<IEnumerable<DropItem>>> ListStreamedAsync(
+        public Task<IConcurrentIterator<IEnumerable<DropItem>>> ListStreamedAsync(
             string dropNamePrefix,
             PathOptions pathOptions,
             CancellationToken cancellationToken,
@@ -242,11 +252,20 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, bool enableSymbolicLinkPreservation, bool enableExecutionBitPreservation, CancellationToken cancellationToken)
+        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, HashType hashType, CancellationToken cancellationToken)
         {
             return RetryAsync(
                 nameof(IDropServiceClient.CreateAsync),
-                (client, ct) => client.CreateAsync(domainId, dropName, isAppendOnly, expirationDate, chunkDedup, enableSymbolicLinkPreservation, enableExecutionBitPreservation, cancellationToken),
+                (client, ct) => client.CreateAsync(domainId, dropName, isAppendOnly, expirationDate, chunkDedup, cancellationToken),
+                cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, bool enableSymbolicLinkPreservation, bool enableExecutionBitPreservation, HashType hashType, CancellationToken cancellationToken)
+        {
+            return RetryAsync(
+                nameof(IDropServiceClient.CreateAsync),
+                (client, ct) => client.CreateAsync(domainId, dropName, isAppendOnly, expirationDate, chunkDedup, enableSymbolicLinkPreservation, enableExecutionBitPreservation, hashType, cancellationToken),
                 cancellationToken);
         }
 
@@ -256,6 +275,15 @@ namespace Tool.ServicePipDaemon
             return RetryAsync(
                 nameof(IDropServiceClient.GetDomainsAsync),
                 (client, ct) => client.GetDomainsAsync(cancellationToken),
+                cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public Task<ClientSettingsInfo> GetDropSettingsAsync(CancellationToken cancellationToken)
+        {
+            return RetryAsync(
+                nameof(IDropServiceClient.GetDropSettingsAsync),
+                (client, ct) => client.GetDropSettingsAsync(cancellationToken),
                 cancellationToken);
         }
 

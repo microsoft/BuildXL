@@ -149,7 +149,7 @@ config({
                 { id: "System.Composition.TypedParts", version: "1.0.31" },
 
                 { id: "Microsoft.Diagnostics.Tracing.EventSource.Redist", version: "1.1.28" },
-                { id: "Microsoft.Diagnostics.Tracing.TraceEvent", version: "2.0.30" },
+                { id: "Microsoft.Diagnostics.Tracing.TraceEvent", version: "3.0.7" },
                 { id: "Microsoft.Extensions.Globalization.CultureInfoCache", version: "1.0.0-rc1-final" },
                 { id: "Microsoft.Extensions.MemoryPool", version: "1.0.0-rc1-final" },
                 { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.1.0" },
@@ -204,7 +204,7 @@ config({
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.0.3" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.0.3" },
                 { id: "Azure.Identity", version: "1.8.2" },
-                { id: "Microsoft.Identity.Client", version: "4.49.1" },
+                { id: "Microsoft.Identity.Client", version: "4.52.0" },
                 { id: "Microsoft.IdentityModel.Abstractions", version: "6.29.0" },
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.18.4" },
                 { id: "Azure.Core", version: "1.31.0", 
@@ -261,7 +261,7 @@ config({
                 { id: "DeduplicationSigned", version: "1.0.14" },
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "5.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "6.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0",
@@ -331,7 +331,8 @@ config({
 
                 // Buffers and Memory
                 { id: "System.Buffers", version: "4.5.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
-                { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
+                { id: "System.Memory", version: "4.5.5", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
+                { id: "System.Memory", version: "4.5.4", alias: "System.MemoryForVBCS", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "5.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.IO.Pipelines", version: "7.0.0-rc.1.22426.10", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */

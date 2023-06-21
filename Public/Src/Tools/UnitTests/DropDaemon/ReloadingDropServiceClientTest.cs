@@ -10,6 +10,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
+using Microsoft.VisualStudio.Services.BlobStore.WebApi.Contracts;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Drop.App.Core;
@@ -22,7 +23,7 @@ using Xunit.Abstractions;
 
 namespace Test.Tool.DropDaemon
 {
-    public class ReloadingDropServiceClientTest : BuildXL.TestUtilities.Xunit.XunitBuildXLTest
+    public class ReloadingDropServiceClientTest : XunitBuildXLTest
     {
         private ITestOutputHelper Output { get; }
 
@@ -219,6 +220,11 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
+        Task IDropServiceClient.FinalizeAsync(string dropName, bool enableAsyncFinalize, TimeSpan checkStatusInterval, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
         Task<DropItem> IDropServiceClient.GetDropAsync(string dropName, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
@@ -234,7 +240,7 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        Task<Microsoft.VisualStudio.Services.Content.Common.IAsyncEnumerator<IEnumerable<DropItem>>> IDropServiceClient.ListStreamedAsync(string dropNamePrefix, PathOptions pathOptions, CancellationToken cancellationToken, DropItemFilterOptions filterOptions, DropItemPaginationOptions paginationOptions)
+        Task<IConcurrentIterator<IEnumerable<DropItem>>> IDropServiceClient.ListStreamedAsync(string dropNamePrefix, PathOptions pathOptions, CancellationToken cancellationToken, DropItemFilterOptions filterOptions, DropItemPaginationOptions paginationOptions)
         {
             throw new NotImplementedException();
         }
@@ -244,7 +250,7 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        Task<Microsoft.VisualStudio.Services.Content.Common.IAsyncEnumerator<IEnumerable<BlobToFileMapping>>> IDropServiceClient.ListFilePagesAsync(string dropName, bool tryToRetrieveFromLocalCache, CancellationToken cancellationToken, bool allowPartial, IEnumerable<string> directories, bool recursive, bool getDownloadUris)
+        Task<IConcurrentIterator<IEnumerable<BlobToFileMapping>>> IDropServiceClient.ListFilePagesAsync(string dropName, bool tryToRetrieveFromLocalCache, CancellationToken cancellationToken, bool allowPartial, IEnumerable<string> directories, bool recursive, bool getDownloadUris)
         {
             throw new NotImplementedException();
         }
@@ -279,12 +285,22 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, bool enableSymbolicLinkPreservation, bool enableExecutionBitPreservation, CancellationToken cancellationToken)
+        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, HashType hashType, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, bool enableSymbolicLinkPreservation, bool enableExecutionBitPreservation, HashType hashType, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
         public Task<IEnumerable<MultiDomainInfo>> GetDomainsAsync(CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ClientSettingsInfo> GetDropSettingsAsync(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

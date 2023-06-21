@@ -200,7 +200,7 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        ///     Invokes <see cref="IDropServiceClient.FinalizeAsync"/>.
+        ///     Invokes <see cref="IDropServiceClient.FinalizeAsync(string, CancellationToken)"/>.
         /// </summary>
         public async Task<FinalizeResult> FinalizeAsync(CancellationToken token)
         {

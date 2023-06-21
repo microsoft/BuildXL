@@ -121,7 +121,7 @@ export const pkgs = [
     // Packages
     { id: "Microsoft.CSharp", version: pkgVersion },
     { id: "Microsoft.Win32.Primitives", version: pkgVersion },
-    { id: "Microsoft.Win32.Registry", version: "4.4.0" }, // This is the version Artifact Services relies on.
+    { id: "Microsoft.Win32.Registry", version: "4.7.0" }, // This is the version our dependencies rely on.
     { id: "System.AppContext", version: pkgVersion },
     { id: "System.Collections", version: pkgVersion },
     { id: "System.Collections.Concurrent", version: pkgVersion },
@@ -267,7 +267,7 @@ export const pkgs = [
     { id: "System.Collections.Immutable", version: "1.5.0" },
     // The next one is used only to run some tests in the IDE.
     // { id: "System.Collections.Immutable", version: "1.7.1", dependentPackageIdsToSkip: ["System.Memory"] },
-    { id: "System.Collections.Immutable", version: "5.0.0", alias: "System.Collections.Immutable.ForVBCS" },
+    { id: "System.Collections.Immutable", version: "5.0.0", alias: "System.Collections.Immutable.ForVBCS", dependentPackageIdsToSkip: ["System.Memory"] },
 ];
 
 

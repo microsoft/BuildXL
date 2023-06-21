@@ -8,8 +8,8 @@ $nugetPath = "nuget.exe"
 $tempDirectory = Join-Path $env:TEMP "adoUpdateTemp"
 New-Item -Path $tempDirectory -ItemType Directory -Force
 
-$artifactVersion = '19.208.32712-buildid17682333'
-$adoVersion = '19.208.0-internal202207122'
+$artifactVersion = '19.220.33531-buildid19618558'
+$adoVersion = '19.220.0-internal202303313'
 
 $adoPackages = @(
     'Microsoft.VisualStudio.Services.Client'

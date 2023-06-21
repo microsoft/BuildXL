@@ -33,7 +33,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ArtifactServices.App.Shared",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -42,7 +42,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ArtifactServices.App.Shared.Cache",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -321,7 +321,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Drop.App.Core",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -330,7 +330,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Drop.Client",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -519,7 +519,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ItemStore.Shared",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -843,7 +843,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Bcl.AsyncInterfaces",
-          "Version": "5.0.0"
+          "Version": "6.0.0"
         }
       }
     },
@@ -1185,7 +1185,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Diagnostics.Tracing.TraceEvent",
-          "Version": "2.0.30"
+          "Version": "3.0.7"
         }
       }
     },
@@ -1365,7 +1365,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client",
-          "Version": "4.49.1"
+          "Version": "4.52.0"
         }
       }
     },
@@ -2112,7 +2112,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.ArtifactServices.Shared",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -2121,7 +2121,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.BlobStore.Client",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -2130,7 +2130,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.BlobStore.Client.Cache",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -2139,7 +2139,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Client",
-          "Version": "19.208.0-internal202207122"
+          "Version": "19.220.0-internal202303313"
         }
       }
     },
@@ -2148,7 +2148,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.InteractiveClient",
-          "Version": "19.208.0-internal202207122"
+          "Version": "19.220.0-internal202303313"
         }
       }
     },
@@ -2436,7 +2436,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Win32.Registry",
-          "Version": "4.4.0"
+          "Version": "4.7.0"
         }
       }
     },
@@ -2715,7 +2715,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Symbol.App.Core",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -2724,7 +2724,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Symbol.Client",
-          "Version": "19.208.32712-buildid17682333"
+          "Version": "19.220.33531-buildid19618558"
         }
       }
     },
@@ -3310,6 +3310,15 @@
         "NuGet": {
           "Name": "System.Memory",
           "Version": "4.5.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Memory",
+          "Version": "4.5.5"
         }
       }
     },

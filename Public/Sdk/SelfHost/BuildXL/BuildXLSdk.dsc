@@ -530,7 +530,7 @@ export function bxlBindingRedirects() {
 export function cacheBindingRedirects() {
     return [
         ...bxlBindingRedirects(),
-            // System.Memory 4.5.4 is a bit weird, because net461 version references System.Buffer.dll v.4.0.3.0
+            // System.Memory 4.5.5 is a bit weird, because net461 version references System.Buffer.dll v.4.0.3.0
             // but System.Memory.dll from netstandard2.0 references System.Buffer.dll v.4.0.2.0!
             // And the rest of the world references System.Buffer.dll v.4.0.3.0
             // So we need to have a redirect to solve this problem.
@@ -553,8 +553,8 @@ export function cacheBindingRedirects() {
                 name: "Microsoft.Bcl.AsyncInterfaces",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "5.0.0.0", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "5.0.0" },
+                oldVersion: "0.0.0.0-6.0.0.0",
+                newVersion: "6.0.0.0", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "6.0.0" },
             },
             {
                 name: "System.Threading.Tasks.Extensions", // Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51
@@ -567,8 +567,8 @@ export function cacheBindingRedirects() {
                 name: "System.Memory",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-4.0.1.1",
-                newVersion: "4.0.1.1", // Corresponds to: { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
+                oldVersion: "0.0.0.0-4.0.1.2",
+                newVersion: "4.0.1.2", // Corresponds to: { id: "System.Memory", version: "4.5.5", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
             },
             {
                 name: "System.Interactive.Async",

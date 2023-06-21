@@ -30,7 +30,8 @@ namespace Test.Tool.MsBuildGraphBuilder {
         ],
         runtimeContentToSkip: [
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Buffers").pkg),
-            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Memory").pkg)
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Memory").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.MemoryForVBCS").pkg)
         ]
     });
 }

@@ -15,6 +15,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [Frontends - Download](Wiki/Frontends/Download.md)
 * [Frontends - Javascript](Wiki/Frontends/js-onboarding.md)
 * [Demos](../Public/Src/Demos/Demos.md)
+* [Configuring a shared cache using an Azure Blob Storage Account](Wiki/shared-cache.md)
 
 # Using BuildXL
 * [Breakway processes](Wiki/Advanced-Features/Process-breakaway.md)

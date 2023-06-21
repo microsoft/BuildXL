@@ -74,6 +74,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             // We didn't find a last content pinned time or the retention policy is not configured: let's pin
             if (contentHashListResult.LastContentPinnedTime == null || _configuration.RetentionPolicy == null)
             {
+                Tracer.Info(context, $"Strong fingerprint '{strongFingerprint} needs preventive pinning: " +
+                    $"{(contentHashListResult.LastContentPinnedTime == null ? "it does not contain a last pinned time." : "a retention policy is not configured")}");
                 return true;
             }
 
@@ -85,6 +87,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             // The random value is to distribute the 'expensive pin' case across multiple builds and therefore mitigate the overall impact on a single build.
             // Observe that Configuration.StorageAccountRetentionPolicy is guaranteed to be at least 1 day
             var ageLimit = _configuration.RetentionPolicy - TimeSpan.FromHours(1) - TimeSpan.FromMinutes(new Random().Next(11 * 60));
+
+            Tracer.Info(context, $"Strong fingerprint '{strongFingerprint}' content was last pinned on ${contentHashListResult.LastContentPinnedTime}.");
+            Tracer.Info(context, $"The age limit for fingerprint '{strongFingerprint}' is {ageLimit} and therefore the need for preventive pinning is: {contentHashAge >= ageLimit}");
 
             return contentHashAge >= ageLimit;
         }

@@ -121,6 +121,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     client,
                     metadata);
 
+                Tracer.Info(context, $"Content for strong fingerprint '{strongFingerprint}' was preventively pinned. Strong fingerprint last pinned time was updated to {metadata[LastContentPinnedTime]}.");
+
                 return result;
             }
             finally

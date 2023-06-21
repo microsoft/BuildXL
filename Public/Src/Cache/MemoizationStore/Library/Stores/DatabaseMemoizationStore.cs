@@ -152,6 +152,11 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                         return new GetContentHashListResult(pinResult, result.Source);
                     }
 
+                    if (contentHashList.ContentHashList != null)
+                    {
+                        Tracer.Info(context, $"Strong fingerprint {strongFingerprint} content was preventively pinned. Hashes: {string.Join(", ", contentHashList.ContentHashList.Hashes)}");
+                    }
+
                     // All the associated content is now pinned. Update the last content pinned time on the content hash list entry
                     var pinnedNotificationResult = await Database.AssociatedContentWasPinnedAsync(ctx, strongFingerprint, result);
 

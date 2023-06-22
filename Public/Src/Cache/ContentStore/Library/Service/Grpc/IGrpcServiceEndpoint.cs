@@ -9,7 +9,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// <summary>
     /// Exposes grpc services
     /// </summary>
-    public interface IGrpcServiceEndpoint : IStartupShutdownSlim
+    public interface IGrpcServiceEndpoint
     {
         /// <summary>
         /// Binds service methods for use in gRPC.Core server.

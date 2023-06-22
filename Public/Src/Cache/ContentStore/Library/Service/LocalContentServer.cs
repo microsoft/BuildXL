@@ -66,11 +66,6 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public static bool EnsureRunning(Context context, string? scenario, int waitMs) => ServiceReadinessChecker.EnsureRunning(context, scenario, waitMs);
 
-        /// <summary>
-        ///     Attempt to open event that will signal an imminent service shutdown or restart.
-        /// </summary>
-        public static EventWaitHandle? OpenShutdownEvent(Context context, string? scenario) => ServiceReadinessChecker.OpenShutdownEvent(context, scenario);
-
         /// <inheritdoc />
         protected override Task<IReadOnlyList<HibernatedSessionInfo>> RestoreHibernatedSessionDatasAsync(OperationContext context)
             => RestoreHibernatedSessionDatasAsync(FileSystem, Config.DataRootPath);

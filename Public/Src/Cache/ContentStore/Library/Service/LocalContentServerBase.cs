@@ -75,22 +75,6 @@ namespace BuildXL.Cache.ContentStore.Service
     }
 
     /// <summary>
-    /// A special host for initializing and stopping gRPC.NET environment.
-    /// </summary>
-    public interface IContentServerGrpcHost
-    {
-        /// <summary>
-        /// Notifies the host immediately before the cache service is started in order to start the gRPC infrastructure.
-        /// </summary>
-        Task<BoolResult> StartAsync(OperationContext context, LocalServerConfiguration configuration, ICacheServer cacheServer);
-
-        /// <summary>
-        /// Notifies the host immediately before cache service is stopped in order to stop the gRPC infrastructure.
-        /// </summary>
-        Task<BoolResult> StopAsync(OperationContext context, LocalServerConfiguration configuration);
-    }
-
-    /// <summary>
     /// Base implementation of IPC to a file system content cache.
     /// </summary>
     /// <typeparam name="TStore">
@@ -158,7 +142,7 @@ namespace BuildXL.Cache.ContentStore.Service
         IDistributedStreamStore ICacheServer.StreamStore => GrpcServer.StreamStore;
 
         /// <inheritdoc />
-        public IEnumerable<IGrpcServiceEndpoint> GrpcEndpoints => new IGrpcServiceEndpoint[] { GrpcServer }.Concat(_additionalEndpoints);
+        public IEnumerable<IGrpcServiceEndpoint> GrpcEndpoints => new IGrpcServiceEndpoint[] { GrpcServer.GrpcAdapter }.Concat(_additionalEndpoints);
 
         /// <nodoc />
         protected LocalContentServerBase(
@@ -337,9 +321,14 @@ namespace BuildXL.Cache.ContentStore.Service
 
                 await StartupStoresAsync(context).ThrowIfFailure();
 
+                await GrpcServer.StartupAsync(context).ThrowIfFailureAsync();
+
                 foreach (var endpoint in GrpcEndpoints)
                 {
-                    await endpoint.StartupAsync(context).ThrowIfFailure();
+                    if (endpoint is IStartupShutdownSlim startupShutdownSlim)
+                    {
+                        await startupShutdownSlim.StartupAsync(context).ThrowIfFailure();
+                    }
                 }
 
                 await LoadHibernatedSessionsAsync(context);
@@ -555,8 +544,13 @@ namespace BuildXL.Cache.ContentStore.Service
 
             foreach (var endpoint in GrpcEndpoints)
             {
-                success &= await endpoint.ShutdownAsync(context);
+                if (endpoint is IStartupShutdownSlim startupShutdownSlim)
+                {
+                    success &= await startupShutdownSlim.ShutdownAsync(context);
+                }
             }
+
+            await GrpcServer.ShutdownAsync(context).ThrowIfFailureAsync();
 
             // Stop the session expiration timer.
             _sessionExpirationCheckTimer?.Dispose();

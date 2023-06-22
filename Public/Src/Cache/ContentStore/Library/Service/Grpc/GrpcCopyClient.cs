@@ -192,10 +192,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private async Task<CopyFileResult> CopyToAsync(OperationContext context, ContentHash hash, Func<Stream> streamFactory, CopyOptions options, bool closeStream)
         {
             // Need to track shutdown to prevent invalid operation errors when the instance is used after it was shut down is called.
-            using (var operationContext = TrackShutdown(context))
-            {
-                return await CopyToCoreAsync(operationContext, hash, options, streamFactory, closeStream);
-            }
+            using var operationContext = TrackShutdown(context);
+            return await CopyToCoreAsync(operationContext, hash, options, streamFactory, closeStream);
         }
 
         private TimeSpan GetResponseHeadersTimeout(CopyOptions options)

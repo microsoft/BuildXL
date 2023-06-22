@@ -252,7 +252,10 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             var result = await MemoizationReadOnlySession.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
             if (result.Succeeded && Parent is not null && result.ContentHashListWithDeterminism.ContentHashList is not null)
             {
-                Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash);
+                if (!Parent.Configuration.DoNotElidePinsForGetLevelSelectors)
+                {
+                    Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash);
+                }
 
                 var contentHashList = result.ContentHashListWithDeterminism.ContentHashList.Hashes;
                 foreach (var contentHash in contentHashList)
@@ -429,7 +432,10 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
             if (result.Succeeded && Parent is not null && result.ContentHashListWithDeterminism.ContentHashList is not null)
             {
-                Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash);
+                if (!Parent.Configuration.DoNotElidePinsForGetLevelSelectors)
+                {
+                    Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash);
+                }
 
                 var contentHashList = result.ContentHashListWithDeterminism.ContentHashList.Hashes;
                 foreach (var contentHash in contentHashList)

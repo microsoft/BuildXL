@@ -162,7 +162,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
                     if (!pinnedNotificationResult.Succeeded)
                     {
-                        return new GetContentHashListResult(pinResult, result.Source);
+                        return new GetContentHashListResult(pinnedNotificationResult, result.Source);
                     }
                 }
 

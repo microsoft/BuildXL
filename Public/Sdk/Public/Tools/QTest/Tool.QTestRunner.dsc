@@ -646,7 +646,7 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     /** When true, additional options are passed to enable blame collector for collecting dmp files. (Deprecated. Use qTestBlameCollectorMode.) */
     qTestEnableBlameCollector?: boolean;
     /** Specifies behavior of Blame Collector. Default is 'Failure' (Only enable when first attempt fails.) */
-    qTestBlameCollectorMode?: "Always" | "Failure" | "Never";
+    qTestBlameCollectorMode?: "Always" | "Failure" | "Never" | "FailureNoCrashDumpCollection";
     /** When true, the DBS.QTest.exe invokes VsTest with diagnostic tracing.*/
     qTestEnableMsTestTraceLogging?: boolean;
     /** Allows additional options to be appended to console logger.*/

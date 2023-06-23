@@ -20,6 +20,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
     {
         private readonly HashSet<FileArtifact> m_inputFiles = new HashSet<FileArtifact>();
         private readonly HashSet<DirectoryArtifact> m_inputDirectories = new HashSet<DirectoryArtifact>();
+        private readonly string m_projectNameDisplayString;
 
         /// <nodoc/>
         public JavaScriptProject(
@@ -30,7 +31,8 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             AbsolutePath tempFolder,
             IReadOnlyCollection<AbsolutePath> outputDirectories,
             IEnumerable<FileArtifact> inputFiles,
-            IEnumerable<DirectoryArtifact> inputDirectories) : base(name, projectFolder, null, tempFolder)
+            IEnumerable<DirectoryArtifact> inputDirectories,
+            [AllowNull] string projectNameDisplayString = null) : base(name, projectFolder, null, tempFolder)
         {
             Contract.RequiresNotNullOrEmpty(scriptCommandName);
             Contract.RequiresNotNull(outputDirectories);
@@ -42,10 +44,11 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             OutputDirectories = outputDirectories;
             m_inputFiles.AddRange(inputFiles);
             m_inputDirectories.AddRange(inputDirectories);
+            m_projectNameDisplayString = projectNameDisplayString;
         }
 
         /// <nodoc/>
-        public static JavaScriptProject FromDeserializedProject(string scriptCommandName, string scriptCommand, DeserializedJavaScriptProject deserializedJavaScriptProject)
+        public static JavaScriptProject FromDeserializedProject(string scriptCommandName, string scriptCommand, DeserializedJavaScriptProject deserializedJavaScriptProject, string projectNameDisplayString = null)
         {
             // Filter the output directories and source files that apply to this particular script command name
             var outputDirectories = ExtractRelevantPaths(scriptCommandName, deserializedJavaScriptProject.OutputDirectories);
@@ -59,7 +62,8 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
                 deserializedJavaScriptProject.TempFolder,
                 outputDirectories,
                 inputFiles,
-                inputDirectories: CollectionUtilities.EmptyArray<DirectoryArtifact>());
+                inputDirectories: CollectionUtilities.EmptyArray<DirectoryArtifact>(),
+                projectNameDisplayString);
         }
 
         private static List<AbsolutePath> ExtractRelevantPaths(
@@ -110,6 +114,14 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
         {
             return $"{Name}[{ScriptCommandName}]";
         }
+
+        /// <summary>
+        /// Human readable project name used for UI rendering
+        /// </summary>
+        /// <remarks>
+        /// If not specified on construction, the project name is used instead
+        /// </remarks>
+        public string ProjectNameDisplayString => m_projectNameDisplayString ?? Name;
 
         /// <nodoc/>
         public IReadOnlyCollection<AbsolutePath> OutputDirectories { get; }

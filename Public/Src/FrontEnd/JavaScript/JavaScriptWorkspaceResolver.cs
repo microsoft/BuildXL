@@ -78,6 +78,14 @@ namespace BuildXL.FrontEnd.JavaScript
             NullValueHandling = NullValueHandling.Include
         };
 
+        /// <summary>
+        /// Subclasses can decide to customize the display name for the project
+        /// </summary>
+        /// <remarks>
+        /// By default no customization is provided
+        /// </remarks>
+        protected virtual string TryGetProjectDisplayName(string projectName, string scriptCommandName, AbsolutePath projectFolder) => null;
+
         /// <inheritdoc/>
         public JavaScriptWorkspaceResolver(string resolverKind)
         {
@@ -893,7 +901,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // The script sequence is composed from every script command
             string computedScript = ComputeScriptSequence(members.Select(member => member.ScriptCommand));
-            
+
             var projectGroup = new JavaScriptProject(
                 projectName, 
                 projectFolder, 
@@ -902,7 +910,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 tempFolder, 
                 outputDirectories, 
                 inputFiles,
-                inputDirectories);
+                inputDirectories,
+                TryGetProjectDisplayName(projectName, commandName, projectFolder));
 
             return projectGroup;
         }
@@ -1209,7 +1218,8 @@ namespace BuildXL.FrontEnd.JavaScript
             javaScriptProject = JavaScriptProject.FromDeserializedProject(
                 command, 
                 deserializedProject.AvailableScriptCommands[command], 
-                deserializedProject);
+                deserializedProject,
+                TryGetProjectDisplayName(deserializedProject.Name, command, deserializedProject.ProjectFolder));
 
             if (!ValidateDeserializedProject(javaScriptProject, out string reason))
             {

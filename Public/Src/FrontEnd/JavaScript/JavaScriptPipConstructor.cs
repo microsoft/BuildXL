@@ -376,6 +376,7 @@ namespace BuildXL.FrontEnd.JavaScript
             ProcessBuilder processBuilder,
             JavaScriptProject project)
         {
+            SetPipDescriptions(processBuilder, project);
             SetCmdTool(processBuilder, project);
 
             // Working directory - the directory where the project file lives.
@@ -480,6 +481,25 @@ namespace BuildXL.FrontEnd.JavaScript
                 }
             }
             FrontEndUtilities.SetProcessEnvironmentVariables(CreateEnvironment(project), m_userDefinedPassthroughVariables, processBuilder, m_context.PathTable);
+        }
+
+        private void SetPipDescriptions(ProcessBuilder processBuilder, JavaScriptProject project)
+        {
+            using (PooledObjectWrapper<StringBuilder> wrapper = Pools.StringBuilderPool.GetInstance())
+            {
+                StringBuilder sb = wrapper.Instance;
+
+                // Observe that for JS pips adding the tool is not very informative (it is always cmd/bash). Qualifiers are not used either.
+                sb.Append(m_moduleDefinition.Descriptor.Name);
+                sb.Append(" - ");
+                sb.Append($"{project.ProjectNameDisplayString} [{project.ScriptCommandName}]");
+
+                processBuilder.Usage = PipDataBuilder.CreatePipData(m_context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, sb.ToString());
+            }
+
+            // JavaScript pips don't need many of the details rendered for standard pips (output symbol, qualifiers, etc.). So let's make the usage be the
+            // whole pips description
+            processBuilder.UsageIsFullDisplayString = true;
         }
 
         private void AddJavaScriptArgumentToBuilder(PipDataBuilder argumentsBuilder, JavaScriptArgument value)

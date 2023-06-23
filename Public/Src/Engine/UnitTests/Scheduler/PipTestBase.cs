@@ -785,7 +785,8 @@ namespace Test.BuildXL.Scheduler
                 FullSymbol.Create(context.SymbolTable, valueName),
                 new LocationData(specFile, 1, 1),
                 QualifierId.Unqualified,
-                usage.IsValid ? PipDataBuilder.CreatePipData(context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, usage) : PipData.Invalid);
+                usage.IsValid ? PipDataBuilder.CreatePipData(context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, usage) : PipData.Invalid,
+                false);
 
             if (pipGraph != null)
             {

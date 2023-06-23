@@ -510,6 +510,11 @@ namespace BuildXL.Pips
 
         internal PipProvenance CreatePipProvenance(PipData usage)
         {
+            return CreatePipProvenance(usage, usageIsFullDisplayString: false);
+        }
+
+        internal PipProvenance CreatePipProvenance(PipData usage, bool usageIsFullDisplayString)
+        {
             var result = new PipProvenance(
                 GetNextSemiStableHash(),
                 moduleId: m_moduleId,
@@ -517,7 +522,8 @@ namespace BuildXL.Pips
                 outputValueSymbol: m_valuePip.Symbol,
                 token: m_valuePip.LocationData,
                 qualifierId: m_valuePip.Qualifier,
-                usage: usage);
+                usage: usage,
+                usageIsFullDisplayString);
             return result;
         }
 

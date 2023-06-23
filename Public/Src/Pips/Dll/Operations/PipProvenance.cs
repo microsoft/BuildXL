@@ -21,6 +21,15 @@ namespace BuildXL.Pips.Operations
         public readonly PipData Usage;
 
         /// <summary>
+        /// By default process pips are rendered for end user display including some predefined details: module, tool description, output symbol, qualifiers, semaphores, usage, etc. When
+        /// this flag is true, <see cref="Usage"/> will be used instead as the overall description of the pip, and the default details will be skipped.
+        /// </summary>
+        /// <remarks>
+        /// This is useful to configure whenever the standard details are too overwhelming or irrelevant for a particular scenario (e.g. qualifiers are never used, the output symbol is not meaningful/human readable, etc.).
+        /// </remarks>
+        public readonly bool UsageIsFullDisplayString;
+
+        /// <summary>
         /// Parse token.
         /// </summary>
         /// <remarks>
@@ -72,7 +81,8 @@ namespace BuildXL.Pips.Operations
             FullSymbol outputValueSymbol,
             LocationData token,
             QualifierId qualifierId,
-            PipData usage)
+            PipData usage,
+            bool usageIsFullDisplayString)
         {
             SemiStableHash = semiStableHash;
             ModuleId = moduleId;
@@ -81,6 +91,7 @@ namespace BuildXL.Pips.Operations
             Token = token;
             QualifierId = qualifierId;
             Usage = usage;
+            UsageIsFullDisplayString = usageIsFullDisplayString;
         }
 
         /// <summary>
@@ -95,7 +106,8 @@ namespace BuildXL.Pips.Operations
                 OutputValueSymbol,
                 Token,
                 QualifierId,
-                Usage);
+                Usage,
+                UsageIsFullDisplayString);
         }
 
         /// <summary>
@@ -117,7 +129,8 @@ namespace BuildXL.Pips.Operations
                 FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "<Unknown Pip>")),
                 LocationData.Invalid,
                 QualifierId.Unqualified,
-                PipData.Invalid);
+                PipData.Invalid,
+                usageIsFullDisplayString: false);
         }
 
         #region Serialization
@@ -133,6 +146,7 @@ namespace BuildXL.Pips.Operations
             pipWriter.Write(Token);
             pipWriter.WriteCompact(QualifierId.Id);
             pipWriter.Write(Usage);
+            pipWriter.Write(UsageIsFullDisplayString);
         }
 
         internal static PipProvenance Deserialize(PipReader reader)
@@ -146,6 +160,7 @@ namespace BuildXL.Pips.Operations
             LocationData token = reader.ReadLocationData();
             QualifierId qualifierId = new QualifierId(reader.ReadInt32Compact());
             PipData usage = reader.ReadPipData();
+            bool usageIsFullDisplayString = reader.ReadBoolean();
 
             return new PipProvenance(
                 semiStableHash,
@@ -154,7 +169,8 @@ namespace BuildXL.Pips.Operations
                 outputValueName,
                 token,
                 qualifierId,
-                usage);
+                usage,
+                usageIsFullDisplayString);
         }
 
         #endregion

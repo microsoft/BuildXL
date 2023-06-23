@@ -284,7 +284,7 @@ namespace BuildXL.Pips.Operations
 
             var stringTable = context.StringTable;
             var pathTable = context.PathTable;
-
+            
             var p = Provenance;
 
             using (PooledObjectWrapper<StringBuilder> wrapper = Pools.StringBuilderPool.GetInstance())
@@ -303,6 +303,17 @@ namespace BuildXL.Pips.Operations
                     {
                         var process = (Process)this;
                         sb.Append(", ");
+
+                        // Check whether there is a description that should become the remaining description, and in that case let that handle the remaining string and return
+                        if (p.UsageIsFullDisplayString && p.Usage.IsValid)
+                        {
+                            // custom pip description supplied by a customer
+                            sb.Append(Utilities.Tracing.FormattingEventListener.CustomPipDescriptionMarker);
+                            sb.Append(p.Usage.ToString(pathTable));
+
+                            return sb.ToString();
+                        }
+
                         sb.Append(process.GetToolName(pathTable).ToString(stringTable));
 
                         if (process.ToolDescription.IsValid)

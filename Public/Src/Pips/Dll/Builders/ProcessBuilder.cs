@@ -56,6 +56,9 @@ namespace BuildXL.Pips.Builders
         public PipData Usage { get; set; }
 
         /// <nodoc />
+        public bool UsageIsFullDisplayString { get; set; }
+
+        /// <nodoc />
         public StringId ToolDescription { get; set; }
 
         /// <nodoc />
@@ -601,7 +604,7 @@ namespace BuildXL.Pips.Builders
         public bool TryFinish(PipConstructionHelper pipConstructionHelper, out Process process, out ProcessOutputs processOutputs)
         {
             // Provenance and default directory
-            var provenance = pipConstructionHelper.CreatePipProvenance(Usage);
+            var provenance = pipConstructionHelper.CreatePipProvenance(Usage, UsageIsFullDisplayString);
             PathAtom folderName = Executable.Path.GetName(m_pathTable).Concat(m_pathTable.StringTable, PathAtom.Create(m_pathTable.StringTable, ".std"));
             var defaultDirectory = pipConstructionHelper.GetUniqueObjectDirectory(folderName);
 

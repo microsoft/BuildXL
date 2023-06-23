@@ -442,7 +442,8 @@ namespace Test.BuildXL.TestUtilities
                 valueId,
                 LocationData.Invalid,
                 QualifierId.Unqualified,
-                usage.IsValid ? PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, usage) : PipData.Invalid);
+                usage.IsValid ? PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, usage) : PipData.Invalid,
+                usageIsFullDisplayString: false);
         }
     }
 }

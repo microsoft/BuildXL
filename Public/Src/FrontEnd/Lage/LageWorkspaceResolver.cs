@@ -87,18 +87,32 @@ namespace BuildXL.FrontEnd.Lage
             Contract.Requires(groupMembers.Count > 0);
             var firstMember = groupMembers.First();
 
-            // Lage project names look like project-name#script-command. All members in the same group are
-            // supposed to share the same project name, so just use the first member
-            string name = firstMember.Name;
+            // All members in the same group are supposed to share the same project name, so just use the first member
+            var name = ExtractProjectName(firstMember.Name);
+
+            // Let's keep the same Lage nomenclature for the group
+            return $"{name}#{groupCommandName}";
+        }
+
+        /// <summary>
+        /// Lage graph builder embeds the script command in the project name, so here we just remove it
+        /// </summary>
+        protected override string TryGetProjectDisplayName(string projectName, string scriptCommandName, AbsolutePath projectFolder) =>
+            ExtractProjectName(projectName);
+
+        /// <summary>
+        /// Lage project names look like project-name#script-command
+        /// </summary>
+        private static string ExtractProjectName(string name)
+        {
             var index = name.LastIndexOf('#');
             // There should always be a '#' in the name, but just be defensive here
             if (index >= 0)
             {
-                name = name[..(index + 1)];
+                name = name[..index];
             }
 
-            // Let's keep the same Lage nomenclature for the group
-            return $"{name}{groupCommandName}";
+            return name;
         }
     }
 }

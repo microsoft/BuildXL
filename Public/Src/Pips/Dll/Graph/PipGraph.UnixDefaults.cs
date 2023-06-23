@@ -56,7 +56,8 @@ namespace BuildXL.Pips.Graph
                     FullSymbol.Invalid,
                     LocationData.Invalid,
                     QualifierId.Unqualified,
-                    PipData.Invalid);
+                    PipData.Invalid,
+                    usageIsFullDisplayString: false);
 
                 m_sourceSealDirectoryPaths = Enumerable
                     .Empty<string>()

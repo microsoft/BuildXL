@@ -744,7 +744,8 @@ namespace Test.BuildXL.Processes.Detours
                         FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "AllowlistedValue")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
-                        PipData.Invalid),
+                        PipData.Invalid,
+                        false),
                     StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
@@ -834,7 +835,8 @@ namespace Test.BuildXL.Processes.Detours
                         FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "AllowlistedValue")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
-                        PipData.Invalid),
+                        PipData.Invalid,
+                        false),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
@@ -923,7 +925,8 @@ namespace Test.BuildXL.Processes.Detours
                         FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "AllowlistedValue")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
-                        PipData.Invalid),
+                        PipData.Invalid, 
+                        false),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
@@ -1021,7 +1024,8 @@ namespace Test.BuildXL.Processes.Detours
                         FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "SharedOpaqueAccesses")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
-                        PipData.Invalid),
+                        PipData.Invalid,
+                        false),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
@@ -1127,7 +1131,8 @@ namespace Test.BuildXL.Processes.Detours
                         FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "SharedOpaqueAccesses")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
-                        PipData.Invalid),
+                        PipData.Invalid,
+                        false),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
                     // Write on existing files are for now blocked only when allow undeclared source reads are on
@@ -2187,7 +2192,8 @@ namespace Test.BuildXL.Processes.Detours
                         FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "SharedOpaqueAccesses")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
-                        PipData.Invalid),
+                        PipData.Invalid,
+                        false),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 

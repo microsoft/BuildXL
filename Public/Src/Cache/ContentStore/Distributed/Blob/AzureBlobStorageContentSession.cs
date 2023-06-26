@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
@@ -44,6 +45,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
 
     private readonly Configuration _configuration;
     private readonly AzureBlobStorageContentStore _store;
+    private readonly BlobStorageClientAdapter _clientAdapter;
 
     private readonly IAbsFileSystem _fileSystem = PassThroughFileSystem.Default;
 
@@ -53,6 +55,12 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
     {
         _configuration = configuration;
         _store = store;
+        _clientAdapter = new BlobStorageClientAdapter(
+            Tracer,
+            new BlobFolderStorageConfiguration()
+            {
+                StorageInteractionTimeout = _configuration.StorageInteractionTimeout,
+            });
     }
 
     #region IContentSession Implementation
@@ -485,6 +493,19 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
                 catch (RequestFailedException e) when (e.Status is PreconditionFailed or BlobAlreadyExists)
                 {
                     contentAlreadyExistsInCache = true;
+                }
+
+                if (contentAlreadyExistsInCache)
+                {
+                    // Garbage collection requires that we bump the last access time of blobs when we attempt
+                    // to add a content hash list and one of its contents already exists. Performing a 1-byte
+                    // download to achieve this.
+                    var touchResult = await _clientAdapter.TouchAsync(context, client);
+
+                    if (!touchResult.Succeeded)
+                    {
+                        return new PutResult(touchResult);
+                    }
                 }
 
                 return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache);

@@ -6,13 +6,16 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+#if !NETCOREAPP
+using System.Runtime.CompilerServices;
+#endif
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using System.Runtime.CompilerServices;
 using BuildXL.Utilities.ParallelAlgorithms;
 
+#nullable enable
 #pragma warning disable CS3002
 
 namespace BuildXL.Cache.ContentStore.Hashing
@@ -41,7 +44,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public ContentHasher(HashInfo info)
         {
-            Contract.Requires(info != null);
             Contract.Requires(info.HashType != HashType.Unknown);
 
             Info = info;

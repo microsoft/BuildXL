@@ -7,6 +7,8 @@ using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Interfaces.Stores;
 
 /// <summary>

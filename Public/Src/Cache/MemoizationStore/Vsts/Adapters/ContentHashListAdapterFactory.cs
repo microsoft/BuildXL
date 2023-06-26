@@ -3,10 +3,11 @@
 
 using System;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
+
+#nullable enable
 
 namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 {
@@ -15,17 +16,15 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
     /// </summary>
     public sealed class ContentHashListAdapterFactory : IDisposable
     {
-        private readonly IBuildCacheHttpClientFactory _httpClientFactory;
-
-        private ContentHashListAdapterFactory(IBuildCacheHttpClientFactory httpClientFactory)
+        private ContentHashListAdapterFactory(IBuildCacheHttpClientCommon buildCacheHttpClient)
         {
-            _httpClientFactory = httpClientFactory;
+            BuildCacheHttpClient = buildCacheHttpClient;
         }
 
         /// <summary>
         /// Gets a BuildCacheHttpClient
         /// </summary>
-        public IBuildCacheHttpClientCommon BuildCacheHttpClient { get; private set; }
+        public IBuildCacheHttpClientCommon BuildCacheHttpClient { get; }
 
         /// <summary>
         /// Creates an instance of the ContentHashListAdapterFactory class.
@@ -35,18 +34,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             IBuildCacheHttpClientFactory httpClientFactory,
             bool useBlobContentHashLists)
         {
-            var adapterFactory = new ContentHashListAdapterFactory(httpClientFactory);
-            try
-            {
-                await adapterFactory.StartupAsync(context, useBlobContentHashLists);
-            }
-            catch (Exception)
-            {
-                adapterFactory.Dispose();
-                throw;
-            }
-
-            return adapterFactory;
+            IBuildCacheHttpClientCommon buildCacheHttpClient = await StartupAsync(httpClientFactory, context, useBlobContentHashLists).ConfigureAwait(false);
+            return new ContentHashListAdapterFactory(buildCacheHttpClient);
         }
 
         /// <summary>
@@ -54,9 +43,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         /// </summary>
         public IContentHashListAdapter Create(IBackingContentSession contentSession, bool includeDownloadUris)
         {
-            ItemBuildCacheHttpClient itemBasedClient = BuildCacheHttpClient as ItemBuildCacheHttpClient;
-
-            if (itemBasedClient != null)
+            if (BuildCacheHttpClient is ItemBuildCacheHttpClient itemBasedClient)
             {
                 return new ItemBuildCacheContentHashListAdapter(itemBasedClient, contentSession.UriCache);
             }
@@ -67,19 +54,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         /// <inheritdoc />
         public void Dispose()
         {
-            BuildCacheHttpClient?.Dispose();
+            BuildCacheHttpClient.Dispose();
         }
 
-        private async Task StartupAsync(Context context, bool useBlobContentHashLists)
+        private static async Task<IBuildCacheHttpClientCommon> StartupAsync(
+            IBuildCacheHttpClientFactory httpClientFactory,
+            Context context,
+            bool useBlobContentHashLists)
         {
             if (useBlobContentHashLists)
             {
-                BuildCacheHttpClient = await _httpClientFactory.CreateBlobBuildCacheHttpClientAsync(context).ConfigureAwait(false);
+                return await httpClientFactory.CreateBlobBuildCacheHttpClientAsync(context);
             }
             else
             {
-                BuildCacheHttpClient =
-                    await _httpClientFactory.CreateBuildCacheHttpClientAsync(context).ConfigureAwait(false);
+                return await httpClientFactory.CreateBuildCacheHttpClientAsync(context).ConfigureAwait(false);
             }
         }
     }

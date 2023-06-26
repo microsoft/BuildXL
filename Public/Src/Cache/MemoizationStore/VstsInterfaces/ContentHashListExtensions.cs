@@ -4,6 +4,8 @@
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
 {
     /// <summary>

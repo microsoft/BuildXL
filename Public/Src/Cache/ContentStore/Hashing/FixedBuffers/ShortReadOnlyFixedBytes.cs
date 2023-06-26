@@ -4,10 +4,11 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {

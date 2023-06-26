@@ -5,6 +5,8 @@ using System.Collections.Concurrent;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using StrongFingerprintToHashListDictionary = System.Collections.Concurrent.ConcurrentDictionary<BuildXL.Cache.MemoizationStore.Interfaces.Sessions.StrongFingerprint, BuildXL.Cache.MemoizationStore.Interfaces.Sessions.ContentHashListWithDeterminism>;
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.Vsts
 {
     /// <summary>

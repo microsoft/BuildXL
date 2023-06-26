@@ -9,6 +9,8 @@ using System.Text;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>
@@ -51,8 +53,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public ReadOnlyFixedBytes(byte[] buffer, int length = MaxLength, int offset = 0)
         {
-            Contract.Requires(buffer != null);
-
             // Unfortunately, we can not expect that the length is less then the MaxLength, because many existing clients do not respect it.
             var len = Math.Min(length, Math.Min(buffer.Length - offset, MaxLength));
 
@@ -114,7 +114,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static ReadOnlyFixedBytes Parse(string serialized)
         {
-            Contract.Requires(serialized != null);
             Contract.Requires(serialized.Length > 0);
 
             if (!TryParse(serialized, out var result, out var length))
@@ -135,10 +134,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static bool TryParse(string serialized, out ReadOnlyFixedBytes result, out int length)
         {
-            Contract.Requires(serialized != null);
-
             byte[] bytes;
-
             try
             {
                 bytes = HexUtilities.HexToBytes(serialized);

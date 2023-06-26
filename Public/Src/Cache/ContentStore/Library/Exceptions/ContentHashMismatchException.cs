@@ -7,6 +7,8 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Exceptions
 {
     /// <summary>
@@ -28,7 +30,6 @@ namespace BuildXL.Cache.ContentStore.Exceptions
         public ContentHashMismatchException(AbsolutePath path, ContentHash actualHash, ContentHash expectedHash)
             : base(BuildMessage(path, expectedHash, actualHash))
         {
-            Contract.Requires(path != null);
         }
 
         private static string BuildMessage(AbsolutePath path, ContentHash expectedHash, ContentHash actualHash)

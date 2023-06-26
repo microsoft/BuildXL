@@ -7,6 +7,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
+#nullable enable
+
 namespace Test.BuildXL.Storage
 {
     /// <summary>
@@ -17,10 +19,13 @@ namespace Test.BuildXL.Storage
         public ContentHashingUtilitiesUnitTests(ITestOutputHelper output)
             : base(output) { }
 
+        [Fact]
         public void HasNonZeroHashSize()
         {
-            // HashAlgorigthm requires this value to be set to the size of block it returns.  Murmur algorithm is not used anywhere else by default, so we test this is set.
-            XAssert.AreNotEqual(0, new Murmur3HashAlgorithm().HashSize);
+            // HashAlgorithm requires this value to be set to the size of block it returns.  Murmur algorithm is not used anywhere else by default, so we test this is set.
+            var murmur = new Murmur3HashAlgorithm();
+            murmur.Initialize();
+            XAssert.AreNotEqual(0, murmur.HashSize);
         }
 
         [Fact]

@@ -8,6 +8,7 @@ using System.IO;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
+#nullable enable
 #pragma warning disable CS3008 // CLS
 
 namespace BuildXL.Cache.ContentStore.Hashing
@@ -75,8 +76,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public ContentHash(string serialized)
         {
-            Contract.Requires(serialized != null);
-
             if (!TryParse(serialized, out this))
             {
                 throw new ArgumentException($"{serialized} is not a recognized content hash");
@@ -89,7 +88,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public ContentHash(HashType hashType, byte[] buffer, int offset = 0)
         {
             Contract.Requires(hashType != HashType.Unknown);
-            Contract.Requires(buffer != null);
 
             int hashBytesLength = HashInfoLookup.Find(hashType).ByteLength;
             if (buffer.Length < (hashBytesLength + offset))
@@ -123,8 +121,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public ContentHash(byte[] buffer, int offset = 0, SerializeHashBytesMethod serializeMethod = SerializeHashBytesMethod.Trimmed)
         {
-            Contract.Requires(buffer != null);
-
             _hashType = (HashType)buffer[offset++];
             var length = serializeMethod == SerializeHashBytesMethod.Trimmed
                 ? HashInfoLookup.Find(_hashType).ByteLength
@@ -137,8 +133,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public ContentHash(BinaryReader reader)
         {
-            Contract.Requires(reader != null);
-
             _hashType = (HashType)reader.ReadByte();
             _bytes = ReadOnlyFixedBytes.ReadFrom(reader, ReadOnlyFixedBytes.MaxLength);
         }
@@ -150,7 +144,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             : this()
         {
             Contract.Requires(hashType != HashType.Unknown);
-            Contract.Requires(reader != null);
 
             _hashType = hashType;
             _bytes = ReadOnlyFixedBytes.ReadFrom(reader, ReadOnlyFixedBytes.MaxLength);
@@ -255,13 +248,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public string ToHex(int? stringLength = null)
         {
-
-            Contract.Requires((stringLength ?? StringLength) <= StringLength, $"stringLength is incorrect. stringLength = {stringLength}");
-
             // _bytes.ToHex takes 'length' argument that represents the number of bytes that needs to be converted to a final string.
             // But 'stringLength' represents the final size of the string, not the number of bytes converted.
             // So if the requested string length is an odd number, then we still have to remove one character from the final string.
             stringLength ??= StringLength;
+            Contract.Requires(stringLength <= StringLength, $"stringLength is incorrect. stringLength = {stringLength}");
 
             var result = _bytes.ToHex((stringLength.Value + 1) / 2);
             if (stringLength.Value % 2 != 0)
@@ -470,8 +461,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         internal static bool TryParse(string serialized, out ContentHash contentHash, bool isShortHash)
         {
-            Contract.Requires(serialized != null);
-
             var x = serialized.IndexOf(SerializedDelimiter);
 
             if (x < 1 || x >= serialized.Length)
@@ -507,8 +496,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         internal static bool TryParse(HashType hashType, string serialized, out ContentHash contentHash, bool isShortHash)
         {
-            Contract.Requires(serialized != null);
-
             if (serialized.Length != (isShortHash ? ShortHash.HashStringLength : HashInfoLookup.Find(hashType).StringLength))
             {
                 contentHash = default(ContentHash);

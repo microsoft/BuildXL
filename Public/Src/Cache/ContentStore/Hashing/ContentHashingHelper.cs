@@ -4,10 +4,10 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers;
 
+#nullable enable
 #pragma warning disable CS3001 // CLS
 #pragma warning disable CS3002
 #pragma warning disable CS3003

@@ -45,16 +45,18 @@ namespace BuildXL.Processes.Remoting
             }
 
 #if FEATURE_ANYBUILD_PROCESS_REMOTING
-            IRemoteProcessManager remoteProcessManager = new AnyBuildRemoteProcessManager(
-                loggingContext,
-                executionContext,
-                configuration,
-                filePredictor,
-                counters);
-#else
-            IRemoteProcessManager remoteProcessManager = new NoRemotingRemoteProcessManager();
+            if (configuration.Schedule.EnableProcessRemoting)
+            { 
+                return new AnyBuildRemoteProcessManager(
+                    loggingContext,
+                    executionContext,
+                    configuration,
+                    filePredictor,
+                    counters);
+            }
 #endif
-            return remoteProcessManager;
+
+            return new NoRemotingRemoteProcessManager();
         }
 
         /// <summary>

@@ -1821,8 +1821,7 @@ namespace BuildXL
                 // The workspace directory will be emptied after logs are uploaded, so it is expected to be empty when the build finishes.
                 // If for any reason this doesn't happen and the directory is preserved, the next time a new build starts, the remaining content
                 // will be uploaded (and emptied).
-                // A directory under the object directory will serve this purpose
-                var workspacePath = m_objectDirectory.Combine(m_pathTable, "BlobUpload").ToString(m_pathTable);
+                var workspacePath = Path.Combine(Path.GetTempPath(), "BlobUpload");
                 try
                 {
                     Directory.CreateDirectory(workspacePath);

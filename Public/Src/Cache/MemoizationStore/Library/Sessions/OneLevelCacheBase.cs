@@ -359,10 +359,15 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             return false;
         }
 
-        internal void AddOrExtendPin(Context context, ContentHash contentHash)
+        internal void AddOrExtendPin(Context context, ContentHash contentHash, string provenance)
         {
             // Since _pinElisionCache is only not null when the config value is not null, we can assume the config value is not null
             _pinElisionCache?.Add(contentHash, Configuration.MetadataPinElisionDuration!.Value);
+
+            if (_pinElisionCache != null)
+            {
+                Tracer.Info(context, $"Extending pin elision for content hash `{contentHash}` with provenance `{provenance}`");
+            }
         }
 
         internal bool CanElidePin(Context context, ContentHash contentHash)

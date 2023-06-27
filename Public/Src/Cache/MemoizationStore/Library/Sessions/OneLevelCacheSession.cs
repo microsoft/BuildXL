@@ -231,7 +231,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 {
                     foreach (var selector in result.Value.Selectors)
                     {
-                        Parent.AddOrExtendPin(context, selector.ContentHash);
+                        Parent.AddOrExtendPin(context, selector.ContentHash, selector.ToString());
                     }
                 }
 
@@ -254,13 +254,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             {
                 if (!Parent.Configuration.DoNotElidePinsForGetLevelSelectors)
                 {
-                    Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash);
+                    Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash, strongFingerprint.Selector.ToString());
                 }
 
                 var contentHashList = result.ContentHashListWithDeterminism.ContentHashList.Hashes;
                 foreach (var contentHash in contentHashList)
                 {
-                    Parent.AddOrExtendPin(context, contentHash);
+                    Parent.AddOrExtendPin(context, contentHash, strongFingerprint.ToString());
                 }
             }
 
@@ -434,13 +434,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             {
                 if (!Parent.Configuration.DoNotElidePinsForGetLevelSelectors)
                 {
-                    Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash);
+                    Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash, strongFingerprint.Selector.ToString());
                 }
 
                 var contentHashList = result.ContentHashListWithDeterminism.ContentHashList.Hashes;
                 foreach (var contentHash in contentHashList)
                 {
-                    Parent.AddOrExtendPin(context, contentHash);
+                    Parent.AddOrExtendPin(context, contentHash, strongFingerprint.ToString());
                 }
             }
 

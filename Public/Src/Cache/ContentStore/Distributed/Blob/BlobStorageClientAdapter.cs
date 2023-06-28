@@ -397,7 +397,7 @@ public class BlobStorageClientAdapter
             caller: caller);
     }
 
-    public Task<Result<DateTimeOffset?>> TouchAsync(OperationContext context, BlobClient blob)
+    public Task<Result<(DateTimeOffset? dateTimeOffset, long? contentLength)>> TouchAsync(OperationContext context, BlobClient blob)
     {
         return context.PerformOperationWithTimeoutAsync(
             Tracer,
@@ -412,7 +412,7 @@ public class BlobStorageClientAdapter
                     rangeGetContentHash: false,
                     cancellationToken: context.Token);
 
-                return Result.Success<DateTimeOffset?>(response.Value.Details.LastAccessed, isNullAllowed: true);
+                return Result.Success<(DateTimeOffset?, long?)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength), isNullAllowed: true);
             },
             traceOperationStarted: false,
             extraEndMessage: _ => $"Path=[{blob.ToDisplayName()}]",

@@ -437,18 +437,28 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
             {
                 BlobClient client;
                 (client, blobPath) = await GetBlobClientAsync(context, contentHash);
-                try
+                // Let's make sure that we bump the last access time
+                var touchResult = await _clientAdapter.TouchAsync(context, client);
+
+                if (!touchResult.Succeeded)
                 {
-                    var properties = await client.GetPropertiesAsync(cancellationToken: context.Token);
-                    return new PinResult(
-                        code: PinResult.ResultCode.Success,
-                        lastAccessTime: properties.Value.LastModified.UtcDateTime,
-                        contentSize: properties.Value.ContentLength);
+                    // In case the touch operation comes back with a blob not found or condition not met (the latter can be the case when
+                    // the touch operation is implemeted with http ranges and targets a non-existent blob), this is treated as a content not found
+                    if (touchResult.Exception is RequestFailedException requestFailed &&
+                        (requestFailed.ErrorCode == BlobErrorCode.BlobNotFound || requestFailed.ErrorCode == BlobErrorCode.ConditionNotMet))
+                    {
+                        return PinResult.ContentNotFound;
+                    }
+                    else
+                    {
+                        return new PinResult(touchResult);
+                    }
                 }
-                catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
-                {
-                    return PinResult.ContentNotFound;
-                }
+
+                return new PinResult(
+                    code: PinResult.ResultCode.Success,
+                    lastAccessTime: touchResult.Value.dateTimeOffset?.UtcDateTime,
+                    contentSize: touchResult.Value.contentLength ?? -1);
             },
             traceOperationStarted: false,
             extraEndMessage: _ => $"ContentHash=[{contentHash.ToShortString()}] BlobPath=[{blobPath}]",

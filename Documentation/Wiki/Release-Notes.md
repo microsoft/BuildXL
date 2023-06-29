@@ -1,6 +1,30 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230622.2 (Release [308283](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=308283&_a=release-pipeline-progress)) Released 6/28/2023
+-	Properly propagate failure when updating metadata.
+-	Add documentation for configuring a blob-based L3 cache
+-	Add more logging to cache eviction logic
+-	Interpose realpath and report all intermediate symlink resolutions
+-	Abstract away initialization of grpc core server.
+
+# 0.1.0-20230617.0 (Release [307141](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=307141&_a=release-pipeline-progress)) Released 6/21/2023
+- Add pin elision capabilities for the blob-based L3 cache
+-	Optionally add symbol indexing data to the BSI
+-	Include standard output in DX0016 timeout log messages
+-	Run DumpPipLite for DFA pips
+-	Implement ReportProcessArgs in the Linux sandbox
+-	Fail workers if pips have pending messages for particular pips on successful exits
+-	Change some configuration defaults on AdoBuildRunner
+
+# 0.1.0-20230608.2 (Release [305070](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=305070&_a=release-pipeline-progress)) Released 6/14/2023
+-	Perf improvements for file content table loading
+-	Revert Microsoft.Artifacts.Authenticate package to address auth issues with interactive login
+-	Perf improvements in FileContentManager
+-	Address occasional IPC errors about failures binding to port for service pips
+-	Linux support for VsCode DScript extension
+-	Expose Symbol drop events to data stream to be rendered in CloudBuild UI
+
 # 0.1.0-20230601.0 (Release [303270](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=303270&_a=release-pipeline-progress)) Released 6/7/2023
 -	Correctly report process creation ID for the PTrace sandbox
 -	Correctly retrieve the Linux filesystem type

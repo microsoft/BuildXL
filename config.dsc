@@ -227,9 +227,9 @@ config({
                 { id: "System.Spatial", version: "5.8.2" },
 
                 // Azure Blob Storage SDK V12
-                { id: "Azure.Storage.Blobs", version: "12.13.0",
+                { id: "Azure.Storage.Blobs", version: "12.16.0",
                     dependentPackageIdsToSkip: [ "System.Text.Json" ] },
-                { id: "Azure.Storage.Common", version: "12.12.0" },
+                { id: "Azure.Storage.Common", version: "12.15.0" },
                 { id: "System.IO.Hashing", version: "6.0.0",
                     dependentPackageIdsToSkip: [ "System.Buffers", "System.Memory" ] },
                 { id: "Azure.Storage.Blobs.Batch", version: "12.10.0" },

@@ -278,6 +278,7 @@ private:
     void InitDetoursLibPath();
     bool Send(const char *buf, size_t bufsiz, bool useSecondaryPipe = false);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
+    bool CheckCache(es_event_type_t event, const string &path, bool addEntryIfMissing);
     char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
     void report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath = nullptr, mode_t mode = 0, int error = 0, bool checkCache = true, pid_t associatedPid = 0);
     AccessCheckResult create_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true, pid_t associatedPid = 0);

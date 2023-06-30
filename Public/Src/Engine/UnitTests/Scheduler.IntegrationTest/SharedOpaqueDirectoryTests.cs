@@ -923,7 +923,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
         [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
-        [Trait("Category", "WindowsOSOnly")] // TODO: investigate why this is flaky on Linux
         public void AbsentFileProbeFollowedByDynamicWriteIsBlockedWhenPipsAreIndependent(bool forceDependency)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
@@ -1633,14 +1632,20 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(pip.Process.PipId).AssertSuccess();
         }
 
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test is skipped because its falky on mac
-        [Trait("Category", "SkipLinux")] // TODO(BUG)
+        [TheoryIfSupported(requiresWindowsOrLinuxOperatingSystem: true)] // The test is skipped because its flaky on mac
         [MemberData(
             nameof(CrossProduct),
             new object[] { true, false },
             new object[] { true, false })]
         public void ProbeBeforeWriteIsAllowedWhenLazyDeletionIsDisabled(bool isLazyDeletionEnabled, bool areDependent)
         {
+            if (OperatingSystemHelper.IsLinuxOS && isLazyDeletionEnabled)
+            {
+                // Lazy SOD deletion is flaky, and it's even more flaky on Linux.
+                // As a compromise, on Linux, run the test only when lazy sod deletion is off.
+                return;
+            }
+
             Configuration.Schedule.UnsafeLazySODeletion = isLazyDeletionEnabled;
 
             var sod = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "sod-read-cycle"));
@@ -2591,7 +2596,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// the deletion of a file as if the second pip created/deleted a temp file.
         /// </summary>
         [Theory]
-        [Trait("Category", "SkipLinux")] // TODO(BUG 1751624)
         [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void DeletingPreviouslyProducedFilesIsNotAllowed(bool dependencyBetweenPips)
         {
@@ -2713,7 +2717,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void EmptyDirUnderSharedOpaqueIsConsistentlyInterpretedOnCacheReplay()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");

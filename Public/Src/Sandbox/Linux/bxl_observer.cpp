@@ -189,22 +189,10 @@ void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...)
     }
 }
 
-bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const string &secondPath)
+// Checks whether cache contains (event, path) pair and returns the result of this check.
+// If the pair is not in cache and addEntryIfMissing is true, attempts to add the pair to cache.
+bool BxlObserver::CheckCache(es_event_type_t event, const string &path, bool addEntryIfMissing)
 {
-    // (1) IMPORTANT           : never do any of this stuff after this object has been disposed!
-    //     WHY                 : because the cache date structure is invalid at that point.
-    //     HOW CAN THIS HAPPEN : we may get called from "on_exit" handlers, at which point the
-    //                           global BxlObserver singleton instance can already be disposed.
-    // (2) never cache FORK, EXEC, EXIT and events that take 2 paths
-    if (disposed_ ||
-        secondPath.length() > 0 ||
-        event == ES_EVENT_TYPE_NOTIFY_FORK ||
-        event == ES_EVENT_TYPE_NOTIFY_EXEC ||
-        event == ES_EVENT_TYPE_NOTIFY_EXIT)
-    {
-        return false;
-    }
-
     // coalesce some similar events
     es_event_type_t key;
     switch (event)
@@ -250,13 +238,43 @@ bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const st
     unordered_map<es_event_type_t, unordered_set<string>>::iterator it = cache_.find(key);
     if (it == cache_.end())
     {
-        unordered_set<string> set;
-        set.insert(path);
-        cache_.insert(make_pair(key, set));
+        if (addEntryIfMissing) 
+        {
+            unordered_set<string> set;
+            set.insert(path);
+            cache_.insert(make_pair(key, set));
+        }
+
         return false;
     }
 
-    return !it->second.insert(path).second;
+    if (addEntryIfMissing) 
+    {
+        return !it->second.insert(path).second;
+    }
+    else 
+    {
+        return (it->second.find(path) != it->second.end());
+    }
+}
+
+bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const string &secondPath)
+{
+    // (1) IMPORTANT           : never do any of this stuff after this object has been disposed!
+    //     WHY                 : because the cache date structure is invalid at that point.
+    //     HOW CAN THIS HAPPEN : we may get called from "on_exit" handlers, at which point the
+    //                           global BxlObserver singleton instance can already be disposed.
+    // (2) never cache FORK, EXEC, EXIT and events that take 2 paths
+    if (disposed_ ||
+        secondPath.length() > 0 ||
+        event == ES_EVENT_TYPE_NOTIFY_FORK ||
+        event == ES_EVENT_TYPE_NOTIFY_EXEC ||
+        event == ES_EVENT_TYPE_NOTIFY_EXIT)
+    {
+        return false;
+    }
+
+    return CheckCache(event, path, /* addEntryIfMissing */ false);
 }
 
 bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe)
@@ -498,17 +516,26 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, IOEvent &e
 
     AccessCheckResult result = sNotChecked;
     pid_t pid = event.GetPid() == 0 ? getpid() : event.GetPid();
+    bool accessShouldBeBlocked = false;
 
     if (IsEnabled(pid))
     {
         IOHandler handler(sandbox_);
         handler.SetProcess(process_);
         result = handler.CheckAccessAndBuildReport(event, reportGroup);
+        accessShouldBeBlocked = result.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
+        if (!accessShouldBeBlocked) 
+        {
+            // This access won't be blocked, so let's cache it.
+            // We populate cache even if checkCache is false, but this should be ok.
+            // We cache event types that are always a miss in IsCacheHit, but this also shoulld be fine.
+            CheckCache(eventType, event.GetSrcPath(), /* addEntryIfMissing */ true);
+        }
     }
 
     LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscallName, event.GetEventType(), event.GetEventPath(),
         !result.ShouldReport() ? "[Ignored]" : result.ShouldDenyAccess() ? "[Denied]" : "[Allowed]",
-        result.ShouldDenyAccess() && IsFailingUnexpectedAccesses() ? "[Blocked]" : "");
+        accessShouldBeBlocked ? "[Blocked]" : "");
 
     return result;
 }
@@ -546,7 +573,7 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_t
         return sNotChecked;
     }
 
-    return create_access_internal(syscallName, eventType, normalize_path(pathname, flags).c_str(), nullptr, reportGroup, mode, checkCache, associatedPid);
+    return create_access_internal(syscallName, eventType, normalized.c_str(), /* secondPath */ nullptr, reportGroup, mode, checkCache, associatedPid);
 }
 
 void BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error, pid_t associatedPid)

@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using BuildXL;
 using BuildXL.ToolSupport;
@@ -236,6 +238,28 @@ namespace Test.BuildXL
             XAssert.AreEqual("99.99%  ", ConsoleEventListener.ComputePercentDone(23, 23, 99998, 99999));
             XAssert.AreEqual("99.95%  ", ConsoleEventListener.ComputePercentDone(1000, 1000, 50, 100));
             XAssert.AreEqual("99.95%  ", ConsoleEventListener.ComputePercentDone(9999, 10000, 50, 100));
+        }
+
+        [Fact]
+        public void TestEventRedirection(bool suppressWarning)
+        {
+            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+            CancellationToken cancellationToken = cancellationTokenSource.Token;
+            var loggingContext = BuildXLTestBase.CreateLoggingContextForTest();
+
+            using (var console = new MockConsole())
+            // Let's create and register a redirector listener to send an arbitrary message to the console
+            using (var redirectorListener = new ConsoleRedirectorEventListener(Events.Log, DateTime.UtcNow, new List<int> { (int)TestEvents.EventId.DiagnosticEvent}, loggingContext, warningMapper: null))
+            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, cancellationToken))
+            {
+                listener.RegisterEventSource(TestEvents.Log);
+                redirectorListener.RegisterEventSource(TestEvents.Log);
+
+                var message = "I'm an event that should be redirected to the console";
+                TestEvents.Log.DiagnosticEvent(message);
+
+                console.ValidateCall(MessageLevel.Info, message);
+            }
         }
     }
 }

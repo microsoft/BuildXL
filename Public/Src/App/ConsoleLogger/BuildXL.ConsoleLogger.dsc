@@ -12,6 +12,7 @@ namespace ConsoleLogger {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.ConsoleLogger",
         sources: globR(d`.`, "*.cs"),
+        generateLogs: true,
         embeddedResources: [{resX: f`Strings.resx`}],
         references: [
             importFrom("BuildXL.Engine").Scheduler.dll,

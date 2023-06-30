@@ -399,6 +399,11 @@ namespace BuildXL
                 "/dumpFailedPipsLogLimit:<number>",
                 Strings.HelpText_DisplayHelp_DumpFailedPipsLogLimit);
 
+            hw.WriteOption(
+                "/logToConsole:<event id list>",
+                Strings.HelpText_DisplayHelp_LogToConsole,
+                HelpLevel.Verbose);
+
             #endregion
 
             hw.WriteBanner(Strings.HelpText_DisplayHelp_ErrorsAndWarningsBanner);

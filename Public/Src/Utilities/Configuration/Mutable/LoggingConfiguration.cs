@@ -66,6 +66,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             PerfCollectorFrequencyMs = 5_000;
             LogToKusto = false;
+            LogEventsToConsole = new List<int>();
         }
 
         /// <nodoc />
@@ -170,6 +171,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogToKustoBlobUri = template.LogToKustoBlobUri;
             LogToKustoIdentityId = template.LogToKustoIdentityId;
             LogToKustoTenantId = template.LogToKustoTenantId;
+            LogEventsToConsole = new List<int>(template.LogEventsToConsole);
         }
 
         /// <inheritdoc />
@@ -433,5 +435,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public string LogToKustoIdentityId { get; set; }
+
+        /// <nodoc/>
+        public List<int> LogEventsToConsole { get; set; }
+
+        /// <inheritdoc/>
+        IReadOnlyList<int> ILoggingConfiguration.LogEventsToConsole => LogEventsToConsole;
     }
 }

@@ -342,6 +342,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "logToKustoTenantId",
                             opt => loggingConfiguration.LogToKustoTenantId = opt.Value),
+                        OptionHandlerFactory.CreateOption(
+                            "logToConsole",
+                            opt => ParseInt32ListOption(opt, loggingConfiguration.LogEventsToConsole)),
                         OptionHandlerFactory.CreateBoolOption(
                             "debuggerBreakOnExit",
                             opt => frontEndConfiguration.DebuggerBreakOnExit = opt),

@@ -464,5 +464,10 @@ namespace BuildXL.Utilities.Configuration
         /// Default value points to the Bxl-owned identity 6e0959cf-a9ba-4988-bbf1-7facd9deda51
         /// </remarks>
         public string LogToKustoIdentityId { get; }
+
+        /// <summary>
+        /// Collection of log event ids that should be sent to the console
+        /// </summary>
+        public IReadOnlyList<int> LogEventsToConsole { get; }
     }
 }

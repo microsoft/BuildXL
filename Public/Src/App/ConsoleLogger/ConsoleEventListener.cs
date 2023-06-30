@@ -14,6 +14,7 @@ using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -212,6 +213,12 @@ namespace BuildXL
             m_notWorker = notWorker;
             m_optimizeForAzureDevOps = optimizeForAzureDevOps;
             m_statusMessageThrottler = new StatusMessageThrottler(baseTime);
+
+            // Only the console listener in interested in this event source. All events specified
+            // with /logToConsole will be redirected to this event source and picked up here
+            // This avoids the redirection to show anywhere else. Observe that this event source
+            // is registered in addition to the specified eventSource
+            RegisterEventSource(ConsoleLogger.ETWLogger.Log);
         }
 
         /// <summary>
@@ -363,6 +370,16 @@ namespace BuildXL
                         m_console.ReportProgress((ulong)done, (ulong)total);
                     }
 
+                    break;
+                }
+                // This is the case of regular log events sent to the console honoring a user configurable option
+                case (int)ConsoleRedirector.Tracing.LogEventId.LogToConsole:
+                {
+                    // The message is already fully formatted, so just put it back together
+                    object[] args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
+                    string finalMessage = string.Format(CultureInfo.CurrentCulture, eventData.Message, args);
+
+                    Output(MessageLevel.Info, finalMessage);
                     break;
                 }
 

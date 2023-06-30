@@ -132,6 +132,7 @@ This page lists flags that can be used to configure BuildXL.
 | LogStats | Logs key/value statistics to default stats file in the same folder as the main log file. Defaults to on. |
 | LogStatus | Logs build status information to a CSV file in the same folder as the main log file. Defaults to on. |
 | LogsToRetain | The number of previous logs to retain. |
+| LogToConsole | Displays the specified messages in the console. |
 | LogToKusto | Whether to send log events to Kusto. If enabled, a valid authentication mechanism should be available with enough permissions to write into the blob storage account where logs are piped to Kusto. Use /logToKustoBlobUri:https://{storage-account-name}/{container-name} /logToKustoIdentityId:{Identity guid} and /logToKustoTenantId:{Tenant guid} to specify the destination of the log messages. |
 | LowPriority | Runs the build engine and all tools at a lower priority in order to provide better responsiveness to interactive processes on the current machine. |
 | ManageMemoryMode | Specifies the mode to manage memory under pressure. Defaults to CancellationRam where {ShortProductName} attemps to cancel processes. EmptyWorkingSet mode will empty working set of processes instead of cancellation. Suspend mode will suspend processes to free memory. |

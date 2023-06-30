@@ -57,6 +57,7 @@ using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Core.Pipeline;
 using Microsoft.WindowsAzure.Storage.RetryPolicies;
+using BuildXL.ConsoleRedirector;
 
 namespace BuildXL
 {
@@ -1593,6 +1594,11 @@ namespace BuildXL
                     {
                         ConfigureKustoLogging(loggingContext);
                     }
+
+                    if (m_configuration.LogEventsToConsole.Count > 0)
+                    {
+                        ConfigureConsoleRedirection(loggingContext);
+                    }
                 }
             }
 
@@ -2004,6 +2010,18 @@ namespace BuildXL
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
                             pathTranslator: PathTranslatorForLogging);
                         });
+            }
+
+            private void ConfigureConsoleRedirection(LoggingContext loggingContext)
+            {
+                var consoleRedirector = new ConsoleRedirectorEventListener(
+                                            Events.Log,
+                                            m_baseTime,
+                                            m_configuration.LogEventsToConsole,
+                                            loggingContext,
+                                            m_warningManager.GetState);
+
+                AddListener(consoleRedirector);
             }
 
             /// <summary>

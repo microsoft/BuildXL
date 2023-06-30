@@ -177,10 +177,11 @@ export function test(args: TestArguments): TestResult {{
                     debug: true))
                 {
                     var mountPathExpander = new MountPathExpander(pathTable);
-                    mountPathExpander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(frontEndContext.StringTable, "testFolder"), testFolderPath, allowHashing: true, readable: true, writable: false));
+                    mountPathExpander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(frontEndContext.StringTable, "testFolder"), testFolderPath, allowHashing: true, readable: true, writable: true));
                     mountPathExpander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(frontEndContext.StringTable, "src"), testFolderPath.Combine(pathTable, "src"), allowHashing: true, readable: true, writable: true));
                     mountPathExpander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(frontEndContext.StringTable, "out"), testFolderPath.Combine(pathTable, "out"), allowHashing: true, readable: true, writable: true));
                     mountPathExpander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(frontEndContext.StringTable, "noRead"), testFolderPath.Combine(pathTable, "noRead"), allowHashing: true, readable: false, writable: true));
+                    mountPathExpander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(frontEndContext.StringTable, "noWrite"), testFolderPath.Combine(pathTable, "noWrite"), allowHashing: true, readable: true, writable: false));
                     mountPathExpander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(frontEndContext.StringTable, "temp"), engineAbstraction.Layout.TempDirectory, allowHashing: true, readable: true, writable: true));
                     mountPathExpander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(frontEndContext.StringTable, "obj"), engineAbstraction.Layout.ObjectDirectory, allowHashing: true, readable: true, writable: true));
 

@@ -1,0 +1,41 @@
+
+Transformer.execute({
+    tool: {exe: f`./src/foo.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--opt"],
+            },
+            "bar",
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--out"],
+            },
+            p`./Out/out.txt`,
+        ],
+    },
+    workingDirectory: d`./src`,
+    dependencies: [f`./src/foo.exe`, f`./src/input.txt`],
+    implicitOutputs: [f`./Out/out.txt`, d`./Out/OutDir`],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+    ],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+    unsafe: {untrackedScopes: [p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`]},
+    allowUndeclaredSourceReads: true,
+});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/OutDir`});

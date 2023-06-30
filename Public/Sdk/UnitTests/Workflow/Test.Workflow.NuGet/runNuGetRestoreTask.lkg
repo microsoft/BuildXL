@@ -1,0 +1,164 @@
+Transformer.writeFile(
+    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore/Dummy__for__nuget__restore.csproj`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "\r\n",
+                items: [
+                    "<Project Sdk=\"Microsoft.NET.Sdk\">",
+                    "<PropertyGroup>",
+                    "  <Version>1.0.0.0</Version>",
+                    "  <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>",
+                    "  <TargetFramework>net472</TargetFramework>",
+                    "  <AssemblyName>Dummy__for__nuget__restore</AssemblyName>",
+                    "  <NoWarn>CS0436</NoWarn>",
+                    "</PropertyGroup>",
+                    "<ItemGroup>",
+                    "  <PackageReference Include=\"PackageA\" Version=\"1.0.1\"  />",
+                    "  <PackageReference Include=\"PackageB\" Version=\"2.0.1\"  />",
+                    "</ItemGroup>",
+                    "</Project>",
+                ],
+            },
+        ],
+    }
+);
+Transformer.writeFile(
+    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore/nuget.config`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "\r\n",
+                items: [
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>",
+                    "<configuration>",
+                    "  <packageRestore>",
+                    "    <add key=\"enabled\" value=\"True\" />",
+                    "    <add key=\"automatic\" value=\"True\" />",
+                    "  </packageRestore>",
+                    "  <packageSources>",
+                    "    <clear />",
+                    "    <add key=\"PackageA\" value=\"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\src\\distrib\\PackageA\" />",
+                    "    <add key=\"PackageB\" value=\"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\src\\distrib\\PackageB\" />",
+                    "    <add key=\"MyFeed\" value=\"https://myfeed.pkgs.visualstudio.com/DefaultCollection/_packaging/MyFeed/nuget/v3/index.json\" />",
+                    "  </packageSources>",
+                    "  <packageSourceMapping>",
+                    "    <packageSource key=\"MyFeed\">",
+                    "      <package pattern=\"*\" />",
+                    "    </packageSource>",
+                    "    <packageSource key=\"PackageA\">",
+                    "      <package pattern=\"PackageA\" />",
+                    "    </packageSource>",
+                    "    <packageSource key=\"PackageB\">",
+                    "      <package pattern=\"PackageB\" />",
+                    "    </packageSource>",
+                    "  </packageSourceMapping>",
+                    "</configuration>",
+                ],
+            },
+        ],
+    }
+);
+Transformer.sealSourceDirectory({root: d`./src/ProgramFiles/dotnet`, include: "allDirectories"});
+Transformer.writeFile(
+    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore/restore.cmd`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "\r\n",
+                items: [
+                    "@ECHO OFF",
+                    "\"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\src\\ProgramFiles\\dotnet\\dotnet.exe\" msbuild \"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\obj_test\\k\\w\\6k5ykzrovlnle3hdbgx4lv7q\\nugetRestore\\Dummy__for__nuget__restore.csproj\" -restore -nologo -interactive:False -property:RestoreConfigFile=B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\obj_test\\k\\w\\6k5ykzrovlnle3hdbgx4lv7q\\nugetRestore\\nuget.config;RestoreNoCache=true;RestorePackagesPath=B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\obj_test\\k\\w\\6k5ykzrovlnle3hdbgx4lv7q\\nugetPackages;OutputPath=B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\Out\\restore",
+                    "IF EXIST \"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\Out\\restore\\Dummy__for__nuget__restore.dll\" DEL /F \"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\Out\\restore\\Dummy__for__nuget__restore.dll\"",
+                    "IF EXIST \"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\Out\\restore\\Dummy__for__nuget__restore.pdb\" DEL /F \"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\Out\\restore\\Dummy__for__nuget__restore.pdb\"",
+                    "IF EXIST \"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\Out\\restore\\ref\" RMDIR /S /Q \"B:\\Out\\Objects\\4\\x\\x7ebvc8r1098womc53kmrmx0\\t_2\\Test_Workflow_NuGet\\runNuGetRestoreTask\\Out\\restore\\ref\"",
+                    "IF %ERRORLEVEL% NEQ 0 (",
+                    "    EXIT /b %ERRORLEVEL%",
+                    ")",
+                    "EXIT /B 0",
+                ],
+            },
+        ],
+    }
+);
+Transformer.sealSourceDirectory({root: d`./src/distrib/PackageA.1.0.1`, include: "allDirectories"});
+Transformer.sealSourceDirectory({root: d`./src/distrib/PackageB.2.0.1`, include: "allDirectories"});
+Transformer.execute({
+    tool: {exe: f`./src/cmd.exe`},
+    tags: ["nuget.restore"],
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: ["/D", "/C", p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore/restore.cmd`],
+    },
+    workingDirectory: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore`,
+    dependencies: [
+        f`./src/ProgramFiles/dotnet/dotnet.exe`,
+        f`./src/cmd.exe`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore/restore.cmd`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore/nuget.config`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore/Dummy__for__nuget__restore.csproj`,
+        d`./src/ProgramFiles/dotnet`,
+        d`./src/distrib/PackageA.1.0.1`,
+        d`./src/distrib/PackageB.2.0.1`,
+    ],
+    implicitOutputs: [d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetPackages`, d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore/obj`, d`./Out/restore`],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+        {
+            name: "UseSharedCompilation",
+            value: "false",
+            isPassThrough: false,
+        },
+    ],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+    unsafe: {
+        untrackedScopes: [
+            p`./src/BuildXL/.dotnet`,
+            p`./src/ProgramData/microsoft/netFramework/breadcrumbStore`,
+            p`./src/LocalLow/Microsoft/CryptnetUrlCache`,
+            p`./src/ProgramFiles/PowerShell/7`,
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            p`./src/ProgramData/microsoft/VisualStudio`,
+            p`./src/ProgramData/Microsoft Visual Studio`,
+            p`./src/ProgramFiles/Microsoft Visual Studio`,
+            p`./src/ProgramFilesX86/Windows Kits/10`,
+            p`./src/ProgramFilesX86/Microsoft SDKs`,
+            p`./src/ProgramFilesX86/Reference Assemblies/Microsoft/Framework/.NETFramework`,
+            p`./src/BuildXL/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
+            p`./src/BuildXL/.nuget/plugins/netcore/CredentialProvider.Microsoft`,
+            p`./src/BuildXL/.nuget/v3-cache`,
+            p`./src/BuildXL/.nuget/plugins-cache`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+        ],
+    },
+    allowUndeclaredSourceReads: true,
+});
+Transformer.sealDynamicDirectory({root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetPackages`, tags: ["nuget.restore"]});
+Transformer.sealDynamicDirectory({root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/nugetRestore/obj`, tags: ["nuget.restore"]});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/restore`, tags: ["nuget.restore"]});

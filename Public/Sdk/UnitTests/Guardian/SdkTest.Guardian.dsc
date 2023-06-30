@@ -4,7 +4,7 @@
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace StandardSdk.Guardian {
-    export const hashingTest = Context.getCurrentHost().os === "win" && BuildXLSdk.sdkTest({
+    export const guardianTest = Context.getCurrentHost().os === "win" && BuildXLSdk.sdkTest({
         testFiles: globR(d`.`, "Test.*.dsc"),
         sdkFolders: [
             d`${Context.getMount("SdkRoot").path}/Tools/Guardian`,

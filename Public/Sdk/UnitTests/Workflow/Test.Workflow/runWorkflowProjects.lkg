@@ -1,0 +1,177 @@
+
+Transformer.execute({
+    tool: {exe: f`./src/fooA.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            "--opt",
+            "barA",
+            "--out",
+            p`./Out/P/outA/outA.txt`,
+        ],
+    },
+    workingDirectory: d`./src/P`,
+    dependencies: [f`./src/fooA.exe`],
+    implicitOutputs: [d`./Out/P/outA`],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+    ],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+    unsafe: {
+        untrackedScopes: [
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+        ],
+    },
+    allowUndeclaredSourceReads: true,
+});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/P/outA`});
+Transformer.execute({
+    tool: {exe: f`./src/fooB.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            "--opt",
+            "barB",
+            "--out",
+            p`./Out/P/outB/outB.txt`,
+        ],
+    },
+    workingDirectory: d`./src/P`,
+    dependencies: [f`./src/fooB.exe`, d`./Out/P/outA`],
+    implicitOutputs: [d`./Out/P/outB`],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
+            isPassThrough: false,
+        },
+    ],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
+    unsafe: {
+        untrackedScopes: [
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+        ],
+    },
+    allowUndeclaredSourceReads: true,
+});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/P/outB`});
+Transformer.execute({
+    tool: {exe: f`./src/fooA.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            "--opt",
+            "barA",
+            "--out",
+            p`./Out/Q/outA/outA.txt`,
+        ],
+    },
+    workingDirectory: d`./src/Q`,
+    dependencies: [f`./src/fooA.exe`],
+    implicitOutputs: [d`./Out/Q/outA`],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`,
+            isPassThrough: false,
+        },
+    ],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`,
+    unsafe: {
+        untrackedScopes: [
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+        ],
+    },
+    allowUndeclaredSourceReads: true,
+});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/Q/outA`});
+Transformer.execute({
+    tool: {exe: f`./src/fooB.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            "--opt",
+            "barB",
+            "--out",
+            p`./Out/Q/outB/outB.txt`,
+        ],
+    },
+    workingDirectory: d`./src/Q`,
+    dependencies: [f`./src/fooB.exe`, d`./Out/Q/outA`, d`./Out/P/outB`],
+    implicitOutputs: [d`./Out/Q/outB`],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_3`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_3`,
+            isPassThrough: false,
+        },
+    ],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_3`,
+    unsafe: {
+        untrackedScopes: [
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_3`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+        ],
+    },
+    allowUndeclaredSourceReads: true,
+});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/Q/outB`});

@@ -1,0 +1,60 @@
+Transformer.writeFile(
+    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/script/script.cmd`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "\r\n",
+                items: [
+                    "@ECHO OFF",
+                    "CALL foo.exe --opt bar --out out.txt",
+                    "IF %ERRORLEVEL% NEQ 0 (",
+                    "    EXIT /b %ERRORLEVEL%",
+                    ")",
+                    "EXIT /B 0",
+                ],
+            },
+        ],
+    }
+);
+Transformer.execute({
+    tool: {exe: f`./src/cmd.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: ["/D", "/C", p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/script/script.cmd`],
+    },
+    workingDirectory: d`./src`,
+    dependencies: [f`./src/cmd.exe`, f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/script/script.cmd`],
+    implicitOutputs: [d`./src`],
+    environmentVariables: [
+        {
+            name: "TEMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+        {
+            name: "TMP",
+            value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            isPassThrough: false,
+        },
+    ],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+    unsafe: {
+        untrackedScopes: [
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+        ],
+    },
+    allowUndeclaredSourceReads: true,
+});
+Transformer.sealSharedDynamicDirectory({root: d`./src`});

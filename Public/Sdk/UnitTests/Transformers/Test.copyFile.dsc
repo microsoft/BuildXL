@@ -20,8 +20,8 @@ namespace Sdk.Tests {
     @@Testing.unitTest()
     export function cantWriteToDestination() {
         Testing.expectFailure(
-            () => Transformer.copyFile(f`src/fromFile`, p`noWrite`),
-            {code: 2000, content: `cantWriteToDestination${dirSep}noWrite' is under a non-writable mount`}
+            () => Transformer.copyFile(f`src/fromFile`, p`noWrite/toFile`),
+            {code: 2000, content: `cantWriteToDestination${dirSep}noWrite${dirSep}toFile' is under a non-writable mount`}
         );
     }
     

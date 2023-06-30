@@ -174,7 +174,7 @@ namespace BuildXL.Scheduler.Cache
         /// Stores content for the given path set using the given store function
         /// </summary>
         protected async Task<Possible<ContentHash>> TrySerializedAndStorePathSetAsync(
-            ObservedPathSet pathSet, 
+            ObservedPathSet pathSet,
             Func<ContentHash, MemoryStream, Task<Possible<Unit>>> storeAsync,
             bool preservePathCasing,
             ContentHash? pathSetHash = null)
@@ -238,7 +238,7 @@ namespace BuildXL.Scheduler.Cache
                 return new Failure<PipFingerprintEntry>(metadataEntry, new Failure<string>(message));
             }
 
-            return (PipCacheDescriptorV2Metadata) metadataEntry.Deserialize(
+            return (PipCacheDescriptorV2Metadata)metadataEntry.Deserialize(
                 Context.CancellationToken,
                 new CacheQueryData
                 {
@@ -316,7 +316,7 @@ namespace BuildXL.Scheduler.Cache
             if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {
                 Possible<ContentAvailabilityBatchResult> maybeAvailable =
-                    await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash }, Context.CancellationToken, new () { AvoidRemote = avoidRemoteLookups });
+                    await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash }, Context.CancellationToken, new() { AvoidRemote = avoidRemoteLookups });
                 if (!maybeAvailable.Succeeded)
                 {
                     return maybeAvailable.Failure;
@@ -441,15 +441,25 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <summary>
-        /// Report metadata and pathset from workers
+        /// Report metadata from workers
         /// </summary>
-        public virtual void ReportRemoteMetadataAndPathSet(
+        public virtual void ReportRemoteMetadata(
             PipCacheDescriptorV2Metadata metadata,
             ContentHash? metadataHash,
-            ObservedPathSet? pathSet,
             ContentHash? pathSetHash,
             WeakContentFingerprint? weakFingerprint,
             StrongContentFingerprint? strongFingerprint,
+            bool isExecution,
+            bool preservePathCasing)
+        {
+        }
+
+        /// <summary>
+        /// Report pathset from workers
+        /// </summary>
+        public virtual void ReportRemotePathSet(
+            ObservedPathSet? pathSet,
+            ContentHash? pathSetHash,
             bool isExecution,
             bool preservePathCasing)
         {

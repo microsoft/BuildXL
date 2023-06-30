@@ -254,5 +254,11 @@ namespace BuildXL.Scheduler.Cache
 
         /// <nodoc/>
         HistoricStrongFingerprintInvalidCount,
+
+        /// <nodoc/>
+        ReportRemoteMetadataCalls,
+
+        /// <nodoc/>
+        ReportRemotePathSetCalls,
     }
 }

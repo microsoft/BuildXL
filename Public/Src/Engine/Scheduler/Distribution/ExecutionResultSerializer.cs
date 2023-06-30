@@ -132,15 +132,6 @@ namespace BuildXL.Scheduler.Distribution
             var twoPhaseCachingInfo = ReadTwoPhaseCachingInfo(reader);
             var cacheDescriptor = ReadPipCacheDescriptor(reader);
 
-            ObservedPathSet? pathSet = null;
-            if (reader.ReadBoolean())
-            {
-                var maybePathSet = ObservedPathSet.TryDeserialize(m_executionContext.PathTable, reader, pathReader: ReadAbsolutePath);
-                pathSet = maybePathSet.Succeeded
-                    ? (ObservedPathSet?)maybePathSet.Result
-                    : null;
-            }
-
             CacheLookupPerfInfo cacheLookupCounters = null;
             if (reader.ReadBoolean())
             {
@@ -187,7 +178,6 @@ namespace BuildXL.Scheduler.Distribution
                 twoPhaseCachingInfo,
                 cacheDescriptor,
                 converged,
-                pathSet,
                 cacheLookupCounters,
                 pipProperties,
                 hasUserRetries,
@@ -236,9 +226,6 @@ namespace BuildXL.Scheduler.Distribution
 
             WriteTwoPhaseCachingInfo(writer, result.TwoPhaseCachingInfo);
             WritePipCacheDescriptor(writer, result.PipCacheDescriptorV2Metadata);
-
-            writer.Write(result.PathSet.HasValue);
-            result.PathSet?.Serialize(m_executionContext.PathTable, writer, preservePathCasing, pathWriter: WriteAbsolutePath);
 
             bool sendCacheLookupCounters = result.CacheLookupPerfInfo != null;
             writer.Write(sendCacheLookupCounters);
@@ -649,7 +636,7 @@ namespace BuildXL.Scheduler.Distribution
             AbsolutePath path;
             if (reader.ReadBoolean())
             {
-                 path = reader.ReadAbsolutePath();
+                path = reader.ReadAbsolutePath();
             }
             else
             {

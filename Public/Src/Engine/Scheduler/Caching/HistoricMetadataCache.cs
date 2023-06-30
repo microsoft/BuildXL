@@ -662,10 +662,9 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <inheritdoc/>
-        public override void ReportRemoteMetadataAndPathSet(
+        public override void ReportRemoteMetadata(
             PipCacheDescriptorV2Metadata metadata,
             ContentHash? metadataHash,
-            ObservedPathSet? pathSet,
             ContentHash? pathSetHash,
             WeakContentFingerprint? weakFingerprint,
             StrongContentFingerprint? strongFingerprint,
@@ -673,6 +672,7 @@ namespace BuildXL.Scheduler.Cache
             bool preservePathCasing)
         {
             EnsureLoadedAsync().GetAwaiter().GetResult();
+            Counters.IncrementCounter(PipCachingCounter.ReportRemoteMetadataCalls);
 
             if (metadata != null && metadataHash.HasValue)
             {
@@ -692,24 +692,6 @@ namespace BuildXL.Scheduler.Cache
                 }
             }
 
-            if (pathSet.HasValue && pathSetHash.HasValue)
-            {
-                if (TryAdd(pathSetHash.Value, pathSet.Value, preservePathCasing))
-                {
-                    Counters.IncrementCounter(
-                        isExecution
-                            ? PipCachingCounter.HistoricPathSetCountFromRemoteExecution
-                            : PipCachingCounter.HistoricPathSetCountFromRemoteLookup);
-                }
-                else
-                {
-                    Counters.IncrementCounter(
-                        isExecution
-                            ? PipCachingCounter.HistoricPathSetExistCountFromRemoteExecution
-                            : PipCachingCounter.HistoricPathSetExistCountFromRemoteLookup);
-                }
-            }
-
             if (weakFingerprint.HasValue && strongFingerprint.HasValue && pathSetHash.HasValue && metadataHash.HasValue)
             {
                 if (SetMetadataEntry(weakFingerprint.Value, strongFingerprint.Value, pathSetHash.Value, metadataHash.Value, metadata?.SemiStableHash ?? 0))
@@ -725,6 +707,34 @@ namespace BuildXL.Scheduler.Cache
                         isExecution
                             ? PipCachingCounter.HistoricCacheEntryExistCountFromRemoteExecution
                             : PipCachingCounter.HistoricCacheEntryExistCountFromRemoteLookup);
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public override void ReportRemotePathSet(
+            ObservedPathSet? pathSet,
+            ContentHash? pathSetHash,
+            bool isExecution,
+            bool preservePathCasing)
+        {
+            Counters.IncrementCounter(PipCachingCounter.ReportRemotePathSetCalls);
+
+            if (pathSet.HasValue && pathSetHash.HasValue)
+            {
+                if (TryAdd(pathSetHash.Value, pathSet.Value, preservePathCasing))
+                {
+                    Counters.IncrementCounter(
+                        isExecution
+                            ? PipCachingCounter.HistoricPathSetCountFromRemoteExecution
+                            : PipCachingCounter.HistoricPathSetCountFromRemoteLookup);
+                }
+                else
+                {
+                    Counters.IncrementCounter(
+                        isExecution
+                            ? PipCachingCounter.HistoricPathSetExistCountFromRemoteExecution
+                            : PipCachingCounter.HistoricPathSetExistCountFromRemoteLookup);
                 }
             }
         }
@@ -817,10 +827,10 @@ namespace BuildXL.Scheduler.Cache
                     TrySerializedAndStorePathSetAsync(
                         pathSet,
                         (pathSetHash, pathSetBuffer) =>
-                            {
-                                added = TryAddContent(pathSetHash, ToStorableContent(pathSetBuffer));
-                                return s_genericSuccessTask;
-                            },
+                        {
+                            added = TryAddContent(pathSetHash, ToStorableContent(pathSetBuffer));
+                            return s_genericSuccessTask;
+                        },
                         preservePathCasing,
                         pathSetHash: hash
                     ).GetAwaiter().GetResult()

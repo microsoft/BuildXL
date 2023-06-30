@@ -9,6 +9,8 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using BuildXL.Scheduler.Cache;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -28,10 +30,12 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public override bool CanHandleWorkerEvents => true;
 
+        private readonly PipTwoPhaseCache m_pipTwoPhaseCache;
+
         /// <inheritdoc/>
         public override IExecutionLogTarget CreateWorkerTarget(uint workerId)
         {
-            return new OchestratorSpecificExecutionLogTarget(m_loggingContext, m_scheduler, (int)workerId);
+            return new OchestratorSpecificExecutionLogTarget(m_loggingContext, m_scheduler, m_pipTwoPhaseCache, (int)workerId);
         }
 
         /// <summary>
@@ -40,10 +44,12 @@ namespace BuildXL.Scheduler.Tracing
         public OchestratorSpecificExecutionLogTarget(
             LoggingContext loggingContext,
             Scheduler scheduler,
+            PipTwoPhaseCache pipTwoPhaseCache,
             int workerId = 0)
         {
             m_loggingContext = loggingContext;
             m_scheduler = scheduler;
+            m_pipTwoPhaseCache = pipTwoPhaseCache;
             m_workerId = workerId;
         }
 
@@ -80,6 +86,27 @@ namespace BuildXL.Scheduler.Tracing
                         PathAtom fileName = data.FileArtifact.Path.GetName(m_scheduler.Context.PathTable);
                         var materializationInfo = new FileMaterializationInfo(data.FileContentInfo, fileName);
                         m_scheduler.State.FileContentManager.ReportInputContent(data.FileArtifact, materializationInfo, contentMismatchErrorsAreWarnings: true);
+                    }
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
+        {
+            if (m_workerId == 0)
+            {
+                return;
+            }
+
+            foreach (var sfComputation in data.StrongFingerprintComputations)
+            {
+                if (sfComputation.Succeeded)
+                {
+                    if ((sfComputation.IsStrongFingerprintHit && data.Kind == FingerprintComputationKind.CacheCheck) ||
+                        (!sfComputation.IsStrongFingerprintHit && data.Kind == FingerprintComputationKind.Execution))
+                    {
+                        m_pipTwoPhaseCache.ReportRemotePathSet(sfComputation.PathSet, sfComputation.PathSetHash, isExecution: data.Kind == FingerprintComputationKind.Execution, preservePathCasing: data.PreservePathSetCasing);
                     }
                 }
             }

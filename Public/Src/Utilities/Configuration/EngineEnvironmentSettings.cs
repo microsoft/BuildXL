@@ -502,14 +502,6 @@ namespace BuildXL.Utilities.Configuration
         /// cause cache client logs to get routed to Kusto in CloudBuild.
         /// </summary>
         public static readonly Setting<bool> EnableCacheClientLogFileTelemetry = CreateSetting("EnableCacheClientLogFileTelemetry", value => value == "1");
-
-        /// <summary>
-        /// Disable sending worker XLG events to orchestrator
-        /// </summary>
-        /// <remarks>
-        /// Default disabled
-        /// </remarks>
-        public static readonly Setting<bool> DoNotSendXLGToOrchestrator = CreateSetting("BuildXLDoNotSendXLGToOrchestrator", value => value == "1");
         
         /// <summary>
         /// Sets the variable for consumption by settings

@@ -56,6 +56,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public string RelatedSessionId;
 
+        /// <summary>
+        /// Whether the serialized path set is not normalized wrt casing
+        /// </summary>
+        public bool PreservePathSetCasing;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<ProcessFingerprintComputationEventData> Metadata => ExecutionLogMetadata.ProcessFingerprintComputation;
 
@@ -67,6 +72,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(WeakFingerprint);
             writer.WriteNullableString(SessionId);
             writer.WriteNullableString(RelatedSessionId);
+            writer.Write(PreservePathSetCasing);
             writer.WriteReadOnlyList(StrongFingerprintComputations, (w, v) => v.Serialize((BinaryLogger.EventWriter)w));
         }
 
@@ -78,6 +84,7 @@ namespace BuildXL.Scheduler.Tracing
             WeakFingerprint = reader.ReadWeakFingerprint();
             SessionId = reader.ReadNullableString();
             RelatedSessionId = reader.ReadNullableString();
+            PreservePathSetCasing = reader.ReadBoolean();
             StrongFingerprintComputations = reader.ReadReadOnlyList(r => new ProcessStrongFingerprintComputationData((BinaryLogReader.EventReader)r));
         }
     }
@@ -271,10 +278,10 @@ namespace BuildXL.Scheduler.Tracing
         {
             writer.Write(PathSetHash);
             PathSet.Serialize(
-                writer.PathTable, 
-                writer, 
+                writer.PathTable,
+                writer,
                 preserveCasing: false,
-                pathWriter: (w, v) => w.Write(v), 
+                pathWriter: (w, v) => w.Write(v),
                 stringWriter: (w, v) => ((BinaryLogger.EventWriter)w).WriteDynamicStringId(v));
             writer.WriteReadOnlyList(PriorStrongFingerprints, (w, v) => w.Write(v));
             writer.Write(Succeeded);
@@ -337,8 +344,8 @@ namespace BuildXL.Scheduler.Tracing
             });
 
             writer.AddCollection<StringId, ReadOnlyArray<StringId>>(
-                ObservedPathSet.Labels.ObservedAccessedFileNames, 
-                ObservedAccessedFileNames, 
+                ObservedPathSet.Labels.ObservedAccessedFileNames,
+                ObservedAccessedFileNames,
                 (w, v) => w.AddFileName(v));
 
             // Observed inputs are included directly into the strong fingerprint hash computation,

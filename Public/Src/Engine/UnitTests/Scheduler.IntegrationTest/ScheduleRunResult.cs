@@ -31,7 +31,7 @@ namespace Test.BuildXL.Scheduler
 
         public ConcurrentDictionary<PipId, PipResultStatus> PipResults => RunData.PipResults;
 
-        public ConcurrentDictionary<PipId, ObservedPathSet?> PathSets => RunData.PathSets;
+        public ConcurrentDictionary<PipId, ObservedPathSet?> PathSets { get; set; }
 
         public CounterCollection<PipExecutorCounter> PipExecutorCounters { get; set; }
 

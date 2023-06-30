@@ -108,20 +108,17 @@ namespace BuildXL.Engine.Distribution
 
             m_orchestratorClient = orchestratorClient;
 
-            if (!EngineEnvironmentSettings.DoNotSendXLGToOrchestrator)
-            {
-                m_executionLogTarget = new NotifyOrchestratorExecutionLogTarget(
-                    notifyAction: (stream) =>
+            m_executionLogTarget = new NotifyOrchestratorExecutionLogTarget(
+                notifyAction: (stream) =>
+                {
+                    if (!ReportExecutionLog(stream))
                     {
-                        if (!ReportExecutionLog(stream))
-                        {
-                            m_executionLogTarget.Deactivate();
-                        }
-                    },
-                    flushIfNeeded: true,
-                    engineSchedule: schedule);
-                schedule.Scheduler.AddExecutionLogTarget(m_executionLogTarget);
-            }
+                        m_executionLogTarget.Deactivate();
+                    }
+                },
+                flushIfNeeded: true,
+                engineSchedule: schedule);
+            schedule.Scheduler.AddExecutionLogTarget(m_executionLogTarget);
 
             m_manifestExecutionLog = new NotifyOrchestratorExecutionLogTarget(
                 notifyAction: FlushManifestEvents,

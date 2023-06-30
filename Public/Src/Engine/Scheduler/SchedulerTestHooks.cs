@@ -2,8 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Pips;
 using BuildXL.Processes;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage.ChangeTracking;
@@ -21,6 +24,11 @@ namespace BuildXL.Scheduler
     /// </remarks>
     public class SchedulerTestHooks
     {
+        /// <summary>
+        /// PathSets associated with pips
+        /// </summary>
+        public ConcurrentDictionary<PipId, ObservedPathSet?> PathSets { get; } = new ConcurrentDictionary<PipId, ObservedPathSet?>();
+
         /// <summary>
         /// Incremental scheduling state owned by the scheduler.
         /// </summary>
@@ -77,5 +85,13 @@ namespace BuildXL.Scheduler
         /// We don't spin up API server for basic tests, so a service pip cannot make complete the handshake.
         /// </remarks>
         public bool? ServicePipReportedReady { get; set; }
+
+        /// <summary>
+        /// Report PathSet for a given pip
+        /// </summary>
+        public void ReportPathSet(ObservedPathSet? pathSet, PipId pipId)
+        {
+            PathSets.TryAdd(pipId, pathSet);
+        }
     }
 }

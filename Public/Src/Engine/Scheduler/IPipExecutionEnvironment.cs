@@ -248,6 +248,11 @@ namespace BuildXL.Scheduler
         /// The set of <see cref="ISandboxConfiguration.GlobalUnsafeUntrackedScopes"/> translated with <see cref="DirectoryTranslator"/>
         /// </summary>
         IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes { get; }
+
+        /// <summary>
+        /// Test hooks for scheduler.
+        /// </summary>
+        SchedulerTestHooks SchedulerTestHooks { get; }
     }
 
     /// <summary>

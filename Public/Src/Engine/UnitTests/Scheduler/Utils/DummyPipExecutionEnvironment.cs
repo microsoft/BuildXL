@@ -652,6 +652,8 @@ namespace Test.BuildXL.Scheduler.Utils
 
         public IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes => CollectionUtilities.EmptySet<AbsolutePath>();
 
+        public SchedulerTestHooks SchedulerTestHooks { get; }
+
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {
             if (m_knownSealedSourceDirectoriesAllDirectories.Contains(directory.Path))

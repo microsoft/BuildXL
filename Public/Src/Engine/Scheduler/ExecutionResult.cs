@@ -77,8 +77,6 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private ObservedPathSet? m_pathSet;
-
         /// <summary>
         /// Gets the pip result for the process execution
         /// </summary>
@@ -156,8 +154,8 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Sets the pip result for the process execution. An error must be logged before calling this method
         /// </summary>
-        public void SetResult(LoggingContext context, 
-            PipResultStatus status, 
+        public void SetResult(LoggingContext context,
+            PipResultStatus status,
             RetryInfo retryInfo = null)
         {
             Contract.Requires(status != PipResultStatus.Succeeded || retryInfo == null, "Succeeded Pips should not have RetryInfo");
@@ -222,24 +220,6 @@ namespace BuildXL.Scheduler
             {
                 EnsureUnsealed();
                 m_weakFingerprint = value;
-            }
-        }
-
-        /// <summary>
-        /// Gets the path set
-        /// </summary>
-        public ObservedPathSet? PathSet
-        {
-            get
-            {
-                EnsureSealed();
-                return m_pathSet;
-            }
-
-            set
-            {
-                EnsureUnsealed();
-                m_pathSet = value;
             }
         }
 
@@ -451,7 +431,6 @@ namespace BuildXL.Scheduler
             TwoPhaseCachingInfo twoPhaseCachingInfo,
             PipCacheDescriptorV2Metadata pipCacheDescriptorV2Metadata,
             bool converged,
-            ObservedPathSet? pathSet,
             CacheLookupPerfInfo cacheLookupStepDurations,
             IReadOnlyDictionary<string, int> pipProperties,
             bool hasUserRetries,
@@ -479,7 +458,6 @@ namespace BuildXL.Scheduler
                     m_pipCacheDescriptorV2Metadata = pipCacheDescriptorV2Metadata,
                     Converged = converged,
                     IsSealed = true,
-                    m_pathSet = pathSet,
                     m_cacheLookupPerfInfo = cacheLookupStepDurations,
                     m_pipProperties = pipProperties,
                     m_hasUserRetries = hasUserRetries,
@@ -522,7 +500,6 @@ namespace BuildXL.Scheduler
                 convergedCacheResult.TwoPhaseCachingInfo,
                 convergedCacheResult.PipCacheDescriptorV2Metadata,
                 converged: true,
-                pathSet: convergedCacheResult.PathSet,
                 cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
@@ -555,7 +532,6 @@ namespace BuildXL.Scheduler
                 TwoPhaseCachingInfo,
                 PipCacheDescriptorV2Metadata,
                 Converged,
-                PathSet,
                 CacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
@@ -567,7 +543,7 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// Populates high level cache info from the given cache result.
-        /// Specifically <see cref="PathSet"/>, <see cref="WeakFingerprint"/>, <see cref="PipCacheDescriptorV2Metadata"/>, and <see cref="TwoPhaseCachingInfo"/> 
+        /// Specifically <see cref="WeakFingerprint"/>, <see cref="PipCacheDescriptorV2Metadata"/>, and <see cref="TwoPhaseCachingInfo"/> 
         /// are populated.
         /// </summary>
         public void PopulateCacheInfoFromCacheResult(RunnableFromCacheResult cacheResult)
@@ -580,7 +556,6 @@ namespace BuildXL.Scheduler
             if (cacheResult.CanRunFromCache)
             {
                 var cacheHitData = cacheResult.GetCacheHitData();
-                PathSet = cacheHitData.PathSet;
                 PipCacheDescriptorV2Metadata = cacheHitData.Metadata;
                 TwoPhaseCachingInfo = new TwoPhaseCachingInfo(
                     weakFingerprint: cacheResult.WeakFingerprint,
@@ -733,7 +708,7 @@ namespace BuildXL.Scheduler
                     m_result = m_unsealedState.Result.Value;
                     m_outputContent = ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.From(m_unsealedState.OutputContent);
                     m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.From(m_unsealedState.DirectoryOutputs);
-                    
+
                     // If the result from the sandbox was not reported, that means this pip came from the cache, and therefore
                     // the shared dynamic accesses need to be populated from the already reported output directories
                     if (!m_unsealedState.SandboxedResultReported)
@@ -816,7 +791,7 @@ namespace BuildXL.Scheduler
         {
             var sharedDynamicAccesses = directoryOutputs
                 .Where(kvp => kvp.Item1.IsSharedOpaque)
-                .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<FileArtifactWithAttributes>) kvp.Item2);
+                .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<FileArtifactWithAttributes>)kvp.Item2);
 
             return new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(sharedDynamicAccesses);
         }
@@ -840,7 +815,8 @@ namespace BuildXL.Scheduler
             public SandboxedProcessPipExecutionResult ExecutionResult
             {
                 get => m_executionResult;
-                set {
+                set
+                {
                     SandboxedResultReported = true;
                     m_executionResult = value;
                 }

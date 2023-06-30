@@ -676,6 +676,8 @@ namespace Test.BuildXL.Scheduler
             public PluginManager PluginManager { get; }
 
             public IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes => CollectionUtilities.EmptySet<AbsolutePath>();
+
+            public SchedulerTestHooks SchedulerTestHooks { get; }
         }
     }
 

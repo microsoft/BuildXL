@@ -32,8 +32,6 @@ namespace Test.BuildXL.Scheduler
 
         public ConcurrentDictionary<PipId, PipResultStatus> PipResults => RunData.PipResults;
 
-        public ConcurrentDictionary<PipId, ObservedPathSet?> PathSets => RunData.PathSets;
-
         public ScheduleRunData RunData { get; } = new ScheduleRunData();
 
         public bool SandboxingWithKextEnabled => OperatingSystemHelper.IsUnixOS;
@@ -128,7 +126,6 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-
             // Set the 'actual' result. NOTE: override also overrides actual result.
             // We set this before calling the wrapped PipCompleted handler since we may
             // be completing the last pip (don't want to race with a test checking pip
@@ -137,8 +134,6 @@ namespace Test.BuildXL.Scheduler
 
             if (runnablePip.Result.HasValue && runnablePip.PipType == PipType.Process)
             {
-                PathSets[pipId] = runnablePip.ExecutionResult?.PathSet;
-
                 RunData.CacheLookupResults[pipId] = ((ProcessRunnablePip)runnablePip).CacheResult;
                 RunData.ExecutionCachingInfos[pipId] = runnablePip.ExecutionResult?.TwoPhaseCachingInfo;
             }

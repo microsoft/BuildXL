@@ -37,7 +37,7 @@ namespace BuildXL.Scheduler
         /// The list of dynamically observed read files.
         /// </summary>
         public readonly ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)> DynamicObservations;
-        
+
         /// <summary>
         /// Observed allowed undeclared source reads
         /// </summary>
@@ -57,11 +57,6 @@ namespace BuildXL.Scheduler
             /// Path set hash
             /// </summary>
             public readonly ContentHash PathSetHash;
-
-            /// <summary>
-            /// PathSet
-            /// </summary>
-            public readonly ObservedPathSet? PathSet;
 
             /// <summary>
             /// Strong fingerprint
@@ -135,8 +130,7 @@ namespace BuildXL.Scheduler
                 Tuple<AbsolutePath, ContentHash, string> standardOutput,
                 Tuple<AbsolutePath, ContentHash, string> standardError,
                 PublishedEntryRefLocality locality,
-                ContentHash metadataHash,
-                ObservedPathSet? pathSet)
+                ContentHash metadataHash)
             {
                 PathSetHash = pathSetHash;
                 StrongFingerprint = strongFingerprint;
@@ -149,7 +143,6 @@ namespace BuildXL.Scheduler
                 StandardError = standardError;
                 Locality = locality;
                 MetadataHash = metadataHash;
-                PathSet = pathSet;
             }
         }
 

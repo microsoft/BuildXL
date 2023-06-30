@@ -49,6 +49,7 @@ using BuildXL.Utilities.Tracing;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using System.Collections.Concurrent;
+using System.Data;
 
 namespace BuildXL.Scheduler
 {
@@ -3064,8 +3065,7 @@ namespace BuildXL.Scheduler
                 refLocality: PublishedEntryRefLocality.Remote,
                 pathSetHash: executionResult.TwoPhaseCachingInfo.PathSetHash,
                 strongFingerprint: executionResult.TwoPhaseCachingInfo.StrongFingerprint,
-                metadataHash: executionResult.TwoPhaseCachingInfo.CacheEntry.MetadataHash,
-                pathSet: executionResult.PathSet);
+                metadataHash: executionResult.TwoPhaseCachingInfo.CacheEntry.MetadataHash);
 
             return cacheHitData != null
                 ? RunnableFromCacheResult.CreateForHit(
@@ -3116,6 +3116,8 @@ namespace BuildXL.Scheduler
 
                     if (maybeMetadata.Succeeded && maybeMetadata.Result != null)
                     {
+                        environment.SchedulerTestHooks?.ReportPathSet(pathSet, pip.PipId);
+
                         maybeParsedDescriptor = TryCreatePipCacheDescriptorFromMetadata(
                             operationContext,
                             environment,
@@ -3125,8 +3127,7 @@ namespace BuildXL.Scheduler
                             refLocality,
                             pathSetHash,
                             strongFingerprint,
-                            metadataHash: usableCacheEntry.MetadataHash,
-                            pathSet: pathSet);
+                            metadataHash: usableCacheEntry.MetadataHash);
 
                         // Parsing can fail if the descriptor is malformed, despite being valid from the cache's perspective
                         // (e.g. missing required content)
@@ -3672,8 +3673,7 @@ namespace BuildXL.Scheduler
             PublishedEntryRefLocality refLocality,
             ContentHash pathSetHash,
             StrongContentFingerprint strongFingerprint,
-            ContentHash metadataHash,
-            ObservedPathSet? pathSet)
+            ContentHash metadataHash)
         {
             Contract.Requires(environment != null);
             Contract.Requires(state != null);
@@ -3801,8 +3801,7 @@ namespace BuildXL.Scheduler
                     standardOutput: standardOutput,
                     dynamicDirectoryContents: dynamicDirectoryContents,
                     locality: refLocality,
-                    metadataHash: metadataHash,
-                    pathSet: pathSet);
+                    metadataHash: metadataHash);
         }
 
         private static bool TryParseOptionalStandardConsoleStreamHash(
@@ -4877,14 +4876,14 @@ namespace BuildXL.Scheduler
 
                     processExecutionResult.TwoPhaseCachingInfo = entryStore;
 
-                    if (environment.State.Cache.IsNewlyAdded(entryStore.PathSetHash))
-                    {
-                        processExecutionResult.PathSet = observedInputs.Value.GetPathSet(state.UnsafeOptions);
-                    }
-
                     if (environment.State.Cache.IsNewlyAdded(entryStore.CacheEntry.MetadataHash))
                     {
                         processExecutionResult.PipCacheDescriptorV2Metadata = metadata;
+                    }
+
+                    if (environment.SchedulerTestHooks != null)
+                    {
+                        environment.SchedulerTestHooks.ReportPathSet(observedInputs.Value.GetPathSet(state.UnsafeOptions), process.PipId);
                     }
                 }
 

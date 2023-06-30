@@ -1420,7 +1420,7 @@ namespace BuildXL.Scheduler
 
             if (!IsDistributedWorker)
             {
-                orchestratorTarget = new OchestratorSpecificExecutionLogTarget(loggingContext, this);
+                orchestratorTarget = new OchestratorSpecificExecutionLogTarget(loggingContext, this, m_pipTwoPhaseCache);
 
                 // Fingerprint augmentation monitoring must be running only on the orchestrator (it's the only worker that will observe
                 // both ProcessFingerprintComputed events for the same pip).
@@ -4669,16 +4669,16 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-                    using (operationContext.StartOperation(PipExecutorCounter.ReportRemoteMetadataAndPathSetDuration))
+                    using (operationContext.StartOperation(PipExecutorCounter.ReportRemoteMetadataDuration))
                     {
                         // It only executes on orchestrator; but we still acquire the slot on the worker.
                         if (cacheResult.CanRunFromCache && worker.IsRemote)
                         {
+                            // We report the pathset to HistoricMetadataCache by using Orchestrator execution log target.
                             var cacheHitData = cacheResult.GetCacheHitData();
-                            m_pipTwoPhaseCache.ReportRemoteMetadataAndPathSet(
+                            m_pipTwoPhaseCache.ReportRemoteMetadata(
                                 cacheHitData.Metadata,
                                 cacheHitData.MetadataHash,
-                                cacheHitData.PathSet,
                                 cacheHitData.PathSetHash,
                                 cacheResult.WeakFingerprint,
                                 cacheHitData.StrongFingerprint,
@@ -4985,10 +4985,9 @@ namespace BuildXL.Scheduler
 
                     if (runnablePip.Worker?.IsRemote == true)
                     {
-                        m_pipTwoPhaseCache.ReportRemoteMetadataAndPathSet(
+                        m_pipTwoPhaseCache.ReportRemoteMetadata(
                             executionResult.PipCacheDescriptorV2Metadata,
                             executionResult.TwoPhaseCachingInfo?.CacheEntry.MetadataHash,
-                            executionResult.PathSet,
                             executionResult.TwoPhaseCachingInfo?.PathSetHash,
                             executionResult.TwoPhaseCachingInfo?.WeakFingerprint,
                             executionResult.TwoPhaseCachingInfo?.StrongFingerprint,
@@ -5259,6 +5258,10 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         bool IPipExecutionEnvironment.IsTerminating => IsTerminating;
+
+        /// <inheritdoc />
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        SchedulerTestHooks IPipExecutionEnvironment.SchedulerTestHooks => m_testHooks;
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

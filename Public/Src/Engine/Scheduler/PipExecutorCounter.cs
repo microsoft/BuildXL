@@ -1117,7 +1117,7 @@ namespace BuildXL.Scheduler
         /// The time spent to report metadata and pathset on orchestrator
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
-        ReportRemoteMetadataAndPathSetDuration,
+        ReportRemoteMetadataDuration,
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]

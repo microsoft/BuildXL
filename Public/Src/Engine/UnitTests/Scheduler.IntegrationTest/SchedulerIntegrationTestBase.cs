@@ -385,7 +385,8 @@ namespace Test.BuildXL.Scheduler
                 {
                     return new ScheduleRunResult()
                     {
-                        Success = false
+                        Success = false,
+                        PathSets = (testHooks ?? new SchedulerTestHooks()).PathSets
                     };
                 }
 
@@ -610,6 +611,7 @@ namespace Test.BuildXL.Scheduler
                     Config = config,
                     Success = success,
                     RunData = testScheduler.RunData,
+                    PathSets = testHooks.PathSets,
                     PipExecutorCounters = testScheduler.PipExecutionCounters,
                     ProcessPipCountersByFilter = testScheduler.ProcessPipCountersByFilter,
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,

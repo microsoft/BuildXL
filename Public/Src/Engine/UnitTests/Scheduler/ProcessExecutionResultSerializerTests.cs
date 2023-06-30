@@ -88,7 +88,6 @@ namespace Test.BuildXL.Scheduler
                     new CacheEntry(ContentHashingUtilities.CreateRandom(), null, CreateRandomContentHashArray())),
                 pipCacheDescriptorV2Metadata: null,
                 converged: true,
-                pathSet: null,
                 cacheLookupStepDurations: null,
                 pipProperties: new Dictionary<string, int> { { "Foo", 1 }, { "Bar", 9 } },
                 createdDirectories: new ReadOnlyHashSet<AbsolutePath> {

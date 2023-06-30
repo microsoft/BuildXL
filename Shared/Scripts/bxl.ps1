@@ -581,7 +581,7 @@ if ($DeployConfig -eq "Release") {
         $AdditionalBuildXLArguments += "/q:ReleaseNet472"
     }
     if ($DeployRuntime -eq "net7.0") {
-        $AdditionalBuildXLArguments += "/q:ReleaseDotNet7"
+        $AdditionalBuildXLArguments += "/q:ReleaseNet7"
     }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
@@ -597,7 +597,7 @@ if ($DeployConfig -eq "Release") {
         $AdditionalBuildXLArguments += "/q:DebugNet472"
     }
     if ($DeployRuntime -eq "net7.0") {
-        $AdditionalBuildXLArguments += "/q:DebugDotNet7"
+        $AdditionalBuildXLArguments += "/q:DebugNet7"
     }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"

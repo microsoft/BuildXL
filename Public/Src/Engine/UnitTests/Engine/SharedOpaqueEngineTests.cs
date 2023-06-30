@@ -47,7 +47,7 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
-        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void OutputsUnderSharedOpaqueAreSelectivelyScrubbed()
         {
             var file = X("out/MyFile.txt");
@@ -83,10 +83,9 @@ namespace Test.BuildXL.Engine
             Assert.True(File.Exists(Path.Combine(objDir, outOfBuildFile)));
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
-        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
         public void UnsafeEmptyDirectoriesUnderSharedOpaqueAreNotScrubbedWhenDisabled(bool disableEmptyDirectoryScrubbing)
         {
             // The unsafe option should be off by default
@@ -111,8 +110,7 @@ namespace Test.BuildXL.Engine
             Configuration.Schedule.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void SharedOpaqueOutputsAreScrubbedRegardlessOfDirectoriesKnownToTheGraph()
         {
             var file = X("out/subdir1/subdir2/MyFile.txt");
@@ -143,8 +141,7 @@ namespace Test.BuildXL.Engine
             Assert.False(File.Exists(Path.Combine(objDir, file)));
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void OutputsUnderSharedOpaqueInSubdirAreScrubbed()
         {
             var file = X("out/subdir/MyFile.txt");
@@ -174,8 +171,7 @@ namespace Test.BuildXL.Engine
             Assert.False(File.Exists(Path.Combine(objDir, file)));
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // TODO: investigate why
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void ExclusionsUnderSharedOpaquesAreNotScrubbed()
         {
             var file = X("out/subdir/MyFile.txt");
@@ -202,7 +198,7 @@ namespace Test.BuildXL.Engine
             Assert.False(Directory.Exists(dir2));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test is skipped because its flaky on mac
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void OutputsUnderSharedOpaqueAreProperlyMarkedEvenOnCacheReplay()
         {
             var file = X("out/SharedOpaqueOutput.txt");
@@ -232,8 +228,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile));
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // TODO: on Linux we get a 'CacheException: Failed to create hard link...'. Investigate
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void StaticOutputBecomingASharedOpaqueOutputIsProperlyMarkedAsSharedOpaqueOutput()
         {
             var file = X($"out/MyFile.txt");

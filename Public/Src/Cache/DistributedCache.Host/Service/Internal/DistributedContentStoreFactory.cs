@@ -597,7 +597,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ? new NullContentLocationEventStoreConfiguration()
                 : new EventHubContentLocationEventStoreConfiguration(
                     eventHubName: _distributedSettings.EventHubName,
-                    eventHubConnectionString: _distributedSettings.EventHubConnectionString ?? ((PlainTextSecret)GetRequiredSecret(_distributedSettings.EventHubSecretName)).Secret,
+                    eventHubSecret: !string.IsNullOrEmpty(_distributedSettings.EventHubConnectionString)
+                        ? new PlainTextSecret(_distributedSettings.EventHubConnectionString)
+                        : GetRequiredSecret(_distributedSettings.EventHubSecretName),
                     consumerGroupName: _distributedSettings.EventHubConsumerGroupName,
                     epoch: epoch);
 

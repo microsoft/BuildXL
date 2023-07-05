@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -108,16 +109,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         public EventHubContentLocationEventStoreConfiguration(
             string eventHubName,
-            string eventHubConnectionString,
+            Secret eventHubSecret,
             string consumerGroupName,
             string epoch)
         {
             Contract.Requires(!string.IsNullOrEmpty(eventHubName));
-            Contract.Requires(!string.IsNullOrEmpty(eventHubConnectionString));
             Contract.Requires(!string.IsNullOrEmpty(consumerGroupName));
+            Contract.Requires(eventHubSecret != null);
 
             EventHubName = eventHubName;
-            EventHubConnectionString = eventHubConnectionString;
+            EventHubSecret = eventHubSecret;
             ConsumerGroupName = consumerGroupName;
             Epoch = epoch ?? string.Empty;
         }
@@ -128,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public string EventHubName { get; }
 
         /// <nodoc />
-        public string EventHubConnectionString { get; }
+        public Secret EventHubSecret { get; }
 
         /// <nodoc />
         public string ConsumerGroupName { get; }
@@ -137,6 +138,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// Creates another configuration instance with a given <paramref name="consumerGroupName"/>.
         /// </summary>
         public EventHubContentLocationEventStoreConfiguration WithConsumerGroupName(string consumerGroupName)
-            => new EventHubContentLocationEventStoreConfiguration(EventHubName, EventHubConnectionString, consumerGroupName, Epoch);
+            => new EventHubContentLocationEventStoreConfiguration(EventHubName, EventHubSecret, consumerGroupName, Epoch);
     }
 }

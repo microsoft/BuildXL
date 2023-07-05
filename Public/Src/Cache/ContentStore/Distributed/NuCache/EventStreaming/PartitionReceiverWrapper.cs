@@ -11,13 +11,14 @@ using Azure.Messaging.EventHubs;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using Azure;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
     // Class based on https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/eventhub/Microsoft.Azure.EventHubs/src/Amqp/AmqpPartitionReceiver.cs (legacy Microsoft.Azure.EventHubs library)
     internal class PartitionReceiverWrapper : PartitionReceiver
     {
-        private readonly object _receivePumpLock;
+        private readonly object _receivePumpLock = new object();
         private IPartitionReceiveHandler _receiveHandler;
         private Task _receivePumpTask;
         private CancellationTokenSource _receivePumpCancellationSource;
@@ -32,7 +33,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                                         string eventHubName,
                                         TokenCredential credential) : base(consumerGroup, partitionId, eventPosition, fullyQualifiedNamespace, eventHubName, credential)
         {
-            _receivePumpLock = new object();
         }
 
         public PartitionReceiverWrapper(string consumerGroup,
@@ -41,7 +41,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                                         string connectionString,
                                         string eventHubName) : base(consumerGroup, partitionId, eventPosition, connectionString, eventHubName)
         {
-            _receivePumpLock = new object();
+        }
+
+        public PartitionReceiverWrapper(string consumerGroup,
+                                string partitionId,
+                                EventPosition eventPosition,
+                                string fullyQualifiedNamespace,
+                                string eventHubName,
+                                AzureSasCredential credential) : base(consumerGroup, partitionId, eventPosition, fullyQualifiedNamespace, eventHubName, credential)
+        {
         }
 
         public void SetReceiveHandler(OperationContext context, IPartitionReceiveHandler newReceiveHandler)

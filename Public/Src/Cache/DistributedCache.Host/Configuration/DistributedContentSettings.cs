@@ -668,6 +668,9 @@ namespace BuildXL.Cache.Host.Configuration
         public string EventHubConnectionString { get; set; }
 
         [DataMember]
+        public bool EventHubUseSasTokens { get; set; } = false;
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? MaxEventProcessingConcurrency { get; set; }
 

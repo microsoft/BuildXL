@@ -21,7 +21,7 @@ namespace BuildXL.Cache.Host.Service
         EnvironmentSingleEntry,
 
         /// <summary>
-        /// Not implemented yet: will be used by <see cref="CacheServiceWrapper"/> when the secrets will be communicated via memory mapped file that will also support updates.
+        /// Used by <see cref="CacheServiceWrapper"/> when the secrets will be communicated via memory mapped file that will also support updates.
         /// </summary>
         MemoryMappedFile,
     }

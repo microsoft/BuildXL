@@ -4,6 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -15,6 +16,7 @@ using Azure.Messaging.EventHubs.Consumer;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using Azure.Identity;
+using Azure;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -30,6 +32,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private EventHubProducerClient _partitionSender;
         private PartitionReceiverWrapper _partitionReceiver;
 
+        private readonly AzureSasCredential _sasCredential;
+
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(AzureEventHubClient));
 
@@ -37,6 +41,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public AzureEventHubClient(EventHubContentLocationEventStoreConfiguration configuration)
         {
             _configuration = configuration;
+
+            _sasCredential = null;
+            if (_configuration.EventHubSecret is UpdatingSasToken sasToken)
+            {
+                _sasCredential = new AzureSasCredential(sasToken.Token.Token);
+                sasToken.TokenUpdated += (_, replacementSasToken) =>
+                {
+                    _sasCredential.Update(replacementSasToken.Token);
+                };
+            }
         }
 
         /// <inheritdoc />
@@ -46,7 +60,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             if (_partitionReceiver == null)
             {
-                if (ManagedIdentityUriHelper.TryParseForManagedIdentity(_configuration.EventHubConnectionString, out string eventHubNamespace, out string eventHubName, out string managedIdentityId))
+                if (_configuration.EventHubSecret is UpdatingSasToken sasToken)
+                {
+                    var resourcePathUri = new UriBuilder(sasToken.Token.ResourcePath);
+
+                    _partitionReceiver = new PartitionReceiverWrapper(_configuration.ConsumerGroupName, PartitionId, GetInitialOffset(context, sequencePoint), resourcePathUri.Host, _configuration.EventHubName, _sasCredential);
+                    _partitionReceiver.SetReceiveHandler(context, processor);
+                    return BoolResult.Success;
+                }
+
+                var eventHubPlainTextSecret = (PlainTextSecret)_configuration.EventHubSecret;
+
+                if (ManagedIdentityUriHelper.TryParseForManagedIdentity(eventHubPlainTextSecret.Secret, out string eventHubNamespace, out string eventHubName, out string managedIdentityId))
                 {
                     _partitionReceiver = new PartitionReceiverWrapper(
                         _configuration.ConsumerGroupName,
@@ -58,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 }
                 else
                 {
-                    _partitionReceiver = new PartitionReceiverWrapper(_configuration.ConsumerGroupName, PartitionId, GetInitialOffset(context, sequencePoint), _configuration.EventHubConnectionString, _configuration.EventHubName);
+                    _partitionReceiver = new PartitionReceiverWrapper(_configuration.ConsumerGroupName, PartitionId, GetInitialOffset(context, sequencePoint), eventHubPlainTextSecret.Secret, _configuration.EventHubName);
                 }
                 _partitionReceiver.SetReceiveHandler(context, processor);
             }
@@ -85,15 +110,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             await base.StartupCoreAsync(context).ThrowIfFailure();
 
+            if (_configuration.EventHubSecret is UpdatingSasToken sasToken)
+            {
+                var resourcePathUri = new UriBuilder(sasToken.Token.ResourcePath);
+
+                _partitionSender = new EventHubProducerClient(resourcePathUri.Host, _configuration.EventHubName, _sasCredential);
+                return BoolResult.Success;
+            }
+
+            var eventHubPlainTextSecret = (PlainTextSecret)_configuration.EventHubSecret;
+
             // Retry behavior in the Azure Event Hubs Client Library is controlled by the RetryPolicy property on the EventHubClient class.
             // The default policy retries with exponential backoff when Azure Event Hub returns a transient EventHubsException or an OperationCanceledException.
-            if (ManagedIdentityUriHelper.TryParseForManagedIdentity(_configuration.EventHubConnectionString, out string eventHubNamespace, out string eventHubName, out string managedIdentityId))
+            if (ManagedIdentityUriHelper.TryParseForManagedIdentity(eventHubPlainTextSecret.Secret, out string eventHubNamespace, out string eventHubName, out string managedIdentityId))
             {
                 _partitionSender = new EventHubProducerClient(eventHubNamespace, eventHubName, new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = managedIdentityId }));
             }
             else
             {
-                _partitionSender = new EventHubProducerClient(_configuration.EventHubConnectionString, _configuration.EventHubName);
+                _partitionSender = new EventHubProducerClient(eventHubPlainTextSecret.Secret, _configuration.EventHubName);
             }
 
             return BoolResult.Success;

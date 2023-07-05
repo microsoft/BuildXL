@@ -89,7 +89,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     }
                 }
 
-                addOptionalSecret(_distributedSettings.EventHubSecretName);
+                addOptionalSecret(_distributedSettings.EventHubSecretName, _distributedSettings.EventHubUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText);
 
                 var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
                 addOptionalSecret(_distributedSettings.ContentMetadataBlobSecretName, azureBlobStorageCredentialsKind);

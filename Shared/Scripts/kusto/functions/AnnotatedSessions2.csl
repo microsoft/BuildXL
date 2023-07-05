@@ -32,7 +32,7 @@ let numsReplacement = "[#]";
 //
 // 1. Query the dominoinvocation table to collect all of the builds of domino to look at.
 //      Apply time filter
-//      Extract some details out of the Environemtn to categorize the build
+//      Extract some details out of the Environment to categorize the build
 //      This will result in a row for every domino.exe invocation. Note that they may be
 //      many domino.exe invocations in a single build session. SessionId is a GUID for
 //      every domino.exe invocation.
@@ -101,16 +101,14 @@ cluster('cbuild').database('Domino').dominoinvocation
 | extend InternalError = case(
     // Crashes are always internal errors
     isnotempty(Exception), 1,
-    // InfrastructureError sare treated as internal errors if 1ES owns the infrastructure the build was run on (CloudBuild)
+    // InfrastructureError's are treated as internal errors if 1ES owns the infrastructure the build was run on (CloudBuild)
     ExitKind == "InternalError" or (Infra == "CB" and ExitKind == "InfrastructureError"), 1,
     // Builds in CloudBuild should always have a corresponding dominocompletion event with a valid ExitKind. If they don't consider them an internal error (Unless CB has it marked as success)
     ReturnCode != "" and ExitKind == "" and ReturnType != "Cancellation"  and ReturnType != "Success", 1,
     0)
     // Correlates all bxl.exe invocations in the wider build session. Don't confuse this with "SessionId" which
     // is per bxl.exe invocation.
-| extend UniqueSession = case(
-    isnotempty(RelatedSessionIdentifier), RelatedSessionIdentifier,
-        SessionId)
+| extend UniqueSession = case(isnotempty(RelatedSessionIdentifier), RelatedSessionIdentifier, SessionId)
     // Assigns the internal error bucket for the domino.exe invocation.
 | extend ErrorBucket_InternalErrorOnly = case(InternalError == 1, ErrorBucket, "")
 | extend ErrorMessage_InternalErrorOnly = case(InternalError == 1, BucketMessage, "") 
@@ -165,7 +163,7 @@ cluster('cbuild').database('Domino').dominoinvocation
     // Don't look at self-host builds
     Customer == "TSE", 0,
     Infra == "ADO", 0,
-    // If running in CB, don't look at queues that are in probation or where the InProbation field is blank. Blank means there was no correspond record in the CloudBuildProd datbase which means it was CloudBuildCBTest or another environment
+    // If running in CB, don't look at queues that are in probation or where the InProbation field is blank. Blank means there was no correspond record in the CloudBuildProd database which means it was CloudBuildCBTest or another environment
     (Infra == "CB" and (isempty(InProbation) or InProbation == 1)), 0,
     // Ignore Crashes with known root cause buckets (failed deployment, server mode build where client is killed, out of disk space, etc)
     (RootCause != "" and RootCause != "Unknown"), 0,

@@ -11,7 +11,6 @@ let annotatedSessions = AnnotatedSessions2(startDate, endDate, infra=infra, mSRR
 // *****
 let unknownCrashSessions = annotatedSessions
 | where BucketGroup == "Crash"
-| where RootCause == "Unknown"
 | project SessionId, UniqueSession, InProbation, TimeBucket, BuildInfo_Build, Customer, Codebase, Infra, UserName, SuggestedBugName, Exception, InternalError, BuildQueue, CBCanRetry, CBReturnType, BuildInfo_CommitId;
 //
 //

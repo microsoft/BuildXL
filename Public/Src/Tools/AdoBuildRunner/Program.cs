@@ -119,6 +119,14 @@ namespace BuildXL.AdoBuildRunner
                                 $"and to communicate the build information to the worker pipeline");
                         }
 
+                        var attemptNumber = Environment.GetEnvironmentVariable(Constants.JobAttemptVariableName) ?? "1";
+                        if (int.TryParse(attemptNumber, out var jobAttempt) && jobAttempt > 1)
+                        {
+                            // The job was rerun. Let's change the invocation key to reflect that
+                            // so we don't conflict with the first run.
+                            invocationKey += $"__jobretry_{jobAttempt}";
+                        }
+
                         var buildContext = await api.GetBuildContextAsync(invocationKey);
                         var buildManager = new WorkerPipelineBuildManager(api, executor, buildContext, args, logger);
                         return await buildManager.BuildAsync(isOrchestrator);

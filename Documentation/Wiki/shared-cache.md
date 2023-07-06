@@ -14,11 +14,15 @@ Please follow the Azure [instructions](https://learn.microsoft.com/en-us/azure/s
 
 After your account is created, the recommendation is to configure a [lifecycle management policy](https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-policy-configure?tabs=azure-portal) so the cache does not grow indefinitely. The overall retention policy to configure will depend on the type of builds and frequency of your scenarios. Cost is also a consideration, as billing includes used capacity, and a higher retention policy will incur in a high cost. An initial value can be around 3 or 4 days, but experimenting with this based on your particular scenarios is highly recommended.
 
+The first step is turning on `access tracking`. This enables setting lifecycle management rules that are based on `last access time`:
+
+![Enable access tracking](blob-access-tracking.png)
+
 The cache stores two type of information: metadata (e.g. pip fingerprints) and content (e.g. output files). In order to avoid unnecesary cache lookups that will end up in misses, two management rules should be created, so metadata will be evicted slighly faster than content. Let's assume we want to define an eviction policy so content that is not used in 4 days will be evicted. We will create two lifecycle management rules for that, one for metadata and one for content:
 
 ![Two rules for lifecycle management](blob-lifecycle-policies.png)
 
-When creating the rules, select `Limit blobs with filters` and configure the `metadata-garbage-collection` rule such that if base blobs are `last modified` more than `4` days ago, then `delete the blob`:
+When creating the rules, select `Limit blobs with filters` and configure the `metadata-garbage-collection` rule such that if base blobs are `last accessed` more than `4` days ago, then `delete the blob`:
 
 ![A four day eviction policy](blob-4-day-eviction.png)
 
@@ -26,7 +30,7 @@ And then configure a filter by setting the `blob prefix` to be `metadata`:
 
 ![A Blob 'metadata' filter](blob-metadata-filter.png)
 
-Now for the content rule. As mentioned above, we want content to be evicted with a slightly lower cadence, so we avoid the extra time it takes for a cache lookup to find a fingerprint but realize later that the corresponding content has been evicted. Therefore, we will set the base blobs to be deleted after not being modified for `5` days.
+Now for the content rule. As mentioned above, we want content to be evicted with a slightly lower cadence, so we avoid the extra time it takes for a cache lookup to find a fingerprint but realize later that the corresponding content has been evicted. Therefore, we will set the base blobs to be deleted after not being accessed for `5` days.
 
 ![A five day eviction policy](blob-5-day-eviction.png)
 

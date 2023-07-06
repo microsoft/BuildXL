@@ -1682,8 +1682,6 @@ namespace BuildXL.Scheduler
                     Logger.Log.TopPipsPerformanceInfo(m_loggingContext, processPipPerf);
                 }
 
-                await State.Cache.CloseAsync();
-
                 var shutdownServicesSucceeded = await m_serviceManager.ShutdownStartedServices(Context.CancellationToken.IsCancellationRequested);
                 Contract.Assert(
                     shutdownServicesSucceeded || m_executePhaseLoggingContext.ErrorWasLogged,
@@ -1711,6 +1709,10 @@ namespace BuildXL.Scheduler
                         await Task.Delay(50);
                     }
                 }
+
+                // We intentionally close the cache (including HistoricMetadataCache - HMC) after we finish the workers. 
+                // We might report PathSets coming from the workers to HMC, so it is important for HMC to be active.
+                await State.Cache.CloseAsync();
 
                 if (m_fingerprintStoreTarget != null)
                 {

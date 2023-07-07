@@ -78,7 +78,7 @@ config({
                 { id: "CLAP", version: "4.6" },
                 { id: "CLAP-DotNetCore", version: "4.6" },
 
-                { id: "RuntimeContracts", version: "0.4.0" }, // Be very careful with updating this version, because CloudBuild and other repository needs to be updated as will
+                { id: "RuntimeContracts", version: "0.5.0" }, // Be very careful with updating this version, because CloudBuild and other repository needs to be updated as will
                 { id: "RuntimeContracts.Analyzer", version: "0.4.3" }, // The versions are different because the analyzer has higher version for now.
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
@@ -204,7 +204,7 @@ config({
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.0.3" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.0.3" },
                 { id: "Azure.Identity", version: "1.8.2" },
-                { id: "Microsoft.Identity.Client", version: "4.52.0" },
+                { id: "Microsoft.Identity.Client", version: "4.54.1" },
                 { id: "Microsoft.IdentityModel.Abstractions", version: "6.29.0" },
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.18.4" },
                 { id: "Azure.Core", version: "1.31.0", 

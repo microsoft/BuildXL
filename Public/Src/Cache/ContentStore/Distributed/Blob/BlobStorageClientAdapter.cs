@@ -406,15 +406,27 @@ public class BlobStorageClientAdapter
                 // This updates the last access time in blob storage when last access time tracking is enabled. Please note,
                 // we're not downloading anything here because we're doing a 0-length download.
                 // See: https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview?tabs=azure-portal#move-data-based-on-last-accessed-time
-                var response = await blob.DownloadContentAsync(
-                    new BlobDownloadOptions()
-                    {
-                        Range = new HttpRange(0, 1),
-                        Conditions = new BlobRequestConditions() { IfMatch = ETag.All, }
-                    },
-                    cancellationToken: context.Token);
+                try
+                {
+                    var response = await blob.DownloadContentAsync(
+                        new BlobDownloadOptions()
+                        {
+                            Range = new HttpRange(0, 1),
+                            Conditions = new BlobRequestConditions() { IfMatch = ETag.All, }
+                        },
+                        cancellationToken: context.Token);
 
-                return Result.Success<(DateTimeOffset?, long?)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength), isNullAllowed: true);
+                    return Result.Success<(DateTimeOffset?, long?)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength), isNullAllowed: true);
+                }
+                catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.InvalidPageRange)
+                {
+                    // We are dealing with a zero-size piece of content. Use unbounded download API to touch the file.
+                    var response = await blob.DownloadContentAsync(
+                        conditions: new BlobRequestConditions() { IfMatch = ETag.All, },
+                        cancellationToken: context.Token);
+
+                    return Result.Success<(DateTimeOffset?, long?)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength), isNullAllowed: true);
+                }
             },
             traceOperationStarted: false,
             extraEndMessage: _ => $"Path=[{blob.ToDisplayName()}]",

@@ -420,7 +420,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// default write option settings are used whenever writes occur.
         /// </summary>
         /// <param name="writeBatch"></param>
-        private void WriteInternal(WriteBatch writeBatch)
+        public void ApplyBatch(WriteBatch writeBatch)
         {
             m_store.Write(writeBatch, m_defaults.WriteOptions);
         }
@@ -439,7 +439,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             using (var writeBatch = new WriteBatch())
             {
                 AddPutOperation(writeBatch, columnFamilyInfo, key, value);
-                WriteInternal(writeBatch);
+                ApplyBatch(writeBatch);
             }
         }
 
@@ -464,7 +464,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     AddPutOperation(writeBatch, GetColumnFamilyInfo(entry.columnFamilyName), entry.key, entry.value);
                 }
 
-                WriteInternal(writeBatch);
+                ApplyBatch(writeBatch);
             }
         }
 
@@ -483,7 +483,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             using (var writeBatch = new WriteBatch())
             {
                 apply(writeBatch, data, batchColumnFamilyInfo.Handle);
-                WriteInternal(writeBatch);
+                ApplyBatch(writeBatch);
             }
         }
 
@@ -497,7 +497,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             using (var writeBatch = new WriteBatch())
             {
                 apply(writeBatch, data, getHandleFunc);
-                WriteInternal(writeBatch);
+                ApplyBatch(writeBatch);
             }
         }
 
@@ -537,7 +537,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                         AddPutOperation(writeBatch, columnFamilyInfo, keyValuePair.Key, keyValuePair.Value);
                     }
                 }
-                WriteInternal(writeBatch);
+                ApplyBatch(writeBatch);
             }
         }
 
@@ -626,7 +626,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             using (var writeBatch = new WriteBatch())
             {
                 AddDeleteOperation(writeBatch, columnFamilyInfo, key);
-                WriteInternal(writeBatch);
+                ApplyBatch(writeBatch);
             }
         }
 
@@ -638,7 +638,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             using (var writeBatch = new WriteBatch())
             {
                 AddDeleteOperation(writeBatch, columnFamilyInfo, key);
-                WriteInternal(writeBatch);
+                ApplyBatch(writeBatch);
             }
         }
 
@@ -680,7 +680,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     }
                 }
 
-                WriteInternal(writeBatch);
+                ApplyBatch(writeBatch);
             }
         }
 

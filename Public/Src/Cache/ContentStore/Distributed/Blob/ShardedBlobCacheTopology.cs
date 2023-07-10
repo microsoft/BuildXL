@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Net.Http;
@@ -11,6 +12,7 @@ using System.Threading.Tasks;
 using Azure;
 using Azure.Core.Pipeline;
 using Azure.Storage.Blobs;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -140,7 +142,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             Content: contentSalt.ToString().Substring(0, 10));
     }
 
-    public async Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key)
+    public Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key)
     {
         var account = _scheme.Locate(key.Key);
         Contract.Assert(account is not null, $"Attempt to determine account for key `{key}` failed");
@@ -150,6 +152,13 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
 
         var location = new Location(account, container);
 
+        return GetOrCreateClientAsync(context, location);
+    }
+
+    private async Task<BlobContainerClient> GetOrCreateClientAsync(
+        OperationContext context,
+        Location location)
+    {
         // NOTE: We don't use AddOrGet because CreateClientAsync could fail, in which case we'd have a task that would
         // fail everyone using this.
         if (_clients.TryGetValue(location, out var client))
@@ -163,12 +172,31 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             return client;
         }
 
-        client = await CreateClientAsync(context, account, container).ThrowIfFailureAsync();
+        client = await CreateClientAsync(context, location.Account, location.Container).ThrowIfFailureAsync();
 
         var added = _clients.TryAdd(location, client);
         Contract.Assert(added, "Impossible condition happened: lost TryAdd race under a lock");
 
         return client;
+    }
+
+    public async IAsyncEnumerable<BlobContainerClient> EnumerateClientsAsync(
+        OperationContext context,
+        BlobCacheContainerPurpose purpose)
+    {
+        var container = _containers[(int)purpose];
+        foreach (var account in _configuration.ShardingScheme.Accounts)
+        {
+            var location = new Location(account, container);
+            var client = await GetOrCreateClientAsync(context, location);
+            yield return client;
+        }
+    }
+
+    public async Task<BlobClient> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
+    {
+        var container = await GetContainerClientAsync(context, BlobCacheShardingKey.FromContentHash(contentHash));
+        return container.GetBlobClient($"{contentHash}.blob");
     }
 
     private Task<Result<BlobContainerClient>> CreateClientAsync(OperationContext context, BlobCacheStorageAccountName account, BlobCacheContainerName container)

@@ -224,5 +224,46 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             while (Interlocked.CompareExchange(ref location, newValue, initialValue) != initialValue);
             return initialValue;
         }
+
+        /// <summary>
+        /// The main difference with <see cref="WhenDoneAsync{T}(int, CancellationToken, Func{ScheduleItem{T}, T, Task}, IEnumerable{T})" /> is that
+        /// this method does not actually materialize the whole IEnumerable, but rather enumerates it as needed.
+        /// </summary>
+        public static Task EnumerateAsync<T>(
+            IEnumerable<T> enumerable,
+            int concurrencyLevel,
+            Func<T, Task> action,
+            CancellationToken token)
+        {
+            var @lock = new object();
+            var enumerator = enumerable.GetEnumerator();
+
+            var tasks = Enumerable.Range(0, concurrencyLevel)
+                .Select(async _ =>
+                {
+                    while (true)
+                    {
+                        if (token.IsCancellationRequested)
+                        {
+                            return;
+                        }
+
+                        T current;
+                        lock (@lock)
+                        {
+                            if (!enumerator.MoveNext())
+                            {
+                                return;
+                            }
+
+                            current = enumerator.Current;
+                        }
+
+                        await action(current);
+                    }
+                });
+
+            return TaskUtilities.SafeWhenAll(tasks.ToArray());
+        }
     }
 }

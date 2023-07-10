@@ -1,8 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 #nullable enable
@@ -17,4 +19,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 public interface IBlobCacheTopology
 {
     public Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key);
+
+    public Task<BlobClient> GetBlobClientAsync(OperationContext context, ContentHash hash);
+
+    public IAsyncEnumerable<BlobContainerClient> EnumerateClientsAsync(OperationContext context, BlobCacheContainerPurpose purpose);
 }

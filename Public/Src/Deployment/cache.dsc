@@ -46,7 +46,15 @@ namespace Cache {
                         () => [importFrom("BuildXL.Cache.DistributedCache.Host").LauncherServer.exe]
                     ),
                 ]
-            }
+            },
+            {
+                subfolder: r`BlobLifetimeManager`,
+                contents: [
+                    ...addIfLazy(qualifier.targetFramework === BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
+                        () => [importFrom("BuildXL.Cache.BlobLifetimeManager").Default.deployment]
+                    ),
+                ]
+            },
         ],
     };
 

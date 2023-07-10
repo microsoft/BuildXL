@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <nodoc />
         public static void Write(this ref SpanWriter writer, in ContentHash value)
         {
-            writer.EnsureLength(ContentHash.MaxHashByteLength);
+            writer.EnsureLength(ContentHash.SerializedLength);
             var writtenBytes = value.Serialize(writer.Remaining);
             writer.Advance(writtenBytes);
         }

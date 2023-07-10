@@ -86,9 +86,8 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
         // Unused on purpose
     }
 
-    internal async Task<BlobClient> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
+    internal Task<BlobClient> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
     {
-        var container = await _configuration.Topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromContentHash(contentHash));
-        return container.GetBlobClient($"{contentHash}.blob");
+        return _configuration.Topology.GetBlobClientAsync(context, contentHash);
     }
 }

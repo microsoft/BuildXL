@@ -19,6 +19,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Serialization;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -204,7 +205,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 });
         }
 
-        private string GetWeakFingerprintPrefix(Fingerprint weakFingerprint)
+        private static string GetWeakFingerprintPrefix(Fingerprint weakFingerprint)
         {
             return weakFingerprint.Serialize();
         }
@@ -218,6 +219,15 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             var client = await GetContainerClientAsync(context, strongFingerprint.WeakFingerprint);
 
+            string blobPath = GetBlobPath(strongFingerprint);
+            return client.GetBlobClient(blobPath);
+        }
+
+        /// <summary>
+        /// CODESYNC: <see cref="ExtractStrongFingerprintFromPath(string)"/> should reflect any changes in how we serialize the blob path.
+        /// </summary>
+        public static string GetBlobPath(StrongFingerprint strongFingerprint)
+        {
             var selector = strongFingerprint.Selector;
 
             // WARNING: the serialization format that follows must sync with _selectorRegex
@@ -231,19 +241,50 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             // characters long.
             // See: https://learn.microsoft.com/en-us/rest/api/storageservices/naming-and-referencing-containers--blobs--and-metadata#blob-names
             var blobPath = $"{GetWeakFingerprintPrefix(strongFingerprint.WeakFingerprint)}/{selectorName}";
-            return client.GetBlobClient(blobPath);
+            return blobPath;
+        }
+
+        /// <nodoc />
+        public static StrongFingerprint ExtractStrongFingerprintFromPath(string blobPath)
+        {
+            var match = SelectorRegex.Match(blobPath);
+            if (!match.Success)
+            {
+                throw new Exception($"Regex was not a match for path {blobPath}");
+            }
+
+            var serializedWeakFingerprint = match.Groups["weakFingerprint"].Value;
+            if (!Fingerprint.TryParse(serializedWeakFingerprint, out var weakFingerprint))
+            {
+                throw new Exception($"Failed to parse weak fingerprint from {serializedWeakFingerprint}. Full path: {blobPath}");
+            }
+
+            var serializedSelectorContentHash = match.Groups["selectorContentHash"].Value;
+            if (!ContentHash.TryParse(serializedSelectorContentHash, out var contentHash))
+            {
+                throw new Exception($"Failed to parse content hash from {serializedSelectorContentHash}. Full path: {blobPath}");
+            }
+
+            var serializedSelectorOutput = match.Groups["selectorOutput"].Value;
+            byte[]? selectorOutput = null;
+            if (!string.IsNullOrEmpty(serializedSelectorOutput))
+            {
+                selectorOutput = Convert.FromBase64String(serializedSelectorOutput);
+            }
+
+            return new StrongFingerprint(weakFingerprint, new Selector(contentHash, selectorOutput));
         }
 
         /// <summary>
         /// WARNING: MUST SYNC WITH <see cref="GetStrongFingerprintClientAsync(OperationContext, StrongFingerprint)"/>
         /// </summary>
-        private readonly Regex _selectorRegex = new Regex(@"(?<weakFingerprint>[A-Z0-9]+)/(?<selectorContentHash>[^_]+)(?:_(?<selectorOutput>.*))?");
+        private static readonly Regex SelectorRegex = new Regex(@"(?<weakFingerprint>[A-Z0-9]+)/(?<selectorContentHash>[^_]+)(?:_(?<selectorOutput>.*))?");
 
         private Selector ParseSelector(BlobPath name)
         {
             try
             {
-                var match = _selectorRegex.Match(name.Path);
+                var match = SelectorRegex.Match(name.Path);
 
                 var contentHash = new ContentHash(match.Groups["selectorContentHash"].Value);
 

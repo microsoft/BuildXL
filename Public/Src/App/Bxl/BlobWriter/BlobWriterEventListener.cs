@@ -128,9 +128,9 @@ namespace BuildXL
 
             // we are going to use pipe separated values, so we need to escape any pipes in the text
             maybeTranslatedText = maybeTranslatedText.Replace("|", "!");
-            // Replace all potential new lines with spaces
-            maybeTranslatedText = maybeTranslatedText.Replace(Environment.NewLine, " ");
-            // In some cases there are isolated lines feeds in the log lines (regardless of the platform)
+            // Replace all potential new lines with a space.
+            // Be platform-agnostic, as tools might also behave like that (e.g., using CRLF on Linux)
+            maybeTranslatedText = maybeTranslatedText.Replace("\r\n", " ");
             maybeTranslatedText = maybeTranslatedText.Replace('\n', ' ');
             
             // The ingestion pipeline expectes a PSV (pipe separated value) file with the following format:

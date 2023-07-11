@@ -195,6 +195,12 @@ namespace BuildXL.Scheduler
         CacheQueryingWeakFingerprintDuration,
 
         /// <summary>
+        /// Augmenting weak fingerprint duration
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        AugmentingWeakFingerprintDuration,
+
+        /// <summary>
         /// The amount of time spent in <see cref="ComputeWeakFingerprintDuration"/>
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
@@ -1120,24 +1126,7 @@ namespace BuildXL.Scheduler
         ReportRemoteMetadataDuration,
 
         /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        RemoteWorker_PrepareAndSendBuildRequestsDuration,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        RemoteWorker_ExtractHashesDuration,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        RemoteWorker_CollectPipFilesToMaterializeDuration,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        RemoteWorker_CreateFileArtifactKeyedHashDuration,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        RemoteWorker_BuildRequestSendDuration,
+        RemoteWorker_EarlyReleaseSavingDurationMs,
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
@@ -1150,36 +1139,6 @@ namespace BuildXL.Scheduler
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         RemoteWorker_ProcessExecutionLogWaitDuration,
-
-        /// <nodoc/>
-        RemoteWorker_EarlyReleaseDrainDurationMs,
-
-        /// <nodoc/>
-        RemoteWorker_EarlyReleaseSavingDurationMs,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        RemoteWorker_DeserializeFromBlobDuration,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        RemoteWorker_ReadBuildManifestEventsDuration,
-
-        /// <nodoc/>
-        [CounterType(CounterType.Stopwatch)]
-        RemoteWorker_ReadExecutionLogAsyncDuration,
-
-        /// <nodoc/>
-        BuildRequestBatchesSentToWorkers,
-
-        /// <nodoc/>
-        BuildRequestBatchesFailedSentToWorkers,
-
-        /// <nodoc/>
-        HashesSentToWorkers,
-
-        /// <nodoc/>
-        HashesForStringPathsSentToWorkers,
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]

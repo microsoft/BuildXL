@@ -207,8 +207,11 @@ namespace BuildXL.Scheduler.Tracing
                 case PipExecutorCounter.CacheQueryingWeakFingerprintDuration:
                 case PipExecutorCounter.TryLoadPathSetFromContentCacheDuration:
                 case PipExecutorCounter.CheckProcessRunnableFromCacheExecutionLogDuration:
+                case PipExecutorCounter.CheckProcessRunnableFromCacheChapter2RetrieveCacheEntryDuration:
                 case PipExecutorCounter.CheckProcessRunnableFromCacheChapter3RetrieveAndParseMetadataDuration:
                 case PipExecutorCounter.CheckProcessRunnableFromCacheChapter4CheckContentAvailabilityDuration:
+                case PipExecutorCounter.HashSourceFileDependenciesDuration:
+                case PipExecutorCounter.AugmentingWeakFingerprintDuration:
                     return true;
             }
 

@@ -54,7 +54,7 @@ namespace BuildXL.Scheduler
         private ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> m_dynamicObservations;
         private IReadOnlySet<AbsolutePath> m_allowedUndeclaredSourceReads;
         private PipCacheDescriptorV2Metadata m_pipCacheDescriptorV2Metadata;
-        private CacheLookupPerfInfo m_cacheLookupPerfInfo;
+        private PipCachePerfInfo m_pipCachePerfInfo;
         private IReadOnlyDictionary<string, int> m_pipProperties;
         private bool m_hasUserRetries;
         private int m_exitCode;
@@ -62,18 +62,18 @@ namespace BuildXL.Scheduler
         private IReadOnlySet<AbsolutePath> m_createdDirectories;
         private PipCacheMissType? m_cacheMissType;
 
-        public CacheLookupPerfInfo CacheLookupPerfInfo
+        public PipCachePerfInfo CacheLookupPerfInfo
         {
             get
             {
                 EnsureSealed();
-                return m_cacheLookupPerfInfo;
+                return m_pipCachePerfInfo;
             }
 
             set
             {
                 EnsureUnsealed();
-                m_cacheLookupPerfInfo = value;
+                m_pipCachePerfInfo = value;
             }
         }
 
@@ -431,7 +431,7 @@ namespace BuildXL.Scheduler
             TwoPhaseCachingInfo twoPhaseCachingInfo,
             PipCacheDescriptorV2Metadata pipCacheDescriptorV2Metadata,
             bool converged,
-            CacheLookupPerfInfo cacheLookupStepDurations,
+            PipCachePerfInfo cacheLookupStepDurations,
             IReadOnlyDictionary<string, int> pipProperties,
             bool hasUserRetries,
             int exitCode,
@@ -458,7 +458,7 @@ namespace BuildXL.Scheduler
                     m_pipCacheDescriptorV2Metadata = pipCacheDescriptorV2Metadata,
                     Converged = converged,
                     IsSealed = true,
-                    m_cacheLookupPerfInfo = cacheLookupStepDurations,
+                    m_pipCachePerfInfo = cacheLookupStepDurations,
                     m_pipProperties = pipProperties,
                     m_hasUserRetries = hasUserRetries,
                     m_retryInfo = pipRetryInfo,
@@ -500,7 +500,7 @@ namespace BuildXL.Scheduler
                 convergedCacheResult.TwoPhaseCachingInfo,
                 convergedCacheResult.PipCacheDescriptorV2Metadata,
                 converged: true,
-                cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
+                cacheLookupStepDurations: convergedCacheResult.m_pipCachePerfInfo,
                 PipProperties,
                 HasUserRetries,
                 ExitCode,

@@ -37,34 +37,23 @@ namespace BuildXL.Scheduler
 
         internal Dictionary<PipExecutionStep, TimeSpan> RemoteQueueDurations { get; }
 
-        internal Dictionary<PipExecutionStep, TimeSpan> QueueRequestDurations { get; }
+        internal Dictionary<PipExecutionStep, TimeSpan> PipBuildRequestQueueDurations { get; }
 
-        internal Dictionary<PipExecutionStep, TimeSpan> SendRequestDurations { get; }
+        internal Dictionary<PipExecutionStep, TimeSpan> PipBuildRequestGrpcDurations { get; }
 
         internal Dictionary<DispatcherKind, TimeSpan> QueueDurations { get; }
 
         internal Dictionary<PipExecutionStep, uint> Workers { get; }
 
-        internal CacheLookupPerfInfo CacheLookupPerfInfo => m_cacheLookupPerfInfo ?? (m_cacheLookupPerfInfo = new CacheLookupPerfInfo());
+        internal PipCachePerfInfo CacheLookupPerfInfo => m_cacheLookupPerfInfo ?? (m_cacheLookupPerfInfo = new PipCachePerfInfo());
 
-        private CacheLookupPerfInfo m_cacheLookupPerfInfo;
+        private PipCachePerfInfo m_cacheLookupPerfInfo;
 
         internal TimeSpan CacheMissAnalysisDuration { get; private set; }
 
         internal TimeSpan ExeDuration { get; set; }
 
         internal TimeSpan QueueWaitDurationForMaterializeOutputsInBackground { get; private set; }
-
-
-        /// <summary>
-        /// Total grpc duration spent for this pip
-        /// </summary>
-        public TimeSpan GrpcDuration { get; set; }
-
-        /// <summary>
-        /// Total ExecutionResult (de)serialization duration
-        /// </summary>
-        public TimeSpan SerializationDuration { get; set; }
 
         internal bool IsExecuted { get; private set; }
 
@@ -109,8 +98,8 @@ namespace BuildXL.Scheduler
 
             RemoteStepDurations = new Dictionary<PipExecutionStep, TimeSpan>();
             RemoteQueueDurations = new Dictionary<PipExecutionStep, TimeSpan>();
-            QueueRequestDurations = new Dictionary<PipExecutionStep, TimeSpan>();
-            SendRequestDurations = new Dictionary<PipExecutionStep, TimeSpan>();
+            PipBuildRequestQueueDurations = new Dictionary<PipExecutionStep, TimeSpan>();
+            PipBuildRequestGrpcDurations = new Dictionary<PipExecutionStep, TimeSpan>();
             QueueDurations = new Dictionary<DispatcherKind, TimeSpan>();
             Workers = new Dictionary<PipExecutionStep, uint>();
         }
@@ -197,7 +186,7 @@ namespace BuildXL.Scheduler
             TimeSpan remoteStepDuration,
             TimeSpan remoteQueueDuration,
             TimeSpan queueRequestDuration,
-            TimeSpan sendRequestDuration)
+            TimeSpan grpcDuration)
         {
             lock (m_lock)
             {
@@ -205,15 +194,15 @@ namespace BuildXL.Scheduler
 
                 RemoteStepDurations[step] = RemoteStepDurations.GetOrDefault(step, new TimeSpan()) + remoteStepDuration;
                 RemoteQueueDurations[step] = RemoteQueueDurations.GetOrDefault(step, new TimeSpan()) + remoteQueueDuration;
-                QueueRequestDurations[step] = QueueRequestDurations.GetOrDefault(step, new TimeSpan()) + queueRequestDuration;
-                SendRequestDurations[step] = SendRequestDurations.GetOrDefault(step, new TimeSpan()) + sendRequestDuration;
+                PipBuildRequestQueueDurations[step] = PipBuildRequestQueueDurations.GetOrDefault(step, new TimeSpan()) + queueRequestDuration;
+                PipBuildRequestGrpcDurations[step] = PipBuildRequestGrpcDurations.GetOrDefault(step, new TimeSpan()) + grpcDuration;
             }
         }
 
         /// <summary>
         /// Sets the cache lookup perf info that come from workers
         /// </summary>
-        internal void SetCacheLookupPerfInfo(CacheLookupPerfInfo info)
+        internal void SetCacheLookupPerfInfo(PipCachePerfInfo info)
         {
             m_cacheLookupPerfInfo = info;
         }

@@ -132,10 +132,10 @@ namespace BuildXL.Scheduler.Distribution
             var twoPhaseCachingInfo = ReadTwoPhaseCachingInfo(reader);
             var cacheDescriptor = ReadPipCacheDescriptor(reader);
 
-            CacheLookupPerfInfo cacheLookupCounters = null;
+            PipCachePerfInfo cacheLookupCounters = null;
             if (reader.ReadBoolean())
             {
-                cacheLookupCounters = CacheLookupPerfInfo.Deserialize(reader);
+                cacheLookupCounters = PipCachePerfInfo.Deserialize(reader);
             }
 
             if (!result.IndicatesNoOutput())

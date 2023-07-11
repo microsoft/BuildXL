@@ -227,7 +227,7 @@ namespace BuildXL.Engine.Distribution
                     break;
                 }
 
-                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_PrepareAndSendBuildRequestsDuration))
+                using (m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_PrepareAndSendBuildRequestsDuration))
                 {
                     m_pipCompletionTaskList.Clear();
                     m_buildRequestList.Clear();
@@ -258,7 +258,7 @@ namespace BuildXL.Engine.Distribution
                         continue;
                     }
 
-                    using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_ExtractHashesDuration))
+                    using (m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_ExtractHashesDuration))
                     {
                         Parallel.ForEach(m_pipCompletionTaskList, (task) =>
                         {
@@ -276,7 +276,7 @@ namespace BuildXL.Engine.Distribution
 
                     RpcCallResult<Unit> callResult;
 
-                    using (var watch = m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_BuildRequestSendDuration))
+                    using (var watch = m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_BuildRequestSendDuration))
                     {
                         callResult = m_workerClient.ExecutePipsAsync(pipRequest, description).GetAwaiter().GetResult();
                         sendDuration = watch.Elapsed;
@@ -288,8 +288,9 @@ namespace BuildXL.Engine.Distribution
                     }
                     else
                     {
-                        m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesSentToWorkers);
-                        m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.HashesSentToWorkers, m_hashList.Count);
+                        m_orchestratorService.Counters.IncrementCounter(DistributionCounter.BuildRequestBatchesSentToWorkers);
+                        m_orchestratorService.Counters.AddToCounter(DistributionCounter.HashesSentToWorkers, m_hashList.Count);
+                        m_orchestratorService.Counters.AddToCounter(DistributionCounter.TotalGrpcDurationMs, (long)sendDuration.TotalMilliseconds);
 
                         foreach (var task in m_pipCompletionTaskList)
                         {
@@ -313,7 +314,7 @@ namespace BuildXL.Engine.Distribution
                 // This seems to be very inefficient; but it is so rare that we completely fail to send the build request to the worker after retries.
                 ResetAvailableHashes(m_pipGraph);
 
-                m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesFailedSentToWorkers);
+                m_orchestratorService.Counters.IncrementCounter(DistributionCounter.BuildRequestBatchesFailedSentToWorkers);
             }
 
             string getExecuteDescription()
@@ -336,7 +337,7 @@ namespace BuildXL.Engine.Distribution
 
         public async Task ReadBuildManifestEventsAsync(ExecutionLogData data)
         {
-            using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ReadBuildManifestEventsDuration].Start())
+            using (m_orchestratorService.Counters[DistributionCounter.RemoteWorker_ReadBuildManifestEventsDuration].Start())
             {
                 await m_buildManifestReader.ReadEventsAsync(data);
             }
@@ -344,7 +345,7 @@ namespace BuildXL.Engine.Distribution
 
         public async Task ReadExecutionLogAsync(ExecutionLogData data)
         {
-            using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ReadExecutionLogAsyncDuration].Start())
+            using (m_orchestratorService.Counters[DistributionCounter.RemoteWorker_ReadExecutionLogAsyncDuration].Start())
             {
                 await m_executionLogReader.ReadEventsAsync(data);
             }
@@ -595,7 +596,7 @@ namespace BuildXL.Engine.Distribution
                 await Task.Delay(1000);
             }
 
-            m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
+            m_orchestratorService.Counters.AddToCounter(DistributionCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
 
             var disconnectStopwatch = new StopwatchVar();
             using (disconnectStopwatch.Start())
@@ -897,7 +898,7 @@ namespace BuildXL.Engine.Distribution
                 var files = pooledFileSet.Instance;
                 var dynamicFiles = pooledDynamicFileMultiDirectoryMap.Instance;
 
-                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_CollectPipFilesToMaterializeDuration))
+                using (m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_CollectPipFilesToMaterializeDuration))
                 {
                     environment.State.FileContentManager.CollectPipFilesToMaterialize(
                         isMaterializingInputs: !materializingOutputs,
@@ -914,7 +915,7 @@ namespace BuildXL.Engine.Distribution
                         shouldIncludeServiceFiles: servicePipId => TryAddAvailableHash(servicePipId) ?? true);
                 }
 
-                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_CreateFileArtifactKeyedHashDuration))
+                using (m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_CreateFileArtifactKeyedHashDuration))
                 {
                     // Now we have to consider both dynamicFiles map and files set so we union into the files set. If we only rely on files, then the following incorrect build can happen.
                     // Suppose that we have pip P that specifies D as an opaque output directory and D\f as an output file. Pip Q consumes D\f directly (not via directory dependency on D).
@@ -979,7 +980,7 @@ namespace BuildXL.Engine.Distribution
                         }
                     }
 
-                    m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.HashesForStringPathsSentToWorkers, numStringPathFiles);
+                    m_orchestratorService.Counters.AddToCounter(DistributionCounter.HashesForStringPathsSentToWorkers, numStringPathFiles);
                 }
             }
         }
@@ -1131,12 +1132,9 @@ namespace BuildXL.Engine.Distribution
             var remoteStepDuration = TimeSpan.FromTicks(completionTask.ExecuteStepTicks ?? 0);
             var remoteQueueDuration = TimeSpan.FromTicks(completionTask.QueueTicks ?? 0);
 
-            var queueRequestDuration = completionTask.QueueRequestDuration;
-            var sendRequestDuration = completionTask.SendRequestDuration;
-
             operationContext.ReportExternalOperation(PipExecutorCounter.RemoteWorkerReportedExecutionDuration, remoteStepDuration);
 
-            runnablePip.LogRemoteExecutionStepPerformance(WorkerId, runnablePip.Step, remoteStepDuration, remoteQueueDuration, queueRequestDuration, sendRequestDuration);
+            runnablePip.LogRemoteExecutionStepPerformance(WorkerId, runnablePip.Step, remoteStepDuration, remoteQueueDuration, completionTask.QueueRequestDuration, completionTask.GrpcDuration);
         }
 
         public void HandleRemoteResult(RunnablePip runnable, ExecutionResult executionResult)
@@ -1295,7 +1293,7 @@ namespace BuildXL.Engine.Distribution
 
                 var serializationDuration = TimeSpan.FromTicks(pipCompletionData.SerializationTicks);
                 ExecutionResult result = null;
-                using (var counter = m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_DeserializeFromBlobDuration))
+                using (var counter = m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_DeserializeFromBlobDuration))
                 {
                     result = m_orchestratorService.ResultSerializer.DeserializeFromBlob(
                         pipCompletionData.ResultBlob.Memory.Span,
@@ -1308,11 +1306,9 @@ namespace BuildXL.Engine.Distribution
                 pipCompletionTask.RunnablePip.ThreadId = pipCompletionData.ThreadId;
                 pipCompletionTask.RunnablePip.StepStartTime = new DateTime(pipCompletionData.StartTimeTicks);
                 pipCompletionTask.RunnablePip.StepDuration = new TimeSpan(pipCompletionData.ExecuteStepTicks);
-                var grpcDuration = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - pipCompletionData.BeforeSendTicks);
-                pipCompletionTask.RunnablePip.Performance.GrpcDuration += grpcDuration;
-                pipCompletionTask.RunnablePip.Performance.SerializationDuration += serializationDuration;
-                m_orchestratorService.Counters.AddToCounter(DistributionCounter.ForAllPipsGrpcDurationMs, (long)grpcDuration.TotalMilliseconds);
-
+                
+                var receiveResultDuration = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - pipCompletionData.BeforeSendTicks);
+                pipCompletionTask.AddGrpcDuration(receiveResultDuration);
                 pipCompletionTask.TrySet(result);
             }
         }
@@ -1457,7 +1453,7 @@ namespace BuildXL.Engine.Distribution
             public readonly OperationContext OperationContext;
             public readonly TaskSourceSlim<ExecutionResult> Completion;
             public readonly DateTime QueuedTime;
-            public TimeSpan SendRequestDuration { get; private set; }
+            public TimeSpan GrpcDuration { get; private set; }
             public TimeSpan QueueRequestDuration { get; private set; }
 
             public long? ExecuteStepTicks { get; private set; }
@@ -1486,7 +1482,12 @@ namespace BuildXL.Engine.Distribution
             internal void SetRequestDuration(DateTime dateTimeBeforeSend, TimeSpan sendDuration)
             {
                 QueueRequestDuration = dateTimeBeforeSend - QueuedTime;
-                SendRequestDuration = sendDuration;
+                AddGrpcDuration(sendDuration);
+            }
+
+            internal void AddGrpcDuration(TimeSpan grpcDuration)
+            {
+                GrpcDuration += grpcDuration;
             }
         }
     }

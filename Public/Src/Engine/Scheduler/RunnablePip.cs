@@ -542,9 +542,9 @@ namespace BuildXL.Scheduler
             TimeSpan remoteStepDuration,
             TimeSpan remoteQueueDuration,
             TimeSpan queueRequestDuration,
-            TimeSpan sendRequestDuration)
+            TimeSpan grpcDuration)
         {
-            Performance.RemoteExecuted(workerId, step, remoteStepDuration, remoteQueueDuration, queueRequestDuration, sendRequestDuration);
+            Performance.RemoteExecuted(workerId, step, remoteStepDuration, remoteQueueDuration, queueRequestDuration, grpcDuration);
         }
 
         /// <summary>

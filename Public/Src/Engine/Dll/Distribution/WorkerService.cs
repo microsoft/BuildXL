@@ -395,27 +395,35 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc />
         async Task IWorkerService.ExecutePipsAsync(PipBuildRequest request)
         {
-            var reportInputsResult = m_pipExecutionService.TryReportInputs(request.Hashes);
+            Possible<Unit> reportInputsResult;
+
+            using (Counters.StartStopwatch(DistributionCounter.ReportInputsDuration))
+            {
+                reportInputsResult = m_pipExecutionService.TryReportInputs(request.Hashes);
+            } 
             
             // Unblock the caller, so we can send a response to the orchestrator asap to receive the new pipbuildrequest messages.
             // We intentionally unblock the caller after processing the inputs. 
             await Task.Yield();
 
-            for (int i = 0; i < request.Pips.Count; i++)
+            using (Counters.StartStopwatch(DistributionCounter.StartPipStepDuration))
             {
-                SinglePipBuildRequest pipBuildRequest = request.Pips[i];
-
-                // Start the pip. Handle the case of a retry - the pip may be already started by a previous call.
-                if (m_handledBuildRequests.Add(pipBuildRequest.SequenceNumber))
+                for (int i = 0; i < request.Pips.Count; i++)
                 {
-                    var pipId = new PipId(pipBuildRequest.PipIdValue);
-                    var pipIdStepTuple = (pipId, (PipExecutionStep)pipBuildRequest.Step);
-                    m_pendingBuildRequests[pipIdStepTuple] = pipBuildRequest;
+                    SinglePipBuildRequest pipBuildRequest = request.Pips[i];
 
-                    var pipCompletionData = new ExtendedPipCompletionData(new PipCompletionData() { PipIdValue = pipId.Value, Step = pipBuildRequest.Step });
-                    m_pendingPipCompletions[pipIdStepTuple] = pipCompletionData;
+                    // Start the pip. Handle the case of a retry - the pip may be already started by a previous call.
+                    if (m_handledBuildRequests.Add(pipBuildRequest.SequenceNumber))
+                    {
+                        var pipId = new PipId(pipBuildRequest.PipIdValue);
+                        var pipIdStepTuple = (pipId, (PipExecutionStep)pipBuildRequest.Step);
+                        m_pendingBuildRequests[pipIdStepTuple] = pipBuildRequest;
 
-                    m_pipExecutionService.StartPipStepAsync(pipId, pipCompletionData, pipBuildRequest, reportInputsResult).Forget();
+                        var pipCompletionData = new ExtendedPipCompletionData(new PipCompletionData() { PipIdValue = pipId.Value, Step = pipBuildRequest.Step });
+                        m_pendingPipCompletions[pipIdStepTuple] = pipCompletionData;
+
+                        m_pipExecutionService.StartPipStepAsync(pipId, pipCompletionData, pipBuildRequest, reportInputsResult).Forget();
+                    }
                 }
             }
         }

@@ -115,7 +115,54 @@ namespace BuildXL.Engine.Distribution
         ReportPipResultsDuration,
 
         /// <nodoc/>
-        ForAllPipsGrpcDurationMs,
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_PrepareAndSendBuildRequestsDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_ExtractHashesDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_CollectPipFilesToMaterializeDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_CreateFileArtifactKeyedHashDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_BuildRequestSendDuration,
+
+        /// <nodoc/>
+        RemoteWorker_EarlyReleaseDrainDurationMs,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_DeserializeFromBlobDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_ReadBuildManifestEventsDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_ReadExecutionLogAsyncDuration,
+
+        /// <nodoc/>
+        TotalGrpcDurationMs,
+
+        /// <nodoc/>
+        BuildRequestBatchesSentToWorkers,
+
+        /// <nodoc/>
+        BuildRequestBatchesFailedSentToWorkers,
+
+        /// <nodoc/>
+        HashesSentToWorkers,
+
+        /// <nodoc/>
+        HashesForStringPathsSentToWorkers,
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
@@ -141,6 +188,14 @@ namespace BuildXL.Engine.Distribution
         LostClientHeartbeatFailure,
 
         /// <nodoc/>
-        ConnectionManagerFailedHeartbeats
+        ConnectionManagerFailedHeartbeats,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        ReportInputsDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        StartPipStepDuration
     }
 }

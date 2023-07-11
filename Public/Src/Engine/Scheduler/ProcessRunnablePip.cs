@@ -38,7 +38,7 @@ namespace BuildXL.Scheduler
         public RunnableFromCacheResult CacheResult { get; private set; }
 
         /// <nodoc/>
-        public CacheLookupPerfInfo CacheLookupPerfInfo => Performance.CacheLookupPerfInfo;
+        public PipCachePerfInfo CacheLookupPerfInfo => Performance.CacheLookupPerfInfo;
 
         /// <summary>
         /// Gets whether the process was executed (i.e. process was cache miss and ran ExecuteProcess step)
@@ -104,7 +104,7 @@ namespace BuildXL.Scheduler
         {
             if (kind.CacheLookupCounterId >= 0)
             {
-                CacheLookupPerfInfo.LogCacheLookupStep(kind, duration);
+                CacheLookupPerfInfo.LogCacheLookupStep(Step, kind, duration);
             }
         }
 

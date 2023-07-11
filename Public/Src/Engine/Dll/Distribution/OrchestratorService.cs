@@ -298,6 +298,11 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
+            // To calculate how much it took to send this result message to the orchestrator, we first find the maximum of 'BeforeSendTicks' 
+            // for the pips in that result message.
+            var sendDuration = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - pipResults.CompletedPips.Max(a => a.BeforeSendTicks));
+            Counters.AddToCounter(DistributionCounter.TotalGrpcDurationMs, (long)sendDuration.TotalMilliseconds);
+
             Parallel.ForEach(pipResults.CompletedPips, worker.NotifyPipCompletion);
         }
 

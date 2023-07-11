@@ -68,7 +68,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         [Fact]
         public Task GcToNonZero()
         {
-            System.Diagnostics.Debugger.Launch();
             var context = new OperationContext(new Context(TestGlobal.Logger));
             return RunTest(context,
                 async (topology, session) =>

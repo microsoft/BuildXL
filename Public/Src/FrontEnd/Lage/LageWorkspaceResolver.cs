@@ -74,21 +74,11 @@ namespace BuildXL.FrontEnd.Lage
 
             // Get the list of all regular commands
             IEnumerable<string> commands = ComputedCommands.Keys.Where(command => !CommandGroups.ContainsKey(command)).Union(CommandGroups.Values.SelectMany(commandMembers => commandMembers)).ToList();
-
-            using var sbWrapper = Pools.StringBuilderPool.GetInstance();
-            var sb = sbWrapper.Instance;
-
-            sb.Append($@"""{nodeExeLocation}""");
-            sb.Append($@" ""{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}""");
-            sb.Append($@" ""{pathToRepoRoot}""");
-            sb.Append($@" ""{outputFile.ToString(Context.PathTable, PathFormat.Script)}""");
-            sb.Append($@" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}""");
-            sb.Append($@" ""{string.Join(" ", commands)}""");
+            
             // Pass the 6th argument (lage location) as "undefined" string. This argument is used by Office implementation.
-            sb.Append(@" ""undefined""");
-            _ = ResolverSettings.Since == null ? sb.Append(@" ""undefined""") : sb.Append($@" ""{ResolverSettings.Since}""");
-
-            return JavaScriptUtilities.GetCmdArguments(sb.ToString());
+            var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(Context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}"" ""{string.Join(" ", commands)}"" ""undefined""";
+            
+            return JavaScriptUtilities.GetCmdArguments(args);
         }
 
         /// <inheritdoc/>

@@ -88,8 +88,7 @@ namespace Test.BuildXL.FrontEnd.Lage
         Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null,
             string moduleName = "Test",
             string root = "d`.`",
-            string executeCommands = null,
-            string since = null)
+            string executeCommands = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -108,8 +107,7 @@ namespace Test.BuildXL.FrontEnd.Lage
                     environment: environment,
                     moduleName: moduleName,
                     root: root,
-                    executeCommands: executeCommands,
-                    since: since));
+                    executeCommands: executeCommands));
         }
 
         protected BuildXLEngineResult RunLageProjects(
@@ -182,8 +180,7 @@ module.exports = {
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
             string moduleName,
             string root,
-            string executeCommands,
-            string since) => $@"
+            string executeCommands) => $@"
 config({{
     resolvers: [
         {{
@@ -193,7 +190,6 @@ config({{
             nodeExeLocation: f`{PathToNode}`,
             {DictionaryToExpression("environment", environment)}
             {(executeCommands == null ? string.Empty : $"execute: {executeCommands},")}
-            {(since == null ? string.Empty : $"since: '{since}',")}
         }}
     ],
 }});";

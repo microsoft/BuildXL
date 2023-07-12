@@ -3,7 +3,7 @@
 In this walkthrough, we will specify a build that consists of compiling a C++ program, running the resulting executable,
 and deploying the result of running the executable to a designated output folder. The example in this walkthrough will
 expose the uses of transformer functions in DScript built-in *Sdk.Transformers* to create process pip, write-file pip, and
-copy-file pip. The example in this walkthrough can be found in [HelloWorld](../../../Examples/Walkthrough/HelloWorld).
+copy-file pip. The example in this walkthrough can be found in [HelloWorld](../../../../Examples/Walkthrough/HelloWorld).
 
 ## Prerequisites
 

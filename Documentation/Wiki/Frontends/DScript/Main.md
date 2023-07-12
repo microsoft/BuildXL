@@ -1,18 +1,18 @@
 # Working with DScript
 
 As a general-purpose build engine, BuildXL is not tied to any programming language. It can build C, C++, C#, Java,
-Python, etc., so long as you can provide BuildXL with a pip graph (see [Core Concepts](../CoreConcepts.md)).
+Python, etc., so long as you can provide BuildXL with a pip graph (see [Core Concepts](../../CoreConcepts.md)).
 BuildXL has multiple frontends that can transform specifications for other build engine into pip graphs.
 For example, BuildXL can understand MsBuild specification using its MsBuild frontend. BuildXL also has a JavaScript
 frontend that understands several JavaScript orchestrator frameworks, like Rush, Yarn, and Lage. For information
-about BuildXL's frontends, see [Frontends](../Frontends.md).
+about BuildXL's frontends, see [Frontends](../../Frontends.md).
 
 In this section we are going to use DScript language that is developed specifically for BuildXL to construct pip graphs.
 *DScript* is a language for describing data flow in a subset of TypeScript language. The evaluation/interpretation of
 DScript specifications only constructs a pip graph, but does not execute the pips in that graph. Only when the pip graph
 construction is finished, the scheduler will start executing the pips according to the dependency order.
 
-Detailed exposition on DScript can be found in [DScript](../DScript/Introduction.md). 
+Detailed exposition on DScript can be found in [DScript](../../DScript/Introduction.md). 
 
 ## Build specifications in DScript
 
@@ -183,7 +183,7 @@ const link = Transformer.execute({
 Here the resulting object file is declared as a dependency of the `link` process pip. In this way, DScript establishes
 a dependency relation between the `compile` process pip and the `link` process pip.
 
-Interface declarations of `Transformer.execute` can be found in [Transformer.dsc](../../../Public/Sdk/Public/Transformers/Transformer.Execute.dsc).
+Interface declarations of `Transformer.execute` can be found in [Transformer.dsc](../../../../Public/Sdk/Public/Transformers/Transformer.Execute.dsc).
 
 There are many variants of transformer methods for creating write-file pips. One method that is often used is to write
 multiple lines:
@@ -198,7 +198,7 @@ line 2
 ```
 to `written.txt`.
 
-Complete methods for creating write-file pips can be found in [Transformer.Write.dsc](../../../Public/Sdk/Public/Transformers/Transformer.Write.dsc).
+Complete methods for creating write-file pips can be found in [Transformer.Write.dsc](../../../../Public/Sdk/Public/Transformers/Transformer.Write.dsc).
 
 To create a copy-file pip, DScript uses `Transformer.copyFile` method:
 ```typescript
@@ -207,7 +207,7 @@ const copyFile = Transformer.copyFile(f`fileToCopy.txt`, p`copy.txt`);
 ```
 The above method call will create a copy-file pip that copies `fileToCopy.txt` to `copy.txt`.
 
-Details about methods for creating copy-file pips can be found in [Transformer.Copy.dsc](../../../Public/Sdk/Public/Transformers/Transformer.Write.dsc).
+Details about methods for creating copy-file pips can be found in [Transformer.Copy.dsc](../../../../Public/Sdk/Public/Transformers/Transformer.Write.dsc).
 
 > Note that when specifying input files, DScript uses the prefix `f`, but when specifying output files, DScript
   declare them as paths using the prefix `p`.
@@ -261,7 +261,7 @@ const result = Transformer.execute({ ... dependencies: [exclusive, shared1, shar
 The process pips corresponding to `shared1` and `shared2` declarations may produce different sets of files in `SharedDir`
 directory during their executions.
 
-Details on sealed directories and output directories can be found in [Sealed Directories](../Advanced-Features/Sealed-Directories.md).
+Details on sealed directories and output directories can be found in [Sealed Directories](../../Advanced-Features/Sealed-Directories.md).
 
 ## File monitoring and caching implication
 
@@ -304,12 +304,12 @@ included in the cache key, so if it changes later, *Q* will be re-executed. But 
 hit because the content hash of that file is not part of the cache key.
 
 BuildXL caching mechanism is more complicated than what's been discussed in this section. For details, please refer
-to [BuildXL Two-Phase Caching](../Advanced-Features/Two-Phase-Cache-Lookup.md).
+to [BuildXL Two-Phase Caching](../../Advanced-Features/Two-Phase-Cache-Lookup.md).
 
 ## See also
 
-* [The core concept of BuildXL](../CoreConcepts.md)
-* [DScript as a build language](../DScript/Introduction.md)
+* [The core concept of BuildXL](../../CoreConcepts.md)
+* [DScript as a build language](../../DScript/Introduction.md)
 * [Walkthrough: Building and running a simple program](./Walkthrough-Building-Hello-World.md)
 * [Walkthrough: Using input and output directories](./Walkthrough-Building-InputOutputDirectories.md)
 * [Walkthrough: Writing a DScript SDK](./Walkthrough-Building-SDK.md)

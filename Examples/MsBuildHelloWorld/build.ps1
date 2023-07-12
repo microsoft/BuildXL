@@ -1,1 +1,0 @@
-& $Env:BUILDXL_BIN/bxl /c:config.bc /disableProcessRetryOnResourceExhaustion+

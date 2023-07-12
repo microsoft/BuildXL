@@ -2,7 +2,7 @@
 
 In this walkthrough, we will write a DScript SDK for building a small C++ project consisting of more than one module.
 We will also see how one module consumes the result of another module. The example in this walkthrough can be found
-in [Writing SDK](../../../Examples/Walkthrough/SimpleSDK).
+in [Writing SDK](../../../../Examples/Walkthrough/SimpleSDK).
 
 ## Prerequisites
 

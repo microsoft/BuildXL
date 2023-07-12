@@ -11,9 +11,10 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 
 # Onboarding to BuildXL
 * [Frontends](Wiki/Frontends.md)
-* [Frontends - DScript](Wiki/Working-With-DScript/Main.md)
+* [Frontends - DScript](Wiki/Frontends/DScript/Main.md)
 * [Frontends - Download](Wiki/Frontends/Download.md)
 * [Frontends - Javascript](Wiki/Frontends/js-onboarding.md)
+* [Frontends - MSBuild](Wiki/Frontends/MSBuild/Main.md)
 * [Demos](../Public/Src/Demos/Demos.md)
 * [Configuring a shared cache using an Azure Blob Storage Account](Wiki/shared-cache.md)
 

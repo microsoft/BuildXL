@@ -1,7 +1,7 @@
 # Walkthrough: Using input/output directories
 
 In this walkthrough, we will specify a build that uses input and output directories, and show the caching behavior.
-The example in this walkthrough can be found in [Using Input/Output Directories](../../../Examples/Walkthrough/InputOutputDirectories/).
+The example in this walkthrough can be found in [Using Input/Output Directories](../../../../Examples/Walkthrough/InputOutputDirectories/).
 
 ## Prerequisites
 

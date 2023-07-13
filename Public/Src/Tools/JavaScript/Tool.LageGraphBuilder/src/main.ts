@@ -7,8 +7,9 @@ import { serializeGraph } from "./GraphSerializer";
 import {JavaScriptGraph, ScriptCommands, JavaScriptProject} from './BuildGraph';
 
 // String value "undefined" can be passed in for the 6th argument. Office implementation will use this to pass the lage location.
+// For now 'since' is optional until Office can update their implementation. See TODO below.
 if (process.argv.length < 7) {
-    console.log("Expected arguments: <repo-folder> <path-to-output-graph> <npm Location> <list-of-targets> <Lage Location>");
+    console.log("Expected arguments: <repo-folder> <path-to-output-graph> <npm Location> <list-of-targets> <Lage Location> <since>");
     process.exit(1);
 }
 
@@ -18,6 +19,13 @@ const outputGraphFile = process.argv[3];
 const npmLocation = process.argv[4];
 const targets : string = process.argv[5];
 const lageLocation = process.argv[6] === "undefined" ? undefined : process.argv[6];
+let since = "";
+
+// TODO: Remove this condition once the Office implementation is updated to pass 'undefined ' for the 7th argument (since). For now
+// we make this parameter optional, change it later to be mandatory.
+if (process.argv.length == 8) {
+  since = process.argv[7] === "undefined" ? "" : `--since '${process.argv[7]}' `;
+}
 
 /**
  * Result output of `lage info`
@@ -83,7 +91,7 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
 
 try {
     let script  = lageLocation === undefined ? `"${npmLocation}" run lage --silent --` : `"${lageLocation}"`;
-    script  = `${script} info ${targets} --reporter json > "${outputGraphFile}"`;
+    script  = `${script} info ${targets} --reporter json ${since}> "${outputGraphFile}"`;
     console.log(`Starting lage export: ${script}`);
 
     // The graph sometimes is big enough to exceed the default stdio buffer (200kb). In order to workaround this issue, output the raw

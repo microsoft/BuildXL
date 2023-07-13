@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics;
 using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Configuration;
@@ -74,6 +75,29 @@ namespace Test.BuildXL.FrontEnd.Lage
 
             // B#build -> A#build and A#test -> A#build are reported by Lage without A#build being defined. We just ignore those but log them.
             AssertVerboseEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.IgnoredDependency, count: 2);
+        }
+
+        [Fact]
+        public void SinceIsHonored()
+        {
+            var since = "dev/feature";
+            // Create a project A
+            var config = Build(executeCommands: "['test']", since: since)
+                .AddJavaScriptProject("@ms/project-A", "src/A", "module.exports = function A(){}", scriptCommands: new[] { ("test", "node ./main.js") })
+                .PersistSpecsAndGetConfiguration();
+
+            RunLageProjects(config);
+
+            // It it pretty hard to come up with an e2e test for this, since it involves git operations and having a consistent change across git branches/commits that would make sense to Lage
+            // Check instead that the 'since' argument was actually passed to the graph construction tool
+            AssertVerboseEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ConstructingGraphScript, count: 1);
+            string graphConstructionToolArgs = EventListener.GetLogMessagesForEventId((int)global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ConstructingGraphScript).Single();
+
+            Assert.Contains($"{since}", graphConstructionToolArgs);
+
+            // Lage sometimes fails with an obscure error because the underlying git operation fails (depending on the environment where it runs)
+            AllowErrorEventMaybeLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+            AllowErrorEventMaybeLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ProjectGraphConstructionError);
         }
     }
 }

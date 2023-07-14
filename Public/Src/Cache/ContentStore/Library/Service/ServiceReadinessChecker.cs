@@ -7,6 +7,7 @@ using System.Threading;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.Users;
@@ -21,18 +22,17 @@ namespace BuildXL.Cache.ContentStore.Service
     {
         private static readonly Tracer _tracer = new Tracer(nameof(ServiceReadinessChecker));
 
-#if PLATFORM_WIN
-        private readonly EventWaitHandle _readyEvent;
-        private readonly EventWaitHandle _shutdownEvent;
-#endif
+        private readonly EventWaitHandle? _readyEvent;
+        private readonly EventWaitHandle? _shutdownEvent;
 
         /// <nodoc />
         public ServiceReadinessChecker(ILogger logger, string? scenario)
         {
-#if PLATFORM_WIN
-            _readyEvent = CreateReadyEvent(logger, scenario);
-            _shutdownEvent = CreateShutdownEvent(logger, scenario);
-#endif
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                _readyEvent = CreateReadyEvent(logger, scenario);
+                _shutdownEvent = CreateShutdownEvent(logger, scenario);
+            }
         }
 
         /// <summary>
@@ -42,53 +42,55 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             var currentUser = UserUtilities.CurrentUserName(EngineEnvironmentSettings.BuildXLUserName.Value);
 
-#if PLATFORM_WIN
-            _tracer.Debug(context, $"Opening ready event name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}.");
-            var stopwatch = Stopwatch.StartNew();
-
-            bool running = ensureRunningCore();
-
-            if (running)
+            if (OperatingSystemHelper.IsWindowsOS)
             {
-                _tracer.Debug(context, $"Opened ready event name=[{scenario}] by {stopwatch.ElapsedMilliseconds}ms.");
-            }
+                _tracer.Debug(context, $"Opening ready event name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}.");
+                var stopwatch = Stopwatch.StartNew();
 
-            return running;
+                bool running = ensureRunningCore();
 
-            bool ensureRunningCore()
-            {
-                try
+                if (running)
                 {
-                    if (!IpcUtilities.TryOpenExistingReadyWaitHandle(scenario, out var readyEvent, waitMs))
-                    {
-                        _tracer.Debug(context, "Ready event does not exist");
-                        return false;
-                    }
+                    _tracer.Debug(context, $"Opened ready event name=[{scenario}] by {stopwatch.ElapsedMilliseconds}ms.");
+                }
 
-                    using (readyEvent)
+                return running;
+
+                bool ensureRunningCore()
+                {
+                    try
                     {
-                        var waitMsRemaining = Math.Max(0, waitMs - (int)stopwatch.ElapsedMilliseconds);
-                        if (!readyEvent.WaitOne(waitMsRemaining))
+                        if (!IpcUtilities.TryOpenExistingReadyWaitHandle(scenario, out var readyEvent, waitMs))
                         {
-                            _tracer.Debug(context, "Ready event was opened but remained unset until timeout");
+                            _tracer.Debug(context, "Ready event does not exist");
                             return false;
                         }
 
-                        return true;
+                        using (readyEvent)
+                        {
+                            var waitMsRemaining = Math.Max(0, waitMs - (int)stopwatch.ElapsedMilliseconds);
+                            if (!readyEvent.WaitOne(waitMsRemaining))
+                            {
+                                _tracer.Debug(context, "Ready event was opened but remained unset until timeout");
+                                return false;
+                            }
+
+                            return true;
+                        }
                     }
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    _tracer.Debug(context, "Ready event exists, but user does not have acceptable security access");
-                }
+                    catch (UnauthorizedAccessException)
+                    {
+                        _tracer.Debug(context, "Ready event exists, but user does not have acceptable security access");
+                    }
 
-                return false;
+                    return false;
+                }
             }
-
-#else
-            _tracer.Debug(context, $"Not validating ready event (OSX) name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}");
-            return true;
-#endif
+            else
+            {
+                _tracer.Debug(context, $"Not validating ready event (Unix) name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}");
+                return true;
+            }
         }
 
         /// <summary>
@@ -152,10 +154,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public void Ready(Context context)
         {
-#if PLATFORM_WIN
-            _tracer.Debug(context, "Setting ready event");
-            _readyEvent.Set();
-#endif
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                _tracer.Debug(context, "Setting ready event");
+                _readyEvent?.Set();
+            }
         }
 
         /// <summary>
@@ -163,23 +166,25 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public void Reset()
         {
-#if PLATFORM_WIN
-            // Make sure to not signal new clients that service is ready for requests.
-            _readyEvent.Reset();
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                // Make sure to not signal new clients that service is ready for requests.
+                _readyEvent?.Reset();
 
-            // Signal connected clients that shutdown is imminent.
-            _shutdownEvent.Set();
-#endif
+                // Signal connected clients that shutdown is imminent.
+                _shutdownEvent?.Set();
+            }
         }
 
         /// <inheritdoc />
         public void Dispose()
         {
-#if PLATFORM_WIN
-            _shutdownEvent.Reset();
-            _shutdownEvent.Dispose();
-            _readyEvent.Dispose();
-#endif
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                _shutdownEvent?.Reset();
+                _shutdownEvent?.Dispose();
+                _readyEvent?.Dispose();
+            }
         }
     }
 }

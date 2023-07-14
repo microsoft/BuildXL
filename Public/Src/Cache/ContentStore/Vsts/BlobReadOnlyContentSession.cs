@@ -465,12 +465,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private Task<long?> PlaceFileInternalAsync(
             OperationContext context, ContentHash contentHash, string path, FileMode fileMode)
         {
-#if PLATFORM_WIN
-            if (Configuration.DownloadBlobsUsingHttpClient)
+            if (Interfaces.Utils.OperatingSystemHelper.IsWindowsOS && Configuration.DownloadBlobsUsingHttpClient)
             {
                 return DownloadUsingHttpDownloaderAsync(context, contentHash, path);
             }
-#endif
 
             return DownloadUsingAzureBlobsAsync(context, contentHash, path, fileMode);
         }
@@ -583,7 +581,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 context: context.TracingContext.TraceId);
         }
 
-#if PLATFORM_WIN
         private async Task<long?> DownloadUsingHttpDownloaderAsync(OperationContext context, ContentHash contentHash, string path)
         {
             var downloader = new ManagedParallelBlobDownloader(
@@ -610,7 +607,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             return result.BytesDownloaded;
         }
-#endif
 
         private bool IsErrorFileExists(Exception e) => (Marshal.GetHRForException(e) & ((1 << 16) - 1)) == ErrorFileExists;
 

@@ -1,10 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#if !PLATFORM_WIN
 using System;
 using System.Runtime.InteropServices;
-#endif
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -13,7 +11,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     /// </summary>
     public static class UnixHelpers
     {
-#if !PLATFORM_WIN
         private static class LibC
         {
             /// <nodoc />
@@ -22,19 +19,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 
             public static readonly int AllFilePermssionMask = Convert.ToInt32("777", 8);
         }
-#endif
 
         /// <nodoc />
         public static void OverrideFileAccessMode(bool changePermissions, string path)
         {
-#if !PLATFORM_WIN
-            if (changePermissions)
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && changePermissions)
             {
                 // Force 0777 on the file at 'path' - this is a temporary hack when placing files as our cache layer
                 // currently does not track Unix file access flags when putting / placing files
                 LibC.chmod(path, LibC.AllFilePermssionMask);
             }
-#endif
         }
     }
 }

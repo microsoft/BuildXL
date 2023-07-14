@@ -520,6 +520,7 @@ namespace BuildXL.Scheduler.Tracing
         FailedToDeserializeLRUMap = 14536,
 
         CreationTimeNotSupported = 14537,
+        FailedLoggingExecutionLogEventData = 14538,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

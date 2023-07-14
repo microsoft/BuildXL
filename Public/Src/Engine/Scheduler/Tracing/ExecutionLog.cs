@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -242,6 +241,12 @@ namespace BuildXL.Scheduler.Tracing
         {
             ReportUnhandledEvent(data);
         }
+
+        /// <nodoc />
+        public virtual void TestCustom(TestCustomEventData data)
+        {
+            ReportUnhandledEvent(data);
+        }
     }
 
     /// <summary>
@@ -261,10 +266,7 @@ namespace BuildXL.Scheduler.Tracing
         public readonly ExecutionEventId EventId;
 
         /// <nodoc />
-        protected ExecutionLogEventMetadata(ExecutionEventId eventId)
-        {
-            EventId = eventId;
-        }
+        protected ExecutionLogEventMetadata(ExecutionEventId eventId) => EventId = eventId;
 
         /// <summary>
         /// Translates a serialized stream containing an event (of this type) into an invocation on an <see cref="IExecutionLogTarget"/>.
@@ -293,7 +295,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc />
         public override void DeserializeAndLogToTarget(BinaryLogReader.EventReader eventReader, IExecutionLogTarget target)
         {
-            TEventData data = default(TEventData);
+            TEventData data = default;
             data.DeserializeAndUpdate(eventReader);
             m_process(data, target);
         }
@@ -385,7 +387,19 @@ namespace BuildXL.Scheduler.Tracing
         {
             using (BinaryLogger.EventScope eventScope = m_logFile.StartEvent((uint)data.Metadata.EventId, m_workerId))
             {
-                data.Serialize(eventScope.Writer);
+
+                try
+                {
+                    data.Serialize(eventScope.Writer);
+                }
+                catch (Exception e)
+                {
+                    // Set exception so that event is not serialized to the log file.
+                    eventScope.SetException(e);
+
+                    // Inform users that an event is not logged due to an exception.
+                    Logger.Log.FailedLoggingExecutionLogEventData(Events.StaticContext, data.Metadata.EventId.ToString(), e.ToString());
+                }
             }
         }
 

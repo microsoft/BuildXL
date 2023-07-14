@@ -3975,22 +3975,31 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void UnableToMonitorDriveWithSubst(LoggingContext loggingContext, string path, string drive);
 
         [GeneratedEvent(
-                    (ushort)LogEventId.SchedulerCompleteExceptMaterializeOutputs,
-                    EventGenerators = EventGenerators.LocalOnly,
-                    EventLevel = Level.Verbose,
-                    Keywords = (int)Keywords.UserMessage,
-                    EventTask = (ushort)Tasks.Scheduler,
-                    Message = "The scheduler has been marked completed except for MaterializeOutput pip steps")]
+            (ushort)LogEventId.SchedulerCompleteExceptMaterializeOutputs,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "The scheduler has been marked completed except for MaterializeOutput pip steps")]
         internal abstract void SchedulerCompleteExceptMaterializeOutputs(LoggingContext loggingContext);
 
         [GeneratedEvent(
-                    (ushort)LogEventId.CreationTimeNotSupported,
-                    EventGenerators = EventGenerators.LocalOnly,
-                    EventLevel = Level.Verbose,
-                    Keywords = (int)Keywords.UserMessage,
-                    EventTask = (ushort)Tasks.Scheduler,
-                    Message = "File creation time retrieval is not supported by the underlying operating system. Some optimizations will be disabled.")]
+            (ushort)LogEventId.CreationTimeNotSupported,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "File creation time retrieval is not supported by the underlying operating system. Some optimizations will be disabled.")]
         internal abstract void CreationTimeNotSupported(LoggingContext loggingContext);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FailedLoggingExecutionLogEventData,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Failed logging execution log event data '{eventId}'. This does not impact build correctness but will cause the execution log to be incomplete for post-build analysis. Failure reason: {error}")]
+        internal abstract void FailedLoggingExecutionLogEventData(LoggingContext loggingContext, string eventId, string error);
     }
 }
 #pragma warning restore CA1823 // Unused field

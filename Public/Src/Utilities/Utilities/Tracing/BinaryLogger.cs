@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -48,8 +49,8 @@ namespace BuildXL.Utilities.Tracing
         // Pending events queue and corresponding draining thread.
         // The queue could be more easily modeled with a BlockingCollection (which doesn't need any explicit synchronization primitives), but noticeable thread contention
         // was found under high load of events being added.
-        private readonly ConcurrentQueue<IQueuedAction> m_pendingEvents = new ConcurrentQueue<IQueuedAction>();
-        private readonly AutoResetEvent m_eventsAvailable = new AutoResetEvent(false);
+        private readonly ConcurrentQueue<IQueuedAction> m_pendingEvents = new();
+        private readonly AutoResetEvent m_eventsAvailable = new(false);
         private readonly Thread m_pendingEventsDrainingThread;
         private bool m_completeAdding = false;
 
@@ -79,11 +80,13 @@ namespace BuildXL.Utilities.Tracing
             m_logStreamWriter = new BuildXLWriter(debug: false, stream: logStream, leaveOpen: !closeStreamOnDispose, logStats: false);
             m_watch = Stopwatch.StartNew();
             m_capturedPaths = new ConcurrentBigMap<AbsolutePath, bool>();
-            m_capturedStrings = new ConcurrentBigMap<StringId, bool>();
-            m_capturedStrings.Add(StringId.Invalid, true);
+            m_capturedStrings = new ConcurrentBigMap<StringId, bool>
+            {
+                { StringId.Invalid, true }
+            };
             m_writerPool = new ObjectPool<EventWriter>(
                 () => new EventWriter(this),
-                writer => { writer.Seek(0, SeekOrigin.Begin); return writer; });
+                writer => { writer.Clear(); return writer; });
             m_onEventWritten = onEventWritten;
 
             var logIdBytes = logId.ToByteArray();
@@ -138,6 +141,8 @@ namespace BuildXL.Utilities.Tracing
             m_logStreamWriter.WriteCompact((int)eventPayloadStream.Position);
             m_logStreamWriter.Write(eventPayloadStream.GetBuffer(), 0, (int)eventPayloadStream.Position);
 
+            eventWriter.UpdateCapturedPathsAndStrings();
+
             m_writerPool.PutInstance(eventWriter);
             m_onEventWritten?.Invoke();
         }
@@ -162,15 +167,9 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="eventId">the event id</param>
         /// <param name="workerId">the worker id</param>
         /// <returns>scope containing writer for event payload</returns>
-        public EventScope StartEvent(uint eventId, uint workerId)
-        {
-            return new EventScope(GetEventWriterWrapper(checked(eventId + (uint)LogSupportEventId.Max), workerId: workerId));
-        }
+        public EventScope StartEvent(uint eventId, uint workerId) => new(GetEventWriterWrapper(checked(eventId + (uint)LogSupportEventId.Max), workerId: workerId));
 
-        private EventScope StartEvent(LogSupportEventId eventId)
-        {
-            return new EventScope(GetEventWriterWrapper((uint)eventId, workerId: 0));
-        }
+        private EventScope StartEvent(LogSupportEventId eventId) => new(GetEventWriterWrapper((uint)eventId, workerId: 0));
 
         private EventWriter GetEventWriterWrapper(uint eventId, uint workerId)
         {
@@ -208,10 +207,8 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="startTime">the date</param>
         private void LogStartTime(DateTime startTime)
         {
-            using (var eventScope = StartEvent(LogSupportEventId.StartTime))
-            {
-                eventScope.Writer.Write(startTime.ToFileTimeUtc());
-            }
+            using var eventScope = StartEvent(LogSupportEventId.StartTime);
+            eventScope.Writer.Write(startTime.ToFileTimeUtc());
         }
 
         /// <summary>
@@ -290,7 +287,7 @@ namespace BuildXL.Utilities.Tracing
         /// Scope for writing data for an event
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-        public struct EventScope : IDisposable
+        public readonly struct EventScope : IDisposable
         {
             /// <summary>
             /// The writer for writing event data
@@ -300,18 +297,28 @@ namespace BuildXL.Utilities.Tracing
             /// <summary>
             /// Class constructor. INTERNAL USE ONLY.
             /// </summary>
-            internal EventScope(EventWriter writer)
-            {
-                Writer = writer;
-            }
+            internal EventScope(EventWriter writer) => Writer = writer;
 
             /// <summary>
             /// Writes the event data
             /// </summary>
             public void Dispose()
             {
-                Writer.Logger.QueueAction(Writer);
+                // Skip event when there is an exception.
+                // This also avoids returning a broken Writer to the pool.
+                if (Writer.Exception == null)
+                {
+                    Writer.Logger.QueueAction(Writer);
+                }
             }
+
+            /// <summary>
+            /// Sets the exception that happened during writing event data with this scope.
+            /// </summary>
+            /// <remarks>
+            /// When the exception is set, the event is not logged.
+            /// </remarks>
+            public void SetException(Exception exception) => Writer.Exception = exception;
         }
 
         private interface IQueuedAction : IDisposable
@@ -324,10 +331,7 @@ namespace BuildXL.Utilities.Tracing
             private readonly TaskSourceSlim<Unit> m_taskSource = TaskSourceSlim.Create<Unit>();
             private readonly BinaryLogger m_binaryLogger;
 
-            public FlushAction(BinaryLogger binaryLogger)
-            {
-                m_binaryLogger = binaryLogger;
-            }
+            public FlushAction(BinaryLogger binaryLogger) => m_binaryLogger = binaryLogger;
 
             public Task Completion => m_taskSource.Task;
 
@@ -356,23 +360,24 @@ namespace BuildXL.Utilities.Tracing
             internal long Timestamp;
             internal uint WorkerId;
             private readonly BinaryLogger m_logWriter;
+            private readonly HashSet<AbsolutePath> m_eventCapturedPaths = new();
+            private readonly HashSet<StringId> m_eventCapturedStrings = new();
 
             /// <summary>
             /// Returns the underlying log logger. Should be used only inside EventScope.Dispose()
             /// </summary>
-            internal BinaryLogger Logger { get { return m_logWriter; } }
+            internal BinaryLogger Logger => m_logWriter;
 
             internal PathTable PathTable => m_logWriter.m_context.PathTable;
+
+            internal Exception Exception { get; set; }
 
             /// <summary>
             /// Class constructor
             /// </summary>
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
             internal EventWriter(BinaryLogger logWriter)
-                : base(debug: false, stream: new MemoryStream(), leaveOpen: false, logStats: false)
-            {
-                m_logWriter = logWriter;
-            }
+                : base(debug: false, stream: new MemoryStream(), leaveOpen: false, logStats: false) => m_logWriter = logWriter;
 
             /// <summary>
             /// Writes an absolute path.
@@ -396,7 +401,8 @@ namespace BuildXL.Utilities.Tracing
                 {
                     Write((byte)AbsolutePathType.Dynamic);
                     var result = m_logWriter.m_capturedPaths.GetOrAdd(value, false);
-                    if (!result.Item.Value)
+                    var eventResult = m_eventCapturedPaths.Contains(value);
+                    if (!result.Item.Value && !eventResult)
                     {
                         using (var eventScope = m_logWriter.StartEvent(LogSupportEventId.AddPath))
                         {
@@ -408,7 +414,25 @@ namespace BuildXL.Utilities.Tracing
                                 : value.ToString(m_logWriter.m_context.PathTable));
                         }
 
-                        m_logWriter.m_capturedPaths[value] = true;
+                        // We cannot yet track the captured path in m_logWriter because writing the event using this
+                        // EventWriter can fail before the buffered memory stream is flushed to the stream of m_logWriter in
+                        // BinaryLogger.WriteEventDataAndReturnWriter. Thus, we capture the path locally in this EventWriter
+                        // in m_eventCapturedPath. The update to the m_logWriter.m_capturedPaths is done in UpdateCapturedPathsAndStrings
+                        // which gets called in BinaryLogger.WriteEventDataAndReturnWriter.
+                        //
+                        // Note that we still need to "GetOrAdd" the path to m_logWriter.m_capturedPaths because we need to reserve a slot/index.
+                        //
+                        // If we don't do this, consider the following scenario:
+                        // - The first event containing a path p is written using an EventWriter. 
+                        // - The path p is added to m_logWriter.m_capturedPaths.
+                        // - Before the event is flushed to the stream of m_logWriter, an exception, e.g., OutOfMemory exception, is thrown,
+                        //   and the event is not written to the stream of m_logWriter. In particular, the encoding of the path p (the parent
+                        //   and file name) is not persisted in the stream of m_logWriter.
+                        // - The second event containing the same path p is written using another EventWriter.
+                        // - On writing p, this method sees that p has been captured by m_logWriter.m_capturedPaths and thus it only
+                        //   serializes the index. However, since this serialization doesn't include the encoding of the parent and file name
+                        //   of path p, the deserialization cannot recover the path only from the serialized index.
+                        m_eventCapturedPaths.Add(value);
                     }
 
                     WriteCompact(result.Index);
@@ -421,7 +445,8 @@ namespace BuildXL.Utilities.Tracing
             public void WriteDynamicStringId(StringId value)
             {
                 var result = m_logWriter.m_capturedStrings.GetOrAdd(value, false);
-                if (!result.Item.Value)
+                var eventResult = m_eventCapturedStrings.Contains(value);
+                if (!result.Item.Value && !eventResult)
                 {
                     using (var eventScope = m_logWriter.StartEvent(LogSupportEventId.AddStringId))
                     {
@@ -429,16 +454,44 @@ namespace BuildXL.Utilities.Tracing
                         eventScope.Writer.Write(value.ToString(m_logWriter.m_context.StringTable));
                     }
 
-                    m_logWriter.m_capturedStrings[value] = true;
+                    // See the comment in Write(AbsolutePath) for why we need to capture the string locally in this EventWriter.
+                    m_eventCapturedStrings.Add(value);
                 }
 
                 WriteCompact(result.Index);
             }
 
-            void IQueuedAction.Run()
+            void IQueuedAction.Run() => m_logWriter.WriteEventDataAndReturnWriter(this);
+
+            /// <summary>
+            /// Clears this instance of <see cref="EventWriter"/>.
+            /// </summary>
+            internal void Clear()
             {
-                m_logWriter.WriteEventDataAndReturnWriter(this);
+                Seek(0, SeekOrigin.Begin);
+                m_eventCapturedPaths.Clear();
+                m_eventCapturedStrings.Clear();
             }
+
+            /// <summary>
+            /// Copies the captured paths and strings from processing this event writer to the global maps maintained by the logger.
+            /// </summary>
+            /// <remarks>
+            /// This method should be called only after the event data has been transferred to the log writer.
+            /// </remarks>
+            internal void UpdateCapturedPathsAndStrings()
+            {
+                foreach (var path in m_eventCapturedPaths)
+                {
+                    m_logWriter.m_capturedPaths.AddOrUpdate(path, false, (p, d) => true, (p, d, b) => true);
+                }
+
+                foreach (var str in m_eventCapturedStrings)
+                {
+                    m_logWriter.m_capturedStrings.AddOrUpdate(str, false, (s, d) => true, (s, d, b) => true);
+                }
+            }
+
         }
     }
 }

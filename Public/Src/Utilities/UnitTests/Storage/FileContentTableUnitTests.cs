@@ -448,19 +448,22 @@ namespace Test.BuildXL.Storage
 
                             FileUtilities.DeleteFile(GetFullPath(relativePath)); 
                             CreateHardLinkStatus linkStatus = FileUtilities.TryCreateHardLink(GetFullPath(relativePath), GetFullPath(OriginalFile));
-#if PLATFORM_OSX
-                            // Catalina seems to have issues when doing mutli-threaded delete / link operations, let's retry several times..
-                            if (linkStatus != CreateHardLinkStatus.Success)
+
+                            if (OperatingSystemHelper.IsMacOS)
                             {
-                                var count = 0;
-                                while (count < ThreadCount)
+                                // Catalina seems to have issues when doing mutli-threaded delete / link operations, let's retry several times..
+                                if (linkStatus != CreateHardLinkStatus.Success)
                                 {
-                                    FileUtilities.DeleteFile(GetFullPath(relativePath)); 
-                                    linkStatus = FileUtilities.TryCreateHardLink(GetFullPath(relativePath), GetFullPath(OriginalFile));
-                                    count++;
+                                    var count = 0;
+                                    while (count < ThreadCount)
+                                    {
+                                        FileUtilities.DeleteFile(GetFullPath(relativePath));
+                                        linkStatus = FileUtilities.TryCreateHardLink(GetFullPath(relativePath), GetFullPath(OriginalFile));
+                                        count++;
+                                    }
                                 }
                             }
-#endif
+                            
                             XAssert.AreEqual(CreateHardLinkStatus.Success, linkStatus);
                             RecordContentHash(table, path, s_hashA);
                         });

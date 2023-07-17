@@ -241,13 +241,16 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
             m_defaults.CreateColumnFamilyOptions = name =>
             {
-                var options = new ColumnFamilyOptions()
-#if PLATFORM_OSX
+                var options = new ColumnFamilyOptions();
+
+                if (BuildXL.Utilities.Core.OperatingSystemHelper.IsMacOS)
+                {
                     // As advised by the official documentation, LZ4 is the preferred compression algorithm, our RocksDB
                     // dynamic library has been compiled to support this on macOS. Fallback to Snappy on other systems (default).
-                    .SetCompression(Compression.Lz4)
-#endif
-                    .SetBlockBasedTableFactory(blockBasedTableOptions)
+                    options.SetCompression(Compression.Lz4);
+                }
+
+                options.SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp())
                     .SetLevelCompactionDynamicLevelBytes(configuration.LeveledCompactionDynamicLevelTargetSizes);
 

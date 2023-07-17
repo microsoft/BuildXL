@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Utilities.Core;
+
 namespace BuildXL.Native.IO
 {
     /// <summary>
@@ -195,17 +197,10 @@ namespace BuildXL.Native.IO
         /// </summary>
         public const int Infinite = -1;
 
-#if PLATFORM_WIN
         /// <summary>
-        /// Maximum path length.
+        /// Maximum path length for the current platform.
         /// </summary>
-        public const int MaxPath = 260;
-#else
-        /// <summary>
-        /// Maximum path length.
-        /// </summary>
-        public const int MaxPath = 1024;
-#endif
+        public readonly static int MaxPath = OperatingSystemHelper.IsWindowsOS ? 260 : 1024;
 
         /// <summary>
         /// Maximum path length for \\?\ style paths.

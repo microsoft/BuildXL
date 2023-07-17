@@ -61,7 +61,7 @@ namespace BuildXL.Native.IO.Windows
         /// <summary>
         /// The name of the file.
         /// </summary>
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = NativeIOConstants.MaxPath)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Win32FindDataExtensions.MaxPath)]
         public string CFileName;
 
         /// <summary>
@@ -79,6 +79,11 @@ namespace BuildXL.Native.IO.Windows
     /// </remarks>
     public static class Win32FindDataExtensions
     {
+        /// <summary>
+        /// Maximum path length.
+        /// </summary>
+        public const int MaxPath = 260;
+
         /// <summary>
         /// Gets the size of a file.
         /// </summary>

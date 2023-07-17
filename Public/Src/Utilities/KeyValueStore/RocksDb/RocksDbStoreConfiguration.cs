@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using BuildXL.Utilities.Core;
 using RocksDbSharp;
 
 namespace BuildXL.Engine.Cache.KeyValueStores
@@ -225,24 +226,17 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         public int MaxBackgroundCompactions { get; init; } = DefaultMaxBackgroundCompactions;
 
         /// <nodoc />
-        public ulong? DbWriteBufferSize { get; init; } =
-#if !PLATFORM_OSX
-            null;
-#else
+        public ulong? DbWriteBufferSize { get; init; } = !OperatingSystemHelper.IsMacOS
+            ? null
             // The memtable uses significant chunks of available system memory on macOS, we increase the number
             // of background flushing threads (low priority) and set the DB write buffer size. This allows for
             // up to 128 MB in memtables across all column families before we flush to disk.
-            128 << 20;
-#endif
+            : 128 << 20;
 
         /// <nodoc />
-        public static int DefaultMaxBackgroundCompactions =
-
-#if !PLATFORM_OSX
-            Environment.ProcessorCount;
-#else
-            Environment.ProcessorCount / 4;
-#endif
+        public static int DefaultMaxBackgroundCompactions = !OperatingSystemHelper.IsMacOS
+            ? Environment.ProcessorCount
+            : Environment.ProcessorCount / 4;
 
         /// <summary>
         /// Sets the maximum number of concurrent background memtable flush jobs, submitted to the HIGH priority thread pool.
@@ -256,13 +250,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         public int MaxBackgroundFlushes { get; init; } = DefaultMaxBackgroundFlushes;
 
         /// <nodoc />
-        public static int DefaultMaxBackgroundFlushes =
-
-#if !PLATFORM_OSX
-            1;
-#else
-            Environment.ProcessorCount / 4;
-#endif
+        public static int DefaultMaxBackgroundFlushes = !OperatingSystemHelper.IsMacOS
+            ? 1
+            : Environment.ProcessorCount / 4;
 
         /// <nodoc />
         public int? MaxSubCompactions { get; init; } // Not used for now. Needs to be exposed in RocksDbSharp layer first.

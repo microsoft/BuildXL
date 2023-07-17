@@ -4,6 +4,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities
 {
@@ -80,33 +81,36 @@ namespace BuildXL.Utilities
                         {
                             // Waiting on multiple handles including a named synchronization primitve is not supported outside of Windows
                             // In that case we wait with a 100ms interval window and check on cancellation tokens on each interation
-#if PLATFORM_WIN
-                            // Wait on the mutex and the cancellation tokens (the one the user provided, plus the class instance one that is only used for dispose)
-                            if (WaitHandle.WaitAny(new[] { m_mutex, chainedCancellation.Token.WaitHandle }) != 0)
+                            if (OperatingSystemHelper.IsWindowsOS)
                             {
-                                // A cancellation was issued. Just return
+                                // Wait on the mutex and the cancellation tokens (the one the user provided, plus the class instance one that is only used for dispose)
+                                if (WaitHandle.WaitAny(new[] { m_mutex, chainedCancellation.Token.WaitHandle }) != 0)
+                                {
+                                    // A cancellation was issued. Just return
 #if NET60_OR_GREATER
-                                taskCompletionSource.SetCanceled(chainedCancellation.Token);                                
+                                    taskCompletionSource.SetCanceled(chainedCancellation.Token);                                
 #else
-                                taskCompletionSource.SetCanceled();
+                                    taskCompletionSource.SetCanceled();
 #endif
-                                return;
+                                    return;
+                                }
                             }
-#else
-                                while(!m_mutex.WaitOne(100))
-                        {
-                            if (chainedCancellation.Token.IsCancellationRequested)
+                            else
                             {
-                                // A cancellation was issued. Just return
+                                while (!m_mutex.WaitOne(100))
+                                {
+                                    if (chainedCancellation.Token.IsCancellationRequested)
+                                    {
+                                        // A cancellation was issued. Just return
 #if NET60_OR_GREATER
-                                taskCompletionSource.SetCanceled(chainedCancellation.Token);                                
+                                        taskCompletionSource.SetCanceled(chainedCancellation.Token);                                
 #else
-                                taskCompletionSource.SetCanceled();
+                                        taskCompletionSource.SetCanceled();
 #endif
-                                return;
+                                        return;
+                                    }
+                                }
                             }
-                        }
-#endif
 
                             // There is one thread waiting on the mutex release. Let's flag it. Observe this is thread safe since we are inside the mutex critical zone.
                             m_threadWaitingOnRelease = true;

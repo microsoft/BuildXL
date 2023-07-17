@@ -1042,7 +1042,8 @@ namespace Test.BuildXL.Storage
 
         private static bool GetLongPathSupport()
         {
-            string longString = new string('a', NativeIOConstants.MaxPath + 1);
+            var maxPath = NativeIOConstants.MaxPath;
+            string longString = new string('a', maxPath + 1);
             try
             {
                 string path = $@"\\?\c:\foo{longString}.txt";

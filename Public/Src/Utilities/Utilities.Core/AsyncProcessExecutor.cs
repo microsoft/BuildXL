@@ -8,10 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities.Core.Tasks;
-
-#if !PLATFORM_WIN
 using static BuildXL.Interop.Unix.IO;
-#endif
 
 namespace BuildXL.Utilities.Core
 {
@@ -170,7 +167,11 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         public void SetExecutePermissionIfNeeded(string fileName, bool throwIfNotFound = true)
         {
-#if !PLATFORM_WIN
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                return;
+            }
+
             var mode = GetFilePermissionsForFilePath(fileName, followSymlink: false);
             if (mode < 0)
             {
@@ -189,7 +190,6 @@ namespace BuildXL.Utilities.Core
             {
                 SetFilePermissionsForFilePath(fileName, (filePermissions | exePermission));
             }
-#endif
         }
 
         /// <summary>

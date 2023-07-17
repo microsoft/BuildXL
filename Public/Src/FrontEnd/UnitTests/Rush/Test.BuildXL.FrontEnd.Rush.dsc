@@ -24,7 +24,6 @@ namespace Test.Rush {
     export const dll = isRunningOnSupportedSystem && BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.test({
         // QTest is not supporting opaque directories as part of the deployment
         testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
-        skipTestRun: Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD"), // TODO: Work item - 2077863
         runTestArgs: {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself

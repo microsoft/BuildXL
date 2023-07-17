@@ -57,7 +57,8 @@ namespace BuildXL.Processes
 
         private readonly LoggingContext m_loggingContext;
 
-        private readonly IList<AsyncProcessExecutor> m_ptraceRunners;
+        private readonly IList<Task<AsyncProcessExecutor>> m_ptraceRunners;
+        private readonly TaskSourceSlim<bool> m_ptraceRunnersCancellation = TaskSourceSlim.Create<bool>();
 
         /// <summary>
         /// Id of the underlying pip.
@@ -179,7 +180,7 @@ namespace BuildXL.Processes
             IgnoreReportedAccesses = ignoreReportedAccesses;
             RootJailInfo = info.RootJailInfo;
             m_loggingContext = info.LoggingContext;
-            m_ptraceRunners = new List<AsyncProcessExecutor>();
+            m_ptraceRunners = new List<Task<AsyncProcessExecutor>>();
 
             if (info.MonitoringConfig is not null && info.MonitoringConfig.MonitoringEnabled)
             {
@@ -497,11 +498,11 @@ namespace BuildXL.Processes
             }
 
             // If ptrace runners have not finished yet, then do that now
-            foreach (var ptraceRunner in m_ptraceRunners)
+            // Completing the task below will make us kill any leftover PTraceRunner processes
+            m_ptraceRunnersCancellation.SetResult(true);
+            foreach (var runner in TaskUtilities.SafeWhenAll(m_ptraceRunners.ToArray()).GetAwaiter().GetResult())
             {
-                ptraceRunner.WaitForExitAsync().Wait();
-                ptraceRunner.WaitForStdOutAndStdErrAsync().Wait();
-                ptraceRunner.Dispose();
+                runner.Dispose();
             }
 
             base.Dispose();
@@ -1092,13 +1093,42 @@ namespace BuildXL.Processes
             var ptraceRunner = new AsyncProcessExecutor
             (
                 process,
-                TimeSpan.FromSeconds(1),
+                // We will kill these manually if the pip is exiting
+                Timeout.InfiniteTimeSpan,
                 // The runner will only log to stderr if there's a problem, other logs go to the main log using the fifo
                 errorBuilder: line => { if (line != null) { Logger.Log.PTraceRunnerError(m_loggingContext, line); } }
             );
 
-            m_ptraceRunners.Add(ptraceRunner);
             ptraceRunner.Start();
+            m_ptraceRunners.Add(runnerTask(ptraceRunner));
+
+            async Task<AsyncProcessExecutor> runnerTask(AsyncProcessExecutor runner) 
+            {
+                var runnersCancellation = m_ptraceRunnersCancellation.Task;
+                var completedTask = await Task.WhenAny(runner.WaitForExitAsync(), runnersCancellation);
+
+                if (completedTask == runnersCancellation) 
+                {
+                    // This task is completedwhen this sandbox process is exiting:
+                    // this means this runner got left over even though the pip is done.
+                    // Let's silently kill it.
+                    await runner.KillAsync(dumpProcessTree: false);
+                    return runner;
+                }
+
+                // Runner exited while the pip is still running.  
+                // Let's verify that it didn't fail, or kill the pip otherwise, as we will be missing reports.
+                await runner.WaitForStdOutAndStdErrAsync();
+
+                if (runner.Process.ExitCode != 0)
+                {
+                    // An error should have been logged by the stderr listener
+                    // Nothing better to do at this point except to panic and die.
+                    await KillAsync();
+                }
+
+                return runner;
+            }
         }
     }
 }

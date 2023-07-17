@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -134,7 +135,8 @@ namespace Test.BuildXL.Processes
                     // We need to spawn a process because the sandbox assumes the root process is never static and the interposing 
                     // sandbox is always used for it.
                     Operation.Spawn(
-                        Context.PathTable, waitToFinish: true, 
+                        Context.PathTable, 
+                        waitToFinish: true, 
                         Operation.WriteFile(dummyFile),
                         // This tries to create a directory on an existent file, and therefore it should fail
                         Operation.CreateDir(existentFile)
@@ -165,6 +167,63 @@ namespace Test.BuildXL.Processes
                 fa.Error == 0);
 
             AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 2);
+        }
+
+
+        [Fact]
+        public async Task FailureInPTraceRunnerKillsThePip()
+        {
+            var dummyFile = CreateSourceFileWithPrefix(prefix: "dummy");
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.EnableLinuxPTraceSandbox = true;
+
+            // Turn on the ptrace sandbox unconditionally so the test process triggers a PTraceRunner
+            fam.UnconditionallyEnableLinuxPTraceSandbox = true;
+
+            // Create a directory but make sure we perform it on an existing file
+            var info = ToProcessInfo(
+                ToProcess(
+                    // We need to spawn a process because the sandbox assumes the root process is never static and the interposing 
+                    // sandbox is always used for it.
+                    Operation.Spawn(
+                        Context.PathTable, 
+                        waitToFinish: true,
+                        Operation.Block(),  // We mean to kill this pip, if this test times out, it's failing
+                        Operation.WriteFile(dummyFile)
+                    )
+                ),
+                fileAccessManifest: fam) ;
+
+#if NETCOREAPP
+            var environmentDictionary = new Dictionary<string, string>(info.EnvironmentVariables.ToDictionary());
+#else
+            var environmentDictionary = new Dictionary<string, string>(info.EnvironmentVariables.ToDictionary().ToDictionary(x => x.Key, x => x.Value));
+#endif
+            info.EnvironmentVariables = BuildParameters.GetFactory().PopulateFromDictionary(environmentDictionary);
+
+            try 
+            {
+                // There's no easy way of passing environment to the PTraceRunner, so just do
+                // this globally with a defensive try-finally to unset. 
+                Environment.SetEnvironmentVariable("__BUILDXL_TEST_PTRACERUNNER_FAILME", "1");
+                var result = await RunProcess(info);
+                
+                // When PTrace is forced, the process is being reported as statically linked 
+                AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip);
+
+                // The runner logs an error before failing
+                AssertErrorEventLogged(ProcessesLogEventId.PTraceRunnerError);
+
+                // When PTraceRunner fails, we kill the pip
+                XAssert.IsTrue(result.Killed);
+                XAssert.AreNotEqual(0, result.ExitCode);
+            }
+            finally 
+            {
+                Environment.SetEnvironmentVariable("__BUILDXL_TEST_PTRACERUNNER_FAILME", null);
+            }
+
         }
 
         [Fact]

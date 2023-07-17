@@ -64,6 +64,12 @@ int main(int argc, char **argv)
         _exit(-1);
     }
 
+    if (getenv("__BUILDXL_TEST_PTRACERUNNER_FAILME")) // CODESYNC: PTraceSandboxedProcessTest 
+    {
+        std::cerr << "Intentionally erroring for that one particular test.";
+        _exit(-10);
+    }
+
     semaphoreName.append(std::to_string(traceepid));
 
     sandbox.AttachToProcess(traceepid, exe, semaphoreName);

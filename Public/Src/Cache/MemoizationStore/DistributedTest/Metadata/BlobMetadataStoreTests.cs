@@ -56,7 +56,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
             // Many tests don't upload content for a given content hash list, and a null retention policy will make the database try to preventively pin
             // nonexistent content
-            var conf = new Host.Configuration.MetadataStoreMemoizationDatabaseConfiguration() { DisablePreventivePinningForTests = true };
+            var conf = new Host.Configuration.MetadataStoreMemoizationDatabaseConfiguration() { DisablePreventivePinning = true };
             var database = new MetadataStoreMemoizationDatabase(store: CreateAzureBlobStorageMetadataStore(), conf);
 
             return new DatabaseMemoizationStore(database: database);

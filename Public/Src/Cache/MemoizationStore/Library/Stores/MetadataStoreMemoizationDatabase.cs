@@ -66,7 +66,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc/>
         public override bool AssociatedContentNeedsPinning(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListResult contentHashListResult)
         {
-            if (_configuration.DisablePreventivePinningForTests)
+            if (_configuration.DisablePreventivePinning)
             {
                 return false;
             }

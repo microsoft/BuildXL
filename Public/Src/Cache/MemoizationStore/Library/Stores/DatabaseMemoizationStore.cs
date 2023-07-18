@@ -7,7 +7,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -142,7 +141,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 }
 
                 // if the associated content needs preventive pinning, do it here
-                if (Database.AssociatedContentNeedsPinning(ctx, strongFingerprint, result))
+                if (result.Value.contentHashListInfo.ContentHashList is not null &&
+                    Database.AssociatedContentNeedsPinning(ctx, strongFingerprint, result))
                 {
                     (ContentHashListWithDeterminism contentHashList, _, _) = result;
                     var pinResult = await contentSession.EnsureContentIsAvailableWithResultAsync(ctx, Tracer.Name, contentHashList.ContentHashList, ctx.Token).ConfigureAwait(false);

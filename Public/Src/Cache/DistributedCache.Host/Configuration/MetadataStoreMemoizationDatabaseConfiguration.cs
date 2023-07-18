@@ -25,6 +25,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// For testing only. Disables preventing pinning, making <see cref="RetentionPolicy"/> irrelevant.
         /// </summary>
-        public bool DisablePreventivePinningForTests = false;
+        public bool DisablePreventivePinning = false;
     }
 }

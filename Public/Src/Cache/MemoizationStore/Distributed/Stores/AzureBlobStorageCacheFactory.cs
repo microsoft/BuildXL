@@ -18,7 +18,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             ShardingScheme ShardingScheme,
             string Universe,
             string Namespace,
-            int RetentionPolicyInDays)
+            int? RetentionPolicyInDays = 0)
         {
             /// <summary>
             /// Time we're willing to wait until a client to the backing storage account is created. This encompasses
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             // If the user specifed a retention policy time greater than 0, we use that.
             // Otherwise, we use null, which is equivalent to not setting it
             TimeSpan? retentionPolicyTimeSpan = configuration.RetentionPolicyInDays > 0
-                ? TimeSpan.FromDays(configuration.RetentionPolicyInDays)
+                ? TimeSpan.FromDays(configuration.RetentionPolicyInDays.Value)
                 : null;
 
             var blobMetadataStore = new AzureBlobStorageMetadataStore(new BlobMetadataStoreConfiguration
@@ -75,7 +75,11 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             // This means that the content store can elide pins for content that is mentioned in get content hash list operations
             var blobMemoizationDatabase = new MetadataStoreMemoizationDatabase(
                 blobMetadataStore,
-                new MetadataStoreMemoizationDatabaseConfiguration() { RetentionPolicy = retentionPolicyTimeSpan });
+                new MetadataStoreMemoizationDatabaseConfiguration()
+                {
+                    RetentionPolicy = retentionPolicyTimeSpan,
+                    DisablePreventivePinning = configuration.RetentionPolicyInDays is null
+                });
 
             var blobMemoizationStore = new DatabaseMemoizationStore(blobMemoizationDatabase) { OptimizeWrites = true };
 

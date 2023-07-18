@@ -83,7 +83,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 new MetadataStoreMemoizationDatabaseConfiguration
                 {
                     // For the purpose of the lifetime manager, no content pins should ever be required as there is no blob expiry set up in the L3.
-                    DisablePreventivePinningForTests = true,
+                    DisablePreventivePinning = true,
                 });
             var blobMemoizationStore = new DatabaseMemoizationStore(blobMemoizationDatabase) { OptimizeWrites = true };
 

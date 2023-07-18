@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,6 +23,7 @@ namespace BuildXL.Utilities.Core.Tasks
     public readonly struct TaskSourceSlim<TResult>
     {
         private readonly TaskCompletionSource<TResult> m_tcs;
+
 
         /// <summary>
         /// A default constructor that creates the underlying <see cref="TaskCompletionSource{TResult}"/>
@@ -92,6 +94,13 @@ namespace BuildXL.Utilities.Core.Tasks
         /// <see cref="System.Threading.Tasks.TaskStatus.Faulted">Faulted</see> state.
         /// </summary>
         public bool TrySetException(Exception exception) => ChangeState(exception, (tcs, e) => tcs.TrySetException(e));
+        
+        /// <summary>
+        /// Attempts to transition the underlying
+        /// <see cref="T:System.Threading.Tasks.Task{TResult}"/> into the 
+        /// <see cref="System.Threading.Tasks.TaskStatus.Faulted">Faulted</see> state.
+        /// </summary>
+        public bool TrySetException(IEnumerable<Exception> exceptions) => ChangeState(exceptions, (tcs, e) => tcs.TrySetException(e));
 
         /// <summary>
         /// Transitions the underlying
@@ -152,7 +161,9 @@ namespace BuildXL.Utilities.Core.Tasks
         {
             if (continuation.IsFaulted)
             {
-                @this.TrySetException(task.Exception);
+                // task.Exception is AggregateException, so we need to unwrap it in order to prevent a double nesting.
+                // But still, its possible that an AggregateException wraps more than one exception, and in that case we still would have a double nesting.
+                @this.TrySetException(task.Exception.InnerExceptions);
             }
             else if (continuation.IsCanceled)
             {

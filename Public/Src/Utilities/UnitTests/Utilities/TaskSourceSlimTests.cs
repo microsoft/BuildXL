@@ -147,7 +147,7 @@ namespace Test.BuildXL.Utilities
 
             var tcs = TaskSourceSlim.Create<int>();
             int threadId = 0;
-
+            
             var setResultFinished = new ManualResetEventSlim(initialState: false);
 
             var continueTask = tcs.Task.ContinueWith(
@@ -186,6 +186,44 @@ namespace Test.BuildXL.Utilities
             var tcs = TaskSourceSlim.Create<int>();
             tcs.SetResult(42);
             Assert.True(tcs.Task.IsCompleted);
+        }
+
+        [Fact]
+        public async Task LinkToTaskPreservesExceptionType()
+        {
+            await Task.Yield();
+
+            var exception = new InvalidOperationException("Message");
+            var tcs = TaskSourceSlim.Create<int>();
+            tcs.LinkToTask(Task.FromException<int>(exception));
+            
+            // Just awaiting for the task to finish in order to check the exception type.
+            await tcs.Task.IgnoreErrorsAndReturnCompletion();
+            var e = tcs.Task.Exception;
+            Assert.NotNull(e);
+            Assert.IsType<InvalidOperationException>(e.InnerException);
+        }
+
+        [Fact]
+        public async Task LinkToTaskPreservesAggregateExceptionType()
+        {
+            await Task.Yield();
+
+            var exception = new InvalidOperationException("Message");
+            var task = Task.WhenAll(Task.FromException<int>(exception), Task.FromException<int>(exception));
+            
+            var tcs = TaskSourceSlim.Create<int[]>();
+            tcs.LinkToTask(task);
+
+            // Just awaiting for the task to finish in order to check the exception type.
+            await tcs.Task.IgnoreErrorsAndReturnCompletion();
+            var e = tcs.Task.Exception;
+
+            // We can't await here since in this case we'll unwrap the first exception out of the 2 inner exceptions
+            // that the aggregate exception would have.
+            Assert.NotNull(e);
+            Assert.IsType<InvalidOperationException>(e.InnerException);
+            Assert.Equal(2, e.InnerExceptions.Count);
         }
     }
 }

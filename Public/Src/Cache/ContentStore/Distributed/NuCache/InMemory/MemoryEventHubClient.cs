@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     handler = OnEvent;
 
                     // We need to modify some readonly values so we create a new instance
-                    var eventDataWrapper = new EventDataWrapper(
+                    eventData = new EventDataWrapper(
                         eventBody: eventData.EventBody,
                         properties: eventData.Properties,
                         systemProperties: eventData.SystemProperties,
@@ -127,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         partitionKey: eventData.PartitionKey
                         );
 
-                    _eventStream.Add(eventDataWrapper);
+                    _eventStream.Add(eventData);
                 }
 
                 handler?.Invoke(eventData);

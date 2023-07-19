@@ -54,7 +54,7 @@ void DetouredProcessInjector::Clear()
 // uint64_t handles - handles passed from the parent.
 //                    There must be c_minHandleCount handles there.
 // payload
-bool DetouredProcessInjector::Init(const byte *payloadWrapper, std::wstring& errorMessage)
+bool DetouredProcessInjector::Init(LPCBYTE payloadWrapper, std::wstring& errorMessage)
 {
     errorMessage = L"";
 
@@ -129,12 +129,12 @@ bool DetouredProcessInjector::Init(const byte *payloadWrapper, std::wstring& err
 
     // Copy payload.
     _payloadSize = size;
-    _payload = make_unique<byte[]>(size);
     if (size == 0)
     {
-        _payload.reset(nullptr);
+        _payload = nullptr;
     }
-    else {
+    else
+    {
         byte* newPayload = new byte[size];
         memcpy_s(newPayload, size, handles, size);
         _payload.reset(newPayload);
@@ -150,7 +150,7 @@ void DetouredProcessInjector::Init(
     HANDLE remoteInterjectorPipe,
     HANDLE reportPipe,
     uint32_t payloadSize,
-    const byte *payload,
+    LPCBYTE payload,
     uint32_t otherHandleCount,
     PHANDLE otherHandles)
 {

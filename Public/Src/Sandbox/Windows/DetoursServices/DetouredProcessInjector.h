@@ -44,7 +44,7 @@ private:
     string _dllX86;
     string _dllX64;
     GUID _payloadGuid;
-    bool _alwaysRemoteInjectFromWow64Process;
+    bool _alwaysRemoteInjectFromWow64Process = false;
     bool _initialized = false;
 
     CRITICAL_SECTION _injectorLock;
@@ -117,6 +117,7 @@ private:
 public:
     // Check if the process is wow64
     static bool isWow64Process(HANDLE processHandle);
+    
     // The only constructor requires the payload GUID
     DetouredProcessInjector(const GUID &payloadGuid) : _tag(c_buildxlInjectorTag), _payloadGuid(payloadGuid)
     {

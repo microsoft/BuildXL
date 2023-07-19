@@ -200,9 +200,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 catch (Exception exception)
                                 {
                                     var cursor = new LogCursor()
-                                                 {
-                                                     Block = blockId, SequenceNumber = events
-                                                 };
+                                    {
+                                        Block = blockId,
+                                        SequenceNumber = events
+                                    };
                                     Tracer.Error(context, exception, $"Failure while handling event. Event will be skipped. Cursor=[{cursor}]");
                                 }
 
@@ -216,10 +217,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // This catch is intentional and meant to prevent deserialization issues in a single block
                             // from preventing restore from completing successfully.
                             var cursor = new LogCursor()
-                                         {
-                                             Block = blockId,
-                                             SequenceNumber = events
-                                         };
+                            {
+                                Block = blockId,
+                                SequenceNumber = events
+                            };
                             Tracer.Error(context, exception, $"Failure while traversing events in block. Remaining events will be skipped. Cursor=[{cursor}]");
                             return Result.Success(new ProcessBlockResult(Exists: true, bytes, events));
                         }
@@ -370,7 +371,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     nextLogId = block.QualifiedBlockId.LogId.Next();
                 }
-                
+
                 BlockReference nextBlockId = nextLogId?.FirstBlock() ?? _currentBlock.QualifiedBlockId.Next();
 
                 // Ensure any errors that may have happened in the next block are logged into the current context

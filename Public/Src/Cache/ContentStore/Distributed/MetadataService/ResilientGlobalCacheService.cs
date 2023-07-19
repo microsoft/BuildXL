@@ -16,7 +16,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
@@ -26,8 +25,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     public record GlobalCacheServiceConfiguration
     {
         public CheckpointManagerConfiguration Checkpoint { get; init; }
-
-        public bool DisableWriteBehindLog { get; init; }
 
         public bool EnableBackgroundRestoreCheckpoint { get; init; }
 

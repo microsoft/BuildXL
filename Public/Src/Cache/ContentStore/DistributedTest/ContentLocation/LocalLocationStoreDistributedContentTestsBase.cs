@@ -271,7 +271,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 EnablePublishingCache = EnablePublishingCache,
 
                 GrpcCopyClientConnectOnStartup = true,
-                ContentMetadataDisableWriteBehindLog = true,
             };
 
             if (ProactiveCopyLocationThreshold.HasValue)

@@ -133,7 +133,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             return new GlobalCacheServiceConfiguration()
             {
-                DisableWriteBehindLog = DistributedContentSettings.ContentMetadataDisableWriteBehindLog,
                 EnableBackgroundRestoreCheckpoint = DistributedContentSettings.GlobalCacheBackgroundRestore,
                 MaxOperationConcurrency = DistributedContentSettings.MetadataStoreMaxOperationConcurrency,
                 MaxOperationQueueLength = DistributedContentSettings.MetadataStoreMaxOperationQueueLength,
@@ -172,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
             var azureStorageCredentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First();
             var configuration = new AzureBlobStorageCheckpointRegistryConfiguration
-                                {
+            {
                 Storage = new AzureBlobStorageCheckpointRegistryConfiguration.StorageSettings(Credentials: azureStorageCredentials)
                 {
                     FolderName = "checkpointRegistry" + DistributedContentSettings.KeySpacePrefix,
@@ -294,22 +293,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             };
 
             var writeAheadEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
-            IContentMetadataEventStream eventStream;
-            if (configuration.DisableWriteBehindLog)
-            {
-                eventStream = new ContentMetadataEventStream(
+            var eventStream = new ContentMetadataEventStream(
                     configuration.EventStream,
                     writeAheadEventStorage);
-            }
-            else
-            {
-                var writeBehindEventStorage = new BlobWriteBehindEventStorage(configuration.PersistentEventStorage);
-
-                eventStream = new ContentMetadataEventStreamV0(
-                    configuration.EventStream,
-                    writeAheadEventStorage,
-                    writeBehindEventStorage);
-            }
 
             var checkpointManager = GlobalCacheCheckpointManager.Instance;
             var service = new ResilientGlobalCacheService(

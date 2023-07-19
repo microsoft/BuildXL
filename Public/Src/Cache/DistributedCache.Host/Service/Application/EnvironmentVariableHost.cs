@@ -18,7 +18,7 @@ namespace BuildXL.Cache.Host.Service
     /// <summary>
     /// Host where secrets are derived from environment variables.
     /// </summary>
-    public class EnvironmentVariableHost : IDistributedCacheServiceHost
+    public class EnvironmentVariableHost : InMemorySecretsProviderBase, IDistributedCacheServiceHost
     {
         private readonly string _exposedSecretsFileName;
         private Result<RetrievedSecrets> _secrets;
@@ -40,7 +40,8 @@ namespace BuildXL.Cache.Host.Service
             TeardownCancellationTokenSource.Cancel();
         }
 
-        private string GetSecretStoreValue(string key)
+        /// <inheritdoc />
+        protected override string GetSecretStoreValue(string key)
         {
             return Environment.GetEnvironmentVariable(key);
         }
@@ -99,8 +100,27 @@ namespace BuildXL.Cache.Host.Service
 
             return RetrievedSecretsSerializer.Deserialize(variable);
         }
+    }
 
-        private Task<RetrievedSecrets> RetrieveSecretsCoreAsync(List<RetrieveSecretsRequest> requests)
+    /// <summary>
+    /// The base implementation of <see cref="ISecretsProvider"/> implementation that reads secrets from memory.
+    /// </summary>
+    public abstract class InMemorySecretsProviderBase
+    {
+        /// <nodoc />
+        protected InMemorySecretsProviderBase()
+        {
+        }
+
+        /// <summary>
+        /// Gets the secret value.
+        /// </summary>
+        protected abstract string GetSecretStoreValue(string key);
+
+        /// <summary>
+        /// Gets the secrets for the given requests.
+        /// </summary>
+        public Task<RetrievedSecrets> RetrieveSecretsCoreAsync(List<RetrieveSecretsRequest> requests)
         {
             var secrets = new Dictionary<string, Secret>();
 

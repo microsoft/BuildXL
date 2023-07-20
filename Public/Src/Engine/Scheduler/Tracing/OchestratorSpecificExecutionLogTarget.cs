@@ -11,6 +11,8 @@ using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Utilities.ParallelAlgorithms;
+using System.Threading.Tasks;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -32,6 +34,8 @@ namespace BuildXL.Scheduler.Tracing
 
         private readonly PipTwoPhaseCache m_pipTwoPhaseCache;
 
+        private readonly ActionBlockSlim<(ProcessFingerprintComputationEventData Data, ProcessStrongFingerprintComputationData SfComputation)> m_pathSetReporter;
+
         /// <inheritdoc/>
         public override IExecutionLogTarget CreateWorkerTarget(uint workerId)
         {
@@ -51,8 +55,21 @@ namespace BuildXL.Scheduler.Tracing
             m_scheduler = scheduler;
             m_pipTwoPhaseCache = pipTwoPhaseCache;
             m_workerId = workerId;
+
+            m_pathSetReporter = ActionBlockSlim.Create<(ProcessFingerprintComputationEventData Data, ProcessStrongFingerprintComputationData SfComputation)>(
+                degreeOfParallelism: Environment.ProcessorCount,
+                x => m_pipTwoPhaseCache.ReportRemotePathSet(x.SfComputation.PathSet, x.SfComputation.PathSetHash, isExecution: x.Data.Kind == FingerprintComputationKind.Execution, preservePathCasing: x.Data.PreservePathSetCasing));
         }
 
+        /// <summary>
+        /// Complete and wait pathset report
+        /// </summary>
+        public Task CompleteAndWaitPathSetReport()
+        {
+            m_pathSetReporter.Complete();
+            return m_pathSetReporter.Completion;
+
+        }
         /// <inheritdoc/>
         public override void CacheMaterializationError(CacheMaterializationErrorEventData data)
         {
@@ -99,14 +116,18 @@ namespace BuildXL.Scheduler.Tracing
                 return;
             }
 
-            foreach (var sfComputation in data.StrongFingerprintComputations)
+            using (m_scheduler.PipExecutionCounters.StartStopwatch(PipExecutorCounter.ReportRemotePathSetDuration))
             {
-                if (sfComputation.Succeeded)
+                foreach (var sfComputation in data.StrongFingerprintComputations)
                 {
-                    if ((sfComputation.IsStrongFingerprintHit && data.Kind == FingerprintComputationKind.CacheCheck) ||
-                        (!sfComputation.IsStrongFingerprintHit && data.Kind == FingerprintComputationKind.Execution))
+                    // The ordering does not matter when reporting pathsets to HistoricMetadataCache.
+                    if (sfComputation.Succeeded)
                     {
-                        m_pipTwoPhaseCache.ReportRemotePathSet(sfComputation.PathSet, sfComputation.PathSetHash, isExecution: data.Kind == FingerprintComputationKind.Execution, preservePathCasing: data.PreservePathSetCasing);
+                        if ((sfComputation.IsStrongFingerprintHit && data.Kind == FingerprintComputationKind.CacheCheck) ||
+                            (!sfComputation.IsStrongFingerprintHit && data.Kind == FingerprintComputationKind.Execution))
+                        {
+                            m_pathSetReporter.Post((data, sfComputation));
+                        }
                     }
                 }
             }

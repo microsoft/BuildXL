@@ -1411,7 +1411,6 @@ namespace BuildXL.Scheduler
             // create the directory where shared opaque outputs journals will be stored
             FileUtilities.CreateDirectoryWithRetry(configuration.Layout.SharedOpaqueSidebandDirectory.ToString(Context.PathTable));
 
-            OchestratorSpecificExecutionLogTarget orchestratorTarget = null;
             WeakFingerprintAugmentationExecutionLogTarget fingerprintAugmentationTarget = null;
 
             var executionLogPath = configuration.Logging.ExecutionLog;
@@ -1425,7 +1424,7 @@ namespace BuildXL.Scheduler
 
             if (!IsDistributedWorker)
             {
-                orchestratorTarget = new OchestratorSpecificExecutionLogTarget(loggingContext, this, m_pipTwoPhaseCache);
+                m_orchestratorTarget = new OchestratorSpecificExecutionLogTarget(loggingContext, this, m_pipTwoPhaseCache);
 
                 // Fingerprint augmentation monitoring must be running only on the orchestrator (it's the only worker that will observe
                 // both ProcessFingerprintComputed events for the same pip).
@@ -1448,7 +1447,7 @@ namespace BuildXL.Scheduler
                 m_executionLogFileTarget,
                 m_fingerprintStoreTarget,
                 new ObservedInputAnomalyAnalyzer(loggingContext, graph),
-                orchestratorTarget,
+                m_orchestratorTarget,
                 m_manifestExecutionLog,
                 fingerprintAugmentationTarget,
                 m_dumpPipLiteExecutionLogTarget,
@@ -1712,6 +1711,14 @@ namespace BuildXL.Scheduler
                     while (m_workers.Any(w => w.Status != WorkerNodeStatus.Stopped))
                     {
                         await Task.Delay(50);
+                    }
+                }
+
+                using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.CompleteAndWaitPathSetReportDuration))
+                {
+                    if (m_orchestratorTarget != null)
+                    {
+                        await m_orchestratorTarget.CompleteAndWaitPathSetReport();
                     }
                 }
 
@@ -7822,7 +7829,7 @@ namespace BuildXL.Scheduler
         private bool m_materializeOutputsQueued;
 
         private readonly TaskSourceSlim<bool> m_schedulerCompletionExceptMaterializeOutputs = TaskSourceSlim.Create<bool>();
-
+        private readonly OchestratorSpecificExecutionLogTarget m_orchestratorTarget;
         private DateTime m_schedulerCompletionExceptMaterializeOutputsTimeUtc;
 
         private DateTime m_schedulerDoneTimeUtc;

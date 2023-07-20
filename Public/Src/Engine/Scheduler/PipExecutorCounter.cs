@@ -1331,6 +1331,14 @@ namespace BuildXL.Scheduler
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         MissingInputContentHashDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        ReportRemotePathSetDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        CompleteAndWaitPathSetReportDuration,
     }
 
     /// <summary>

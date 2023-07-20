@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// <summary>
     /// Handles copies from remote locations to a local store
     /// </summary>
-    public class DistributedContentCopier : StartupShutdownSlimBase
+    public class DistributedContentCopier : StartupShutdownComponentBase
     {
         public record Configuration
         {
@@ -129,11 +129,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedContentCopier));
 
-        /// <summary>
-        /// Unfortunately, tests do not use this component very cleanly, so it may be started-up and shutdown multiple times
-        /// </summary>
-        public override bool AllowMultipleStartupAndShutdowns { get; } = true;
-
         public DistributedContentCopier(
             Configuration configuration,
             IAbsFileSystem fileSystem,
@@ -155,26 +150,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             _retryIntervals = configuration.RetryIntervalForCopies;
             _maxRetryCount = configuration.MaxRetryCount;
-        }
 
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
             if (_copyScheduler is IStartupShutdownSlim slimBase)
             {
-                await slimBase.StartupAsync(context).ThrowIfFailure();
+                LinkLifetime(slimBase);
             }
-
-            return BoolResult.Success;
-        }
-
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            if (_copyScheduler is IStartupShutdownSlim slimBase)
-            {
-                await slimBase.ShutdownAsync(context).ThrowIfFailure();
-            }
-
-            return BoolResult.Success;
         }
 
         /// <summary>

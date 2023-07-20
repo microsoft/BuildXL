@@ -24,8 +24,6 @@ using BuildXL.Utilities.Core.Tracing;
 using ContentStore.Grpc;
 using Grpc.Core;
 
-// Can't rename ProtoBuf
-
 #nullable enable
 
 namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc;
@@ -35,6 +33,12 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc;
 /// </summary>
 public sealed class GrpcCacheServer : GrpcContentServer
 {
+    /// <nodoc />
+    public new record Configuration : GrpcContentServer.Configuration
+    {
+
+    }
+
     private class SessionHandlerAdapter : ISessionHandler<ICacheSession, LocalContentServerSessionData>
     {
         private readonly ISessionHandler<ICacheSession, LocalCacheServerSessionData> _inner;
@@ -62,16 +66,20 @@ public sealed class GrpcCacheServer : GrpcContentServer
     /// </summary>
     private readonly ISessionHandler<ICacheSession, LocalCacheServerSessionData> _cacheSessionHandler;
 
+    private readonly Configuration _configuration;
+
     /// <nodoc />
     public GrpcCacheServer(
         ILogger logger,
         Capabilities serviceCapabilities,
         ISessionHandler<ICacheSession, LocalCacheServerSessionData> sessionHandler,
         Dictionary<string, IContentStore> storesByName,
-        LocalServerConfiguration? localServerConfiguration = null)
-        : base(logger, serviceCapabilities, new SessionHandlerAdapter(sessionHandler), storesByName, localServerConfiguration)
+        Configuration configuration,
+        IAbsFileSystem? fileSystem = null)
+        : base(logger, serviceCapabilities, new SessionHandlerAdapter(sessionHandler), storesByName, configuration, fileSystem)
     {
         _cacheSessionHandler = sessionHandler;
+        _configuration = configuration;
 
         GrpcAdapter = new CacheServerAdapter(this);
     }
@@ -188,7 +196,7 @@ public sealed class GrpcCacheServer : GrpcContentServer
         {
             var serviceOperationContext = new ServiceOperationContext(session, tracingContext, startTime);
 
-            TraceGrpcOperationStarted(tracingContext, enabled: TraceGrpcOperations, operation, sessionId);
+            TraceGrpcOperationStarted(tracingContext, enabled: _configuration.TraceGrpcOperations, operation, sessionId);
 
             var result = await taskFunc(serviceOperationContext);
 
@@ -197,7 +205,7 @@ public sealed class GrpcCacheServer : GrpcContentServer
                 result.Header = ResponseHeader.Success(startTime);
             }
 
-            TraceGrpcOperationFinished(tracingContext, enabled: TraceGrpcOperations, operation, sw.Elapsed, sessionId);
+            TraceGrpcOperationFinished(tracingContext, enabled: _configuration.TraceGrpcOperations, operation, sw.Elapsed, sessionId);
 
             return result;
         }

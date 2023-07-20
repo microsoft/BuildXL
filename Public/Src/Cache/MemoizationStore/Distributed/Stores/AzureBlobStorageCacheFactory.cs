@@ -3,8 +3,10 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
+using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 
@@ -20,12 +22,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             string Namespace,
             int? RetentionPolicyInDays = 0)
         {
-            /// <summary>
-            /// Time we're willing to wait until a client to the backing storage account is created. This encompasses
-            /// both getting the secret and creating the storage client.
-            /// </summary>
-            public TimeSpan ClientCreationTimeout { get; init; } = TimeSpan.MaxValue;
-
             /// <summary>
             /// Maximum amount of time we're willing to wait for any operation against storage.
             /// </summary>
@@ -47,12 +43,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         {
             BlobCacheContainerName.CheckValidUniverseAndNamespace(configuration.Universe, configuration.Namespace);
 
-            var topology = new ShardedBlobCacheTopology(
-                new ShardedBlobCacheTopology.Configuration(
-                    ShardingScheme: configuration.ShardingScheme,
-                    SecretsProvider: secretsProvider,
-                    Universe: configuration.Universe,
-                    Namespace: configuration.Namespace));
+            IBlobCacheTopology topology = CreateTopology(configuration, secretsProvider);
 
             // If the user specifed a retention policy time greater than 0, we use that.
             // Otherwise, we use null, which is equivalent to not setting it
@@ -60,15 +51,61 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 ? TimeSpan.FromDays(configuration.RetentionPolicyInDays.Value)
                 : null;
 
-            var blobMetadataStore = new AzureBlobStorageMetadataStore(new BlobMetadataStoreConfiguration
-            {
-                Topology = topology,
-                BlobFolderStorageConfiguration = new BlobFolderStorageConfiguration
+            IMemoizationStore memoizationStore = CreateMemoizationStore(configuration, topology, retentionPolicyTimeSpan);
+            IContentStore contentStore = CreateContentStore(configuration, topology);
+
+            return CreateCache(configuration, contentStore, memoizationStore);
+        }
+
+        private static ICache CreateCache(Configuration configuration, IContentStore contentStore, IMemoizationStore memoizationStore)
+        {
+            return new OneLevelCache(
+                            contentStoreFunc: () => contentStore,
+                            memoizationStoreFunc: () => memoizationStore,
+                            configuration: new OneLevelCacheBaseConfiguration(
+                                Id: Guid.NewGuid(),
+                                PassContentToMemoization: false,
+                                MetadataPinElisionDuration: configuration.MetadataPinElisionDuration,
+                                // TODO: remove when we implement preventive pin elision for GetLevelSelectorsAsync
+                                DoNotElidePinsForGetLevelSelectors: true
+                            ));
+        }
+
+        private static IBlobCacheTopology CreateTopology(Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
+        {
+            return new ShardedBlobCacheTopology(
+                new ShardedBlobCacheTopology.Configuration(
+                    ShardingScheme: configuration.ShardingScheme,
+                    SecretsProvider: secretsProvider,
+                    Universe: configuration.Universe,
+                    Namespace: configuration.Namespace));
+        }
+
+        private static AzureBlobStorageContentStore CreateContentStore(Configuration configuration, IBlobCacheTopology topology)
+        {
+            return new AzureBlobStorageContentStore(
+                    new AzureBlobStorageContentStoreConfiguration()
+                    {
+                        Topology = topology,
+                        StorageInteractionTimeout = configuration.StorageInteractionTimeout,
+                    });
+        }
+
+        private static DatabaseMemoizationStore CreateMemoizationStore(
+            Configuration configuration,
+            IBlobCacheTopology topology,
+            TimeSpan? retentionPolicyTimeSpan)
+        {
+            var blobMetadataStore = new AzureBlobStorageMetadataStore(
+                new BlobMetadataStoreConfiguration
                 {
-                    StorageInteractionTimeout = configuration.StorageInteractionTimeout,
-                    RetryPolicy = BlobFolderStorageConfiguration.DefaultRetryPolicy,
-                }
-            });
+                    Topology = topology,
+                    BlobFolderStorageConfiguration = new BlobFolderStorageConfiguration
+                    {
+                        StorageInteractionTimeout = configuration.StorageInteractionTimeout,
+                        RetryPolicy = BlobFolderStorageConfiguration.DefaultRetryPolicy,
+                    }
+                });
 
             // The memoization database will make sure the associated content for a retrieved content
             // hash list is preventively pinned if it runs the risk of being evicted based on the configured retention policy
@@ -81,27 +118,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     DisablePreventivePinning = configuration.RetentionPolicyInDays is null
                 });
 
-            var blobMemoizationStore = new DatabaseMemoizationStore(blobMemoizationDatabase) { OptimizeWrites = true };
-
-            var blobContentStore = new AzureBlobStorageContentStore(
-                new AzureBlobStorageContentStoreConfiguration()
-                {
-                    Topology = topology,
-                    StorageInteractionTimeout = configuration.StorageInteractionTimeout,
-                });
-
-            var cache = new OneLevelCache(
-                contentStoreFunc: () => blobContentStore,
-                memoizationStoreFunc: () => blobMemoizationStore,
-                configuration: new OneLevelCacheBaseConfiguration(
-                    Id: Guid.NewGuid(),
-                    PassContentToMemoization: false,
-                    MetadataPinElisionDuration: configuration.MetadataPinElisionDuration,
-                    // TODO: remove when we implement preventive pin elision for GetLevelSelectorsAsync
-                    DoNotElidePinsForGetLevelSelectors: true
-                ));
-
-            return cache;
+            return new DatabaseMemoizationStore(blobMemoizationDatabase) { OptimizeWrites = true };
         }
     }
 }

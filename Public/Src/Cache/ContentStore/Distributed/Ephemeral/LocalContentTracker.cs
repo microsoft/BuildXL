@@ -42,6 +42,7 @@ public class LastWriterWinsContentEntry
     /// </summary>
     public void Merge(Stamped<MachineId> operation)
     {
+        // TODO: filter out inactive machines
         CreationTime = CreationTime.Min(operation.ChangeStamp.TimestampUtc);
         LastAccessTime = LastAccessTime.Max(operation.ChangeStamp.TimestampUtc);
 

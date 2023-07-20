@@ -34,6 +34,9 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalContentServer));
 
+        /// <summary>
+        /// Expose to inheriting classes
+        /// </summary>
         protected override GrpcContentServer GrpcServer => GrpcContentServer;
 
         /// <summary>
@@ -52,7 +55,15 @@ namespace BuildXL.Cache.ContentStore.Service
             IGrpcServiceEndpoint[]? additionalEndpoints = null)
         : base(logger, fileSystem, grpcHost, scenario, contentStoreFactory, localContentServerConfiguration, additionalEndpoints)
         {
-            GrpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName, localContentServerConfiguration);
+            var configuration = new GrpcContentServer.Configuration();
+            configuration.From(localContentServerConfiguration);
+            GrpcContentServer = new GrpcContentServer(
+                logger,
+                Capabilities.ContentOnly,
+                this,
+                StoresByName,
+                configuration,
+                fileSystem);
         }
 
         /// <inheritdoc />

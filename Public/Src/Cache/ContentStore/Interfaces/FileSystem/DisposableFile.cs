@@ -2,8 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -19,9 +20,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <nodoc />
         public DisposableFile(Context context, IAbsFileSystem fileSystem, AbsolutePath filePath)
         {
-            Contract.RequiresNotNull(context);
-            Contract.RequiresNotNull(fileSystem);
-            Contract.RequiresNotNull(filePath);
             _context = context;
             _fileSystem = fileSystem;
             Path = filePath;
@@ -32,14 +30,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         {
             try
             {
-                if (_fileSystem.FileExists(Path))
-                {
-                    _fileSystem.DeleteFile(Path);
-                }
+                // No need to check for existence, DeleteFile is a no-op if the file does not exist.
+                _fileSystem.DeleteFile(Path);
             }
             catch (Exception exception)
             {
-                _context.Debug($"Unable to cleanup `{Path}` due to exception: {exception}", component: nameof(DisposableFile));
+                _context.Error(exception, $"Unable to cleanup `{Path}`", component: nameof(DisposableFile));
             }
         }
     }

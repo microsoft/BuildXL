@@ -70,7 +70,15 @@ namespace BuildXL.Cache.MemoizationStore.Service
                     nameof(cacheFactory));
             });
 
-            _grpcCacheServer = new GrpcCacheServer(logger, capabilities, this, storesByNameAsContentStore, localContentServerConfiguration);
+            var configuration = new GrpcCacheServer.Configuration();
+            configuration.From(localContentServerConfiguration);
+            _grpcCacheServer = new GrpcCacheServer(
+                logger,
+                capabilities,
+                this,
+                storesByNameAsContentStore,
+                configuration,
+                fileSystem);
         }
 
         /// <inheritdoc />

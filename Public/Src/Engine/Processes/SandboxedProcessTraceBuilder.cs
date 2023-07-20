@@ -234,7 +234,7 @@ namespace BuildXL.Processes
             foreach (var process in m_reportedProcesses)
             {
                 formatReportedProcess(process, sb);
-#if NETCOREAPP3_0_OR_GREATER
+#if NETCOREAPP
                 writer.WriteLine(sb);
 #else
                 writer.WriteLine(sb.ToString());

@@ -171,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             // Support for using Span in Stream's WriteAsync started in .NET Core 3.0 and .NET Standard 2.1. Since we
             // may run in older runtimes, we fallback into using the unsafe bytes extraction technique, whereby we
             // fetch the inner byte[] inside of the ByteString and write using that directly.
-#if NETCOREAPP3_0 || NETCOREAPP3_1 || NETSTANDARD2_1
+#if NETCOREAPP || NETSTANDARD2_1
             await stream.WriteAsync(byteString.Memory, cancellationToken);
 #else
             var buffer = ByteStringExtensions.UnsafeExtractBytes(byteString);

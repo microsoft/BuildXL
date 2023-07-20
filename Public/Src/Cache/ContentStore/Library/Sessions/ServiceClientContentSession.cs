@@ -252,19 +252,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
             }
         }
 
-        /// <inheritdoc />
-        protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
-            OperationContext operationContext,
-            IReadOnlyList<ContentHashWithPath> hashesWithPaths,
-            FileAccessMode accessMode,
-            FileReplacementMode replacementMode,
-            FileRealizationMode realizationMode,
-            UrgencyHint urgencyHint,
-            Counter retryCounter)
-        {
-            throw new NotImplementedException();
-        }
-
         /// <nodoc />
         protected Task<T> PerformRetries<T>(
             OperationContext operationContext,

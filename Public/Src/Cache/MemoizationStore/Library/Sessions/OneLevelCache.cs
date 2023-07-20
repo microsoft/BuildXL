@@ -23,6 +23,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         private readonly Func<IMemoizationStore> _memoizationStoreFunc;
 
         /// <inheritdoc />
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
+        /// <inheritdoc />
         protected override CacheTracer CacheTracer { get; } = new CacheTracer(nameof(OneLevelCache));
 
         /// <summary>

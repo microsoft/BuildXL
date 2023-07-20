@@ -8,9 +8,19 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Caches
 {
+    /// <summary>
+    /// This interface only exists for the specific case where we need to assert that something implements both
+    /// <see cref="ICache"/> and <see cref="IContentStore"/>. It should not be used in any other case.
+    /// </summary>
+    public interface IFullCache : ICache, IContentStore, IMemoizationStore
+    {
+
+    }
+
     /// <summary>
     ///     Standard interface for caches.
     /// </summary>

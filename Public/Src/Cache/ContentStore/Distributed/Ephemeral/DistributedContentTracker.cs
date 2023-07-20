@@ -19,6 +19,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using ResultsExtensions = BuildXL.Cache.ContentStore.Interfaces.Results.ResultsExtensions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 
@@ -28,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 /// <remarks>
 /// This class implements <see cref="IContentTracker"/> not out of necessity but to ease testing.
 /// </remarks>
-public class DistributedContentTracker : StartupShutdownComponentBase, IContentTracker
+public class DistributedContentTracker : StartupShutdownComponentBase, IDistributedContentTracker
 {
     public enum Counter
     {
@@ -312,10 +313,10 @@ public class DistributedContentTracker : StartupShutdownComponentBase, IContentT
 
             return result;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
             Counters[failure].Increment();
-            throw;
+            return (new ErrorResult(exception)).AsResult<TResult>();
         }
         finally
         {
@@ -332,11 +333,26 @@ public class DistributedContentTracker : StartupShutdownComponentBase, IContentT
             Tracer,
             async context =>
             {
-                // Query the local content tracker first.
-                var r1 = await _localContentTracker.GetLocationsAsync(context, request).ThrowIfFailureAsync();
-
-                // Query the rest of the cluster.
                 var responses = new List<ContentEntry>();
+
+                // Query the master
+                if (_masterElectionMechanism.Role != Role.Master)
+                {
+                    var masterResult = await WithClientAsync(
+                               context,
+                               request,
+                               _masterElectionMechanism.Master,
+                               (context, client, request) => client.GetLocationsAsync(context, request),
+                               Counter.GetLocationSuccess,
+                               Counter.GetLocationFailure,
+                               Counter.GetLocationTotal);
+                    if (masterResult.Succeeded)
+                    {
+                        responses.AddRange(masterResult.Value.Results);
+                    }
+                }
+
+                // Query the responsible nodes in the cluster
                 foreach (var hash in request.Hashes)
                 {
                     var shards = _scheme.Locate(BlobCacheShardingKey.FromShortHash(hash).Key, _configuration.ReadCandidates);
@@ -361,19 +377,32 @@ public class DistributedContentTracker : StartupShutdownComponentBase, IContentT
                             continue;
                         }
 
-                        responses.Add(
-                            (await WithClientAsync(
-                                context,
-                                request,
-                                location,
-                                (context, tracker, request) => tracker.GetLocationsAsync(context, request),
+                        var result = await WithClientAsync(
+                            context,
+                            request,
+                            location,
+                            (context, client, request) => client.GetLocationsAsync(context, request),
                             Counter.GetLocationSuccess,
                             Counter.GetLocationFailure,
-                            Counter.GetLocationTotal)).ThrowIfFailure().Results[0]);
+                            Counter.GetLocationTotal);
+                        if (!result.Succeeded)
+                        {
+                            Tracer.Warning(context, $"Failed to get locations for {hash} from {location}: {result}");
+                        }
+                        else if (result.Value.Results.Count == 0)
+                        {
+                            Tracer.Warning(context, $"No locations for {hash} from {location}");
+                        }
+                        else
+                        {
+                            responses.AddRange(result.Value.Results);
+                        }
                     }
                 }
 
-                // TODO: Query the leader
+                // Insert into our local database and report back
+                await _localContentTracker.UpdateLocationsAsync(context, new UpdateLocationsRequest() { Entries = responses }).IgnoreFailure();
+                return await _localContentTracker.GetLocationsAsync(context, request);
 
                 // TODO: incorporate data received into local tracker.
 
@@ -381,8 +410,6 @@ public class DistributedContentTracker : StartupShutdownComponentBase, IContentT
 
                 // TODO: failure handling. When finding that locations are unavailable, we might want to extend the query scope.
                 // TODO: this code should allow for lazily populating the returned response. The reason for that is that it may take several milliseconds or seconds to obtain an answer from any given node.
-
-                return Result.Success(new GetLocationsResponse() { Results = responses, });
             },
             timeout: _configuration.GetLocationsTimeout,
             traceOperationStarted: false,

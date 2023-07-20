@@ -21,7 +21,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core.Tracing;
 using ContentStore.Grpc;
 using Google.Protobuf;
@@ -38,20 +38,21 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc;
 /// </summary>
 public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
 {
-    private readonly Capabilities _serviceCapabilities;
-    private readonly IAbsFileSystem _fileSystem;
-    private readonly AbsolutePath _workingDirectory;
-    private DisposableDirectory? _temporaryDirectory;
+    /// <nodoc />
+    public new record Configuration : GrpcCopyServer.Configuration
+    {
+        public bool TraceGrpcOperations { get; set; } = false;
 
+        public int ProactivePushCountLimit { get; set; } = LocalServerConfiguration.DefaultProactivePushCountLimit;
 
-    /// <summary>
-    /// Session handler for <see cref="IContentSession"/>
-    /// </summary>
-    /// <remarks>
-    /// This is a hack to allow for an <see cref="ISessionHandler{TSession, TSessionData}"/> with other sessions that inherit from
-    /// <see cref="IContentSession"/> with session data which inherits from <see cref="LocalContentServerSessionData"/> to be used instead.
-    /// </remarks>
-    protected virtual ISessionHandler<IContentSession, LocalContentServerSessionData> ContentSessionHandler { get; }
+        public override void From(LocalServerConfiguration configuration)
+        {
+            base.From(configuration);
+
+            TraceGrpcOperations = configuration.TraceGrpcOperations;
+            ConfigurationHelper.ApplyIfNotNull(configuration.ProactivePushCountLimit, v => ProactivePushCountLimit = v);
+        }
+    }
 
     /// <nodoc />
     public IPushFileHandler? PushFileHandler { get; }
@@ -62,13 +63,19 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
     /// <nodoc/>
     public IDistributedStreamStore StreamStore => this;
 
-
-    private readonly ConcurrencyLimiter<ContentHash> _ongoingPushesConcurrencyLimiter;
-
     /// <summary>
-    /// If true, then all grpc-level operation should emit start and stop messages.
+    /// Session handler for <see cref="IContentSession"/>
     /// </summary>
-    protected readonly bool TraceGrpcOperations;
+    /// <remarks>
+    /// This is a hack to allow for an <see cref="ISessionHandler{TSession, TSessionData}"/> with other sessions that inherit from
+    /// <see cref="IContentSession"/> with session data which inherits from <see cref="LocalContentServerSessionData"/> to be used instead.
+    /// </remarks>
+    private readonly ISessionHandler<IContentSession, LocalContentServerSessionData> _contentSessionHandler;
+    private readonly Capabilities _serviceCapabilities;
+    private readonly IAbsFileSystem _fileSystem;
+    private readonly DisposableDirectory _temporaryDirectory;
+    private readonly Configuration _configuration;
+    private readonly ConcurrencyLimiter<ContentHash> _ongoingPushesConcurrencyLimiter;
 
     /// <nodoc />
     public GrpcContentServer(
@@ -76,19 +83,17 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
         Capabilities serviceCapabilities,
         ISessionHandler<IContentSession, LocalContentServerSessionData> sessionHandler,
         IReadOnlyDictionary<string, IContentStore> storesByName,
-        LocalServerConfiguration? localServerConfiguration = null)
-        : base(logger, storesByName, localServerConfiguration)
+        Configuration configuration,
+        IAbsFileSystem? fileSystem = null)
+        : base(logger, storesByName, configuration)
     {
-        Contract.Requires(storesByName != null);
-
+        _configuration = configuration;
         _serviceCapabilities = serviceCapabilities;
-        TraceGrpcOperations = localServerConfiguration?.TraceGrpcOperations ?? false;
-        _ongoingPushesConcurrencyLimiter = new ConcurrencyLimiter<ContentHash>(localServerConfiguration?.ProactivePushCountLimit ?? LocalServerConfiguration.DefaultProactivePushCountLimit);
-        ContentSessionHandler = sessionHandler;
+        _ongoingPushesConcurrencyLimiter = new ConcurrencyLimiter<ContentHash>(configuration.ProactivePushCountLimit);
+        _contentSessionHandler = sessionHandler;
 
-        _fileSystem = localServerConfiguration?.FileSystem ?? new PassThroughFileSystem();
-        _workingDirectory = (localServerConfiguration?.DataRootPath ?? _fileSystem.GetTempPath()) / "GrpcContentServer";
-        _temporaryDirectory = new DisposableDirectory(_fileSystem, _workingDirectory / "temp");
+        _fileSystem = fileSystem ?? new PassThroughFileSystem(logger);
+        _temporaryDirectory = new DisposableDirectory(_fileSystem);
 
         PushFileHandler = storesByName.Values.OfType<IPushFileHandler>().FirstOrDefault();
         CopyRequestHandler = ContentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault();
@@ -99,7 +104,7 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
     /// <inheritdoc />
     protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
     {
-        _temporaryDirectory?.Dispose();
+        _temporaryDirectory.Dispose();
         return BoolResult.SuccessTask;
     }
 
@@ -122,7 +127,7 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
 
         var sessionData = new LocalContentServerSessionData(sessionName, (Capabilities)capabilities, (ImplicitPin)implicitPin, pins: Array.Empty<string>());
 
-        var sessionCreationResult = await ContentSessionHandler.CreateSessionAsync(
+        var sessionCreationResult = await _contentSessionHandler.CreateSessionAsync(
             new OperationContext(cacheContext, token),
             sessionData,
             cacheName);
@@ -150,7 +155,7 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
     public async Task<ShutdownResponse> ShutdownSessionAsync(ShutdownRequest request, CancellationToken token)
     {
         var cacheContext = new Context(request.Header.TraceId, Logger);
-        await ContentSessionHandler.ReleaseSessionAsync(new OperationContext(cacheContext, token), request.Header.SessionId);
+        await _contentSessionHandler.ReleaseSessionAsync(new OperationContext(cacheContext, token), request.Header.SessionId);
         return new ShutdownResponse();
     }
 
@@ -171,7 +176,7 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
     public async Task<GetStatsResponse> GetStatsAsync(GetStatsRequest request, CancellationToken token)
     {
         var cacheContext = new Context(Logger);
-        var counters = await ContentSessionHandler.GetStatsAsync(new OperationContext(cacheContext, token));
+        var counters = await _contentSessionHandler.GetStatsAsync(new OperationContext(cacheContext, token));
         if (!counters.Succeeded)
         {
             return GetStatsResponse.Failure();
@@ -194,7 +199,7 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
         var cacheContext = new Context(request.TraceId, Logger);
         using var shutdownTracker = TrackShutdown(cacheContext, token);
 
-        var removeFromTrackerResult = await ContentSessionHandler.RemoveFromTrackerAsync(shutdownTracker.Context);
+        var removeFromTrackerResult = await _contentSessionHandler.RemoveFromTrackerAsync(shutdownTracker.Context);
         if (!removeFromTrackerResult)
         {
             return new RemoveFromTrackerResponse
@@ -314,34 +319,33 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
             throw HandleRequestFailure;
         }
 
-        using (var disposableFile = new DisposableFile(operationContext, _fileSystem, _temporaryDirectory!.CreateRandomFileName()))
+        using var disposableFile = _temporaryDirectory.CreateTemporaryFile(operationContext);
+
+        // NOTE(jubayard): DeleteOnClose not used here because the file needs to be placed into the CAS.
+        // Opening a file for read/write and then doing pretty much anything to it leads to weird behavior
+        // that needs to be tested on a case by case basis. Since we don't know what the underlying store
+        // plans to do with the file, it is more robust to just use the DisposableFile construct.
+        using (var tempFile = _fileSystem.OpenForWrite(disposableFile.Path, expectingLength: null, FileMode.CreateNew, FileShare.None))
         {
-            // NOTE(jubayard): DeleteOnClose not used here because the file needs to be placed into the CAS.
-            // Opening a file for read/write and then doing pretty much anything to it leads to weird behavior
-            // that needs to be tested on a case by case basis. Since we don't know what the underlying store
-            // plans to do with the file, it is more robust to just use the DisposableFile construct.
-            using (var tempFile = _fileSystem.OpenForWrite(disposableFile.Path, expectingLength: null, FileMode.CreateNew, FileShare.None))
-            {
-                // From the docs: On the server side, MoveNext() does not throw exceptions.
-                // In case of a failure, the request stream will appear to be finished (MoveNext will return false)
-                // and the CancellationToken associated with the call will be cancelled to signal the failure.
+            // From the docs: On the server side, MoveNext() does not throw exceptions.
+            // In case of a failure, the request stream will appear to be finished (MoveNext will return false)
+            // and the CancellationToken associated with the call will be cancelled to signal the failure.
 
-                // It means that if the token is canceled the following method won't throw but will return early.
-                await GrpcExtensions.CopyChunksToStreamAsync(requestStream, tempFile.Stream, request => request.Content, cancellationToken: token);
-            }
-
-            token.ThrowIfCancellationRequested();
-
-            Contract.Assert(store != null);
-            var result = await store.HandlePushFileAsync(operationContext, hash, new FileSource(disposableFile.Path, FileRealizationMode.Move), token);
-
-            var response = result
-                ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
-                : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage, result.Diagnostics) };
-
-            await responseStream.WriteAsync(response);
-            return BoolResult.Success;
+            // It means that if the token is canceled the following method won't throw but will return early.
+            await GrpcExtensions.CopyChunksToStreamAsync(requestStream, tempFile.Stream, request => request.Content, cancellationToken: token);
         }
+
+        token.ThrowIfCancellationRequested();
+
+        Contract.Assert(store != null);
+        var result = await store.HandlePushFileAsync(operationContext, hash, new FileSource(disposableFile.Path, FileRealizationMode.Move), token);
+
+        var response = result
+            ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
+            : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage, result.Diagnostics) };
+
+        await responseStream.WriteAsync(response);
+        return BoolResult.Success;
     }
 
     /// <summary>
@@ -623,7 +627,7 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
         bool obtainSession = true,
         [CallerMemberName] string operation = null!)
     {
-        bool trace = traceStartAndStop ?? TraceGrpcOperations;
+        bool trace = traceStartAndStop ?? _configuration.TraceGrpcOperations;
 
         var tracingContext = new Context(header.TraceId, Logger);
         using var shutdownTracker = TrackShutdown(tracingContext, token);
@@ -639,7 +643,7 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
         int sessionId = header.SessionId;
 
         ISessionReference<IContentSession>? sessionOwner = null;
-        if (obtainSession && !ContentSessionHandler.TryGetSession(sessionId, out sessionOwner))
+        if (obtainSession && !_contentSessionHandler.TryGetSession(sessionId, out sessionOwner))
         {
             string message = $"Could not find session by Id. {sessionId.AsTraceableSessionId()}";
             Logger.Info(message);

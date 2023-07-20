@@ -16,6 +16,7 @@ using ContentStoreTest.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Native.IO;
 using Microsoft.WindowsAzure.Storage;
 using ContentStoreTest.Distributed.Redis;
 
@@ -251,6 +252,8 @@ namespace ContentStoreTest.Distributed.Redis
             {
                 throw new InvalidOperationException($"Could not find {storageName} at {storageServerPath}");
             }
+
+            _ = FileUtilities.TrySetExecutePermissionIfNeeded(storageServerPath);
 
             _portNumber = 0;
 

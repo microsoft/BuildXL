@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using ProtoBuf;
 
@@ -59,6 +60,18 @@ public interface ILocalContentTracker : IContentTracker
     /// every time an operation is performed, and that it is never decreased.
     /// </remarks>
     public SequenceNumber GetSequenceNumber(ShortHash shortHash, MachineId machineId);
+}
+
+/// <summary>
+/// The <see cref="IDistributedContentTracker"/> represents an <see cref="IContentTracker"/> that communicates with
+/// other machines as necessary to power a datacenter-scale cache.
+/// </summary>
+/// <remarks>
+/// This interface mainly exists for testing.
+/// </remarks>
+public interface IDistributedContentTracker : IContentTracker
+{
+    public Task ProcessLocalChangeAsync(Context tracingContext, ChangeStampOperation operation, ContentHashWithSize contentHashWithSize);
 }
 
 [ProtoContract]
@@ -116,6 +129,21 @@ public record ContentEntry
     {
         var operations = string.Join(", ", Operations.Select(o => $"{o.Value}({o.ChangeStamp})"));
         return $"{Hash}:{Size}[{operations}]";
+    }
+
+    public IEnumerable<MachineId> Existing()
+    {
+        return Select(ChangeStampOperation.Add);
+    }
+
+    public IEnumerable<MachineId> Tombstones()
+    {
+        return Select(ChangeStampOperation.Delete);
+    }
+
+    private IEnumerable<MachineId> Select(ChangeStampOperation operation)
+    {
+        return Operations.Where(stamped => stamped.ChangeStamp.Operation == operation).Select(stamped => stamped.Value);
     }
 
     public bool Contains(MachineId machineId)

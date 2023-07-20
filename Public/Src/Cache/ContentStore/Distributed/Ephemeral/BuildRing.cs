@@ -4,6 +4,7 @@
 #nullable enable
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 
@@ -13,13 +14,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 /// </summary>
 public record BuildRing
 {
+    private readonly List<MachineLocation> _builders;
+
+    public string Id { get; }
+
     public MachineLocation Leader => Builders[0];
 
-    public IReadOnlyList<MachineLocation> Builders { get; }
+    public IReadOnlyList<MachineLocation> Builders => _builders;
 
-    public BuildRing(IReadOnlyList<MachineLocation> builders)
+    public BuildRing(string id, List<MachineLocation> builders)
     {
+        Contract.RequiresNotNullOrEmpty(id);
         Contract.Requires(builders.Count > 0);
-        Builders = builders;
+
+        Id = id;
+        _builders = builders;
+    }
+
+    public bool Remove(MachineLocation location)
+    {
+        return _builders.Remove(location);
+    }
+
+    public bool Contains(MachineLocation location)
+    {
+        return Builders.Contains(location);
     }
 }

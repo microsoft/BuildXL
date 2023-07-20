@@ -3,10 +3,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -17,6 +19,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Sessions
@@ -67,7 +70,20 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => OpenStreamCoreAsync(operationContext, contentHash, urgencyHint, BaseCounters[ContentSessionBaseCounters.OpenStreamRetries]),
+                    () =>
+                    {
+                        if (contentHash.IsEmptyHash())
+                        {
+                            // We don't return a static instance here because the caller takes ownership.
+                            return Task.FromResult(new OpenStreamResult(new MemoryStream(Array.Empty<byte>()).WithLength(0)));
+                        }
+
+                        return OpenStreamCoreAsync(
+                            operationContext,
+                            contentHash,
+                            urgencyHint,
+                            BaseCounters[ContentSessionBaseCounters.OpenStreamRetries]);
+                    },
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: BaseCounters[ContentSessionBaseCounters.OpenStream],
@@ -93,7 +109,15 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PinCoreAsync(operationContext, contentHash, urgencyHint, BaseCounters[ContentSessionBaseCounters.PinRetries]),
+                    () =>
+                    {
+                        if (contentHash.IsEmptyHash())
+                        {
+                            return PinResult.SuccessTask;
+                        }
+
+                        return PinCoreAsync(operationContext, contentHash, urgencyHint, BaseCounters[ContentSessionBaseCounters.PinRetries]);
+                    },
                     traceOperationStarted: TraceOperationStarted,
                     traceOperationFinished: TracePinFinished,
                     traceErrorsOnly: TraceErrorsOnly,
@@ -149,8 +173,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
         /// <inheritdoc />
         public virtual Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
-            Context context, 
-            IReadOnlyList<ContentHash> contentHashes, 
+            Context context,
+            IReadOnlyList<ContentHash> contentHashes,
             PinOperationConfiguration configuration)
         {
             return WithOperationContext(
@@ -163,12 +187,24 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <nodoc />
-        protected abstract Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(
+        protected virtual async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(
             OperationContext operationContext,
             IReadOnlyList<ContentHash> contentHashes,
             UrgencyHint urgencyHint,
             Counter retryCounter,
-            Counter fileCounter);
+            Counter fileCounter)
+        {
+            var tasks = contentHashes.Select(
+                    (contentHash, index) => PinCoreAsync(
+                        operationContext,
+                        contentHash,
+                        urgencyHint,
+                        retryCounter).WithIndexAsync(index))
+                .ToList(); // It is important to materialize a LINQ query in order to avoid calling 'PinCoreAsync' on every iteration.
+
+            await TaskUtilities.SafeWhenAll(tasks);
+            return tasks;
+        }
 
         /// <inheritdoc />
         public Task<PlaceFileResult> PlaceFileAsync(
@@ -186,7 +222,42 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PlaceFileCoreAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PlaceFileRetries]),
+                    () =>
+                    {
+                        Contract.Requires(realizationMode != FileRealizationMode.Move, "It is not allowed to move files out of the cache");
+                        var fileSystem = PassThroughFileSystem.Default;
+                        ;
+                        if (replacementMode is FileReplacementMode.SkipIfExists or FileReplacementMode.FailIfExists && fileSystem.FileExists(path))
+                        {
+                            return Task.FromResult(new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists));
+                        }
+
+                        if (contentHash.IsEmptyHash())
+                        {
+                            var code = realizationMode switch
+                            {
+                                FileRealizationMode.None => PlaceFileResult.ResultCode.PlacedWithCopy,
+                                FileRealizationMode.Any => PlaceFileResult.ResultCode.PlacedWithCopy,
+                                FileRealizationMode.Copy => PlaceFileResult.ResultCode.PlacedWithCopy,
+                                FileRealizationMode.HardLink => PlaceFileResult.ResultCode.PlacedWithHardLink,
+                                FileRealizationMode.CopyNoVerify => PlaceFileResult.ResultCode.PlacedWithCopy,
+                                _ => throw new ArgumentOutOfRangeException(nameof(realizationMode), realizationMode, null)
+                            };
+
+                            fileSystem.CreateEmptyFile(path);
+                            return Task.FromResult(new PlaceFileResult(code, fileSize: 0, source: PlaceFileResult.Source.LocalCache));
+                        }
+
+                        return PlaceFileCoreAsync(
+                            operationContext,
+                            contentHash,
+                            path,
+                            accessMode,
+                            replacementMode,
+                            realizationMode,
+                            urgencyHint,
+                            BaseCounters[ContentSessionBaseCounters.PlaceFileRetries]);
+                    },
                     extraStartMessage: $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: result =>
@@ -242,14 +313,33 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <nodoc />
-        protected abstract Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
+        protected virtual async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
             OperationContext operationContext,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
             FileAccessMode accessMode,
             FileReplacementMode replacementMode,
             FileRealizationMode realizationMode,
             UrgencyHint urgencyHint,
-            Counter retryCounter);
+            Counter retryCounter)
+        {
+            var tasks = hashesWithPaths.Select(
+                (contentHashWithPath, index) =>
+                {
+                    return PlaceFileCoreAsync(
+                        operationContext,
+                        contentHashWithPath.Hash,
+                        contentHashWithPath.Path,
+                        accessMode,
+                        replacementMode,
+                        realizationMode,
+                        urgencyHint,
+                        retryCounter).WithIndexAsync(index);
+                }).ToList(); // It is important to materialize a LINQ query in order to avoid calling 'PlaceFileCoreAsync' on every iteration.
+
+            await TaskUtilities.SafeWhenAll(tasks);
+            return tasks;
+
+        }
 
         /// <inheritdoc />
         Task<PutResult> IContentSession.PutFileAsync(
@@ -283,17 +373,15 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <summary>
-        /// Core implementation of PutFileAsync. Made virtual so that IReadoOnlyContentSession implementations do
-        /// not have to implement this.
+        /// Core implementation of PutFileAsync.
         /// </summary>
-        protected virtual Task<PutResult> PutFileCoreAsync(
+        protected abstract Task<PutResult> PutFileCoreAsync(
             OperationContext operationContext,
             HashType hashType,
             AbsolutePath path,
             FileRealizationMode realizationMode,
             UrgencyHint urgencyHint,
-            Counter retryCounter)
-            => throw new NotImplementedException();
+            Counter retryCounter);
 
         /// <inheritdoc />
         Task<PutResult> IContentSession.PutFileAsync(
@@ -309,7 +397,21 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PutFileCoreAsync(operationContext, contentHash, path, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutFileRetries]),
+                    () =>
+                    {
+                        if (contentHash.IsEmptyHash())
+                        {
+                            return Task.FromResult(new PutResult(contentHash, contentSize: 0, contentAlreadyExistsInCache: true));
+                        }
+
+                        return PutFileCoreAsync(
+                            operationContext,
+                            contentHash,
+                            path,
+                            realizationMode,
+                            urgencyHint,
+                            BaseCounters[ContentSessionBaseCounters.PutFileRetries]);
+                    },
                     extraStartMessage: $"({contentHash.ToShortString()},{path},{realizationMode}) trusted=false",
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: result =>
@@ -327,17 +429,15 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <summary>
-        /// Core implementation of PutFileAsync. Made virtual so that IReadoOnlyContentSession implementations do
-        /// not have to implement this.
+        /// Core implementation of PutFileAsync.
         /// </summary>
-        protected virtual Task<PutResult> PutFileCoreAsync(
+        protected abstract Task<PutResult> PutFileCoreAsync(
             OperationContext operationContext,
             ContentHash contentHash,
             AbsolutePath path,
             FileRealizationMode realizationMode,
             UrgencyHint urgencyHint,
-            Counter retryCounter)
-            => throw new NotImplementedException();
+            Counter retryCounter);
 
         /// <inheritdoc />
         Task<PutResult> IContentSession.PutStreamAsync(
@@ -360,16 +460,14 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <summary>
-        /// Core implementation of PutStreamAsync. Made virtual so that IReadoOnlyContentSession implementations do
-        /// not have to implement this.
+        /// Core implementation of PutStreamAsync.
         /// </summary>
-        protected virtual Task<PutResult> PutStreamCoreAsync(
+        protected abstract Task<PutResult> PutStreamCoreAsync(
             OperationContext operationContext,
             HashType hashType,
             Stream stream,
             UrgencyHint urgencyHint,
-            Counter retryCounter)
-            => throw new NotImplementedException();
+            Counter retryCounter);
 
         /// <inheritdoc />
         Task<PutResult> IContentSession.PutStreamAsync(
@@ -384,7 +482,20 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PutStreamCoreAsync(operationContext, contentHash, stream, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutStreamRetries]),
+                    () =>
+                    {
+                        if (contentHash.IsEmptyHash())
+                        {
+                            return Task.FromResult(new PutResult(contentHash, contentSize: 0, contentAlreadyExistsInCache: true));
+                        }
+
+                        return PutStreamCoreAsync(
+                            operationContext,
+                            contentHash,
+                            stream,
+                            urgencyHint,
+                            BaseCounters[ContentSessionBaseCounters.PutStreamRetries]);
+                    },
                     extraStartMessage: $"({contentHash.ToShortString()})",
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
@@ -392,16 +503,14 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <summary>
-        /// Core implementation of PutStreamAsync. Made virtual so that IReadoOnlyContentSession implementations do
-        /// not have to implement this.
+        /// Core implementation of PutStreamAsync.
         /// </summary>
-        protected virtual Task<PutResult> PutStreamCoreAsync(
+        protected abstract Task<PutResult> PutStreamCoreAsync(
             OperationContext operationContext,
             ContentHash contentHash,
             Stream stream,
             UrgencyHint urgencyHint,
-            Counter retryCounter)
-            => throw new NotImplementedException();
+            Counter retryCounter);
 
         /// <nodoc />
         protected internal virtual CounterSet GetCounters() => BaseCounters.ToCounterSet();

@@ -184,7 +184,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var getBulkResult1 = await masterStore.GetBulkAsync(context, hash1, GetBulkOrigin.Global).ShouldBeSuccess();
 
                     // We should not be pushing empty hashes to other machines.
-                    getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(1);
+                    getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(0);
 
                     // Empty file should not be closed in the process.
                     putResult1 = await sessions[0].PutContentAsync(context, string.Empty).ShouldBeSuccess();

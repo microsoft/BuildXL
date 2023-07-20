@@ -42,7 +42,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     /// <summary>
     ///     A reference implementation of <see cref="ICache"/> that represents a single level of content and metadata.
     /// </summary>
-    public abstract class OneLevelCacheBase : StartupShutdownBase, ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler, IComponentWrapper<IContentStore>
+    public abstract class OneLevelCacheBase : StartupShutdownBase, IFullCache, IMemoizationStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler, IComponentWrapper<IContentStore>
     {
         /// <summary>
         ///     Exposes the ContentStore to subclasses. NOTE: Only available after calling <see cref="CreateAndStartStoresAsync(OperationContext)"/>
@@ -209,10 +209,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
                 var contentSession = createContentResult.Session;
 
-                var createMemoizationResult = Configuration.PassContentToMemoization
-                    ? MemoizationStore.CreateSession(context, name, contentSession)
-                    : MemoizationStore.CreateSession(context, name);
-
+                var createMemoizationResult = ((IMemoizationStore)this).CreateSession(context, name, contentSession);
                 if (!createMemoizationResult)
                 {
                     return new CreateSessionResult<ICacheSession>(createMemoizationResult, "Memoization session creation failed");
@@ -223,6 +220,22 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                 var session = new OneLevelCacheSession(this, name, implicitPin, memoizationSession!, contentSession!);
                 return new CreateSessionResult<ICacheSession>(session);
             });
+        }
+
+        /// <inheritdoc />
+        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
+        {
+            Contract.Requires(MemoizationStore != null);
+            return MemoizationStore.CreateSession(context, name);
+        }
+
+        /// <inheritdoc />
+        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession)
+        {
+            Contract.Requires(MemoizationStore != null);
+            return Configuration.PassContentToMemoization
+                ? MemoizationStore.CreateSession(context, name, contentSession)
+                : MemoizationStore.CreateSession(context, name);
         }
 
         /// <inheritdoc />

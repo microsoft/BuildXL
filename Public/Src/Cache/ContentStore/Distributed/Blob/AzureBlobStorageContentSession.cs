@@ -72,27 +72,39 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
-        return contentHash.IsEmptyHash() ? Task.FromResult(new PinResult(PinResult.ResultCode.Success)) : PinRemoteAsync(context, contentHash);
-    }
+        string blobPath = string.Empty;
+        return context.PerformOperationWithTimeoutAsync(
+            Tracer,
+            async context =>
+            {
+                BlobClient client;
+                (client, blobPath) = await GetBlobClientAsync(context, contentHash);
+                // Let's make sure that we bump the last access time
+                var touchResult = await _clientAdapter.TouchAsync(context, client);
 
-    /// <inheritdoc />
-    protected override async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(
-        OperationContext context,
-        IReadOnlyList<ContentHash> contentHashes,
-        UrgencyHint urgencyHint,
-        Counter retryCounter,
-        Counter fileCounter)
-    {
-        var tasks = contentHashes.Select(
-                (contentHash, index) => PinCoreAsync(
-                    context,
-                    contentHash,
-                    urgencyHint,
-                    retryCounter).WithIndexAsync(index))
-            .ToList(); // It is important to materialize a LINQ query in order to avoid calling 'PinCoreAsync' on every iteration.
+                if (!touchResult.Succeeded)
+                {
+                    // In case the touch operation comes back with a blob not found or condition not met (the latter can be the case when
+                    // the touch operation is implemeted with http ranges and targets a non-existent blob), this is treated as a content not found
+                    if (touchResult.Exception is RequestFailedException requestFailed &&
+                        (requestFailed.ErrorCode == BlobErrorCode.BlobNotFound || requestFailed.ErrorCode == BlobErrorCode.ConditionNotMet))
+                    {
+                        return PinResult.ContentNotFound;
+                    }
+                    else
+                    {
+                        return new PinResult(touchResult);
+                    }
+                }
 
-        await TaskUtilities.SafeWhenAll(tasks);
-        return tasks;
+                return new PinResult(
+                    code: PinResult.ResultCode.Success,
+                    lastAccessTime: touchResult.Value.dateTimeOffset?.UtcDateTime,
+                    contentSize: touchResult.Value.contentLength ?? -1);
+            },
+            traceOperationStarted: false,
+            extraEndMessage: _ => $"ContentHash=[{contentHash.ToShortString()}] BlobPath=[{blobPath}]",
+            timeout: _configuration.StorageInteractionTimeout);
     }
 
     /// <inheritdoc />
@@ -166,17 +178,6 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
-        if (replacementMode is FileReplacementMode.SkipIfExists or FileReplacementMode.FailIfExists && _fileSystem.FileExists(path))
-        {
-            return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
-        }
-
-        if (contentHash.IsEmptyHash())
-        {
-            _fileSystem.CreateEmptyFile(path);
-            return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy, fileSize: 0);
-        }
-
         var remoteDownloadResult = await PlaceRemoteFileAsync(context, contentHash, path, accessMode, replacementMode).ThrowIfFailureAsync();
         return new PlaceFileResult(
             code: remoteDownloadResult.ResultCode,
@@ -313,34 +314,6 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
     }
 
     /// <inheritdoc />
-    protected override async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
-        OperationContext context,
-        IReadOnlyList<ContentHashWithPath> hashesWithPaths,
-        FileAccessMode accessMode,
-        FileReplacementMode replacementMode,
-        FileRealizationMode realizationMode,
-        UrgencyHint urgencyHint,
-        Counter retryCounter)
-    {
-        var tasks = hashesWithPaths.Select(
-            (contentHashWithPath, index) =>
-            {
-                return PlaceFileCoreAsync(
-                    context,
-                    contentHashWithPath.Hash,
-                    contentHashWithPath.Path,
-                    accessMode,
-                    replacementMode,
-                    realizationMode,
-                    urgencyHint,
-                    retryCounter).WithIndexAsync(index);
-            }).ToList(); // It is important to materialize a LINQ query in order to avoid calling 'PlaceFileCoreAsync' on every iteration.
-
-        await TaskUtilities.SafeWhenAll(tasks);
-        return tasks;
-    }
-
-    /// <inheritdoc />
     protected override async Task<PutResult> PutFileCoreAsync(
         OperationContext context,
         HashType hashType,
@@ -427,43 +400,6 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
     }
 
     #endregion
-
-    private Task<PinResult> PinRemoteAsync(OperationContext context, ContentHash contentHash)
-    {
-        string blobPath = string.Empty;
-        return context.PerformOperationWithTimeoutAsync(
-            Tracer,
-            async context =>
-            {
-                BlobClient client;
-                (client, blobPath) = await GetBlobClientAsync(context, contentHash);
-                // Let's make sure that we bump the last access time
-                var touchResult = await _clientAdapter.TouchAsync(context, client);
-
-                if (!touchResult.Succeeded)
-                {
-                    // In case the touch operation comes back with a blob not found or condition not met (the latter can be the case when
-                    // the touch operation is implemeted with http ranges and targets a non-existent blob), this is treated as a content not found
-                    if (touchResult.Exception is RequestFailedException requestFailed &&
-                        (requestFailed.ErrorCode == BlobErrorCode.BlobNotFound || requestFailed.ErrorCode == BlobErrorCode.ConditionNotMet))
-                    {
-                        return PinResult.ContentNotFound;
-                    }
-                    else
-                    {
-                        return new PinResult(touchResult);
-                    }
-                }
-
-                return new PinResult(
-                    code: PinResult.ResultCode.Success,
-                    lastAccessTime: touchResult.Value.dateTimeOffset?.UtcDateTime,
-                    contentSize: touchResult.Value.contentLength ?? -1);
-            },
-            traceOperationStarted: false,
-            extraEndMessage: _ => $"ContentHash=[{contentHash.ToShortString()}] BlobPath=[{blobPath}]",
-            timeout: _configuration.StorageInteractionTimeout);
-    }
 
     private Task<PutResult> UploadFromStreamAsync(
         OperationContext context,

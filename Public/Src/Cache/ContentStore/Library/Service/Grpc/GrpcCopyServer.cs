@@ -28,8 +28,23 @@ using CompressionLevel = System.IO.Compression.CompressionLevel;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc;
 
+#nullable enable
+
 public class GrpcCopyServer : StartupShutdownSlimBase
 {
+    public record Configuration
+    {
+        public int CopyBufferSize { get; set; } = ContentStore.Grpc.GrpcConstants.DefaultBufferSizeBytes;
+
+        public int CopyRequestHandlingCountLimit { get; set; } = LocalServerConfiguration.DefaultCopyRequestHandlingCountLimit;
+
+        public virtual void From(LocalServerConfiguration configuration)
+        {
+            ConfigurationHelper.ApplyIfNotNull(configuration.BufferSizeForGrpcCopies, v => CopyBufferSize = v);
+            ConfigurationHelper.ApplyIfNotNull(configuration.CopyRequestHandlingCountLimit, v => CopyRequestHandlingCountLimit = v);
+        }
+    }
+
     protected override Tracer Tracer { get; }
     
     /// <nodoc />
@@ -54,8 +69,8 @@ public class GrpcCopyServer : StartupShutdownSlimBase
 
     protected readonly IReadOnlyDictionary<string, IContentStore> ContentStoreByCacheName;
 
-    protected readonly int CopyBufferSize;
-    protected readonly ByteArrayPool CopyBufferPool;
+    private readonly Configuration _configuration;
+    private readonly ByteArrayPool _copyBufferPool;
 
     private readonly ConcurrencyLimiter<Guid> _copyFromConcurrencyLimiter;
 
@@ -63,15 +78,15 @@ public class GrpcCopyServer : StartupShutdownSlimBase
     public GrpcCopyServer(
         ILogger logger,
         IReadOnlyDictionary<string, IContentStore> storesByName,
-        LocalServerConfiguration? localServerConfiguration = null)
+        Configuration configuration)
     {
-        Contract.Requires(storesByName != null);
         Tracer = new Tracer(GetType().Name);
-        ContentStoreByCacheName = storesByName;
-        CopyBufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.GrpcConstants.DefaultBufferSizeBytes;
-        _copyFromConcurrencyLimiter = new ConcurrencyLimiter<Guid>(localServerConfiguration?.CopyRequestHandlingCountLimit ?? LocalServerConfiguration.DefaultCopyRequestHandlingCountLimit);
-        CopyBufferPool = new ByteArrayPool(CopyBufferSize);
         Logger = logger;
+        ContentStoreByCacheName = storesByName;
+        _configuration = configuration;
+
+        _copyFromConcurrencyLimiter = new ConcurrencyLimiter<Guid>(_configuration.CopyRequestHandlingCountLimit);
+        _copyBufferPool = new ByteArrayPool(_configuration.CopyBufferSize);
 
         GrpcAdapter = new CopyServerAdapter(this);
     }
@@ -145,10 +160,12 @@ public class GrpcCopyServer : StartupShutdownSlimBase
                         break;
                 }
 
-                Metadata headers = new Metadata();
-                headers.Add("FileSize", size.ToString());
-                headers.Add("Compression", compression.ToString());
-                headers.Add("ChunkSize", CopyBufferSize.ToString());
+                var headers = new Metadata
+                              {
+                                  { "FileSize", size.ToString() },
+                                  { "Compression", compression.ToString() },
+                                  { "ChunkSize", _configuration.CopyBufferSize.ToString() }
+                              };
 
                 // Sending the response headers.
                 await callContext.WriteResponseHeadersAsync(headers);
@@ -156,8 +173,8 @@ public class GrpcCopyServer : StartupShutdownSlimBase
                 // Cancelling the operation if requested.
                 operationContext.Token.ThrowIfCancellationRequested();
 
-                using var bufferHandle = CopyBufferPool.Get();
-                using var secondaryBufferHandle = CopyBufferPool.Get();
+                using var bufferHandle = _copyBufferPool.Get();
+                using var secondaryBufferHandle = _copyBufferPool.Get();
 
                 // Checking an error potentially injected by tests.
                 if (HandleRequestFailure != null)

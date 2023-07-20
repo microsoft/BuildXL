@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     ///     IContentSession for BlobBuildXL.ContentStore.
     /// </summary>
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-    public class BlobReadOnlyContentSession : ContentSessionBase, IReadOnlyBackingContentSession
+    public abstract class BlobReadOnlyContentSession : ContentSessionBase, IReadOnlyBackingContentSession
     {
         private enum Counters
         {
@@ -383,13 +383,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return contentHashes.Select((_, index) => Task.FromResult(new PinResult(ex).WithIndex(index)));
             }
         }
-
-        /// <inheritdoc />
-        /// <remarks>
-        /// PlaceBulk is both unsupported and unused in this implementation.
-        /// </remarks>
-        protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(OperationContext context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
-            => throw new NotImplementedException();
 
         private async Task<IEnumerable<Task<Indexed<PinResult>>>> UpdateBlobStoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, DateTime endDateTime)
         {

@@ -723,10 +723,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <inheritdoc />
         public void SaveCheckpoint(string targetDirectory)
         {
-            using (var checkpoint = m_store.Checkpoint())
-            {
-                checkpoint.Save(targetDirectory);
-            }
+            using var checkpoint = m_store.Checkpoint();
+            checkpoint.Save(targetDirectory);
         }
 
         /// <inheritdoc />

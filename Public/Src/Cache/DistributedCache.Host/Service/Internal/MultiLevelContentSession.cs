@@ -179,22 +179,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
-            OperationContext operationContext,
-            IReadOnlyList<ContentHashWithPath> hashesWithPaths,
-            FileAccessMode accessMode,
-            FileReplacementMode replacementMode,
-            FileRealizationMode realizationMode,
-            UrgencyHint urgencyHint,
-            Counter retryCounter)
-        {
-            // NOTE: Most of the IContentSession implementations throw NotImplementedException, most notably
-            // the ReadOnlyServiceClientContentSession which is used to communicate with this session. Given that,
-            // it is safe for this method to not be implemented here as well.
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc />
         protected override Task<PutResult> PutFileCoreAsync(
             OperationContext operationContext,
             ContentHash contentHash,

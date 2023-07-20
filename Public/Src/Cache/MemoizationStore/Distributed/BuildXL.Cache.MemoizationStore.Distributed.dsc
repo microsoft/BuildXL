@@ -14,6 +14,7 @@ namespace Distributed {
             ContentStore.Hashing.dll,
             ContentStore.Interfaces.dll,
             ContentStore.Library.dll,
+            ContentStore.Grpc.dll,
             Interfaces.dll,
             Library.dll,
 
@@ -22,11 +23,13 @@ namespace Distributed {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...BuildXLSdk.bclAsyncPackages,
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufNetPackages(true),
             ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [
             "BuildXL.Cache.MemoizationStore.Distributed.Test",
+            "BuildXL.Cache.ContentStore.Distributed.Test",
         ],
     });
 }

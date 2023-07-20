@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     ///     IContentSession for DedupContentStore.
     /// </summary>
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-    public class DedupReadOnlyContentSession : ContentSessionBase, IReadOnlyBackingContentSession
+    public abstract class DedupReadOnlyContentSession : ContentSessionBase, IReadOnlyBackingContentSession
     {
         private enum Counters
         {
@@ -375,13 +375,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 Tracer.Warning(context, $"Exception when querying pins against the VSTS services {ex}");
                 return Task.FromResult(contentHashes.Select((_, index) => Task.FromResult(new PinResult(ex).WithIndex(index))));
             }
-        }
-
-        /// <inheritdoc />
-        protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(OperationContext context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
-        {
-            // Also not implemented in BlobReadOnlyContentSession.
-            throw new NotImplementedException();
         }
 
         private Task<BoolResult> PlaceFileInternalAsync(

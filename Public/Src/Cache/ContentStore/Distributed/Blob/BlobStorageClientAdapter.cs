@@ -418,7 +418,7 @@ public class BlobStorageClientAdapter
 
                     return Result.Success<(DateTimeOffset?, long?)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength), isNullAllowed: true);
                 }
-                catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.InvalidPageRange)
+                catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.InvalidRange)
                 {
                     // We are dealing with a zero-size piece of content. Use unbounded download API to touch the file.
                     var response = await blob.DownloadContentAsync(

@@ -5,7 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -144,6 +146,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                         var pinResult = await result;
                         Assert.Equal(PinResult.ResultCode.ContentNotFound, pinResult.Item.Code);
                     }
+                });
+        }
+
+        [Fact]
+        public Task TouchEmptyBlob()
+        {
+            // By putting an empty file twice, we ensure we're triggering the Touch logic.
+            return RunTestAsync(
+                ImplicitPin.None,
+                null,
+                async (context, session) =>
+                {
+                    var stream = new MemoryStream(0);
+                    await session.PutStreamAsync(context, HashType.Vso0, stream, CancellationToken.None).ShouldBeSuccess();
+                    await session.PutStreamAsync(context, HashType.Vso0, stream, CancellationToken.None).ShouldBeSuccess();
                 });
         }
 

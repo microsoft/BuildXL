@@ -2162,11 +2162,13 @@ namespace BuildXL.ProcessPipExecutor
 
         private bool PrepareFileAccessMonitoringCommon()
         {
-            if (m_pip.IsService)
+            if (m_pip.IsService || m_pip.IsStartOrShutdownKind)
             {
+                // Service pips is also referred to as start pips.
                 // Service pip is allowed to read all files because it has to read all files on behalf of its clients.
                 // This behavior is safe because service pip and its clients are not cacheable.
-                // Service pips do not report, because this introduces unnecessary attempts to process observed inputs
+                // Service pips do not report, because this introduces unnecessary attempts to process observed inputs.
+                // Adding the same scope for stop pips as they are not cacheable as well.
                 m_fileAccessManifest.AddScope(
                     AbsolutePath.Invalid,
                     FileAccessPolicy.MaskNothing,

@@ -48,7 +48,6 @@ namespace Test.BuildXL.Distribution
                 MaxMaterialize = 100,
                 AvailableRamMb = 100000,
                 AvailableCommitMb = 100000,
-                WorkerCacheValidationContentHash = ByteString.Empty
             };
 
 

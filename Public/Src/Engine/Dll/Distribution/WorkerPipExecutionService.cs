@@ -48,7 +48,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Creates and returns the data to be sent to the orchestrator for validating the cache connection
         /// </summary>
-        Task<Possible<AttachCompletionInfo>> ConstructAttachCompletionInfo();
+        AttachCompletionInfo ConstructAttachCompletionInfo();
 
         /// <summary>
         /// Called when the build is done
@@ -128,42 +128,17 @@ namespace BuildXL.Engine.Distribution
             void IWorkerPipExecutionService.WhenDone() => m_pipQueue.SetAsFinalized();
 
             /// <inheritdoc/>
-            [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
-            async Task<Possible<AttachCompletionInfo>> IWorkerPipExecutionService.ConstructAttachCompletionInfo()
-            {
-                var cacheValidationContent = Guid.NewGuid().ToByteArray();
-                var cacheValidationContentHash = ContentHashingUtilities.HashBytes(cacheValidationContent);
-
-                var possiblyStored = await m_environment.Cache.ArtifactContentCache.TryStoreAsync(
-                    new MemoryStream(cacheValidationContent),
-                    cacheValidationContentHash);
-
-                if (!possiblyStored.Succeeded)
-                {
-                    Logger.Log.DistributionFailedToStoreValidationContentToWorkerCacheWithException(
-                        LoggingContext,
-                        cacheValidationContentHash.ToHex(),
-                        possiblyStored.Failure.DescribeIncludingInnerFailures());
-
-                    return new Possible<AttachCompletionInfo>(possiblyStored.Failure);
-                }
-
-                var attachCompletionInfo = new AttachCompletionInfo
-                {
-                    WorkerId = WorkerId,
-                    MaxProcesses = Config.Schedule.MaxProcesses,
-                    MaxMaterialize = Config.Schedule.MaxMaterialize,
-                    MaxCacheLookup = Config.Schedule.MaxCacheLookup,
-                    MaxLightProcesses = Config.Schedule.MaxLight,
-                    AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb ?? 0,
-                    AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb ?? 0,
-                    WorkerCacheValidationContentHash = ByteString.CopyFrom(cacheValidationContentHash.ToHashByteArray()),
-                };
-
-                Contract.Assert(attachCompletionInfo.WorkerCacheValidationContentHash != null, "worker cache validation content hash is null");
-
-                return new Possible<AttachCompletionInfo>(attachCompletionInfo);
-            }
+            AttachCompletionInfo IWorkerPipExecutionService.ConstructAttachCompletionInfo() 
+                => new AttachCompletionInfo
+                    {
+                        WorkerId = WorkerId,
+                        MaxProcesses = Config.Schedule.MaxProcesses,
+                        MaxMaterialize = Config.Schedule.MaxMaterialize,
+                        MaxCacheLookup = Config.Schedule.MaxCacheLookup,
+                        MaxLightProcesses = Config.Schedule.MaxLight,
+                        AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb ?? 0,
+                        AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb ?? 0,
+                    };
 
             /// <inheritdoc/>
             async Task IWorkerPipExecutionService.StartPipStepAsync(PipId pipId, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)

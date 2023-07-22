@@ -907,13 +907,13 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Initializes the worker
         /// </summary>
-        public virtual void InitializeForDistribution(IScheduleConfiguration scheduleConfig, PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
+        public virtual void InitializeForDistribution(IConfiguration config, PipGraph pipGraph, IExecutionLogTarget executionLogTarget, Task schedulerCompletionExceptMaterializeOutputs)
         {
             m_isDistributedBuild = true;
 
             // Content tracking is needed when calculating setup cost per pip on each worker.
             // That's an expensive calculation, so it is disabled by default.
-            m_isContentTrackingEnabled = scheduleConfig.EnableSetupCostWhenChoosingWorker;
+            m_isContentTrackingEnabled = config.Schedule.EnableSetupCostWhenChoosingWorker;
             m_availableContent = new ContentTrackingSet(pipGraph);
             m_availableHashes = new ContentTrackingSet(pipGraph);
         }

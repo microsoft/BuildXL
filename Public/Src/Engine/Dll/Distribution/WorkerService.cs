@@ -338,15 +338,8 @@ namespace BuildXL.Engine.Distribution
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         private async Task<bool> CompleteAttachmentAfterProcessBuildRequestStartedAsync()
         {
-            var possiblyAttachCompletionInfo = await m_pipExecutionService.ConstructAttachCompletionInfo();
-
-            if (!possiblyAttachCompletionInfo.Succeeded)
-            {
-                Exit("Failed to validate retrieve content from orchestrator via cache", isUnexpected: true);
-                return false;
-            }
-
-            var attachCompletionResult = await m_orchestratorClient.AttachCompletedAsync(possiblyAttachCompletionInfo.Result);
+            var attachCompletionInfo = m_pipExecutionService.ConstructAttachCompletionInfo();
+            var attachCompletionResult = await m_orchestratorClient.AttachCompletedAsync(attachCompletionInfo);
 
             if (!attachCompletionResult.Succeeded)
             {

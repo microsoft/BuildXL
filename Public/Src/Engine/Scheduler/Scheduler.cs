@@ -386,7 +386,7 @@ namespace BuildXL.Scheduler
                     ExecutionLog?.CreateWorkerTarget((uint)worker.WorkerId);
 
                 worker.TrackStatusOperation(m_workersStatusOperation);
-                worker.InitializeForDistribution(m_configuration.Schedule, PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs);
+                worker.InitializeForDistribution(m_configuration, PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs.Task);
                 worker.StatusChanged += OnWorkerStatusChanged;
                 worker.Start();
             }
@@ -1801,7 +1801,7 @@ namespace BuildXL.Scheduler
 
             PipExecutionCounters.AddToCounter(PipExecutorCounter.WorkerAverageRunningDurationMs, totalWorkerRunningDuration / everAvailableWorkerCount);
 
-            var pendingOpKinds = new OperationKind[] { workerOpKinds[(int)WorkerNodeStatus.Starting], workerOpKinds[(int)WorkerNodeStatus.Started], workerOpKinds[(int)WorkerNodeStatus.Attached] };
+            var pendingOpKinds = new OperationKind[] { workerOpKinds[(int)WorkerNodeStatus.Starting], workerOpKinds[(int)WorkerNodeStatus.Started] };
             long totalWorkerPendingDuration = 0;
             foreach (var opKind in pendingOpKinds)
             {

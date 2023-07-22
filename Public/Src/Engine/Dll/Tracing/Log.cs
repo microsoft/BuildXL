@@ -544,50 +544,6 @@ namespace BuildXL.Engine.Tracing
             string message);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionFailedToStoreValidationContentToWorkerCacheWithException,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            // This error is not forwarded to the orchestrator because doing so would cause the orchestrator to log an error when
-            // no pip fails in the build from its perspective. The worker must still log this as an error because it
-            // did fail.
-            Keywords = (int)(Keywords.UserMessage | Keywords.NotForwardedToOrchestrator),
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "Could not load store content with hash '{contentHash}'."
-            + " This may indicate that worker cache is incorrectly configured or is not properly shared.\n"
-            + "Failure:\n{exceptionMessage}")]
-        public abstract void DistributionFailedToStoreValidationContentToWorkerCacheWithException(
-            LoggingContext context,
-            string contentHash,
-            string exceptionMessage);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DistributionFailedToRetrieveValidationContentFromWorkerCache,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "Worker {workerName}: Could not load content with hash '{contentHash}' to validate connection to worker cache. This may indicate that worker cache is incorrectly configured or is not properly shared.")]
-        public abstract void DistributionFailedToRetrieveValidationContentFromWorkerCache(
-            LoggingContext context,
-            string workerName,
-            string contentHash);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DistributionFailedToRetrieveValidationContentFromWorkerCacheWithException,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "Worker {workerName}: Could not load content with hash '{contentHash}' to validate connection to worker cache."
-            + " This may indicate that worker cache is incorrectly configured or is not properly shared.\n"
-            + "Exception:\n{exceptionMessage}")]
-        public abstract void DistributionFailedToRetrieveValidationContentFromWorkerCacheWithException(
-            LoggingContext context,
-            string workerName,
-            string contentHash,
-            string exceptionMessage);
-
-        [GeneratedEvent(
             (ushort)LogEventId.DistributionSuccessfulRetryCallToWorker,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

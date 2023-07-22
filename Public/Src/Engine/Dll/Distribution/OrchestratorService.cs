@@ -150,7 +150,7 @@ namespace BuildXL.Engine.Distribution
         void IOrchestratorService.AttachCompleted(AttachCompletionInfo attachCompletionInfo)
         {
             var worker = GetWorkerById(attachCompletionInfo.WorkerId);
-            worker.AttachCompletedAsync(attachCompletionInfo);
+            worker.AttachCompleted(attachCompletionInfo);
         }
 
         /// <summary>

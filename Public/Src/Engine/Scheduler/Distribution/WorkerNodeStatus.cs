@@ -43,11 +43,6 @@ namespace BuildXL.Scheduler.Distribution
         Started,
 
         /// <summary>
-        /// The node is attached and waiting to verify cache connection to worker.
-        /// </summary>
-        Attached,
-
-        /// <summary>
         /// The node is running and can processs new requests.
         /// </summary>
         Running,

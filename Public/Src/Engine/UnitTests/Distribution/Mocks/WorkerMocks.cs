@@ -94,21 +94,14 @@ namespace Test.BuildXL.Distribution
         // Interface methods
         uint IWorkerPipExecutionService.WorkerId => 1;
 
-        Task<Possible<AttachCompletionInfo>> IWorkerPipExecutionService.ConstructAttachCompletionInfo()
-        {
-            var aci = new AttachCompletionInfo
+        AttachCompletionInfo IWorkerPipExecutionService.ConstructAttachCompletionInfo() => new AttachCompletionInfo
             {
                 WorkerId = 1,
                 MaxProcesses = 2,
                 MaxMaterialize = 3,
                 AvailableRamMb = 100000,
                 AvailableCommitMb = 200000,
-                WorkerCacheValidationContentHash = ByteString.CopyFrom(new byte[10])
             };
-
-            return Task.FromResult(new Possible<AttachCompletionInfo>(aci));
-        }
-
 
         void IWorkerPipExecutionService.Start(EngineSchedule schedule, BuildStartData buildStartData)
         {

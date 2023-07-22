@@ -2222,8 +2222,7 @@ namespace BuildXL.Scheduler
             {
                 Kind = FingerprintComputationKind.CacheCheck,
                 PipId = cacheableProcess.Process.PipId,
-                StrongFingerprintComputations =
-                    CollectionUtilities.EmptyArray<ProcessStrongFingerprintComputationData>(),
+                StrongFingerprintComputations = CollectionUtilities.EmptyArray<ProcessStrongFingerprintComputationData>(),
             };
 
             var operationContext = processRunnable.OperationContext;
@@ -2269,7 +2268,8 @@ namespace BuildXL.Scheduler
                         Logger.Log.ScheduleProcessPipCacheMiss(
                             processRunnable.OperationContext,
                             cacheableProcess.Description,
-                            runnableFromCacheResult.Fingerprint.ToString());
+                            runnableFromCacheResult.Fingerprint.ToString(),
+                            pipCacheMiss.Value.CacheMissType.ToString());
 
                         processRunnable.Environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
                     }
@@ -2336,9 +2336,9 @@ namespace BuildXL.Scheduler
             if (isWeakFingerprintAugmented && !traversedAugmentedWeakFingerprintSet.Add(weakFingerprint))
             {
                 Logger.Log.TwoPhaseCacheDescriptorDuplicatedAugmentedFingerprint(
-                                        operationContext,
-                                        processRunnable.Description,
-                                        weakFingerprint.ToString());
+                    operationContext,
+                    processRunnable.Description,
+                    weakFingerprint.ToString());
 
                 // The miss reasons might have been slightly different the first time (e.g. we could have failed because content couldn't be downloaded)
                 // but it is not worth storing the original reason and the extra complexity that would bring. The original reason for the miss was also
@@ -2395,7 +2395,7 @@ namespace BuildXL.Scheduler
                     refLocality = null;
                 }
                 else
-                {                  
+                {
 
                     // Chapter 1: Determine Strong Fingerprint
                     // First, we will evaluate a sequence of (path set, strong fingerprint) pairs.
@@ -2698,13 +2698,12 @@ namespace BuildXL.Scheduler
                             PublishedEntryRef usableEntryRef = maybeUsableEntryRef.Value;
 
                             // The speed of Chapter2 is basically all just this call to GetContentHashList
-                            Possible<CacheEntry?> entryFetchResult =
-                                await cache.TryGetCacheEntryAsync(
-                                    cacheableProcess.Process,
-                                    weakFingerprint,
-                                    usableEntryRef.PathSetHash,
-                                    usableEntryRef.StrongFingerprint,
-                                    hints);
+                            Possible<CacheEntry?> entryFetchResult = await cache.TryGetCacheEntryAsync(
+                                cacheableProcess.Process,
+                                weakFingerprint,
+                                usableEntryRef.PathSetHash,
+                                usableEntryRef.StrongFingerprint,
+                                hints);
 
                             if (entryFetchResult.Succeeded)
                             {
@@ -2777,19 +2776,19 @@ namespace BuildXL.Scheduler
                     if (maybeUsableCacheEntry.HasValue)
                     {
                         cacheHitData = await TryConvertToRunnableFromCacheResultAsync(
-                         processRunnable,
-                         operationContext,
-                         environment,
-                         state,
-                         cacheableProcess,
-                         refLocality.Value,
-                         description,
-                         weakFingerprint,
-                         maybeUsableEntryRef.Value.PathSetHash,
-                         maybeUsableEntryRef.Value.StrongFingerprint,
-                         maybeUsableCacheEntry,
-                         maybePathSet,
-                         pipCacheMiss);
+                            processRunnable,
+                            operationContext,
+                            environment,
+                            state,
+                            cacheableProcess,
+                            refLocality.Value,
+                            description,
+                            weakFingerprint,
+                            maybeUsableEntryRef.Value.PathSetHash,
+                            maybeUsableEntryRef.Value.StrongFingerprint,
+                            maybeUsableCacheEntry,
+                            maybePathSet,
+                            pipCacheMiss);
                     }
                 }
 
@@ -5508,28 +5507,6 @@ namespace BuildXL.Scheduler
             return (environment.Configuration.Engine.UseHardlinks && !process.OutputsMustRemainWritable && !isUndeclaredFileRewrite)
                 ? FileRealizationMode.HardLinkOrCopy // Prefers hardlinks, but will fall back to copying when creating a hard link fails. (e.g. >1023 links)
                 : FileRealizationMode.Copy;
-        }
-
-        /// <summary>
-        /// Returns an enumerable containing all mutually exclusive counters for different cache miss reasons
-        /// </summary>
-        public static IEnumerable<PipExecutorCounter> GetListOfCacheMissTypes()
-        {
-            // All mutually exclusive counters for cache miss reasons
-            // Note: frontier variants of the counters should not be included in this list
-            return new PipExecutorCounter[]
-            {
-                PipExecutorCounter.CacheMissesForDescriptorsDueToWeakFingerprints,
-                PipExecutorCounter.CacheMissesForDescriptorsDueToAugmentedWeakFingerprints,
-                PipExecutorCounter.CacheMissesForDescriptorsDueToStrongFingerprints,
-                PipExecutorCounter.CacheMissesForDescriptorsDueToArtificialMissOptions,
-                PipExecutorCounter.CacheMissesForCacheEntry,
-                PipExecutorCounter.CacheMissesDueToInvalidDescriptors,
-                PipExecutorCounter.CacheMissesForProcessMetadata,
-                PipExecutorCounter.CacheMissesForProcessMetadataFromHistoricMetadata,
-                PipExecutorCounter.CacheMissesForProcessOutputContent,
-                PipExecutorCounter.CacheMissesForProcessConfiguredUncacheable,
-            };
         }
 
         /// <summary>

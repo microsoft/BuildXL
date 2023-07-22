@@ -186,12 +186,10 @@ namespace Test.BuildXL.Scheduler
         {
             // All mutually exclusive counters for cache miss reasons
 
-            IEnumerable<PipExecutorCounter> cacheMissTypes = PipExecutor.GetListOfCacheMissTypes();
-
             long sum = 0;
-            foreach (var missType in cacheMissTypes)
+            foreach (var missType in PipCacheMissTypeExtensions.AllCacheMisses)
             {
-                sum += PipExecutorCounters.GetCounterValue(missType);
+                sum += PipExecutorCounters.GetCounterValue(missType.ToCounter());
             }
 
             XAssert.AreEqual(PipExecutorCounters.GetCounterValue(PipExecutorCounter.ProcessPipsExecutedDueToCacheMiss), sum);

@@ -2073,8 +2073,8 @@ namespace BuildXL.Scheduler
             Logger.Log.CacheFingerprintHitSources(loggingContext, m_cacheIdHits);
 
             List<PipCachePerfInfo> cacheLookupPerfInfos = m_runnablePipPerformance.Values.Where(a => a.CacheLookupPerfInfo != null).Select(a => a.CacheLookupPerfInfo).ToList();
-            List<PipCachePerfInfo> cacheLookupPerfInfosForHits = cacheLookupPerfInfos.Where(a => a.CacheMissType == PipCacheMissType.Invalid).DefaultIfEmpty().ToList();
-            List<PipCachePerfInfo> cacheLookupPerfInfosForMisses = cacheLookupPerfInfos.Where(a => a.CacheMissType != PipCacheMissType.Invalid).DefaultIfEmpty().ToList();
+            List<PipCachePerfInfo> cacheLookupPerfInfosForHits = cacheLookupPerfInfos.Where(a => a.CacheMissType == PipCacheMissType.Hit).DefaultIfEmpty().ToList();
+            List<PipCachePerfInfo> cacheLookupPerfInfosForMisses = cacheLookupPerfInfos.Where(a => a.CacheMissType != PipCacheMissType.Hit).DefaultIfEmpty().ToList();
 
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxCacheEntriesVisitedForHit, cacheLookupPerfInfosForHits.Max(a => a?.NumCacheEntriesVisited) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MinCacheEntriesVisitedForHit, cacheLookupPerfInfosForHits.Min(a => a?.NumCacheEntriesVisited) ?? -1);
@@ -2095,19 +2095,19 @@ namespace BuildXL.Scheduler
             m_groupedPipCounters.LogAsPipCounters();
 
             // Verify counters for different types of cache misses sum to pips executed due to cache misses
-            IEnumerable<PipExecutorCounter> cacheMissTypes = PipExecutor.GetListOfCacheMissTypes();
             long cacheMissSum = 0;
             using (var pooledStringBuilder = Pools.GetStringBuilder()) {
                 var sb = pooledStringBuilder.Instance;
-                foreach (var missType in cacheMissTypes)
+                foreach (var missType in PipCacheMissTypeExtensions.AllCacheMisses)
                 {
-                    var counterValue = PipExecutionCounters.GetCounterValue(missType);
+                    var counter = missType.ToCounter();
+                    var counterValue = PipExecutionCounters.GetCounterValue(counter);
                     cacheMissSum += counterValue;
 
-                    var frontierPipCounterValue = PipExecutionCounters.GetCounterValue(missType.ToFrontierPipCacheMissCounter());
+                    var frontierPipCounterValue = PipExecutionCounters.GetCounterValue(counter.ToFrontierPipCacheMissCounter());
                     if (frontierPipCounterValue > counterValue)
                     {
-                        sb.Append($"{(sb.Length == 0 ? "" : ", ")}['{missType}' : {counterValue} != {frontierPipCounterValue}]");
+                        sb.Append($"{(sb.Length == 0 ? "" : ", ")}['{counter}' : {counterValue} != {frontierPipCounterValue}]");
                     }
                 }
 
@@ -4668,11 +4668,11 @@ namespace BuildXL.Scheduler
                     {
                         // It's a cache miss, update the counters.
                         Contract.Assert(cacheResult.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
-                        environment.Counters.IncrementCounter((PipExecutorCounter)cacheResult.CacheMissType);
+                        environment.Counters.IncrementCounter(cacheResult.CacheMissType.ToCounter());
 
                         if (pipRunTimeInfo.IsFrontierMissCandidate)
                         {
-                            environment.Counters.IncrementCounter(((PipExecutorCounter)cacheResult.CacheMissType).ToFrontierPipCacheMissCounter());
+                            environment.Counters.IncrementCounter(cacheResult.CacheMissType.ToCounter().ToFrontierPipCacheMissCounter());
                         }
 
                         if (cacheResult.CacheMissType == PipCacheMissType.MissForProcessMetadata

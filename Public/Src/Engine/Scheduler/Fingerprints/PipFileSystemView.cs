@@ -8,6 +8,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Pips.Operations;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
@@ -82,13 +83,20 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </remarks>
         public void AddSealDirectoryContents(IPipExecutionEnvironment env, DirectoryArtifact directoryDependency)
         {
+            SealDirectoryKind kind = env.GetSealDirectoryKind(directoryDependency);
+            bool isDynamic = kind.IsDynamicKind();
+
             foreach (var fileArtifact in env.State.FileContentManager.ListSealedDirectoryContents(directoryDependency))
             {
-                bool getContentInfo = env.State.FileContentManager.TryGetInputContent(fileArtifact, out Storage.FileMaterializationInfo info);
+                bool skipAdding = false;
+                if (isDynamic)
+                {
+                    bool getContentInfo = env.State.FileContentManager.TryGetInputContent(fileArtifact, out Storage.FileMaterializationInfo info);
 
-                // Shared opaque output can include absent files as its contents (e.g., temporary files created during pip run).
-                // Such files should not be included when in the file system view, particularly when the view is used for computing directory members.
-                bool skipAdding = getContentInfo && (info.FileContentInfo.Existence == PathExistence.Nonexistent || info.FileContentInfo.Hash == WellKnownContentHashes.AbsentFile);
+                    // Shared opaque output can include absent files as its contents (e.g., temporary files created during pip run).
+                    // Such files should not be included when in the file system view, particularly when the view is used for computing directory members.
+                    skipAdding = getContentInfo && info.FileContentInfo.Existence == PathExistence.Nonexistent || info.FileContentInfo.Hash == WellKnownContentHashes.AbsentFile;
+                }
 
                 if (!skipAdding)
                 {

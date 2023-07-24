@@ -1,6 +1,19 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230713.3 (Release [312875](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=312875&_a=release-pipeline-progress))
+- Enable scoped build for the lage resolver
+- Upgrade ADO and Artifact packages to 19.224
+- BlobLifetimeManager in charge of L3 garbage collection
+- Be platform agnostic when replacing newlines for Kusto logs
+- Update critical path summary
+- MSBuild frontend documentation
+- Use ConcurrentStack implementation of ObjectPool on all platforms
+
+# 0.1.0-20230706.3 (Release [311327](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=311327&_a=release-pipeline-progress))
+- Make AdoBuildRunner work on job retries
+- Limit the amount of open connections from the blob storage L3 cache
+
 # 0.1.0-20230630.6.1 (Release [311085](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=311085&_a=release-pipeline-progress)) Released 7/6/2023
 - Remove observed path set from execution result to reduce the overhead of data sent from workers to orchestrator
 - Add customization capabilities for displaying pips to the end user

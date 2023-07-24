@@ -408,6 +408,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                     Location = location,
                     Leader = leader,
                     StorageCredentials = _ephemeralManagementStorageCredentials,
+                    MaxCacheSizeMb = 1024
                 };
             }
             else
@@ -417,6 +418,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                     RootPath = TestDirectory.CreateRandomFileName(),
                     Location = location,
                     Leader = leader,
+                    MaxCacheSizeMb = 1024
                 };
             }
 

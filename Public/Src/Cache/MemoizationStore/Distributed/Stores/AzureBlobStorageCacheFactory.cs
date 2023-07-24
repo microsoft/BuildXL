@@ -39,7 +39,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         }
 
         /// <nodoc />
-        public static ICache Create(Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
+        public static IFullCache Create(Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
         {
             BlobCacheContainerName.CheckValidUniverseAndNamespace(configuration.Universe, configuration.Namespace);
 
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             return CreateCache(configuration, contentStore, memoizationStore);
         }
 
-        private static ICache CreateCache(Configuration configuration, IContentStore contentStore, IMemoizationStore memoizationStore)
+        private static IFullCache CreateCache(Configuration configuration, IContentStore contentStore, IMemoizationStore memoizationStore)
         {
             return new OneLevelCache(
                             contentStoreFunc: () => contentStore,

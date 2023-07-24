@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
+using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.MemoizationStore.Stores;
@@ -62,7 +63,7 @@ public class AzureBlobStoragePublishingSession : PublishingSessionBase<AzureBlob
         var secretsProvider = new StaticBlobCacheSecretsProvider(fallback: new AzureStorageCredentials(connectionString: configuration.PersonalAccessToken));
         var cache = AzureBlobStorageCacheFactory.Create(configuration.Configuration, secretsProvider);
         await cache.StartupAsync(context).ThrowIfFailureAsync();
-        var session = cache.CreateSession(context, name: configuration.SessionName, implicitPin: ImplicitPin.None).ThrowIfFailure();
+        var session = ((ICache)cache).CreateSession(context, name: configuration.SessionName, implicitPin: ImplicitPin.None).ThrowIfFailure();
 
         return new CacheSessionPublisherWrapper(cache, session.Session);
     }

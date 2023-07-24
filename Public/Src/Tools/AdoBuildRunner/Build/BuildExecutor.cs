@@ -98,7 +98,6 @@ namespace BuildXL.AdoBuildRunner.Build
         public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string relatedSessionId, string[] buildArguments)
         {
             Logger.Info($@"Launching distributed build as orchestrator");
-
             return ExecuteBuild(
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
                 $" /distributedBuildRole:master" +

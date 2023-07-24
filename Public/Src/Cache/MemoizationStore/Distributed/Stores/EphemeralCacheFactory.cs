@@ -52,6 +52,11 @@ public static class EphemeralCacheFactory
         /// Hostname and port of the leader machine
         /// </summary>
         public required MachineLocation Leader { get; init; }
+
+        /// <summary>
+        /// Maximum size of the cache.
+        /// </summary>
+        public required uint MaxCacheSizeMb { get; init; }
     }
 
     /// <summary>
@@ -233,7 +238,7 @@ public static class EphemeralCacheFactory
         var contentTrackerEndpoint =
             new ProtobufNetGrpcServiceEndpoint<IGrpcContentTracker, GrpcContentTrackerService>(nameof(GrpcContentTrackerService), service);
 
-        var contentStoreConfiguration = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1000);
+        var contentStoreConfiguration = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(configuration.MaxCacheSizeMb);
         var configurationModel = new ConfigurationModel(
             contentStoreConfiguration,
             ConfigurationSelection.RequireAndUseInProcessConfiguration,

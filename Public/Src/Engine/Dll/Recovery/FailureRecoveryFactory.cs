@@ -31,7 +31,6 @@ namespace BuildXL.Engine.Recovery
                 loggingContext,
                 new FailureRecovery[]
                 {
-                    new CorruptedMemosDbRecovery(pathTable, configuration),
                     new CatastrophicFailureRecovery(pathTable, configuration, loggingContext)
                 });
         }

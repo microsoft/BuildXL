@@ -134,7 +134,7 @@ namespace BuildXL.AdoBuildRunner.Build
 
                 var buildInfo = new BuildInfo
                 {
-                    OrchestratorLocation = $"{orchestratorInfo[Constants.MachineIpV4Address]}",
+                    OrchestratorLocation = $"{orchestratorInfo[Constants.MachineHostName]}",
                     RelatedSessionId = ComputeRelatedSessionId()
                 };
 

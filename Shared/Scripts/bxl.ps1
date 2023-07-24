@@ -59,14 +59,14 @@ Uses the Dev deployment to update the Dev deployment
 
 #>
 
-[CmdletBinding(PositionalBinding=$false)]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [switch]$SelfhostHelp,
 
     [ValidateSet("LKG", "Dev", "RunCheckinTests", "RunCheckinTestSamples", "ChangeJournalService")]
     [string]$Use = "LKG",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$DevRoot,
 
     [ValidateSet("Release", "Debug")]
@@ -75,30 +75,30 @@ param(
     [ValidateSet("net472", "net7.0", "win-x64", "osx-x64")]
     [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$DominoDeploymentRoot = "Out\Bin",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateSet("Dev", "RunCheckinTests", "RunCheckinTestSamples", "ChangeJournalService")]
     [string]$Deploy,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$TestMethod = "",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$TestClass = "",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
     [string]$SharedCacheMode = "Consume",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$DevCache = $false,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$DefaultConfig,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$UseAdoBuildRunner = $false,
 
     [switch]$Vanilla,
@@ -125,40 +125,43 @@ param(
 
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$UseDedupStore = $false,
 
-    [Parameter(Mandatory=$false)]
+    [ValidateSet("Disabled", "Build", "Datacenter")]
+    [string]$UseEphemeralCache = "Disabled",
+
+    [Parameter(Mandatory = $false)]
     [switch]$UseBlobL3 = $false,
 
     [string]$VsoAccount = "mseng",
 
     [string]$CacheNamespace = "BuildXLSelfhost",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$Vs = $false,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$VsAll = $false,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$UseManagedSharedCompilation = $true,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$NoQTest = $false,
 
     [switch]$NoSubst = $false,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [switch]$EnableProcessRemoting = $false,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$AnyBuildClientDir,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$GenerateFlagsMd = $true,
 
-    [Parameter(ValueFromRemainingArguments=$true)]
+    [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$DominoArguments
 )
 
@@ -182,7 +185,7 @@ $NormalizationLockRelativePath = "Out\.NormalizationLock"
 $NonVanillaOptions = @("/IncrementalScheduling", "/nowarn:909 /nowarn:11318 /nowarn:11319 /unsafe_IgnorePreloadedDlls- /historicMetadataCache+ /cachemiss");
 # Add the new-cache options including a unique build session name
 $NonVanillaOptions += @(
-        '/cacheSessionName:{0:yyyyMMdd_HHmmssff}-{1}@{2}' -f ((Get-Date), [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.Replace(' ', '-').Replace('\', '-'), [System.Net.Dns]::GetHostName())
+    '/cacheSessionName:{0:yyyyMMdd_HHmmssff}-{1}@{2}' -f ((Get-Date), [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.Replace(' ', '-').Replace('\', '-'), [System.Net.Dns]::GetHostName())
 );
 
 if ($SelfhostHelp) {
@@ -276,8 +279,7 @@ $BuildXLRunnerExeName = "RunInSubst.exe";
 $AdoBuildRunnerExeName = "AdoBuildRunner.exe";
 $NugetDownloaderName = "NugetDownloader.exe";
 
-if ($Analyze)
-{
+if ($Analyze) {
     $BuildXLExeName = "bxlanalyzer.exe";
 }
 
@@ -305,14 +307,15 @@ if ($Vs -or $VsAll) {
     if ($VsAll) {
         # -vsAll builds both .NET Core and Net472 and doesn't specify any /vsTargetFramework filters 
         $AdditionalBuildXLArguments += "/q:Debug /q:DebugNet472";
-    } else {
+    }
+    else {
         # by default (-vs) we build only .NET Core and only projects targeting one of the .NET Core frameworks
         $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net6.0";
     }
 }
 
 # Various tools consume language pack files under this path if they are installed. Untrack them to prevent DFAs in local builds
-$AdditionalBuildXLArguments +=@("/unsafe_GlobalUntrackedScopes:""C:\Program Files\WindowsApps""");
+$AdditionalBuildXLArguments += @("/unsafe_GlobalUntrackedScopes:""C:\Program Files\WindowsApps""");
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
 $AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/enableEvaluationThrottling");
@@ -359,8 +362,7 @@ function Get-CacheMissArgs {
     $output = git log --first-parent -n 3 --pretty=format:%H
     
     $cacheMissArgs += "/CacheMiss:[";
-    foreach ($item in $output.Split(" "))
-    {
+    foreach ($item in $output.Split(" ")) {
         $cacheMissArgs += "commit";
         $cacheMissArgs += $item;
         $cacheMissArgs += ":";
@@ -390,15 +392,15 @@ function New-Deployment {
     }
     
     return @{
-        description = $Description;
-        dir = $dir;
-        domino = Join-Path $dir $BuildXLExeName;
-        adoBuildRunner = Join-Path $dir $AdoBuildRunnerExeName;
-        nugetDownloader = Join-Path $dir $NugetDownloaderName
-        buildDir = Join-Path $Root $buildRelativeDir;
-        enableServerMode = $enableServerMode;
+        description          = $Description;
+        dir                  = $dir;
+        domino               = Join-Path $dir $BuildXLExeName;
+        adoBuildRunner       = Join-Path $dir $AdoBuildRunnerExeName;
+        nugetDownloader      = Join-Path $dir $NugetDownloaderName
+        buildDir             = Join-Path $Root $buildRelativeDir;
+        enableServerMode     = $enableServerMode;
         telemetryEnvironment = $TelemetryEnvironment;
-        serverDeploymentDir = $serverDeploymentDir;
+        serverDeploymentDir  = $serverDeploymentDir;
     };
 }
 
@@ -413,69 +415,87 @@ function Get-CacheConfig {
     param([bool]$UseSharedCache, [bool]$PublishToSharedCache, [string]$VsoAccount, [string]$CacheNamespace);
     
     $localCache = @{
-         Assembly = "BuildXL.Cache.MemoizationStoreAdapter";
-         Type = "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory";
-         CacheId = "SelfhostCS2L1";
-         MaxCacheSizeInMB = 20240;
-         CacheRootPath = $cacheDirectory;
-         CacheLogPath = "[BuildXLSelectedLogPath]";
-         UseStreamCAS = $true;
-         UseRocksDbMemoizationStore = $true;
+        Assembly                   = "BuildXL.Cache.MemoizationStoreAdapter";
+        Type                       = "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory";
+        CacheId                    = "SelfhostCS2L1";
+        MaxCacheSizeInMB           = 20240;
+        CacheRootPath              = $cacheDirectory;
+        CacheLogPath               = "[BuildXLSelectedLogPath]";
+        UseStreamCAS               = $true;
+        UseRocksDbMemoizationStore = $true;
     };
 
-    if (! $UseSharedCache) {
+    if (!$UseSharedCache) {
         return $localCache;
     }
 
-    $remoteCache = @{
-        Assembly = "BuildXL.Cache.BuildCacheAdapter";
-        Type = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory";
-        CacheId = "L3Cache";
-        CacheLogPath = "[BuildXLSelectedLogPath].Remote.log";
-        CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com";
-        CacheServiceContentEndpoint = "https://$VsoAccount.vsblob.visualstudio.com";
-        UseBlobContentHashLists = $true;
-        CacheNamespace = $CacheNamespace;
-        DownloadBlobsUsingHttpClient = $true;
-        RequiredContentKeepUntilHours = 1;
+    $ephemeralCache = @{
+        Assembly              = "BuildXL.Cache.MemoizationStoreAdapter";
+        CacheLogPath          = "[BuildXLSelectedLogPath]";
+        Type                  = "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory";
+        CacheId               = "L3Cache";
+        Universe              = $CacheNamespace;
+        RetentionPolicyInDays = 1;
+        CacheRootPath         = "[BuildXLSelectedRootPath]";
+        LeaderMachineName     = "[BuildXLSelectedLeader]";
+        CacheSizeMb           = 20240;
+        DatacenterWide        = $UseEphemeralCache -eq "Datacenter";
     };
-
-    if ($env:BUILDXL_VSTS_REMOTE_FINGERPRINT_ENDPOINT) {
-        $remoteCache.CacheServiceFingerprintEndpoint = $env:BUILDXL_VSTS_REMOTE_FINGERPRINT_ENDPOINT;
-        Write-Host "Using " $remoteCache.CacheServiceFingerprintEndpoint
-    }
-
-    if ($env:BUILDXL_VSTS_REMOTE_CONTENT_ENDPOINT) {
-        $remoteCache.CacheServiceContentEndpoint = $env:BUILDXL_VSTS_REMOTE_CONTENT_ENDPOINT;
-        Write-Host "Using " $remoteCache.CacheServiceContentEndpoint
-    }
-    
-    <# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
-    if ($UseDedupStore) {
-        $remoteCache.Add("UseDedupStore", $true);
+    if ($UseEphemeralCache -ne "Disabled") {
+        return $ephemeralCache;
     }
 
     if ($UseBlobL3) {
         $remoteCache = @{
-            Assembly = "BuildXL.Cache.MemoizationStoreAdapter";
-            Type = "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory";
-            CacheId = "L3Cache";
-            CacheLogPath = "[BuildXLSelectedLogPath].Remote.log";
-            ContainerName = $CacheNamespace;
+            Assembly              = "BuildXL.Cache.MemoizationStoreAdapter";
+            Type                  = "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory";
+            CacheId               = "L3Cache";
+            CacheLogPath          = "[BuildXLSelectedLogPath].Remote.log";
+            Universe              = $CacheNamespace;
+            RetentionPolicyInDays = 1;
         };
+    }
+    else {
+        $remoteCache = @{
+            Assembly                        = "BuildXL.Cache.BuildCacheAdapter";
+            Type                            = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory";
+            CacheId                         = "L3Cache";
+            CacheLogPath                    = "[BuildXLSelectedLogPath].Remote.log";
+            CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com";
+            CacheServiceContentEndpoint     = "https://$VsoAccount.vsblob.visualstudio.com";
+            UseBlobContentHashLists         = $true;
+            CacheNamespace                  = $CacheNamespace;
+            DownloadBlobsUsingHttpClient    = $true;
+            RequiredContentKeepUntilHours   = 1;
+        };
+
+        if ($env:BUILDXL_VSTS_REMOTE_FINGERPRINT_ENDPOINT) {
+            $remoteCache.CacheServiceFingerprintEndpoint = $env:BUILDXL_VSTS_REMOTE_FINGERPRINT_ENDPOINT;
+            Write-Host "Using " $remoteCache.CacheServiceFingerprintEndpoint
+        }
+
+        if ($env:BUILDXL_VSTS_REMOTE_CONTENT_ENDPOINT) {
+            $remoteCache.CacheServiceContentEndpoint = $env:BUILDXL_VSTS_REMOTE_CONTENT_ENDPOINT;
+            Write-Host "Using " $remoteCache.CacheServiceContentEndpoint
+        }
+        
+        <# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
+        if ($UseDedupStore) {
+            $remoteCache.Add("UseDedupStore", $true);
+        }
     }
 
     $resultCache = @{
-        Assembly = "BuildXL.Cache.VerticalAggregator";
-        Type = "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory";
-        RemoteIsReadOnly = !($PublishToSharedCache);
-        RemoteContentIsReadOnly = !($PublishToSharedCache);
-        WriteThroughCasData = $PublishToSharedCache;
-        LocalCache = $localCache;
-        RemoteCache = $remoteCache;
+        Assembly                              = "BuildXL.Cache.VerticalAggregator";
+        Type                                  = "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory";
+        RemoteIsReadOnly                      = !($PublishToSharedCache);
+        RemoteContentIsReadOnly               = !($PublishToSharedCache);
+        WriteThroughCasData                   = $PublishToSharedCache;
+        LocalCache                            = $localCache;
+        RemoteCache                           = $remoteCache;
         RemoteConstructionTimeoutMilliseconds = 36000;
-        SkipDeterminismRecovery = $true;
-        FailIfRemoteFails = $true;
+        SkipDeterminismRecovery               = $true;
+        FailIfRemoteFails                     = $true;
     };
 
     return $resultCache;
@@ -559,11 +579,11 @@ function Get-Deployment {
 # Note that we only enable server mode for the LKG deployment; it is in a version-named directory and so we don't have any trouble with the persistent
 # server keeping the binaries locked (new versions will get a new directory).
 $deployments = @{
-    LKG = New-Deployment -Root $enlistmentRoot -Name "LKG" -Description "LKG (published NuGet package)" -TelemetryEnvironment "SelfhostLKG" -Dir $lkgDir -EnableServerMode $true -DeploymentRoot $DominoDeploymentRoot;
-    Dev = New-Deployment -Root $enlistmentRoot -Name "Dev" -Description "dev (locally-built)" -TelemetryEnvironment "SelfHostPrivateBuild" -Dir $DevRoot -EnableServerMode $false -DeploymentRoot $DominoDeploymentRoot;
-    RunCheckinTests = New-Deployment -Root $enlistmentRoot -Name "RunCheckinTests" -Description "checkin-validation"  -TelemetryEnvironment "SelfHostPrivateBuild" -EnableServerMode $true -DeploymentRoot $DominoDeploymentRoot;
+    LKG                   = New-Deployment -Root $enlistmentRoot -Name "LKG" -Description "LKG (published NuGet package)" -TelemetryEnvironment "SelfhostLKG" -Dir $lkgDir -EnableServerMode $true -DeploymentRoot $DominoDeploymentRoot;
+    Dev                   = New-Deployment -Root $enlistmentRoot -Name "Dev" -Description "dev (locally-built)" -TelemetryEnvironment "SelfHostPrivateBuild" -Dir $DevRoot -EnableServerMode $false -DeploymentRoot $DominoDeploymentRoot;
+    RunCheckinTests       = New-Deployment -Root $enlistmentRoot -Name "RunCheckinTests" -Description "checkin-validation"  -TelemetryEnvironment "SelfHostPrivateBuild" -EnableServerMode $true -DeploymentRoot $DominoDeploymentRoot;
     RunCheckinTestSamples = New-Deployment -Root $enlistmentRoot -Name "RunCheckinTestSamples" -Description "checkin-validation-samples"  -TelemetryEnvironment "SelfHostPrivateBuild" -DeploymentRoot $DominoDeploymentRoot;
-    ChangeJournalService = New-Deployment -Root $enlistmentRoot -Name "ChangeJournalService" -Description "change journal service"  -TelemetryEnvironment "SelfHostPrivateBuild" -DeploymentRoot $DominoDeploymentRoot;
+    ChangeJournalService  = New-Deployment -Root $enlistmentRoot -Name "ChangeJournalService" -Description "change journal service"  -TelemetryEnvironment "SelfHostPrivateBuild" -DeploymentRoot $DominoDeploymentRoot;
 };
 
 $shouldDeploy = $Deploy -ne $null -and $Deploy -ne "";
@@ -592,7 +612,8 @@ if ($DeployConfig -eq "Release") {
     else {
         $AdditionalBuildXLArguments += "/q:Release"
     }
-} else {
+}
+else {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:DebugNet472"
     }
@@ -664,8 +685,8 @@ if (-not $DisableInteractive) {
 
 # let any freeform filter arguments take precedence over the default filter
 $skipFilter = $false;
-for($i = 0; $i -lt $DominoArguments.Count; $i++){
-    if (!$DominoArguments[$i].StartsWith('-') -and !$DominoArguments[$i].StartsWith('/')){
+for ($i = 0; $i -lt $DominoArguments.Count; $i++) {
+    if (!$DominoArguments[$i].StartsWith('-') -and !$DominoArguments[$i].StartsWith('/')) {
         $skipFilter = $true;
     }
 }
@@ -716,7 +737,7 @@ if (!$skipFilter) {
     }
 
     if ($SkipTests) {
-        $AdditionalBuildXLArguments +=  "/f:~($CacheLongRunningFilter)and~($CacheNugetFilter)"
+        $AdditionalBuildXLArguments += "/f:~($CacheLongRunningFilter)and~($CacheNugetFilter)"
     }
 }
 
@@ -725,13 +746,11 @@ if ($Analyze) {
     $DominoArguments.RemoveAt(0);
 }
 
-if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
-{
+if ($env:BUILDXL_ADDITIONAL_DEFAULTS) {
     $AdditionalBuildXLArguments += $env:BUILDXL_ADDITIONAL_DEFAULTS
 }
 
-if ($isRunningOnADO)
-{
+if ($isRunningOnADO) {
     # On ADO, let's make sure we scrub stale files to avoid CG issues on unused packages
     # Nuget packages go under the Object directory (and nuspec files downloaded as part of the inpection process under the frontend\Nuget folder).
     # The download resolver places the downloads under frontend/Download.
@@ -739,7 +758,7 @@ if ($isRunningOnADO)
     $AdditionalBuildXLArguments += "/scrubDirectory:Out\Objects /scrubDirectory:Out\frontend\Download /scrubDirectory:Out\frontend\Nuget\pkgs";
 }
 
-[string[]]$DominoArguments = @($DominoArguments |% { $_.Replace("#singlequote#", "'").Replace("#openparens#", "(").Replace("#closeparens#", ")"); })
+[string[]]$DominoArguments = @($DominoArguments | % { $_.Replace("#singlequote#", "'").Replace("#openparens#", "(").Replace("#closeparens#", ")"); })
 [string[]]$DominoArguments = $AdditionalBuildXLArguments + $DominoArguments;
 
 # The MS internal build needs authentication. When not running on ADO use the configured cred provider
@@ -759,8 +778,7 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
     $credProviderArguments = "-U $internalFeed -V Information -C -R"
     $p = Start-Process -FilePath $credProvider -NoNewWindow -Wait -PassThru -ArgumentList $credProviderArguments;
 
-    if (-not ($p.ExitCode -eq 0))
-    {
+    if (-not ($p.ExitCode -eq 0)) {
         Log-Error "Failed authentication using the specified credential provider.";
         $host.SetShouldExit($p.ExitCode);
         return $p.ExitCode;
@@ -771,13 +789,11 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
     Log "Validating credential provider execution."
     $p = Start-Process $useDeployment.nugetDownloader -NoNewWindow -Wait -PassThru -ArgumentList "/repositories:BuildXL=$internalFeed /onlyAuthenticate" -RedirectStandardOutput "Out/Logs/interactive-auth.log"
 
-    if (-not ($p.ExitCode -eq 0))
-    {
+    if (-not ($p.ExitCode -eq 0)) {
         Log "Authentication failed. The credential provider may have returned an invalid auth token. Calling it again with -IsRetry to bypass caching";
         $p = Start-Process -FilePath $credProvider -NoNewWindow -Wait -PassThru -ArgumentList "$credProviderArguments -IsRetry";
         
-        if (-not ($p.ExitCode -eq 0))
-        {
+        if (-not ($p.ExitCode -eq 0)) {
             Log-Error "Failed authentication using the specified credential provider.";
             $host.SetShouldExit($p.ExitCode);
             return $p.ExitCode;
@@ -790,7 +806,8 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
 $executable = $useDeployment.domino;
 if ($NoSubst) {
     $arguments = $DominoArguments
-} else {
+}
+else {
     # Wrap the invocation with RunInSubst
     $arguments = Get-SubstArguments $DominoArguments
 }
@@ -806,7 +823,8 @@ $bxlSuccess = ($bxlExitCode -eq 0);
 
 if ($bxlSuccess) {
     Log "Done.";
-} else {
+}
+else {
     Log-Error "The BuildXL build failed with exit code $bxlExitCode";
 }
 
@@ -823,7 +841,8 @@ if ($shouldDeploy) {
         Mirror-Directory $deployDeployment.buildDir $deployDeployment.dir;
 
         Log "Done. You can use the binaries with 'bxl -Use $Deploy'";
-    } else {
+    }
+    else {
         Log-Error "Deployment cancelled since the build failed; see above."
     }
 }

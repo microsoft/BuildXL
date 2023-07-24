@@ -77,7 +77,9 @@ jobs:
   - script: |
       netsh advfirewall firewall add rule name="Open BuildXL inbound port" dir=in action=allow protocol=TCP localport=6979
       netsh advfirewall firewall add rule name="Open BuildXL outbound port" protocol=TCP localport=6979 action=allow dir=OUT
-    displayName: Disable local firewall for BuildXL port
+      netsh advfirewall firewall add rule name="Open Cache inbound port" dir=in action=allow protocol=TCP localport=7089
+      netsh advfirewall firewall add rule name="Open Cache outbound port" protocol=TCP localport=7089 action=allow dir=OUT
+    displayName: Setup firewall rules
 
   - task: PowerShell@2
     inputs:
@@ -90,6 +92,8 @@ jobs:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
       AdoBuildRunnerInvocationKey: SelfhostClean
+      BlobCacheFactoryConnectionString: $(BuildXL-Selfhost-L3-ConnectionString)
+
   
   - ${{ if eq(parameters.Role, 'Orchestrator') }}:
     - powershell: |

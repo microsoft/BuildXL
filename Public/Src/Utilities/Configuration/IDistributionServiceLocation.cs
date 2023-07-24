@@ -1,21 +1,21 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace BuildXL.Utilities.Configuration
+namespace BuildXL.Utilities.Configuration;
+
+/// <summary>
+/// (Endpoint, Port) pair.
+/// </summary>
+public interface IDistributionServiceLocation
 {
     /// <summary>
-    /// Server, port pair.
+    /// This comes directly from the command line parameters, and might be either an IP address or a hostname
+    /// depending on what the user gave us.
     /// </summary>
-    public partial interface IDistributionServiceLocation
-    {
-        /// <summary>
-        /// IpAddress of the worker
-        /// </summary>
-        string IpAddress { get; }
+    string IpAddress { get; }
 
-        /// <summary>
-        /// Port of the worker
-        /// </summary>
-        int BuildServicePort { get; }
-    }
+    /// <summary>
+    /// Port
+    /// </summary>
+    int BuildServicePort { get; }
 }

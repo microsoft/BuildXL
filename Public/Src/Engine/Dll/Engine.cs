@@ -2004,7 +2004,8 @@ namespace BuildXL.Engine
                                     rootTranslator: m_rootTranslator,
                                     recoveryStatus: recoveryStatus,
                                     cancellationToken: Context.CancellationToken,
-                                    testHookCacheFactory: TestHooks?.CacheFactory);
+                                    testHookCacheFactory: TestHooks?.CacheFactory,
+                                    distributionConfiguration: Configuration.Distribution);
 
                                 // When distribution is on, we have to finish initializing the EngineCache right away.
                                 // (rather than trying to defer waiting as much as possible).

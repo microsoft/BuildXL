@@ -751,16 +751,16 @@ bool ParseFileAccessManifest(
     assert(payload != nullptr);
 
     std::wstring initErrorMessage;
-    if (!g_pDetouredProcessInjector->Init(reinterpret_cast<const byte *>(payload), initErrorMessage))
+    uint32_t payloadSize;
+    LPCBYTE payloadBytes = nullptr;
+
+    if (!g_pDetouredProcessInjector->Init(reinterpret_cast<const byte *>(payload), initErrorMessage, &payloadBytes, payloadSize))
     {
         // Error initializing injector due to incorrect content of payload.
         std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: Error initializing process injector: %s", initErrorMessage.c_str());
         HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_19, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_19);
         return false;
     }
-
-    const byte * const payloadBytes = g_pDetouredProcessInjector->Payload();
-    const DWORD payloadSize = g_pDetouredProcessInjector->PayloadSize();
 
     assert(payloadSize > 0);
     assert(payloadBytes != nullptr);
@@ -875,6 +875,7 @@ bool ParseFileAccessManifest(
     extraFlags->AssertValid();
     g_fileAccessManifestExtraFlags = static_cast<FileAccessManifestExtraFlag>(extraFlags->ExtraFlags);
     g_pDetouredProcessInjector->SetAlwaysRemoteInjectFromWow64Process(CheckAlwaysRemoteInjectDetoursFrom32BitProcess(g_fileAccessManifestExtraFlags));
+    g_pDetouredProcessInjector->SetPayload(payloadBytes, payloadSize);
     offset += extraFlags->GetSize();
 
     PCManifestPipId pipId = reinterpret_cast<PCManifestPipId>(&payloadBytes[offset]);

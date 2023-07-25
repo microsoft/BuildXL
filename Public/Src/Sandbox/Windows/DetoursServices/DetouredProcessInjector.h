@@ -130,10 +130,12 @@ public:
     }
 
     // Populate the data from the serialized wrapper.
-    bool Init(LPCBYTE payloadWrapper, std::wstring& errorMessage);
+    bool Init(LPCBYTE payloadWrapper, std::wstring& errorMessage, _Out_ LPCBYTE* payload, _Out_ uint32_t& payloadSize);
     void Init(HANDLE remoteInterjectorPipe, HANDLE reportPipe,
         uint32_t payloadSize, LPCBYTE payload,
         uint32_t otherHandleCount, PHANDLE otherHandles);
+
+    void SetPayload(LPCBYTE payload, uint32_t payloadSize);
 
     // Set the dll paths to be injected
     void inline SetDlls(LPCSTR dllX86, LPCSTR dllX64)

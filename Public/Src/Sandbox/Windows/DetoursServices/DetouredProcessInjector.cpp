@@ -54,9 +54,11 @@ void DetouredProcessInjector::Clear()
 // uint64_t handles - handles passed from the parent.
 //                    There must be c_minHandleCount handles there.
 // payload
-bool DetouredProcessInjector::Init(LPCBYTE payloadWrapper, std::wstring& errorMessage)
+bool DetouredProcessInjector::Init(LPCBYTE payloadWrapper, std::wstring& errorMessage, _Out_ LPCBYTE* payload, _Out_ uint32_t& payloadSize)
 {
     errorMessage = L"";
+    *payload = nullptr;
+    payloadSize = 0;
 
     if (payloadWrapper == nullptr)
     {
@@ -127,17 +129,28 @@ bool DetouredProcessInjector::Init(LPCBYTE payloadWrapper, std::wstring& errorMe
         }
     }
 
-    // Copy payload.
-    _payloadSize = size;
-    if (size == 0)
+    // Copy payload immediately only if this process is not WOW64 process.
+    if (!s_isWow64Process)
     {
-        _payload = nullptr;
+        _payloadSize = size;
+
+        if (size == 0)
+        {
+            _payload = nullptr;
+        }
+        else
+        {
+            _payload = make_unique<byte[]>(size);
+            memcpy_s(_payload.get(), size, handles, size);
+        }
+
+        *payload = _payload.get();
+        payloadSize = _payloadSize;
     }
     else
     {
-        byte* newPayload = new byte[size];
-        memcpy_s(newPayload, size, handles, size);
-        _payload.reset(newPayload);
+        *payload = (LPCBYTE)handles;
+        payloadSize = size;
     }
 
     _initialized = true;
@@ -168,7 +181,7 @@ void DetouredProcessInjector::Init(
     _payloadSize = payloadSize;
     if (payloadSize == 0)
     {
-        _payload.reset(nullptr);
+        _payload = nullptr;
     }
     else {
         _payload = make_unique<byte[]>(payloadSize);
@@ -177,6 +190,36 @@ void DetouredProcessInjector::Init(
 
     SetHandles(otherHandleCount, otherHandles);
     _initialized = true;
+}
+
+void DetouredProcessInjector::SetPayload(LPCBYTE payload, uint32_t payloadSize)
+{
+    if (_payload.get() != nullptr)
+    {
+        // Payload can be set only once.
+        return;
+    }
+
+    if (s_isWow64Process && (_alwaysRemoteInjectFromWow64Process || _mapDirectory.isValid()))
+    {
+        // If this is a WOW64 process, don't set the payload if injection is always set to be remote or if there is map directory.
+        // In such cases the injection will be done remotely by the DetouredProcessInjector created by BuildXL.
+        _payloadSize = 0;
+        _payload = nullptr;
+        return;
+    }
+
+    _payloadSize = payloadSize;
+
+    if (payloadSize == 0)
+    {
+        _payload = nullptr;
+    }
+    else
+    {
+        _payload = make_unique<byte[]>(payloadSize);
+        memcpy_s(_payload.get(), payloadSize, payload, payloadSize);
+    }
 }
 
 

@@ -16,6 +16,9 @@ async function getVersion() : Promise<string> {
 async function downloadNugetPackage(targetDir: string, packageName: string, version: string) : Promise<void> {
     const feed = "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL/nuget/v3/index.json";
 
+    // Ensure the target directory exists
+    await fsExtra.ensureDir(targetDir);
+
     // Clear 
     await fs.promises.rmdir(targetDir, {recursive: true});
 

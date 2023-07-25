@@ -19,6 +19,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter;
 
@@ -145,10 +146,11 @@ public class EphemeralCacheFactory : ICacheFactory
                 failures.Add(new RetentionDaysNotSetFailure(configuration.CacheId));
             }
 
+            var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds);
             var cache = new MemoizationStoreAdapterCache(
                 cacheId: configuration.CacheId,
-                innerCache: await CreateEphemeralCache(configuration),
-                logger: new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds),
+                innerCache: await CreateEphemeralCache(logger, configuration),
+                logger: logger,
                 statsFile: new AbsolutePath(logPath.Path + ".stats"),
                 precedingStateDegradationFailures: failures);
 
@@ -166,9 +168,8 @@ public class EphemeralCacheFactory : ICacheFactory
         }
     }
 
-    private static async Task<MemoizationStore.Interfaces.Caches.ICache> CreateEphemeralCache(FactoryConfiguration configuration)
+    private static async Task<MemoizationStore.Interfaces.Caches.ICache> CreateEphemeralCache(ILogger logger, FactoryConfiguration configuration)
     {
-        var logger = NullLogger.Instance;
         var tracingContext = new Context(logger);
         var context = new OperationContext(tracingContext);
 
@@ -177,7 +178,7 @@ public class EphemeralCacheFactory : ICacheFactory
         var machineLocation = MachineLocation.Create(Environment.MachineName, GrpcConstants.DefaultGrpcPort);
         var leaderLocation = MachineLocation.Create(configuration.LeaderMachineName, GrpcConstants.DefaultGrpcPort);
         var rootPath = new AbsolutePath(configuration.CacheRootPath);
-
+        context.TracingContext.Info($"Creating ephemeral cache. Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}]", nameof(EphemeralCacheFactory));
 
         if (configuration.DatacenterWide)
         {

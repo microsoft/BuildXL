@@ -299,10 +299,13 @@ namespace BuildXL.Engine
             cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedRootPath]", cacheDirectory.Replace(@"\", @"\\"));
             cacheConfigContent = cacheConfigContent.Replace("[UseDedupStore]", config.UseDedupStore.ToString());
             cacheConfigContent = cacheConfigContent.Replace("[ReplaceExistingFileOnMaterialization]", config.ReplaceExistingFileOnMaterialization.ToString());
-            if (!string.IsNullOrEmpty(distributionConfiguration?.OrchestratorLocation?.IpAddress))
+
+            var orchestratorLocation = distributionConfiguration?.OrchestratorLocation?.IpAddress;
+            if (string.IsNullOrEmpty(orchestratorLocation))
             {
-                cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedLeader]", distributionConfiguration.OrchestratorLocation.IpAddress);
+                orchestratorLocation = Environment.MachineName;
             }
+            cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedLeader]", orchestratorLocation);
 
             var vfsCasRoot = config.VfsCasRoot.IsValid 
                 ? config.VfsCasRoot.ToString(pathTable)

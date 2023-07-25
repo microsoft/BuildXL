@@ -127,31 +127,16 @@ jobs:
       rm -f Out/CacheConfig.json
       tee Out/CacheConfig.json << EOF
       {
-      "RemoteIsReadOnly": false,
-      "SkipDeterminismRecovery": true,
-      "WriteThroughCasData": true,
-      "FailIfRemoteFails": true,
-      "RemoteConstructionTimeoutMilliseconds":  30000,
-      "Assembly":  "BuildXL.Cache.VerticalAggregator",
-      "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
-      "RemoteCache":  {
-                        "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
-                        "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
-                        "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
-                        "CacheId": "L3Cache",
-                        "Universe": "blob3bxlselfhost",
-                        "RetentionPolicyInDays": 1
-                      },
-      "LocalCache":  {
-                        "MaxCacheSizeInMB":  20240,
-                        "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
-                        "UseStreamCAS":  true,
-                        "Type":  "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
-                        "CacheLogPath":  "[BuildXLSelectedLogPath]",
-                        "CacheRootPath":  "[BuildXLSelectedRootPath]",
-                        "CacheId":  "SelfhostCS2L1",
-                        "UseRocksDbMemoizationStore":  true
-                    }
+          "RetentionPolicyInDays":  1,
+          "CacheSizeMb":  20240,
+          "Type":  "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory",
+          "DatacenterWide":  false,
+          "LeaderMachineName":  "[BuildXLSelectedLeader]",
+          "CacheRootPath":  "[BuildXLSelectedRootPath]",
+          "CacheId":  "L1L2L3Cache",
+          "Universe":  "bxlselfhost",
+          "CacheLogPath":  "[BuildXLSelectedLogPath]",
+          "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter"
       }
       EOF
     displayName: Write cache config file for distributed build
@@ -161,7 +146,7 @@ jobs:
       # - the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
       # - we also disable early worker release to avoid releasing a worker before attachment, which tends to happen
       #   when the build is highly cached: the intention is to have as much of a distributed build as possible for validation purposes
-      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='PrPipelineSalt_20230612'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=10 /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346
+      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test' /p:BUILDXL_FINGERPRINT_SALT='PrPipelineSalt_20230612'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=10 /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache-
     displayName: Test (${{ parameters.validationName }})
     workingDirectory: /home/subst
     env:

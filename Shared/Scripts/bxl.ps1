@@ -136,7 +136,7 @@ param(
 
     [string]$VsoAccount = "mseng",
 
-    [string]$CacheNamespace = "BuildXLSelfhost",
+    [string]$CacheNamespace = "buildxlselfhost",
 
     [Parameter(Mandatory = $false)]
     [switch]$Vs = $false,

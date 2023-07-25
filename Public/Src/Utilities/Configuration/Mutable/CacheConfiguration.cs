@@ -11,6 +11,15 @@ namespace BuildXL.Utilities.Configuration.Mutable
     /// <nodoc />
     public sealed class CacheConfiguration : ICacheConfiguration
     {
+        /// <summary>
+        /// Default max path sets to check during cache lookup when limiting path set check is enabled.
+        /// </summary>
+        /// <remarks>
+        /// Kusto query shows that the average number of path sets visited during cache lookup before getting a cache hit is 6.
+        /// This default simply doubles that average number.
+        /// </remarks>
+        public const int DefaultMaxPathSetsOnCacheLookupWhenEnabled = 12;
+
         /// <nodoc />
         public CacheConfiguration()
         {
@@ -64,6 +73,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AugmentWeakFingerprintPathSetThreshold = template.AugmentWeakFingerprintPathSetThreshold;
             AugmentWeakFingerprintRequiredPathCommonalityFactor = template.AugmentWeakFingerprintRequiredPathCommonalityFactor;
             MonitorAugmentedPathSets = template.MonitorAugmentedPathSets;
+            MaxPathSetsOnCacheLookup = template.MaxPathSetsOnCacheLookup;
             UseLocalOnly = template.UseLocalOnly;
         }
 
@@ -162,6 +172,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int MonitorAugmentedPathSets { get; set; }
+
+        /// <inheritdoc />
+        public int MaxPathSetsOnCacheLookup { get; set; }
 
         /// <inheritdoc />
         public bool? UseLocalOnly { get; set; }

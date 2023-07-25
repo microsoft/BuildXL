@@ -1026,6 +1026,25 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhasePublishingCacheEntryFailedError(LoggingContext loggingContext, string pipDescription, string failure, string cachingInfo);
 
         [GeneratedEvent(
+            (int)LogEventId.TwoPhaseReachMaxPathSetsToCheck,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Pip will have a cache miss because the max number {maxNumber} of path sets to check has been reached (weak fingerprint: '{weakFingerprint}', augmented: {isWeakFingerprintAugmented})")]
+        internal abstract void TwoPhaseReachMaxPathSetsToCheck(LoggingContext loggingContext, string pipDescription, int maxNumber, string weakFingerprint, bool isWeakFingerprintAugmented);
+
+        [GeneratedEvent(
+            (int)LogEventId.TwoPhaseCheckingTooManyPathSets,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] There have been many unique checked path sets ({pathSetCount}) during cache lookup. This may result in an expensive cache lookup. "
+                      + "Consider making the pip less non-deterministic with respect to its inputs, or consider weak fingerprint augmentation by passing '/pathSetThreshold:<number>', or by limiting the number of unique checked path sets by passing '/limitPathSetsOnCacheLookup:<number>.'")]
+        internal abstract void TwoPhaseCheckingTooManyPathSets(LoggingContext loggingContext, string pipDescription, int pathSetCount);
+
+        [GeneratedEvent(
             (int)LogEventId.ConvertToRunnableFromCacheFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

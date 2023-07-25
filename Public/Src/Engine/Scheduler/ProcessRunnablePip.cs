@@ -75,6 +75,13 @@ namespace BuildXL.Scheduler
         /// </summary>
         public ProcessRunLocation RunLocation { get; set; } = ProcessRunLocation.Default;
 
+        /// <summary>
+        /// Number of path sets to check on cache lookup.
+        /// </summary>
+        public int NumberOfUniquePathSetsToCheck => Environment.Configuration.Cache.MaxPathSetsOnCacheLookup > 0
+            ? Environment.Configuration.Cache.MaxPathSetsOnCacheLookup
+            : int.MaxValue;
+
         private readonly int m_weightBasedOnHistoricCpuUsage;
 
         internal ProcessRunnablePip(

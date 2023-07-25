@@ -112,10 +112,11 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
                                     priorNode.Next = node;
                                 }
 
-                                node.Next = node;
+                                node.Next = currentNode.Next;
+                                currentNode = node;
                             }
 
-                            return existingNode;
+                            return currentNode;
                         }
 
                         priorNode = currentNode;

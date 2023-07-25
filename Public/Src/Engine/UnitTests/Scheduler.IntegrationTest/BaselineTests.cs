@@ -1456,6 +1456,66 @@ namespace IntegrationTest.BuildXL.Scheduler
             SetExpectedFailures(2, 0);
         }
 
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void LimitPathSetsOnCacheLookup(bool limitPathSets)
+        {
+            const int MaxPathSetsOnCacheLookup = 2;
+            Configuration.Cache.MaxPathSetsOnCacheLookup = limitPathSets ? MaxPathSetsOnCacheLookup : 0;
+
+            var ssdRoot = CreateUniqueDirectory(root: SourceRoot, prefix: "ssd");
+
+            var fileInSSD = CreateSourceFile(root: ssdRoot, prefix: "file");
+            var fileInSSD0 = CreateSourceFile(root: ssdRoot, prefix: "file0");
+            var fileInSSD1 = CreateSourceFile(root: ssdRoot, prefix: "file1");
+            var fileInSSD2 = CreateSourceFile(root: ssdRoot, prefix: "file2");
+            var fileInSSD3 = CreateSourceFile(root: ssdRoot, prefix: "file3");
+            var ssd = CreateAndScheduleSealDirectory(ssdRoot, SealDirectoryKind.SourceAllDirectories, fileInSSD, fileInSSD0, fileInSSD1, fileInSSD2, fileInSSD3);
+
+            var untrackedFile = CreateSourceFileWithPrefix(root: SourceRoot, prefix: "untrackedFile");
+            var untrackedFilePath = untrackedFile.Path.ToString(Context.PathTable);
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(fileInSSD, doNotInfer: true),
+
+                // Create non-deterministic operations using untracked file so that the pip can have multiple unique path sets.
+                Operation.ReadFileIfInputEqual(fileInSSD0, untrackedFilePath, "0", doNotInfer: true),
+                Operation.ReadFileIfInputEqual(fileInSSD1, untrackedFilePath, "1", doNotInfer: true),
+                Operation.ReadFileIfInputEqual(fileInSSD2, untrackedFilePath, "2", doNotInfer: true),
+                Operation.ReadFileIfInputEqual(fileInSSD3, untrackedFilePath, "3", doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+            pipBuilder.AddInputDirectory(ssd.Directory);
+            pipBuilder.AddUntrackedFile(untrackedFile);
+
+            Process pip = SchedulePipBuilder(pipBuilder).Process;
+
+            int i = 0;
+            for (; i < MaxPathSetsOnCacheLookup + 1; i++)
+            {
+                WriteSourceFile(fileInSSD, $"content-{i}");
+                WriteSourceFile(untrackedFile, i.ToString());
+                RunScheduler(runNameOrDescription: $"Run-{i}").AssertCacheMiss(pip.PipId);
+            }
+
+            WriteSourceFile(fileInSSD, "content-0");
+            WriteSourceFile(untrackedFile, i.ToString());
+
+            var runResult = RunScheduler(runNameOrDescription: "Run-final");
+
+            if (!limitPathSets)
+            {
+                runResult.AssertCacheHit(pip.PipId);
+            }
+            else
+            {
+                runResult.AssertCacheMiss(pip.PipId);
+            }
+
+            AssertVerboseEventLogged(LogEventId.TwoPhaseReachMaxPathSetsToCheck, limitPathSets ? 1 : 0);
+        }
+
         /// <summary>
         /// Test to validate that global passthrough environment variables are visible to processes
         /// </summary>

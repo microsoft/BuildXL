@@ -67,34 +67,60 @@ namespace BuildXL.Scheduler
         /// </remarks>
         public const int InternalSandboxedProcessExecutionFailureRetryCountMax = 5;
 
-        private static readonly object s_telemetryDetoursHeapLock = new object();
+        private static readonly object s_telemetryDetoursHeapLock = new();
 
         private static readonly ObjectPool<Dictionary<AbsolutePath, ExtractedPathEntry>> s_pathToObservationEntryMapPool =
-            new ObjectPool<Dictionary<AbsolutePath, ExtractedPathEntry>>(
-                () => new Dictionary<AbsolutePath, ExtractedPathEntry>(),
-                map => { map.Clear(); return map; });
+            new(() => new Dictionary<AbsolutePath, ExtractedPathEntry>(), map => { map.Clear(); return map; });
 
         private static readonly ObjectPool<Dictionary<StringId, int>> s_accessedFileNameToUseCountPool =
-            new ObjectPool<Dictionary<StringId, int>>(
-                () => new Dictionary<StringId, int>(),
-                map => { map.Clear(); return map; });
+            new(() => new Dictionary<StringId, int>(), map => { map.Clear(); return map; });
 
         private static readonly ObjectPool<Dictionary<AbsolutePath, FileOutputData>> s_absolutePathFileOutputDataMapPool =
-            new ObjectPool<Dictionary<AbsolutePath, FileOutputData>>(
-                () => new Dictionary<AbsolutePath, FileOutputData>(),
-                map => { map.Clear(); return map; });
+            new(() => new Dictionary<AbsolutePath, FileOutputData>(), map => { map.Clear(); return map; });
 
         private static readonly ObjectPool<List<(AbsolutePath, FileMaterializationInfo)>> s_absolutePathFileMaterializationInfoTuppleListPool = Pools.CreateListPool<(AbsolutePath, FileMaterializationInfo)>();
 
         private static readonly ObjectPool<HashSet<FileArtifact>> s_fileArtifactStoreToCacheSet = Pools.CreateSetPool<FileArtifact>();
 
         private static readonly ObjectPool<OutputDirectoryEnumerationData> s_outputEnumerationDataPool =
-            new ObjectPool<OutputDirectoryEnumerationData>(
-                () => new OutputDirectoryEnumerationData(),
-                data => { data.Clear(); return data; });
+            new(() => new OutputDirectoryEnumerationData(), data => { data.Clear(); return data; });
 
-        private static readonly ArrayPool<Possible<FileMaterializationInfo>?> s_materializationResultsPool = 
-            new ArrayPool<Possible<FileMaterializationInfo>?>(1024);
+        private static readonly ArrayPool<Possible<FileMaterializationInfo>?> s_materializationResultsPool = new(1024);
+
+        private class PathSetCheckData
+        {
+            /// <summary>
+            /// Number of unique path sets that have been checked before warning the user that there are too many unique path sets.
+            /// </summary>
+            private const int NumberOfUniquePathSetsToWarn = 70;
+
+            public int NumberOfUniquePathSetsToCheck => m_processRunnablePip.NumberOfUniquePathSetsToCheck;
+            public int UniquePathSetsCount => NumberOfUniquePathSetsToCheck - m_remainingUniquePathSetsToCheck;
+            public bool ShouldCheckMorePathSet => m_remainingUniquePathSetsToCheck > 0;
+            
+            private int m_remainingUniquePathSetsToCheck;
+            private bool m_warnedAboutTooManyUniquePathSets;
+            private readonly ProcessRunnablePip m_processRunnablePip;
+            private readonly LoggingContext m_loggingContext;
+
+            public PathSetCheckData(LoggingContext loggingContext, ProcessRunnablePip processRunnablePip)
+            {
+                m_loggingContext = loggingContext;
+                m_processRunnablePip = processRunnablePip;
+                m_remainingUniquePathSetsToCheck = m_processRunnablePip.NumberOfUniquePathSetsToCheck;
+            }
+
+            public void DecrementRemainingUniquePathSetsToCheck() => --m_remainingUniquePathSetsToCheck;
+
+            public void WarnAboutTooManyUniquePathSetsIfNeeded()
+            {
+                if (!m_warnedAboutTooManyUniquePathSets && UniquePathSetsCount >= NumberOfUniquePathSetsToWarn)
+                {
+                    Logger.Log.TwoPhaseCheckingTooManyPathSets(m_loggingContext, m_processRunnablePip.Description, UniquePathSetsCount);
+                    m_warnedAboutTooManyUniquePathSets = true;
+                }
+            }
+        }
 
         /// <summary>
         /// Materializes pip's inputs.
@@ -2249,6 +2275,7 @@ namespace BuildXL.Scheduler
                     canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0,
                     isWeakFingerprintAugmented: false,
                     avoidRemoteLookups: avoidRemoteLookups,
+                    pathSetCheckData: new PathSetCheckData(operationContext, processRunnable),
                     traversedAugmentedWeakFingerprintSet);
 
                 processFingerprintComputationResult.Value.StrongFingerprintComputations = strongFingerprintComputationList.SelectArray(s => s.Value);
@@ -2295,6 +2322,7 @@ namespace BuildXL.Scheduler
             bool canAugmentWeakFingerprint,
             bool isWeakFingerprintAugmented,
             bool avoidRemoteLookups,
+            PathSetCheckData pathSetCheckData,
             HashSet<WeakContentFingerprint> traversedAugmentedWeakFingerprintSet)
         {
             Contract.Requires(processRunnable != null);
@@ -2431,6 +2459,17 @@ namespace BuildXL.Scheduler
                                 break;
                             }
 
+                            if (!pathSetCheckData.ShouldCheckMorePathSet)
+                            {
+                                Logger.Log.TwoPhaseReachMaxPathSetsToCheck(
+                                    operationContext,
+                                    description,
+                                    pathSetCheckData.NumberOfUniquePathSetsToCheck,
+                                    weakFingerprint.ToString(),
+                                    isWeakFingerprintAugmented);
+                                break;
+                            }
+
                             Possible<PublishedEntryRef> maybeBatch;
                             using (operationContext.StartOperation(PipExecutorCounter.CacheQueryingWeakFingerprintDuration))
                             {
@@ -2523,6 +2562,9 @@ namespace BuildXL.Scheduler
                                         weakFingerprint,
                                         pathSet,
                                         entryRef.PathSetHash);
+
+                                pathSetCheckData.DecrementRemainingUniquePathSetsToCheck();
+                                pathSetCheckData.WarnAboutTooManyUniquePathSetsIfNeeded();
 
                                 ObservedInputProcessingStatus processingStatus = observedInputProcessingResult.Status;
 
@@ -2638,6 +2680,7 @@ namespace BuildXL.Scheduler
                                     canAugmentWeakFingerprint: false,
                                     isWeakFingerprintAugmented: true,
                                     avoidRemoteLookups: avoidRemoteLookups,
+                                    pathSetCheckData: pathSetCheckData,
                                     traversedAugmentedWeakFingerprintSet);
 
                                 string keepAliveResult = "N/A";

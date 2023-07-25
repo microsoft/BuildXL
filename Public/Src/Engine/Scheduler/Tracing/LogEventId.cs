@@ -189,6 +189,8 @@ namespace BuildXL.Scheduler.Tracing
         TwoPhaseCacheEntryPublished = 2730,
         ConvertToRunnableFromCacheFailed = 2731,
         TwoPhasePublishingCacheEntryFailedError = 2732,
+        TwoPhaseReachMaxPathSetsToCheck = 2734,
+        TwoPhaseCheckingTooManyPathSets = 2735,
         PipMaterializeDependenciesFromCacheTimeoutFailure = 2740,
         PipHydrateFileFailure = 2741,
         PipHydratedFile = 2742,

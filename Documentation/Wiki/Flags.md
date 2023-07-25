@@ -115,6 +115,7 @@ This page lists flags that can be used to configure BuildXL.
 | KextThrottleCpuUsageWakeupThresholdPercent | [macOS] A blocked process can be awakened only when CPU usage drops below this value (defaults to /KextThrottleCpuUsageBlockThresholdPercent). |
 | KextThrottleMinAvailableRamMB | [macOS] Causes throttling to be triggered whenever available RAM drops below this value. (takes precedence over CPU usage thresholds) |
 | LaunchDebugger | Launches the debugger during boot (in the server process if applicable). |
+| LimitPathSetsOnCacheLookup | Limits the number of path sets to be checked during cache lookup. Once the limit is reached, the pip is determined to have a cache miss. Defaults to off. The number of path sets can also be set. Defaults to 0 (off). |
 | LoadGraph | Loads a cached build graph stored under the given fingerprint (40 digit hex string, no delimiters), path to cached graph directory, or canonical name. |
 | LogCatalog | Records the set of spec files added to the catalog. Defaults to off. |
 | LogCounters | Collects various performance counters and logs phase specific aggregations. Defaults to on. |

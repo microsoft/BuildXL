@@ -14,14 +14,14 @@ namespace BuildXL.Pips.Operations
         /// if fingerprint augmentation is not explicitly set globally and 
         /// <see cref="Options.EnforceWeakFingerprintAugmentation"/> is on
         /// </summary>
-        public static double DefaultAugmentWeakFingerprintRequiredPathCommonalityFactor = .4;
+        public const double DefaultAugmentWeakFingerprintRequiredPathCommonalityFactor = .4;
 
         /// <summary>
         /// Process-level default value for <see cref="ICacheConfiguration.AugmentWeakFingerprintPathSetThreshold"/> 
         /// if fingerprint augmentation is not explicitly set globally and 
         /// <see cref="Options.EnforceWeakFingerprintAugmentation"/> is on
         /// </summary>
-        public static int DefaultAugmentWeakFingerprintPathSetThreshold = 5;
+        public const int DefaultAugmentWeakFingerprintPathSetThreshold = 5;
 
         /// <summary>
         /// Indicate whether the pip is used for integration test purposes.

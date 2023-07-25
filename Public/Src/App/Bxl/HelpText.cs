@@ -539,6 +539,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/limitPathSetsOnCacheLookup[+|-]:<number>",
+                Strings.HelpText_DisplayHelp_LimitPathSetsOnCacheLookup,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/vfsCasRoot<vfs cas root directory>",
                 Strings.HelpText_DisplayHelp_VfsCasRoot,
                 HelpLevel.Verbose);

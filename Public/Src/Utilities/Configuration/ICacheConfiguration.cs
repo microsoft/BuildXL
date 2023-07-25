@@ -136,6 +136,22 @@ namespace BuildXL.Utilities.Configuration
         double AugmentWeakFingerprintRequiredPathCommonalityFactor { get; }
 
         /// <summary>
+        /// Controls the max number of logged suspicious paths (i.e., paths used in an augmented pathset, but not observed during pip execution) for each pip. 
+        /// The value of 0 means that the monitoring is disabled.
+        /// </summary>
+        int MonitorAugmentedPathSets { get; }
+
+        /// <summary>
+        /// The maximum number of path sets to be checked during the cache lookup.
+        /// </summary>
+        /// <remarks>
+        /// Value less than or equal to 0 means that there is no limit.
+        /// Enabling this feature, i.e., setting the value to be larger than 0, can prevent the build from checking too many
+        /// path sets due to path set explosion. However, it can also cause the build to have more cache misses.
+        /// </remarks>
+        int MaxPathSetsOnCacheLookup { get; }
+
+        /// <summary>
         /// When enabled, the cache will be responsible for replacing exisiting file during file materialization.
         /// </summary>
         bool ReplaceExistingFileOnMaterialization { get; }
@@ -153,12 +169,6 @@ namespace BuildXL.Utilities.Configuration
         /// Gets whether inputs to pips without historical file access info should be virtualized
         /// </summary>
         bool VirtualizeUnknownPips { get; }
-
-        /// <summary>
-        /// Controls the max number of logged suspicious paths (i.e., paths used in an augmented pathset, but not observed during pip execution) for each pip. 
-        /// The value of 0 means that the monitoring is disabled.
-        /// </summary>
-        int MonitorAugmentedPathSets { get; }
 
         /// <summary>
         /// When true, only a local cache will be created, even if a remote cache is configured.

@@ -648,13 +648,13 @@ namespace Test.BuildXL.Scheduler
         /// Creates a file for use as source (it can exist before the scheduler starts).
         /// Intermediate directories are created as needed.
         /// </summary>
-        protected void WriteSourceFile(FileArtifact artifact)
+        protected void WriteSourceFile(FileArtifact artifact, string content = null)
         {
             Contract.Requires(artifact.IsValid);
 
             string fullPath = artifact.Path.ToString(Context.PathTable);
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
-            File.WriteAllText(fullPath, Guid.NewGuid().ToString());
+            File.WriteAllText(fullPath, content ?? Guid.NewGuid().ToString());
         }
 
         /// <summary>
@@ -1220,6 +1220,7 @@ namespace Test.BuildXL.Scheduler
 
                             case Operation.Type.ReadFile:
                             case Operation.Type.ReadFileFromOtherFile:
+                            case Operation.Type.ReadFileIfInputEqual:
                             case Operation.Type.WaitUntilFileExists:
                                 dao.Dependencies.Add(op.Path.FileArtifact);
                                 break;

@@ -125,6 +125,11 @@ namespace Test.BuildXL.Executables.TestProcess
             ReadFileFromOtherFile,
 
             /// <summary>
+            /// Read a file conditionally based on an input file
+            /// </summary>
+            ReadFileIfInputEqual,
+
+            /// <summary>
             /// Type for copying a file
             /// </summary>
             CopyFile,
@@ -536,6 +541,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.WriteFileIfInputEqual:
                         DoWriteFileIfInputEqual();
                         return;
+                    case Type.ReadFileIfInputEqual:
+                        DoReadFileIfInputEqual();
+                        return;
                     case Type.LaunchDebugger:
                         Debugger.Launch();
                         return;
@@ -665,6 +673,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation WriteFileIfInputEqual(FileArtifact path, string input, string value, string content = null)
         {
             return new Operation(Type.WriteFileIfInputEqual, path, EncodeList(input, value, content));
+        }
+
+        /// <summary>
+        /// Reads file if the content of another input file equals the specified value.
+        /// </summary>
+        public static Operation ReadFileIfInputEqual(FileArtifact path, string input, string value, bool doNotInfer = false)
+        {
+            return new Operation(Type.ReadFileIfInputEqual, path, EncodeList(input, value), doNotInfer: doNotInfer);
         }
 
         /// <summary>
@@ -1154,6 +1170,18 @@ namespace Test.BuildXL.Executables.TestProcess
             catch (UnauthorizedAccessException)
             {
                 // Ignore tests for denied file access policies
+            }
+        }
+
+        private void DoReadFileIfInputEqual()
+        {
+            string[] argument = DecodeList(Content);
+            string input = argument[0];
+            string value = argument[1];
+
+            if (File.ReadAllText(input) == value)
+            {
+                DoReadFile();
             }
         }
 

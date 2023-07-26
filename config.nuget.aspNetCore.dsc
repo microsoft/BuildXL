@@ -5,8 +5,8 @@ const aspVersion = "2.2.0";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
-const asp6RefVersion = "6.0.10";
-const asp6RuntimeVersion = "6.0.10";
+const asp6RefVersion = "6.0.20";
+const asp6RuntimeVersion = "6.0.20";
 
 const asp7RefVersion = "7.0.0-rc.1.22427.2";
 const asp7RuntimeVersion = "7.0.0-rc.1.22427.2";

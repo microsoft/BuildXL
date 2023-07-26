@@ -29,7 +29,15 @@ namespace BuildXL.AdoBuildRunner.Build
 
         private int ExecuteBuild(string arguments, string buildSourcesDirectory)
         {
-            arguments += " /ado";           // We want this argument in all builds run by the AdoBuildRunner
+            // We want these argument in all builds run by the AdoBuildRunner
+            arguments += " /ado";
+            
+            // Enable gRPC encryption
+            if (!(Environment.GetEnvironmentVariable(Constants.DisableEncryptionVariableName) == "1"))
+            {
+                arguments += " /p:GrpcCertificateSubjectName=CN=1es-hostedpools.default.microsoft.com /p:GrpcCertificateStoreLocation=CurrentUser";
+            }
+
             var process = new Process()
             {
                 StartInfo =

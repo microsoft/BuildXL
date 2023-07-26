@@ -199,6 +199,11 @@ namespace BuildXL.AdoBuildRunner
         public const string WaitForOrchestratorExitVariableName = "AdoBuildRunnerWaitForOrchestratorExit";
 
         /// <summary>
+        /// If set to the value "1", gRPC encryption using 1ES HP certificates won't be enabled for the build
+        /// </summary>
+        public const string DisableEncryptionVariableName = "AdoBuildRunnerDisableEncryption";
+
+        /// <summary>
         /// Indicates the distributed build role taken by the build runner
         /// Should be either "Orchestrator" or "Worker"
         /// </summary>

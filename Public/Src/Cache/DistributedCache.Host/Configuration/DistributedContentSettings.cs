@@ -789,6 +789,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UsePhysicalSizeInQuotaKeeper { get; set; } = false;
 
         [DataMember]
+        public bool UsePrimaryCasInDcs { get; set; } = false;
+
+        [DataMember]
         public bool? RemoveAuditRuleInheritance { get; set; } = false;
 
         /// <summary>

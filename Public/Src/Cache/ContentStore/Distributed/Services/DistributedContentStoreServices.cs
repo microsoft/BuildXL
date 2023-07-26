@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
@@ -28,7 +29,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         IDistributedServicesSecrets Secrets,
         Interfaces.FileSystem.AbsolutePath PrimaryCacheRoot,
         IAbsFileSystem FileSystem,
-        DistributedContentCopier DistributedContentCopier)
+        DistributedContentCopier DistributedContentCopier,
+        IContentStore PreferredContentStore)
     {
         public IClock Clock => Overrides.Clock;
     }
@@ -115,6 +117,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                         Clock = Arguments.Clock,
                         Copier = Arguments.DistributedContentCopier,
                         ConnectionPool = Arguments.ConnectionPool,
+                        PreferredContentStore = Arguments.PreferredContentStore,
                         Dependencies = new ContentLocationStoreServicesDependencies()
                         {
                             GlobalCacheService = GlobalCacheService.UnsafeGetServiceDefinition().AsOptional<IGlobalCacheService>(),
@@ -248,7 +251,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                         new DistributedCentralStorageLocationStoreAdapter(() => ContentLocationStoreServices.Instance.LocalLocationStore.Instance),
                         Arguments.DistributedContentCopier,
                         fallbackStorage: centralStorage,
-                        clock);
+                        clock,
+                        Arguments.PreferredContentStore);
 
                     centralStorage = dcs;
                 }
@@ -257,7 +261,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     var cachingCentralStorage = new CachingCentralStorage(
                         metadataConfig,
                         centralStorage,
-                        Arguments.DistributedContentCopier.FileSystem);
+                        Arguments.DistributedContentCopier.FileSystem,
+                        Arguments.PreferredContentStore);
 
                     centralStorage = cachingCentralStorage;
                 }

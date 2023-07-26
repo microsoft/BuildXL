@@ -35,7 +35,6 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Launcher.Server;
 using BuildXL.Utilities.Collections;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
@@ -69,8 +68,8 @@ namespace ContentStoreTest.Distributed.Sessions
         protected override IContentStore CreateFromArguments(DistributedCacheServiceArguments arguments)
         {
             var factory = new DistributedContentStoreFactory(arguments);
-            var topLevelStore = factory.CreateTopLevelStore().topLevelStore;
-            return topLevelStore;
+            var result = factory.CreateStore();
+            return result.TopLevelStore;
         }
     }
 
@@ -271,6 +270,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 EnablePublishingCache = EnablePublishingCache,
 
                 GrpcCopyClientConnectOnStartup = true,
+
+                UsePrimaryCasInDcs = true,
             };
 
             if (ProactiveCopyLocationThreshold.HasValue)

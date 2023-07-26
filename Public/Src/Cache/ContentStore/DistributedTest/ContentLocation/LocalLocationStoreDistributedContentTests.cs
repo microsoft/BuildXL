@@ -1168,7 +1168,8 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100);
 
             var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 100);
-            cycles.Should().Be(1);
+            // Should be 2 cycles because we have to reconcile checkpoints now
+            cycles.Should().Be(2);
         }
 
         [Fact]
@@ -1338,7 +1339,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
                     }
 
-                    while (worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Value < addCount ||
+                    while ((worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Value - worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_AddedCheckpoints].Value) < addCount ||
                            worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Value < removeCount)
                     {
                         await UploadCheckpointOnMasterAndRestoreOnWorkers(context);

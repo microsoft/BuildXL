@@ -60,6 +60,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
+        Reconcile_AddedCheckpoints,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
         BackgroundTouchBulk,
 
         /// <nodoc />

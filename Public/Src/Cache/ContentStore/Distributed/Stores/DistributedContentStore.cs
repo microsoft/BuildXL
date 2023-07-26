@@ -109,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public DistributedContentStore(
             MachineLocation localMachineLocation,
             AbsolutePath localCacheRoot,
-            Func<IDistributedLocationStore, IContentStore> innerContentStoreFunc,
+            IContentStore innerContentStore,
             ContentLocationStoreFactory contentLocationStoreFactory,
             DistributedContentStoreSettings settings,
             DistributedContentCopier distributedCopier,
@@ -125,7 +125,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             _settings = settings;
 
-            InnerContentStore = innerContentStoreFunc(this);
+            InnerContentStore = innerContentStore;
             _contentLocationStore = contentLocationStoreFactory.Create(LocalMachineLocation, InnerContentStore as ILocalContentStore);
 
             GlobalCacheCheckpointManager = contentLocationStoreFactory.Services.Dependencies.GlobalCacheCheckpointManager.InstanceOrDefault();

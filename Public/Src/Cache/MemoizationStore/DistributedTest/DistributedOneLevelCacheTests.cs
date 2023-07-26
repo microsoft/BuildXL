@@ -534,11 +534,11 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
         protected override ICache CreateFromArguments(DistributedCacheServiceArguments arguments)
         {
             var factory = new DistributedContentStoreFactory(arguments);
-            var store = factory.CreateTopLevelStore().topLevelStore;
+            var result = factory.CreateStore();
 
             return new DistributedOneLevelCache(
-                store,
-                factory.Services,
+                result.TopLevelStore,
+                result.Services,
                 Guid.NewGuid(),
                 passContentToMemoization: false);
         }

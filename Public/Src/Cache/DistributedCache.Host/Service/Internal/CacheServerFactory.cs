@@ -241,11 +241,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             var cacheConfig = _arguments.Configuration;
             var factory = CreateDistributedContentStoreFactory();
 
-            // NOTE: This relies on the assumption that when creating a distributed server,
-            // there is only one call to create a cache so we simply create the cache here and ignore path
-            // below in factory delegates since the logic for creating path based caches is included in the
-            // call to CreateTopLevelStore
-            var topLevelAndPrimaryStore = factory.CreateTopLevelStore();
+            var createResult = factory.CreateStore();
 
             if (distributedSettings.EnableMetadataStore || distributedSettings.EnableDistributedCache)
             {
@@ -255,8 +251,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 {
                     if (distributedSettings.EnableDistributedCache)
                     {
-                        var distributedCache = new DistributedOneLevelCache(topLevelAndPrimaryStore.topLevelStore,
-                            factory.Services,
+                        var distributedCache = new DistributedOneLevelCache(createResult.TopLevelStore,
+                            createResult.Services,
                             Guid.NewGuid(),
                             passContentToMemoization: true);
 
@@ -274,7 +270,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     else
                     {
                         return new OneLevelCache(
-                            contentStoreFunc: () => topLevelAndPrimaryStore.topLevelStore,
+                            contentStoreFunc: () => createResult.TopLevelStore,
                             memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
                             Guid.NewGuid(),
                             passContentToMemoization: true);
@@ -293,7 +289,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     cacheFactory,
                     localServerConfiguration,
                     capabilities: distributedSettings.EnablePublishingCache ? Capabilities.All : Capabilities.AllNonPublishing,
-                    factory.GetAdditionalEndpoints());
+                    createResult.AdditionalGrpcEndpoints);
             }
             else
             {
@@ -304,9 +300,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _fileSystem,
                     _arguments.GrpcHost,
                     cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName,
-                    _ => topLevelAndPrimaryStore.topLevelStore,
+                    _ => createResult.TopLevelStore,
                     localServerConfiguration,
-                    factory.GetAdditionalEndpoints());
+                    createResult.AdditionalGrpcEndpoints);
             }
         }
 

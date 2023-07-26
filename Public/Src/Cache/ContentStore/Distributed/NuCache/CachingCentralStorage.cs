@@ -8,6 +8,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
@@ -42,7 +43,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public CachingCentralStorage(
             DistributedCentralStoreConfiguration configuration,
             CentralStorage fallbackStorage,
-            IAbsFileSystem fileSystem)
+            IAbsFileSystem fileSystem,
+            IContentStore preferredContentStore)
         {
             Configuration = configuration;
             _fallbackStorage = fallbackStorage;
@@ -52,21 +54,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var cacheFolder = configuration.CacheRoot / CacheSubFolderName;
 
-            // Create a private CAS for storing checkpoint data
-            // Avoid introducing churn into primary CAS
-            PrivateCas = new FileSystemContentStoreInternal(
-                fileSystem,
-                SystemClock.Instance,
-                cacheFolder,
-                new ConfigurationModel(
-                    new ContentStoreConfiguration(new MaxSizeQuota(hardExpression: maxRetentionMb + "MB", softExpression: softRetentionMb + "MB")),
-                    ConfigurationSelection.RequireAndUseInProcessConfiguration),
-                settings: new ContentStoreSettings()
-                          {
-                              TraceFileSystemContentStoreDiagnosticMessages = Configuration.TraceFileSystemContentStoreDiagnosticMessages,
-                              SelfCheckSettings = Configuration.SelfCheckSettings,
-                              UsePhysicalSizeInQuotaKeeper = Configuration.UsePhysicalSizeInQuotaKeeper,
-                          });
+            if (configuration.UsePrimaryCasInDcs && preferredContentStore != null && preferredContentStore is FileSystemContentStore fscs)
+            {
+                PrivateCas = fscs.Store;
+            }
+            else
+            {
+                // Create a private CAS for storing checkpoint data
+                // Avoid introducing churn into primary CAS
+                PrivateCas = new FileSystemContentStoreInternal(
+                    fileSystem,
+                    SystemClock.Instance,
+                    cacheFolder,
+                    new ConfigurationModel(
+                        new ContentStoreConfiguration(new MaxSizeQuota(hardExpression: maxRetentionMb + "MB", softExpression: softRetentionMb + "MB")),
+                        ConfigurationSelection.RequireAndUseInProcessConfiguration),
+                    settings: new ContentStoreSettings()
+                    {
+                        TraceFileSystemContentStoreDiagnosticMessages = Configuration.TraceFileSystemContentStoreDiagnosticMessages,
+                        SelfCheckSettings = Configuration.SelfCheckSettings,
+                        UsePhysicalSizeInQuotaKeeper = Configuration.UsePhysicalSizeInQuotaKeeper,
+                    });
+            }
 
             LinkLifetime(fallbackStorage);
             LinkLifetime(PrivateCas);

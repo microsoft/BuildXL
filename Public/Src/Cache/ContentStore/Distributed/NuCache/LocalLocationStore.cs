@@ -1782,7 +1782,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return ReconciliationPerCheckpointResult.Skipped();
             }
 
-            int totalAddedContent = 0, totalRemovedContent = 0, skippedRecentAdds = 0, skippedRecentRemoves = 0;
+            int totalAddedContent = 0, totalRemovedContent = 0, skippedRecentAdds = 0, skippedRecentRemoves = 0, totalCheckpointFilesAdded = 0;
             var addedContent = new List<ShortHashWithSize>();
             var removedContent = new List<ShortHash>();
             var reachedEnd = false;
@@ -1866,6 +1866,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             {
                                 if (!_reconcileAddRecents.Contains(curHash))
                                 {
+                                    if (curHash.HashType == HashType.MD5)
+                                    {
+                                        totalCheckpointFilesAdded += 1;
+                                    }
                                     addedContent.Add(new ShortHashWithSize(curHash, diffItem.item.size));
                                 }
                                 else
@@ -1910,6 +1914,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         reachedEnd = true;
                     }
+                    Counters[ContentLocationStoreCounters.Reconcile_AddedCheckpoints].Add(totalCheckpointFilesAdded);
 
                     return await SendReconcileEventsAfterEnumerationAsync(context, machineId, addHashRange, removeHashRange, lastProcessedAddHash, lastProcessedRemoveHash,
                         totalAddedContent, totalRemovedContent, skippedRecentAdds, skippedRecentRemoves, addedContent, removedContent, reachedEnd);

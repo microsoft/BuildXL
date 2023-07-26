@@ -134,7 +134,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     new DistributedCentralStorageLocationStoreAdapter(() => LocalLocationStore.Instance),
                     Copier,
                     fallbackStorage: centralStorage,
-                    clock: Clock);
+                    clock: Clock,
+                    preferredContentStore: Arguments.PreferredContentStore);
             }
 
             var clusterStateManager = ClusterStateManager.Instance;

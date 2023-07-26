@@ -56,8 +56,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public LocalLocationStoreConfiguration ContentLocationStoreConfiguration { get; }
 
-        public DistributedContentStoreServices Services { get; }
-
         public DistributedContentStoreFactory(DistributedCacheServiceArguments arguments)
         {
             _logger = arguments.Logger;
@@ -100,7 +98,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _arguments.Overrides.Clock,
                 _logger
             );
+        }
 
+        private DistributedContentStoreServices CreateDistributedContentStoreServices(IContentStore preferredContentStore)
+        {
             var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
 
             var connectionPool = new GrpcConnectionPool(new ConnectionPoolConfiguration()
@@ -110,21 +111,22 @@ namespace BuildXL.Cache.Host.Service.Internal
                 UseGrpcDotNet = _distributedSettings.UseGrpcDotForMetadata(),
                 GrpcDotNetOptions = _distributedSettings.ContentMetadataClientGrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default,
             },
-            context: new OperationContext(arguments.TracingContext.CreateNested(componentName: nameof(GrpcConnectionPool))));
+            context: new OperationContext(_arguments.TracingContext.CreateNested(componentName: nameof(GrpcConnectionPool))));
 
             var serviceArguments = new DistributedContentStoreServicesArguments
             (
                 ConnectionPool: connectionPool,
                 DistributedContentSettings: _distributedSettings,
                 ContentLocationStoreConfiguration: ContentLocationStoreConfiguration,
-                Overrides: arguments.Overrides,
+                Overrides: _arguments.Overrides,
                 Secrets: this,
                 PrimaryCacheRoot: primaryCacheRoot,
-                FileSystem: arguments.FileSystem,
-                DistributedContentCopier: _copier
+                FileSystem: _arguments.FileSystem,
+                DistributedContentCopier: _copier,
+                PreferredContentStore: preferredContentStore
             );
 
-            Services = new DistributedContentStoreServices(serviceArguments);
+            return new DistributedContentStoreServices(serviceArguments);
         }
 
         private void TraceConfiguration()
@@ -224,36 +226,73 @@ namespace BuildXL.Cache.Host.Service.Internal
             return result;
         }
 
-        public IEnumerable<IGrpcServiceEndpoint> CreateMetadataServices()
+        private static IEnumerable<IGrpcServiceEndpoint> CreateMetadataServices(DistributedContentStoreServices services)
         {
-            if (Services.GlobalCacheService.TryGetInstance(out var service))
+            if (services.GlobalCacheService.TryGetInstance(out var service))
             {
                 yield return new ProtobufNetGrpcServiceEndpoint<IGlobalCacheService, GlobalCacheService>(nameof(GlobalCacheService), service);
             }
         }
 
-        public IGrpcServiceEndpoint[] GetAdditionalEndpoints()
+        private static IGrpcServiceEndpoint[] GetAdditionalEndpoints(DistributedContentStoreServices services)
         {
-            return CreateMetadataServices().ToArray();
+            return CreateMetadataServices(services).ToArray();
         }
 
-        public (IContentStore topLevelStore, DistributedContentStore primaryDistributedStore) CreateTopLevelStore()
+        public record CreateStoreResult
+        {
+            public required IContentStore TopLevelStore { get; init; }
+            public required DistributedContentStore PrimaryDistributedStore { get; init; }
+            public required DistributedContentStoreServices Services { get; init; }
+            public required IGrpcServiceEndpoint[] AdditionalGrpcEndpoints { get; init; }
+        }
+
+        public CreateStoreResult CreateStore()
+        {
+            var multiplex = CreateMultiplexedStore();
+            var services = CreateDistributedContentStoreServices(multiplex.PreferredContentStore);
+
+            // NOTE: This relies on the assumption that when creating a distributed server,
+            // there is only one call to create a cache so we simply create the cache here and ignore path
+            // below in factory delegates since the logic for creating path based caches is included in the
+            // call to CreateTopLevelStore
+            var topLevelAndPrimaryStore = CreateTopLevelStore(multiplex, services);
+
+            return new CreateStoreResult
+            {
+                TopLevelStore = topLevelAndPrimaryStore.topLevelStore,
+                PrimaryDistributedStore = topLevelAndPrimaryStore.primaryDistributedStore,
+                Services = services,
+                AdditionalGrpcEndpoints = GetAdditionalEndpoints(services)
+            };
+        }
+
+        private (IContentStore topLevelStore, DistributedContentStore primaryDistributedStore) CreateTopLevelStore(MultiplexedContentStore innerContentStore, DistributedContentStoreServices services)
         {
             (IContentStore topLevelStore, DistributedContentStore primaryDistributedStore) result = default;
 
             var distributedStore =
-                CreateDistributedContentStore(OrderedResolvedCacheSettings[0], dls =>
-                                                                                   CreateMultiplexedStore(settings =>
-                                                                                       CreateFileSystemContentStore(settings, dls)));
+                CreateDistributedContentStore(OrderedResolvedCacheSettings[0], innerContentStore, services);
+
+            foreach (IContentStore contentStore in innerContentStore.DrivesWithContentStore.Values)
+            {
+                if (contentStore is FileSystemContentStore fscs)
+                {
+                    // We attach the DistributedContentStore here because we need to create the FSCS before the DistributedContentStore
+                    fscs.Store.AttachDistributedLocationStore(distributedStore);
+                }
+            }
+
             result.topLevelStore = distributedStore;
             result.primaryDistributedStore = distributedStore;
 
             return result;
         }
 
-        public DistributedContentStore CreateDistributedContentStore(
+        private DistributedContentStore CreateDistributedContentStore(
             ResolvedNamedCacheSettings resolvedSettings,
-            Func<IDistributedLocationStore, IContentStore> innerStoreFactory)
+            IContentStore innerContentStore,
+            DistributedContentStoreServices services)
         {
             _logger.Debug("Creating a distributed content store");
 
@@ -261,8 +300,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 new DistributedContentStore(
                     resolvedSettings.MachineLocation,
                     resolvedSettings.ResolvedCacheRootPath,
-                    distributedStore => innerStoreFactory(distributedStore),
-                    Services.ContentLocationStoreFactory.Instance,
+                    innerContentStore,
+                    services.ContentLocationStoreFactory.Instance,
                     _distributedContentStoreSettings,
                     distributedCopier: _copier,
                     clock: _arguments.Overrides.Clock);
@@ -271,26 +310,26 @@ namespace BuildXL.Cache.Host.Service.Internal
             return contentStore;
         }
 
-        public IContentStore CreateFileSystemContentStore(
-            ResolvedNamedCacheSettings resolvedCacheSettings,
-            IDistributedLocationStore distributedStore)
+        private IContentStore CreateFileSystemContentStore(
+            ResolvedNamedCacheSettings resolvedCacheSettings)
         {
             var contentStoreSettings = FromDistributedSettings(_distributedSettings);
 
             ConfigurationModel configurationModel
                 = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(resolvedCacheSettings.Settings.CacheSizeQuotaString)));
 
+            // We add the distributedStore later because we need the FSCS to build the DistributedStore
             return ContentStoreFactory.CreateContentStore(_fileSystem, resolvedCacheSettings.ResolvedCacheRootPath,
-                        contentStoreSettings: contentStoreSettings, distributedStore: distributedStore, configurationModel: configurationModel);
+                        contentStoreSettings: contentStoreSettings, configurationModel: configurationModel);
         }
 
-        public MultiplexedContentStore CreateMultiplexedStore(Func<ResolvedNamedCacheSettings, IContentStore> createContentStore)
+        private MultiplexedContentStore CreateMultiplexedStore()
         {
             var contentStores = new Dictionary<string, IContentStore>(StringComparer.OrdinalIgnoreCase);
             foreach (var settings in OrderedResolvedCacheSettings)
             {
                 _logger.Debug($"Using [{settings.Settings.CacheRootPath}]'s settings: {settings.Settings}");
-                contentStores[settings.Drive] = createContentStore(settings);
+                contentStores[settings.Drive] = CreateFileSystemContentStore(settings);
             }
 
             return new MultiplexedContentStore(contentStores, OrderedResolvedCacheSettings[0].Drive);
@@ -391,8 +430,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         internal static IContentStore CreateLocalContentStore(
             DistributedContentSettings settings,
             DistributedCacheServiceArguments arguments,
-            ResolvedNamedCacheSettings resolvedSettings,
-            IDistributedLocationStore distributedStore = null)
+            ResolvedNamedCacheSettings resolvedSettings)
         {
             settings ??= DistributedContentSettings.CreateDisabled();
             var contentStoreSettings = FromDistributedSettings(settings);
@@ -401,7 +439,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(resolvedSettings.Settings.CacheSizeQuotaString)));
 
             var localStore = ContentStoreFactory.CreateContentStore(arguments.FileSystem, resolvedSettings.ResolvedCacheRootPath,
-                            contentStoreSettings: contentStoreSettings, distributedStore: distributedStore, configurationModel: configurationModel);
+                            contentStoreSettings: contentStoreSettings, configurationModel: configurationModel);
 
             if (settings.BackingGrpcPort != null)
             {
@@ -577,6 +615,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     ProactiveCopyCheckpointFiles = _distributedSettings.ProactiveCopyCheckpointFiles,
                     InlineCheckpointProactiveCopies = _distributedSettings.InlineCheckpointProactiveCopies,
                     UsePhysicalSizeInQuotaKeeper = _distributedSettings.UsePhysicalSizeInQuotaKeeper,
+                    UsePrimaryCasInDcs = _distributedSettings.UsePrimaryCasInDcs,
                 };
 
                 if (_distributedSettings.UseSelfCheckSettingsForDistributedCentralStorage)

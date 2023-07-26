@@ -19,8 +19,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             IAbsFileSystem fileSystem,
             AbsolutePath rootPath,
             ContentStoreSettings? contentStoreSettings,
-            IDistributedLocationStore? distributedStore,
-            ConfigurationModel? configurationModel = null)
+            ConfigurationModel? configurationModel = null,
+            IDistributedLocationStore? distributedStore = null)
             => new FileSystemContentStore(
                 fileSystem, SystemClock.Instance, rootPath, configurationModel, distributedStore, contentStoreSettings);
     }

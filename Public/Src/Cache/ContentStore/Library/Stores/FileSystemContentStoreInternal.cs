@@ -64,6 +64,9 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private const string BlobNameExtension = "blob";
 
+        /// <nodoc />
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
         /// <summary>
         ///     Directory to write temp files in.
         /// </summary>
@@ -91,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         internal ContentStoreInternalTracer InternalTracer => _tracer;
 
-        private readonly IDistributedLocationStore? _distributedStore;
+        private IDistributedLocationStore? _distributedStore;
 
         private readonly ContentStoreInternalTracer _tracer;
 
@@ -210,6 +213,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             _maxPinSize = -1;
 
             _checker = new FileSystemContentStoreInternalChecker(FileSystem, Clock, RootPath, _tracer, _settings.SelfCheckSettings, this);
+        }
+
+        public void AttachDistributedLocationStore(IDistributedLocationStore distributedStore)
+        {
+            // _distributedStore should be null when we call this function
+            Contract.Assert(_distributedStore == null);
+            _distributedStore = distributedStore;
         }
 
         /// <summary>

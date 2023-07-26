@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -48,8 +49,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ILocationStore locationStore,
             DistributedContentCopier copier,
             CentralStorage fallbackStorage,
-            IClock clock)
-            : base(configuration, fallbackStorage, copier.FileSystem)
+            IClock clock,
+            IContentStore preferredContentStore)
+            : base(configuration, fallbackStorage, copier.FileSystem, preferredContentStore)
         {
             _copier = copier;
             _locationStore = locationStore;

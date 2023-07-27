@@ -485,6 +485,7 @@ namespace BuildXL.Scheduler.Tracing
         TopPipsPerformanceInfo = 14508,
 
         CompositeSharedOpaqueContentDetermined = 14509,
+        CompositeSharedOpaqueRegexTimeout = 14539,
         PipRetryDueToLowMemory = 14510,
         EmptyWorkingSet = 14511,
         ResumeProcess = 14512,

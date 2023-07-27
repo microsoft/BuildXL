@@ -16,6 +16,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
@@ -38,6 +39,8 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Sideband;
+using BuildXL.Processes.Remoting;
 using BuildXL.Processes.VmCommandProxy;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
@@ -59,6 +62,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -67,10 +71,6 @@ using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
-using BuildXL.Processes.Sideband;
-using BuildXL.Processes.Remoting;
-using BuildXL.Cache.ContentStore.Extensions;
-using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.Scheduler
 {
@@ -175,7 +175,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public const string SharedOpaqueSidebandDirectory = "SharedOpaqueSidebandState";
 
-        private const int SealDirectoryContentFilterTimeoutMs = 1_000; // 1s
+        private const int SealDirectoryContentFilterTimeoutMs = 60_000; // 60s
 
         #endregion Constants
 
@@ -1834,7 +1834,7 @@ namespace BuildXL.Scheduler
                     .Count(b => b);
 
                 // Count all workers that were running at some point (including the local worker)
-                int everAvailableWorkers = 1 + succesfullyAttachedSoFar;            
+                int everAvailableWorkers = 1 + succesfullyAttachedSoFar;
 
                 if (everAvailableWorkers >= Math.Max(minimumWorkers, warningThreshold))
                 {
@@ -2021,7 +2021,7 @@ namespace BuildXL.Scheduler
                 long processPipsSum = m_numProcessPipsSatisfiedFromCache + m_numProcessPipsUnsatisfiedFromCache + m_numProcessPipsSkipped;
                 if (m_numProcessPipsCompleted != processPipsSum)
                 {
-                    BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"Total process pips != (pip cache hits + pip cache misses + service start/shutdown pips). Total: { m_numProcessPipsCompleted }, Sum: { processPipsSum }");
+                    BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"Total process pips != (pip cache hits + pip cache misses + service start/shutdown pips). Total: {m_numProcessPipsCompleted}, Sum: {processPipsSum}");
                 }
             }
 
@@ -2096,7 +2096,8 @@ namespace BuildXL.Scheduler
 
             // Verify counters for different types of cache misses sum to pips executed due to cache misses
             long cacheMissSum = 0;
-            using (var pooledStringBuilder = Pools.GetStringBuilder()) {
+            using (var pooledStringBuilder = Pools.GetStringBuilder())
+            {
                 var sb = pooledStringBuilder.Instance;
                 foreach (var missType in PipCacheMissTypeExtensions.AllCacheMisses)
                 {
@@ -2679,16 +2680,16 @@ namespace BuildXL.Scheduler
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
 
-                if (m_configuration.Distribution.FireForgetMaterializeOutput() && 
-                    m_materializeOutputsQueued && 
+                if (m_configuration.Distribution.FireForgetMaterializeOutput() &&
+                    m_materializeOutputsQueued &&
                     !AnyPendingPipsExceptMaterializeOutputs() &&
                     m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true))
                 {
                     // There are no pips running anything except materializeOutputs.
                     Logger.Log.SchedulerCompleteExceptMaterializeOutputs(m_loggingContext);
-                    var maxMessages = (int) (EngineEnvironmentSettings.MaxMessagesPerBatch * EngineEnvironmentSettings.MaterializeOutputsBatchMultiplier);
+                    var maxMessages = (int)(EngineEnvironmentSettings.MaxMessagesPerBatch * EngineEnvironmentSettings.MaterializeOutputsBatchMultiplier);
                     foreach (var worker in m_remoteWorkers)
-                    { 
+                    {
                         worker.MaxMessagesPerBatch = maxMessages;
                     }
 
@@ -3178,7 +3179,7 @@ namespace BuildXL.Scheduler
             if (!IsTerminating && !IsDistributedWorker)
             {
                 Logger.Log.TerminatingDueToInternalError(m_executePhaseLoggingContext);
-                
+
                 RequestTermination(cancelQueue: false);
             }
         }
@@ -3627,7 +3628,7 @@ namespace BuildXL.Scheduler
                 if (pipRuntimeInfo.IsFrontierMissCandidate)
                 {
                     // if the current pip is a process pip that was executed, its dependents cannot be frontier pips
-                    if (runnablePip.PipType == PipType.Process && result.Status == PipResultStatus.Succeeded )
+                    if (runnablePip.PipType == PipType.Process && result.Status == PipResultStatus.Succeeded)
                     {
                         dependentPipRuntimeInfo.IsFrontierMissCandidate = false;
                     }
@@ -4196,9 +4197,9 @@ namespace BuildXL.Scheduler
                 (m_configuration.Distribution.ReplicateOutputsToWorkers()
                     || runnablePip.Result.Value.Status == PipResultStatus.NotMaterialized) &&
                 RequiresPipOutputs(runnablePip.PipId.ToNodeId()))
-            {                
+            {
                 runnablePip.SetWorker(LocalWorker);
-                
+
                 if (MaterializeOutputsInBackground)
                 {
                     // Background output materialization should yield to other tasks since its not required
@@ -4399,7 +4400,7 @@ namespace BuildXL.Scheduler
 
                     if (pipType == PipType.Process)
                     {
-                        return m_configuration.EnableDistributedSourceHashing() ? PreCacheLookupStep : PipExecutionStep.CheckIncrementalSkip; 
+                        return m_configuration.EnableDistributedSourceHashing() ? PreCacheLookupStep : PipExecutionStep.CheckIncrementalSkip;
                     }
 
                     // CopyFile, WriteFile, SealDirectory pips
@@ -4640,9 +4641,9 @@ namespace BuildXL.Scheduler
                     // of two consecutive cache misses.
                     // We assume that this will probably be also a miss so we don't want to
                     // spend time through the network.
-                    var avoidRemoteCache = m_scheduleConfiguration.RemoteCacheCutoff && 
-                                            pipRunTimeInfo.UpstreamCacheMissLongestChain >= m_scheduleConfiguration.RemoteCacheCutoffLength; 
-                    
+                    var avoidRemoteCache = m_scheduleConfiguration.RemoteCacheCutoff &&
+                                            pipRunTimeInfo.UpstreamCacheMissLongestChain >= m_scheduleConfiguration.RemoteCacheCutoffLength;
+
                     var tupleResult = await worker.CacheLookupAsync(
                         processRunnable,
                         pipScope,
@@ -4966,7 +4967,7 @@ namespace BuildXL.Scheduler
                         {
                             return runnablePip.SetPipResult(PipResultStatus.Failed);
                         }
-                        
+
                     }
 
                     if (!IsDistributedWorker)
@@ -5802,7 +5803,7 @@ namespace BuildXL.Scheduler
                 if (duration != 0)
                 {
                     stringBuilder.AppendLine(I($"\t\tQueue - {kv.Key,-82}: {duration,10}"));
-                }            
+                }
             }
 
             for (int i = 0; i < (int)PipExecutionStep.Done + 1; i++)
@@ -6081,7 +6082,7 @@ namespace BuildXL.Scheduler
                     else
                     {
                         // No remote workers to wait for
-                        m_workersSetupResultsTasks = new ();
+                        m_workersSetupResultsTasks = new();
                     }
                 }
 
@@ -6778,11 +6779,15 @@ namespace BuildXL.Scheduler
             using (operationContext.StartOperation(PipExecutorCounter.RegisterStaticDirectory))
             {
                 // If the pip is a composite opaque directory, then its dynamic content needs to be reported, since the usual reporting of
-                // opaque directories happens for process pips only
+                // opaque directories happens for process pips only.
                 if (pip.IsComposite)
                 {
                     Contract.Assert(pip.Kind == SealDirectoryKind.SharedOpaque);
-                    ReportCompositeOpaqueContents(environment, pip);
+                    if (!TryReportCompositeOpaqueContents(environment, pip))
+                    {
+                        // An error should have been logged by this point.
+                        return PipResult.Create(PipResultStatus.Failed, pipStart);
+                    }
                 }
 
                 // The consumers of an opaque directory will register the directory when they use it.
@@ -6809,7 +6814,7 @@ namespace BuildXL.Scheduler
             return PipResult.Create(result, pipStart);
         }
 
-        private void ReportCompositeOpaqueContents(IPipExecutionEnvironment environment, SealDirectory pip)
+        private bool TryReportCompositeOpaqueContents(IPipExecutionEnvironment environment, SealDirectory pip)
         {
             Contract.Assert(pip.IsComposite);
             Contract.Assert(pip.Kind == SealDirectoryKind.SharedOpaque);
@@ -6851,9 +6856,23 @@ namespace BuildXL.Scheduler
 
                         foreach (var fileArtifact in aggregatedContent)
                         {
-                            if (regex.IsMatch(fileArtifact.Path.ToString(Context.PathTable)) == isIncludeFilter)
+                            var filePath = fileArtifact.Path.ToString(Context.PathTable);
+                            try
                             {
-                                filteredContent.Add(fileArtifact);
+                                if (regex.IsMatch(filePath) == isIncludeFilter)
+                                {
+                                    filteredContent.Add(fileArtifact);
+                                }
+                            }
+                            catch (RegexMatchTimeoutException)
+                            {
+                                Logger.Log.CompositeSharedOpaqueRegexTimeout(
+                                    m_loggingContext,
+                                    pip.GetDescription(environment.Context),
+                                    pip.ContentFilter.Value.Regex,
+                                    filePath);
+
+                                return false;
                             }
                         }
                     }
@@ -6885,6 +6904,8 @@ namespace BuildXL.Scheduler
                         })
                 });
             }
+
+            return true;
         }
 
         #region IFileContentManagerHost Members

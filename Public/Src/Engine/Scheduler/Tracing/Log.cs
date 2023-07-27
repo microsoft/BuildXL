@@ -2371,7 +2371,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
-            Message = "[{pipSemiStableHash}] Failed to clean up SharedOpaque output at '{0}'. Reason: {1}") ]
+            Message = "[{pipSemiStableHash}] Failed to clean up SharedOpaque output at '{0}'. Reason: {1}")]
         public abstract void PipFailedSharedOpaqueOutputsCleanup(LoggingContext context, long pipSemiStableHash, string file, string exceptionMessage);
 
         [GeneratedEvent(
@@ -2647,7 +2647,7 @@ namespace BuildXL.Scheduler.Tracing
             LoggingContext context,
             string pipDescription,
             string sourceFile);
-        
+
 
         [GeneratedEvent(
             (int)LogEventId.DirectoryFingerprintExercisedRule,
@@ -3754,7 +3754,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.OperationTrackerAssert,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask= (ushort)Tasks.Storage,
+            EventTask = (ushort)Tasks.Storage,
             Keywords = (int)Keywords.UserMessage,
             Message = "{message}")]
         internal abstract void OperationTrackerAssert(LoggingContext loggingContext, string message);
@@ -3832,6 +3832,17 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void CompositeSharedOpaqueContentDetermined(LoggingContext loggingContext, string pipDescription, int dirCount, int originalFileCount, int finalFileCount, long durationMs);
 
         [GeneratedEvent(
+            (ushort)LogEventId.CompositeSharedOpaqueRegexTimeout,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            // Although a regex timeout is more likely to be caused by a complicated regex specified by a user than anything else,
+            // we don't classify such a timeout as a user error.
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Directory content could not be determined due to a timeout during regular expression evaluation. Regex: '{regex}', path: '{path}'.")]
+        public abstract void CompositeSharedOpaqueRegexTimeout(LoggingContext loggingContext, string pipDescription, string regex, string path);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ExcessivePipRetriesDueToRetryableFailures,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -3884,7 +3895,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{ShortProductName} API Server] Operation Get BuildManifest Hash from local file for Hash: '{hash}' failed. Reason: {reason}.")]
         internal abstract void ErrorApiServerGetBuildManifestHashFromLocalFileFailed(LoggingContext loggingContext, string hash, string reason);
-        
+
         [GeneratedEvent(
             (ushort)LogEventId.DumpPipLiteUnableToCreateLogDirectory,
             EventGenerators = EventGenerators.LocalOnly,

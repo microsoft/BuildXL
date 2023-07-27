@@ -418,6 +418,12 @@ namespace BuildXL.Execution.Analyzer
                         m_failedPips.Add(data.PipId);
                         break;
                 }
+
+                var processPerformance = data.ExecutionPerformance as ProcessPipExecutionPerformance;
+                if (processPerformance != null && processPerformance.FileMonitoringViolations.Total > 0)
+                {
+                    m_failedPips.Add(data.PipId);
+                }
             }
         }
     }

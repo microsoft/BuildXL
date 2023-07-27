@@ -77,7 +77,9 @@ namespace Test.BuildXL.Processes
             //      realpath("symlink3/nonexistenfile.txt")
             //      realpath("real2/symlink4.txt")
             // We should get accesses on the paths of the 4 symlinks
-            var accesses = result.ExplicitlyReportedFileAccesses.Union(result.AllUnexpectedFileAccesses).Select(a => (Path: a.GetPath(Context.PathTable), Access: a.DesiredAccess, IsNonexistent: a.IsNonexistent));
+            XAssert.IsNotNull(result.ExplicitlyReportedFileAccesses);
+            XAssert.IsNotNull(result.AllUnexpectedFileAccesses);
+            var accesses = result.ExplicitlyReportedFileAccesses!.Union(result.AllUnexpectedFileAccesses!).Select(a => (Path: a.GetPath(Context.PathTable), Access: a.DesiredAccess, IsNonexistent: a.IsNonexistent));
             
             foreach (var symlink in new [] { symlinkPath1, symlinkPath2, symlinkPath3, symlinkPath4 })
             {

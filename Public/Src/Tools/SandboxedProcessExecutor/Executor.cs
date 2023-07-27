@@ -220,7 +220,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
         private void LogSummary(SandboxedProcessResult result)
         {
-            m_logger.LogInfo($"Process exited with exit code '{result.ExitCode}' in {result.PrimaryProcessTimes.TotalWallClockTime.TotalMilliseconds} ms");
+            m_logger.LogInfo($"Process exited with exit code '{result.ExitCode}' in {result.PrimaryProcessTimes?.TotalWallClockTime.TotalMilliseconds} ms");
         }
 
         private void PrintObservedAccesses(PathTable pathTable, SandboxedProcessResult result)

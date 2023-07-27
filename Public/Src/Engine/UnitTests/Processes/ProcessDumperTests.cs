@@ -18,7 +18,8 @@ namespace Test.BuildXL.Processes
 {
     public unsafe sealed class ProcessDumperTests : TemporaryStorageTestBase
     {
-        private ITestOutputHelper m_testOutputHelper;
+        private readonly ITestOutputHelper m_testOutputHelper;
+
         public ProcessDumperTests(ITestOutputHelper output)
             : base(output)
         {

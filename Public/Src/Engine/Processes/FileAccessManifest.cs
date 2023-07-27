@@ -14,6 +14,8 @@ using BuildXL.Native.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
+#nullable enable
+
 namespace BuildXL.Processes
 {
     /// <summary>
@@ -22,7 +24,7 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class FileAccessManifest
     {
-        private readonly Dictionary<StringId, NormalizedPathString> m_normalizedFragments = new Dictionary<StringId, NormalizedPathString>();
+        private readonly Dictionary<StringId, NormalizedPathString> m_normalizedFragments = new();
 
         /// <summary>
         /// Represents the invalid scope.
@@ -42,20 +44,18 @@ namespace BuildXL.Processes
         /// <summary>
         /// Name of semaphore for message count.
         /// </summary>
-        private string m_messageCountSemaphoreName;
+        private string? m_messageCountSemaphoreName;
 
         /// <summary>
         /// Sealed manifest tree.
         /// </summary>
-        private byte[] m_sealedManifestTreeBlock;
+        private byte[]? m_sealedManifestTreeBlock;
 
         /// <summary>
         /// Creates an empty instance.
         /// </summary>
-        public FileAccessManifest(PathTable pathTable, DirectoryTranslator translateDirectories = null, IReadOnlyCollection<string> childProcessesToBreakawayFromSandbox = null)
+        public FileAccessManifest(PathTable pathTable, DirectoryTranslator? translateDirectories = null, IReadOnlyCollection<string>? childProcessesToBreakawayFromSandbox = null)
         {
-            Contract.Requires(pathTable != null);
-
             PathTable = pathTable;
             m_rootNode = Node.CreateRootNode();
             DirectoryTranslator = translateDirectories;
@@ -139,7 +139,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Flag indicating if the manifest tree block is sealed.
         /// </summary>
-        public bool IsManifestTreeBlockSealed => m_sealedManifestTreeBlock != null;
+        public bool IsManifestTreeBlockSealed => m_sealedManifestTreeBlock is not null;
 
         /// <summary>
         /// Flag indicating if the manifest tree is available
@@ -148,7 +148,7 @@ namespace BuildXL.Processes
         /// The regular deserialization of the manifest leaves only a byte representation of the node tree, that is 
         /// good enough for most purposes. However, in some cases we need to perform a full deserialization
         /// </remarks>
-        public bool IsManifestTreeHydrated => !IsManifestTreeBlockSealed || m_rootNode.Children != null;
+        public bool IsManifestTreeHydrated => !IsManifestTreeBlockSealed || m_rootNode.Children is not null;
 
         /// <summary>
         /// If true, then the detoured file access functions will write diagnostic messages
@@ -514,13 +514,14 @@ namespace BuildXL.Processes
         public bool UnconditionallyEnableLinuxPTraceSandbox
         {
             get => GetExtraFlag(FileAccessManifestExtraFlag.UnconditionallyEnableLinuxPTraceSandbox);
-            set {
-                    SetExtraFlag(FileAccessManifestExtraFlag.UnconditionallyEnableLinuxPTraceSandbox, value);
-                    if (value)
-                    {
-                        SetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxPTraceSandbox, value);
-                    }
+            set
+            {
+                SetExtraFlag(FileAccessManifestExtraFlag.UnconditionallyEnableLinuxPTraceSandbox, value);
+                if (value)
+                {
+                    SetExtraFlag(FileAccessManifestExtraFlag.EnableLinuxPTraceSandbox, value);
                 }
+            }
         }
 
         /// <summary>
@@ -535,17 +536,17 @@ namespace BuildXL.Processes
         /// <summary>
         /// A location for a file where Detours to log failure messages.
         /// </summary>
-        public string InternalDetoursErrorNotificationFile { get; set; }
+        public string? InternalDetoursErrorNotificationFile { get; set; }
 
         /// <summary>
         /// The semaphore that keeps count to the sent and received messages.
         /// </summary>
-        public System.Threading.Semaphore MessageCountSemaphore { get; private set; }
+        public System.Threading.Semaphore? MessageCountSemaphore { get; private set; }
 
         /// <summary>
         /// Directory translator.
         /// </summary>
-        public DirectoryTranslator DirectoryTranslator { get; set; }
+        public DirectoryTranslator? DirectoryTranslator { get; set; }
 
         /// <summary>
         /// The pip's unique id.
@@ -556,7 +557,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// List of child processes that will break away from the sandbox
         /// </summary>
-        public IReadOnlyCollection<string> ChildProcessesToBreakawayFromSandbox { get; set; }
+        public IReadOnlyCollection<string>? ChildProcessesToBreakawayFromSandbox { get; set; }
 
         /// <summary>
         /// Whether there is any configured child process that can breakaway from the sandbox
@@ -568,7 +569,7 @@ namespace BuildXL.Processes
         /// </summary>
         public bool SetMessageCountSemaphore(string semaphoreName)
         {
-            Contract.Requires(!string.IsNullOrEmpty(semaphoreName));
+            Contract.Requires(semaphoreName.Length > 0);
 
             UnsetMessageCountSemaphore();
             m_messageCountSemaphoreName = semaphoreName;
@@ -582,9 +583,9 @@ namespace BuildXL.Processes
         /// </summary>
         public void UnsetMessageCountSemaphore()
         {
-            if (MessageCountSemaphore == null)
+            if (MessageCountSemaphore is null)
             {
-                Contract.Assert(m_messageCountSemaphoreName == null);
+                Contract.Assert(m_messageCountSemaphoreName is null);
                 return;
             }
 
@@ -600,8 +601,7 @@ namespace BuildXL.Processes
         /// Internal since this is set as a side effect of initializing a FileAccessManifest
         /// in <see cref="SandboxedProcessInfo"/>.
         /// </remarks>
-        [MaybeNull]
-        public SubstituteProcessExecutionInfo SubstituteProcessExecutionInfo { get; set; }
+        public SubstituteProcessExecutionInfo? SubstituteProcessExecutionInfo { get; set; }
 
         /// <nodoc/>
         public PathTable PathTable { get; }
@@ -679,13 +679,13 @@ namespace BuildXL.Processes
         }
 
         // See unmanaged decoder at DetoursHelpers.cpp :: CreateStringFromWriteChars()
-        private static void WriteChars(BinaryWriter writer, string str)
+        private static void WriteChars(BinaryWriter writer, string? str)
         {
-            var strLen = (uint)(string.IsNullOrEmpty(str) ? 0 : str.Length);
+            var strLen = (uint)(string.IsNullOrEmpty(str) ? 0 : str!.Length);
             writer.Write(strLen);
             for (var i = 0; i < strLen; i++)
             {
-                writer.Write(str[i]);
+                writer.Write(str![i]);
             }
         }
 
@@ -693,8 +693,7 @@ namespace BuildXL.Processes
 
         private void WritePathAtom(BinaryWriter writer, PathAtom pathAtom) => WriteChars(writer, pathAtom.IsValid ? pathAtom.ToString(PathTable.StringTable) : null);
 
-
-        private static string ReadChars(BinaryReader reader)
+        private static string? ReadChars(BinaryReader reader)
         {
             uint length = reader.ReadUInt32();
             if (length == 0)
@@ -746,7 +745,7 @@ namespace BuildXL.Processes
         }
 
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Justification = "Architecture strings are USASCII")]
-        private static void WriteErrorDumpLocation(BinaryWriter writer, string internalDetoursErrorNotificationFile)
+        private static void WriteErrorDumpLocation(BinaryWriter writer, string? internalDetoursErrorNotificationFile)
         {
 #if DEBUG
             writer.Write(CheckedCode.ErrorDumpLocation);
@@ -754,7 +753,7 @@ namespace BuildXL.Processes
             WriteChars(writer, internalDetoursErrorNotificationFile);
         }
 
-        private static string ReadErrorDumpLocation(BinaryReader reader)
+        private static string? ReadErrorDumpLocation(BinaryReader reader)
         {
 #if DEBUG
             CheckedCode.EnsureRead(reader, CheckedCode.ErrorDumpLocation);
@@ -763,7 +762,7 @@ namespace BuildXL.Processes
         }
 
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Justification = "Architecture strings are USASCII")]
-        private static void WriteTranslationPathStrings(BinaryWriter writer, DirectoryTranslator translatePaths)
+        private static void WriteTranslationPathStrings(BinaryWriter writer, DirectoryTranslator? translatePaths)
         {
 #if DEBUG
             writer.Write(CheckedCode.TranslationPathString);
@@ -775,9 +774,7 @@ namespace BuildXL.Processes
 
             if (translatePathLen > 0)
             {
-                Contract.Assert(translatePaths != null);
-
-                foreach (DirectoryTranslator.Translation translation in translatePaths.Translations)
+                foreach (DirectoryTranslator.Translation translation in translatePaths!.Translations)
                 {
                     WriteChars(writer, translation.SourcePath);
                     WriteChars(writer, translation.TargetPath);
@@ -785,25 +782,24 @@ namespace BuildXL.Processes
             }
         }
 
-        private static DirectoryTranslator ReadTranslationPathStrings(BinaryReader reader)
+        private static DirectoryTranslator? ReadTranslationPathStrings(BinaryReader reader)
         {
 #if DEBUG
             CheckedCode.EnsureRead(reader, CheckedCode.TranslationPathString);
 #endif
 
             uint length = reader.ReadUInt32();
-
             if (length == 0)
             {
                 return null;
             }
 
-            DirectoryTranslator directoryTranslator = new DirectoryTranslator();
+            var directoryTranslator = new DirectoryTranslator();
 
             for (int i = 0; i < length; ++i)
             {
-                string source = ReadChars(reader);
-                string target = ReadChars(reader);
+                string? source = ReadChars(reader);
+                string? target = ReadChars(reader);
                 directoryTranslator.AddTranslation(source, target);
             }
 
@@ -813,7 +809,7 @@ namespace BuildXL.Processes
         }
 
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Justification = "Architecture strings are USASCII")]
-        private static void WriteChildProcessesToBreakAwayFromSandbox(BinaryWriter writer, IReadOnlyCollection<string> processNames)
+        private static void WriteChildProcessesToBreakAwayFromSandbox(BinaryWriter writer, IReadOnlyCollection<string>? processNames)
         {
 #if DEBUG
             writer.Write(CheckedCode.ChildProcessesBreakAwayString);
@@ -825,14 +821,14 @@ namespace BuildXL.Processes
 
             if (processNamesLen > 0)
             {
-                foreach (string processName in processNames)
+                foreach (string processName in processNames!)
                 {
                     WriteChars(writer, processName);
                 }
             }
         }
 
-        private static IReadOnlyCollection<string> ReadChildProcessesToBreakAwayFromSandbox(BinaryReader reader)
+        private static IReadOnlyCollection<string>? ReadChildProcessesToBreakAwayFromSandbox(BinaryReader reader)
         {
 #if DEBUG
             CheckedCode.EnsureRead(reader, CheckedCode.ChildProcessesBreakAwayString);
@@ -849,7 +845,11 @@ namespace BuildXL.Processes
 
             for (int i = 0; i < length; ++i)
             {
-                childProcesses.Add(ReadChars(reader));
+                string? s = ReadChars(reader);
+                if (s is not null)
+                {
+                    childProcesses.Add(s);
+                }
             }
 
             return childProcesses;
@@ -1023,7 +1023,7 @@ namespace BuildXL.Processes
             writer.Write(CheckedCode.SubstituteProcessShim);
 #endif
 
-            if (SubstituteProcessExecutionInfo == null)
+            if (SubstituteProcessExecutionInfo is null)
             {
                 writer.Write(0U);  // ShimAllProcesses false value.
 
@@ -1051,7 +1051,7 @@ namespace BuildXL.Processes
 
         private void WriteManifestTreeBlock(BinaryWriter writer)
         {
-            if (m_sealedManifestTreeBlock != null)
+            if (m_sealedManifestTreeBlock is not null)
             {
                 writer.Write(m_sealedManifestTreeBlock);
             }
@@ -1068,8 +1068,6 @@ namespace BuildXL.Processes
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         public ArraySegment<byte> GetPayloadBytes(LoggingContext loggingContext, FileAccessSetup setup, MemoryStream stream, uint timeoutMins, ref bool debugFlagsMatch)
         {
-            Contract.Requires(setup != null);
-            Contract.Requires(stream != null);
             stream.Position = 0;
             using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
             {
@@ -1077,9 +1075,9 @@ namespace BuildXL.Processes
                 if (!debugFlagsMatch)
                 {
 #if DEBUG
-                Tracing.Logger.Log.PipInvalidDetoursDebugFlag1(loggingContext);
+                    Tracing.Logger.Log.PipInvalidDetoursDebugFlag1(loggingContext);
 #else
-                Tracing.Logger.Log.PipInvalidDetoursDebugFlag2(loggingContext);
+                    Tracing.Logger.Log.PipInvalidDetoursDebugFlag2(loggingContext);
 #endif
                 }
                 WriteInjectionTimeoutBlock(writer, timeoutMins);
@@ -1109,11 +1107,11 @@ namespace BuildXL.Processes
             while (workList.Count > 0)
             {
                 var node = workList.Pop();
-                if (node == null)
+                if (node is null)
                 {
                     continue;
                 }
-                if (node.Children != null)
+                if (node.Children is not null)
                 {
                     foreach (var child in node.Children)
                     {
@@ -1129,21 +1127,17 @@ namespace BuildXL.Processes
         /// </summary>
         public void Serialize(Stream stream)
         {
-            Contract.Requires(stream != null);
+            using var writer = new BinaryWriter(stream, Encoding.Unicode, true);
+            WriteChildProcessesToBreakAwayFromSandbox(writer, ChildProcessesToBreakawayFromSandbox);
+            WriteTranslationPathStrings(writer, DirectoryTranslator);
+            WriteErrorDumpLocation(writer, InternalDetoursErrorNotificationFile);
+            WriteFlagsBlock(writer, m_fileAccessManifestFlag);
+            WriteExtraFlagsBlock(writer, m_fileAccessManifestExtraFlag);
+            WritePipId(writer, PipId);
+            WriteChars(writer, m_messageCountSemaphoreName);
 
-            using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
-            {
-                WriteChildProcessesToBreakAwayFromSandbox(writer, ChildProcessesToBreakawayFromSandbox);
-                WriteTranslationPathStrings(writer, DirectoryTranslator);
-                WriteErrorDumpLocation(writer, InternalDetoursErrorNotificationFile);
-                WriteFlagsBlock(writer, m_fileAccessManifestFlag);
-                WriteExtraFlagsBlock(writer, m_fileAccessManifestExtraFlag);
-                WritePipId(writer, PipId);
-                WriteChars(writer, m_messageCountSemaphoreName);
-
-                // The manifest tree block has to be serialized the last.
-                WriteManifestTreeBlock(writer);
-            }
+            // The manifest tree block has to be serialized the last.
+            WriteManifestTreeBlock(writer);
         }
 
         /// <summary>
@@ -1155,37 +1149,33 @@ namespace BuildXL.Processes
         /// </remarks>
         public static FileAccessManifest Deserialize(Stream stream)
         {
-            Contract.Requires(stream != null);
+            using var reader = new BinaryReader(stream, Encoding.Unicode, true);
+            IReadOnlyCollection<string>? childProcessesToBreakAwayFromSandbox = ReadChildProcessesToBreakAwayFromSandbox(reader);
+            DirectoryTranslator? directoryTranslator = ReadTranslationPathStrings(reader);
+            string? internalDetoursErrorNotificationFile = ReadErrorDumpLocation(reader);
+            FileAccessManifestFlag fileAccessManifestFlag = ReadFlagsBlock(reader);
+            FileAccessManifestExtraFlag fileAccessManifestExtraFlag = ReadExtraFlagsBlock(reader);
+            long pipId = ReadPipId(reader);
+            string? messageCountSemaphoreName = ReadChars(reader);
 
-            using (var reader = new BinaryReader(stream, Encoding.Unicode, true))
+            byte[] sealedManifestTreeBlock;
+
+            // TODO: Check perf. a) if this is a good buffer size, b) if the buffers should be pooled (now they are just allocated and thrown away)
+            using (var ms = new MemoryStream(4096))
             {
-                IReadOnlyCollection<string> childProcessesToBreakAwayFromSandbox = ReadChildProcessesToBreakAwayFromSandbox(reader);
-                DirectoryTranslator directoryTranslator = ReadTranslationPathStrings(reader);
-                string internalDetoursErrorNotificationFile = ReadErrorDumpLocation(reader);
-                FileAccessManifestFlag fileAccessManifestFlag = ReadFlagsBlock(reader);
-                FileAccessManifestExtraFlag fileAccessManifestExtraFlag = ReadExtraFlagsBlock(reader);
-                long pipId = ReadPipId(reader);
-                string messageCountSemaphoreName = ReadChars(reader);
-
-                byte[] sealedManifestTreeBlock;
-
-                // TODO: Check perf. a) if this is a good buffer size, b) if the buffers should be pooled (now they are just allocated and thrown away)
-                using (MemoryStream ms = new MemoryStream(4096))
-                {
-                    stream.CopyTo(ms);
-                    sealedManifestTreeBlock = ms.ToArray();
-                }
-
-                return new FileAccessManifest(new PathTable(), directoryTranslator, childProcessesToBreakAwayFromSandbox)
-                {
-                    InternalDetoursErrorNotificationFile = internalDetoursErrorNotificationFile,
-                    PipId = pipId,
-                    m_fileAccessManifestFlag = fileAccessManifestFlag,
-                    m_fileAccessManifestExtraFlag = fileAccessManifestExtraFlag,
-                    m_sealedManifestTreeBlock = sealedManifestTreeBlock,
-                    m_messageCountSemaphoreName = messageCountSemaphoreName
-                };
+                stream.CopyTo(ms);
+                sealedManifestTreeBlock = ms.ToArray();
             }
+
+            return new FileAccessManifest(new PathTable(), directoryTranslator, childProcessesToBreakAwayFromSandbox)
+            {
+                InternalDetoursErrorNotificationFile = internalDetoursErrorNotificationFile,
+                PipId = pipId,
+                m_fileAccessManifestFlag = fileAccessManifestFlag,
+                m_fileAccessManifestExtraFlag = fileAccessManifestExtraFlag,
+                m_sealedManifestTreeBlock = sealedManifestTreeBlock,
+                m_messageCountSemaphoreName = messageCountSemaphoreName
+            };
         }
 
         private void HydrateTreeNodeIfNeeded()
@@ -1195,7 +1185,7 @@ namespace BuildXL.Processes
                 return;
             }
             
-            using (var stream = new MemoryStream(m_sealedManifestTreeBlock))
+            using (var stream = new MemoryStream(m_sealedManifestTreeBlock!))
             using (var reader = new BinaryReader(stream, Encoding.Unicode, leaveOpen: true))
             {
                 (m_rootNode, _) = Node.InternalDeserialize(reader);
@@ -1213,21 +1203,17 @@ namespace BuildXL.Processes
         {
             if (IsManifestTreeBlockSealed)
             {
-                Contract.Assert(m_sealedManifestTreeBlock != null);
+                Contract.Assert(m_sealedManifestTreeBlock is not null);
                 return m_sealedManifestTreeBlock;
             }
 
             // start with 4 KB of memory (one page), which will expand as necessary
             // stream will be disposed by the BinaryWriter when it goes out of scope
-            using (var stream = new MemoryStream(4096))
-            {
-                using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
-                {
-                    m_rootNode.Serialize(writer);
-                    var bytes = stream.ToArray();
-                    return bytes;
-                }
-            }
+            using var stream = new MemoryStream(4096);
+            using var writer = new BinaryWriter(stream, Encoding.Unicode, true);
+            m_rootNode.Serialize(writer);
+            var bytes = stream.ToArray();
+            return bytes;
         }
 
         /// <summary>
@@ -1312,17 +1298,13 @@ namespace BuildXL.Processes
             private readonly string m_value;
             public readonly int Length;
 
-            public static readonly PaddedByteString Invalid = default(PaddedByteString);
+            public static readonly PaddedByteString Invalid = default;
 
-            public bool IsValid
-            {
-                get { return m_value != null; }
-            }
+            public bool IsValid => m_value is not null;
 
             public void Serialize(BinaryWriter writer)
             {
                 Contract.Requires(IsValid);
-                Contract.Requires(writer != null);
 
                 using (PooledObjectWrapper<byte[]> wrapper = Pools.GetByteArray(Length))
                 {
@@ -1334,9 +1316,6 @@ namespace BuildXL.Processes
 
             public PaddedByteString(Encoding encoding, string str)
             {
-                Contract.Requires(encoding != null);
-                Contract.Requires(str != null);
-
                 Length = checked(encoding.GetByteCount(str) + 4) & ~3;
                 m_value = str;
                 m_encoding = encoding;
@@ -1352,8 +1331,6 @@ namespace BuildXL.Processes
 
             public NormalizedPathString(string path)
             {
-                Contract.Requires(path != null);
-
                 HashCode = ProcessUtilities.NormalizeAndHashPath(path, out Bytes);
             }
 
@@ -1363,10 +1340,7 @@ namespace BuildXL.Processes
                 HashCode = hashCode;
             }
 
-            public bool IsValid
-            {
-                get { return Bytes != null; }
-            }
+            public bool IsValid => Bytes is not null;
 
             public override int GetHashCode()
             {
@@ -1429,7 +1403,7 @@ namespace BuildXL.Processes
                 return IsValid ? Encoding.Unicode.GetString(Bytes, 0, Bytes.Length - sizeof(char)) : "<invalid>";
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 return obj is NormalizedPathString && Equals((NormalizedPathString)obj);
             }
@@ -1453,7 +1427,7 @@ namespace BuildXL.Processes
             /// <summary>
             /// Holds the children of this Node.
             /// </summary>
-            private Dictionary<NormalizedPathString, Node> m_children;
+            private Dictionary<NormalizedPathString, Node>? m_children;
 
             /// <summary>
             /// Policy for the cone defined by this node
@@ -1484,7 +1458,7 @@ namespace BuildXL.Processes
             /// <summary>
             /// Returns children nodes.
             /// </summary>
-            internal IEnumerable<Node> Children => m_children?.Values;
+            internal IEnumerable<Node>? Children => m_children?.Values;
 
             /// <summary>
             /// Releases all children nodes, allowing all that memory to be reclaimed by the garbage collector.
@@ -1497,10 +1471,7 @@ namespace BuildXL.Processes
             /// <summary>
             /// The path ID as understood by the owning path table.
             /// </summary>
-            public AbsolutePath PathId
-            {
-                get { return m_pathId; }
-            }
+            public AbsolutePath PathId => m_pathId;
 
             /// <summary>
             /// If not <code>NoUsn</code>, check that when file is successfully opened, its initial USN is the expected USN.
@@ -1510,13 +1481,7 @@ namespace BuildXL.Processes
             /// <summary>
             /// The policy for the cone defined by the current node.
             /// </summary>
-            public FileAccessPolicy ConePolicy
-            {
-                get
-                {
-                    return m_conePolicy;
-                }
-            }
+            public FileAccessPolicy ConePolicy => m_conePolicy;
 
             private void FinalizeConePolicy(FileAccessPolicy conePolicy)
             {
@@ -1527,13 +1492,7 @@ namespace BuildXL.Processes
             /// <summary>
             /// The final policy for the current node
             /// </summary>
-            public FileAccessPolicy NodePolicy
-            {
-                get
-                {
-                    return m_nodePolicy;
-                }
-            }
+            public FileAccessPolicy NodePolicy => m_nodePolicy;
 
             private void FinalizeNodePolicy(FileAccessPolicy nodePolicy)
             {
@@ -1545,10 +1504,7 @@ namespace BuildXL.Processes
             /// Use this to determine whether the policy has been finalized. All Nodes should have
             /// their policies finalized before serialization.
             /// </summary>
-            internal bool IsPolicyFinalized
-            {
-                get { return m_isPolicyFinalized; }
-            }
+            internal bool IsPolicyFinalized => m_isPolicyFinalized;
 
             /// <summary>
             /// Construct a default Node. The value of the default node will be updated adding a scope for {Invalid}.
@@ -1589,7 +1545,6 @@ namespace BuildXL.Processes
             /// <param name="scope">The scope policy for the Node represented by the path.</param>
             public void AddConeWithScope(FileAccessManifest owner, AbsolutePath coneRoot, FileAccessScope scope)
             {
-                Contract.Requires(owner != null);
                 Contract.Requires(coneRoot.IsValid);
 
                 Node leaf = AddPath(owner, coneRoot);
@@ -1605,7 +1560,6 @@ namespace BuildXL.Processes
             /// <param name="expectedUsn">If not <code>NoUsn</code>, check that when is successfully opened, its initial USN is the expected USN.</param>
             public void AddNodeWithScope(FileAccessManifest owner, AbsolutePath path, FileAccessScope scope, Usn expectedUsn)
             {
-                Contract.Requires(owner != null);
                 Contract.Requires(path.IsValid);
 
                 Node leaf = AddPath(owner, path);
@@ -1618,7 +1572,6 @@ namespace BuildXL.Processes
             public Node FindNodeFor(FileAccessManifest owner, AbsolutePath pathToLookUp)
             {
                 Contract.Requires(pathToLookUp.IsValid);
-                Contract.Requires(owner != null);
 
                 if (PathId == pathToLookUp)
                 {
@@ -1632,7 +1585,7 @@ namespace BuildXL.Processes
 
                 if (node.TryGetChild(owner, pathToLookUp, out var result, out _))
                 {
-                        return result;
+                    return result;
                 }
 
                 return node;
@@ -1640,15 +1593,12 @@ namespace BuildXL.Processes
 
             private Node GetOrCreateChild(FileAccessManifest owner, AbsolutePath path)
             {
-                if (TryGetChild(owner, path, out Node child, out NormalizedPathString normalizedFragment))
+                if (TryGetChild(owner, path, out Node? child, out NormalizedPathString normalizedFragment))
                 {
                     return child;
                 }
 
-                if (m_children == null)
-                {
-                    m_children = new Dictionary<NormalizedPathString, Node>();
-                }
+                m_children ??= new Dictionary<NormalizedPathString, Node>();
 
                 child = new Node(path);
                 m_children.Add(normalizedFragment, child);
@@ -1656,9 +1606,8 @@ namespace BuildXL.Processes
                 return child;
             }
 
-            private bool TryGetChild(FileAccessManifest owner, AbsolutePath path, out Node node, out NormalizedPathString normalizedFragment)
+            private bool TryGetChild(FileAccessManifest owner, AbsolutePath path, [NotNullWhen(true)] out Node? node, out NormalizedPathString normalizedFragment)
             {
-                Contract.Requires(owner != null);
                 Contract.Requires(path.IsValid);
 
                 StringId fragment = path.GetName(owner.PathTable).StringId;
@@ -1676,7 +1625,6 @@ namespace BuildXL.Processes
                 node = null;
                 if (m_children?.TryGetValue(normalizedFragment, out node) == true)
                 {
-                    Contract.Assume(node != null);
                     return true;
                 }
 
@@ -1710,7 +1658,6 @@ namespace BuildXL.Processes
             /// <returns>The Node corresponding to the "leaf" of the path (which may or may not be a leaf of this tree).</returns>
             private Node AddPath(FileAccessManifest owner, AbsolutePath path)
             {
-                Contract.Requires(owner != null);
                 Contract.Requires(path.IsValid);
 
                 var container = path.GetParent(owner.PathTable);
@@ -1743,7 +1690,7 @@ namespace BuildXL.Processes
                 // The node policy is computed by composing the cone scope with the node scope
                 FinalizeNodePolicy((ConePolicy & NodeScope.Mask) | NodeScope.Values);
 
-                if (m_children != null)
+                if (m_children is not null)
                 {
                     foreach (var child in m_children)
                     {
@@ -1794,7 +1741,7 @@ namespace BuildXL.Processes
                 {
                     var normalizedPathString = new NormalizedPathString(NormalizedPathString.DeserializeBytes(reader), (int)normalizedFragmentHash);
 
-                    Node node = new Node(new AbsolutePath((int)pathIdValue));
+                    var node = new Node(new AbsolutePath((int)pathIdValue));
                     node.m_conePolicy = (FileAccessPolicy)conePolicy;
                     node.m_nodePolicy = (FileAccessPolicy)nodePolicy;
                     node.ExpectedUsn = new Usn(expectedUsnValue);
@@ -1808,7 +1755,7 @@ namespace BuildXL.Processes
                     for (int i = 0; i < childrenCount; i++)
                     {
                         (Node child, NormalizedPathString childNormalizedPathString) = InternalDeserialize(reader);
-                        node.m_children[childNormalizedPathString] = child;
+                        node.m_children![childNormalizedPathString] = child;
                     }
 
                     return (node, normalizedPathString);
@@ -1835,7 +1782,7 @@ namespace BuildXL.Processes
                     writer.Write((uint)PathId.Value.Value);
                     writer.Write((ulong)ExpectedUsn.Value);
 
-                    var childCount = (uint)(m_children == null ? 0 : m_children.Count);
+                    var childCount = (uint)(m_children is null ? 0 : m_children.Count);
 
                     // The children will be added to a hash-table.
                     // As it is known that hash-table performance starts to degrade with load factors > 0.7,
@@ -1845,7 +1792,7 @@ namespace BuildXL.Processes
                     writer.Write(bucketCount);
 
                     long offsetsStart = 0;
-                    if (m_children != null)
+                    if (m_children is not null)
                     {
                         offsetsStart = writer.BaseStream.Position;
                         for (var i = 0; i < bucketCount; i++)
@@ -1864,7 +1811,7 @@ namespace BuildXL.Processes
                         writer.Write(0U);
                     }
 
-                    if (m_children != null)
+                    if (m_children is not null)
                     {
                         // We are now building a simple hash-table with linear chaining for collisions.
                         // The lowest two bits of each record may encoding information about whether a collision chain starts at that point, or continues.
@@ -1964,102 +1911,100 @@ namespace BuildXL.Processes
                     {
                         var stack = CreateStack(new { Start = 0L, Level = 0, Path = string.Empty });
                         var buffer = new List<byte>();
-                        using (var wrapper = Pools.GetStringBuilder())
+                        using var wrapper = Pools.GetStringBuilder();
+                        var str = wrapper.Instance;
+                        while (stack.Count > 0)
                         {
-                            var str = wrapper.Instance;
-                            while (stack.Count > 0)
-                            {
-                                var item = stack.Pop();
-                                reader.BaseStream.Seek(item.Start, SeekOrigin.Begin);
+                            var item = stack.Pop();
+                            reader.BaseStream.Seek(item.Start, SeekOrigin.Begin);
 
-                                str.Clear();
-                                for (int i = 0; i < item.Level; i++)
-                                {
-                                    str.Append("  ");
-                                }
+                            str.Clear();
+                            for (int i = 0; i < item.Level; i++)
+                            {
+                                str.Append("  ");
+                            }
 
 #if DEBUG
-                                var tag = unchecked((uint)reader.ReadInt32());
-                                Contract.Assume(tag == 0xF00DCAFE);
+                            var tag = unchecked((uint)reader.ReadInt32());
+                            Contract.Assume(tag == 0xF00DCAFE);
 #endif
 
-                                var hash = reader.ReadUInt32();
-                                var conePolicy = (short)reader.ReadUInt32();
-                                var nodePolicy = (short)reader.ReadUInt32();
+                            var hash = reader.ReadUInt32();
+                            var conePolicy = (short)reader.ReadUInt32();
+                            var nodePolicy = (short)reader.ReadUInt32();
 
-                                var pathId = reader.ReadUInt32();
-                                Usn expectedUsn = new Usn(reader.ReadUInt64());
+                            var pathId = reader.ReadUInt32();
+                            var expectedUsn = new Usn(reader.ReadUInt64());
 
-                                int hashtableCount = reader.ReadInt32();
-                                List<long> absoluteChildStarts = new List<long>();
-                                for (int i = 0; i < hashtableCount; i++)
+                            int hashtableCount = reader.ReadInt32();
+                            var absoluteChildStarts = new List<long>();
+                            for (int i = 0; i < hashtableCount; i++)
+                            {
+                                uint childOffset = reader.ReadUInt32();
+                                if (childOffset != 0)
                                 {
-                                    uint childOffset = reader.ReadUInt32();
-                                    if (childOffset != 0)
-                                    {
-                                        absoluteChildStarts.Add(item.Start + (childOffset & ~0x3));
-                                    }
+                                    absoluteChildStarts.Add(item.Start + (childOffset & ~0x3));
                                 }
+                            }
 
-                                string partialPath = ReadUnicodeString(reader, buffer);
-                                string fullPath = Path.Combine(item.Path, partialPath);
+                            string partialPath = ReadUnicodeString(reader, buffer);
+                            string fullPath = Path.Combine(item.Path, partialPath);
 
+                            if (hashtableCount != 0)
+                            {
+                                // this is a directory
+                                fullPath += Path.DirectorySeparatorChar;
+                            }
+
+                            str.Append('[').Append(partialPath).Append(']');
+
+                            if (pathId != 0)
+                            {
                                 if (hashtableCount != 0)
                                 {
-                                    // this is a directory
-                                    fullPath += Path.DirectorySeparatorChar;
+                                    str.Append(" <Scope>");
                                 }
-
-                                str.Append('[').Append(partialPath).Append(']');
-
-                                if (pathId != 0)
+                                else if (!partialPath.Contains('.'))
                                 {
-                                    if (hashtableCount != 0)
-                                    {
-                                        str.Append(" <Scope>");
-                                    }
-                                    else if (!partialPath.Contains('.'))
-                                    {
-                                        str.Append(" <Scope>");
-                                    }
-                                    else
-                                    {
-                                        str.Append(" <Path>");
-                                    }
-
-                                    str.Append(" PathID:").AppendFormat(CultureInfo.InvariantCulture, "0x{0:X8}", pathId);
-                                }
-
-                                str.Append(" Cone Policy:").Append(conePolicy);
-                                str.Append(" (");
-                                FileAccessPolicyFormatter.Append(str, conePolicy);
-                                str.Append(')');
-
-                                str.Append(" Node Policy:").Append(nodePolicy);
-                                str.Append(" (");
-                                FileAccessPolicyFormatter.Append(str, nodePolicy);
-                                str.Append(')');
-
-                                if (expectedUsn != ReportedFileAccess.NoUsn)
-                                {
-                                    str.AppendFormat(" ExpectedUsn:{0}", expectedUsn);
-                                }
-
-                                if (string.IsNullOrEmpty(partialPath))
-                                {
-                                    str.Append(" {Root Scope}");
+                                    str.Append(" <Scope>");
                                 }
                                 else
                                 {
-                                    str.Append(" '").Append(fullPath).Append('\'');
+                                    str.Append(" <Path>");
                                 }
 
-                                yield return str.ToString();
+                                str.Append(" PathID:").AppendFormat(CultureInfo.InvariantCulture, "0x{0:X8}", pathId);
+                            }
 
-                                for (int i = absoluteChildStarts.Count - 1; i >= 0; i--)
-                                {
-                                    stack.Push(new { Start = absoluteChildStarts[i], Level = item.Level + 1, Path = fullPath });
-                                }
+                            str.Append(" Cone Policy:").Append(conePolicy);
+                            str.Append(" (");
+                            FileAccessPolicyFormatter.Append(str, conePolicy);
+                            str.Append(')');
+
+                            str.Append(" Node Policy:").Append(nodePolicy);
+                            str.Append(" (");
+                            FileAccessPolicyFormatter.Append(str, nodePolicy);
+                            str.Append(')');
+
+                            if (expectedUsn != ReportedFileAccess.NoUsn)
+                            {
+                                str.AppendFormat(" ExpectedUsn:{0}", expectedUsn);
+                            }
+
+                            if (partialPath.Length > 0)
+                            {
+                                str.Append(" {Root Scope}");
+                            }
+                            else
+                            {
+                                str.Append(" '").Append(fullPath).Append('\'');
+                            }
+
+                            yield return str.ToString();
+
+                            for (int i = absoluteChildStarts.Count - 1; i >= 0; i--)
+                            {
+                                stack.Push(new { Start = absoluteChildStarts[i], Level = item.Level + 1, Path = fullPath });
                             }
                         }
                     }

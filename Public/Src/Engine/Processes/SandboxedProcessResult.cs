@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using BuildXL.Utilities.Core;
 
+#nullable enable
+
 namespace BuildXL.Processes
 {
     /// <summary>
@@ -44,12 +46,12 @@ namespace BuildXL.Processes
         /// <remarks>
         /// If non-empty, implies <code>Killed</code>.
         /// </remarks>
-        public IEnumerable<ReportedProcess> SurvivingChildProcesses { get; set; }
+        public IEnumerable<ReportedProcess>? SurvivingChildProcesses { get; set; }
 
         /// <summary>
         /// Gets the timings of the primary process (the one started directly). This does not account for any child processes.
         /// </summary>
-        public ProcessTimes PrimaryProcessTimes { get; set; }
+        public ProcessTimes? PrimaryProcessTimes { get; set; }
 
         /// <summary>
         /// If available, gets the accounting information for the job representing the entire process tree that was executed (i.e., including child processes).
@@ -59,58 +61,58 @@ namespace BuildXL.Processes
         /// <summary>
         /// Redirected standard output.
         /// </summary>
-        public SandboxedProcessOutput StandardOutput { get; set; }
+        public SandboxedProcessOutput? StandardOutput { get; set; }
 
         /// <summary>
         /// Redirected standard error.
         /// </summary>
-        public SandboxedProcessOutput StandardError { get; set; }
+        public SandboxedProcessOutput? StandardError { get; set; }
 
         /// <summary>
         /// Sandbox trace file.
         /// </summary>
-        public SandboxedProcessOutput TraceFile { get; set; }
+        public SandboxedProcessOutput? TraceFile { get; set; }
 
         /// <summary>
         /// Optional set of all file and scope accesses, only non-null when file access monitoring was requested and ReportFileAccesses was specified in manifest
         /// </summary>
-        public ISet<ReportedFileAccess> FileAccesses { get; set; }
+        public ISet<ReportedFileAccess>? FileAccesses { get; set; }
 
         /// <summary>
         /// Optional set of all file accesses that were reported due to <see cref="FileAccessPolicy.ReportAccess"/> being set, only non-null when file access monitoring was requested
         /// </summary>
-        public ISet<ReportedFileAccess> ExplicitlyReportedFileAccesses { get; set; }
+        public ISet<ReportedFileAccess>? ExplicitlyReportedFileAccesses { get; set; }
 
         /// <summary>
         /// Optional set of all file access violations, only non-null when file access monitoring was requested and ReportUnexpectedFileAccesses was specified in manifest
         /// </summary>
-        public ISet<ReportedFileAccess> AllUnexpectedFileAccesses { get; set; }
+        public ISet<ReportedFileAccess>? AllUnexpectedFileAccesses { get; set; }
 
         /// <summary>
         /// Optional list of all launched processes, including nested processes, only non-null when file access monitoring was requested
         /// </summary>
-        public IReadOnlyList<ReportedProcess> Processes { get; set; }
+        public IReadOnlyList<ReportedProcess>? Processes { get; set; }
 
         /// <summary>
         /// Optional list of all Detouring Status messages received.
         /// </summary>
-        public IReadOnlyList<ProcessDetouringStatusData> DetouringStatuses { get; set; }
+        public IReadOnlyList<ProcessDetouringStatusData>? DetouringStatuses { get; set; }
 
         /// <summary>
         /// Path of the memory dump created if a process times out. This may be null if the process did not time out
         /// or if capturing the dump failed. By default, this will be placed in the process's working directory.
         /// </summary>
-        public string DumpFileDirectory { get; set; }
+        public string? DumpFileDirectory { get; set; }
 
         /// <summary>
         /// Exception describing why creating a memory dump may have failed.
         /// </summary>
-        public Exception DumpCreationException { get; set; }
+        public Exception? DumpCreationException { get; set; }
 
         /// <summary>
         /// Exception describing why writing standard input may have failed.
         /// </summary>
-        public Exception StandardInputException { get; set; }
+        public Exception? StandardInputException { get; set; }
 
         /// <summary>
         /// Whether there were ReadWrite access requests changed to Read access requests.
@@ -122,7 +124,7 @@ namespace BuildXL.Processes
         /// This could happen if the child process is killed while writing a message in the pipe.
         /// If null there is no error, otherwise the Faiulure object contains string, describing the error.
         /// </summary>
-        public Failure<string> MessageProcessingFailure { get; set; }
+        public Failure<string>? MessageProcessingFailure { get; set; }
 
         /// <summary>
         /// Time (in ms.) spent for startiing the process.
@@ -155,23 +157,21 @@ namespace BuildXL.Processes
         /// <remarks>
         /// For test purposes only
         /// </remarks>
-        public string DiagnosticMessage { get; set; }
+        public string? DiagnosticMessage { get; set; }
 
         /// <summary>
         /// Serializes this instance to a given <paramref name="stream"/>.
         /// </summary>
-        public void Serialize(Stream stream, Action<BuildXLWriter, AbsolutePath> writePath = null)
+        public void Serialize(Stream stream, Action<BuildXLWriter, AbsolutePath>? writePath = null)
         {
-            using (var writer = new BuildXLWriter(false, stream, true, true))
-            {
-                Serialize(writer, writePath);
-            }
+            using var writer = new BuildXLWriter(false, stream, true, true);
+            Serialize(writer, writePath);
         }
 
         /// <summary>
         /// Serializes this instance to a given <paramref name="writer"/>.
         /// </summary>
-        public void Serialize(BuildXLWriter writer, Action<BuildXLWriter, AbsolutePath> writePath = null)
+        public void Serialize(BuildXLWriter writer, Action<BuildXLWriter, AbsolutePath>? writePath = null)
         {
             writer.Write(ExitCode);
             writer.Write(Killed);
@@ -206,18 +206,16 @@ namespace BuildXL.Processes
         /// <summary>
         /// Deserializes an instance of <see cref="SandboxedProcessResult"/>.
         /// </summary>
-        public static SandboxedProcessResult Deserialize(Stream stream, Func<BuildXLReader, AbsolutePath> readPath = null)
+        public static SandboxedProcessResult Deserialize(Stream stream, Func<BuildXLReader, AbsolutePath>? readPath = null)
         {
-            using (var reader = new BuildXLReader(false, stream, true))
-            {
-                return Deserialize(reader, readPath);
-            }
+            using var reader = new BuildXLReader(false, stream, true);
+            return Deserialize(reader, readPath);
         }
 
         /// <summary>
         /// Deserializes an instance of <see cref="SandboxedProcessResult"/>.
         /// </summary>
-        public static SandboxedProcessResult Deserialize(BuildXLReader reader, Func<BuildXLReader, AbsolutePath> readPath = null)
+        public static SandboxedProcessResult Deserialize(BuildXLReader reader, Func<BuildXLReader, AbsolutePath>? readPath = null)
         {
             int exitCode = reader.ReadInt32();
             bool killed = reader.ReadBoolean();
@@ -259,16 +257,16 @@ namespace BuildXL.Processes
                 StandardOutput = standardOutput,
                 StandardError = standardError,
                 TraceFile = trace,
-                FileAccesses = fileAccesses != null ? new HashSet<ReportedFileAccess>(fileAccesses) : null,
-                ExplicitlyReportedFileAccesses = explicitlyReportedFileAccesses != null ? new HashSet<ReportedFileAccess>(explicitlyReportedFileAccesses) : null,
-                AllUnexpectedFileAccesses = allUnexpectedFileAccesses != null ? new HashSet<ReportedFileAccess>(allUnexpectedFileAccesses) : null,
+                FileAccesses = fileAccesses is not null ? new HashSet<ReportedFileAccess>(fileAccesses) : null,
+                ExplicitlyReportedFileAccesses = explicitlyReportedFileAccesses is not null ? new HashSet<ReportedFileAccess>(explicitlyReportedFileAccesses) : null,
+                AllUnexpectedFileAccesses = allUnexpectedFileAccesses is not null ? new HashSet<ReportedFileAccess>(allUnexpectedFileAccesses) : null,
                 Processes = processes,
                 DetouringStatuses = detouringStatuses,
                 DumpFileDirectory = dumpFileDirectory,
-                DumpCreationException = dumpCreationExceptionMessage != null ? new Exception(dumpCreationExceptionMessage) : null,
-                StandardInputException = standardInputExceptionMessage != null ? new Exception(standardInputExceptionMessage) : null,
+                DumpCreationException = dumpCreationExceptionMessage is not null ? new Exception(dumpCreationExceptionMessage) : null,
+                StandardInputException = standardInputExceptionMessage is not null ? new Exception(standardInputExceptionMessage) : null,
                 HasReadWriteToReadFileAccessRequest = hasReadWriteToReadFileAccessRequest,
-                MessageProcessingFailure = messageProcessingFailureMessage != null ? new Failure<string>(messageProcessingFailureMessage) : null,
+                MessageProcessingFailure = messageProcessingFailureMessage is not null ? new Failure<string>(messageProcessingFailureMessage) : null,
                 ProcessStartTime = processStartTime,
                 WarningCount = warningCount,
                 DetoursMaxHeapSize = detoursMaxHeapSize,
@@ -287,7 +285,7 @@ namespace BuildXL.Processes
             PopulateProcesses(ExplicitlyReportedFileAccesses?.Select(f => f.Process));
             PopulateProcesses(AllUnexpectedFileAccesses?.Select(f => f.Process));
 
-            ReportedProcess[] processes = new ReportedProcess[processMap.Count];
+            var processes = new ReportedProcess[processMap.Count];
             foreach (var process in processMap)
             {
                 processes[process.Value] = process.Key;
@@ -297,9 +295,9 @@ namespace BuildXL.Processes
 
             return processMap;
 
-            void PopulateProcesses(IEnumerable<ReportedProcess> processesToPopulate)
+            void PopulateProcesses(IEnumerable<ReportedProcess>? processesToPopulate)
             {
-                if (processesToPopulate != null)
+                if (processesToPopulate is not null)
                 {
                     foreach (var process in processesToPopulate)
                     {

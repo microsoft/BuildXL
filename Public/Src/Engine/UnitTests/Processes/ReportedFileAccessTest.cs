@@ -9,6 +9,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
+#nullable enable
+
 namespace Test.BuildXL.Processes
 {
     public sealed class ReportedFileAccessTests : XunitBuildXLTest

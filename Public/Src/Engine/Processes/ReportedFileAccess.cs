@@ -12,6 +12,8 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 
+#nullable enable
+
 namespace BuildXL.Processes
 {
     /// <summary>
@@ -81,7 +83,7 @@ namespace BuildXL.Processes
         /// (manifest absolute path is invalid) or refers to a descendant (i.e., the manifest path id was used in a scope rule).
         /// </summary>
         [SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
-        public readonly string Path;
+        public readonly string? Path;
 
         /// <summary>
         /// Path as given in the file access manifest. This path may have been echoed as part of an exact match (<see cref="Path"/> is then null)
@@ -131,7 +133,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Enumerate pattern
         /// </summary>
-        public readonly string EnumeratePattern;
+        public readonly string? EnumeratePattern;
 
         /// <summary>
         /// Creates an instance from an absolute path
@@ -150,11 +152,10 @@ namespace BuildXL.Processes
             CreationDisposition creationDisposition,
             FlagsAndAttributes flagsAndAttributes,
             AbsolutePath manifestPath,
-            string path,
-            string enumeratePattern,
+            string? path,
+            string? enumeratePattern,
             FileAccessStatusMethod fileAccessStatusMethod = FileAccessStatusMethod.PolicyBased)
         {
-            Contract.Requires(process != null);
             Operation = operation;
             Process = process;
             RequestedAccess = requestedAccess;
@@ -191,11 +192,10 @@ namespace BuildXL.Processes
             FlagsAndAttributes flagsAndAttributes,
             FlagsAndAttributes openedFileOrDirectoryAttribute,
             AbsolutePath manifestPath,
-            string path,
-            string enumeratePattern,
+            string? path,
+            string? enumeratePattern,
             FileAccessStatusMethod fileAccessStatusMethod = FileAccessStatusMethod.PolicyBased)
         {
-            Contract.Requires(process != null);
             Operation = operation;
             Process = process;
             RequestedAccess = requestedAccess;
@@ -320,184 +320,182 @@ namespace BuildXL.Processes
         /// </summary>
         public string Describe()
         {
-            using (PooledObjectWrapper<StringBuilder> wrapper = Pools.GetStringBuilder())
+            using PooledObjectWrapper<StringBuilder> wrapper = Pools.GetStringBuilder();
+            StringBuilder sb = wrapper.Instance;
+            sb.Append('[');
+            sb.Append(Process.Path);
+            sb.Append(':');
+            sb.Append(Process.ProcessId);
+            sb.Append(']');
+
+            if (RequestedAccess != RequestedAccess.None)
             {
-                StringBuilder sb = wrapper.Instance;
-                sb.Append('[');
-                sb.Append(Process.Path);
-                sb.Append(':');
-                sb.Append(Process.ProcessId);
-                sb.Append(']');
-
-                if (RequestedAccess != RequestedAccess.None)
-                {
-                    sb.AppendFormat("({0:G})", RequestedAccess);
-                }
-
-                sb.Append(' ');
-
-                switch (Operation)
-                {
-                    case ReportedFileOperation.ZwCreateFile:
-                    case ReportedFileOperation.ZwOpenFile:
-                    case ReportedFileOperation.NtCreateFile:
-                    case ReportedFileOperation.CreateFile:
-                    case ReportedFileOperation.Unknown:
-                        {
-                            sb.Append(Operation.ToString());
-                            sb.Append("(..., ");
-                            UInt32FlagsFormatter<DesiredAccess>.Append(sb, (uint)DesiredAccess);
-                            sb.Append(", ");
-                            UInt32FlagsFormatter<ShareMode>.Append(sb, (uint)ShareMode);
-                            sb.Append(", , ");
-                            UInt32EnumFormatter<CreationDisposition>.Append(sb, (uint)CreationDisposition);
-                            sb.Append(", ");
-                            UInt32FlagsFormatter<FlagsAndAttributes>.Append(sb, (uint)FlagsAndAttributes);
-                            sb.Append(")");
-                            break;
-                        }
-
-                    case ReportedFileOperation.CopyFileSource:
-                        {
-                            sb.Append("CopyFile([Source], ...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.CopyFileDestination:
-                        {
-                            sb.Append("CopyFile(..., [Destination])");
-                            break;
-                        }
-
-                    case ReportedFileOperation.CreateHardLinkSource:
-                        {
-                            sb.Append("CreateHardLink(..., [ExistingFile)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.CreateHardLinkDestination:
-                        {
-                            sb.Append("CreateHardLink([NewLink], ...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.MoveFileSource:
-                        {
-                            sb.Append("MoveFile([Source], ...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.MoveFileDestination:
-                        {
-                            sb.Append("MoveFile(..., [Destination])");
-                            break;
-                        }
-
-                    case ReportedFileOperation.SetFileInformationByHandleSource:
-                        {
-                            sb.Append("SetFileInformationByHandle([Source], ...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.SetFileInformationByHandleDest:
-                        {
-                            sb.Append("SetFileInformationByHandle(..., [Destination])");
-                            break;
-                        }
-
-                    case ReportedFileOperation.ZwSetRenameInformationFileSource:
-                        {
-                            sb.Append("ZwSetRenameInformationFile([Source], ...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.ZwSetRenameInformationFileDest:
-                        {
-                            sb.Append("ZwSetRenameInformationFile(..., [Destination])");
-                            break;
-                        }
-
-                    case ReportedFileOperation.ZwSetFileNameInformationFileSource:
-                        {
-                            sb.Append("ZwSetFileNameInformationFile([Source], ...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.ZwSetFileNameInformationFileDest:
-                        {
-                            sb.Append("ZwSetFileNameInformationFile(..., [Destination])");
-                            break;
-                        }
-
-                    case ReportedFileOperation.MoveFileWithProgressSource:
-                        {
-                            sb.Append("MoveFileWithProgress([Source]...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.MoveFileWithProgressDest:
-                        {
-                            sb.Append("MoveFileWithProgress([Dest]...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.FindFirstFileEx:
-                        {
-                            sb.Append("FindFirstFileEx(...)");
-                            if (RequestedAccess == RequestedAccess.Enumerate)
-                            {
-                                sb.Append(", ");
-                                sb.Append("Enumerate Pattern:" + EnumeratePattern);
-                            }
-
-                            break;
-                        }
-
-                    case ReportedFileOperation.NtQueryDirectoryFile:
-                    case ReportedFileOperation.ZwQueryDirectoryFile:
-                        {
-                            sb.Append(Operation.ToString());
-                            sb.Append("(...)");
-                            if (RequestedAccess == RequestedAccess.Enumerate)
-                            {
-                                sb.Append(", ");
-                                sb.Append("Enumerate Pattern:" + EnumeratePattern);
-                            }
-
-                            break;
-                        }
-
-                    default:
-                        {
-                            sb.Append(Enum.GetName(typeof(ReportedFileOperation), Operation)).Append("(...)");
-                            break;
-                        }
-                }
-
-                if (Error != 0)
-                {
-                    sb.AppendFormat(CultureInfo.InvariantCulture, " => (0x{0:X8}) ", Error);
-                    sb.Append(NativeWin32Exception.GetFormattedMessageForNativeErrorCode(unchecked((int)Error)));
-                }
-
-                if (Usn != NoUsn)
-                {
-                    sb.AppendFormat(CultureInfo.InvariantCulture, " (USN 0x{0:X8}) ", Usn);
-                }
-
-                // If the status was Denied, don't include it in the description,
-                // because an access that was denied by manifest may have been
-                // allowed in practice (no failure injection), and the message
-                // would be confusing.
-                if (Status != FileAccessStatus.Denied)
-                {
-                    // Other modes are interesting and should be logged
-                    sb.Append(" => ");
-                    sb.Append(Status);
-                }
-
-                return sb.ToString();
+                sb.AppendFormat("({0:G})", RequestedAccess);
             }
+
+            sb.Append(' ');
+
+            switch (Operation)
+            {
+                case ReportedFileOperation.ZwCreateFile:
+                case ReportedFileOperation.ZwOpenFile:
+                case ReportedFileOperation.NtCreateFile:
+                case ReportedFileOperation.CreateFile:
+                case ReportedFileOperation.Unknown:
+                {
+                    sb.Append(Operation.ToString());
+                    sb.Append("(..., ");
+                    UInt32FlagsFormatter<DesiredAccess>.Append(sb, (uint)DesiredAccess);
+                    sb.Append(", ");
+                    UInt32FlagsFormatter<ShareMode>.Append(sb, (uint)ShareMode);
+                    sb.Append(", , ");
+                    UInt32EnumFormatter<CreationDisposition>.Append(sb, (uint)CreationDisposition);
+                    sb.Append(", ");
+                    UInt32FlagsFormatter<FlagsAndAttributes>.Append(sb, (uint)FlagsAndAttributes);
+                    sb.Append(')');
+                    break;
+                }
+
+                case ReportedFileOperation.CopyFileSource:
+                {
+                    sb.Append("CopyFile([Source], ...)");
+                    break;
+                }
+
+                case ReportedFileOperation.CopyFileDestination:
+                {
+                    sb.Append("CopyFile(..., [Destination])");
+                    break;
+                }
+
+                case ReportedFileOperation.CreateHardLinkSource:
+                {
+                    sb.Append("CreateHardLink(..., [ExistingFile)");
+                    break;
+                }
+
+                case ReportedFileOperation.CreateHardLinkDestination:
+                {
+                    sb.Append("CreateHardLink([NewLink], ...)");
+                    break;
+                }
+
+                case ReportedFileOperation.MoveFileSource:
+                {
+                    sb.Append("MoveFile([Source], ...)");
+                    break;
+                }
+
+                case ReportedFileOperation.MoveFileDestination:
+                {
+                    sb.Append("MoveFile(..., [Destination])");
+                    break;
+                }
+
+                case ReportedFileOperation.SetFileInformationByHandleSource:
+                {
+                    sb.Append("SetFileInformationByHandle([Source], ...)");
+                    break;
+                }
+
+                case ReportedFileOperation.SetFileInformationByHandleDest:
+                {
+                    sb.Append("SetFileInformationByHandle(..., [Destination])");
+                    break;
+                }
+
+                case ReportedFileOperation.ZwSetRenameInformationFileSource:
+                {
+                    sb.Append("ZwSetRenameInformationFile([Source], ...)");
+                    break;
+                }
+
+                case ReportedFileOperation.ZwSetRenameInformationFileDest:
+                {
+                    sb.Append("ZwSetRenameInformationFile(..., [Destination])");
+                    break;
+                }
+
+                case ReportedFileOperation.ZwSetFileNameInformationFileSource:
+                {
+                    sb.Append("ZwSetFileNameInformationFile([Source], ...)");
+                    break;
+                }
+
+                case ReportedFileOperation.ZwSetFileNameInformationFileDest:
+                {
+                    sb.Append("ZwSetFileNameInformationFile(..., [Destination])");
+                    break;
+                }
+
+                case ReportedFileOperation.MoveFileWithProgressSource:
+                {
+                    sb.Append("MoveFileWithProgress([Source]...)");
+                    break;
+                }
+
+                case ReportedFileOperation.MoveFileWithProgressDest:
+                {
+                    sb.Append("MoveFileWithProgress([Dest]...)");
+                    break;
+                }
+
+                case ReportedFileOperation.FindFirstFileEx:
+                {
+                    sb.Append("FindFirstFileEx(...)");
+                    if (RequestedAccess == RequestedAccess.Enumerate)
+                    {
+                        sb.Append(", ");
+                        sb.Append("Enumerate Pattern:" + EnumeratePattern);
+                    }
+
+                    break;
+                }
+
+                case ReportedFileOperation.NtQueryDirectoryFile:
+                case ReportedFileOperation.ZwQueryDirectoryFile:
+                {
+                    sb.Append(Operation.ToString());
+                    sb.Append("(...)");
+                    if (RequestedAccess == RequestedAccess.Enumerate)
+                    {
+                        sb.Append(", ");
+                        sb.Append("Enumerate Pattern:" + EnumeratePattern);
+                    }
+
+                    break;
+                }
+
+                default:
+                {
+                    sb.Append(Enum.GetName(typeof(ReportedFileOperation), Operation)).Append("(...)");
+                    break;
+                }
+            }
+
+            if (Error != 0)
+            {
+                sb.AppendFormat(CultureInfo.InvariantCulture, " => (0x{0:X8}) ", Error);
+                sb.Append(NativeWin32Exception.GetFormattedMessageForNativeErrorCode(unchecked((int)Error)));
+            }
+
+            if (Usn != NoUsn)
+            {
+                sb.AppendFormat(CultureInfo.InvariantCulture, " (USN 0x{0:X8}) ", Usn);
+            }
+
+            // If the status was Denied, don't include it in the description,
+            // because an access that was denied by manifest may have been
+            // allowed in practice (no failure injection), and the message
+            // would be confusing.
+            if (Status != FileAccessStatus.Denied)
+            {
+                // Other modes are interesting and should be logged
+                sb.Append(" => ");
+                sb.Append(Status);
+            }
+
+            return sb.ToString();
         }
 
         /// <summary>
@@ -560,10 +558,8 @@ namespace BuildXL.Processes
             CreationDisposition creationDisposition,
             FlagsAndAttributes flagsAndAttributes,
             AbsolutePath path,
-            string enumeratePattern = null)
+            string? enumeratePattern = null)
         {
-            Contract.Requires(process != null);
-
             return new ReportedFileAccess(
                 operation,
                 process,
@@ -599,14 +595,9 @@ namespace BuildXL.Processes
             FlagsAndAttributes flagsAndAttributes,
             PathTable pathTable,
             string path,
-            string enumeratePattern = null)
+            string? enumeratePattern = null)
         {
-            Contract.Requires(process != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(path != null);
-
-            AbsolutePath absolutePath;
-            if (AbsolutePath.TryGet(pathTable, (StringSegment)path, out absolutePath))
+            if (AbsolutePath.TryGet(pathTable, (StringSegment)path, out AbsolutePath absolutePath))
             {
                 return new ReportedFileAccess(
                     operation,
@@ -661,14 +652,9 @@ namespace BuildXL.Processes
             FlagsAndAttributes openedFileOrDirectoryAttribute,
             PathTable pathTable,
             string path,
-            string enumeratePattern = null)
+            string? enumeratePattern = null)
         {
-            Contract.Requires(process != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(path != null);
-
-            AbsolutePath absolutePath;
-            if (AbsolutePath.TryGet(pathTable, (StringSegment)path, out absolutePath))
+            if (AbsolutePath.TryGet(pathTable, (StringSegment)path, out AbsolutePath absolutePath))
             {
                 return new ReportedFileAccess(
                     operation,
@@ -709,12 +695,12 @@ namespace BuildXL.Processes
         /// <nodoc />
         public void Serialize(
             BuildXLWriter writer,
-            Dictionary<ReportedProcess, int> processMap,
-            Action<BuildXLWriter, AbsolutePath> writePath)
+            Dictionary<ReportedProcess, int>? processMap,
+            Action<BuildXLWriter, AbsolutePath>? writePath)
         {
             writer.Write((byte)Operation);
 
-            if (processMap != null && processMap.TryGetValue(Process, out int index))
+            if (processMap is not null && processMap.TryGetValue(Process, out int index))
             {
                 writer.WriteCompact(index);
             }
@@ -734,7 +720,7 @@ namespace BuildXL.Processes
             writer.Write((uint)FlagsAndAttributes);
             writer.Write((uint)OpenedFileOrDirectoryAttributes);
 
-            if (writePath != null)
+            if (writePath is not null)
             {
                 writePath(writer, ManifestPath);
             }
@@ -751,12 +737,12 @@ namespace BuildXL.Processes
         /// <nodoc />
         public static ReportedFileAccess Deserialize(
             BuildXLReader reader, 
-            IReadOnlyList<ReportedProcess> processes, 
-            Func<BuildXLReader, AbsolutePath> readPath)
+            IReadOnlyList<ReportedProcess>? processes, 
+            Func<BuildXLReader, AbsolutePath>? readPath)
         {
             return new ReportedFileAccess(
                 operation: (ReportedFileOperation)reader.ReadByte(),
-                process: processes != null ? processes[reader.ReadInt32Compact()] : ReportedProcess.Deserialize(reader),
+                process: processes is not null ? processes[reader.ReadInt32Compact()] : ReportedProcess.Deserialize(reader),
                 requestedAccess: (RequestedAccess)reader.ReadInt32Compact(),
                 status: (FileAccessStatus)reader.ReadInt32Compact(),
                 explicitlyReported: reader.ReadBoolean(),
@@ -770,14 +756,14 @@ namespace BuildXL.Processes
                 creationDisposition: (CreationDisposition)reader.ReadUInt32(),
                 flagsAndAttributes: (FlagsAndAttributes)reader.ReadUInt32(),
                 openedFileOrDirectoryAttribute: (FlagsAndAttributes)reader.ReadUInt32(),
-                manifestPath: readPath != null ? readPath(reader) : reader.ReadAbsolutePath(),
+                manifestPath: readPath is not null ? readPath(reader) : reader.ReadAbsolutePath(),
                 path: reader.ReadNullableString(),
                 enumeratePattern: reader.ReadNullableString(),
                 fileAccessStatusMethod: (FileAccessStatusMethod)reader.ReadByte());
         }
 
         /// <inherit />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -790,7 +776,7 @@ namespace BuildXL.Processes
                 return HashCodeHelper.Combine(new int[] {
                     string.IsNullOrEmpty(Path) ? ManifestPath.GetHashCode() : OperatingSystemHelper.PathComparer.GetHashCode(Path),
                     string.IsNullOrEmpty(EnumeratePattern) ? 0 : OperatingSystemHelper.PathComparer.GetHashCode(EnumeratePattern),
-                    Process != null ? (int)Process.ProcessId : 0,
+                    Process is not null ? (int)Process.ProcessId : 0,
                     (int)RequestedAccess,
                     (int)Status,
                     (int)Error,
@@ -853,7 +839,7 @@ namespace BuildXL.Processes
                 int k = 1;
                 for (int j = 0; j < 32; j++, k <<= 1)
                 {
-                    names[j] = unchecked(((TEnum)(object)(uint)k).ToString());
+                    names[j] = unchecked(((TEnum)(object)(uint)k).ToString()!);
                 }
 
                 return names;

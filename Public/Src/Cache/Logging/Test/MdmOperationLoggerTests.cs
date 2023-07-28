@@ -18,6 +18,8 @@ using OperationResult = BuildXL.Cache.ContentStore.Interfaces.Logging.OperationR
 
 namespace BuildXL.Cache.Logging.Test
 {
+    // Microsoft.Cloud.InstrumentationFramework requires Windows.
+    [Trait("Category", "WindowsOSOnly")]
     public class MdmOperationLoggerTests
     {
         [Fact]

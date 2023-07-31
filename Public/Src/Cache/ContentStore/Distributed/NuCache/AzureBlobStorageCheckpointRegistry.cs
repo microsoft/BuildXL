@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Net;
 using System.ServiceModel.Description;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -144,6 +145,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // We hit timeout or a proper cancellation.
                             // Breaking from the loop instead of tracing error for each iteration.
                             break;
+                        }
+                        catch (Azure.RequestFailedException reqEx) when (reqEx.Status == (int)HttpStatusCode.NotFound)
+                        {
+                            Tracer.Debug(context, $"Failed to obtain {nameof(CheckpointState)} - missing blob `{blob.ToDisplayName()}`. Skipping.");
+                            continue;
                         }
                         catch (Exception e)
                         {

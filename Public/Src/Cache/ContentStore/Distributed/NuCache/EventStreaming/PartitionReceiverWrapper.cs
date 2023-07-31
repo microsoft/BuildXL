@@ -131,9 +131,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         // ConsumerDisconnectedException is a special case where we know we cannot recover the pump.
                         break;
                     }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        // Breaking from the loop instead of tracing error for each iteration.
+                        break;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // One form of timeout.
+                        // Breaking from the loop instead of tracing error for each iteration.
+                        break;
+                    }
+                    catch (TimeoutException)
+                    {
+                        // Another form of timeout.
+                        // Breaking from the loop instead of tracing error for each iteration.
+                        break;
+                    }
                     catch (Exception e)
                     {
-                        Tracer.Error(context, e, "Error during ReceiveBatchAsync");
+                        Tracer.Error(context, e, $"Error during {nameof(ReceiveBatchAsync)}");
                         continue;
                     }
 

@@ -19,7 +19,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnorePreloadedDlls = false;
             SandboxKind = SandboxKind.Default;
 
-            // TODO: this is a temporarily flag. Take it out in few weeks.
             ExistingDirectoryProbesAsEnumerations = false;
             IgnoreZwRenameFileInformation = false;
             IgnoreZwOtherFileInformation = false;

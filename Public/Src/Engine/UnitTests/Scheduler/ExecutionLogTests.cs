@@ -38,7 +38,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestRoundTripExecutionLog()
         {
-            TestExecutionLogHelper(ExpectProcessMonitoringEventData);
+            TestExecutionLogHelper(verifier => ExpectProcessMonitoringEventData(verifier));
         }
 
         [Fact]
@@ -78,155 +78,22 @@ namespace Test.BuildXL.Scheduler
         public void TestPipExecutionDirectoryOutputs()
         {
             TestExecutionLogHelper(verifier =>
-                {
-                    verifier.Expect(new PipExecutionDirectoryOutputs
-                        {
-                            PipId = new PipId(123),
-                            DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(
-                                (
-                                    CreateDirectory(), 
-                                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(CreateSourceFile(), CreateOutputFile())
-                                ),
-                                (
-                                    CreateDirectory(),
-                                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(CreateOutputFile(), CreateSourceFile())
-                                )
-                             )
-                        });
-                });
-        }
-
-        [Fact]
-        public void TestCustomEvent()
-        {
-            TestExecutionLogHelper(verifier =>
-            {
-                var pipId = new PipId(123);
-                var sourceFile = CreateSourceFile();
-                var outputFile = CreateOutputFile();
-
-                TestCustomEventData.SerializeFunc = writer =>
-                {
-                    pipId.Serialize(writer);
-                    writer.Write(sourceFile);
-                    writer.Write(outputFile);
-                };
-
-                TestCustomEventData.DeserializeAndUpdateFunc = reader =>
-                {
-                    var dPipId = PipId.Deserialize(reader);
-                    var dSourceFile = reader.ReadFileArtifact();
-                    var dOutputFile = reader.ReadFileArtifact();
-                    XAssert.AreEqual(pipId, dPipId);
-                    XAssert.AreEqual(sourceFile, dSourceFile);
-                    XAssert.AreEqual(outputFile, dOutputFile);
-                };
-
-                verifier.Expect(new TestCustomEventData());
-            });
-        }
-
-        [Fact]
-        public void TestSkipEventDueToFailedSerialization()
-        {
-            TestExecutionLogHelper(verifier =>
-            {
-                var outputFile1 = CreateOutputFile();
-                var outputFile2 = CreateOutputFile();
-                var outputFile3 = CreateOutputFile();
-                var outputFile4 = CreateOutputFile();
-
-                verifier.Expect(new PipExecutionDirectoryOutputs
-                {
-                    PipId = new PipId(123),
-                    DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(
-                                (
-                                    CreateDirectory(),
-                                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(outputFile1, outputFile2)
-                                ))
-                });
-
-                TestCustomEventData.SerializeFunc = writer =>
-                {
-                    writer.Write(outputFile2);
-                    writer.Write(outputFile3);
-                    throw new OutOfMemoryException("Fake OOM exception");
-                };
-
-                TestCustomEventData.DeserializeAndUpdateFunc = reader =>
-                {
-                    XAssert.Fail("Deserialization should never be called due to failed serialization");
-                };
-
-                verifier.LogUnexpectedExpect(new TestCustomEventData());
-
-                verifier.Expect(new PipExecutionDirectoryOutputs
-                {
-                    PipId = new PipId(234),
-                    DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(
-                                (
-                                    CreateDirectory(),
-                                    // Although outputFile2 was not serialized by the test custom event, it should still be
-                                    // serialized by this event, and so the deserialization should succeed.
-                                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(outputFile2, outputFile3, outputFile4)
-                                ))
-                });
-            });
-        }
-
-        [Fact]
-        [Trait("Category", "LongRunningTest")]
-        public void TestSkipEventDueToTooLargeSerialization()
-        {
-            TestExecutionLogHelper(verifier =>
-            {
-                var outputFile1 = CreateOutputFile();
-                var outputFile2 = CreateOutputFile();
-                var outputFile3 = CreateOutputFile();
-                var outputFile4 = CreateOutputFile();
-                var dummyFile   = CreateOutputFile();
-
-                verifier.Expect(new PipExecutionDirectoryOutputs
-                {
-                    PipId = new PipId(123),
-                    DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(
-                                (
-                                    CreateDirectory(),
-                                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(outputFile1, outputFile2)
-                                ))
-                });
-
-                TestCustomEventData.SerializeFunc = writer =>
-                {
-                    writer.Write(outputFile2);
-                    writer.Write(outputFile3);
-
-                    // The following should cause OutOfMemory exception on the underlying MemoryStream.
-                    while (true)
-                    {
-                        writer.Write(dummyFile);
-                    }
-                };
-
-                TestCustomEventData.DeserializeAndUpdateFunc = reader =>
-                {
-                    XAssert.Fail("Deserialization should never be called due to failed serialization");
-                };
-
-                verifier.LogUnexpectedExpect(new TestCustomEventData());
-
-                verifier.Expect(new PipExecutionDirectoryOutputs
-                {
-                    PipId = new PipId(234),
-                    DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(
-                                (
-                                    CreateDirectory(),
-                                    // Although outputFile2 was not serialized by the test custom event, it should still be
-                                    // serialized by this event, and so the deserialization should succeed.
-                                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(outputFile2, outputFile3, outputFile4)
-                                ))
-                });
-            });
+                                   {
+                                       verifier.Expect(new PipExecutionDirectoryOutputs
+                                                       {
+                                                           PipId = new PipId(123),
+                                                           DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(
+                                                               (
+                                                                   CreateDirectory(), 
+                                                                   ReadOnlyArray<FileArtifact>.FromWithoutCopy(CreateSourceFile(), CreateOutputFile())
+                                                               ),
+                                                               (
+                                                                   CreateDirectory(),
+                                                                   ReadOnlyArray<FileArtifact>.FromWithoutCopy(CreateOutputFile(), CreateSourceFile())
+                                                               )
+                                                            )
+                                                       });
+                                   });
         }
 
         [Fact]
@@ -447,8 +314,7 @@ namespace Test.BuildXL.Scheduler
             IEqualityVerifier<ProcessFingerprintComputationEventData>,
             IEqualityVerifier<ObservedInputsEventData>,
             IEqualityVerifier<PipCacheMissEventData>,
-            IEqualityVerifier<PipExecutionDirectoryOutputs>,
-            IEqualityVerifier<TestCustomEventData>
+            IEqualityVerifier<PipExecutionDirectoryOutputs>
         {
             private readonly Queue<object> m_expectedData = new Queue<object>();
             private readonly ExecutionLogTests m_parent;
@@ -489,11 +355,6 @@ namespace Test.BuildXL.Scheduler
             }
 
             public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
-            {
-                VerifyEvent(data);
-            }
-
-            public override void TestCustom(TestCustomEventData data)
             {
                 VerifyEvent(data);
             }
@@ -658,8 +519,6 @@ namespace Test.BuildXL.Scheduler
                 XAssert.AreSetsEqual(expected.DirectoryOutputs, actual.DirectoryOutputs, expectedResult: true, DirectoryOutputComparer.Instance);
                 return true;
             }
-
-            public bool VerifyEquals(TestCustomEventData expected, TestCustomEventData actual) => true;
 
             private class DirectoryOutputComparer : IEqualityComparer<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifact> contents)>
             {

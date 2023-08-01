@@ -129,11 +129,6 @@ namespace BuildXL.Scheduler.Tracing
         /// Build Manifest hash and relative file path is reported
         /// </summary>
         void RecordFileForBuildManifest(RecordFileForBuildManifestEventData data);
-
-        /// <summary>
-        /// Test custom event. Used only by unit tests.
-        /// </summary>
-        void TestCustom(TestCustomEventData data);
     }
 
     /// <summary>
@@ -220,11 +215,6 @@ namespace BuildXL.Scheduler.Tracing
         /// See <see cref="IExecutionLogTarget.DynamicDirectoryContentsDecided"/>
         /// </summary>
         DynamicDirectoryContentsDecided = 16,
-
-        /// <summary>
-        /// See <see cref="IExecutionLogTarget.TestCustom"/>
-        /// </summary>
-        TestCustom = 17,
     }
 
     /// <summary>
@@ -355,14 +345,6 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.RecordFileForBuildManifest(data));
 
         /// <summary>
-        /// Event description for <see cref="IExecutionLogTarget.PipExecutionDirectoryOutputs"/>
-        /// </summary>
-        public static readonly ExecutionLogEventMetadata<TestCustomEventData> TestCustom =
-            new ExecutionLogEventMetadata<TestCustomEventData>(
-                ExecutionEventId.TestCustom,
-                (data, target) => target.TestCustom(data));
-
-        /// <summary>
         /// All execution log events.
         /// </summary>
         public static readonly IReadOnlyList<ExecutionLogEventMetadata> Events = new ExecutionLogEventMetadata[]
@@ -381,8 +363,7 @@ namespace BuildXL.Scheduler.Tracing
             PipExecutionDirectoryOutputs,
             CacheMaterializationError,
             RecordFileForBuildManifest,
-            DynamicDirectoryContentsDecided,
-            TestCustom,
+            DynamicDirectoryContentsDecided
         };
     }
 
@@ -1481,31 +1462,5 @@ namespace BuildXL.Scheduler.Tracing
             FailedFiles = reader.ReadReadOnlyArray(
                 r => (reader.ReadFileArtifact(), new ContentHash(reader)));
         }
-    }
-
-    /// <summary>
-    /// Custom event for testing purposes.
-    /// </summary>
-    [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-    public struct TestCustomEventData : IExecutionLogEventData<TestCustomEventData>
-    {
-        /// <summary>
-        /// Custom serialization function.
-        /// </summary>
-        public static Action<BinaryLogger.EventWriter> SerializeFunc;
-
-        /// <summary>
-        /// Custom deserialization function.
-        /// </summary>
-        public static Action<BinaryLogReader.EventReader> DeserializeAndUpdateFunc;
-
-        /// <inheritdoc />
-        public ExecutionLogEventMetadata<TestCustomEventData> Metadata => ExecutionLogMetadata.TestCustom;
-
-        /// <inheritdoc />
-        public void DeserializeAndUpdate(BinaryLogReader.EventReader reader) => DeserializeAndUpdateFunc(reader);
-
-        /// <inheritdoc />
-        public void Serialize(BinaryLogger.EventWriter writer) => SerializeFunc(writer);
     }
 }

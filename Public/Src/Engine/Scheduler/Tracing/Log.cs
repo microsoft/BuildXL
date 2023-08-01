@@ -4028,7 +4028,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "Failed logging execution log event data '{eventId}'. This does not impact build correctness but will cause the execution log to be incomplete for post-build analysis. Failure reason: {error}")]
+            Message = "Failed logging execution log event data '{eventId}'. This does not impact build correctness but will cause the execution log to be incomplete (or corrupted) for post-build analysis. Failure reason: {error}")]
         internal abstract void FailedLoggingExecutionLogEventData(LoggingContext loggingContext, string eventId, string error);
     }
 }

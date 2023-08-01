@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -242,10 +243,18 @@ namespace BuildXL.Scheduler.Tracing
             ReportUnhandledEvent(data);
         }
 
-        /// <nodoc />
-        public virtual void TestCustom(TestCustomEventData data)
+        /// <summary>
+        /// Disables all events.
+        /// </summary>
+        /// <remarks>
+        /// This method can be called when there is an exception is writing an event.
+        /// </remarks>
+        protected void DisableAllEvents()
         {
-            ReportUnhandledEvent(data);
+            for (int i = 0; i < m_disabledEvents.Length; i++)
+            {
+                m_disabledEvents[i] = true;
+            }
         }
     }
 
@@ -287,10 +296,7 @@ namespace BuildXL.Scheduler.Tracing
 
         /// <nodoc />
         public ExecutionLogEventMetadata(ExecutionEventId eventId, Action<TEventData, IExecutionLogTarget> logToTarget)
-            : base(eventId)
-        {
-            m_process = logToTarget;
-        }
+            : base(eventId) => m_process = logToTarget;
 
         /// <inheritdoc />
         public override void DeserializeAndLogToTarget(BinaryLogReader.EventReader eventReader, IExecutionLogTarget target)
@@ -378,26 +384,24 @@ namespace BuildXL.Scheduler.Tracing
         /// Clones the execution log target with the same backing binary logger but against a different worker id
         /// </summary>
         private ExecutionLogFileTarget(BinaryLogger logFile, uint workerId, IReadOnlyList<int> disabledEventIds)
-            : this(logFile, closeLogFileOnDispose: false, disabledEventIds: disabledEventIds)
-        {
-            m_workerId = workerId;
-        }
+            : this(logFile, closeLogFileOnDispose: false, disabledEventIds: disabledEventIds) => m_workerId = workerId;
 
         private void Log<TEventData>(TEventData data) where TEventData : struct, IExecutionLogEventData<TEventData>
         {
             using (BinaryLogger.EventScope eventScope = m_logFile.StartEvent((uint)data.Metadata.EventId, m_workerId))
             {
-
                 try
                 {
                     data.Serialize(eventScope.Writer);
                 }
                 catch (Exception e)
                 {
-                    // Set exception so that event is not serialized to the log file.
                     eventScope.SetException(e);
 
-                    // Inform users that an event is not logged due to an exception.
+                    // Disable all events writing.
+                    DisableAllEvents();
+
+                    // Warn users that an event is not logged due to an exception, and this exception can corrupt the execution log.
                     Logger.Log.FailedLoggingExecutionLogEventData(Events.StaticContext, data.Metadata.EventId.ToString(), e.ToString());
                 }
             }

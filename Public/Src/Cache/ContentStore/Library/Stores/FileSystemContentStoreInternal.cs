@@ -203,8 +203,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             _settings = settings ?? ContentStoreSettings.DefaultSettings;
 
-            // Use logical size in QuotaKeeper is equivalent to use clusterSize = 1
-            _clusterSize = _settings.UsePhysicalSizeInQuotaKeeper ? FileSystem.GetClusterSize(rootPath) : 1;
+            _clusterSize = FileSystem.GetClusterSize(rootPath);
 
             // MemoryContentDirectory requires for the root path to exist. Making sure this is the case.
             FileSystem.CreateDirectory(RootPath);

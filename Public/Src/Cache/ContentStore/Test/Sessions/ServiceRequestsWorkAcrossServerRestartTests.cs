@@ -191,6 +191,8 @@ namespace ContentStoreTest.Sessions
 
         private Task RunManyForSessionAcrossServerRestartAsync(Func<Context, IContentSession, ContentHash, int, Task> requestFunc)
         {
+            // Set the physical size manually because getting it dinamically for each test requires a lot of changes
+            long cacheSize = DefaultMaxSize * 8;
             // Scenario must be unique for different test cases to avoid getting CacheException like:
             // BuildXL.Cache.ContentStore.Exceptions.CacheException : Shutdown event name=[InProcessServiceRequestsWorkAcrossServerRestartTestsDEBUGDEBUG] already exists
             Scenario += Guid.NewGuid().ToString();
@@ -217,7 +219,8 @@ namespace ContentStoreTest.Sessions
                     string failureMessage = string.Join(",", singleException.InnerExceptions.Select(x => x.Message));
                     Assert.True(false, failureMessage);
                 }
-            });
+            },
+            cacheSize: cacheSize);
         }
 
         private class MockLogger : IOperationLogger

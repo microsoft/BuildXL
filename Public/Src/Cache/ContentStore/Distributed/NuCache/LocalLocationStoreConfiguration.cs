@@ -393,11 +393,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool InlineCheckpointProactiveCopies { get; set; } = false;
 
         /// <summary>
-        /// Whether the physical size is used for quota purposes.
-        /// </summary>
-        public bool UsePhysicalSizeInQuotaKeeper { get; set; } = false;
-
-        /// <summary>
         ///  Whether to use the primary CAS in the DistributedCentralStorage.
         /// </summary>
         public bool UsePrimaryCasInDcs { get; set; } = false;

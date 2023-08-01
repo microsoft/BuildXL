@@ -477,7 +477,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 SelfCheckSettings = CreateSelfCheckSettings(settings),
                 OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
                 UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
-                UsePhysicalSizeInQuotaKeeper = settings.UsePhysicalSizeInQuotaKeeper,
                 TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
 
                 SkipTouchAndLockAcquisitionWhenPinningFromHibernation = settings.UseFastHibernationPin,
@@ -614,7 +613,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                     MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies,
                     ProactiveCopyCheckpointFiles = _distributedSettings.ProactiveCopyCheckpointFiles,
                     InlineCheckpointProactiveCopies = _distributedSettings.InlineCheckpointProactiveCopies,
-                    UsePhysicalSizeInQuotaKeeper = _distributedSettings.UsePhysicalSizeInQuotaKeeper,
                     UsePrimaryCasInDcs = _distributedSettings.UsePrimaryCasInDcs,
                 };
 

@@ -73,7 +73,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         TraceFileSystemContentStoreDiagnosticMessages = Configuration.TraceFileSystemContentStoreDiagnosticMessages,
                         SelfCheckSettings = Configuration.SelfCheckSettings,
-                        UsePhysicalSizeInQuotaKeeper = Configuration.UsePhysicalSizeInQuotaKeeper,
                     });
             }
 

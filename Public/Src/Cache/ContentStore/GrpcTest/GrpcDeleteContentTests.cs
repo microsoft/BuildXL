@@ -76,12 +76,14 @@ namespace ContentStoreTest.Grpc
                 var placeResult = await rpcClient.PlaceFileAsync(context, putResult.ContentHash, new AbsolutePath(fileName.Path + "place"), FileAccessMode.None, FileReplacementMode.None, FileRealizationMode.Copy);
                 placeResult.ShouldBeSuccess();
 
+                var clusterSize = FileSystem.GetClusterSize(fileName);
+
                 // Delete content
                 var deleteResult = await rpcClient.DeleteContentAsync(context, putResult.ContentHash, deleteLocalOnly: false);
                 deleteResult.ShouldBeSuccess();
                 deleteResult.ContentHash.Equals(putResult.ContentHash).Should().BeTrue();
                 string.IsNullOrEmpty(deleteResult.ErrorMessage).Should().BeTrue();
-                deleteResult.ContentSize.Should().Be(size);
+                deleteResult.ContentSize.Should().Be(ContentFileInfo.GetPhysicalSize(size,clusterSize));
 
                 // Fail to place content
                 var failPlaceResult = await rpcClient.PlaceFileAsync(context, putResult.ContentHash, new AbsolutePath(fileName.Path + "fail"), FileAccessMode.None, FileReplacementMode.None, FileRealizationMode.Copy);

@@ -34,7 +34,7 @@ namespace ContentStoreTest.Sessions
 
         protected const int ContentByteCount = 100;
         protected const HashType ContentHashType = HashType.Vso0;
-        private const long DefaultMaxSize = 1 * 1024 * 1024;
+        protected const long DefaultMaxSize = 1 * 1024 * 1024;
         protected static readonly CancellationToken Token = CancellationToken.None;
         protected string Scenario;
 
@@ -65,14 +65,14 @@ namespace ContentStoreTest.Sessions
             }
         }
 
-        protected async Task RunStoreTestAsync(Func<Context, IContentStore, Task> funcAsync, LocalServerConfiguration localContentServerConfiguration = null, TimeSpan? heartbeatOverride = null)
+        protected async Task RunStoreTestAsync(Func<Context, IContentStore, Task> funcAsync, LocalServerConfiguration localContentServerConfiguration = null, TimeSpan? heartbeatOverride = null, long cacheSize = DefaultMaxSize)
         {
             var context = new Context(Logger);
             // Using unique scenario to avoid flakiness when running the tests in parallel
             Scenario += Guid.NewGuid();
             using (var directory = new DisposableDirectory(FileSystem))
             {
-                var config = new ContentStoreConfiguration(new MaxSizeQuota($"{DefaultMaxSize}"));
+                var config = new ContentStoreConfiguration(new MaxSizeQuota($"{cacheSize}"));
 
                 using (var store = CreateStore(directory.Path, config, localContentServerConfiguration ?? TestConfigurationHelper.LocalContentServerConfiguration, heartbeatOverride))
                 {
@@ -92,11 +92,13 @@ namespace ContentStoreTest.Sessions
         protected Task RunSessionTestAsync(
             ImplicitPin implicitPin,
             Func<Context, IContentSession, Task> funcAsync,
-            LocalServerConfiguration localContentServerConfiguration = null)
+            LocalServerConfiguration localContentServerConfiguration = null,
+            long cacheSize = DefaultMaxSize)
         {
             return RunStoreTestAsync(
                 (context, store) => RunSessionTestAsync(context, store, implicitPin, funcAsync),
-                localContentServerConfiguration);
+                localContentServerConfiguration,
+                cacheSize: cacheSize);
         }
 
         protected abstract T CreateStore(AbsolutePath rootPath, ContentStoreConfiguration configuration, LocalServerConfiguration localContentServerConfiguration, TimeSpan? heartbeatOverride);

@@ -419,7 +419,7 @@ namespace ContentStoreTest.Distributed.Stores
                                         CopyRequestHandlingCountLimit = _copyToLimit, ProactivePushCountLimit = _proactivePushCountLimit
                                     };
 
-                var storeConfig = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
+                var storeConfig = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(7);
                 Func<AbsolutePath, IContentStore> contentStoreFactory = (path) =>
                     new FileSystemContentStore(
                         FileSystem,

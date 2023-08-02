@@ -848,10 +848,34 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             polySharpAttributeFiles = polySharpAttributeFiles.concat([
                 polySharpAttributes.interpolatedStringHandlerArgument,
                 polySharpAttributes.interpolatedStringHandler,
-                polySharpAttributes.isExternalInit,
                 polySharpAttributes.skipLocalInit,
                 polySharpAttributes.moduleInitializer]);
         }
+    }
+
+    // isExtenalInit is very special.
+    // Unlike other attributes, isExternalInit is used by the runtime as well.
+    // Consider the following scenario:
+    // QuickBuild (net7.0) ---> Cache Aggregator (netstandard2.0) ---> BxlCache (net7.0 & netstandard2.0)
+    // When Cache Aggregator is compiled, it uses netstandard2.0 version of BxlCache,
+    // but because QuickBuild is net7.0 and it references BxlCache the actual deployment looks like this:
+    // QuickBuild - net7.0
+    // CacheAggregator - netstandard2.0
+    // BxlCache - net7.0
+    // So here is the problem:
+    // If CacheAggreator uses BxlCache like `new MyRecord() {Prop = 42}` where `Prop` is init-only property,
+    // then CacheAggregator will embed the following in the IL:
+    // `callvirt instance void modreq([Bxl.Cache]System.Runtime.CompilerServices.IsExternalInit)`
+    // 
+    // So, if we embed `IsExternalInit` only for netstandard2.0 and not for net7.0,
+    // then the .net7 application won't be able to use the intermediate library (CacheAggregator in this case),
+    // because `IsExternalInit` in .net7 would be coming from .net core itself and not from Bxl.
+    // And an attemp to use a completely legit code would fail with 'MissingMethodException'.
+    // 
+    // And to workaround this problem we should always include `IsExtenralInit` attribute since in this case
+    // the executable will use `IsExternalInit` from the bxl as well.
+    if (args.addPolySharpAttributes !== false) {
+        polySharpAttributeFiles = polySharpAttributeFiles.concat([polySharpAttributes.isExternalInit]);
     }
 
     // Required members is needed for non .net7 target frameworks.

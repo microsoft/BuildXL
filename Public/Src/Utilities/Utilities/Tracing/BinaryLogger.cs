@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Threading;
 
 namespace BuildXL.Utilities.Tracing
@@ -45,22 +46,25 @@ namespace BuildXL.Utilities.Tracing
         private readonly PipExecutionContext m_context;
         private readonly Action m_onEventWritten;
 
-        // Pending events queue and corresponding draining thread.
-        // The queue could be more easily modeled with a BlockingCollection (which doesn't need any explicit synchronization primitives), but noticeable thread contention
-        // was found under high load of events being added.
-        private readonly ConcurrentQueue<IQueuedAction> m_pendingEvents = new();
-        private readonly AutoResetEvent m_eventsAvailable = new(false);
-        private readonly Thread m_pendingEventsDrainingThread;
-        private bool m_completeAdding = false;
-
-        // RW lock that allows for safe disposal of pending events queue.
-        private readonly ReadWriteLock m_eventQueueLock = ReadWriteLock.Create();
-        private volatile bool m_eventQueueDisposed = false;
+        private readonly ActionBlockSlim<IQueuedAction> m_logWriterBlock;
 
         /// <summary>
         /// The integral value of the last absolute path available in a statically loaded path table
         /// </summary>
         private readonly int m_lastStaticAbsolutePathIndex;
+
+        private long m_pendingEventsCount;
+        private long m_maxPendingEventsCount;
+
+        /// <summary>
+        /// Max pending events in the binary logger.
+        /// </summary>
+        public long MaxPendingEventsCount => Volatile.Read(ref m_maxPendingEventsCount);
+
+        /// <summary>
+        /// Number of event writer creations.
+        /// </summary>
+        public long EventWriterFactoryCalls => m_writerPool.FactoryCalls;
 
         /// <summary>
         /// Creates a new binary logger to write to the given stream
@@ -85,47 +89,19 @@ namespace BuildXL.Utilities.Tracing
             };
             m_writerPool = new ObjectPool<EventWriter>(() => new EventWriter(this), writer => { writer.Clear(); return writer; });
             m_onEventWritten = onEventWritten;
+            m_logWriterBlock = ActionBlockSlim.Create<IQueuedAction>(
+                1, // Only one writer thread because we need to serialize it to a file stream.
+                action =>
+                {
+                    long pendingCount = Interlocked.Decrement(ref m_pendingEventsCount) + 1;
+                    m_maxPendingEventsCount = Math.Max(m_maxPendingEventsCount, pendingCount);
+                    action.Run();
+                });
 
             var logIdBytes = logId.ToByteArray();
             Contract.Assert(logIdBytes.Length == LogIdByteLength);
             logStream.Write(logIdBytes, 0, logIdBytes.Length);
             LogStartTime(DateTime.UtcNow);
-
-            m_pendingEventsDrainingThread = new Thread(
-                () =>
-                {
-                    // Keeps trying to drain the event queue as long as new events can be added
-                    // Adding events and completing the queue are properly synchronized already (a write lock
-                    // is taken before completing), but there is the slim chance we finish draining the queue
-                    // and before we check for m_completeAdding here again, an Add + CompleteAdding happen, which
-                    // could leave unprocessed events in the queue. So we also check here whether the queue is not empty
-                    while (!m_completeAdding || !m_pendingEvents.IsEmpty)
-                    {
-                        // Wait until at least one event is available for consumption
-                        m_eventsAvailable.WaitOne();
-
-                        // If new events can still be added, let's give writers the chance to add more events.
-                        // This allows for more efficient draining, since therefore the thread synchronization tax is only paid
-                        // once for many events. A 100ms lag is acceptable for events to be sitting in the queue. Profiler shows a 10x
-                        // aggregated time gain by doing this. Some consideration for why picking this time:
-                        // - A greater didn't seem to make a difference (e.g. 500ms was tried with equivalent perf results)
-                        // - There are temporal constraints that need events (in particular, the build manifest one) to get serialized
-                        // and sent to workers before the pip completion event (which does not go through the binary logger) happens. So
-                        // we don't want xlg events to sit in the queue for too long.
-                        if (!m_completeAdding)
-                        {
-                            Thread.Sleep(100);
-                        }
-
-                        // Drain all events available on the queue
-                        while (m_pendingEvents.TryDequeue(out var action))
-                        {
-                            action.Run();
-                        }
-                    }
-                });
-
-            m_pendingEventsDrainingThread.Start();
         }
 
         private void WriteEventDataAndReturnWriter(EventWriter eventWriter)
@@ -191,21 +167,16 @@ namespace BuildXL.Utilities.Tracing
 
         private void QueueAction(IQueuedAction action)
         {
-            using (m_eventQueueLock.AcquireReadLock())
+            bool posted = m_logWriterBlock.TryPost(action);
+            if (!posted)
             {
-                // Event queue is not disposed yet, so we can safely use it.
-                if (!m_eventQueueDisposed)
-                {
-                    m_pendingEvents.Enqueue(action);
-                    // Signal that an event is avaliable for consumption
-                    m_eventsAvailable.Set();
-                }
-                else
-                {
-                    // Event writer's stream is disposed at this point, so this event can't be logged.
-                    // We can only return writer to its pool here.
-                    action.Dispose();
-                }
+                // There could be a race condition that cause this method to be called when the writer block is finished.
+                // In this case, the action is simply disposed.
+                action.Dispose();
+            }
+            else
+            {
+                Interlocked.Increment(ref m_pendingEventsCount);
             }
         }
 
@@ -227,21 +198,8 @@ namespace BuildXL.Utilities.Tracing
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1063:ImplementIDisposableCorrectly")]
         public void Dispose()
         {
-            // Finish processing events. Acquiring exlusive lock here so no one can add new logging events concurrently.
-            using (m_eventQueueLock.AcquireWriteLock())
-            {
-                if (!m_eventQueueDisposed)
-                {
-                    // Make sure we let the consumer thread know there are no more events being added
-                    // and wake it up in case it was waiting
-                    m_completeAdding = true;
-                    m_eventsAvailable.Set();
-
-                    m_pendingEventsDrainingThread.Join();
-                    m_eventsAvailable.Dispose();
-                    m_eventQueueDisposed = true;
-                }
-            }
+            m_logWriterBlock.Complete();
+            m_logWriterBlock.Completion.Wait();
 
             // Close ther underlying writer.
             m_logStreamWriter.Dispose();

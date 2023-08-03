@@ -443,6 +443,15 @@ namespace BuildXL.Scheduler.Tracing
             Contract.Assert(false, I($"Execution log should log all event types. Unhandled event: {eventId}"));
         }
 
+        /// <summary>
+        /// Populates stats.
+        /// </summary>
+        public void PopulateStats()
+        {
+            Counters.AddToCounter(ExecutionLogCounters.MaxPendingEvents, m_logFile.MaxPendingEventsCount);
+            Counters.AddToCounter(ExecutionLogCounters.EventWriterFactoryCalls, m_logFile.EventWriterFactoryCalls);
+        }
+
         /// <inheritdoc />
         public override void Dispose()
         {

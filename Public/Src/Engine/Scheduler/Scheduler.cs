@@ -2145,6 +2145,7 @@ namespace BuildXL.Scheduler
             FileUtilities.Counters?.LogAsStatistics("Storage", loggingContext);
             m_fileMonitoringViolationAnalyzer?.Counters.LogAsStatistics("FileMonitoringViolationAnalysis", loggingContext);
             m_pipExecutionStepCounters.LogAsStatistics("PipExecutionStep", loggingContext);
+            m_executionLogFileTarget?.PopulateStats();
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
             BuildManifestGenerator.Counters.LogAsStatistics("BuildManifestGenerator", loggingContext);

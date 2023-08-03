@@ -15,5 +15,15 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         ExecutionLogFileLoggingTime,
+
+        /// <summary>
+        /// Max pending events in the binary logger.
+        /// </summary>
+        MaxPendingEvents,
+
+        /// <summary>
+        /// Number of event writer creations.
+        /// </summary>
+        EventWriterFactoryCalls,
     }
 }

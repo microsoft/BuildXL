@@ -3,6 +3,7 @@
 
 import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
+import * as Managed from "Sdk.Managed.Shared";
 import * as Nuget from "Sdk.Managed.Tools.NuGet";
 
 namespace Cache.NugetPackages {
@@ -52,6 +53,138 @@ namespace Cache.NugetPackages {
         ]
     };
 
+    // ContentStore.Distributed
+    export const contentStoreDistributed : Managed.Assembly[] = [
+        net472ContentStore.Distributed.dll,
+        netStandardContentStore.Distributed.dll,
+        net6WinX64ContentStore.Distributed.dll,
+        net7WinX64ContentStore.Distributed.dll,
+    ];
+
+    // ContentStore.Library
+    export const contentStoreLibrary : Managed.Assembly[] = [
+            net472ContentStore.Library.dll,
+            netStandardContentStore.Library.dll,
+            net6WinX64ContentStore.Library.dll,
+            net7WinX64ContentStore.Library.dll,
+    ];
+
+    // ContentStore.Grpc
+    export const contentStoreGrpc : Managed.Assembly[] = [
+            net472ContentStore.Grpc.dll,
+            netStandardContentStore.Grpc.dll,
+            net6WinX64ContentStore.Grpc.dll,
+            net7WinX64ContentStore.Grpc.dll,
+    ];
+
+    // ContentStore.Vsts
+    export const contentStoreVsts : Managed.Assembly[] = [
+            net472ContentStore.Vsts.dll,
+            netStandardContentStore.Vsts.dll,
+            net6WinX64ContentStore.Vsts.dll,
+            net7WinX64ContentStore.Vsts.dll,
+    ];
+
+    // ContentStore.VstsInterfaces
+    export const contentStoreVstsInterfaces : Managed.Assembly[] = [
+            net472ContentStore.VstsInterfaces.dll,
+            netStandardContentStore.VstsInterfaces.dll,
+            net6WinX64ContentStore.VstsInterfaces.dll,
+            net7WinX64ContentStore.VstsInterfaces.dll,
+    ];
+
+    // MemoizationStore.Distributed
+    export const memoizationStoreDistributed : Managed.Assembly[] = [
+            net472MemoizationStore.Distributed.dll,
+            netStandardMemoizationStore.Distributed.dll,
+            net6WinX64MemoizationStore.Distributed.dll,
+            net7WinX64MemoizationStore.Distributed.dll,
+    ];
+
+    // MemoizationStore.Library
+    export const memoizationStoreLibrary : Managed.Assembly[] = [
+            net472MemoizationStore.Library.dll,
+            netStandardMemoizationStore.Library.dll,
+            net6WinX64MemoizationStore.Library.dll,
+            net7WinX64MemoizationStore.Library.dll,
+    ];
+
+    // MemoizationStore.Vsts
+    export const memoizationStoreVsts : Managed.Assembly[] = [
+            net472MemoizationStore.Vsts.dll,
+            netStandardMemoizationStore.Vsts.dll,
+            net6WinX64MemoizationStore.Vsts.dll,
+            net7WinX64MemoizationStore.Vsts.dll,
+    ];
+
+    // MemoizationStore.VstsInterfaces
+    export const memoizationStoreVstsInterfaces : Managed.Assembly[] = [
+            net472MemoizationStore.VstsInterfaces.dll,
+            netStandardMemoizationStore.VstsInterfaces.dll,
+            net6WinX64MemoizationStore.VstsInterfaces.dll,
+            net7WinX64MemoizationStore.VstsInterfaces.dll,
+    ];
+
+    // BuildXL.Cache.Host.Services
+    export const buildxlCacheHostServices : Managed.Assembly[] = [
+            net472DistributedCacheHost.Service.dll,
+            netStandardDistributedCacheHost.Service.dll,
+            net6WinX64DistributedCacheHost.Service.dll,
+            net7WinX64DistributedCacheHost.Service.dll,
+    ];
+
+    // BuildXL.Cache.Host.Configuration
+    export const buildxlCacheHostConfiguration : Managed.Assembly[] = [
+            net472DistributedCacheHost.Configuration.dll,
+            netStandardDistributedCacheHost.Configuration.dll,
+            net6WinX64DistributedCacheHost.Configuration.dll,
+            net7WinX64DistributedCacheHost.Configuration.dll,
+    ];
+
+    // BuildXL.Cache.Logging
+    export const buildxlCacheLogging : Managed.Assembly[] = [
+            net472CacheLogging.dll,
+            netStandardCacheLogging.dll,
+            net6WinX64CacheLogging.dll,
+            net7WinX64CacheLogging.dll,
+    ];
+
+    // ContentStore.Interfaces
+    export const contentStoreInterfaces : Managed.Assembly[] = [
+            net472ContentStore.Interfaces.dll,
+            netStandardContentStore.Interfaces.dll,
+            net6WinX64ContentStore.Interfaces.dll,
+            net7WinX64ContentStore.Interfaces.dll,
+    ];
+
+    // MemoizationStore.Interfaces
+    export const memoizationStoreInterfaces : Managed.Assembly[] = [
+            net472MemoizationStore.Interfaces.dll,
+            netStandardMemoizationStore.Interfaces.dll,
+            net6WinX64MemoizationStore.Interfaces.dll,
+            net7WinX64MemoizationStore.Interfaces.dll,
+    ];
+
+    // ContentStore.Hashing
+    export const contentStoreHashing : Managed.Assembly[] = [
+            net472ContentStore.Hashing.dll,
+            netStandardContentStore.Hashing.dll,
+            net6WinX64ContentStore.Hashing.dll,
+            net7WinX64ContentStore.Hashing.dll,
+    ];
+
+    // ContentStore.UtilitiesCore
+    export const contentStoreUtilitiesCore : Managed.Assembly[] = [
+            net472ContentStore.UtilitiesCore.dll,
+            netStandardContentStore.UtilitiesCore.dll,
+            net6WinX64ContentStore.UtilitiesCore.dll,
+            net7WinX64ContentStore.UtilitiesCore.dll,
+            importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.withQualifier(
+                { targetFramework: "netstandard2.0", targetRuntime: "win-x64" }
+            ).dll,
+    ];
+
+    // Old cache package deployments to be replaced by the ones above
     export const libraries : Deployment.Definition = {
         contents: [
             // ContentStore.Distributed

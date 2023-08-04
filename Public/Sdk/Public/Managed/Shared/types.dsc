@@ -96,7 +96,7 @@ export interface ManagedNugetPackage extends NugetPackage, Deployment.Deployable
     name: string;
 
     /**
-     * The verison of the nuget package
+     * The version of the nuget package
      */
     version: string;
 

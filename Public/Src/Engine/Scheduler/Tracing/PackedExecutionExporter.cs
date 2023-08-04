@@ -488,8 +488,8 @@ namespace BuildXL.Scheduler.Tracing
 
                     m_packedExecutionBuilder.ProcessPipExecutionTableBuilder.Add(new P_PipId((int)data.PipId.Value), processPipEntry);
                 }
+                }
             }
-        }
 
         /// <summary>Collect process performance data.</summary>
         public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)
@@ -815,7 +815,12 @@ namespace BuildXL.Scheduler.Tracing
 
                 P_PipId packedPipId = new P_PipId((int)data.PipId.Value);
 
-                if (data.Kind != FingerprintComputationKind.Execution)
+                // Only process entries from cached pips (we set sessionId when the pip was determined to be a cache hit,
+                // i.e., strong FP matched and all the content was available) and successfully executed pips.
+                var validEntry = data.Kind == FingerprintComputationKind.CacheCheck && data.SessionId != null
+                    || data.Kind == FingerprintComputationKind.Execution;
+
+                if (!validEntry)
                 {
                     return;
                 }
@@ -829,13 +834,31 @@ namespace BuildXL.Scheduler.Tracing
                 var declaredInputDirs = pip.DirectoryDependencies.ToList();
 
                 // part 2: collect observed input paths
-                IEnumerable<AbsolutePath> observedInputPaths = data.StrongFingerprintComputations.Count == 0
-                    ? s_noPaths
-                    : data
-                        .StrongFingerprintComputations[0]
+                IEnumerable<AbsolutePath> observedInputPaths = null;
+
+                if (data.StrongFingerprintComputations.Count == 0)
+                {
+                    observedInputPaths = s_noPaths;
+                }
+                else
+                {
+                    // need to find the correct strong FP computation data:
+                    // for an executed pip, there will be exactly one computation
+                    // for a cached pip, we need to find the computation that was marked as a strong FP hit
+                    // (there will be exactly one - we know this because the check above ensures that we look
+                    // here only at the true cached pips)
+                    ProcessStrongFingerprintComputationData processStrongFingerprintComputationData =
+                        data.Kind == FingerprintComputationKind.CacheCheck
+                        ? data.StrongFingerprintComputations.Where(a => a.IsStrongFingerprintHit).Single()
+                        : data.StrongFingerprintComputations[0];
+
+                    observedInputPaths =
+                        processStrongFingerprintComputationData
                         .ObservedInputs
                         .Where(input => input.Type == ObservedInputType.FileContentRead || input.Type == ObservedInputType.ExistingFileProbe)
                         .Select(input => input.Path);
+                }
+                
                 // The ObservedInputs list has had the "declared inputs" explicitly removed.
                 // To BuildXL they are assumed to be consumed, but they are in the weak fingerprint, not in the strong fingerprint.
                 // There is no way at this location to know whether the declared inputs were actually consumed,

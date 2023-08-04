@@ -41,8 +41,10 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
             {
                 // Execution takes precedence over cache check if set. This is needed because the events may come out of order
                 FingerprintComputation = fingerprintComputation;
-                WorkerId = workerId;
             }
+
+            // Worker id needs to be set because analyzer may depend on data keyed by worker id.
+            WorkerId = workerId;
         }
 
         public Process GetOriginalProcess()

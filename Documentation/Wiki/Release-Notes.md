@@ -1,6 +1,12 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230727.4.2 (Release [316902](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=316902))
+- Improvements to address a potential pathset explosion
+- Allow users to limit the number of unique path sets to check during cache lookup
+- Reduce memory allocations in detours
+- Various fixes and improvements
+
 # 0.1.0-20230721.4 (Release [314745](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=314745))
 - More robust execution log serialization.
 - Kill pip if ptrace exits with an error code.

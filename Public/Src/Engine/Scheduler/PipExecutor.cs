@@ -50,6 +50,7 @@ using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using System.Collections.Concurrent;
 using System.Data;
+using System.Collections.ObjectModel;
 
 namespace BuildXL.Scheduler
 {
@@ -97,7 +98,7 @@ namespace BuildXL.Scheduler
             public int NumberOfUniquePathSetsToCheck => m_processRunnablePip.NumberOfUniquePathSetsToCheck;
             public int UniquePathSetsCount => NumberOfUniquePathSetsToCheck - m_remainingUniquePathSetsToCheck;
             public bool ShouldCheckMorePathSet => m_remainingUniquePathSetsToCheck > 0;
-            
+
             private int m_remainingUniquePathSetsToCheck;
             private bool m_warnedAboutTooManyUniquePathSets;
             private readonly ProcessRunnablePip m_processRunnablePip;
@@ -1011,55 +1012,166 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Merges all the file access allowlist and violations of a pip from all its retries.
+        /// This includes both inline and reschedule retry.
+        /// </summary>
+        /// <remarks>
+        /// Inline - retry happens on the same worker. Reschedule - where the retry happens on a different worker.
+        /// This method also ensures that we do not merge the lists unless there has been a retry.
+        /// </remarks>
+        internal static void MergeAllAccessesAndViolations(IEnumerable<ExecutionResult> allExecutionResults, out IReadOnlyCollection<ReportedFileAccess> fileAccessViolationsNotAllowlisted, out IReadOnlyCollection<ReportedFileAccess> allowlistedFileAccessViolations)
+        {
+            fileAccessViolationsNotAllowlisted = null;
+            allowlistedFileAccessViolations = null;
+
+            if (allExecutionResults == null)
+            {
+                return;
+            }
+
+            if (allExecutionResults.Count() == 1)
+            {
+                fileAccessViolationsNotAllowlisted = allExecutionResults.First()?.FileAccessViolationsNotAllowlisted;
+                allowlistedFileAccessViolations = allExecutionResults.First()?.AllowlistedFileAccessViolations;
+            }
+            else
+            {
+                // Merge FileAccessViolationNotAllowlisted.
+                fileAccessViolationsNotAllowlisted = allExecutionResults.Where(r => r.FileAccessViolationsNotAllowlisted != null)
+                                                                        .SelectMany(r => r.FileAccessViolationsNotAllowlisted)
+                                                                        .Distinct()
+                                                                        .ToList();
+
+                // Merge AllowlistedFileAccessViolations.
+                allowlistedFileAccessViolations = allExecutionResults.Where(r => r.AllowlistedFileAccessViolations != null)
+                                                                     .SelectMany(r => r.AllowlistedFileAccessViolations)
+                                                                     .Distinct()
+                                                                     .ToList();
+            }
+        }
+
+        /// <summary>
+        /// Merges all the ObservedFileAccesses, SharedDynamicDirectoryWriteAccess, DynamicObservations and ExclusiveOpaqueContent of a pip from all its retires.
+        /// This includes both inline and reschedule retry.
+        /// </summary>
+        /// <remarks>
+        /// Inline - retry happens on the same worker. Reschedule - where the retry happens on a different worker.
+        /// This method also ensures that we do not do merge the lists unless there has been a retry.
+        /// </remarks>
+        internal static void MergeAllDynamicAccessesAndViolations(IEnumerable<ExecutionResult> allExecutionResults,
+                                                                  out IReadOnlySet<AbsolutePath> allowedUndeclaredRead,
+                                                                  out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
+                                                                  out ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)>? dynamicObservations,
+                                                                  out ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>? exclusiveOpaqueContent)
+        {
+            allowedUndeclaredRead = null;
+            sharedDynamicDirectoryWriteAccesses = null;
+            dynamicObservations = null;
+            exclusiveOpaqueContent = null;
+
+            if (allExecutionResults == null)
+            {
+                return;
+            }
+
+            if (allExecutionResults.Count() == 1)
+            {
+                allowedUndeclaredRead = allExecutionResults.First().AllowedUndeclaredReads;
+                sharedDynamicDirectoryWriteAccesses = allExecutionResults.First()?.SharedDynamicDirectoryWriteAccesses;
+                dynamicObservations = allExecutionResults.First()?.DynamicObservations;
+                exclusiveOpaqueContent = allExecutionResults.First().DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
+            }
+            else
+            {
+                // Merge AllowedUndeclaredRead
+                allowedUndeclaredRead = (allExecutionResults.Where(result => result.AllowedUndeclaredReads != null)
+                                                            .SelectMany(result => result.AllowedUndeclaredReads)).ToReadOnlySet();
+
+                // Merge SharedOpaqueDirectoryWriteAccesses
+                sharedDynamicDirectoryWriteAccesses = new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(allExecutionResults.Where(result => result.SharedDynamicDirectoryWriteAccesses != null)
+                                                                                  .SelectMany(result => result.SharedDynamicDirectoryWriteAccesses)
+                                                                                  .GroupBy(kvp => kvp.Key)
+                                                                                  .ToDictionary(
+                                                                                                 group => group.Key,
+                                                                                                 group => (IReadOnlyCollection<FileArtifactWithAttributes>)(new HashSet<FileArtifactWithAttributes>(group.SelectMany(kvp => kvp.Value ?? new List<FileArtifactWithAttributes>()))).ToList()));
+              
+
+                // Merge DynamicObservations
+                dynamicObservations = ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.From(allExecutionResults.Where(result => result.DynamicObservations.IsValid)
+                                                                                                                    .SelectMany(result => result.DynamicObservations));
+
+                // Merge exclusiveOpaqueDirectories
+                exclusiveOpaqueContent = (allExecutionResults.Where(result => result.DirectoryOutputs.IsValid)
+                                                                         .SelectMany(result => result.DirectoryOutputs)
+                                                                         .Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque)
+                                                                         .GroupBy(tuple => tuple.directoryArtifact)
+                                                                         .Select(group =>
+                                                                         {
+                                                                             var fileArtifacts = group?.SelectMany(tuple => tuple.fileArtifactArray).Distinct();
+                                                                             return (group.Key, FileArtifacts: fileArtifacts.Any() ? ReadOnlyArray<FileArtifactWithAttributes>.From(fileArtifacts) : ReadOnlyArray<FileArtifactWithAttributes>.Empty);
+                                                                         })).ToReadOnlyArray();
+            }
+        }
+
+        /// <summary>
         /// Analyze process file access violations
         /// </summary>
         internal static ExecutionResult AnalyzeFileAccessViolations(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
-            ExecutionResult processExecutionResult,
             Process process,
+            IEnumerable<ExecutionResult> allExecutionResults,
             out bool pipIsSafeToCache,
             out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
         {
             pipIsSafeToCache = true;
-
+            // Obtaining the latest execution result.
+            ExecutionResult latestProcessExecutionResult = allExecutionResults.Last();
             using (operationContext.StartOperation(PipExecutorCounter.AnalyzeFileAccessViolationsDuration))
             {
                 var analyzePipViolationsResult = AnalyzePipViolationsResult.NoViolations;
                 allowedSameContentViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
 
-                var exclusiveOpaqueDirectories = processExecutionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
+                // We merge the fileAccessViolations, allowlistedaccessviolations, allowedUndeclaredReads, SharedDynamicDirectoryWriteAccesses, dynamicObservations and exclusiveOpaqueContent from all retries.
+                // We do not perform the union if there hasn't been a retry and this is handled in these methods below.
+                MergeAllAccessesAndViolations(allExecutionResults, out IReadOnlyCollection<ReportedFileAccess> fileAccessViolationsNotAllowlisted, out IReadOnlyCollection<ReportedFileAccess> allowlistedFileAccessViolations);
+                
+                MergeAllDynamicAccessesAndViolations(allExecutionResults,
+                                                            out IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+                                                            out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
+                                                            out ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)>? dynamicObservations,
+                                                            out ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>? exclusiveOpaqueContent);
 
                 // Regardless of if we will fail the pip or not, maybe analyze them for higher-level dependency violations.
-                if (processExecutionResult.FileAccessViolationsNotAllowlisted != null
-                    || processExecutionResult.AllowlistedFileAccessViolations != null
-                    || processExecutionResult.SharedDynamicDirectoryWriteAccesses != null
-                    || exclusiveOpaqueDirectories.Length != 0
-                    || processExecutionResult.AllowedUndeclaredReads != null
-                    || processExecutionResult.DynamicObservations != null)
+                if (sharedDynamicDirectoryWriteAccesses != null
+                    || exclusiveOpaqueContent != null
+                    || allowedUndeclaredReads != null
+                    || dynamicObservations != null
+                    || fileAccessViolationsNotAllowlisted != null
+                    || allowlistedFileAccessViolations != null)
                 {
                     analyzePipViolationsResult = environment.FileMonitoringViolationAnalyzer.AnalyzePipViolations(
                         process,
-                        processExecutionResult.FileAccessViolationsNotAllowlisted,
-                        processExecutionResult.AllowlistedFileAccessViolations,
-                        exclusiveOpaqueDirectories,
-                        processExecutionResult.SharedDynamicDirectoryWriteAccesses,
-                        processExecutionResult.AllowedUndeclaredReads,
-                        processExecutionResult.DynamicObservations,
-                        processExecutionResult.OutputContent,
+                        fileAccessViolationsNotAllowlisted,
+                        allowlistedFileAccessViolations,
+                        exclusiveOpaqueContent,
+                        sharedDynamicDirectoryWriteAccesses,
+                        allowedUndeclaredReads,
+                        dynamicObservations,
+                        latestProcessExecutionResult.OutputContent,
                         out allowedSameContentViolations);
                 }
 
                 if (!analyzePipViolationsResult.IsViolationClean)
                 {
                     Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "Error should have been logged by FileMonitoringViolationAnalyzer");
-                    processExecutionResult = processExecutionResult.CloneSealedWithResult(PipResultStatus.Failed);
+                    latestProcessExecutionResult = latestProcessExecutionResult.CloneSealedWithResult(PipResultStatus.Failed);
                 }
 
                 pipIsSafeToCache = analyzePipViolationsResult.PipIsSafeToCache;
 
-                return processExecutionResult;
+                return latestProcessExecutionResult;
             }
         }
 
@@ -1100,12 +1212,12 @@ namespace BuildXL.Scheduler
         /// Run process from cache and replay warnings.
         /// </summary>
         public static async Task<ExecutionResult> RunFromCacheWithWarningsAsync(
-            OperationContext operationContext,
-            IPipExecutionEnvironment environment,
-            PipExecutionState.PipScopeState state,
-            Process pip,
-            RunnableFromCacheResult runnableFromCacheCheckResult,
-            string processDescription)
+             OperationContext operationContext,
+             IPipExecutionEnvironment environment,
+             PipExecutionState.PipScopeState state,
+             Process pip,
+             RunnableFromCacheResult runnableFromCacheCheckResult,
+             string processDescription)
         {
             using (operationContext.StartOperation(PipExecutorCounter.RunProcessFromCacheDuration))
             {
@@ -1118,7 +1230,7 @@ namespace BuildXL.Scheduler
 
                 // If the cache hit came from the remote cache, we want to know the duration of that in a separate counter
                 using (cacheHitData.Locality == PublishedEntryRefLocality.Remote ? operationContext.StartOperation(PipExecutorCounter.RunProcessFromRemoteCacheDuration) : (OperationContext?) null)
-                { 
+                {
                     if (!TryGetCacheHitExecutionResult(operationContext, environment, pip, runnableFromCacheCheckResult, out var executionResult))
                     {
                         // Error should have been logged
@@ -1315,7 +1427,7 @@ namespace BuildXL.Scheduler
                     expectedMemoryCounters,
                     allowResourceBasedCancellation,
                     async (resourceScope) =>
-                    { 
+                    {
                         return await ExecutePipAndHandleRetryAsync(
                             resourceScope,
                             operationContext,
@@ -1326,7 +1438,7 @@ namespace BuildXL.Scheduler
                             processIdListener,
                             detoursEventListener,
                             runLocation,
-                            start); 
+                            start);
                     });
 
             start = DateTime.UtcNow;
@@ -1338,7 +1450,7 @@ namespace BuildXL.Scheduler
                 PipExecutorCounter.SandboxedProcessProcessResultDurationMs,
                 executionResult.ProcessSandboxedProcessResultMs);
             counters.AddToCounter(PipExecutorCounter.ProcessStartTimeMs, executionResult.ProcessStartTimeMs);
-
+ 
             // We may have some violations reported already (outright denied by the sandbox manifest).
             FileAccessReportingContext fileAccessReportingContext = executionResult.UnexpectedFileAccesses;
 
@@ -1349,7 +1461,7 @@ namespace BuildXL.Scheduler
 
                 if (fileAccessReportingContext != null)
                 {
-                    ReportFileAccesses(processExecutionResult, fileAccessReportingContext);
+                    processExecutionResult.ReportFileAccesses(fileAccessReportingContext);
                 }
 
                 if (executionResult?.PrimaryProcessTimes != null)
@@ -1358,6 +1470,9 @@ namespace BuildXL.Scheduler
                         PipExecutorCounter.CanceledProcessExecuteDuration,
                         executionResult.PrimaryProcessTimes.TotalWallClockTime);
                 }
+
+                // We merge all the DFA's reported from all the inline retries for the pip.
+                processExecutionResult.MergeAllFileAccessesAndViolationsForInlineRetry(executionResult);
 
                 return processExecutionResult;
             }
@@ -1407,7 +1522,7 @@ namespace BuildXL.Scheduler
             // Do not update the counter for service pips
             if (!pip.IsStartOrShutdownKind)
             {
-                counters.AddToCounter(PipExecutorCounter.ExecuteProcessDuration, executionResult.PrimaryProcessTimes.TotalWallClockTime); 
+                counters.AddToCounter(PipExecutorCounter.ExecuteProcessDuration, executionResult.PrimaryProcessTimes.TotalWallClockTime);
             }
 
             // Skip the post-processing if the pip was run outside of the sandbox
@@ -1466,7 +1581,7 @@ namespace BuildXL.Scheduler
 
                 if (pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode == Process.AbsentPathProbeInUndeclaredOpaquesMode.Relaxed)
                 {
-                    var absentPathProbesUnderNonDependenceOutputDirectories = 
+                    var absentPathProbesUnderNonDependenceOutputDirectories =
                         observedInputValidationResult.DynamicObservations
                         .Where(o => o.Kind == DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
                         .Select(o => o.Path);
@@ -1632,6 +1747,11 @@ namespace BuildXL.Scheduler
                 environment.State.ExecutionLog?.ProcessFingerprintComputation(fingerprintComputation.Value);
 
                 SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringStrongFingerprintToXlg, DateTime.UtcNow.Subtract(start));
+
+                // Merge all the DFA's reported from all the inline retries for the pip.
+                // We perform this operation towards the end of this method.
+                // This is because we want to use the latest SandboxedProcessPipExecutionResult object for validating all observed file accesses.
+                processExecutionResult.MergeAllFileAccessesAndViolationsForInlineRetry(executionResult);
 
                 if (!outputHashSuccess)
                 {
@@ -1825,7 +1945,10 @@ namespace BuildXL.Scheduler
 
                 bool firstAttempt = true;
                 bool userRetry = false;
-                SandboxedProcessPipExecutionResult result;
+                SandboxedProcessPipExecutionResult result = null;
+
+                //Used to keep track of the previous result of running sandboxed process executor.
+                SandboxedProcessPipExecutionResult prevResult = null;
                 var aggregatePipProperties = new Dictionary<string, int>();
                 IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleDynamicOutputs = null;
 
@@ -1834,7 +1957,7 @@ namespace BuildXL.Scheduler
                 while (true)
                 {
                     lastObservedMemoryCounters = default(ProcessMemoryCountersSnapshot);
-                    
+
                     var executor = new SandboxedProcessPipExecutor(
                         context,
                         operationContext.LoggingContext,
@@ -1866,7 +1989,7 @@ namespace BuildXL.Scheduler
                         pipGraphFileSystemView: environment.PipGraphView,
                         runLocation: runLocation,
                         sandboxFileSystemView: environment.State.FileSystemView);
-                    
+
                     resourceScope.RegisterQueryRamUsageMb(
                         () =>
                         {
@@ -1917,11 +2040,13 @@ namespace BuildXL.Scheduler
                     {
                         staleDynamicOutputs = null;
                         start = DateTime.UtcNow;
+                        prevResult = result;
                         result = await executor.RunAsync(
-                            linkedCancellationTokenSource.Token, 
-                            sandboxConnection: environment.SandboxConnection, 
-                            sidebandWriter: sidebandWriter, 
+                            linkedCancellationTokenSource.Token,
+                            sandboxConnection: environment.SandboxConnection,
+                            sidebandWriter: sidebandWriter,
                             fileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null);
+                        result.PreviousResult = prevResult;
                         SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
                         staleDynamicOutputs = result.SharedDynamicDirectoryWriteAccesses;
                     }
@@ -2029,7 +2154,7 @@ namespace BuildXL.Scheduler
 
                 if (result.Status == SandboxedProcessPipExecutionStatus.Canceled)
                 {
-                    if (resourceScope.CancellationReason.HasValue) 
+                    if (resourceScope.CancellationReason.HasValue)
                     {
                         // Canceled due to resource exhaustion
                         result.RetryInfo = RetryInfo.GetDefault(RetryReason.ResourceExhaustion);
@@ -2211,17 +2336,6 @@ namespace BuildXL.Scheduler
                 pip.SemiStableHash,
                 // in some tests the static fingerprint can have 0 length in which case ToByteArray() throws
                 staticFingerprint.Length > 0 ? staticFingerprint.ToByteArray() : new byte[0]);
-        }
-
-        private static void ReportFileAccesses(ExecutionResult processExecutionResult, FileAccessReportingContext fileAccessReportingContext)
-        {
-            // We have all violations now.
-            UnexpectedFileAccessCounters unexpectedFilesAccesses = fileAccessReportingContext.Counters;
-            processExecutionResult.ReportUnexpectedFileAccesses(unexpectedFilesAccesses);
-
-            // Set file access violations which were not allowlisted for use by file access violation analyzer
-            processExecutionResult.FileAccessViolationsNotAllowlisted = fileAccessReportingContext.FileAccessViolationsNotAllowlisted;
-            processExecutionResult.AllowlistedFileAccessViolations = fileAccessReportingContext.AllowlistedFileAccessViolations;
         }
 
         /// <summary>
@@ -2696,7 +2810,7 @@ namespace BuildXL.Scheduler
                                             cacheableProcess.Process,
                                             weakFingerprint,
                                             entryRef.PathSetHash,
-                                            entryRef.StrongFingerprint, 
+                                            entryRef.StrongFingerprint,
                                             hints);
 
                                         keepAliveResult = fetchAugmentingPathSetEntryResult.Succeeded
@@ -3477,7 +3591,7 @@ namespace BuildXL.Scheduler
                 for (int i = 0; i < pip.DirectoryOutputs.Length; i++)
                 {
                     fileList.Clear();
-                    
+
                     // Let's validate here the existence assertions for opaques.
                     // Observe that even though this is a cache hit, the existence assertions may have changed
                     // Existence assertions are explicitly not part of the producer fingerprint since they are not
@@ -4084,7 +4198,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(environment != null);
             Contract.Requires(pip != null);
             Contract.Requires(pathSet.Paths.IsValid);
-            
+
             using (operationContext.StartOperation(PipExecutorCounter.PriorPathSetEvaluationToProduceStrongFingerprintDuration))
             {
                 ObservedInputProcessingResult validationResult =
@@ -4435,7 +4549,7 @@ namespace BuildXL.Scheduler
         /// </remarks>
         public static bool IsUnconditionallyPerpetuallyDirty(Pip pip, IPipGraphFileSystemView pipGraphView)
             => pip.PipType == PipType.Process && pip is Process process &&
-               (process.HasSharedOpaqueDirectoryOutputs || 
+               (process.HasSharedOpaqueDirectoryOutputs ||
                 process.DirectoryOutputs.Any(directory => pipGraphView.GetExistenceAssertionsUnderOpaqueDirectory(directory).Count > 0));
 
         /// <summary>
@@ -4565,7 +4679,7 @@ namespace BuildXL.Scheduler
                             // re-enumerations
                             Contract.Assert(existenceAssertions.Count == 0);
                             existenceAssertions.AddRange(environment.PipGraphView.GetExistenceAssertionsUnderOpaqueDirectory(directoryArtifact));
-                            
+
                             var enumerationResult = environment.State.FileContentManager.EnumerateAndTrackOutputDirectory(
                                 directoryArtifact,
                                 outputDirectoryData,
@@ -4722,7 +4836,7 @@ namespace BuildXL.Scheduler
                         cancellationToken: environment.Context.CancellationToken);
 
                     int outputIndex = 0;
-                    
+
                     foreach (var output in sortedOutputs)
                     {
                         var outputData = allOutputData[output.Path];
@@ -4760,7 +4874,7 @@ namespace BuildXL.Scheduler
                     // the loop below is not computational intensive and therefore doesn't seem justified
                     storeOutputsQueue.Complete();
 
-                    try 
+                    try
                     {
                         await storeOutputsQueue.Completion;
                     }
@@ -4780,7 +4894,7 @@ namespace BuildXL.Scheduler
                     foreach (var output in sortedOutputs)
                     {
                         Possible<FileMaterializationInfo>? maybePossiblyStoredOutputArtifactInfo = materializationResults[outputIndex];
-                        
+
                         // A null value here means this output is a duplicate. Just skip it.
                         if (maybePossiblyStoredOutputArtifactInfo == null)
                         {
@@ -5027,13 +5141,13 @@ namespace BuildXL.Scheduler
 
                 Possible<TrackedFileContentInfo> possiblyStoredOutputArtifact = shouldStoreOutputToCache
                     ? await StoreProcessOutputToCacheAsync(
-                        operationContext, 
-                        environment, 
-                        process, 
-                        outputArtifact, 
-                        output.IsUndeclaredFileRewrite, 
-                        isReparsePoint, 
-                        isProcessCacheable: isProcessCacheable, 
+                        operationContext,
+                        environment,
+                        process,
+                        outputArtifact,
+                        output.IsUndeclaredFileRewrite,
+                        isReparsePoint,
+                        isProcessCacheable: isProcessCacheable,
                         isExecutable: isExecutable.Result)
                     : await TrackPipOutputAsync(
                         operationContext,

@@ -167,6 +167,7 @@ namespace BuildXL.ProcessPipExecutor
             Tuple<AbsolutePath, Encoding> encodedStandardOutput,
             Dictionary<string, int> pipProperties,
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
+            FileAccessReportingContext unexpectedFileAccesses,
             RetryInfo retryInfo = null)
         {
             return new SandboxedProcessPipExecutionResult(
@@ -176,7 +177,7 @@ namespace BuildXL.ProcessPipExecutor
                 encodedStandardError: encodedStandardError,
                 encodedStandardOutput: encodedStandardOutput,
                 numberOfWarnings: 0,
-                unexpectedFileAccesses: null,
+                unexpectedFileAccesses: unexpectedFileAccesses,
                 primaryProcessTimes: primaryProcessTimes,
                 jobAccountingInformation: jobAccountingInformation,
                 exitCode: exitCode,
@@ -329,6 +330,14 @@ namespace BuildXL.ProcessPipExecutor
             status != SandboxedProcessPipExecutionStatus.PreparationFailed && 
             status != SandboxedProcessPipExecutionStatus.Canceled &&
             status != SandboxedProcessPipExecutionStatus.ExecutionFailed;
+
+        /// <summary>
+        /// Maintains a linked list of previous <see cref="SandboxedProcessPipExecutionResult" /> resulting from inline retries.
+        /// </summary>
+        /// <remarks>
+        /// The value is null if there has been no retry.
+        /// </remarks>
+        public SandboxedProcessPipExecutionResult PreviousResult { get; set; }
 
         /// <nodoc />
         public SandboxedProcessPipExecutionResult(

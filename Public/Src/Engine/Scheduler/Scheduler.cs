@@ -4934,8 +4934,8 @@ namespace BuildXL.Scheduler
                             operationContext,
                             environment,
                             pipScope,
-                            executionResult,
                             processRunnable.Process,
+                            processRunnable.AllExecutionResults,
                             out pipIsSafeToCache,
                             out allowedSameContentViolations);
                         SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingFileAccessViolations, DateTime.UtcNow.Subtract(start));

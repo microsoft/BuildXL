@@ -84,6 +84,14 @@ namespace BuildXL.Scheduler
 
         private readonly int m_weightBasedOnHistoricCpuUsage;
 
+        /// <summary>
+        /// Maintain a list of all execution results from all retries, including retries that happened on different workers
+        /// </summary>
+        private readonly List<ExecutionResult> m_allExecutionResults = new();
+
+        /// <nodoc/>
+        public IEnumerable<ExecutionResult> AllExecutionResults => m_allExecutionResults;
+
         internal ProcessRunnablePip(
             LoggingContext phaseLoggingContext,
             PipId pipId,
@@ -104,6 +112,15 @@ namespace BuildXL.Scheduler
                 // If cpu usage is less than 100%, just use the lowest possible weight.
                 m_weightBasedOnHistoricCpuUsage = Process.MinWeight;
             }
+        }
+
+        /// <summary>
+        /// Set the executionResult object and the list of executionResult objects.
+        /// </summary>
+        public override void SetExecutionResult(ExecutionResult executionResult)
+        {
+            base.SetExecutionResult(executionResult);
+            m_allExecutionResults.Add(executionResult);
         }
 
         /// <nodoc/>

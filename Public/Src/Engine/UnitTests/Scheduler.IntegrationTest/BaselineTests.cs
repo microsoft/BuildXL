@@ -1666,6 +1666,39 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, 0);
         }
 #endif
+        /// <summary>
+        /// This tests fails on the first retry with a DFA and then succeeds on the second retry.
+        /// The test aims to record all the DFA's from all the reties.
+        /// </summary>
+        [Fact]
+        public void ReportDFAWhenRetry()
+        {
+            Configuration.Schedule.ProcessRetries = 1;
+
+            // The stateFile here is used to keep a track of number of retries left.
+            // While the file that is to be read is not give the required readAccess, hence it is expected to create DFA.
+            AbsolutePath stateFilePath = ObjectRootPath.Combine(Context.PathTable, "stateFile.txt");
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(stateFilePath);
+
+            // ReadFileIfInputEqual operations tries to read a file with no read access.
+            // Using SucceedOnRetry operation we ensure that the source file "read.txt" is read on the first retry, but is not read during the last attempt.
+            var ops = new Operation[]
+            {
+                Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt")), content: "Hello"),
+                Operation.ReadFileIfInputEqual(CreateSourceFile(ObjectRootPath.Combine(Context.PathTable, "read.txt")), stateFilePath.ToString(Context.PathTable), "1", doNotInfer: true),
+                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, failExitCode: 42)
+            };
+
+            var builder = CreatePipBuilder(ops);
+            builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
+            builder.AddUntrackedFile(stateFile.Path);
+            SchedulePipBuilder(builder);
+
+            var result = RunScheduler();
+            result.AssertFailure();
+            IgnoreWarnings();
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+        }
 
         /// <summary>
         /// Validates behavior with a process being retried
@@ -1836,7 +1869,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 result.AssertSuccess();
             }
-            
             AssertWarningEventLogged(ProcessesLogEventId.PipFinishedWithSomeProcessExitedWithAzureWatsonExitCode, mainProcessFailed ? 2 : 1);
 
             if (mainProcessFailed)

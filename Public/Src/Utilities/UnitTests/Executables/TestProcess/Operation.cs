@@ -7,14 +7,17 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
+using BuildXL.Native.Tracing;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace Test.BuildXL.Executables.TestProcess
 {
@@ -1179,9 +1182,19 @@ namespace Test.BuildXL.Executables.TestProcess
             string input = argument[0];
             string value = argument[1];
 
-            if (File.ReadAllText(input) == value)
+            // Using the try/catch here to handle special cases.
+            // Ex: When we use this operation alongside the SucceedOnRetry operation.
+            // In this case we want to capture all the DFA's that occur during all retries, an exception may be thrown when a read file access gets denied.
+            try
             {
-                DoReadFile();
+                if (File.ReadAllText(input) == value)
+                {
+                    DoReadFile();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex.ToString());
             }
         }
 
@@ -1192,9 +1205,19 @@ namespace Test.BuildXL.Executables.TestProcess
             string value = argument[1];
             string content = argument[2];
 
-            if (File.ReadAllText(input) == value)
+            // Using the try/catch here to handle special cases.
+            // Ex: When we use this operation alongside the SucceedOnRetry operation.
+            // In this case we want to capture all the DFA's that occur during all retries, an exception may be thrown when a write file access gets denied.
+            try
             {
-                DoWriteFile(content ?? Guid.NewGuid().ToString());
+                if (File.ReadAllText(input) == value)
+                {
+                    DoWriteFile(content ?? Guid.NewGuid().ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex.ToString());
             }
         }
 

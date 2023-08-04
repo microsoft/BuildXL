@@ -1717,6 +1717,23 @@ namespace BuildXL.ProcessPipExecutor
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, stopwatch.Elapsed, $"(count: {observed.Length})");
 
             TimeSpan processTotalWallClockTime = primaryProcessTimes.TotalWallClockTime;
+
+            // Note that when MonitorFileAccesses flag is set to false, we should not assume the various reported-access sets are non-null.
+            if (MonitorFileAccesses)
+            {
+                // First remove all the paths that are Injectable from in the process.
+                RemoveInjectableFileAccesses(result.AllUnexpectedFileAccesses);
+
+                foreach (ReportedFileAccess unexpectedFileAccess in result.AllUnexpectedFileAccesses)
+                {
+                    Contract.Assume(
+                        unexpectedFileAccess.Status == FileAccessStatus.Denied ||
+                        unexpectedFileAccess.Status == FileAccessStatus.CannotDeterminePolicy);
+
+                    fileAccessReportingContext.ReportFileAccessDeniedByManifest(unexpectedFileAccess);
+                }
+            }
+
             if (result.TimedOut)
             {
                 if (result.DumpCreationException != null)
@@ -1790,7 +1807,8 @@ namespace BuildXL.ProcessPipExecutor
                                         encodedStandardError,
                                         encodedStandardOutput,
                                         pipProperties,
-                                        sharedDynamicDirectoryWriteAccesses);
+                                        sharedDynamicDirectoryWriteAccesses,
+                                        unexpectedFileAccesses: fileAccessReportingContext);
                                 }
 
                                 Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySaveAndLogStandardOutput/Error failure.");
@@ -1824,22 +1842,6 @@ namespace BuildXL.ProcessPipExecutor
             }
 
             stopwatch.Restart();
-
-            // Note that when MonitorFileAccesses == false, we should not assume the various reported-access sets are non-null.
-            if (MonitorFileAccesses)
-            {
-                // First remove all the paths that are Injectable from in the process.
-                RemoveInjectableFileAccesses(result.AllUnexpectedFileAccesses);
-
-                foreach (ReportedFileAccess unexpectedFileAccess in result.AllUnexpectedFileAccesses)
-                {
-                    Contract.Assume(
-                        unexpectedFileAccess.Status == FileAccessStatus.Denied ||
-                        unexpectedFileAccess.Status == FileAccessStatus.CannotDeterminePolicy);
-
-                    fileAccessReportingContext.ReportFileAccessDeniedByManifest(unexpectedFileAccess);
-                }
-            }
 
             if (result.Killed && numSurvivingChildErrors > 0)
             {

@@ -429,7 +429,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Sets the execution result
         /// </summary>
-        public void SetExecutionResult(ExecutionResult executionResult)
+        public virtual void SetExecutionResult(ExecutionResult executionResult)
         {
             Contract.Requires(PipType == PipType.Process || PipType == PipType.Ipc, "Only process or IPC pips can set the execution result");
 

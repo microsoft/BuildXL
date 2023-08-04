@@ -534,6 +534,53 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TwoPipsProducingTheSameFileDynamicallyUnderASharedOpaqueDirectoryIsBlockedEvenOnARetry()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");                          
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);                     
+            Configuration.Schedule.ProcessRetries = 1;
+
+            // PipA writes outputArtifactA in a shared opaque directory
+            FileArtifact outputArtifactA = CreateOutputFileArtifact(sharedOpaqueDir);
+            var builderA = CreatePipBuilder(new Operation[]     
+                                                   {
+                                                       Operation.WriteFile(outputArtifactA, doNotInfer: true),
+                                                       Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))
+                                                   });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            var resA = SchedulePipBuilder(builderA);
+
+            AbsolutePath stateFilePath = ObjectRootPath.Combine(Context.PathTable, "stateFile.txt");
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(stateFilePath);
+
+            // PipB writes outputArtifactA in a shared opaque directory
+            // The stateFile here is used to keep a track of number of retries left.
+            // OutputArtifactA is expected to cause a DFA due to double writes despite the retry.
+            var builderB = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.WriteFileIfInputEqual(outputArtifactA, stateFilePath.ToString(Context.PathTable), "1", "hello"),
+                                                       Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, failExitCode: 42)
+                                                   });
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderB.AddInputFile(resA.ProcessOutputs.GetOutputFiles().Single());
+
+            builderB.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
+            builderB.AddUntrackedFile(stateFile.Path);
+            SchedulePipBuilder(builderB);
+
+            IgnoreWarnings();
+            RunScheduler().AssertFailure();
+
+            // We are expecting a double write
+            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+
+            // We might get a put content failed event if the file was being written by one pip while being cached by the second
+            AllowErrorEventMaybeLogged(LogEventId.StorageCachePutContentFailed);
+            AllowErrorEventMaybeLogged(LogEventId.ProcessingPipOutputFileFailed);
+        }
+
+        [Fact]
         public void SharedOpaqueFileWriteInsideTempDirectory()
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");

@@ -733,13 +733,14 @@ namespace Test.BuildXL.Scheduler
                         {
                             executionResult = await PipExecutor.ExecuteProcessAsync(operationContext, environment, pipScope, (Process)pip, cacheResult.Fingerprint);
                             executionResult.Seal();
+                        runnablePip.SetExecutionResult(executionResult);
 
-                            executionResult = PipExecutor.AnalyzeFileAccessViolations(
+                        executionResult = PipExecutor.AnalyzeFileAccessViolations(
                                 operationContext,
                                 environment,
                                 pipScope,
-                                executionResult,
                                 cacheableProcess.Process,
+                                runnablePip.AllExecutionResults,
                                 out _,
                                 out _);
 

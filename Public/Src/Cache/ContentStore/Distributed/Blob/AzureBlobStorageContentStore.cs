@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 
@@ -76,8 +77,10 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
     /// <inheritdoc />
     public Task<GetStatsResult> GetStatsAsync(Context context)
     {
-        return Task.FromResult(
-            new GetStatsResult(errorMessage: $"{nameof(AzureBlobStorageContentStore)} does not support {nameof(GetStatsAsync)}"));
+        // TODO: Provide some reasonable set of counters.
+        // For now, we just return an empty set
+        // In some cases returning an error here will also make metadata stats to not be reported, so we avoid that.
+        return Task.FromResult(new GetStatsResult(new CounterSet()));
     }
 
     /// <inheritdoc />

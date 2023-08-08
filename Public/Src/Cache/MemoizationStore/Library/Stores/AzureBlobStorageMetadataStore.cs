@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -12,7 +13,9 @@ using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
@@ -40,7 +43,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     public class AzureBlobStorageMetadataStore : StartupShutdownComponentBase, IMetadataStoreWithIncorporation, IMetadataStoreWithContentPinNotification
     {
         /// <nodoc />
-        protected sealed override Tracer Tracer { get; } = new(nameof(AzureBlobStorageMetadataStore));
+        protected sealed override Tracer Tracer => _tracer;
+
+        private readonly AzureBlobStorageMetadataStoreTracer _tracer = new(nameof(AzureBlobStorageMetadataStore));
 
         private readonly BlobMetadataStoreConfiguration _configuration;
 
@@ -98,7 +103,37 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// </summary>
         public Task<Result<bool>> NotifyContentWasPinnedAsync(OperationContext context, StrongFingerprint strongFingerprint)
         {
-            return NotifyContentWasPinnedInternalAsync(context, strongFingerprint, DateTime.UtcNow);
+            var stopwatch = Stopwatch.StartNew();
+            _tracer.ContentWasPinnedStart(context);
+
+            try
+            {
+                return NotifyContentWasPinnedInternalAsync(context, strongFingerprint, DateTime.UtcNow);
+            }
+            finally
+            {
+                _tracer.ContentWasPinnedStop(context, stopwatch.Elapsed);
+            }
+        }
+
+        /// <summary>
+        /// Content associated to the given fingerprint was pinned, but a place operation failed to find it. It is probably too late
+        /// to recover from this situation for the running build, but remove the metadata (with the last time content was pinned) so that future builds can succeed.
+        /// </summary>
+        public Task<Result<bool>> NotifyPinnedContentWasNotFoundAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            _tracer.PinnedContentWasNotFoundStart(context);
+
+            try
+            {
+                // Clear the metadata of the given entry, so the next time it is queried, preventive pinning will happen
+                return UpdateMetadataAsync(context, strongFingerprint, metadata: null);
+            }
+            finally
+            {
+                _tracer.PinnedContentWasNotFoundStop(context, stopwatch.Elapsed);
+            }
         }
 
         internal Task<Result<bool>> UpdateLastContentPinnedTimeForTestingAsync(OperationContext context, StrongFingerprint strongFingerprint, DateTime testDateTime)
@@ -108,35 +143,34 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         private async Task<Result<bool>> NotifyContentWasPinnedInternalAsync(OperationContext context, StrongFingerprint strongFingerprint, DateTime now)
         {
-            PooledObjectWrapper<Dictionary<string, string>>? metadataWrapper = null;
-
-            metadataWrapper = _lastContentPinnedTime.GetInstance();
+            using PooledObjectWrapper<Dictionary<string, string>>? metadataWrapper = _lastContentPinnedTime.GetInstance();
             Dictionary<string, string>? metadata = metadataWrapper.Value.Instance;
-            metadata[LastContentPinnedTime] = now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+            var lastContentPinnedTimeAsString = now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+            metadata[LastContentPinnedTime] = lastContentPinnedTimeAsString;
 
-            try
+            var result = await UpdateMetadataAsync(context, strongFingerprint, metadata);
+
+            if (result.Succeeded)
             {
-                var client = await GetStrongFingerprintClientAsync(context, strongFingerprint);
-                var result = await _storageClientAdapter.UpdateMetadataAsync(
-                    context,
-                    client,
-                    metadata);
-
-                if (result.Succeeded)
-                {
-                    Tracer.Info(context, $"Content for strong fingerprint '{strongFingerprint}' was preventively pinned. Strong fingerprint last pinned time was updated to {metadata[LastContentPinnedTime]}.");
-                }
-                else
-                {
-                    Tracer.Info(context, $"Content for strong fingerprint '{strongFingerprint}' was preventively pinned, but strong fingerprint last pinned time couldn't be updated. Subsequent queries will attempt to preventively pin again.");
-                }
-
-                return result;
+                Tracer.Info(context, $"Content for strong fingerprint '{strongFingerprint}' was preventively pinned. Strong fingerprint last pinned time was updated to {lastContentPinnedTimeAsString}.");
             }
-            finally
+            else
             {
-                metadataWrapper?.Dispose();
+                Tracer.Info(context, $"Content for strong fingerprint '{strongFingerprint}' was preventively pinned, but strong fingerprint last pinned time couldn't be updated. Subsequent queries will attempt to preventively pin again.");
             }
+
+            return result;
+        }
+
+        private async Task<Result<bool>> UpdateMetadataAsync(OperationContext context, StrongFingerprint strongFingerprint, Dictionary<string, string>? metadata)
+        {
+            var client = await GetStrongFingerprintClientAsync(context, strongFingerprint);
+            var result = await _storageClientAdapter.UpdateMetadataAsync(
+                context,
+                client,
+                metadata);
+
+            return result;
         }
 
         /// <nodoc />
@@ -301,5 +335,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 throw new ArgumentException($"Failed parsing a {nameof(Selector)} out of '{name}'", paramName: nameof(name), ex);
             }
         }
+
+        /// <inheritdoc/>
+        public Task<GetStatsResult> GetStatsAsync(Context context) =>  Task.FromResult(new GetStatsResult(_tracer.GetCounters()));
     }
 }

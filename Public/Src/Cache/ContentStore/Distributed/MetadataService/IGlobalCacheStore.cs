@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -66,6 +67,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         /// <nodoc />
         Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint);
+
+        /// <nodoc/>
+        Task<GetStatsResult> GetStatsAsync(Context context);
     }
 
     public interface IMetadataStoreWithIncorporation : IMetadataStore
@@ -79,5 +83,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// Notifies the store that all the content associated to the given strong fingerprint was pinned, allowing it to update any internal invariants
         /// </summary>
         Task<Result<bool>> NotifyContentWasPinnedAsync(OperationContext context, StrongFingerprint strongFingerprint);
+
+        /// <summary>
+        /// Notifies the store that content associated to the given strong fingerprint was pinned, but a place operation failed to find it, allowing it to update any internal invariants
+        /// </summary>
+        Task<Result<bool>> NotifyPinnedContentWasNotFoundAsync(OperationContext context, StrongFingerprint strongFingerprint);
     }
 }

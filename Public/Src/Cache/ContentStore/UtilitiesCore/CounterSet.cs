@@ -47,6 +47,16 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
         public void Add(string name, double value) => AddCounter(Counter.FromDouble(name, value));
 
         /// <summary>
+        /// Adds a new counter if it is not part of this already, otherwise adds the value to the existing counter.
+        /// </summary>
+        public void AddOrSum(string name, long value) => SumCounter(Counter.FromLong(name, value));
+
+        /// <summary>
+        /// Adds a new counter if it is not part of this already, otherwise adds the value to the existing counter.
+        /// </summary>
+        public void AddOrSum(string name, double value) => SumCounter(Counter.FromDouble(name, value));
+
+        /// <summary>
         ///     Add a new counter.
         /// </summary>
         public void Add(string name, long value, string metricName) => 
@@ -104,6 +114,26 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
             {
                 throw new ArgumentException($"An item with the same key '{counter.Name}' has already been added.");
             }
+        }
+
+        private void SumCounter(Counter counter)
+        {
+            if (!_counters.Contains(counter))
+            {
+                AddCounter(counter);
+            }
+            else
+            {
+#if NET6_0_OR_GREATER
+                _counters.TryGetValue(counter, out var existingCounter);
+#else
+                var existingCounter = _counters.Single(elem => elem.Equals(counter));
+#endif
+                var sum = existingCounter.ValueAsLong + counter.ValueAsLong;
+                _counters.Remove(existingCounter);
+                _counters.Add(Counter.FromLong(existingCounter.Name, sum, existingCounter.MetricName));
+            }
+
         }
 
         /// <nodoc />

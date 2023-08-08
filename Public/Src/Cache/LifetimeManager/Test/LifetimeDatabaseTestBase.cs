@@ -99,7 +99,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 memoizationStoreFunc: () => blobMemoizationStore,
                 configuration: new OneLevelCacheBaseConfiguration(
                     Id: Guid.NewGuid(),
-                    PassContentToMemoization: false,
+                    AutomaticallyOverwriteContentHashLists: false,
                     MetadataPinElisionDuration: TimeSpan.FromHours(1)
                 ));
 

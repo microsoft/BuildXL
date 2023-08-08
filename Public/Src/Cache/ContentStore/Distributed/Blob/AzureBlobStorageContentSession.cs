@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Host.Configuration;
@@ -32,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// <summary>
 /// A content session implementation backed by Azure Blobs.
 /// </summary>
-public sealed class AzureBlobStorageContentSession : ContentSessionBase
+public sealed class AzureBlobStorageContentSession : ContentSessionBase, IContentNotFoundRegistration
 {
     public record Configuration(
         string Name,
@@ -48,6 +49,8 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
     private readonly BlobStorageClientAdapter _clientAdapter;
 
     private readonly IAbsFileSystem _fileSystem = PassThroughFileSystem.Default;
+
+    private readonly List<Func<Context, ContentHash, Task>> _contentNotFoundListeners = new();
 
     /// <nodoc />
     public AzureBlobStorageContentSession(Configuration configuration, AzureBlobStorageContentStore store)
@@ -179,10 +182,29 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase
         Counter retryCounter)
     {
         var remoteDownloadResult = await PlaceRemoteFileAsync(context, contentHash, path, accessMode, replacementMode).ThrowIfFailureAsync();
-        return new PlaceFileResult(
+        var result = new PlaceFileResult(
             code: remoteDownloadResult.ResultCode,
             fileSize: remoteDownloadResult.FileSize ?? 0,
             source: PlaceFileResult.Source.BackingStore);
+
+        // if the content was not found, let listeners know
+        if (result.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound && _contentNotFoundListeners.Any())
+        {
+            foreach (var listener in _contentNotFoundListeners)
+            {
+                await listener(context, contentHash);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Registers a listener that will be called when a content is not found on <see cref="PlaceFileCoreAsync"/>.
+    /// </summary>
+    public void AddContentNotFoundOnPlaceListener(Func<Context, ContentHash, Task> listener)
+    {
+        _contentNotFoundListeners.Add(listener);
     }
 
     private FileStream OpenFileStream(AbsolutePath path, long length, bool randomAccess)

@@ -63,13 +63,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <inheritdoc />
-        CreateSessionResult<IMemoizationSession> IMemoizationStore.CreateSession(Context context, string name)
-        {
-            return CreateSession(context, name, ImplicitPin.None).Map(session => (IMemoizationSession)session);
-        }
-
-        /// <inheritdoc />
-        CreateSessionResult<IMemoizationSession> IMemoizationStore.CreateSession(Context context, string name, IContentSession contentSession)
+        CreateSessionResult<IMemoizationSession> IMemoizationStore.CreateSession(Context context, string name, IContentSession contentSession, bool automaticallyOverwriteContentHashLists)
         {
             return CreateSession(context, name, ImplicitPin.None).Map(session => (IMemoizationSession)session);
         }

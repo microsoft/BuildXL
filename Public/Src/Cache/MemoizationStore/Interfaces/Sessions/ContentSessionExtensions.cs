@@ -21,10 +21,16 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <remarks>
         /// On error, returns the first unsuccesful pin result.
         /// </remarks>
-        public static async Task<PinResult> EnsureContentIsAvailableWithResultAsync(this IContentSession contentSession, Context context, string componentName, ContentHashList contentHashList, CancellationToken cts)
+        public static async Task<PinResult> EnsureContentIsAvailableWithResultAsync(
+            this IContentSession contentSession,
+            Context context,
+            string componentName,
+            ContentHashList contentHashList,
+            bool automaticallyOverwriteContentHashLists,
+            CancellationToken cts)
         {
-            // If there is no contentSession in which to find content, then trivially no content is available.
-            if (contentSession == null)
+            // If there is no contentSession in which to find content or automatic overriding is turned off, then trivially no content is available.
+            if (contentSession == null || !automaticallyOverwriteContentHashLists)
             {
                 return PinResult.ContentNotFound;
             }
@@ -55,11 +61,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <summary>
-        /// <see cref="EnsureContentIsAvailableWithResultAsync(IContentSession, Context, string, ContentHashList, CancellationToken)"/>
+        /// <see cref="EnsureContentIsAvailableWithResultAsync(IContentSession, Context, string, ContentHashList, bool, CancellationToken)"/>
         /// </summary>
-        public static async Task<bool> EnsureContentIsAvailableAsync(this IContentSession contentSession, Context context, string componentName, ContentHashList contentHashList, CancellationToken cts)
+        public static async Task<bool> EnsureContentIsAvailableAsync(this IContentSession contentSession, Context context, string componentName, ContentHashList contentHashList, bool automaticallyOverwriteContentHashLists, CancellationToken cts)
         {
-            var pinResult = await EnsureContentIsAvailableWithResultAsync(contentSession, context, componentName, contentHashList, cts).ConfigureAwait(false);
+            var pinResult = await EnsureContentIsAvailableWithResultAsync(contentSession, context, componentName, contentHashList, automaticallyOverwriteContentHashLists, cts).ConfigureAwait(false);
             return pinResult.Succeeded;
         }
     }

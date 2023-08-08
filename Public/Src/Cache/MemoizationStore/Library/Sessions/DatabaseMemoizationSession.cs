@@ -36,7 +36,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             bool preferShared = urgencyHint == UrgencyHint.PreferShared;
-            return MemoizationStore.GetContentHashListAsync(context, strongFingerprint, cts, _contentSession, preferShared);
+            return MemoizationStore.GetContentHashListAsync(context, strongFingerprint, cts, _contentSession, _automaticallyOverwriteContentHashLists, preferShared);
         }
 
         /// <inheritdoc />
@@ -56,6 +56,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         private readonly IContentSession _contentSession;
+        private readonly bool _automaticallyOverwriteContentHashLists;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="DatabaseMemoizationSession" /> class.
@@ -66,7 +67,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         ///     to compare to the previous behavior.  With a null content session, metadata will be automatically
         ///     overwritten because we're unable to check whether or not content is missing.
         /// </remarks>
-        public DatabaseMemoizationSession(string name, DatabaseMemoizationStore memoizationStore, IContentSession contentSession = null)
+        public DatabaseMemoizationSession(string name, DatabaseMemoizationStore memoizationStore, IContentSession contentSession, bool automaticallyOverwriteContentHashLists)
         {
             Contract.Requires(name != null);
             Contract.Requires(memoizationStore != null);
@@ -75,6 +76,14 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             Name = name;
             MemoizationStore = memoizationStore;
             _contentSession = contentSession;
+            _automaticallyOverwriteContentHashLists = automaticallyOverwriteContentHashLists;
+
+            // If the content session allows for registering on content not found, we register the memoization store to recover from faulty eviction
+            if (_contentSession is IContentNotFoundRegistration contentSessionWithRegistration)
+            {
+                contentSessionWithRegistration.AddContentNotFoundOnPlaceListener(
+                    (context, contentHash) => MemoizationStore.Database.ContentNotFoundOnPlaceAsync(new ContentStore.Tracing.Internal.OperationContext(context), contentHash));
+            }
         }
 
         /// <inheritdoc />
@@ -90,6 +99,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                 strongFingerprint,
                 contentHashListWithDeterminism,
                 _contentSession,
+                _automaticallyOverwriteContentHashLists,
                 cts);
         }
 

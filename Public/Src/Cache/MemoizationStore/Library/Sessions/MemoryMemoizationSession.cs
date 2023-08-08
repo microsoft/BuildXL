@@ -20,17 +20,12 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     public class MemoryMemoizationSession : StartupShutdownBase, IMemoizationSession, IMemoizationSessionWithLevelSelectors
     {
         private readonly IContentSession _contentSession;
+        private readonly bool _automaticallyOverwriteContentHashLists;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="MemoryMemoizationSession" /> class.
         /// </summary>
-        /// <remarks>
-        ///     Allowing <paramref name="contentSession"/> to be null to allow the creation of uncoupled MemoizationSessions.
-        ///     While we might extend this to the actual interface at some point, for now it's just a test hook
-        ///     to compare to the previous behavior.  With a null content session, metadata will be automatically
-        ///     overwritten because we're unable to check whether or not content is missing.
-        /// </remarks>
-        public MemoryMemoizationSession(string name, MemoryMemoizationStore memoizationStore, IContentSession contentSession = null)
+        public MemoryMemoizationSession(string name, MemoryMemoizationStore memoizationStore, IContentSession contentSession, bool automaticallyOverwriteContentHashLists)
         {
             Contract.Requires(name != null);
             Contract.Requires(memoizationStore != null);
@@ -39,6 +34,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             Tracer = new Tracer(nameof(MemoryMemoizationSession));
             MemoizationStore = memoizationStore;
             _contentSession = contentSession;
+            _automaticallyOverwriteContentHashLists = automaticallyOverwriteContentHashLists;
         }
 
         /// <inheritdoc />
@@ -54,6 +50,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                 strongFingerprint,
                 contentHashListWithDeterminism,
                 _contentSession,
+                _automaticallyOverwriteContentHashLists,
                 cts);
         }
 

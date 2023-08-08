@@ -76,7 +76,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             var context = new Context(Logger);
             return RunTestAsync(context, async store =>
             {
-                var r = store.CreateSession(context, Name);
+                var r = store.CreateSession(context, Name, contentSession: null, automaticallyOverwriteContentHashLists: false);
                 r.ShouldBeSuccess();
                 using (var session = r.Session)
                 {
@@ -491,7 +491,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         {
             return RunTestAsync(context, async store =>
             {
-                var createResult = store.CreateSession(context, Name);
+                var createResult = store.CreateSession(context, Name, contentSession: null, automaticallyOverwriteContentHashLists: false);
                 createResult.ShouldBeSuccess();
                 using (var session = createResult.Session)
                 {

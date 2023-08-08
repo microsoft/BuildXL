@@ -91,7 +91,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
                         var startupStoreResult = store.StartupAsync(_context).Result;
                         startupStoreResult.ShouldBeSuccess();
 
-                        var createSessionResult = store.CreateSession(_context, Name);
+                        var createSessionResult = store.CreateSession(_context, Name, contentSession: null, automaticallyOverwriteContentHashLists: false);
                         createSessionResult.ShouldBeSuccess();
 
                         using (var session = createSessionResult.Session)
@@ -382,7 +382,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
                         var storeBoolResult = await store.StartupAsync(_context);
                         storeBoolResult.ShouldBeSuccess();
 
-                        var createSessionResult = store.CreateSession(_context, Name);
+                        var createSessionResult = store.CreateSession(_context, Name, contentSession: null, automaticallyOverwriteContentHashLists: false);
                         createSessionResult.ShouldBeSuccess();
 
                         using (var session = createSessionResult.Session)

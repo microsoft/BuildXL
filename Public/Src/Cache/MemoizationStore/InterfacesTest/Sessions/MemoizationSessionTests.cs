@@ -56,7 +56,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                             var contentSessionResult = contentStore.CreateSession(context, Name, ImplicitPin.None);
                             contentSessionResult.ShouldBeSuccess();
 
-                            var sessionResult = store.CreateSession(context, Name, contentSessionResult.Session);
+                            var sessionResult = store.CreateSession(context, Name, contentSessionResult.Session, contentSessionResult.Session != null);
                             sessionResult.ShouldBeSuccess();
 
                             using (var cacheSession = new OneLevelCacheSession(parent: null, Name, ImplicitPin.None, sessionResult.Session, contentSessionResult.Session))

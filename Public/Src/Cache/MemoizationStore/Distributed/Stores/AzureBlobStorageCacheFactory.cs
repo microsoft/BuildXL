@@ -64,7 +64,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                             memoizationStoreFunc: () => memoizationStore,
                             configuration: new OneLevelCacheBaseConfiguration(
                                 Id: Guid.NewGuid(),
-                                PassContentToMemoization: false,
+                                AutomaticallyOverwriteContentHashLists: false,
                                 MetadataPinElisionDuration: configuration.MetadataPinElisionDuration,
                                 // TODO: remove when we implement preventive pin elision for GetLevelSelectorsAsync
                                 DoNotElidePinsForGetLevelSelectors: true

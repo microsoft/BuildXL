@@ -179,12 +179,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             _memoizationSession = iMemoizationSession;
         }
 
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
-        {
-            return new CreateSessionResult<IMemoizationSession>(_memoizationSession);
-        }
-
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession)
+        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession, bool automaticallyOverwriteContentHashLists)
         {
             return new CreateSessionResult<IMemoizationSession>(_memoizationSession);
         }

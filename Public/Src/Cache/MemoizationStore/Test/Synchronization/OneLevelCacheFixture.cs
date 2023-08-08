@@ -120,7 +120,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
                 MockContentStore contentStore,
                 MockMemoizationStore memoizationStore,
                 Func<(BoolResult contentStoreResult, BoolResult memoizationStoreResult)> createAndStartStoresFunc)
-                : base(new OneLevelCacheBaseConfiguration(Guid.NewGuid(), PassContentToMemoization: false))
+                : base(new OneLevelCacheBaseConfiguration(Guid.NewGuid(), AutomaticallyOverwriteContentHashLists: false))
             {
                 _contentStore = contentStore;
                 _memoizationStore = memoizationStore;
@@ -175,9 +175,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
         /// </summary>
         public class MockMemoizationStore : StartupShutdownMock, IMemoizationStore
         {
-            public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name) => null;
-
-            public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession) => null;
+            public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession, bool automaticallyOverwriteContentHashLists) => null;
 
             public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(new CounterSet()));
 

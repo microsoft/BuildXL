@@ -27,8 +27,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         private readonly DistributedContentStoreServices _services;
 
         /// <nodoc />
-        public DistributedOneLevelCache(IContentStore contentStore, DistributedContentStoreServices services, Guid id, bool passContentToMemoization = true)
-            : base(new OneLevelCacheBaseConfiguration(id, PassContentToMemoization: passContentToMemoization))
+        public DistributedOneLevelCache(IContentStore contentStore, DistributedContentStoreServices services, Guid id, bool automaticallyOverwriteContentHashLists = true)
+            : base(new OneLevelCacheBaseConfiguration(id, AutomaticallyOverwriteContentHashLists: automaticallyOverwriteContentHashLists))
         {
             ContentStore = contentStore;
             _services = services;

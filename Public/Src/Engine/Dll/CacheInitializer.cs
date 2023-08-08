@@ -455,18 +455,6 @@ namespace BuildXL.Engine
                 Contract.Assert(m_session.IsClosed, "Cache session must be closed before attempting to dispose the CacheCoreEngineCache.");
 
                 var loggedCacheStatistics = GetLoggedStatistics(m_session, out var cacheMap);
-                var cacheStatistics = new Dictionary<string, long>();
-
-                foreach (var statistic in GetLoggedStatistics(m_session, out var cache))
-                {
-                    cacheStatistics.Add(statistic.qualifiedId, statistic.value);
-                }
-
-                Subtract(newStats: cacheStatistics, baseline: m_initialStatistics);
-
-                Logger.Log.CacheBulkStatistics(
-                    LoggingContext,
-                    cacheStatistics);
 
                 foreach (var statisticsByCacheId in loggedCacheStatistics.GroupBy(s => s.cacheId))
                 {

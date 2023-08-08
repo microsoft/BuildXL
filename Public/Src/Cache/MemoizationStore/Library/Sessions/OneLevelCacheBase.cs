@@ -33,8 +33,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     /// <nodoc />
     public record OneLevelCacheBaseConfiguration(
         Guid Id,
-        // Determines if the content session will be passed to the memoization store when constructing a non-readonly session.
-        bool PassContentToMemoization,
+        // Whether AddOrGets will automatically overwrite ContentHashLists if any content is unavailable.
+        bool AutomaticallyOverwriteContentHashLists,
         TimeSpan? MetadataPinElisionDuration = null,
         // This is a temporary flag to disable pin elision for GetLevelSelectors until we can implement something similar to what we are doing with GetContentHashListAsync wrt preventing pinning.
         bool DoNotElidePinsForGetLevelSelectors = false);
@@ -209,7 +209,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
                 var contentSession = createContentResult.Session;
 
-                var createMemoizationResult = ((IMemoizationStore)this).CreateSession(context, name, contentSession);
+                var createMemoizationResult = ((IMemoizationStore)this).CreateSession(context, name, contentSession, Configuration.AutomaticallyOverwriteContentHashLists);
+
                 if (!createMemoizationResult)
                 {
                     return new CreateSessionResult<ICacheSession>(createMemoizationResult, "Memoization session creation failed");
@@ -223,19 +224,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
+        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession, bool automaticallyOverwriteContentHashLists)
         {
             Contract.Requires(MemoizationStore != null);
-            return MemoizationStore.CreateSession(context, name);
-        }
-
-        /// <inheritdoc />
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession)
-        {
-            Contract.Requires(MemoizationStore != null);
-            return Configuration.PassContentToMemoization
-                ? MemoizationStore.CreateSession(context, name, contentSession)
-                : MemoizationStore.CreateSession(context, name);
+            return MemoizationStore.CreateSession(context, name, contentSession, automaticallyOverwriteContentHashLists);
         }
 
         /// <inheritdoc />

@@ -39,7 +39,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Extensions
         {
             var context = new Context(Logger);
             var contentHashList = new ContentHashList(new ContentHash[] {});
-            (await ((IContentSession)null).EnsureContentIsAvailableAsync(context, Name, contentHashList, Token)).Should().BeFalse();
+            (await ((IContentSession)null).EnsureContentIsAvailableAsync(context, Name, contentHashList, automaticallyOverwriteContentHashLists: false, Token)).Should().BeFalse();
         }
 
         [Fact]
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Extensions
             var context = new Context(Logger);
             return RunTestAsync(context, async session =>
              {
-                 (await session.EnsureContentIsAvailableAsync(context, Name, null, Token)).Should().BeTrue();
+                 (await session.EnsureContentIsAvailableAsync(context, Name, null, automaticallyOverwriteContentHashLists: true, Token)).Should().BeTrue();
              });
         }
 
@@ -59,7 +59,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Extensions
             var contentHashList = ContentHashList.Random(HasherType);
             return RunTestAsync(context, async session =>
              {
-                 (await session.EnsureContentIsAvailableAsync(context, Name, contentHashList, Token)).Should().BeFalse();
+                 (await session.EnsureContentIsAvailableAsync(context, Name, contentHashList, automaticallyOverwriteContentHashLists: true, Token)).Should().BeFalse();
              });
         }
 
@@ -72,7 +72,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Extensions
                  var putResult = await session.PutRandomAsync(
                      context, HasherType, false, RandomContentByteCount, Token);
                  var contentHashList = new ContentHashList(new[] { putResult.ContentHash });
-                 (await session.EnsureContentIsAvailableAsync(context, Name, contentHashList, Token)).Should().BeTrue();
+                 (await session.EnsureContentIsAvailableAsync(context, Name, contentHashList, automaticallyOverwriteContentHashLists: true, Token)).Should().BeTrue();
              });
         }
 

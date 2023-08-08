@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -27,6 +28,14 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// Gets the name of the component
         /// </summary>
         public string Name => Tracer.Name;
+
+        /// <summary>
+        /// The provenance name to be used for prefixing stats
+        /// </summary>
+        /// <remarks>
+        /// Defaults to <see cref="Name"/>, but subclasses may define a more accurate provenance.
+        /// </remarks>
+        public virtual string StatsProvenance => Name;
 
         /// <nodoc />
         protected MemoizationDatabase(TimeSpan? operationsTimeout = null)
@@ -78,6 +87,15 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// This class implements this as a no-op, subtypes can add specific behavior.
         /// </remarks>
         public virtual Task<Result<bool>> AssociatedContentWasPinnedAsync(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListResult contentHashListResult) => Task.FromResult(new Result<bool>(true));
+
+        /// <summary>
+        /// This method is called by <see cref="DatabaseMemoizationStore"/> content store when a place operation happens that results in a <see cref="PinResult.ResultCode.ContentNotFound"/>
+        /// </summary>
+        /// <remarks>
+        /// The case of content not found is not necessarily bad, but when it happens on content that was pinned it represents the case of eviction/garbage reaching a faulty state.
+        /// This callback allows for subtypes to try to recover from this situation.
+        /// </remarks>
+        public virtual Task ContentNotFoundOnPlaceAsync(OperationContext context, ContentHash contentHash) => Task.CompletedTask; 
 
         /// <summary>
         /// Registers the associated content for the strong fingerprint and content hash list
@@ -168,6 +186,15 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             IEnumerable<Task<StrongFingerprint>> strongFingerprints)
         {
             return BoolResult.SuccessTask;
+        }
+
+        /// <summary>
+        /// Gets a current stats snapshot
+        /// </summary>
+        public virtual Task<GetStatsResult> GetStatsAsync(Context context)
+        {
+            return Task.FromResult(
+                new GetStatsResult(errorMessage: $"{nameof(MemoizationDatabase)} does not support {nameof(GetStatsAsync)}"));
         }
     }
 }

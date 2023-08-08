@@ -70,27 +70,28 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
+        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession, bool automaticallyOverwriteContentHashLists)
         {
-            var session = new DatabaseMemoizationSession(name, this);
-            return new CreateSessionResult<IMemoizationSession>(session);
-        }
-
-        /// <inheritdoc />
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession)
-        {
-            var session = new DatabaseMemoizationSession(name, this, contentSession);
+            var session = new DatabaseMemoizationSession(name, this, contentSession, automaticallyOverwriteContentHashLists);
             return new CreateSessionResult<IMemoizationSession>(session);
         }
 
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context)
         {
-            return GetStatsCall<MemoizationStoreTracer>.RunAsync(_tracer, new OperationContext(context), () =>
+            return GetStatsCall<MemoizationStoreTracer>.RunAsync(_tracer, new OperationContext(context), async () =>
             {
                 var counters = new CounterSet();
                 counters.Merge(_tracer.GetCounters(), $"{_tracer.Name}.");
-                return Task.FromResult(new GetStatsResult(counters));
+
+                // Merge stats that may come from the database
+                var databaseStats = await Database.GetStatsAsync(context);
+                if (databaseStats.Succeeded)
+                {
+                    counters.Merge(databaseStats.Value, $"{Database.StatsProvenance}.");
+                }
+
+                return new GetStatsResult(counters);
             });
         }
 
@@ -128,7 +129,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return Database.IncorporateStrongFingerprintsAsync(new OperationContext(context, cts), strongFingerprints);
         }
 
-        internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken token, IContentSession contentSession, bool preferShared = false)
+        internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken token, IContentSession contentSession, bool automaticallyOverwriteContentHashLists, bool preferShared = false)
         {
             var ctx = new OperationContext(context, token);
             return ctx.PerformOperationAsync(_tracer, async () =>
@@ -145,7 +146,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     Database.AssociatedContentNeedsPinning(ctx, strongFingerprint, result))
                 {
                     (ContentHashListWithDeterminism contentHashList, _, _) = result;
-                    var pinResult = await contentSession.EnsureContentIsAvailableWithResultAsync(ctx, Tracer.Name, contentHashList.ContentHashList, ctx.Token).ConfigureAwait(false);
+                    var pinResult = await contentSession.EnsureContentIsAvailableWithResultAsync(ctx, Tracer.Name, contentHashList.ContentHashList, automaticallyOverwriteContentHashLists, ctx.Token).ConfigureAwait(false);
 
                     if (!pinResult.Succeeded)
                     {
@@ -172,7 +173,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             traceOperationStarted: false);
         }
 
-        internal Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession, CancellationToken token)
+        internal Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession, bool automaticallyOverwriteContentHashLists, CancellationToken token)
         {
             var ctx = new OperationContext(context, token);
 
@@ -214,7 +215,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
                     if (oldContentHashList is null ||
                         oldDeterminism.ShouldBeReplacedWith(determinism) ||
-                        !(await contentSession.EnsureContentIsAvailableAsync(ctx, Tracer.Name, oldContentHashList, ctx.Token).ConfigureAwait(false)))
+                        !(await contentSession.EnsureContentIsAvailableAsync(ctx, Tracer.Name, oldContentHashList, automaticallyOverwriteContentHashLists, ctx.Token).ConfigureAwait(false)))
                     {
                         // Replace if incoming has better determinism or some content for the existing
                         // entry is missing. The entry could have changed since we fetched the old value

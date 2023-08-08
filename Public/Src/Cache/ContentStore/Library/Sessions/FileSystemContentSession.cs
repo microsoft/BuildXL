@@ -22,7 +22,7 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace BuildXL.Cache.ContentStore.Sessions
 {
-    public class FileSystemContentSession : ContentSessionBase, ITrustedContentSession, IHibernateContentSession
+    public class FileSystemContentSession : ContentSessionBase, ITrustedContentSession, IHibernateContentSession, IContentNotFoundRegistration
     {
         /// <summary>
         ///     The internal content store backing the session.
@@ -37,6 +37,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
         /// <inheritdoc />
         protected override bool TraceErrorsOnly => true; // This type adds nothing in terms of tracing. So configure it to trace errors only.
+
+        private readonly List<Func<Context, ContentHash, Task>> _contentNotFoundListener = new();
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileSystemContentSession" /> class.
@@ -91,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <inheritdoc />
-        protected override Task<PlaceFileResult> PlaceFileCoreAsync(
+        protected override async Task<PlaceFileResult> PlaceFileCoreAsync(
             OperationContext operationContext,
             ContentHash contentHash,
             AbsolutePath path,
@@ -101,7 +103,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return Store.PlaceFileAsync(
+            var result = await Store.PlaceFileAsync(
                 operationContext,
                 contentHash,
                 path,
@@ -109,6 +111,13 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 replacementMode,
                 realizationMode,
                 MakePinRequest(ImplicitPin.Put));
+
+            if (result.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound && _contentNotFoundListener.Any())
+            {
+                await NotifyContentNotFoundListeners(operationContext, contentHash);
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
@@ -124,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <inheritdoc />
-        protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
+        protected override async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
             OperationContext operationContext,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
             FileAccessMode accessMode,
@@ -133,13 +142,27 @@ namespace BuildXL.Cache.ContentStore.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return Store.PlaceFileAsync(
+            var results = await Store.PlaceFileAsync(
                 operationContext,
                 hashesWithPaths,
                 accessMode,
                 replacementMode,
                 realizationMode,
                 MakePinRequest(ImplicitPin.Get));
+
+            if (_contentNotFoundListener.Any())
+            {
+                foreach (var result in results)
+                {
+                    var indexedItem = await result;
+                    if (indexedItem.Item.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound)
+                    {
+                        await NotifyContentNotFoundListeners(operationContext, hashesWithPaths[indexedItem.Index].Hash);
+                    }
+                }
+            }
+
+            return results;
         }
 
         /// <inheritdoc />
@@ -239,6 +262,21 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public AbsolutePath TryGetWorkingDirectory(AbsolutePath? pathHint)
         {
             return Store.TempFolder;
+        }
+
+        /// <inheritdoc/>
+        public void AddContentNotFoundOnPlaceListener(Func<Context, ContentHash, Task> listener)
+        {
+            _contentNotFoundListener.Add(listener);
+        }
+
+        private async Task NotifyContentNotFoundListeners(OperationContext operationContext, ContentHash contentHash)
+        {
+            // Notify listeners that content was not found
+            foreach (var listener in _contentNotFoundListener!)
+            {
+                await listener(operationContext, contentHash);
+            }
         }
     }
 }

@@ -20,21 +20,10 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Stores
         ///     Create a new session that can add as well as read.
         /// </summary>
         /// <remarks>
-        ///     As opposed to the method which takes a contentSession, this creates
-        ///     an uncoupled MemoizationSession.  This currently means that it
-        ///     will *automatically* overwrite entries on AddOrGets.
+        ///     When <paramref name="automaticallyOverwriteContentHashLists"/> is true, 
+        ///     AddOrGets will automatically overwrite ContentHashLists if any content is unavailable.
         /// </remarks>
-        CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name);
-
-        /// <summary>
-        ///     Create a new session that can add as well as read.
-        /// </summary>
-        /// <remarks>
-        ///     This creates a memoization session that is coupled with the given content session.
-        ///     This currently means that AddOrGets will automatically overwrite ContentHashLists
-        ///     if any content is unavailable.
-        /// </remarks>
-        CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession);
+        CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession, bool automaticallyOverwriteContentHashLists);
 
         /// <summary>
         ///     Gets a current stats snapshot.

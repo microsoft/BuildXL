@@ -294,7 +294,7 @@ public static class EphemeralCacheFactory
         var cache = new OneLevelCache(
             () => ephemeralContentStore,
             () => (IMemoizationStore)persistentCache,
-            new OneLevelCacheBaseConfiguration(Guid.NewGuid(), PassContentToMemoization: false));
+            new OneLevelCacheBaseConfiguration(Guid.NewGuid(), AutomaticallyOverwriteContentHashLists: false));
 
         return Task.FromResult(new CreateResult(Host: host, Cache: cache));
     }

@@ -12,7 +12,7 @@ namespace BuildXL.Tracing
     public enum LogEventId
     {
          None = 0,
-        CacheBulkStatistics = 34,
+        // Was CacheBulkStatistics = 34,
         CacheClientStats = 50,
         UnexpectedConditionLocal = 472,
         UnexpectedConditionTelemetry = 473,

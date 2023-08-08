@@ -540,7 +540,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                 result.TopLevelStore,
                 result.Services,
                 Guid.NewGuid(),
-                passContentToMemoization: false);
+                automaticallyOverwriteContentHashLists: false);
         }
     }
 }

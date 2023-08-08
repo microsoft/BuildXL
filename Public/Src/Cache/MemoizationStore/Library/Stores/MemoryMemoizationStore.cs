@@ -61,16 +61,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
+        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession, bool automaticallyOverwriteContentHashLists)
         {
-            var session = new MemoryMemoizationSession(name, this);
-            return new CreateSessionResult<IMemoizationSession>(session);
-        }
-
-        /// <inheritdoc />
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession)
-        {
-            var session = new MemoryMemoizationSession(name, this, contentSession);
+            var session = new MemoryMemoizationSession(name, this, contentSession, automaticallyOverwriteContentHashLists);
             return new CreateSessionResult<IMemoizationSession>(session);
         }
 
@@ -154,6 +147,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism contentHashListWithDeterminism,
             IContentSession contentSession,
+            bool automaticallyOverwriteContentHashLists,
             CancellationToken cts)
         {
             using (var cancellableContext = TrackShutdown(context, cts))
@@ -182,7 +176,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                             // Match found.
                             // Replace if incoming has better determinism or some content for the existing entry is missing.
                             if (record.ContentHashListWithDeterminism.Determinism.ShouldBeReplacedWith(contentHashListWithDeterminism.Determinism) ||
-                                !(await contentSession.EnsureContentIsAvailableAsync(context, Tracer.Name, record.ContentHashListWithDeterminism.ContentHashList, cts)
+                                !(await contentSession.EnsureContentIsAvailableAsync(context, Tracer.Name, record.ContentHashListWithDeterminism.ContentHashList, automaticallyOverwriteContentHashLists, cts)
                                     .ConfigureAwait(false)))
                             {
                                 _records.Remove(record);

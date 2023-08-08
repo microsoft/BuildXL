@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
@@ -110,7 +110,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         protected async Task RunTestAsync(
-          Context context, TimeSpan retentionPolicy, Func<DatabaseMemoizationStore, AzureBlobStorageMetadataStore, MetadataStoreMemoizationDatabase, ICacheSession, IContentSession, ContentStoreInternalTracer, Task> funcAsync)
+          Context context, TimeSpan retentionPolicy, Func<DatabaseMemoizationStore, AzureBlobStorageMetadataStore, MetadataStoreMemoizationDatabase, ICacheSession, IContentSession, ContentStoreInternalTracer, FileSystemContentStore, Task> funcAsync)
         {
             var metadataStore = CreateAzureBlobStorageMetadataStore();
             var database = new MetadataStoreMemoizationDatabase(metadataStore,
@@ -133,7 +133,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     var contentSessionResult = contentStore.CreateSession(context, Name, ImplicitPin.None);
                     contentSessionResult.ShouldBeSuccess();
                     
-                    var sessionResult = store.CreateSession(context, Name, contentSessionResult.Session);
+                    var sessionResult = store.CreateSession(context, Name, contentSessionResult.Session, automaticallyOverwriteContentHashLists: true);
                     sessionResult.ShouldBeSuccess();
 
                     using (var cacheSession = new OneLevelCacheSession(parent: null, Name, ImplicitPin.None, sessionResult.Session, contentSessionResult.Session))
@@ -143,7 +143,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                             var r = await cacheSession.StartupAsync(context);
                             r.ShouldBeSuccess();
 
-                            await funcAsync(store, metadataStore, database, cacheSession, contentSessionResult.Session, contentStore.Store.InternalTracer);
+                            await funcAsync(store, metadataStore, database, cacheSession, contentSessionResult.Session, contentStore.Store.InternalTracer, contentStore);
                         }
                         finally
                         {
@@ -172,7 +172,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 MetadataStoreMemoizationDatabase database,
                 ICacheSession cacheSession,
                 IContentSession _,
-                ContentStoreInternalTracer _) =>
+                ContentStoreInternalTracer _,
+                FileSystemContentStore _) =>
             {
                 var before = DateTime.UtcNow;
                 var ctx = new OperationContext(context);
@@ -212,7 +213,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 MetadataStoreMemoizationDatabase database,
                 ICacheSession cacheSession,
                 IContentSession contentSession,
-                ContentStoreInternalTracer tracer) =>
+                ContentStoreInternalTracer tracer,
+                FileSystemContentStore _) =>
             {
                 var before = DateTime.UtcNow;
                 var ctx = new OperationContext(context);
@@ -225,7 +227,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     ctx, strongFingerprint, string.Empty, new ContentHashListWithDeterminism(null, CacheDeterminism.None), new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None)).ShouldBeSuccess();
 
                 // Now retrieve it using the store
-                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession).ShouldBeSuccess();
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
 
                 // This operation shouldn't have triggered any preventive pins, since the content is guaranteed by the eviction policy
                 Assert.Equal(0, GetPinCount(tracer));
@@ -237,7 +239,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 await metadataStore.UpdateLastContentPinnedTimeForTestingAsync(ctx, strongFingerprint, DateTime.UtcNow - retentionPolicy).ShouldBeSuccess();
 
                 // Now retrieve it again. This should have triggered a pin on the content and the content hash list last pin time updated
-                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession).ShouldBeSuccess();
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
 
                 // The operation should have triggered a pin on the (single) content
                 Assert.Equal(1, GetPinCount(tracer));
@@ -249,7 +251,70 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 Assert.True(getResultWithPreventivePin.LastContentPinnedTime > getResult.LastContentPinnedTime);
 
                 // Just being defensive: retrieve it a third time. Now no new pins should be triggered
-                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession).ShouldBeSuccess();
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
+                Assert.Equal(1, GetPinCount(tracer));
+            });
+        }
+
+        [Fact]
+        public Task TestFaultyEvictionStateSelfRecovery()
+        {
+            var context = new Context(Logger);
+            var strongFingerprint = StrongFingerprint.Random();
+
+            var retentionPolicy = TimeSpan.FromDays(1);
+
+            return RunTestAsync(context, retentionPolicy, async (
+                DatabaseMemoizationStore store,
+                AzureBlobStorageMetadataStore metadataStore,
+                MetadataStoreMemoizationDatabase database,
+                ICacheSession cacheSession,
+                IContentSession contentSession,
+                ContentStoreInternalTracer tracer,
+                FileSystemContentStore fileSystemContentStore) =>
+            {
+                var before = DateTime.UtcNow;
+                var ctx = new OperationContext(context);
+
+                // Store a new content hash list
+                var putResult = await cacheSession.PutStreamAsync(context, ContentStore.Hashing.HashType.Vso0, new MemoryStream(new byte[] { 1, 2, 3 }), Token);
+
+                var contentHashList = new ContentHashList(new[] { putResult.ContentHash });
+                var addResult = await database.CompareExchangeAsync(
+                    ctx, strongFingerprint, string.Empty, new ContentHashListWithDeterminism(null, CacheDeterminism.None), new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None)).ShouldBeSuccess();
+
+                // Now retrieve it using the store
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
+
+                // This operation shouldn't have triggered any preventive pins, since the content is guaranteed by the eviction policy
+                Assert.Equal(0, GetPinCount(tracer));
+
+                // Delete the content to introduce a faulty state wrt eviction
+                await fileSystemContentStore.DeleteAsync(ctx, putResult.ContentHash).ShouldBeSuccess();
+
+                // Try to place the file. This should fail and it should also trigger a notification on the memoization database so the corresponding fingerprint last pinned time is removed
+                var placeFileResult = await cacheSession.PlaceFileAsync(ctx,
+                    new List<ContentHashWithPath>() { new ContentHashWithPath(putResult.ContentHash, new AbsolutePath(Path.Combine(Path.GetTempPath(), GetRandomFileName()))) },
+                    FileAccessMode.Write,
+                    FileReplacementMode.ReplaceExisting,
+                    FileRealizationMode.Copy,
+                    Token);
+
+                Assert.True(placeFileResult.First().Result.Item.Code == ContentStore.Interfaces.Results.PlaceFileResult.ResultCode.NotPlacedContentNotFound);
+
+                // Retrieve the same content hash list using a lower level component so we can inspect the last upload time later
+                var getResult = await database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: true).ShouldBeSuccess();
+
+                // The failed place operation should have caused that the last content pinned time is now cleared
+                Assert.Equal(null, getResult.LastContentPinnedTime);
+
+                // Put back the same content
+                putResult = await cacheSession.PutStreamAsync(context, ContentStore.Hashing.HashType.Vso0, new MemoryStream(new byte[] { 1, 2, 3 }), Token);
+
+                // Now retrieve it using the store
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
+
+                // This operation shoukd have triggered preventive pins, since no metadata was present
                 Assert.Equal(1, GetPinCount(tracer));
             });
         }
@@ -259,6 +324,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var counterDict = tracer.GetCounters().ToDictionaryIntegral();
 
             return counterDict["PinBulkCallCount"] + counterDict["PinCallCount"];
+        }
+
+        private static BlobStorageClientAdapter GetBlobStorageClientAdapter(ContentStoreInternalTracer tracer)
+        {
+            return new BlobStorageClientAdapter(tracer, new BlobFolderStorageConfiguration());
         }
 
         protected override void Dispose(bool disposing)

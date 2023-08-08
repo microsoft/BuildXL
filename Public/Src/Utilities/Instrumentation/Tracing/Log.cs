@@ -225,15 +225,6 @@ namespace BuildXL.Tracing
             Message = "Cache Statistics for an ICache provider")]
         public abstract void ICacheStatistics(LoggingContext context, string cacheId, string cacheLevel, string cacheType, IDictionary<string, long> entryMatches);
 
-        [GeneratedEvent(
-            (ushort)LogEventId.CacheBulkStatistics,
-            EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
-            EventLevel = Level.Verbose,
-            EventTask = (ushort)Tasks.CommonInfrastructure,
-            Message = "N/A",
-            Keywords = (int)Keywords.Diagnostics)]
-        public abstract void CacheBulkStatistics(LoggingContext context, IDictionary<string, long> statistics);
-
         /// <summary>
         /// Log the usage of CPU, Memory and Network resources
         /// </summary>

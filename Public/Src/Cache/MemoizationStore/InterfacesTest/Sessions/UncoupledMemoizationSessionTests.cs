@@ -27,7 +27,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                 testDirectory,
                 async store =>
             {
-                var createResult = store.CreateSession(context, Name);
+                var createResult = store.CreateSession(context, Name, contentSession: null, automaticallyOverwriteContentHashLists: false);
                 createResult.ShouldBeSuccess();
                 using (var session = createResult.Session)
                 {

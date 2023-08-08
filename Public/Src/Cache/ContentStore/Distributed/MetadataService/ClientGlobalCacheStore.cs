@@ -8,6 +8,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -165,6 +166,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             },
             // TODO: What to log here?
             extraEndMessage: r => r.GetValueOrDefault()?.ToString());
+        }
+
+        /// <inheritdoc/>
+        public Task<GetStatsResult> GetStatsAsync(Context context)
+        {
+            return Task.FromResult(
+                new GetStatsResult(errorMessage: $"{nameof(ClientGlobalCacheStore)} does not support {nameof(GetStatsAsync)}"));
         }
     }
 }

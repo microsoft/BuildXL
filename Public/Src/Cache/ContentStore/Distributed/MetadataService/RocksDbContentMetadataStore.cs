@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -103,6 +104,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             var result = Database.GetSerializedContentHashList(context, strongFingerprint);
             return Task.FromResult(result);
+        }
+
+        /// <inheritdoc/>
+        public Task<GetStatsResult> GetStatsAsync(Context context)
+        {
+            return Task.FromResult(
+                new GetStatsResult(errorMessage: $"{nameof(RocksDbContentMetadataStore)} does not support {nameof(GetStatsAsync)}"));
         }
     }
 }

@@ -25,11 +25,10 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 var result = await call.RunAsync(funcAsync);
                 if (result)
                 {
-                    var stats = new CounterSet();
-
-                    stats.Add("CriticalErrors", tracer.NumberOfCriticalErrors);
-                    stats.Add("RecoverableErrors", tracer.NumberOfRecoverableErrors);
-                    result.CounterSet.Merge(stats, $"{tracer.GetType().Name}.{tracer.Name}.ErrorStats.");
+                    // There might be some nesting happening where the same tracer is used multiple times in the underlying topology
+                    // So for aggregating critical and recoverable errors, just sum those if that's the case
+                    result.CounterSet.AddOrSum($"{tracer.GetType().Name}.{tracer.Name}.ErrorStats.CriticalErrors", tracer.NumberOfCriticalErrors);
+                    result.CounterSet.AddOrSum($"{tracer.GetType().Name}.{tracer.Name}.ErrorStats.RecoverableErrors", tracer.NumberOfRecoverableErrors);
                 }
                 
                 return result;

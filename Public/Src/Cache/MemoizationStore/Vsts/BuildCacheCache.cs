@@ -425,19 +425,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         }
 
         /// <inheritdoc />
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
+        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession, bool automaticallyOverwriteContentHashLists)
         {
             var result = CreateSession(context, name, ImplicitPin.None);
 
             return result.Succeeded
                 ? new CreateSessionResult<IMemoizationSession>(result.Session)
                 : new CreateSessionResult<IMemoizationSession>(result);
-        }
-
-        /// <inheritdoc />
-        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name, IContentSession contentSession)
-        {
-            throw new NotImplementedException();
         }
     }
 }

@@ -172,7 +172,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         contentStoreFunc: () => contentStoreFactory(path),
                         memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
                         Guid.NewGuid(),
-                        passContentToMemoization: true);
+                        automaticallyOverwriteContentHashLists: true);
 
                     ICache cacheToReturn = distributedCache;
 #if MICROSOFT_INTERNAL
@@ -254,7 +254,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         var distributedCache = new DistributedOneLevelCache(createResult.TopLevelStore,
                             createResult.Services,
                             Guid.NewGuid(),
-                            passContentToMemoization: true);
+                            automaticallyOverwriteContentHashLists: true);
 
                         ICache cacheToReturn = distributedCache;
 
@@ -273,7 +273,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                             contentStoreFunc: () => createResult.TopLevelStore,
                             memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
                             Guid.NewGuid(),
-                            passContentToMemoization: true);
+                            automaticallyOverwriteContentHashLists: true);
                     }
                 };
 

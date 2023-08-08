@@ -437,7 +437,7 @@ public class BlobStorageClientAdapter
     /// <summary>
     /// Updates the metadata of an existing blob with the provided value
     /// </summary>
-    public Task<Result<bool>> UpdateMetadataAsync(OperationContext context, BlobClient blob, IDictionary<string, string> metadata)
+    public Task<Result<bool>> UpdateMetadataAsync(OperationContext context, BlobClient blob, IDictionary<string, string>? metadata)
     {
         return context.PerformOperationWithTimeoutAsync(
             Tracer,

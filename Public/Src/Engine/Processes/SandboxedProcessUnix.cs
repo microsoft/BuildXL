@@ -684,8 +684,8 @@ namespace BuildXL.Processes
             return m_processResourceUsage is null
                 ? base.GetCpuTimes()
                 : new CpuTimes(
-                    user: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.UserTimeNs) / NanosecondsToMillisecondsFactor),
-                    system: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.SystemTimeNs) / NanosecondsToMillisecondsFactor));
+                    user: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.UserTimeMs)),
+                    system: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.SystemTimeMs)));
         }
 
         // <inheritdoc />
@@ -737,8 +737,8 @@ namespace BuildXL.Processes
                 {
                     IO = ioCounters,
                     MemoryCounters = memoryCounters,
-                    KernelTime = TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0.0, (acc, usage) => acc + usage.Value.SystemTimeNs) / NanosecondsToMillisecondsFactor),
-                    UserTime = TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0.0, (acc, usage) => acc + usage.Value.UserTimeNs) / NanosecondsToMillisecondsFactor),
+                    KernelTime = TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0.0, (acc, usage) => acc + usage.Value.SystemTimeMs)),
+                    UserTime = TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0.0, (acc, usage) => acc + usage.Value.UserTimeMs)),
                     NumberOfProcesses = childProcesses,
                 };
             }

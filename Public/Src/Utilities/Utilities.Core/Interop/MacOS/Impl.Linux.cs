@@ -375,9 +375,9 @@ namespace BuildXL.Interop.Unix
             try
             {
                 var firstLine = File.ReadAllLines($"{ProcPath}/{pid}/{ProcStatPath}").FirstOrDefault();
-                var splits = firstLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToArray();
-                var utime = ((ulong)TicksToTimeSpan(double.Parse(splits[13])).Ticks) * 100UL;
-                var stime = ((ulong)TicksToTimeSpan(double.Parse(splits[14])).Ticks) * 100UL;
+                var splits = firstLine.Split(new[] { ' ' }).ToArray();
+                var utimeMs = ((ulong)TicksToTimeSpan(double.Parse(splits[13])).TotalMilliseconds);
+                var stimeMs = ((ulong)TicksToTimeSpan(double.Parse(splits[14])).TotalMilliseconds);
 
                 string[] lines = System.IO.File.ReadAllLines($"{ProcPath}/{pid}/{ProcIoPath}");
                 string readOps = lines.FirstOrDefault(line => line.StartsWith("syscr:"));
@@ -392,8 +392,8 @@ namespace BuildXL.Interop.Unix
 
                 return new ProcessResourceUsage()
                 {
-                    UserTimeNs = utime,
-                    SystemTimeNs = stime,
+                    UserTimeMs = utimeMs,
+                    SystemTimeMs = stimeMs,
                     DiskReadOps = ExtractValueFromProcLine(readOps),
                     DiskBytesRead = ExtractValueFromProcLine(bytesRead),
                     DiskWriteOps = ExtractValueFromProcLine(writeOps),
@@ -758,8 +758,7 @@ namespace BuildXL.Interop.Unix
         [Flags]
         internal enum Sysconf_Flags : int
         {
-            _SC_CLK_TCK = 1,
-            _SC_PAGESIZE = 2
+            _SC_CLK_TCK = 2,
         };
 
         #endregion

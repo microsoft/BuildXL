@@ -31,12 +31,12 @@ namespace BuildXL.Interop.Unix
             /// <summary>
             /// System time of a given process in nanoseconds.
             /// </summary>
-            public ulong SystemTimeNs;
+            public ulong SystemTimeMs;
 
             /// <summary>
             /// User time of a given process in nanoseconds.
             /// </summary>
-            public ulong UserTimeNs;
+            public ulong UserTimeMs;
 
             /// <summary>
             /// Number of read operations performed.

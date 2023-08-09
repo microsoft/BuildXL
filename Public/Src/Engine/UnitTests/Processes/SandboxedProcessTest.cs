@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
+using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
@@ -1789,6 +1790,7 @@ namespace Test.BuildXL.Processes
 
                 XAssert.IsTrue(result.JobAccountingInformation.Value.UserTime.Ticks > 0);
                 XAssert.IsTrue(result.JobAccountingInformation.Value.KernelTime.Ticks > 0);
+                XAssert.IsTrue(ProcessPipExecutionPerformance.CalculateProcessorsInPercents(result.JobAccountingInformation.Value.UserTime, result.JobAccountingInformation.Value.KernelTime, result.PrimaryProcessTimes.TotalWallClockTime) > 0);
 
                 XAssert.IsTrue(result.JobAccountingInformation.Value.IO.ReadCounters.OperationCount > 0);
                 XAssert.IsTrue(result.JobAccountingInformation.Value.IO.WriteCounters.OperationCount > 0);

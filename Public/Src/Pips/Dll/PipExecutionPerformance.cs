@@ -258,13 +258,18 @@ namespace BuildXL.Pips
             KernelTime = kernelTime;
             MemoryCounters = memoryCounters;
             NumberOfProcesses = numberOfProcesses;
-
-            var durationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, ProcessExecutionTime.TotalMilliseconds));
-            double cpuTime = KernelTime.TotalMilliseconds + UserTime.TotalMilliseconds;
-            double processorPercentage = durationInMs == 0 ? 0 : cpuTime / durationInMs;
-            ProcessorsInPercents = (ushort)Math.Min(ushort.MaxValue, processorPercentage * 100.0);
+            ProcessorsInPercents = CalculateProcessorsInPercents(userTime, kernelTime, ProcessExecutionTime);
             SuspendedDurationMs = suspendedDurationMs;
             PushOutputsToCacheDurationMs = pushOutputsToCacheDurationMs;
+        }
+
+        /// <nodoc/>
+        public static ushort CalculateProcessorsInPercents(TimeSpan userTime, TimeSpan kernelTime, TimeSpan wallClockTime)
+        {
+            var durationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, wallClockTime.TotalMilliseconds));
+            double cpuTime = kernelTime.TotalMilliseconds + userTime.TotalMilliseconds;
+            double processorPercentage = durationInMs == 0 ? 0 : cpuTime / durationInMs;
+            return (ushort)Math.Min(ushort.MaxValue, processorPercentage * 100.0);
         }
 
         /// <summary>

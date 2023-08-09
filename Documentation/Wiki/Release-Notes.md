@@ -1,6 +1,12 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230804.6  (Release [317902](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=317902))
+-	Cache related components are now shipped with multiple NuGet packages
+-	Added extra data to PXL related to cached pips 
+-	Report DFAs from past attempts on retry
+-	Perf improvements for generating binary logs
+
 # 0.1.0-20230727.4.2 (Release [316902](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=316902))
 - Improvements to address a potential pathset explosion
 - Allow users to limit the number of unique path sets to check during cache lookup

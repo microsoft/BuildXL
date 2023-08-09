@@ -48,12 +48,10 @@ mkdir -p $arg_outputDirectory
 rm -rf $arg_outputDirectory/*
 
 # Create directory structure
-mkdir -p $arg_outputDirectory/runtimes/osx-x64/native/debug
-mkdir -p $arg_outputDirectory/runtimes/osx-x64/native/release
+mkdir -p $arg_outputDirectory/runtimes/osx-x64/native
 
 # Copy the interop dylib to the output directory
-cp $arg_interopBuildDirectory/Build/Products/debug/$INTEROP_DYLIB_NAME $arg_outputDirectory/runtimes/osx-x64/native/debug/$INTEROP_DYLIB_NAME
-cp $arg_interopBuildDirectory/Build/Products/release/$INTEROP_DYLIB_NAME $arg_outputDirectory/runtimes/osx-x64/native/release/$INTEROP_DYLIB_NAME
+cp $arg_interopBuildDirectory/Build/Products/release/$INTEROP_DYLIB_NAME $arg_outputDirectory/runtimes/osx-x64/native/$INTEROP_DYLIB_NAME
 
 # Write nuspec file
 tee $arg_outputDirectory/$PKG_BASE_NAME.nuspec <<EOF
@@ -66,7 +64,7 @@ tee $arg_outputDirectory/$PKG_BASE_NAME.nuspec <<EOF
     <authors>Microsoft</authors>
     <owners>microsoft,buildxl,bxl</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>The BuildXL interop runtime library for macOS. The package contains debug and release binaries.</description>
+    <description>The BuildXL interop runtime library for macOS. The package contains release binaries.</description>
     <copyright>© Microsoft Corporation. All rights reserved.</copyright>
     <serviceable>true</serviceable>
   </metadata>

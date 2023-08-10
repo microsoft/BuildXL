@@ -16,7 +16,6 @@ using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.App.Rules;
 using BuildXL.Cache.Monitor.App.Rules.Kusto;
 using BuildXL.Cache.Monitor.App.Scheduling;
-using BuildXL.Cache.Monitor.Library.IcM;
 using BuildXL.Cache.Monitor.Library.Notifications;
 using BuildXL.Cache.Monitor.Library.Rules.Kusto;
 using BuildXL.Cache.Monitor.Library.Scheduling;
@@ -30,16 +29,6 @@ namespace BuildXL.Cache.Monitor.App
         public class Configuration
         {
             public KustoCredentials KustoIngestionCredentials { get; set; } = Constants.CloudBuildProdKustoCredentials;
-
-            public string KeyVaultUrl { get; set; } = Constants.DefaultKeyVaultUrl;
-
-            public AzureActiveDirectoryCredentials KeyVaultCredentials { get; set; } = Constants.PMETenantCredentials;
-
-            public string IcmUrl { get; set; } = Constants.DefaultIcmUrl;
-
-            public Guid IcmConnectorId { get; set; } = Constants.DefaultIcmConnectorId;
-
-            public string IcmCertificateName { get; set; } = Constants.DefaultIcmCertificateName;
 
             public bool ReadOnly { get; set; } = true;
 
@@ -92,7 +81,6 @@ namespace BuildXL.Cache.Monitor.App
         private readonly IReadOnlyDictionary<MonitorEnvironment, EnvironmentResources> _environmentResources;
 
         private readonly IKustoIngestClient _kustoIngestClient;
-        private readonly IIcmClient _icmClient;
 
         private static Tracer Tracer { get; } = new Tracer(nameof(Monitor));
 
@@ -102,39 +90,12 @@ namespace BuildXL.Cache.Monitor.App
             Tracer.Info(context, "Creating Kusto ingest client");
             var kustoIngestClient = ExternalDependenciesFactory.CreateKustoIngestClient(configuration.KustoIngestionCredentials).ThrowIfFailure();
 
-            IIcmClient icmClient;
-            if (!configuration.ReadOnly)
-            {
-                Tracer.Info(context, "Creating KeyVault client");
-                var keyVaultClient = new KeyVaultClient(
-                    configuration.KeyVaultUrl,
-                    configuration.KeyVaultCredentials.TenantId,
-                    configuration.KeyVaultCredentials.AppId,
-                    configuration.KeyVaultCredentials.AppKey,
-                    SystemClock.Instance,
-                    Constants.IcmCertificateCacheTimeToLive);
-
-                Tracer.Info(context, "Creating IcM client");
-                icmClient = new IcmClient(
-                    keyVaultClient,
-                    configuration.IcmUrl,
-                    configuration.IcmConnectorId,
-                    configuration.IcmCertificateName,
-                    SystemClock.Instance);
-            }
-            else
-            {
-                Tracer.Info(context, "Using mock ICM client");
-                icmClient = new MockIcmClient();
-            }
-
             var environmentResources = await CreateEnvironmentResourcesAsync(context, configuration.Environments);
 
             context.Token.ThrowIfCancellationRequested();
             return new Monitor(
                 configuration,
                 kustoIngestClient,
-                icmClient,
                 SystemClock.Instance,
                 environmentResources,
                 context.TracingContext.Logger);
@@ -171,14 +132,13 @@ namespace BuildXL.Cache.Monitor.App
             return Task.FromResult(new EnvironmentResources(kustoClient));
         }
 
-        private Monitor(Configuration configuration, IKustoIngestClient kustoIngestClient, IIcmClient icmClient, IClock clock, IReadOnlyDictionary<MonitorEnvironment, EnvironmentResources> environmentResources, ILogger logger)
+        private Monitor(Configuration configuration, IKustoIngestClient kustoIngestClient, IClock clock, IReadOnlyDictionary<MonitorEnvironment, EnvironmentResources> environmentResources, ILogger logger)
         {
             _configuration = configuration;
 
             _clock = clock;
             _logger = logger;
             _kustoIngestClient = kustoIngestClient;
-            _icmClient = icmClient;
             _environmentResources = environmentResources;
 
             if (configuration.ReadOnly)
@@ -412,7 +372,6 @@ namespace BuildXL.Cache.Monitor.App
                     _logger,
                     _alertNotifier,
                     resources.KustoQueryClient,
-                    _icmClient,
                     environmentConfiguration.KustoDatabaseName,
                     stampId);
 
@@ -446,7 +405,6 @@ namespace BuildXL.Cache.Monitor.App
                     _logger,
                     _alertNotifier,
                     resources.KustoQueryClient,
-                    _icmClient,
                     _configuration.Environments[environment].KustoDatabaseName,
                     environment,
                     watchlist);

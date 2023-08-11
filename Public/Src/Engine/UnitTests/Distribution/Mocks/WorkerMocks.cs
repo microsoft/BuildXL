@@ -18,6 +18,7 @@ using System.Threading;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Distribution.Grpc;
 using Google.Protobuf;
+using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.Distribution
 {
@@ -61,7 +62,7 @@ namespace Test.BuildXL.Distribution
             Interlocked.Increment(ref ReportResultCalls);
         }
 
-        void IWorkerNotificationManager.Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer)
+        void IWorkerNotificationManager.Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer, ILoggingConfiguration loggingConfig)
         {
             Interlocked.Increment(ref StartCalls);
         }

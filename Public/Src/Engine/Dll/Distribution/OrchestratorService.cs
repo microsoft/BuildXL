@@ -294,6 +294,16 @@ namespace BuildXL.Engine.Distribution
                         }
                         break;
                     default:
+                        Logger.Log.DistributionWorkerForwardedEvent(
+                            m_loggingContext,
+                            new WorkerForwardedEvent()
+                            {
+                                Text = forwardedEvent.Text,
+                                WorkerName = worker.Name,
+                                EventId = forwardedEvent.EventId,
+                                EventName = forwardedEvent.EventName,
+                                EventKeywords = forwardedEvent.EventKeywords,
+                            });
                         break;
                 }
             }

@@ -166,7 +166,7 @@ namespace BuildXL.Engine.Distribution
         {
             Contract.Assert(AttachCompletion.IsCompleted && AttachCompletion.GetAwaiter().GetResult(), "Start called before finishing attach on worker");
             m_pipExecutionService.Start(schedule, BuildStartData);
-            m_notificationManager.Start(m_orchestratorClient, schedule, new PipResultSerializer(resultSerializer));
+            m_notificationManager.Start(m_orchestratorClient, schedule, new PipResultSerializer(resultSerializer), m_config.Logging);
         }
 
         /// <summary>

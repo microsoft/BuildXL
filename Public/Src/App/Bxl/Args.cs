@@ -599,6 +599,9 @@ namespace BuildXL
                             "forceUseEngineInfoFromCache",
                             sign => schedulingConfiguration.ForceUseEngineInfoFromCache = sign),
                         OptionHandlerFactory.CreateOption(
+                            "forwardWorkerLog",
+                            opt => ParseInt32ListOption(opt, loggingConfiguration.ForwardableWorkerEvents)),
+                        OptionHandlerFactory.CreateOption(
                             "generateCgManifestForNugets",
                             opt => frontEndConfiguration.GenerateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(

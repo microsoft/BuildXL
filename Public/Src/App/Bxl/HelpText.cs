@@ -219,6 +219,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/forwardWorkerLog:<id list>",
+                Strings.HelpText_DisplayHelp_ForwardWorkerLog,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/consoleVerbosity:<level>",
                 Strings.HelpText_DisplayHelp_ConsoleVerbosity,
                 HelpLevel.Verbose);
@@ -234,7 +239,7 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/noLog:<id list>",
+                "/noExecutionLog:<id list>",
                 Strings.HelpText_DisplayHelp_NoExecutionLog,
                 HelpLevel.Verbose);
 

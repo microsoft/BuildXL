@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Threading;
@@ -23,10 +24,14 @@ namespace BuildXL.Engine.Distribution
             private readonly WorkerNotificationManager m_notificationManager;
             private int m_nextEventId;
 
-            public ForwardingEventListener(WorkerNotificationManager notificationManager)
+            // User-configurable list of events that we want to forward in addition to warnings and errors
+            private readonly HashSet<int> m_forwardableEvents;
+
+            public ForwardingEventListener(WorkerNotificationManager notificationManager, IReadOnlyList<int> forwardableEvents)
                 : base(Events.Log, GetStartTime(), eventMask: GetEventMask())
             {
                 m_notificationManager = notificationManager;
+                m_forwardableEvents = new (forwardableEvents);
             }
 
             private static EventMask GetEventMask()
@@ -45,9 +50,9 @@ namespace BuildXL.Engine.Distribution
 
             protected override void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
             {
-                if ((level != EventLevel.Error) && (level != EventLevel.Warning))
+                if ((level != EventLevel.Error) && (level != EventLevel.Warning) && !m_forwardableEvents.Contains(eventData.EventId))
                 {
-                    return;
+                        return;
                 }
 
                 if (((long)eventData.Keywords & (long)Keywords.NotForwardedToOrchestrator) > 0)

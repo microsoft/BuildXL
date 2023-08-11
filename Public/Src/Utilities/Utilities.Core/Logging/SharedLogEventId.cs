@@ -40,6 +40,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         DistributionWorkerForwardedError = 7015,
         DistributionWorkerForwardedWarning = 7016,
         StoppedDistributionWorkerForwardedError = 7046,
+        DistributionWorkerForwardedEvent = 7066,
         PipSpecifiedToRunInContainerButIsolationIsNotSupported = 12208,
         CbTimeoutReached = 15001,
         CbTimeoutTooLow = 15002,

@@ -69,7 +69,8 @@ namespace Test.BuildXL.Utilities
             (int)EventId.DiagnosticEvent,
             Level = EventLevel.Verbose,
             Task = Instrumentation.Common.Tasks.UnitTest,
-            Keywords = Keywords.Diagnostics,
+            // Recall: (Keywords == Keyword.Diagnostics) means that the event is suppressed unless EnableTaskDiagnostics is called on the listener
+            Keywords = Keywords.Diagnostics,    
             Message = "{0}")]
         public void DiagnosticEvent(string message)
         {

@@ -20,6 +20,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CustomLogEtwKinds = new Dictionary<AbsolutePath, string>();
             NoLog = new List<int>();
             NoExecutionLog = new List<int>();
+            ForwardableWorkerEvents = new List<int>();
             ConsoleVerbosity = VerbosityLevel.Informational;
             FileVerbosity = VerbosityLevel.Verbose;
             LogCounters = true;
@@ -110,6 +111,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             NoLog = new List<int>(template.NoLog);
             NoExecutionLog = new List<int>(template.NoExecutionLog);
+            ForwardableWorkerEvents = new List<int>(template.ForwardableWorkerEvents);
             Diagnostic = template.Diagnostic;
             ConsoleVerbosity = template.ConsoleVerbosity;
             FileVerbosity = template.FileVerbosity;
@@ -265,8 +267,16 @@ namespace BuildXL.Utilities.Configuration.Mutable
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public List<int> NoExecutionLog { get; set; }
 
+        
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public List<int> ForwardableWorkerEvents { get; set; }
+
         /// <inheritdoc />
         IReadOnlyList<int> ILoggingConfiguration.NoExecutionLog => NoExecutionLog;
+        
+        /// <inheritdoc />
+        IReadOnlyList<int> ILoggingConfiguration.ForwardableWorkerEvents => ForwardableWorkerEvents;
 
         /// <inheritdoc />
         public DiagnosticLevels Diagnostic { get; set; }

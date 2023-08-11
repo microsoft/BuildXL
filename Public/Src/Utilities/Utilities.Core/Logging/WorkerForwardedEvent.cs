@@ -12,10 +12,13 @@ namespace BuildXL.Utilities.Instrumentation.Common
     [SuppressMessage("Microsoft.Performance", "CA1815")]
     public struct WorkerForwardedEvent
     {
-        /// <summary>
-        /// The worker name
-        /// </summary>
-        public string WorkerName;
+        // ========================== IMPORTANT ================================
+        //  Do not change the order of the fields below. 
+        //  We rely on the indices of these fields in several places,
+        //  when unpacking the payload of forwarded log events.
+        //  The PipProcessEventFields constructor is also aware of
+        //  the position of the PipProcessEvent field below (5th in this struct)
+        // =====================================================================
 
         /// <summary>
         /// The message of the worker event
@@ -36,6 +39,11 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// The keywords of the original event
         /// </summary>
         public long EventKeywords { get; set; }
+
+        /// <summary>
+        /// The worker name
+        /// </summary>
+        public string WorkerName { get; set; }
 
         /// <summary>
         /// The original PipProcessError/PipProcessWarning event

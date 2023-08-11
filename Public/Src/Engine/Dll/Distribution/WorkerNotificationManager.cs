@@ -30,7 +30,7 @@ namespace BuildXL.Engine.Distribution
         /// Starts the notification manager, which will start to listen
         /// and forwarding events to the orchestrator
         /// </summary>
-        void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer);
+        void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer, ILoggingConfiguration loggingConfig);
 
         /// <summary>
         /// Report an (error / warning) event
@@ -102,7 +102,7 @@ namespace BuildXL.Engine.Distribution
             m_loggingContext = loggingContext;
         }
 
-        public void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer)
+        public void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer, ILoggingConfiguration loggingConfig)
         {
             Contract.AssertNotNull(orchestratorClient);
 
@@ -126,7 +126,7 @@ namespace BuildXL.Engine.Distribution
                 engineSchedule: schedule);
             schedule.Scheduler.SetManifestExecutionLog(m_manifestExecutionLog);
 
-            m_forwardingEventListener = new ForwardingEventListener(this);
+            m_forwardingEventListener = new ForwardingEventListener(this, loggingConfig.ForwardableWorkerEvents);
             m_pipResultListener = new PipResultListener(this, serializer);
             m_sendCancellationSource = new CancellationTokenSource();
             m_sendThread = new Thread(() => SendNotifications(m_sendCancellationSource.Token));

@@ -88,6 +88,7 @@ This page lists flags that can be used to configure BuildXL.
 | FlushPageCacheToFileSystemOnStoringOutputsToCache | Flush page cache to file system on storing outputs to cache. Defaults to off. |
 | ForcedCacheMiss | Forces a pips to be a cache miss in the build, independently of the artificial cache miss options (see /injectCacheMisses). A list of pips might be specified, separated by semicolons. Example: /forcedCacheMiss:Pip3855A4C7E1E820D0;PipE9638AD7DDD6AF67 |
 | ForceSkipDependencies | Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present. |
+| ForwardWorkerLog | Configure additional verbose event IDs that workers will forward to the orchestrator, in addition to warnings and errors (which are always forwarded).  |
 | GenerateCgManifest | Generates a cgmanifest.json file at the specified path. This file contains the names and versions for all Nuget packages used within BuildXL, and is used for Component Governance during CloudBuild. |
 | HardExitOnErrorInDetours | When enabled, detours will exit the process on Detours error with a special exit code. Defaults to on. |
 | Help | Display this usage message (Short form: /?). See verbose help with /help:verbose. See DX code specific help with /help:1234. |

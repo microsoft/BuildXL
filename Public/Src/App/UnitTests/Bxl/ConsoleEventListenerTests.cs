@@ -63,7 +63,7 @@ namespace Test.BuildXL
         }
 
         [Fact]
-        public void CustomPipDecsription()
+        public void CustomPipDescription()
         {
             string pipHash = "PipB9ACFCBECDA09F1F";
             string somePipInformation = "xunit.console.exe, Test.Sdk, StandardSdk.Testing.testingTest, debug-net451";
@@ -241,25 +241,53 @@ namespace Test.BuildXL
         }
 
         [Fact]
-        public void TestEventRedirection(bool suppressWarning)
+        public void TestEventRedirection()
         {
             CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
             CancellationToken cancellationToken = cancellationTokenSource.Token;
             var loggingContext = BuildXLTestBase.CreateLoggingContextForTest();
 
-            using (var console = new MockConsole())
+            using var console = new MockConsole();
             // Let's create and register a redirector listener to send an arbitrary message to the console
-            using (var redirectorListener = new ConsoleRedirectorEventListener(Events.Log, DateTime.UtcNow, new List<int> { (int)TestEvents.EventId.DiagnosticEvent}, loggingContext, warningMapper: null))
-            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, cancellationToken))
+            using var redirectorListener = new ConsoleRedirectorEventListener(Events.Log, DateTime.UtcNow, new List<int> { (int)TestEvents.EventId.VerboseEvent }, loggingContext, warningMapper: null);
+            using var consoleListener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, cancellationToken);
+            
+            // Only register the events on the redirectorListener, so we don't get a false positive by the consoleListener reacting to the event:
+            // this way, the message will get to the console by virtue of the redirector forwarding it to the console listener, and not by it picking up
+            // the event from the ETW aether.
+            redirectorListener.RegisterEventSource(TestEvents.Log);
+
+            var message = "I'm an event that should be redirected to the console";
+            TestEvents.Log.VerboseEvent(message);
+
+            console.ValidateCall(MessageLevel.Info, message);
+        }
+
+        [Fact]
+        public void TestEventRedirectionOfForwardedEvents()
+        {
+            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+            CancellationToken cancellationToken = cancellationTokenSource.Token;
+            var loggingContext = BuildXLTestBase.CreateLoggingContextForTest();
+
+            using var console = new MockConsole();
+            
+            // Let's create and register a redirector listener to send an arbitrary message to the console
+            using var redirectorListener = new ConsoleRedirectorEventListener(Events.Log, DateTime.UtcNow, new List<int> { (int)TestEvents.EventId.VerboseEvent }, loggingContext, warningMapper: null);
+            using var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, cancellationToken);
+            
+            // Register the "payload" event on the redirector listener and log it as a forwarded event
+            // The redirector listener will unpack the inner message and replay it in the console
+            redirectorListener.RegisterEventSource(TestEvents.Log);
+            var message = "I'm an event that should be redirected to the console";
+            global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedEvent(loggingContext, new WorkerForwardedEvent()
             {
-                listener.RegisterEventSource(TestEvents.Log);
-                redirectorListener.RegisterEventSource(TestEvents.Log);
+                Text = message,
+                EventId = (int)TestEvents.EventId.VerboseEvent
+            });
 
-                var message = "I'm an event that should be redirected to the console";
-                TestEvents.Log.DiagnosticEvent(message);
-
-                console.ValidateCall(MessageLevel.Info, message);
-            }
+            TestEvents.Log.VerboseEvent(message);
+            console.ValidateCall(MessageLevel.Info, message);
         }
     }
 }

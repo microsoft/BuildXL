@@ -165,6 +165,12 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<int> NoExecutionLog { get; }
 
         /// <summary>
+        /// Specifies a list of verbose events to forward from workers to the orchestrator (apart from error and warning events, which are always forwarded).
+        /// </summary>
+        [NotNull]
+        IReadOnlyList<int> ForwardableWorkerEvents { get; }
+
+        /// <summary>
         /// Enables diagnostic logging for a functional area. This option may be specified multiple times. Areas: Scheduler, Parser, Storage, Engine, Viewer, PipExecutor,
         /// PipInputAssertions, ChangeJournalService, HostApplication, CommonInfrastructure,CacheInteraction, HybridInterop. (short form: /diag)
         /// </summary>

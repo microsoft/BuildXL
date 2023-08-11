@@ -56,11 +56,11 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// </summary>
         public PipProcessEventFields(ReadOnlyCollection<object> eventPayload, bool forwardedPayload, bool isPipProcessError)
         {
-            // When the PipProcessEvent is forwarded from worker it is encapsulated in a WorkerForwardedEvent, which has 4 other fields in front of the real pipProcessEvent.
-            // So the actual event starts at index 4.
+            // When the PipProcessEvent is forwarded from worker it is encapsulated in a WorkerForwardedEvent, which has 5 other fields in front of the real pipProcessEvent.
+            // So the actual event starts at index 5.
             // PipProcessWarningEvent does not contain the following fields - ExitCode, PipExecutionTimeMs, ShortPipDescription, OptionalMessage. These fields need to be empty when creating PipProcessWarningEvent.
 
-            var startIndex = forwardedPayload ? 4 : 0;
+            var startIndex = forwardedPayload ? 5 : 0;
 #pragma warning disable CS8600
 #pragma warning disable CS8601
             PipDescription = (string)eventPayload[1 + startIndex];

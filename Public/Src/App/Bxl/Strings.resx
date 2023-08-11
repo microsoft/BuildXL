@@ -1156,6 +1156,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_LogToConsole" xml:space="preserve">
     <value>Displays the specified messages in the console.</value>
   </data>
+  <data name="HelpText_DisplayHelp_ForwardWorkerLog" xml:space="preserve">
+    <value>Configure additional verbose event IDs that workers will forward to the orchestrator, in addition to warnings and errors (which are always forwarded). </value>
+  </data>
   <data name="HelpText_DisplayHelp_LimitPathSetsOnCacheLookup" xml:space="preserve">
     <value>Limits the number of path sets to be checked during cache lookup. Once the limit is reached, the pip is determined to have a cache miss. Defaults to off. The number of path sets can also be set. Defaults to 0 (off).</value>
   </data>

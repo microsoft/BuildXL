@@ -797,7 +797,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void DistributionWorkerForwardedError(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
 
         [GeneratedEvent(
@@ -807,7 +807,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void StoppedDistributionWorkerForwardedError(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
 
         [GeneratedEvent(
@@ -818,7 +818,17 @@ namespace BuildXL.Engine.Tracing
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void DistributionWorkerForwardedWarning(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
+        public abstract void DistributionWorkerForwardedWarning(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);         // WorkerForwardedEvent MUST be the first argument
+
+        [GeneratedEvent(
+            (ushort)SharedLogEventId.DistributionWorkerForwardedEvent,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "Worker {workerForwardedEvent.WorkerName} logged event:\n{workerForwardedEvent.Text}",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void DistributionWorkerForwardedEvent(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerExecutePipRequest,

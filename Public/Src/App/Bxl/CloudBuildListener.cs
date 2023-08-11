@@ -97,7 +97,7 @@ namespace BuildXL
                     if (actualEventId == (int)LogEventId.PipProcessError)
                     {
                         var pipProcessErrorEventFields = new PipProcessEventFields(eventData.Payload, forwardedPayload: true, isPipProcessError: true);
-                        addPipErrors(pipProcessErrorEventFields, (string)eventData.Payload[16]);
+                        addPipErrors(pipProcessErrorEventFields, (string)eventData.Payload[4]);
                     }
                 }
                 break;

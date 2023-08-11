@@ -158,8 +158,11 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Trait("Category", "SkipLinux")] // paths are case sensitive on Linux
-        [Fact]
-        public async Task StoreWorksWithReadOnlyAccess()
+        [Theory]
+        [InlineData(DiskFileRealizationMode.HardLink)]
+        [InlineData(DiskFileRealizationMode.Copy)]
+        [InlineData(DiskFileRealizationMode.HardLinkOrCopy)]
+        public async Task StoreWorksWithReadOnlyAccess(DiskFileRealizationMode diskFileRealizationMode)
         {
             var harness = CreateHarness();
 
@@ -181,7 +184,7 @@ namespace Test.BuildXL.Engine.Cache
             using (File.Open(linkedFilePath.ExpandedPath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 Possible<TrackedFileContentInfo> possiblyStored =
-                    await harness.Store.TryStoreAsync(harness, FileRealizationMode.HardLink, storedPath,
+                    await harness.Store.TryStoreAsync(harness, new FileRealizationMode(diskFileRealizationMode), storedPath,
                         tryFlushPageCacheToFileSystem: true,
                         knownContentHash: info.Hash);
                 if (!possiblyStored.Succeeded)

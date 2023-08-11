@@ -167,7 +167,13 @@ namespace Test.BuildXL.EngineTestUtilities
             entry.Sites |= CacheSites.Remote;
         }
 
-        private static bool ShouldAttemptHardLink(FileRealizationMode fileRealizationMode) => (fileRealizationMode & FileRealizationMode.HardLink) != 0;
+        private static bool ShouldAttemptHardLink(FileRealizationMode fileRealizationMode) =>
+            fileRealizationMode == FileRealizationMode.HardLink
+            || fileRealizationMode == FileRealizationMode.HardLinkOrCopy;
+
+        private static bool ShouldAttemptCopy(FileRealizationMode fileRealizationMode) =>
+            fileRealizationMode == FileRealizationMode.Copy
+            || fileRealizationMode == FileRealizationMode.HardLinkOrCopy;
 
         private static CreateHardLinkStatus TryCreateHardLink(string source, string target, bool replaceExisting)
         {
@@ -209,20 +215,20 @@ namespace Test.BuildXL.EngineTestUtilities
             Contract.Assert(File.Exists(cachePath));
 
             bool shouldAttemptHardLink = ShouldAttemptHardLink(fileRealizationMode);
-            CreateHardLinkStatus createHardLinkStatus = CreateHardLinkStatus.Failed;
 
             if (shouldAttemptHardLink)
             {
-                createHardLinkStatus = PlaceLinkFromCache(target, contentHash);
+                CreateHardLinkStatus createHardLinkStatus = PlaceLinkFromCache(target, contentHash);
+                if (createHardLinkStatus == CreateHardLinkStatus.Success)
+                {
+                    return Unit.Void;
+                }
+                else if (!ShouldAttemptCopy(fileRealizationMode))
+                {
+                    return new Failure<string>(I($"Unable to place file to '{target}' from cache due to failure in creating hard link: '{createHardLinkStatus}'"));
+                }
             }
-
-            if (shouldAttemptHardLink
-                && createHardLinkStatus != CreateHardLinkStatus.Success
-                && (fileRealizationMode & FileRealizationMode.Copy) == 0)
-            {
-                return new Failure<string>(I($"Unable to place file to '{target}' from cache due to failure in creating hard link: '{createHardLinkStatus.ToString()}'"));
-            }
-
+            
             if (!await CopyFileInternalAsync(cachePath, target))
             {
                 return new Failure<string>(I($"Unable to place file '{target}' from cache due to copy failure"));
@@ -231,7 +237,7 @@ namespace Test.BuildXL.EngineTestUtilities
             return Unit.Void;
         }
 
-        private Possible<Unit, Failure> PutFileInternal(string source, ContentHash contentHash, FileRealizationMode fileRealizationMode)
+        private async Task<Possible<Unit, Failure>> PutFileInternalAsync(string source, ContentHash contentHash, FileRealizationMode fileRealizationMode)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(source));
             Contract.Requires(File.Exists(source));
@@ -239,30 +245,23 @@ namespace Test.BuildXL.EngineTestUtilities
             string cachePath = GetLocalPath(contentHash);
 
             bool shouldAttemptHardLink = ShouldAttemptHardLink(fileRealizationMode);
-            CreateHardLinkStatus createHardLinkStatus = CreateHardLinkStatus.Failed;
 
             if (shouldAttemptHardLink)
             {
-                if (!File.Exists(cachePath))
+                CreateHardLinkStatus createHardLinkStatus = !File.Exists(cachePath)
+                    ? TryCreateHardLink(source, cachePath, replaceExisting: false) // Content is not in cache.
+                    : PlaceLinkFromCache(source, contentHash);    // Content is in the cache.
+                if (createHardLinkStatus == CreateHardLinkStatus.Success)
                 {
-                    // Content is not in cache.
-                    createHardLinkStatus = TryCreateHardLink(source, cachePath, false);
+                    return Unit.Void;
                 }
-                else
+                else if (!ShouldAttemptCopy(fileRealizationMode))
                 {
-                    // Content is in the cache.
-                    createHardLinkStatus = PlaceLinkFromCache(source, contentHash);
+                    return new Failure<string>(I($"Unable to put file '{source}' to cache due to failure in creating hard link: '{createHardLinkStatus}'"));
                 }
             }
 
-            if (shouldAttemptHardLink
-                && createHardLinkStatus != CreateHardLinkStatus.Success
-                && (fileRealizationMode & FileRealizationMode.Copy) == 0)
-            {
-                return new Failure<string>(I($"Unable to put file '{source}' to cache due to failure in creating hard link: '{createHardLinkStatus.ToString()}'"));
-            }
-
-            if (!CopyFileInternalAsync(source, cachePath).Result)
+            if (!(await CopyFileInternalAsync(source, cachePath)))
             {
                 return new Failure<string>(I($"Unable to put file '{source}' to cache due to copy failure"));
             }
@@ -592,38 +591,27 @@ namespace Test.BuildXL.EngineTestUtilities
                             EnsureLocal(contentHash);
                             EnsureRemote(contentHash);
 
-                            return ExceptionUtilities.HandleRecoverableIOException<Possible<ContentHash, Failure>>(
-                                () =>
-                                {
-                                    var putFile = PutFileInternal(expandedPath, contentHash, fileRealizationMode);
-                                    if (!putFile.Succeeded)
-                                    {
-                                        return putFile.Failure;
-                                    }
+                            var putFile = PutFileInternalAsync(expandedPath, contentHash, fileRealizationMode).Result;
+                            if (!putFile.Succeeded)
+                            {
+                                return putFile.Failure;
+                            }
 
-                                    return contentHash;
-                                },
-                                ex => throw new BuildXLException(I($"Failed to store '{expandedPath}'"), ex));
+                            return contentHash;
                         }
                         else
                         {
-                            var result = ExceptionUtilities.HandleRecoverableIOException<Possible<ContentHash, Failure>>(
-                                () =>
-                                {
-                                    var putFile = PutFileInternal(expandedPath, contentHash, fileRealizationMode);
-                                    if (!putFile.Succeeded)
-                                    {
-                                        return putFile.Failure;
-                                    }
+                            var putFile = PutFileInternalAsync(expandedPath, contentHash, fileRealizationMode).Result;
+                            if (!putFile.Succeeded)
+                            {
+                                return putFile.Failure;
+                            }
 
-                                    return contentHash;
-                                },
-                                ex => throw new BuildXLException(I($"Failed to store '{expandedPath}'"), ex));
                             m_content.Add(contentHash, new CacheEntry(CacheSites.Local));
                             EnsureRemote(contentHash);
                             m_pathRealizationModes[expandedPath] = fileRealizationMode;
 
-                            return result;
+                            return contentHash;
                         }
                     }
                 });
@@ -666,7 +654,7 @@ namespace Test.BuildXL.EngineTestUtilities
                 });
         }
 
-        private Task<bool> CopyFileInternalAsync(string source, string destination)
+        private static Task<bool> CopyFileInternalAsync(string source, string destination)
         {
             if (FileUtilitiesExtensions.IsCopyOnWriteSupportedByEnlistmentVolume)
             {

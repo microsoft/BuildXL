@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.ComponentModel;
 using System.IO;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
@@ -54,12 +55,16 @@ namespace BuildXL.Native.IO
             }
             catch (NotSupportedException ex)
             {
-                return new Failure<string>(ex.Message);
+                return new Failure<string>($"CloneFile is not supported: {ex.Message}");
+            }
+            catch (Win32Exception ex)
+            {
+                return NativeFailure.CreateFromException(new NativeWin32Exception(ex.NativeErrorCode, ex.Message));
             }
 
             return Unit.Void;
 #else
-            throw new NotImplementedException();
+            return new Failure<string>("CloneFile is not supported in non NETCOREAPP");
 #endif
         }
 

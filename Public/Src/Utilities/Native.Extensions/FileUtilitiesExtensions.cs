@@ -50,24 +50,24 @@ namespace BuildXL.Native.IO
         /// <param name="followSymlink">Flag indicating whether to follow source symlink or not.</param>
         public static Possible<Unit> TryCreateCopyOnWrite(string source, string destination, bool followSymlink)
         {
-            try
+            using (FileUtilities.Counters?.StartStopwatch(StorageCounters.CopyOnWriteDuration))
             {
-                using (FileUtilities.Counters?.StartStopwatch(StorageCounters.CopyOnWriteDuration))
+                FileUtilities.Counters?.IncrementCounter(StorageCounters.CopyOnWriteCount);
+                
+                var deletion = FileUtilities.TryDeleteFile(destination);
+                if (!deletion.Succeeded)
                 {
-                    FileUtilities.Counters?.IncrementCounter(StorageCounters.CopyOnWriteCount);
-                    Possible<Unit> result = s_fileSystemExtensions.CloneFile(source, destination, followSymlink);
-
-                    if (result.Succeeded)
-                    {
-                        FileUtilities.Counters?.IncrementCounter(StorageCounters.SuccessfulCopyOnWriteCount);
-                    }
-
-                    return result;
+                    return deletion.Failure;
                 }
-            }
-            catch (NativeWin32Exception ex)
-            {
-                return NativeFailure.CreateFromException(ex);
+
+                Possible<Unit> result = s_fileSystemExtensions.CloneFile(source, destination, followSymlink);
+
+                if (result.Succeeded)
+                {
+                    FileUtilities.Counters?.IncrementCounter(StorageCounters.SuccessfulCopyOnWriteCount);
+                }
+
+                return result;
             }
         }
 

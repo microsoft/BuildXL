@@ -185,7 +185,7 @@ namespace BuildXL.FrontEnd.CMake
                 return new CMakeGenerationError(m_resolverSettings.ModuleName, m_buildDirectory.ToString(m_context.PathTable));
             }
 
-            FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, Name, result.AllUnexpectedFileAccesses, outputDirectory);
+            FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, Name, result.AllUnexpectedFileAccesses.Union(result.ExplicitlyReportedFileAccesses), outputDirectory);
             return Possible.Create(Unit.Void);
         }
 

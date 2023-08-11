@@ -174,5 +174,10 @@ namespace BuildXL.ProcessPipExecutor
                 existingValue,
                 ignoredValue);
         }
+
+        /// <summary>
+        /// The OS-dependent environment variables that should be always present in a process environment.
+        /// </summary>
+        public IBuildParameters GetBaseEnvironmentVariables() => m_baseEnvironmentVariables;
     }
 }

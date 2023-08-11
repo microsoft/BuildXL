@@ -19,6 +19,7 @@ using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using System.Linq;
 
 namespace BuildXL.FrontEnd.Ninja
 {
@@ -168,7 +169,7 @@ namespace BuildXL.FrontEnd.Ninja
                     standardError);
             }
             
-            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(Context.PathTable));
+            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses.Union(result.ExplicitlyReportedFileAccesses), outputFile.GetParent(Context.PathTable));
             var serializer = JsonSerializer.Create(GraphSerializationSettings.Settings);
             
             // Add custom deserializer for converting string arrays to AbsolutePath ReadOnlySets

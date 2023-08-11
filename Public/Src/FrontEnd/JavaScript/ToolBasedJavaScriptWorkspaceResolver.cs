@@ -202,7 +202,7 @@ namespace BuildXL.FrontEnd.JavaScript
                     standardError);
             }
 
-            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(Context.PathTable));
+            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses.Union(result.ExplicitlyReportedFileAccesses), outputFile.GetParent(Context.PathTable));
 
             JsonSerializer serializer = ConstructProjectGraphSerializer(JsonSerializerSettings);
             

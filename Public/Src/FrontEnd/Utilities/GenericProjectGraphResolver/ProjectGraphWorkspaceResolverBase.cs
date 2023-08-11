@@ -276,7 +276,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         /// <summary>
         /// Talks to the engine to register all accesses and build parameters
         /// </summary>
-        protected void TrackFilesAndEnvironment(ISet<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
+        protected void TrackFilesAndEnvironment(IEnumerable<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
         {
             // Register all build parameters passed to the graph construction process if they were retrieved from the process environment
             // Otherwise, if build parameters were defined by the main config file, then there is nothing to register: if the definition

@@ -348,7 +348,7 @@ namespace BuildXL.FrontEnd.MsBuild
                     standardError);
             }
 
-            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(Context.PathTable));
+            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses.Union(result.ExplicitlyReportedFileAccesses), outputFile.GetParent(Context.PathTable));
             JsonSerializer serializer = ConstructProjectGraphSerializer(ProjectGraphSerializationSettings.Settings);
 
             using (var sr = new StreamReader(outputFile.ToString(Context.PathTable)))

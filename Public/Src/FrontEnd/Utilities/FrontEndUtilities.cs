@@ -246,6 +246,12 @@ namespace BuildXL.FrontEnd.Utilities
         /// <summary>
         /// Generate a basic file access manifest for front end tools
         /// </summary>
+        /// <remarks>
+        /// The generated manifest will instruct the sandbox to not fail on unexpected file accesses, but to deny all of them.
+        /// Therefore, if the goal is collecting all file accesses, check <see cref="SandboxedProcessResult.AllUnexpectedFileAccesses"/> but
+        /// also check <see cref="SandboxedProcessResult.ExplicitlyReportedFileAccesses"/>, since accesses like enumerations
+        /// are never denied.
+        /// </remarks>
         public static FileAccessManifest GenerateToolFileAccessManifest(FrontEndContext context, AbsolutePath toolDirectory)
         {
             var pathTable = context.PathTable;
@@ -255,8 +261,6 @@ namespace BuildXL.FrontEnd.Utilities
             var fileAccessManifest = new FileAccessManifest(pathTable)
                                      {
                                          FailUnexpectedFileAccesses = false,
-                                         // The manifest is configured such that all relevant accesses are returned as unexpected ones, so we
-                                         // don't actually need to return all accesses
                                          ReportFileAccesses = false,
                                          MonitorNtCreateFile = true,
                                          MonitorZwCreateOpenQueryFile = true,
@@ -285,6 +289,9 @@ namespace BuildXL.FrontEnd.Utilities
 
             fileAccessManifest.AddScope(toolDirectory, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowReadAlways);
 
+            // Make sure the root node is configured so all accesses are reported
+            fileAccessManifest.AddScope(AbsolutePath.Invalid, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+
             return fileAccessManifest;
         }
 
@@ -292,7 +299,7 @@ namespace BuildXL.FrontEnd.Utilities
         /// The FrontEnds that use an out-of-proc tool should sandbox that process and call this method
         /// in order to tack the tool's file accesses, enumerations, etc. in order to make graph caching sound
         /// </summary>
-        public static void TrackToolFileAccesses(FrontEndEngineAbstraction engine, FrontEndContext context, string frontEndName, ISet<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
+        public static void TrackToolFileAccesses(FrontEndEngineAbstraction engine, FrontEndContext context, string frontEndName, IEnumerable<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
         {
             // Compute all parseable paths
             // TODO: does it make sense to consider enumerations, or as a result the graph will be too unstable? Does it matter for MsBuild graph construction?

@@ -1,0 +1,68 @@
+# Copyright (c) Microsoft. All rights reserved.
+# Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+trigger: none # Explicitly scheduled for PRs
+
+jobs:
+- job: buildTests
+  displayName: Build Unit Test Deployment with BuildXL on Windows
+  pool:
+    name: BuildXL-DevOpsAgents-PME
+  steps:
+  - checkout: self
+
+  - template: ../common/journaling.yml # Enable journaling
+  
+  - task: PowerShell@2
+    displayName: Build MacOS Test Binaries
+    inputs:
+        targetType: filePath
+        filePath: ./RunBxlWithPat.ps1
+        arguments: /f:"output='$(Build.SourcesDirectory)\Out\Bin\Release\tests\*'" -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache) -CacheNamespace BuildXL.MacOS -SharedCacheMode ConsumeAndPublish /p:[Sdk.BuildXL]microsoftInternal=1 /q:ReleaseDotNetCoreMac /server- /logOutput:FullOutputOnWarningOrError /ado /scrubDirectory:Out\objects /cachemiss:[BxlMacOSPRValidation]
+
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Test Binaries
+    inputs:
+      PathtoPublish: '$(Build.SourcesDirectory)/Out/Bin/Release/tests'
+      ArtifactName: 'macos-tests-$(Build.BuildId)'
+      publishLocation: 'Container'
+
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Build Logs on Failure
+    condition: failed() 
+    inputs:
+      PathtoPublish: '$(Build.SourcesDirectory)/Out/Logs'
+      ArtifactName: 'macos-tests-xunit-logs-$(Build.BuildId)'
+      publishLocation: 'Container'
+
+- job: runTests
+  dependsOn: buildTests
+  displayName: Run Unit Tests with XUnit on MacOS
+  pool:
+    vmImage: 'macos-latest'
+  steps:
+  - checkout: self
+  
+  - task: DownloadBuildArtifacts@1
+    displayName: Download Test Binaries
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: 'macos-tests-$(Build.BuildId)'
+      downloadPath: '$(System.ArtifactsDirectory)/tests'
+      cleanDestinationFolder: true
+
+  - task: Bash@3
+    displayName: Run Tests
+    inputs:
+      filePath: '$(System.ArtifactsDirectory)/tests/macos-tests-$(Build.BuildId)/osx-x64/bashrunner.sh'
+      workingDirectory: '$(System.ArtifactsDirectory)/tests/macos-tests-$(Build.BuildId)/osx-x64'
+      failOnStderr: true
+  
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Test Logs on Failure
+    condition: failed() 
+    inputs:
+      PathtoPublish: '$(System.ArtifactsDirectory)/tests/macos-tests-$(Build.BuildId)/osx-x64/tests/sharedbin/XunitLogs'
+      ArtifactName: 'macos-tests-xunit-logs-$(Build.BuildId)'
+      publishLocation: 'Container'

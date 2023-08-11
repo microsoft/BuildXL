@@ -1,0 +1,51 @@
+# Copyright (c) Microsoft. All rights reserved.
+# Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+trigger: none
+
+pool:
+  vmImage: 'macos-latest'
+
+steps:
+- checkout: self
+
+- task: Bash@3
+  displayName: Create directories
+  inputs:
+    targetType: 'inline'
+    script: |
+      mkdir -p $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary
+      mkdir -p $(Agent.TempDirectory)/BuildXLMacOS/pkg
+      rm -rf $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary/*
+    workingDirectory: '$(Agent.TempDirectory)'
+
+- task: Bash@3
+  displayName: Build Release libBuildXLInterop.dylib
+  inputs:
+    filePath: '$(Build.SourcesDirectory)/Private/macOS/xcodebuild.sh'
+    arguments: '--projectPath $(Build.SourcesDirectory)/Public/Src/Sandbox/MacOs/Interop/Interop.xcodeproj --scheme InteropLibrary --configuration release --outputDirectory $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary --bundlePath $(Build.SourcesDirectory)/Public/Src/Sandbox/MacOs/BundleInfo.xcconfig'
+    workingDirectory: '$(Agent.TempDirectory)/BuildXLMacOS'
+
+
+- task: Bash@3
+  displayName: Prepare Nuget Package directory
+  inputs:
+    filePath: '$(Build.SourcesDirectory)/Private/macOS/prepare-macos-runtime-package.sh'
+    arguments: '--packageVersion $(Build.BuildNumber) --interopBuildDirectory $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary --outputDirectory $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary/nugetpkg'
+    workingDirectory: '$(Agent.TempDirectory)/BuildXLMacOS'
+
+- task: NuGetCommand@2
+  displayName: Pack Nuget Package
+  inputs:
+    command: 'pack'
+    packagesToPack: '$(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary/nugetpkg/Microsoft.BuildXL.Interop.Runtime.osx-x64.nuspec'
+    packDestination: '$(Agent.TempDirectory)/BuildXLMacOS/pkg'
+    versioningScheme: 'off'
+
+- task: NuGetCommand@2
+  displayName: Push Nuget Package to Public 1EsSharedAssets Feed
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Agent.TempDirectory)/BuildXLMacOS/pkg/*.nupkg'
+    nuGetFeedType: 'external'
+    publishFeedCredentials: 'BuildXL__PAT-TseBuild-AzureDevOps-1EsSharedAssets__BuildXL 1essharedassets public feed (PAT exp 05/24/2022)'

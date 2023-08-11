@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using ContentStoreTest.Distributed.Redis;
 using FluentAssertions;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -16,6 +17,7 @@ using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
 
+[TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
 [Collection("Redis-based tests")]
 public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
 {

@@ -17,6 +17,7 @@ using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using ProtoBuf.Grpc.Client;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
 #nullable enable
@@ -26,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
 public class GrpcClusterStateStorageTests
 {
 #if NET6_0_OR_GREATER
-    [Fact]
+    [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
     public async Task RunInMemoryWithGrpcTest()
     {
         var tracingContext = new Context(TestGlobal.Logger);

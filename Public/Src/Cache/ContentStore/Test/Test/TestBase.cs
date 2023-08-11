@@ -48,7 +48,7 @@ namespace ContentStoreTest.Test
             Contract.Requires(fileSystem != null);
 
             _fileSystem = fileSystem;
-            _testRootDirectory = new Lazy<DisposableDirectory>(() => new DisposableDirectory(FileSystem, Guid.NewGuid().ToString("N").Substring(0, 12)));
+            _testRootDirectory = new Lazy<DisposableDirectory>(() => new DisposableDirectory(FileSystem));
         }
 
         protected TestBase(ILogger logger, ITestOutputHelper output = null)
@@ -58,7 +58,7 @@ namespace ContentStoreTest.Test
             Logger = logger;
 
             _fileSystem = _fileSystem ?? new Lazy<IAbsFileSystem>(() => new PassThroughFileSystem());
-            _testRootDirectory = new Lazy<DisposableDirectory>(() => new DisposableDirectory(FileSystem, Guid.NewGuid().ToString("N").Substring(0, 12)));
+            _testRootDirectory = new Lazy<DisposableDirectory>(() => new DisposableDirectory(FileSystem));
 
             TaskScheduler.UnobservedTaskException += OnTaskSchedulerOnUnobservedTaskException;
         }

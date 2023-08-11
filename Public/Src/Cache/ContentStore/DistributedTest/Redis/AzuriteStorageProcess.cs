@@ -55,7 +55,7 @@ namespace ContentStoreTest.Distributed.Redis
         {
             _fileSystem = new PassThroughFileSystem(logger);
             _logger = logger;
-            _tempDirectory = new DisposableDirectory(_fileSystem, "StorageTests");
+            _tempDirectory = new DisposableDirectory(_fileSystem);
             _storageFixture = storageFixture;
             _disposed = false;
 

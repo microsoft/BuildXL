@@ -25,34 +25,16 @@ public sealed class DisposableDirectory : IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="DisposableDirectory" /> class.
     /// </summary>
-    public DisposableDirectory(IAbsFileSystem fileSystem)
-        : this(fileSystem, AbsolutePath.CreateRandomName())
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DisposableDirectory" /> class.
-    /// </summary>
-    public DisposableDirectory(IAbsFileSystem fileSystem, string subpathSuffix)
-        : this(fileSystem, CreateRootPath(fileSystem, subpathSuffix))
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DisposableDirectory" /> class.
-    /// </summary>
-    public DisposableDirectory(IAbsFileSystem fileSystem, AbsolutePath directoryPath)
+    public DisposableDirectory(IAbsFileSystem fileSystem, AbsolutePath? directoryPath = null)
     {
         Contract.RequiresNotNull(fileSystem);
+
+        // We do things under the CloudStore folder to ensure that we don't accidentally clash with anything else
+        directoryPath ??= fileSystem.GetTempPath() / "CloudStore" / AbsolutePath.CreateRandomName();
+
         _fileSystem = fileSystem;
         Path = directoryPath;
-        fileSystem.CreateDirectory(directoryPath);
-    }
-
-    private static AbsolutePath CreateRootPath(IAbsFileSystem fileSystem, string subpathSuffix)
-    {
-        // We do things under the CloudStore folder to ensure that we don't accidentally clash with anything else
-        return fileSystem.GetTempPath() / "CloudStore" / subpathSuffix;
+        fileSystem.CreateDirectory(Path);
     }
 
     /// <summary>

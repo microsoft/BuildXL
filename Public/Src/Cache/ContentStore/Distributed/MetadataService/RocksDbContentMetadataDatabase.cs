@@ -148,14 +148,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _keyValueStore = null!;
         }
 
-        /// <summary>
-        /// Gets a temporary directory inside the database root
-        /// </summary>
-        internal DisposableDirectory CreateTempDirectory(string baseName)
-        {
-            return new DisposableDirectory(_fileSystem, _configuration.StoreLocation / "tmp" / baseName + Path.GetRandomFileName());
-        }
-
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {

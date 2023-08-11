@@ -45,12 +45,15 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
 
         public int ProactivePushCountLimit { get; set; } = LocalServerConfiguration.DefaultProactivePushCountLimit;
 
+        public AbsolutePath? WorkingDirectory { get; set; }
+
         public override void From(LocalServerConfiguration configuration)
         {
             base.From(configuration);
 
             TraceGrpcOperations = configuration.TraceGrpcOperations;
             ConfigurationHelper.ApplyIfNotNull(configuration.ProactivePushCountLimit, v => ProactivePushCountLimit = v);
+            WorkingDirectory = configuration.DataRootPath / "GrpcContentServer" / "temp";
         }
     }
 
@@ -93,8 +96,8 @@ public class GrpcContentServer : GrpcCopyServer, IDistributedStreamStore
         _contentSessionHandler = sessionHandler;
 
         _fileSystem = fileSystem ?? new PassThroughFileSystem(logger);
-        _temporaryDirectory = new DisposableDirectory(_fileSystem);
 
+        _temporaryDirectory = new DisposableDirectory(_fileSystem, _configuration.WorkingDirectory);
         PushFileHandler = storesByName.Values.OfType<IPushFileHandler>().FirstOrDefault();
         CopyRequestHandler = ContentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault();
 

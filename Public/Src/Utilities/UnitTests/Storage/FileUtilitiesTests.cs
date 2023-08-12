@@ -1254,6 +1254,28 @@ namespace Test.BuildXL.Storage
             FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteAttributes, false);
         }
 
+        /// <summary>
+        /// This test succeeds when run on NTFS, but fails on Dev Drive.
+        /// </summary>
+        /// <remarks>
+        /// BUG: https://microsoft.visualstudio.com/OS/_workitems/edit/45950271
+        /// </remarks>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void DeleteHardLinksReadOnlyFileShare()
+        {
+            var file = WriteFile("file", string.Empty);
+            var hardLink = GetFullPath("hardLink");
+            var createHardLink = FileUtilities.TryCreateHardLinkViaSetInformationFile(hardLink, file, replaceExisting: false);
+            XAssert.AreEqual(CreateHardLinkStatus.Success, createHardLink);
+
+            // Open hardLink, but delete target file.
+            using (File.Open(hardLink, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+            {
+                var delete = FileUtilities.TryDeletePathIfExists(file);
+                XAssert.PossiblySucceeded(delete);
+            }
+        }
+
         private void AssertNonexistent(Possible<PathExistence, NativeFailure> maybeFileExistence)
             => AssertPathExistence(PathExistence.Nonexistent, maybeFileExistence);
 

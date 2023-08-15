@@ -27,7 +27,9 @@ variables:
     value: -SharedCacheMode Disable -Use Dev -DevRoot $(Domino.DogfoodPackagePath)\release\win-x64 -EnableProcessRemoting
   - name: BuildXLArgs
     value: /q:ReleaseDotNet6 /server- /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=* /p:BuildXLWorkerAttachTimeoutMin=5 /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceinfo:valdation=ReleasePipelineRemoting /enableIncrementalFrontEnd- /p:xunitSemaphoreCount=12 /p:BUILDXL_ANYBUILD_EXTRA_ARGS=$(AnyBuildExtraArgs)
-
+  - name: Codeql.Enabled
+    value: false
+    
 pool:
   name: BuildXL-DevOpsAgents-PME
 

@@ -429,6 +429,8 @@ namespace BuildXL.Processes
             {
                 // surviving child processes may only be set when the process is explicitly killed
                 m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
+                // Before notifying that the root process has exited, kill all ptracerunners to avoid receiving access reports after the communication pipe is closed.
+                KillActivePTraceRunners();
                 await base.KillAsyncInternal(dumpProcessTree);
                 KillAllChildProcesses();
                 SandboxConnection.NotifyRootProcessExited(PipId, this);
@@ -499,11 +501,7 @@ namespace BuildXL.Processes
 
             // If ptrace runners have not finished yet, then do that now
             // Completing the task below will make us kill any leftover PTraceRunner processes
-            m_ptraceRunnersCancellation.SetResult(true);
-            foreach (var runner in TaskUtilities.SafeWhenAll(m_ptraceRunners.ToArray()).GetAwaiter().GetResult())
-            {
-                runner.Dispose();
-            }
+            KillActivePTraceRunners();
 
             base.Dispose();
         }
@@ -1128,6 +1126,18 @@ namespace BuildXL.Processes
                 }
 
                 return runner;
+            }
+        }
+
+        private void KillActivePTraceRunners()
+        {
+            var ptraceRunners = m_ptraceRunners.ToArray();
+            m_ptraceRunners.Clear();
+
+            m_ptraceRunnersCancellation.TrySetResult(true);
+            foreach (var runner in TaskUtilities.SafeWhenAll(ptraceRunners).GetAwaiter().GetResult())
+            {
+                runner.Dispose();
             }
         }
     }

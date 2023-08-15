@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
@@ -21,7 +22,6 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
-using static BuildXL.Cache.BlobLifetimeManager.Library.RocksDbLifetimeDatabase;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Library
 {
@@ -29,42 +29,63 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
     /// This class is responsible for creating a database "from zero". This means that it will enumerate all of the contents of
     /// the blob cache and construct a database that tracks content blobs' reference coutns, as well as blob lengths.
     /// </summary>
-    public class LifetimeDatabaseCreator
+    public static class LifetimeDatabaseCreator
     {
         private static Tracer Tracer { get; } = new(nameof(LifetimeDatabaseCreator));
 
-        private record ProcessFingerprintRequest(OperationContext Context, BlobContainerClient Container, BlobItem Blob, RocksDbLifetimeDatabase Database);
+        internal record ProcessFingerprintRequest(
+            OperationContext Context,
+            BlobContainerClient Container,
+            string BlobName,
+            long BlobLength,
+            RocksDbLifetimeDatabase.IAccessor Database,
+            IBlobCacheTopology Topology);
 
-        private readonly IClock _clock;
-        private readonly IBlobCacheTopology _topology;
-        private readonly SerializationPool _serializationPool = new();
+        private static readonly SerializationPool SerializationPool = new();
 
-        public LifetimeDatabaseCreator(IClock clock, IBlobCacheTopology topology)
-        {
-            _clock = clock;
-            _topology = topology;
-        }
-
-        public async Task<RocksDbLifetimeDatabase> CreateAsync(
+        public static Task<Result<RocksDbLifetimeDatabase>> CreateAsync(
             OperationContext context,
+            RocksDbLifetimeDatabase.Configuration configuration,
+            IClock clock,
             int contentDegreeOfParallelism,
-            int fingerprintDegreeOfParallelism)
+            int fingerprintDegreeOfParallelism,
+            Func<BlobNamespaceId, IBlobCacheTopology> topologyFactory)
         {
-            Contract.Requires(contentDegreeOfParallelism > 0);
-            Contract.Requires(fingerprintDegreeOfParallelism > 0);
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    Contract.Requires(contentDegreeOfParallelism > 0);
+                    Contract.Requires(fingerprintDegreeOfParallelism > 0);
 
-            RocksDbLifetimeDatabase database = CreateNewDatabase();
+                    RocksDbLifetimeDatabase database = CreateNewDatabase(configuration, clock);
 
-            _ = await ProcessIndividualContentBlobsAsync(context, contentDegreeOfParallelism, database);
-            await ProcessRemoteFingerprintsAsync(context, fingerprintDegreeOfParallelism, database);
+                    // TODO: consider doing this in parallel, although it could be argued that if each of these calls
+                    // is making full use of resources, it can be better to just do this sequentially.
+                    foreach (var namespaceId in configuration.BlobNamespaceIds)
+                    {
+                        var accessor = database.GetAccessor(namespaceId);
+                        var topology = topologyFactory(namespaceId);
 
-            return database;
+                        _ = await ProcessIndividualContentBlobsAsync(context, contentDegreeOfParallelism, accessor, topology);
+                        var fingerprintsResult = await ProcessRemoteFingerprintsAsync(context, fingerprintDegreeOfParallelism, accessor, topology, clock);
+
+                        if (!fingerprintsResult.Succeeded)
+                        {
+                            // If we fail to process remote fingerprints, we fall into an unrecoverable state. We must fail.
+                            return new Result<RocksDbLifetimeDatabase>(fingerprintsResult);
+                        }
+                    }
+
+                    return database;
+                });
         }
 
-        private Task<BoolResult> ProcessIndividualContentBlobsAsync(
+        private static Task<BoolResult> ProcessIndividualContentBlobsAsync(
             OperationContext context,
             int degreeOfParallelism,
-            RocksDbLifetimeDatabase database)
+            RocksDbLifetimeDatabase.IAccessor database,
+            IBlobCacheTopology topology)
         {
             long count = 0;
 
@@ -72,38 +93,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 Tracer,
                 async () =>
                 {
-                    var clientEnumerationTasks = new List<Task>();
-
-                    var actionBlock = ActionBlockSlim.Create<(BlobItem blob, BlobContainerClient container)>(
+                    var processContentActionBlock = ActionBlockSlim.Create<(BlobItem blob, BlobContainerClient container)>(
                         degreeOfParallelism: degreeOfParallelism,
                         async blobAndContainer =>
                         {
                             var blob = blobAndContainer.blob;
                             var container = blobAndContainer.container;
 
-                            try
-                            {
-                                if (!blob.Name.EndsWith(".blob"))
-                                {
-                                    return;
-                                }
-
-                                var lastAccessTime = GetLastAccessTime(blob);
-                                var hashString = blob.Name[..^".blob".Length];
-
-                                if (!ContentHash.TryParse(hashString, out var hash))
-                                {
-                                    Tracer.Warning(context, $"Failed to parse content hash from blob name {blob.Name}");
-                                    return;
-                                }
-
-                                var length = await GetBlobLengthAsync(blob, container);
-                                database.AddContent(hash, length).ThrowIfFailure();
-                            }
-                            catch (Exception ex)
-                            {
-                                Tracer.Error(context, ex, $"Error when processing content. Account=[{container.AccountName}], Container=[{container.Name}], Blob={blob.Name}");
-                            }
+                            await ProcessContentBlobAsync(context, blob, container, database);
 
                             if (Interlocked.Increment(ref count) % 1000 == 0)
                             {
@@ -111,7 +108,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             }
                         });
 
-                    await foreach (var container in _topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Content))
+                    var clientEnumerationTasks = new List<Task>();
+                    await foreach (var container in topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Content))
                     {
                         var enumerationTask = Task.Run(async () =>
                         {
@@ -119,7 +117,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                             await foreach (var blob in container.GetBlobsAsync(cancellationToken: context.Token))
                             {
-                                actionBlock.Post((blob, container));
+                                processContentActionBlock.Post((blob, container));
                             }
                         });
 
@@ -127,18 +125,48 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     }
 
                     await TaskUtilities.SafeWhenAll(clientEnumerationTasks);
-                    actionBlock.Complete();
-                    await actionBlock.Completion;
+                    processContentActionBlock.Complete();
+                    await processContentActionBlock.Completion;
 
                     return BoolResult.Success;
                 },
                 extraEndMessage: _ => $"TotalProcessed={count}");
         }
 
-        private Task ProcessRemoteFingerprintsAsync(
+        private static async Task ProcessContentBlobAsync(
+            OperationContext context,
+            BlobItem blob,
+            BlobContainerClient container,
+            RocksDbLifetimeDatabase.IAccessor database)
+        {
+            try
+            {
+                if (!BlobUtilities.TryExtractBlobName(blob.Name, out var hashString))
+                {
+                    return;
+                }
+
+                if (!ContentHash.TryParse(hashString, out var hash))
+                {
+                    Tracer.Warning(context, $"Failed to parse content hash from blob name {blob.Name}");
+                    return;
+                }
+
+                var length = await GetBlobLengthAsync(blob, container);
+                database.AddContent(hash, length);
+            }
+            catch (Exception ex)
+            {
+                Tracer.Error(context, ex, $"Error when processing content. Account=[{container.AccountName}], Container=[{container.Name}], Blob={blob.Name}");
+            }
+        }
+
+        private static Task<BoolResult> ProcessRemoteFingerprintsAsync(
             OperationContext context,
             int degreeOfParallelism,
-            RocksDbLifetimeDatabase database)
+            RocksDbLifetimeDatabase.IAccessor database,
+            IBlobCacheTopology topology,
+            IClock clock)
         {
             long count = 0;
 
@@ -146,21 +174,25 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 Tracer,
                 async () =>
                 {
-                    var clientEnumerationTasks = new List<Task>();
-
-                    var actionBlock = ActionBlockSlim.Create<ProcessFingerprintRequest>(
+                    BoolResult errorResult = BoolResult.Success;
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
+                    var processFingerprintActionBlock = ActionBlockSlim.Create<ProcessFingerprintRequest>(
                                 degreeOfParallelism: degreeOfParallelism,
                                 async request =>
                                 {
-                                    await DownloadAndProcessContentHashListAsync(request.Context, request.Container, request.Blob, request.Database);
-
-                                    if (Interlocked.Increment(ref count) % 1000 == 0)
+                                    var processResult = await DownloadAndProcessContentHashListAsync(request.Context, request.Container, request.BlobName, request.BlobLength, request.Database, request.Topology, clock);
+                                    if (!processResult.Succeeded)
                                     {
-                                        Tracer.Info(context, $"Processed {count} fingerprints so far.");
+                                        errorResult &= new BoolResult(processResult);
+                                        cts.Cancel();
                                     }
-                                });
 
-                    await foreach (var container in _topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Metadata))
+                                    Interlocked.Increment(ref count);
+                                },
+                                cancellationToken: cts.Token);
+
+                    var clientEnumerationTasks = new List<Task>();
+                    await foreach (var container in topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Metadata))
                     {
                         var enumerationTask = Task.Run(async () =>
                         {
@@ -168,7 +200,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                             await foreach (var blob in container.GetBlobsAsync(cancellationToken: context.Token))
                             {
-                                actionBlock.Post(new ProcessFingerprintRequest(context, container, blob, database));
+                                if (cts.IsCancellationRequested)
+                                {
+                                    break;
+                                }
+
+                                processFingerprintActionBlock.Post(new ProcessFingerprintRequest(context, container, blob.Name, blob.Properties.ContentLength!.Value, database, topology));
                             }
                         });
 
@@ -176,8 +213,21 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     }
 
                     await TaskUtilities.SafeWhenAll(clientEnumerationTasks);
-                    actionBlock.Complete();
-                    await actionBlock.Completion;
+                    processFingerprintActionBlock.Complete();
+                    await processFingerprintActionBlock.Completion;
+
+                    if (cts.Token.IsCancellationRequested)
+                    {
+                        if (context.Token.IsCancellationRequested)
+                        {
+                            return new BoolResult("Operation was cancelled");
+                        }
+                        else
+                        {
+                            // Cancellation was requested because we failed to process one or more content hash list.
+                            return errorResult;
+                        }
+                    }
 
                     return BoolResult.Success;
                 },
@@ -197,91 +247,146 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             return properties.Value.ContentLength;
         }
 
-        private RocksDbLifetimeDatabase CreateNewDatabase()
+        private static RocksDbLifetimeDatabase CreateNewDatabase(
+            RocksDbLifetimeDatabase.Configuration configuration,
+            IClock clock)
         {
-            var temp = Path.Combine(Path.GetTempPath(), "LifetimeDatabase", Guid.NewGuid().ToString());
-            var db = RocksDbLifetimeDatabase.Create(
-                new RocksDbLifetimeDatabase.Configuration
-                {
-                    DatabasePath = temp,
-                    LruEnumerationPercentileStep = 0.05,
-                    LruEnumerationBatchSize = 1000,
-                },
-                _clock)
-                .ThrowIfFailure();
+            var db = RocksDbLifetimeDatabase.Create(configuration, clock);
+
+            db.SetCreationTime(clock.UtcNow);
 
             return db;
         }
 
-        private async Task DownloadAndProcessContentHashListAsync(
-            OperationContext context,
-            BlobContainerClient container,
-            BlobItem blob,
-            RocksDbLifetimeDatabase database)
+        internal enum ProcessContentHashListResult
         {
-            try
-            {
-                var blobClient = container.GetBlobClient(blob.Name);
-
-                using var stream = new MemoryStream();
-                var response = await blobClient.DownloadToAsync(stream, context.Token);
-
-                if (response.IsError)
-                {
-                    Tracer.Debug(context, $"Failed to download content hash list: {response.ReasonPhrase}");
-                    return;
-                }
-
-                // Reset the position of the stream so we can read from it.
-                stream.Position = 0;
-                var metadataEntry = _serializationPool.Deserialize(stream, ContentStore.Distributed.NuCache.MetadataEntry.Deserialize);
-                var contentHashList = metadataEntry.ContentHashListWithDeterminism;
-                var lastAccessTime = GetLastAccessTime(blob);
-
-                await ProcessContentHashListAsync(context, blob, contentHashList, lastAccessTime, database);
-            }
-            catch (Exception ex)
-            {
-                Tracer.Error(context, ex, $"Error when processing fingerprint. Account=[{container.AccountName}], Container=[{container.Name}], Blob={blob.Name}");
-            }
+            Success,
+            ContentHashListDoesNotExist,
+            InvalidAndDeleted,
         }
 
-        private async Task ProcessContentHashListAsync(
+        internal static Task<Result<ProcessContentHashListResult>> DownloadAndProcessContentHashListAsync(
             OperationContext context,
-            BlobItem blob,
+            BlobContainerClient container,
+            string blobName,
+            long blobLength,
+            RocksDbLifetimeDatabase.IAccessor database,
+            IBlobCacheTopology topology,
+            IClock clock)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    var blobClient = container.GetBlobClient(blobName);
+
+                    // TODO: consider using pooled memory streams.
+                    using var stream = new MemoryStream();
+
+                    try
+                    {
+                        var response = await blobClient.DownloadToAsync(stream, context.Token);
+
+                        if (response.IsError)
+                        {
+                            return new Result<ProcessContentHashListResult>($"Download of the content hash list failed with status code: {response.Status}");
+                        }
+                    }
+                    catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
+                    {
+                        // The CHL no longer exists. We can continue without making any changes.
+                        return ProcessContentHashListResult.ContentHashListDoesNotExist;
+                    }
+
+                    // Reset the position of the stream so we can read from it.
+                    stream.Position = 0;
+                    var metadataEntry = SerializationPool.Deserialize(stream, MetadataEntry.Deserialize);
+                    var contentHashList = metadataEntry.ContentHashListWithDeterminism;
+
+                    // We use "now" as last access time because we just downloaded the blob, and thus we just affected the CHL's blob last access time.
+                    // Adding a minute to account for clocks not being in sync. In the grand scheme of things, an error of one minute shouldn't make a difference.
+                    var lastAccessTime = clock.UtcNow.AddMinutes(1);
+
+                    var processResult = await ProcessContentHashListAsync(context, blobName, blobLength, contentHashList, lastAccessTime, database, topology);
+
+                    if (!processResult.Succeeded)
+                    {
+                        return new Result<ProcessContentHashListResult>(processResult);
+                    }
+
+                    if (!processResult.Value)
+                    {
+                        // This signals that one of the referenced blobs does not exist. The CHL is invalid and should be deleted.
+                        var deleteResult = await BlobQuotaKeeper.DeleteBlobFromStorageAsync(context, blobClient, blobLength, lastAccessTime);
+                        if (!deleteResult.Succeeded)
+                        {
+                            return new Result<ProcessContentHashListResult>(deleteResult, "Failed to delete invalid content hash list.");
+                        }
+
+                        return ProcessContentHashListResult.InvalidAndDeleted;
+                    }
+
+                    return ProcessContentHashListResult.Success;
+                },
+                traceOperationStarted: false,
+                extraEndMessage: result => $"ReturnCode=[{(result.Succeeded ? result.Value : "Failure")}], Account=[{container.AccountName}], Container=[{container.Name}], Blob=[{blobName}]");
+        }
+
+        private static async Task<Result<bool>> ProcessContentHashListAsync(
+            OperationContext context,
+            string blobName,
+            long blobLength,
             ContentHashListWithDeterminism contentHashList,
             DateTime lastAccessTime,
-            RocksDbLifetimeDatabase database)
+            RocksDbLifetimeDatabase.IAccessor database,
+            IBlobCacheTopology topology)
         {
             var hashes = new List<(ContentHash hash, long size)>();
             foreach (var contentHash in contentHashList.ContentHashList!.Hashes)
             {
                 try
                 {
+                    if (contentHash.IsEmptyHash())
+                    {
+                        hashes.Add((contentHash, 0));
+                        continue;
+                    }
+
                     var exists = database.GetContentEntry(contentHash) is not null;
                     var length = 0L;
                     if (!exists)
                     {
-                        BlobClient client = await _topology.GetBlobClientAsync(context, contentHash);
-                        var response = await client.GetPropertiesAsync(cancellationToken: context.Token);
-                        length = response.Value.ContentLength;
+                        BlobClient client = await topology.GetBlobClientAsync(context, contentHash);
+
+                        try
+                        {
+                            var response = await client.GetPropertiesAsync(cancellationToken: context.Token);
+                            length = response.Value.ContentLength;
+                        }
+                        catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
+                        {
+                            Tracer.Warning(context, $"Non-registrated content was not found in blob storage. Hash=[{contentHash.ToShortHash()}], CHL=[{blobName}]");
+                            return false;
+                        }
                     }
 
                     hashes.Add((contentHash, length));
                 }
                 catch (Exception ex)
                 {
-                    Tracer.Error(context, ex, $"Error when incrementing reference count for {contentHash.ToShortString()}");
+                    return new Result<bool>(ex, $"Error when incrementing reference count for {contentHash.ToShortString()}");
                 }
             }
 
             database.AddContentHashList(
                 new ContentHashList(
-                    blob.Name,
+                    blobName,
                     lastAccessTime,
                     contentHashList.ContentHashList!.Hashes.ToArray(),
-                    blob.Properties.ContentLength!.Value),
-                hashes).ThrowIfFailure();
+                    blobLength),
+                hashes);
+
+            return true;
         }
 
         private static DateTime GetLastAccessTime(

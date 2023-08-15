@@ -33,7 +33,7 @@ public enum ShardingAlgorithm
 /// <summary>
 /// Specifies a sharding scheme.
 /// </summary>
-public record ShardingScheme(ShardingAlgorithm Scheme, List<BlobCacheStorageAccountName> Accounts)
+public record ShardingScheme(ShardingAlgorithm Scheme, IReadOnlyList<BlobCacheStorageAccountName> Accounts)
 {
     public IShardingScheme<int, BlobCacheStorageAccountName> Create()
     {

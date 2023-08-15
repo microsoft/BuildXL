@@ -19,6 +19,7 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using System.IO;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Test
 {
@@ -34,7 +35,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         {
             var context = new OperationContext(new Context(TestGlobal.Logger));
             return RunTest(context,
-                async (topology, session) =>
+                async (topology, session, namespaceId, secretsProvider) =>
                 {
                     // Add content/fingerprints to the L3
 
@@ -63,26 +64,42 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     await session.AddOrGetContentHashListAsync(context, sf2, contentHashList2, CancellationToken.None).ThrowIfFailure();
 
                     // Create the DB
-                    var creator = new LifetimeDatabaseCreator(SystemClock.Instance, topology);
-                    using var db = await creator.CreateAsync(context, contentDegreeOfParallelism: 1, fingerprintDegreeOfParallelism: 1);
+                    var temp = Path.Combine(Path.GetTempPath(), "LifetimeDatabase", Guid.NewGuid().ToString());
+                    var dbConfig = new RocksDbLifetimeDatabase.Configuration
+                    {
+                        DatabasePath = temp,
+                        LruEnumerationPercentileStep = 0.05,
+                        LruEnumerationBatchSize = 1000,
+                        BlobNamespaceIds = new[] { namespaceId },
+                    };
 
-                    var contentEntry = db.GetContentEntry(contentResults[0]);
+                    using var db = await LifetimeDatabaseCreator.CreateAsync(
+                        context,
+                        dbConfig,
+                        SystemClock.Instance,
+                        contentDegreeOfParallelism: 1,
+                        fingerprintDegreeOfParallelism: 1,
+                        n => topology).ThrowIfFailureAsync();
+
+                    var accessor = db.GetAccessor(namespaceId);
+
+                    var contentEntry = accessor.GetContentEntry(contentResults[0]);
                     contentEntry!.BlobSize.Should().Be(16);
                     contentEntry!.ReferenceCount.Should().Be(1);
 
-                    contentEntry = db.GetContentEntry(contentResults[1]);
+                    contentEntry = accessor.GetContentEntry(contentResults[1]);
                     contentEntry!.BlobSize.Should().Be(16);
                     contentEntry!.ReferenceCount.Should().Be(2);
 
-                    contentEntry = db.GetContentEntry(contentResults[2]);
+                    contentEntry = accessor.GetContentEntry(contentResults[2]);
                     contentEntry!.BlobSize.Should().Be(16);
                     contentEntry!.ReferenceCount.Should().Be(1);
 
-                    var fpEntry = db.TryGetContentHashList(sf1, out _);
+                    var fpEntry = accessor.GetContentHashList(sf1, out _);
                     fpEntry!.Hashes.Should().ContainInOrder(contentHashList1.ContentHashList!.Hashes);
                     fpEntry.LastAccessTime.Should().BeAfter(DateTime.UtcNow.AddMinutes(-1));
 
-                    fpEntry = db.TryGetContentHashList(sf2, out _);
+                    fpEntry = accessor.GetContentHashList(sf2, out _);
                     fpEntry!.Hashes.Should().BeEquivalentTo(contentHashList2.ContentHashList!.Hashes);
                     fpEntry.LastAccessTime.Should().BeAfter(DateTime.UtcNow.AddMinutes(-1));
                 });

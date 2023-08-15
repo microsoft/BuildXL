@@ -5,6 +5,7 @@ using System;
 using System.Text.RegularExpressions;
 using Azure;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.ChangeFeed;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -126,6 +127,28 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
                     serviceUri: new Uri($"https://{sasToken.Token.StorageAccount}.blob.core.windows.net/"),
                     credential: CreateV12StorageCredentialsFromSasToken(sasToken),
                     blobClientOptions),
+                _ => throw new NotImplementedException($"Unknown secret type `{_secret.GetType()}`")
+            };
+        }
+
+        /// <nodoc />
+        public BlobChangeFeedClient CreateBlobChangeFeedClient(BlobClientOptions? blobClientOptions = null, BlobChangeFeedClientOptions? changeFeedClientOptions = null)
+        {
+            // We default to this specific version because tests run against the Azurite emulator. The emulator doesn't
+            // currently support any higher version than this, and we won't upgrade it because it's build process is
+            // weird as hell and they don't just provide binaries.
+            blobClientOptions ??= new BlobClientOptions(BlobClientOptions.ServiceVersion.V2021_02_12);
+
+            changeFeedClientOptions ??= new BlobChangeFeedClientOptions();
+
+            return _secret switch
+            {
+                PlainTextSecret plainText => new BlobChangeFeedClient(connectionString: plainText.Secret, blobClientOptions, changeFeedClientOptions),
+                UpdatingSasToken sasToken => new BlobChangeFeedClient(
+                    serviceUri: new Uri($"https://{sasToken.Token.StorageAccount}.blob.core.windows.net/"),
+                    credential: CreateV12StorageCredentialsFromSasToken(sasToken),
+                    blobClientOptions,
+                    changeFeedClientOptions),
                 _ => throw new NotImplementedException($"Unknown secret type `{_secret.GetType()}`")
             };
         }

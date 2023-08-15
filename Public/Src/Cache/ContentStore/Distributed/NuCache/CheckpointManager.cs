@@ -77,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <inheritdoc />
         public CheckpointManager(
-            ContentLocationDatabase database,
+            ICheckpointable database,
             ICheckpointRegistry checkpointRegistry,
             CentralStorage storage,
             CheckpointManagerConfiguration configuration,

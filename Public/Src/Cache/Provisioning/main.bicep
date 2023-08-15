@@ -27,6 +27,12 @@ param shards int
 @description('String that indicates who or what this instance is for. MUST be all lowercase letters and numbers')
 param purpose string
 
+@allowed([
+  'service'
+  'engine'
+])
+param gcStrategy string = 'service'
+
 targetScope = 'subscription'
 
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = [for locidx in range(0, length(locations)): {
@@ -43,5 +49,6 @@ module BlobL3Module 'location.bicep' = [for locidx in range(0, length(locations)
     kind: kind
     shards: shards
     purpose: purpose
+    gcStrategy: gcStrategy
   }
 }]

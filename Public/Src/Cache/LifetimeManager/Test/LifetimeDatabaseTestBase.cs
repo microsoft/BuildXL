@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Cache.BlobLifetimeManager.Library;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -40,7 +41,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         public LifetimeDatabaseTestBase(LocalRedisFixture redis, ITestOutputHelper output)
             : base(output) => _fixture = redis;
 
-        protected async Task RunTest(OperationContext context, Func<IBlobCacheTopology, ICacheSession, Task> run)
+        protected async Task RunTest(OperationContext context, Func<IBlobCacheTopology, ICacheSession, BlobNamespaceId, IBlobCacheSecretsProvider, Task> run)
         {
             var shards = Enumerable.Range(0, 10).Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
 
@@ -58,12 +59,15 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     return (Account: account, Credentials: credentials);
                 }).ToDictionary(kvp => kvp.Account, kvp => kvp.Credentials);
 
+            var secretsProvider = new StaticBlobCacheSecretsProvider(credentials);
+
+            var namespaceId = new BlobNamespaceId(_runId, "default");
             var topology = new ShardedBlobCacheTopology(
                 new ShardedBlobCacheTopology.Configuration(
                     new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
-                    SecretsProvider: new StaticBlobCacheSecretsProvider(credentials),
-                    Universe: _runId,
-                    Namespace: "default"));
+                    SecretsProvider: secretsProvider,
+                    namespaceId.Universe,
+                    namespaceId.Namespace));
 
             var blobMetadataStore = new AzureBlobStorageMetadataStore(new BlobMetadataStoreConfiguration
             {
@@ -109,7 +113,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
 
             await session!.StartupAsync(context).ThrowIfFailure();
 
-            await run(topology, session);
+            await run(topology, session, namespaceId, secretsProvider);
         }
     }
 }

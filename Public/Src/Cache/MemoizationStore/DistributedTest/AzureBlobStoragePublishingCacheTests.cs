@@ -43,7 +43,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             {
                 PublishAsynchronously = publishAsynchronously,
                 Configuration = new Stores.AzureBlobStorageCacheFactory.Configuration(
-                    ShardingScheme: new ShardingScheme(ShardingAlgorithm.SingleShard, new() { BlobCacheStorageAccountName.Parse("devstoreaccount1") }),
+                    ShardingScheme: new ShardingScheme(ShardingAlgorithm.SingleShard, new List<BlobCacheStorageAccountName>() { BlobCacheStorageAccountName.Parse("devstoreaccount1") }),
                     Universe: "default",
                     Namespace: "default",
                     RetentionPolicyInDays: 0)

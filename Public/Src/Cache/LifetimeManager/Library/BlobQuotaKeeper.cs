@@ -8,11 +8,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Stores;
@@ -22,36 +22,39 @@ using BuildXL.Utilities.ParallelAlgorithms;
 namespace BuildXL.Cache.BlobLifetimeManager.Library
 {
     /// <summary>
-    /// This class takes in a <see cref="RocksDbLifetimeDatabase"/> and starts performing garbage collection based on the LRU enumeration
-    /// of fingerprints provided by the DB. When performing GC, this class will make sure that both the database and the remote cache
+    /// This class takes in a <see cref="RocksDbLifetimeDatabase"/> and starts freeing up space based on the LRU enumeration
+    /// of fingerprints provided by the DB. When performing deletions, this class will make sure that both the database and the remote cache
     /// reflect the changes necessary
     /// </summary>
-    public class BlobLifetimeManager
+    public class BlobQuotaKeeper
     {
-        private static readonly Tracer Tracer = new(nameof(BlobLifetimeManager));
+        private static readonly Tracer Tracer = new(nameof(BlobQuotaKeeper));
 
-        private readonly RocksDbLifetimeDatabase _database;
+        private readonly RocksDbLifetimeDatabase.IAccessor _database;
         private readonly IBlobCacheTopology _topology;
         private readonly IClock _clock;
+        private readonly TimeSpan _lastAccessTimeDeletionThreshold;
 
-        public BlobLifetimeManager(
-            RocksDbLifetimeDatabase database,
+        public BlobQuotaKeeper(
+            RocksDbLifetimeDatabase.IAccessor database,
             IBlobCacheTopology topology,
+            TimeSpan lastAccessTimeDeletionThreshold,
             IClock clock)
         {
             _database = database;
             _topology = topology;
+            _lastAccessTimeDeletionThreshold = lastAccessTimeDeletionThreshold;
             _clock = clock;
         }
 
         /// <summary>
-        /// Performs GC based on LRU ordering for fingerprints as per the database. Once a fingerprint is deleted from the remote, we will
+        /// Performs fingerprint deletions based on LRU ordering for fingerprints as per the database. Once a fingerprint is deleted from the remote, we will
         /// decrease the reference coutn for all of its contents, and attempt to delete those contents which reach a reference count of zero.
         ///
         /// For content that already has a reference count of zero, we only perform deletions when a certain amount of time has passed since
         /// it was last accessed.
         /// </summary>
-        public Task<BoolResult> GarbageCollectAsync(
+        public Task<Result<long>> EnsureUnderQuota(
             OperationContext context,
             long maxSize,
             bool dryRun,
@@ -61,23 +64,23 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             Contract.Requires(contentDegreeOfParallelism > 0);
             Contract.Requires(fingerprintDegreeOfParallelism > 0);
 
-            return context.PerformOperationAsync(
+            return context.PerformOperationAsync<Result<long>>(
                 Tracer,
                 async () =>
                 {
-                    var enumerationResult = _database.GetLruOrderedContentHashLists(context).ThrowIfFailure();
+                    var enumerationResult = _database.GetLruOrderedContentHashLists(context);
 
                     var currentSize = enumerationResult.TotalSize;
 
-                    Tracer.Info(context, $"Total L3 size is calculated to be {currentSize / 1024.0 / 1024:0.0}MB.");
+                    Tracer.Info(context, $"Total L3 size is calculated to be {currentSize}.");
 
                     if (currentSize < maxSize)
                     {
-                        Tracer.Info(context, $"Total L3 size is smaller than the max configured size. Terminating garbage collection. CurrentSize=[{currentSize / 1024.0 / 1024:0.0}MB], MaxSize=[{maxSize / 1024.0 / 1024:0.0}MB]");
-                        return BoolResult.Success;
+                        return currentSize;
                     }
 
-                    var cts = new CancellationTokenSource();
+                    Tracer.Info(context, "Starting enumeration of zero-reference content for garbage collection.");
+                    using var underQuotaCts = new CancellationTokenSource();
                     await ParallelAlgorithms.EnumerateAsync<(ContentHash hash, long length)>(
                         enumerationResult.ZeroReferenceBlobs,
                         contentDegreeOfParallelism,
@@ -91,15 +94,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                             if (currentSize <= maxSize)
                             {
-                                cts.Cancel();
+                                underQuotaCts.Cancel();
                             }
                         },
-                        cts.Token);
+                        underQuotaCts.Token);
 
-                    if (cts.IsCancellationRequested)
+                    if (underQuotaCts.IsCancellationRequested)
                     {
-                        Tracer.Info(context, $"Total L3 size is now under the max configured size. CurrentSize=[{currentSize / 1024.0 / 1024:0.0}MB], MaxSize=[{maxSize / 1024.0 / 1024:0.0}MB]");
-                        return BoolResult.Success;
+                        return currentSize;
                     }
 
                 var tryDeleteContentHashActionBlock = ActionBlockSlim.CreateWithAsyncAction<(ContentHash hash, TaskCompletionSource<object?> tcs, OperationContext context)>(
@@ -143,13 +145,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     },
                     context.Token);
 
-                    cts = new CancellationTokenSource();
+                    Tracer.Info(context, "Starting LRU enumeration for fingerprint garbage collection.");
                     await ParallelAlgorithms.EnumerateAsync(
                         enumerationResult.LruOrderedContentHashLists,
                         fingerprintDegreeOfParallelism,
                         async chl =>
                         {
-                            var opContext = context.CreateNested(nameof(BlobLifetimeManager), caller: "TryDeleteContentHashList");
+                            var opContext = context.CreateNested(nameof(BlobQuotaKeeper), caller: "TryDeleteContentHashList");
 
                             try
                             {
@@ -167,7 +169,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                                 Interlocked.Add(ref currentSize, -chl.BlobSize);
 
-                                _database.DeleteContentHashList(chl.BlobName, chl.Hashes).ThrowIfFailure();
+                                _database.DeleteContentHashList(chl.BlobName, chl.Hashes);
 
                                 // At this point the CHL is deleted and ref count for all content is decremented. Check which content is safe to delete.
                                 var tasks = new List<Task>();
@@ -181,11 +183,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                                 await TaskUtilities.SafeWhenAll(tasks);
 
-                                Tracer.Debug(opContext, $"Current size: {currentSize / 1024.0 / 1024 / 1024:0.0}GB, max size: {maxSize / 1024.0 / 1024 / 1024:0.0}GB");
+                                Tracer.Debug(opContext, $"Current size: {currentSize}, max size: {maxSize}");
 
                                 if (currentSize <= maxSize)
                                 {
-                                    cts.Cancel();
+                                    underQuotaCts.Cancel();
                                 }
                             }
                             catch (Exception ex)
@@ -193,11 +195,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                 Tracer.Error(opContext, ex, $"Error when processing fingerprint blob {chl.BlobName}.");
                             }
                         },
-                        cts.Token);
+                        underQuotaCts.Token);
 
-                    Tracer.Info(context, $"Total L3 size is now under the max configured size. CurrentSize=[{currentSize / 1024.0 / 1024:0.0}MB], MaxSize=[{maxSize / 1024.0 / 1024:0.0}MB]");
-                    return BoolResult.Success;
-                });
+                    return currentSize;
+                },
+                extraEndMessage: result => $"MaxSize=[{maxSize}], CurrentSize=[{(result.Succeeded ? result.Value : null)}]");
         }
 
         private async Task<bool> TryDeleteContentAsync(OperationContext context, ContentHash contentHash, bool dryRun, long contentSize)
@@ -208,10 +210,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             // Because of this, the current design is that clients will update the last access time of a blob when they get a content cache hit when ulpoading the contents of a new strong fingerprint.
             // On the GC side of things, what this means is that we have to check that the content has not been accessed recently.
             var lastAccessTime = await GetLastAccessTimeAsync(context, client);
-            if (lastAccessTime > _clock.UtcNow.AddDays(-1))
+            if (lastAccessTime > _clock.UtcNow.Add(-_lastAccessTimeDeletionThreshold))
             {
                 Tracer.Debug(context,
-                    $"Skipping deletion of {contentHash.ToShortString()} because it has been accessed too recently to be deleted.");
+                    $"Skipping deletion of {contentHash.ToShortString()} because it has been accessed too recently to be deleted. LastAccessTime=[{lastAccessTime}]");
 
                 return false;
             }
@@ -220,18 +222,18 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             {
                 Tracer.Debug(
                     context,
-                    $"DRY RUN: DELETE ContentHash=[{contentHash.ToShortString()}], BlobSize=[{contentSize}]");
+                    $"DRY RUN: DELETE ContentHash=[{contentHash.ToShortString()}], BlobSize=[{contentSize}], Shard=[{client.AccountName}]");
             }
             else
             {
-                var result = await DeleteBlobFromStorageAsync(context, client, contentSize);
+                var result = await DeleteBlobFromStorageAsync(context, client, contentSize, lastAccessTime);
                 if (!result.Succeeded)
                 {
                     return false;
                 }
             }
 
-            _database.DeleteContent(contentHash).ThrowIfFailure();
+            _database.DeleteContent(contentHash);
 
             return true;
         }
@@ -263,7 +265,15 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                 var updatedHashList = contentHashList with { LastAccessTime = currentLastAccessTime.Value };
 
-                _database.UpdateContentHashListLastAccessTime(updatedHashList).ThrowIfFailure();
+                _database.UpdateContentHashListLastAccessTime(updatedHashList);
+
+                return false;
+            }
+
+            if (currentLastAccessTime > _clock.UtcNow.Add(-_lastAccessTimeDeletionThreshold))
+            {
+                Tracer.Debug(context,
+                    $"Skipping deletion of {contentHashList.BlobName} because it has been accessed too recently to be deleted. LastAccessTime=[{currentLastAccessTime}]");
 
                 return false;
             }
@@ -276,36 +286,45 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
             else
             {
-                var result = await DeleteBlobFromStorageAsync(context, client, contentHashList.BlobSize);
+                var result = await DeleteBlobFromStorageAsync(context, client, contentHashList.BlobSize, currentLastAccessTime);
                 return result.Succeeded;
             }
 
             return true;
         }
 
-        private static Task<BoolResult> DeleteBlobFromStorageAsync(OperationContext context, BlobClient client, long size)
+        internal static Task<Result<bool>> DeleteBlobFromStorageAsync(OperationContext context, BlobClient client, long size, DateTime? lastAccessTime)
         {
-            return context.PerformOperationAsync(
+            return context.PerformOperationAsync<Result<bool>>(
                 Tracer,
                 async () =>
                 {
-                    var response = await client.DeleteAsync();
-                    return response.IsError
-                        ? new BoolResult($"Failed to delete blob {client.Name}. Error ({response.Status}): {response.ReasonPhrase}")
-                        : BoolResult.Success;
+                    try
+                    {
+                        var response = await client.DeleteAsync();
+                        return response.IsError
+                            ? new Result<bool>($"Failed to delete blob {client.Name}. Error ({response.Status}): {response.ReasonPhrase}")
+                            : true;
+                    }
+                    catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
+                    {
+                        // Consider this a success, but trace for diagnostic purposes.
+                        return false;
+                    }
                 },
-                extraEndMessage: result => $"BlobName=[{client.Name}], Size={size}");
+                traceOperationStarted: false,
+                extraEndMessage: result =>
+                    $"BlobName=[{client.Name}], Size=[{size}], Shard=[{client.AccountName}], LastAccessTime=[{lastAccessTime}], BlobExisted=[{(result.Succeeded ? result.Value : null)}]");
         }
 
         private static async Task<DateTime?> GetLastAccessTimeAsync(OperationContext context, BlobClient client)
         {
-            const int BlobNotFound = 404;
             try
             {
                 var response = await client.GetPropertiesAsync(cancellationToken: context.Token);
                 return response.Value.LastAccessed.UtcDateTime;
             }
-            catch (RequestFailedException e) when (e.Status == BlobNotFound)
+            catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
             {
                 return null;
             }

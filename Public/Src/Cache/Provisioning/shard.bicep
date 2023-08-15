@@ -20,6 +20,12 @@ param shard int
 @maxLength(9)
 param purpose string
 
+@allowed([
+  'service'
+  'engine'
+])
+param gcStrategy string
+
 // See: https://docs.microsoft.com/en-us/azure/storage/blobs/storage-feature-support-in-storage-accounts
 // SKU:
 //   'Premium_LRS'
@@ -80,7 +86,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' = {
     }
   }
 
-  resource lifecycleManagement 'managementPolicies@2021-09-01' = {
+  resource lifecycleManagement 'managementPolicies@2021-09-01' = if (gcStrategy == 'engine') {
     name: 'default'
     dependsOn: [
       blobService

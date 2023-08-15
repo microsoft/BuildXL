@@ -20,6 +20,12 @@ param shards int
 @maxLength(9)
 param purpose string
 
+@allowed([
+  'service'
+  'engine'
+])
+param gcStrategy string
+
 // The following creates one storage account per shard that's going to be used. This is where fingerprints and content
 // are stored, and what both the datacenter and dev cache will access to obtain cache hits.
 module shard 'shard.bicep' = [for shard in range(0, shards): {
@@ -30,5 +36,6 @@ module shard 'shard.bicep' = [for shard in range(0, shards): {
     kind: kind
     shard: shard
     purpose: purpose
+    gcStrategy: gcStrategy
   }
 }]

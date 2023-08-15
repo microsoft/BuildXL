@@ -116,7 +116,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             }).ToArray();
     }
 
-    internal static (string Metadata, string Content) GenerateMatrix(ShardingScheme scheme)
+    public static (string Metadata, string Content) GenerateMatrix(ShardingScheme scheme)
     {
         // The matrix here ensures that metadata does not overlap across sharding schemes. Basically, whenever we add
         // or remove shards (or change the sharding algorithm), we will get a new salt. This salt will force us to use
@@ -206,7 +206,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             Tracer,
             async context =>
             {
-                var credentials = await _configuration.SecretsProvider.RetrieveBlobCredentialsAsync(context, account, container);
+                var credentials = await _configuration.SecretsProvider.RetrieveBlobCredentialsAsync(context, account);
 
                 BlobClientOptions blobClientOptions = new(BlobClientOptions.ServiceVersion.V2021_02_12)
                 {

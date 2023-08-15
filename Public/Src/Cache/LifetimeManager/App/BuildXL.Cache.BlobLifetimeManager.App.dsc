@@ -3,7 +3,7 @@
 
 namespace App {
     @@public
-    export const exe = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.executable({
+    export const exe = BuildXLSdk.executable({
         assemblyName: "BuildXL.Cache.BlobLifetimeManager",
         sources: globR(d`.`,"*.cs"),
         references: [
@@ -12,10 +12,11 @@ namespace App {
 
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
-            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
-            importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
-            importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
+            
+            importFrom("BuildXL.Utilities").dll,
+            
+            ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
         ],
         tools: {
             csc: {

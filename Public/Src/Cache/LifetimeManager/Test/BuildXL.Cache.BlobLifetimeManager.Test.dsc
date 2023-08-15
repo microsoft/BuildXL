@@ -3,7 +3,7 @@
 
 namespace BlobLifetimeManagerTest {
     @@public
-    export const dll = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.cacheTest({
+    export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.BlobLifetimeManager.Test",
         sources: globR(d`.`, "*.cs"),
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,

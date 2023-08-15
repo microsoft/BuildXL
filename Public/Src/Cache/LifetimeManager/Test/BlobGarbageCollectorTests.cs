@@ -21,14 +21,15 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using System.IO;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Test
 {
     [Collection("Redis-based tests")]
     [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
-    public class BlobLifetimeManagerTests : LifetimeDatabaseTestBase
+    public class BlobGarbageCollectorTests : LifetimeDatabaseTestBase
     {
-        public BlobLifetimeManagerTests(LocalRedisFixture redis, ITestOutputHelper output)
+        public BlobGarbageCollectorTests(LocalRedisFixture redis, ITestOutputHelper output)
             : base(redis, output) { }
 
         [Fact]
@@ -36,7 +37,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         {
             var context = new OperationContext(new Context(TestGlobal.Logger));
             return RunTest(context,
-                async (topology, session) =>
+                async (topology, session, namespaceId, _) =>
                 {
                     var putResult = await session.PutRandomAsync(context, HashType.Vso0, provideHash: false, size: 1, CancellationToken.None).ThrowIfFailure();
                     var openResult = await session.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None).ThrowIfFailure();
@@ -53,10 +54,24 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     var addChlResult = await session.AddOrGetContentHashListAsync(context, fp, chl, CancellationToken.None).ThrowIfFailure();
                     await session.GetContentHashListAsync(context, fp, CancellationToken.None).ThrowIfFailure();
 
-                    using var db = await new LifetimeDatabaseCreator(SystemClock.Instance, topology).CreateAsync(context, contentDegreeOfParallelism: 1, fingerprintDegreeOfParallelism: 1);
+                    var temp = Path.Combine(Path.GetTempPath(), "LifetimeDatabase", Guid.NewGuid().ToString());
+                    var dbConfig = new RocksDbLifetimeDatabase.Configuration
+                    {
+                        DatabasePath = temp,
+                        LruEnumerationPercentileStep = 0.05,
+                        LruEnumerationBatchSize = 1000,
+                        BlobNamespaceIds = new[] { namespaceId },
+                    };
+                    using var db = await LifetimeDatabaseCreator.CreateAsync(
+                        context,
+                        dbConfig,
+                        SystemClock.Instance,
+                        contentDegreeOfParallelism: 1,
+                        fingerprintDegreeOfParallelism: 1,
+                        n => topology).ThrowIfFailureAsync();
 
-                    var manager = new Library.BlobLifetimeManager(db, topology, SystemClock.Instance);
-                    await manager.GarbageCollectAsync(context, maxSize: 0, dryRun: false, contentDegreeOfParallelism: 1, fingerprintDegreeOfParallelism: 1).ThrowIfFailure();
+                    var manager = new BlobQuotaKeeper(db.GetAccessor(namespaceId), topology, lastAccessTimeDeletionThreshold: TimeSpan.Zero, SystemClock.Instance);
+                    await manager.EnsureUnderQuota(context, maxSize: 0, dryRun: false, contentDegreeOfParallelism: 1, fingerprintDegreeOfParallelism: 1).ThrowIfFailure();
 
                     (await session.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None)).Code.Should().Be(OpenStreamResult.ResultCode.ContentNotFound);
                     (await session.OpenStreamAsync(context, putResult2.ContentHash, CancellationToken.None)).Code.Should().Be(OpenStreamResult.ResultCode.ContentNotFound);
@@ -70,7 +85,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         {
             var context = new OperationContext(new Context(TestGlobal.Logger));
             return RunTest(context,
-                async (topology, session) =>
+                async (topology, session, namespaceId, secretsProvider) =>
                 {
                     // Because the LRU ordering isn't expected to be perfect because we're only calculating rough quantile estimates,
                     // we need to have a deterministic seed to our randomness to avoid test flakyness.
@@ -110,7 +125,23 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         fingerprints.Add(sf);
                     }
 
-                    using var db = await new LifetimeDatabaseCreator(SystemClock.Instance, topology).CreateAsync(context, contentDegreeOfParallelism: 1, fingerprintDegreeOfParallelism: 1);
+                    var temp = Path.Combine(Path.GetTempPath(), "LifetimeDatabase", Guid.NewGuid().ToString());
+                    var dbConfig = new RocksDbLifetimeDatabase.Configuration
+                    {
+                        DatabasePath = temp,
+                        LruEnumerationPercentileStep = 0.05,
+                        LruEnumerationBatchSize = 1000,
+                        BlobNamespaceIds = new[] { namespaceId },
+                    };
+                    using var db = await LifetimeDatabaseCreator.CreateAsync(
+                        context,
+                        dbConfig,
+                        SystemClock.Instance,
+                        contentDegreeOfParallelism: 1,
+                        fingerprintDegreeOfParallelism: 1,
+                        n => topology).ThrowIfFailureAsync();
+
+                    var accessor = db.GetAccessor(namespaceId);
 
                     // This here is a bit of a hack. Since we don't have any control of the azure emulator's clock, we'll have to trick
                     // the manager into thinking that the last access times are what we want them to be. Otherwise, the emulator gives us identical
@@ -123,13 +154,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     for (var i = 0; i < totalFingerprints; i++)
                     {
                         clock.Increment(TimeSpan.FromHours(1));
-                        var entry = db.TryGetContentHashList(fingerprints[i], out var blobPath);
-                        db.UpdateContentHashListLastAccessTime(new Library.ContentHashList(BlobName: blobPath!, LastAccessTime: clock.UtcNow, entry!.Hashes, entry.BlobSize))
-                            .ThrowIfFailure();
+                        var entry = accessor.GetContentHashList(fingerprints[i], out var blobPath);
+                        accessor.UpdateContentHashListLastAccessTime(new Library.ContentHashList(BlobName: blobPath!, LastAccessTime: clock.UtcNow, entry!.Hashes, entry.BlobSize));
                     }
 
                     // Since all CHLs have the same number of hashes, they should all have the same size
-                    var metadataSize = db.TryGetContentHashList(fingerprints[0], out _)!.BlobSize;
+                    var metadataSize = accessor.GetContentHashList(fingerprints[0], out _)!.BlobSize;
 
                     var fingerprintsToKeep = 2;
                     var contentToKeep = fingerprintsToKeep * contentPerFingerprint + 1;
@@ -137,8 +167,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     var fingerprintSizeToKeep = fingerprintsToKeep * metadataSize;
                     var maxSize = contentSizeToKeep + fingerprintSizeToKeep;
 
-                    var manager = new Library.BlobLifetimeManager(db, topology, clock);
-                    await manager.GarbageCollectAsync(context, maxSize: maxSize, dryRun: false, contentDegreeOfParallelism: 1, fingerprintDegreeOfParallelism: 1).ThrowIfFailure();
+                    var manager = new Library.BlobQuotaKeeper(accessor, topology, lastAccessTimeDeletionThreshold: TimeSpan.Zero, clock);
+                    await manager.EnsureUnderQuota(context, maxSize: maxSize, dryRun: false, contentDegreeOfParallelism: 1, fingerprintDegreeOfParallelism: 1).ThrowIfFailure();
 
                     for (var i = 0; i < (totalContent - contentToKeep); i++)
                     {

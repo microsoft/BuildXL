@@ -233,6 +233,8 @@ config({
                 { id: "System.IO.Hashing", version: "6.0.0",
                     dependentPackageIdsToSkip: [ "System.Buffers", "System.Memory" ] },
                 { id: "Azure.Storage.Blobs.Batch", version: "12.10.0" },
+                { id: "Azure.Storage.Blobs.ChangeFeed", version: "12.0.0-preview.34",
+                    dependentPackageIdsToSkip: [ "System.Text.Json" ] },
 
                 // xUnit
                 { id: "xunit.abstractions", version: "2.0.3" },

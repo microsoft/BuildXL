@@ -4,16 +4,18 @@
   "parameters": {
     "locations": {
       "value": [
-        "eastus2",
+        "northcentralus",
         "southcentralus",
-        "centralus"
       ]
     },
     "shards": {
-      "value": 10
+      "value": 100
     },
     "purpose": {
-      "value": "jubayard"
+      "value": "juguzman"
+    },
+    "gcStrategy": {
+      "value": "service"
     }
   }
 }

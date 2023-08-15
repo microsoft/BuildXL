@@ -3,7 +3,7 @@
 
 namespace Library {
     @@public
-    export const dll =  !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.library({
+    export const dll =  BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.BlobLifetimeManager.Library",
         sources: globR(d`.`,"*.cs"),
         references: [
@@ -19,6 +19,7 @@ namespace Library {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
+            importFrom("BuildXL.Utilities").Native.dll,
             
             ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,

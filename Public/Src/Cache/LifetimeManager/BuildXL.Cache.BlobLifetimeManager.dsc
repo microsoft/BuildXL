@@ -10,8 +10,7 @@ export {BuildXLSdk};
 
 namespace Default {
     @@public
-    export const deployment: Deployment.Definition = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined :
-    {
+    export const deployment: Deployment.Definition = {
         contents: [
             {
                 subfolder: r`App`,

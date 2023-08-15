@@ -1,9 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.Collections;
 
 #nullable enable
 
@@ -19,6 +21,5 @@ public interface IBlobCacheSecretsProvider
     /// </summary>
     public Task<AzureStorageCredentials> RetrieveBlobCredentialsAsync(
         OperationContext context,
-        BlobCacheStorageAccountName account,
-        BlobCacheContainerName container);
+        BlobCacheStorageAccountName account);
 }

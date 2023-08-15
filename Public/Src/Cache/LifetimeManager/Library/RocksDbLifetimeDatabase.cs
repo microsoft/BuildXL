@@ -3,10 +3,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -15,8 +20,8 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Engine.Cache.KeyValueStores;
+using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 using RocksDbSharp;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
@@ -30,6 +35,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
     /// </summary>
     public class RocksDbLifetimeDatabase : IDisposable
     {
+        private const string CreationTimeKey = "__creation_time__";
         private static readonly Tracer Tracer = new(nameof(RocksDbLifetimeDatabase));
 
         public class Configuration
@@ -55,6 +61,30 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             /// in batches, so that operations against the L3 can happen in between usages of the database.
             /// </summary>
             public int LruEnumerationBatchSize { get; set; } = 1000;
+
+            public required IReadOnlyList<BlobNamespaceId> BlobNamespaceIds { get; set; }
+        }
+
+        /// <summary>
+        /// There's multiple column families in this usage of RocksDB. Their usages are documented below.
+        /// </summary>
+        private enum ColumnFamily
+        {
+            /// <summary>
+            /// Stores a mapping from <see cref="ContentHash"/> to <see cref="ContentEntry"/>. This will allow us to keep track
+            /// of which content is ready to be removed from the L3, as well as how large it is.
+            /// </summary>
+            Content,
+
+            /// Stores a mapping from <see cref="StrongFingerprint"/> to <see cref="MetadataEntry"/>.
+            /// This allows us to keep track of which strong fingerprints have been accessed least recently, as well as which
+            /// content hashes are contained within its content hash list.
+            Fingerprints,
+
+            /// <summary>
+            /// Stores a mapping from storage account to a cursor to the latest change feed event processed.
+            /// </summary>
+            Cursors,
         }
 
         internal record ContentEntry(long BlobSize, int ReferenceCount)
@@ -80,7 +110,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             {
                 writer.Write(BlobSize);
                 writer.Write(LastAccessTime);
-                writer.Write(Hashes, (ref SpanWriter w, ContentHash hash) => w.Write(hash));
+                writer.Write(Hashes, (ref SpanWriter w, ContentHash hash) => HashSerializationExtensions.Write(ref w, hash));
             }
 
             public static MetadataEntry Deserialize(SpanReader reader)
@@ -93,104 +123,96 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
         }
 
-        /// <summary>
-        /// There's multiple column families in this usage of RocksDB. Their usages are documented below.
-        /// </summary>
-        private enum Columns
-        {
-            /// <summary>
-            /// Stores a mapping from <see cref="ContentHash"/> to <see cref="ContentEntry"/>. This will allow us to keep track
-            /// of which content is ready to be removed from the L3, as well as how large it is.
-            /// </summary>
-            Content,
-
-            /// Stores a mapping from <see cref="StrongFingerprint"/> to <see cref="MetadataEntry"/>.
-            /// This allows us to keep track of which strong fingerprints have been accessed least recently, as well as which
-            /// content hashes are contained within its content hash list.
-            Fingerprints,
-        }
-
-        private readonly KeyValueStoreAccessor _keyValueStore;
+        private readonly RocksDb _db;
         private readonly SerializationPool _serializationPool = new();
         private readonly Configuration _configuration;
         private readonly IClock _clock;
 
-        private readonly ColumnFamilyHandle _contentCf;
-        private readonly ColumnFamilyHandle _fingerprintCf;
+        private readonly ColumnFamilyHandle _cursorsCf;
+
+        private readonly ReadOptions _readOptions = new ReadOptions()
+            .SetVerifyChecksums(true)
+            .SetTotalOrderSeek(true);
+
+        private readonly WriteOptions _writeOptions = new WriteOptions()
+            .SetSync(false)
+            .DisableWal(disable: 1);
 
         protected RocksDbLifetimeDatabase(
             Configuration configuration,
             IClock clock,
-            KeyValueStoreAccessor keyValueStore,
-            ColumnFamilyHandle contentCf,
-            ColumnFamilyHandle fingerprintCf)
+            RocksDb db)
         {
             _configuration = configuration;
             _clock = clock;
-            _keyValueStore = keyValueStore;
-            _contentCf = contentCf;
-            _fingerprintCf = fingerprintCf;
+            _db = db;
+
+            _cursorsCf = _db.GetColumnFamily(nameof(ColumnFamily.Cursors));
         }
 
-        public static Result<RocksDbLifetimeDatabase> Create(
+        public static RocksDbLifetimeDatabase Create(
             Configuration configuration,
             IClock clock)
         {
-            var possibleStore = CreateAccessor(configuration);
-
-            KeyValueStoreAccessor keyValueStore;
-            if (possibleStore.Succeeded)
-            {
-                keyValueStore = possibleStore.Result;
-
-                var (contentCf, fingerprintCf) = GetColumnFamilies(keyValueStore);
-
-                return new RocksDbLifetimeDatabase(configuration, clock, keyValueStore, contentCf, fingerprintCf);
-            }
-
-            return new Result<RocksDbLifetimeDatabase>($"Failed to initialize a RocksDb store at {configuration.DatabasePath}:", possibleStore.Failure.DescribeIncludingInnerFailures());
+            RocksDb db = CreateDb(configuration);
+            return new RocksDbLifetimeDatabase(configuration, clock, db);
         }
 
-        internal static (ColumnFamilyHandle contentCf, ColumnFamilyHandle fingerprintCf) GetColumnFamilies(KeyValueStoreAccessor keyValueStore)
+        // There is a bug in our RocksDb library that requires that we keep a reference to created ColumnFamilyOptions,
+        // otherwise an Exception will be thrown with the error:
+        // A callback was made on a garbage collected delegate of type 'RocksDbSharp!RocksDbSharp.ColumnFamilyOptions+GetMergeOperator::Invoke'.
+        // Bug#2090673
+        private static readonly List<ColumnFamilyOptions> Hack = new List<ColumnFamilyOptions>();
+
+        protected static RocksDb CreateDb(Configuration configuration)
         {
-            ColumnFamilyHandle? contentCf = null, fingerprintCf = null;
-            var result = keyValueStore.Use(store =>
+            var options = new DbOptions();
+            options.EnableStatistics();
+            options.SetAdviseRandomOnOpen(true);
+            options.SetCreateIfMissing(true);
+            options.SetCreateMissingColumnFamilies(true);
+            options.SetParanoidChecks(true);
+            options.SetMaxOpenFiles(int.MaxValue);
+            options.SetKeepLogFileNum(5);
+            options.SetMaxLogFileSize(100_000);
+            options.SetAllowConcurrentMemtableWrite(true);
+
+            // The default column family is unused on purpose.
+            var defaultOptions = new ColumnFamilyOptions() { };
+
+            var columnFamilies = new ColumnFamilies(defaultOptions);
+
+            var cursorOptions = new ColumnFamilyOptions()
+                .SetCompression(Compression.Zstd);
+            columnFamilies.Add(new ColumnFamilies.Descriptor(nameof(ColumnFamily.Cursors), cursorOptions));
+
+            foreach (var namespaceId in configuration.BlobNamespaceIds)
             {
-                contentCf = store.GetColumn(nameof(Columns.Content));
-                fingerprintCf = store.GetColumn(nameof(Columns.Fingerprints));
-            }).ThrowIfFailure();
-
-            Contract.Assert(contentCf != null);
-            Contract.Assert(fingerprintCf != null);
-            return (contentCf, fingerprintCf);
-        }
-
-        protected static Possible<KeyValueStoreAccessor> CreateAccessor(Configuration configuration)
-        {
-            // WIP: review these settings. Mostly copy/pasted from RocksDbContentLocationDatabase
-            var settings = new RocksDbStoreConfiguration(configuration.DatabasePath)
-            {
-                AdditionalColumns = new[] { nameof(Columns.Content), nameof(Columns.Fingerprints) },
-                RotateLogsMaxFileSizeBytes = (ulong)"1MB".ToSize(),
-                RotateLogsNumFiles = 10,
-                RotateLogsMaxAge = TimeSpan.FromHours(3),
-                FastOpen = true,
-                ReadOnly = false,
-                DisableAutomaticCompactions = false,
-                LeveledCompactionDynamicLevelTargetSizes = true,
-                Compression = Compression.Zstd,
-                UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = true,
-                UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = true,
-            };
-
-            settings.MergeOperators.Add(
-                    nameof(Columns.Content),
-                    MergeOperators.CreateAssociative(
-                        "ContentRefCountMergeOperator",
+                var contentOptions = new ColumnFamilyOptions()
+                    .SetCompression(Compression.Zstd)
+                    .SetMergeOperator(MergeOperators.CreateAssociative(
+                        $"ContentRefCountMergeOperator_{namespaceId.Universe}_{namespaceId.Namespace}",
                         (key, value1, value2, result) =>
                             MergeContentRefCount(value1, value2, result)));
 
-            return KeyValueStoreAccessor.Open(settings);
+                var fingerprintsOptions = new ColumnFamilyOptions()
+                    .SetCompression(Compression.Zstd);
+
+                columnFamilies.Add(new ColumnFamilies.Descriptor(GetColumnFamilyName(ColumnFamily.Content, namespaceId), contentOptions));
+                columnFamilies.Add(new ColumnFamilies.Descriptor(GetColumnFamilyName(ColumnFamily.Fingerprints, namespaceId), fingerprintsOptions));
+
+                Hack.Add(contentOptions);
+                Hack.Add(fingerprintsOptions);
+            }
+
+            Directory.CreateDirectory(configuration.DatabasePath);
+            var db = RocksDb.Open(options, path: configuration.DatabasePath, columnFamilies);
+            return db;
+        }
+
+        public IAccessor GetAccessor(BlobNamespaceId namespaceId)
+        {
+            return new Accessor(this, namespaceId);
         }
 
         private static bool MergeContentRefCount(
@@ -214,7 +236,29 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             return true;
         }
 
-        public BoolResult AddContentHashList(ContentHashList contentHashList, IReadOnlyCollection<(ContentHash hash, long size)> hashes)
+        public void SetCreationTime(DateTime creationTimeUtc)
+        {
+            using var key = _serializationPool.SerializePooled(CreationTimeKey, static (string s, ref SpanWriter writer) => writer.Write(s));
+
+            var existing = Get<DateTime?>(key.WrittenSpan, cfHandle: null, reader => reader.ReadDateTime());
+            Contract.Assert(existing is null, "DB creation time can only be set once.");
+
+            using var value = _serializationPool.SerializePooled(creationTimeUtc, static (DateTime instance, ref SpanWriter writer) => writer.Write(instance));
+
+            _db.Put(key.WrittenSpan, value.WrittenSpan, cf: null);
+        }
+
+        public DateTime? GetCreationTime()
+        {
+            using var key = _serializationPool.SerializePooled(CreationTimeKey, static (string s, ref SpanWriter writer) => writer.Write(s));
+            return Get<DateTime?>(key.WrittenSpan, cfHandle: null, reader => reader.ReadDateTime()); 
+        }
+
+        private void AddContentHashList(
+            ContentHashList contentHashList,
+            IReadOnlyCollection<(ContentHash hash, long size)> hashes,
+            ColumnFamilyHandle contentCf,
+            ColumnFamilyHandle fingerprintCf)
         {
             var batch = new WriteBatch();
 
@@ -231,13 +275,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 var value = _serializationPool.SerializePooled(entry, static (MetadataEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
                 disposables.Add(value);
 
-                batch.Put(key.WrittenSpan, value.WrittenSpan, _fingerprintCf);
+                batch.Put(key.WrittenSpan, value.WrittenSpan, fingerprintCf);
 
                 foreach (var (hash, size) in hashes)
                 {
                     var hashKey = _serializationPool.SerializePooled(
                         hash,
-                        static (ContentHash instance, ref SpanWriter writer) => writer.Write(instance));
+                        static (ContentHash instance, ref SpanWriter writer) => HashSerializationExtensions.Write(ref writer, instance));
                     disposables.Add(hashKey);
 
                     var contentEntry = new ContentEntry(BlobSize: size, ReferenceCount: 1);
@@ -247,17 +291,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
                     disposables.Add(valueSpan);
 
-                    batch.Merge(hashKey.WrittenSpan, valueSpan.WrittenSpan, _contentCf);
+                    batch.Merge(hashKey.WrittenSpan, valueSpan.WrittenSpan, contentCf);
                 }
 
-                var status = _keyValueStore.Use(store =>
-                {
-                    store.ApplyBatch(batch);
-                });
-
-                return status.Succeeded
-                    ? BoolResult.Success
-                    : new BoolResult(status.Failure.DescribeIncludingInnerFailures());
+                _db.Write(batch, _writeOptions);
             }
             finally
             {
@@ -268,9 +305,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
         }
 
-        public BoolResult DeleteContentHashList(
+        private void DeleteContentHashList(
             string contentHashListName,
-            IReadOnlyCollection<ContentHash> hashes)
+            IReadOnlyCollection<ContentHash> hashes,
+            ColumnFamilyHandle contentCf,
+            ColumnFamilyHandle fingerprintCf)
         {
             var batch = new WriteBatch();
 
@@ -282,14 +321,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 var key = _serializationPool.SerializePooled(contentHashListName, static (string s, ref SpanWriter writer) => writer.Write(s));
                 disposables.Add(key);
 
-                batch.Delete(key.WrittenSpan, _fingerprintCf);
+                batch.Delete(key.WrittenSpan, fingerprintCf);
 
                 // Decrement reference count for all the contents.
                 foreach (var hash in hashes)
                 {
                     var hashKey = _serializationPool.SerializePooled(
                         hash,
-                        static (ContentHash instance, ref SpanWriter writer) => writer.Write(instance));
+                        static (ContentHash instance, ref SpanWriter writer) => HashSerializationExtensions.Write(ref writer, instance));
                     disposables.Add(hashKey);
 
                     var value = new ContentEntry(BlobSize: 0, ReferenceCount: -1);
@@ -299,17 +338,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
                     disposables.Add(valueSpan);
 
-                    batch.Merge(hashKey.WrittenSpan, valueSpan.WrittenSpan, _contentCf);
+                    batch.Merge(hashKey.WrittenSpan, valueSpan.WrittenSpan, contentCf);
                 }
 
-                var status = _keyValueStore.Use(store =>
-                {
-                    store.ApplyBatch(batch);
-                });
-
-                return status.Succeeded
-                    ? BoolResult.Success
-                    : new BoolResult(status.Failure.DescribeIncludingInnerFailures());
+                _db.Write(batch, _writeOptions);
             }
             finally
             {
@@ -320,29 +352,33 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
         }
 
-        public BoolResult AddContent(ContentHash hash, long blobSize)
+        public string? GetCursor(string accountName)
         {
-            var status = _keyValueStore.Use(store =>
-            {
-                using var key = _serializationPool.SerializePooled(
-                    hash,
-                    static (ContentHash instance, ref SpanWriter writer) => writer.Write(instance));
-
-                var value = new ContentEntry(BlobSize: blobSize, ReferenceCount: 0);
-
-                using var valueSpan = _serializationPool.SerializePooled(
-                    value,
-                    static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
-
-                store.Merge(key.WrittenSpan, valueSpan.WrittenSpan, columnFamilyName: nameof(Columns.Content));
-            });
-
-            return status.Succeeded
-                ? BoolResult.Success
-                : new BoolResult(status.Failure.DescribeIncludingInnerFailures());
+            using var key = _serializationPool.SerializePooled(accountName, static (string instance, ref SpanWriter writer) => writer.Write(instance));
+            return Get(key.WrittenSpan, _cursorsCf, static reader => reader.ReadString());
         }
 
-        public Result<EnumerationResult> GetLruOrderedContentHashLists(OperationContext context)
+        public void SetCursor(string accountName, string cursor)
+        {
+            using var key = _serializationPool.SerializePooled(accountName, static (string instance, ref SpanWriter writer) => writer.Write(instance));
+            using var value = _serializationPool.SerializePooled(cursor, static (string instance, ref SpanWriter writer) => writer.Write(instance));
+
+            _db.Put(key.WrittenSpan, value.WrittenSpan, _cursorsCf);
+        }
+
+        private void AddContent(ContentHash hash, long blobSize, ColumnFamilyHandle contentCf)
+        {
+            using var key = _serializationPool.SerializePooled(hash, static (ContentHash instance, ref SpanWriter writer) => HashSerializationExtensions.Write(ref writer, instance));
+
+            var value = new ContentEntry(BlobSize: blobSize, ReferenceCount: 0);
+            using var valueSpan = _serializationPool.SerializePooled(
+                value,
+                static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
+
+            _db.Merge(key.WrittenSpan, valueSpan.WrittenSpan, contentCf);
+        }
+
+        private EnumerationResult GetLruOrderedContentHashLists(OperationContext context, ColumnFamilyHandle fingerprintsCf, ColumnFamilyHandle contentCf)
         {
             // LRU enumeration works by first doing a first pass of the entire database to
             // estimate the percentiles for content hash lists' last access time. After that first pass,
@@ -359,44 +395,29 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             long firstPassScannedEntries = 0;
             var lastAccessDeltaSketch = new DDSketch();
 
-            var status = _keyValueStore.Use(store =>
-            {
-                store.PrefixLookup(
-                    state: string.Empty,
-                    prefix: ReadOnlySpan<byte>.Empty,
-                    columnFamilyName: nameof(Columns.Fingerprints),
-                    (state, key, value) =>
+            IterateDbContent(
+                iterator =>
+                {
+                    MetadataEntry metadataEntry;
+                    try
                     {
-                        if (context.Token.IsCancellationRequested)
-                        {
-                            return false;
-                        }
+                        metadataEntry = MetadataEntry.Deserialize(iterator.Value().AsReader());
+                    }
+                    catch
+                    {
+                        Tracer.Error(context, $"Failure to deserialize span: {Convert.ToHexString(iterator.Value())}");
+                        throw;
+                    }
 
-                        MetadataEntry metadataEntry;
-                        try
-                        {
-                            metadataEntry = MetadataEntry.Deserialize(value.AsReader());
-                        }
-                        catch
-                        {
-                            Tracer.Error(context, $"Failure to deserialize span: {Convert.ToHexString(value)}");
-                            throw;
-                        }
+                    var lastAccessDelta = now - metadataEntry.LastAccessTime;
+                    lastAccessDeltaSketch.Insert(lastAccessDelta.TotalMilliseconds);
 
-                        var lastAccessDelta = now - metadataEntry.LastAccessTime;
-                        lastAccessDeltaSketch.Insert(lastAccessDelta.TotalMilliseconds);
-
-                        totalSize += metadataEntry.BlobSize;
-                        firstPassScannedEntries++;
-
-                        return true;
-                    });
-            });
-
-            if (!status.Succeeded)
-            {
-                return new Result<EnumerationResult>(status.Failure.DescribeIncludingInnerFailures());
-            }
+                    totalSize += metadataEntry.BlobSize;
+                    firstPassScannedEntries++;
+                },
+                fingerprintsCf,
+                startKey: null,
+                context.Token);
 
             IEnumerable<ContentHashList> chlEnumerable = Array.Empty<ContentHashList>();
 
@@ -421,7 +442,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     var newQuantile = Math.Max(0, previousQuantile - _configuration.LruEnumerationPercentileStep);
                     var upperLimit = now - TimeSpan.FromMilliseconds(lastAccessDeltaSketch.Quantile(newQuantile));
 
-                    chlEnumerable = chlEnumerable.Concat(EnumerateContentHashLists(context, previousLimit, upperLimit));
+                    chlEnumerable = chlEnumerable.Concat(EnumerateContentHashLists(context, previousLimit, upperLimit, fingerprintsCf));
 
                     previousLimit = upperLimit;
                     previousQuantile = newQuantile;
@@ -433,36 +454,29 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             long zeroRefContent = 0;
             long zeroRefContentSize = 0;
             long contentBlobCount = 0;
-            status = _keyValueStore.Use(store =>
-            {
-                store.IterateDbContent(
-                    iterator =>
+
+            IterateDbContent(
+                iterator =>
+                {
+                    var contentEntry = ContentEntry.Deserialize(iterator.Value().AsReader());
+                    totalSize += contentEntry.BlobSize;
+                    firstPassScannedEntries++;
+                    contentBlobCount++;
+
+                    if (contentEntry.ReferenceCount == 0)
                     {
-                        var contentEntry = ContentEntry.Deserialize(iterator.Value().AsReader());
-                        totalSize += contentEntry.BlobSize;
-                        firstPassScannedEntries++;
-                        contentBlobCount++;
-
-                        if (contentEntry.ReferenceCount == 0)
-                        {
-                            zeroRefContent++;
-                            zeroRefContentSize += contentEntry.BlobSize;
-                        }
-                    },
-                    columnFamilyName: nameof(Columns.Content),
-                    startValue: (byte[]?)null,
-                    context.Token);
-            });
-
-            if (!status.Succeeded)
-            {
-                return new Result<EnumerationResult>(status.Failure.DescribeIncludingInnerFailures());
-            }
+                        zeroRefContent++;
+                        zeroRefContentSize += contentEntry.BlobSize;
+                    }
+                },
+                contentCf,
+                startKey: null,
+                context.Token);
 
             if (firstPassScannedEntries == 0)
             {
                 Tracer.Info(context, $"No entries in database. Early stopping.");
-                return new Result<EnumerationResult>(new EnumerationResult(Array.Empty<ContentHashList>(), Array.Empty<(ContentHash, long)>(), totalSize: 0));
+                return new EnumerationResult(Array.Empty<ContentHashList>(), Array.Empty<(ContentHash, long)>(), totalSize: 0);
             }
 
             Tracer.Info(context, $"Content enumeration complete. TotalContentBlobs=[{contentBlobCount}] ZeroReferenceBlobCount=[{zeroRefContent}], ZeroReferenceBlobSize=[{zeroRefContentSize}]");
@@ -472,15 +486,16 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
             context.Token.ThrowIfCancellationRequested();
 
-            var zeroReferenceEnumerable = EnumerateZeroRefContent(context);
+            var zeroReferenceEnumerable = EnumerateZeroRefContent(context, contentCf);
 
-            return new Result<EnumerationResult>(new EnumerationResult(chlEnumerable, zeroReferenceEnumerable, totalSize));
+            return new EnumerationResult(chlEnumerable, zeroReferenceEnumerable, totalSize);
         }
 
         private IEnumerable<ContentHashList> EnumerateContentHashLists(
             OperationContext context,
             DateTime lowerLimitNonInclusive,
-            DateTime upperLimitInclusive)
+            DateTime upperLimitInclusive,
+            ColumnFamilyHandle fingerprintsCf)
         {
             Tracer.Debug(context, $"Starting enumeration of DB for values in range ({lowerLimitNonInclusive}, {upperLimitInclusive}]");
 
@@ -494,7 +509,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         lowerLimitNonInclusive,
                         upperLimitInclusive,
                         _configuration.LruEnumerationBatchSize,
-                        nextKey)),
+                        nextKey,
+                        fingerprintsCf)),
                     messageFactory: r => r.Succeeded
                         ? $"ReachedEnd={r.Value.reachedEnd}, NextKey=[{(r.Value.nextKey is null ? "null" : Convert.ToHexString(r.Value.nextKey))}]"
                         : string.Empty
@@ -524,7 +540,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             yield break;
         }
 
-        private IEnumerable<(ContentHash content, long length)> EnumerateZeroRefContent(OperationContext context)
+        private IEnumerable<(ContentHash content, long length)> EnumerateZeroRefContent(OperationContext context, ColumnFamilyHandle contentCf)
         {
             Tracer.Info(context, "Starting enumeration of zero-reference content");
 
@@ -536,7 +552,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     () => new Result<(IReadOnlyList<(ContentHash, long)>, bool reachedEnd, byte[]? nextKey)>(GetZeroRefContentHashBatch(
                         context,
                         _configuration.LruEnumerationBatchSize,
-                        nextKey)),
+                        nextKey,
+                        contentCf)),
                     messageFactory: r => r.Succeeded
                         ? $"ReachedEnd={r.Value.reachedEnd}, NextKey=[{(r.Value.nextKey is null ? "null" : Convert.ToHexString(r.Value.nextKey))}]"
                         : string.Empty
@@ -573,7 +590,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             DateTime lowerLimitNonInclusive,
             DateTime upperLimitInclusive,
             int limit,
-            byte[]? startKey)
+            byte[]? startKey,
+            ColumnFamilyHandle fingerprintsCf)
         {
             return GetEnumerationBatch(
                 context,
@@ -592,13 +610,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         result.Add(new ContentHashList(blobName, metadataEntry.LastAccessTime, metadataEntry.Hashes, metadataEntry.BlobSize));
                     }
                 },
-                nameof(Columns.Fingerprints));
+                fingerprintsCf);
         }
 
         private (IReadOnlyList<(ContentHash, long)> batch, bool reachedEnd, byte[]? next) GetZeroRefContentHashBatch(
             OperationContext context,
             int limit,
-            byte[]? startKey)
+            byte[]? startKey,
+            ColumnFamilyHandle contentCf)
         {
             return GetEnumerationBatch(
                 context,
@@ -614,17 +633,18 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         result.Add((hash, contentEntry.BlobSize));
                     }
                 },
-                nameof(Columns.Content));
+                contentCf);
         }
 
         private delegate void EnumerationBatchHandler<T>(ref ReadOnlySpan<byte> key, ref ReadOnlySpan<byte> value, IList<T> result);
+        private delegate T SpanReaderDeserializer<T>(SpanReader reader);
 
         private (IReadOnlyList<T> batch, bool reachedEnd, byte[]? next) GetEnumerationBatch<T>(
             OperationContext context,
             int limit,
             byte[]? startKey,
             EnumerationBatchHandler<T> handle,
-            string columnFamily)
+            ColumnFamilyHandle cfHandle)
         {
             Contract.Requires(limit > 0);
 
@@ -632,112 +652,271 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             byte[]? nextInitialKey = null;
 
             var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
-            var status = _keyValueStore!.Use(store =>
-            {
-                return store.IterateDbContent(
-                    iterator =>
+
+            var iterationResult = IterateDbContent(
+                iterator =>
+                {
+                    var key = iterator.Key();
+
+                    if (result.Count == limit)
                     {
-                        var key = iterator.Key();
+                        nextInitialKey = key.ToArray();
+                        cts.Cancel();
+                        return;
+                    }
 
-                        if (result.Count == limit)
-                        {
-                            nextInitialKey = key.ToArray();
-                            cts.Cancel();
-                            return;
-                        }
+                    var value = iterator.Value();
 
-                        var value = iterator.Value();
+                    handle(ref key, ref value, result);
+                },
+                cfHandle,
+                startKey,
+                cts.Token);
 
-                        handle(ref key, ref value, result);
-                    },
-                    columnFamilyName: columnFamily,
-                    startValue: startKey,
-                    cts.Token);
-            }).ThrowIfFailure();
-
-            return (result, status.Result.ReachedEnd, nextInitialKey);
+            return (result, iterationResult.ReachedEnd, nextInitialKey);
         }
 
-        public BoolResult UpdateContentHashListLastAccessTime(ContentHashList contentHashList)
+        private IterateDbContentResult IterateDbContent(
+            Action<Iterator> onNextItem,
+            ColumnFamilyHandle cfHandle,
+            byte[]? startKey,
+            CancellationToken token)
+        {
+            using (var iterator = _db.NewIterator(cfHandle, _readOptions))
+            {
+                if (startKey is null)
+                {
+                    iterator.SeekToFirst();
+                }
+                else
+                {
+                    iterator.Seek(startKey);
+                }
+
+
+                while (iterator.Valid() && !token.IsCancellationRequested)
+                {
+                    onNextItem(iterator);
+                    iterator.Next();
+                }
+            }
+
+            return new IterateDbContentResult() { ReachedEnd = !token.IsCancellationRequested, Canceled = token.IsCancellationRequested, };
+        }
+
+        private void UpdateContentHashListLastAccessTime(ContentHashList contentHashList, ColumnFamilyHandle fingerprintsCf)
         {
             // We can simply override the existing value.
             var entry = new MetadataEntry(contentHashList.BlobSize, contentHashList.LastAccessTime, contentHashList.Hashes);
             using var key = _serializationPool.SerializePooled(contentHashList.BlobName, static (string s, ref SpanWriter writer) => writer.Write(s));
             using var value = _serializationPool.SerializePooled(entry, static (MetadataEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
 
-            var status = _keyValueStore.Use(store =>
-            {
-                store.Put(key.WrittenSpan, value.WrittenSpan, nameof(Columns.Fingerprints));
-            });
-
-            return status.Succeeded
-                ? BoolResult.Success
-                : new BoolResult(status.Failure.DescribeIncludingInnerFailures());
+            _db.Put(key.WrittenSpan, value.WrittenSpan, fingerprintsCf, _writeOptions);
         }
 
-        public BoolResult DeleteContent(ContentHash hash)
+        private void DeleteContent(ContentHash hash, ColumnFamilyHandle contentCf)
         {
-            var status = _keyValueStore.Use(store =>
-            {
-                using var key = _serializationPool.SerializePooled(
+            using var key = _serializationPool.SerializePooled(
                     hash,
-                    static (ContentHash instance, ref SpanWriter writer) => writer.Write(instance));
+                    static (ContentHash instance, ref SpanWriter writer) => HashSerializationExtensions.Write(ref writer, instance));
 
-                store.Remove(key.WrittenSpan, columnFamilyName: nameof(Columns.Content));
-            });
+            _db.Remove(key.WrittenSpan, contentCf, _writeOptions);
+        }
 
-            if (!status.Succeeded)
+        private MetadataEntry? GetContentHashList(StrongFingerprint strongFingerprint, ColumnFamilyHandle fingerprintsCf, out string? blobPath)
+        {
+            blobPath = AzureBlobStorageMetadataStore.GetBlobPath(strongFingerprint);
+            using var key = _serializationPool.SerializePooled(blobPath, static (string s, ref SpanWriter writer) => writer.Write(s));
+
+            return Get(key.WrittenSpan, fingerprintsCf, MetadataEntry.Deserialize);
+        }
+
+        private ContentEntry? GetContentEntry(ContentHash hash, ColumnFamilyHandle contentCf)
+        {
+            using var key = _serializationPool.SerializePooled(
+                    hash,
+                    static (ContentHash instance, ref SpanWriter writer) => HashSerializationExtensions.Write(ref writer, instance));
+
+            return Get(key.WrittenSpan, contentCf, ContentEntry.Deserialize);
+        }
+
+        private T? Get<T>(ReadOnlySpan<byte> key, ColumnFamilyHandle? cfHandle, SpanReaderDeserializer<T> deserializer)
+        {
+            var pinnable = _db.UnsafeGetPinnable(key, cfHandle, _readOptions);
+            if (pinnable is null)
             {
-                return new BoolResult(status.Failure.DescribeIncludingInnerFailures());
+                return default;
             }
 
-            return BoolResult.Success;
-        }
-
-        internal MetadataEntry? TryGetContentHashList(StrongFingerprint strongFingerprint, out string? blobPath)
-        {
-            string? path = null;
-            var result = _keyValueStore.Use(store =>
+            using (pinnable)
             {
-                path = AzureBlobStorageMetadataStore.GetBlobPath(strongFingerprint);
-                using var key = _serializationPool.SerializePooled(path, static (string s, ref SpanWriter writer) => writer.Write(s));
-
-                var found = store.TryDeserializeValue(
-                    key.WrittenSpan,
-                    columnFamilyName: nameof(Columns.Fingerprints),
-                    MetadataEntry.Deserialize,
-                    out var result);
-
-                return result;
-            });
-
-            blobPath = path;
-            return result.Result;
-        }
-
-        internal ContentEntry? GetContentEntry(ContentHash hash)
-        {
-            var result = _keyValueStore.Use(store =>
-            {
-                using var key = _serializationPool.SerializePooled(
-                    hash,
-                    static (ContentHash instance, ref SpanWriter writer) => writer.Write(instance));
-
-                var found = store.TryDeserializeValue<ContentEntry>(
-                    key.WrittenSpan,
-                    columnFamilyName: nameof(Columns.Content),
-                    ContentEntry.Deserialize,
-                    out var result);
-
-                return result;
-            });
-
-            return result.Result;
+                var spanReader = pinnable.Value.UnsafePin().AsReader();
+                return deserializer(spanReader)!;
+            }
         }
 
         public void Dispose()
         {
-            _keyValueStore.Dispose();
+            _db.Dispose();
+        }
+
+        private static string GetColumnFamilyName(ColumnFamily column, BlobNamespaceId namespaceId) => $"{column}-{namespaceId}";
+
+        /// <summary>
+        /// Provides a view into the database where all the data corresponds to a given cache namespace.
+        /// </summary>
+        public interface IAccessor
+        {
+            void AddContent(ContentHash hash, long blobSize);
+            internal ContentEntry? GetContentEntry(ContentHash hash);
+            void DeleteContent(ContentHash hash);
+
+            void AddContentHashList(ContentHashList contentHashList, IReadOnlyCollection<(ContentHash hash, long size)> hashes);
+            internal MetadataEntry? GetContentHashList(StrongFingerprint strongFingerprint, out string? blobPath);
+            void DeleteContentHashList(string contentHashListName, IReadOnlyCollection<ContentHash> hashes);
+
+            EnumerationResult GetLruOrderedContentHashLists(OperationContext context);
+            void UpdateContentHashListLastAccessTime(ContentHashList contentHashList);
+        }
+
+        private class Accessor : IAccessor
+        {
+            private readonly RocksDbLifetimeDatabase _database;
+            private readonly BlobNamespaceId _namespaceId;
+
+            private readonly ColumnFamilyHandle _contentCf;
+            private readonly ColumnFamilyHandle _fingerprintCf;
+
+            public Accessor(RocksDbLifetimeDatabase database, BlobNamespaceId namespaceId)
+            {
+                _database = database;
+                _namespaceId = namespaceId;
+
+                _contentCf = database._db.GetColumnFamily(GetColumnFamilyName(ColumnFamily.Content));
+                _fingerprintCf = database._db.GetColumnFamily(GetColumnFamilyName(ColumnFamily.Fingerprints));
+            }
+
+            public void AddContent(ContentHash hash, long blobSize) => _database.AddContent(hash, blobSize, _contentCf);
+
+            public void AddContentHashList(ContentHashList contentHashList, IReadOnlyCollection<(ContentHash hash, long size)> hashes)
+                => _database.AddContentHashList(contentHashList, hashes, _contentCf, _fingerprintCf);
+
+            public void DeleteContent(ContentHash hash) => _database.DeleteContent(hash, _contentCf);
+
+            public void DeleteContentHashList(string contentHashListName, IReadOnlyCollection<ContentHash> hashes)
+                => _database.DeleteContentHashList(contentHashListName, hashes, _contentCf, _fingerprintCf);
+
+            public EnumerationResult GetLruOrderedContentHashLists(OperationContext context)
+                => _database.GetLruOrderedContentHashLists(context, _fingerprintCf, _contentCf);
+
+            public void UpdateContentHashListLastAccessTime(ContentHashList contentHashList)
+                => _database.UpdateContentHashListLastAccessTime(contentHashList, _fingerprintCf);
+
+            private string GetColumnFamilyName(ColumnFamily column) => RocksDbLifetimeDatabase.GetColumnFamilyName(column, _namespaceId);
+
+            public ContentEntry? GetContentEntry(ContentHash hash) => _database.GetContentEntry(hash, _contentCf);
+
+            MetadataEntry? IAccessor.GetContentHashList(StrongFingerprint strongFingerprint, out string? blobPath)
+                => _database.GetContentHashList(strongFingerprint, _fingerprintCf, out blobPath);
+        }
+
+
+        /// <summary>
+        /// <see cref="CheckpointManager"/> is designed around having a database that will be modified on the fly.
+        /// <see cref="RocksDbLifetimeDatabase"/> does not need this use case, since it is only restored during start of execution, and saved during
+        /// the end of execution of GC. Thus, it's possible for the DB to have a simpler design/state if we add this wrapper.
+        /// </summary>
+        public class CheckpointableLifetimeDatabase : StartupShutdownBase, ICheckpointable
+        {
+            protected override Tracer Tracer { get; } = new Tracer(nameof(CheckpointableLifetimeDatabase));
+
+            public RocksDbLifetimeDatabase? Database { get; set; }
+
+            private readonly Configuration _config;
+            private readonly IClock _clock;
+
+            public CheckpointableLifetimeDatabase(Configuration config, IClock clock)
+            {
+                _config = config;
+                _clock = clock;
+            }
+
+            public RocksDbLifetimeDatabase GetDatabase()
+            {
+                if (Database is null)
+                {
+                    throw new InvalidOperationException("A checkpoint must be restored before attempting to use the database.");
+                }
+
+                return Database;
+            }
+
+            public bool IsImmutable(AbsolutePath filePath)
+            {
+                return filePath.Path.EndsWith(".sst", StringComparison.OrdinalIgnoreCase);
+            }
+
+            public BoolResult RestoreCheckpoint(OperationContext context, AbsolutePath checkpointDirectory)
+            {
+                Contract.Assert(Database is null);
+
+                return context.PerformOperation(
+                    Tracer,
+                    () =>
+                    {
+                        // Make sure the parent directory exists, but the destination directory doesn't.
+                        Directory.CreateDirectory(_config.DatabasePath);
+                        FileUtilities.DeleteDirectoryContents(_config.DatabasePath, deleteRootDirectory: true);
+
+                        Directory.Move(checkpointDirectory.ToString(), _config.DatabasePath);
+
+                        var db = CreateDb(_config);
+                        Database = new RocksDbLifetimeDatabase(_config, _clock, db);
+                        return BoolResult.Success;
+                    });
+            }
+
+            public BoolResult SaveCheckpoint(OperationContext context, AbsolutePath checkpointDirectory)
+            {
+                Contract.Assert(Database is not null);
+                return context.PerformOperation(
+                    Tracer,
+                    () =>
+                    {
+                        // Make sure the parent directory exists, but the destination directory doesn't.
+                        Directory.CreateDirectory(checkpointDirectory.Path);
+                        FileUtilities.DeleteDirectoryContents(checkpointDirectory.Path, deleteRootDirectory: true);
+
+                        var checkpoint = Database._db.Checkpoint();
+                        checkpoint.Save(checkpointDirectory.Path);
+                        return BoolResult.Success;
+                    });
+            }
+
+            public void SetGlobalEntry(string key, string? value)
+            {
+                Contract.Assert(Database is not null);
+
+                using var keySpan = Database._serializationPool.SerializePooled(key, static (string instance, ref SpanWriter writer) => writer.Write(instance));
+                if (value is null)
+                {
+                    Database._db.Remove(keySpan.WrittenSpan);
+                }
+                else
+                {
+                    using var valueSpan = Database._serializationPool.SerializePooled(value, static (string instance, ref SpanWriter writer) => writer.Write(instance));
+                    Database._db.Put(keySpan.WrittenSpan, valueSpan.WrittenSpan);
+                }
+            }
+
+            public bool TryGetGlobalEntry(string key, [NotNullWhen(true)] out string? value)
+            {
+                Contract.Assert(Database is not null);
+
+                using var keySpan = Database._serializationPool.SerializePooled(key, static (string instance, ref SpanWriter writer) => writer.Write(instance));
+                value = Database.Get(keySpan.WrittenSpan, cfHandle: null, (SpanReader r) => r.ReadString());
+                return value is not null;
+            }
         }
     }
 

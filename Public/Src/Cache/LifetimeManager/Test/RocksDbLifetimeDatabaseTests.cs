@@ -15,19 +15,20 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.BlobLifetimeManager.Library;
-using BuildXL.Engine.Cache.KeyValueStores;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using RocksDbSharp;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Cache.BlobLifetimeManager.Library.RocksDbLifetimeDatabase;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Test
 {
     public class RocksDbLifetimeDatabaseTests : TestWithOutput
     {
         private readonly MemoryClock _clock = new();
+        private static readonly BlobNamespaceId NamespaceId = new BlobNamespaceId("universe", "namespace");
 
         public RocksDbLifetimeDatabaseTests(ITestOutputHelper output) : base(output)
         {
@@ -42,6 +43,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             var config = new Configuration
             {
                 DatabasePath = temp.Path.Path,
+                BlobNamespaceIds = new[] { NamespaceId }
             };
 
             setupConfig?.Invoke(config);
@@ -62,6 +64,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             // perfectly ordered.
             using var db = CreateDatabase(config => config.LruEnumerationPercentileStep = 1.0 / chlCount);
 
+            var accessor = db.GetAccessor(NamespaceId);
+
             // Make distribution uniform to help with non-determinism as much as possible.
             var lastAccessTimes = Enumerable.Range(1, chlCount).Select(hoursAgo => _clock.UtcNow.AddHours(-hoursAgo)).ToList();
             ThreadSafeRandom.Shuffle(lastAccessTimes);
@@ -72,11 +76,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             // Add content to the DB to verify total size is accurate.
             foreach (var chlWithContentLength in chlsWithContentLengths)
             {
-                db.AddContentHashList(chlWithContentLength.chl, chlWithContentLength.hashesWithLengths).ThrowIfFailure();
+                accessor.AddContentHashList(chlWithContentLength.chl, chlWithContentLength.hashesWithLengths);
                 contentSize += chlWithContentLength.hashesWithLengths.Sum(h => h.length);
             }
 
-            var result = db.GetLruOrderedContentHashLists(context).ThrowIfFailure();
+            var result = accessor.GetLruOrderedContentHashLists(context);
             result.TotalSize.Should().Be(chlsWithContentLengths.Sum(chl => chl.chl.BlobSize) + contentSize);
             var currentBatch = 0;
             var currentLowerLimitNonInclusive = DateTime.MinValue;
@@ -106,14 +110,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             // Now check that deletion works
             foreach (var chlWithContentLengths in chlsWithContentLengths)
             {
-                db.DeleteContentHashList(chlWithContentLengths.chl.BlobName, chlWithContentLengths.chl.Hashes).ThrowIfFailure();
+                accessor.DeleteContentHashList(chlWithContentLengths.chl.BlobName, chlWithContentLengths.chl.Hashes);
                 foreach (var hash in chlWithContentLengths.hashesWithLengths)
                 {
-                    db.DeleteContent(hash.hash).ThrowIfFailure();
+                    accessor.DeleteContent(hash.hash);
                 }
             }
 
-            result = db.GetLruOrderedContentHashLists(context).ThrowIfFailure();
+            result = accessor.GetLruOrderedContentHashLists(context);
             result.TotalSize.Should().Be(0);
             result.LruOrderedContentHashLists.Count().Should().Be(0);
         }
@@ -152,14 +156,16 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 config.LruEnumerationPercentileStep = config.LruEnumerationPercentileStep = 1.0;
             });
 
+            var accessor = db.GetAccessor(NamespaceId);
+
             var chlsWithContentLengths = Enumerable.Range(0, chlCount).Select(_ => RandomContentHashList()).ToArray();
 
             foreach (var chlWithContentLengths in chlsWithContentLengths)
             {
-                db.AddContentHashList(chlWithContentLengths.chl, chlWithContentLengths.hashesWithLengths).ThrowIfFailure();
+                accessor.AddContentHashList(chlWithContentLengths.chl, chlWithContentLengths.hashesWithLengths);
             }
 
-            var result = db.GetLruOrderedContentHashLists(context).ThrowIfFailure();
+            var result = accessor.GetLruOrderedContentHashLists(context);
             var current = 0;
             foreach (var chl in result.LruOrderedContentHashLists)
             {
@@ -172,47 +178,67 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         public void IncrementAndDecrementRefCount()
         {
             using var db = CreateDatabase();
+            var accessor = db.GetAccessor(NamespaceId);
 
             var hash = ContentHash.Random();
 
             var chlWithContentLengths1 = RandomContentHashList((hash, 1L));
-            db.AddContentHashList(chlWithContentLengths1.chl, chlWithContentLengths1.hashesWithLengths).ThrowIfFailure();
-            db.GetContentEntry(hash)!.ReferenceCount.Should().Be(1);
-            db.GetContentEntry(hash)!.BlobSize.Should().Be(1);
+            accessor.AddContentHashList(chlWithContentLengths1.chl, chlWithContentLengths1.hashesWithLengths);
+            accessor.GetContentEntry(hash)!.ReferenceCount.Should().Be(1);
+            accessor.GetContentEntry(hash)!.BlobSize.Should().Be(1);
 
             var chlWithContentLengths2 = RandomContentHashList((hash, 0L));
-            db.AddContentHashList(chlWithContentLengths2.chl, chlWithContentLengths2.hashesWithLengths).ThrowIfFailure();
-            db.GetContentEntry(hash)!.ReferenceCount.Should().Be(2);
-            db.GetContentEntry(hash)!.BlobSize.Should().Be(1);
+            accessor.AddContentHashList(chlWithContentLengths2.chl, chlWithContentLengths2.hashesWithLengths);
+            accessor.GetContentEntry(hash)!.ReferenceCount.Should().Be(2);
+            accessor.GetContentEntry(hash)!.BlobSize.Should().Be(1);
 
-            db.DeleteContentHashList(chlWithContentLengths1.chl.BlobName, chlWithContentLengths1.chl.Hashes).ThrowIfFailure();
-            db.GetContentEntry(hash)!.ReferenceCount.Should().Be(1);
-            db.GetContentEntry(hash)!.BlobSize.Should().Be(1);
+            accessor.DeleteContentHashList(chlWithContentLengths1.chl.BlobName, chlWithContentLengths1.chl.Hashes);
+            accessor.GetContentEntry(hash)!.ReferenceCount.Should().Be(1);
+            accessor.GetContentEntry(hash)!.BlobSize.Should().Be(1);
 
-            db.DeleteContentHashList(chlWithContentLengths2.chl.BlobName, chlWithContentLengths2.chl.Hashes).ThrowIfFailure();
-            db.GetContentEntry(hash)!.ReferenceCount.Should().Be(0);
-            db.GetContentEntry(hash)!.BlobSize.Should().Be(1);
+            accessor.DeleteContentHashList(chlWithContentLengths2.chl.BlobName, chlWithContentLengths2.chl.Hashes);
+            accessor.GetContentEntry(hash)!.ReferenceCount.Should().Be(0);
+            accessor.GetContentEntry(hash)!.BlobSize.Should().Be(1);
         }
 
         [Fact]
         public void DeleteContent()
         {
             using var db = CreateDatabase();
+            var accessor = db.GetAccessor(NamespaceId);
 
             var chlWithContentLengths = RandomContentHashList();
-            db.AddContentHashList(chlWithContentLengths.chl, chlWithContentLengths.hashesWithLengths).ThrowIfFailure();
+            accessor.AddContentHashList(chlWithContentLengths.chl, chlWithContentLengths.hashesWithLengths);
             var fpSize = chlWithContentLengths.chl.BlobSize + chlWithContentLengths.hashesWithLengths.Sum(h => h.length);
 
             var hash = ContentHash.Random();
 
-            db.AddContent(hash, 1).ThrowIfFailure();
+            accessor.AddContent(hash, 1);
             var context = new OperationContext(new Context(TestGlobal.Logger));
-            var result = db.GetLruOrderedContentHashLists(context).ThrowIfFailure();
+            var result = accessor.GetLruOrderedContentHashLists(context);
             result.TotalSize.Should().Be(fpSize + 1);
 
-            db.DeleteContent(hash).ThrowIfFailure();
-            result = db.GetLruOrderedContentHashLists(context).ThrowIfFailure();
+            accessor.DeleteContent(hash);
+            result = accessor.GetLruOrderedContentHashLists(context);
             result.TotalSize.Should().Be(fpSize);
+        }
+
+        [Fact]
+        public void CursorSetAndGet()
+        {
+            using var db = CreateDatabase();
+
+            db.SetCursor("account1", "c1");
+            db.SetCursor("account2", "c2");
+
+            db.GetCursor("account1").Should().Be("c1");
+            db.GetCursor("account2").Should().Be("c2");
+
+            db.SetCursor("account1", "c3");
+            db.SetCursor("account2", "c4");
+
+            db.GetCursor("account1").Should().Be("c3");
+            db.GetCursor("account2").Should().Be("c4");
         }
     }
 
@@ -221,10 +247,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         private BatchCountingDatabase(
             Configuration configuration,
             IClock clock,
-            KeyValueStoreAccessor keyValueStore,
-            ColumnFamilyHandle content,
-            ColumnFamilyHandle fingerprint)
-            : base(configuration, clock, keyValueStore, content, fingerprint)
+            RocksDb db)
+            : base(configuration, clock, db)
         {
         }
 
@@ -232,22 +256,20 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             Configuration configuration,
             IClock clock)
         {
-            var possibleStore = CreateAccessor(configuration);
-            var (contentCf, fingerprintCf) = GetColumnFamilies(possibleStore.Result);
-
-            return new BatchCountingDatabase(configuration, clock, possibleStore.Result, contentCf, fingerprintCf);
+            var db = CreateDb(configuration);
+            return new BatchCountingDatabase(configuration, clock, db);
         }
 
         public int BatchCount { get; set; }
         public DateTime CurrentUpperLimitInclusive { get; set; }
         public DateTime CurrentLowerLimitNonInclusive { get; set; }
 
-        protected override (IReadOnlyList<ContentHashList> batch, bool reachedEnd, byte[]? next) GetEnumerateContentHashListsBatch(OperationContext context, DateTime lowerLimitNonInclusive, DateTime upperLimitInclusive, int limit, byte[]? startKey)
+        protected override (IReadOnlyList<ContentHashList> batch, bool reachedEnd, byte[]? next) GetEnumerateContentHashListsBatch(OperationContext context, DateTime lowerLimitNonInclusive, DateTime upperLimitInclusive, int limit, byte[]? startKey, ColumnFamilyHandle fingerprintsCf)
         {
             BatchCount++;
             CurrentLowerLimitNonInclusive = lowerLimitNonInclusive;
             CurrentUpperLimitInclusive = upperLimitInclusive;
-            return base.GetEnumerateContentHashListsBatch(context, lowerLimitNonInclusive, upperLimitInclusive, limit, startKey);
+            return base.GetEnumerateContentHashListsBatch(context, lowerLimitNonInclusive, upperLimitInclusive, limit, startKey, fingerprintsCf);
         }
     }
 }

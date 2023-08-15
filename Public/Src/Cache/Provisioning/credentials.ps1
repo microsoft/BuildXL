@@ -1,4 +1,4 @@
-$rgName = "blobl3-juguzman-centralus"
+$rgName = "blobl3-cbtest-centralus"
 $subscription = "bf933bbb-8131-491c-81d9-26d7b6f327fa"
 
 az account set --subscription $subscription

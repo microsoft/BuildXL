@@ -271,7 +271,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
                 this.MachineIds = Enumerable.Range(1, amountMachines).Select(n => (ushort)n).ToArray();
 
-                var machineMappings = MachineIds.Select(m => new MachineMapping(new MachineId(m), new MachineLocation(m.ToString()))).ToArray();
+                var machineMappings = MachineIds.Select(m => new MachineMapping(new MachineId(m), new MachineLocation($"grpc://{m}:123"))).ToArray();
                 var clusterState = new ClusterState(primaryMachineId: default, machineMappings);
                 foreach (var mapping in machineMappings)
                 {

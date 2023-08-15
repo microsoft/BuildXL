@@ -206,7 +206,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         {
             if (_configuration.UseUniversalLocations)
             {
-                return new MachineLocation($"{MachineLocation.GrpcUriSchemePrefix}{_localMachineName}:{_configuration.GrpcPort}/");
+                return MachineLocation.Create(_localMachineName, _configuration.GrpcPort);
             }
 
             if (!cacheRoot.IsLocal)

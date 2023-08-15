@@ -165,6 +165,7 @@ public class ClusterStateManager : StartupShutdownComponentBase
                 }
 
                 var localMachineIds = ClusterState.LocalMachineMappings.Select(machineMapping => machineMapping.Id).ToArray();
+                var localMachineLocations = ClusterState.LocalMachineMappings.Select(machineMapping => machineMapping.Location).ToArray();
 
                 if (_configuration.ReadOnly || localMachineIds.Length == 0)
                 {
@@ -177,7 +178,7 @@ public class ClusterStateManager : StartupShutdownComponentBase
                 }
                 else
                 {
-                    var heartbeatResponse = await _storage.HeartbeatAsync(context, new IClusterStateStorage.HeartbeatInput(localMachineIds, machineState)).ThrowIfFailureAsync();
+                    var heartbeatResponse = await _storage.HeartbeatAsync(context, new IClusterStateStorage.HeartbeatInput(localMachineIds, machineState, localMachineLocations)).ThrowIfFailureAsync();
                     Contract.Assert(heartbeatResponse.PriorRecords.Length == localMachineIds.Length, "Mismatch between number of requested heartbeats and actual heartbeats. This should never happen.");
 
                     ClusterState.Update(context, heartbeatResponse.State, configuration: _configuration.RecomputeConfiguration, nowUtc: _clock.UtcNow).ThrowIfFailure();

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
@@ -105,6 +106,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Amount of times that a proactive copy is allowed to retry
         /// </summary>
         public int ProactiveCopyMaxRetries { get; set; } = 0;
+
+        /// <summary>
+        /// Whether to use the value of the host inside Equals function in MachineLocation
+        /// </summary>
+        public bool UseHostInMachineLocationEquals { get; set; } = false;
 
         /// <summary>
         /// Defines pinning behavior

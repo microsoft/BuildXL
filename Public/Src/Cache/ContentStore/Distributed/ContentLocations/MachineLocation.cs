@@ -16,7 +16,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// </summary>
     public readonly record struct MachineLocation
     {
-        public const string GrpcUriSchemePrefix = "grpc://";
+        private const string GrpcUriSchemePrefix = "grpc://";
+
+        // TODO: This is a temporary solution while we migrate to the new format
+        // When set to true the old and the new format will be considered equal
+        // Work item to remove this https://dev.azure.com/mseng/1ES/_workitems/edit/2095358
+        public static bool OnlyUseHostToCompare = false;
 
         public static MachineLocation Invalid { get; } = new(string.Empty);
 
@@ -45,12 +50,24 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 return other.Path is null;
             }
 
+            if (OnlyUseHostToCompare)
+            {
+                return ExtractHost().Equals(other.ExtractHost(), StringComparison.InvariantCultureIgnoreCase);
+            }
+
             return Path.Equals(other.Path, StringComparison.InvariantCultureIgnoreCase);
         }
 
         public override int GetHashCode()
         {
-            return Path is not null ? StringComparer.InvariantCultureIgnoreCase.GetHashCode(Path) : 42;
+            if (Path is null)
+            {
+                return 42;
+            }
+            // TODO: This is a temporary solution while we migrate to the new format
+            // Same machine has same hash code
+            var host = ExtractHost();
+            return StringComparer.InvariantCultureIgnoreCase.GetHashCode(host);
         }
 
         /// <inheritdoc />
@@ -62,6 +79,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public static MachineLocation Create(string machineName, int port)
         {
             return new MachineLocation($"{MachineLocation.GrpcUriSchemePrefix}{machineName}:{port}/");
+        }
+
+        private string ExtractHost()
+        {
+            var (extractedHost, _) = ExtractHostInfo();
+            return extractedHost;
         }
 
         public (string host, int? port) ExtractHostInfo()

@@ -84,6 +84,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             ContentLocationStoreConfiguration = CreateContentLocationStoreConfiguration();
             _distributedContentStoreSettings = CreateDistributedStoreSettings(_arguments, ContentLocationStoreConfiguration);
 
+            // TODO: This is a temporary solution while we migrate to the new format
+            MachineLocation.OnlyUseHostToCompare = _distributedContentStoreSettings.UseHostInMachineLocationEquals;
+
             // Tracing configuration before creating anything.
             if (arguments.TraceConfiguration)
             {
@@ -369,6 +372,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
 
                 PinConfiguration = pinConfiguration,
+                UseHostInMachineLocationEquals = distributedSettings.UseHostInMachineLocationEquals,
                 ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), distributedSettings.ProactiveCopyMode),
                 PushProactiveCopies = distributedSettings.PushProactiveCopies,
                 ProactiveCopyOnPut = distributedSettings.ProactiveCopyOnPut,

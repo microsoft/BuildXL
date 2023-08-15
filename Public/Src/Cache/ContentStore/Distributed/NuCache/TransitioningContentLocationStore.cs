@@ -75,6 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (LocalLocationStore.ClusterState.TryResolveMachineId(LocalMachineLocation, out var localMachineId))
                 {
                     LocalMachineId = localMachineId;
+                    Tracer.Info(context, $"Resolved MachineId {LocalMachineId} for {LocalMachineLocation}");
                 }
                 else if (_configuration.DistributedContentConsumerOnly)
                 {

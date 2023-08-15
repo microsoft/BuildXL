@@ -40,6 +40,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return this with { State = nextState, LastHeartbeatTimeUtc = nowUtc };
         }
 
+        internal MachineRecord Heartbeat(DateTime nowUtc, MachineState nextState, MachineLocation machineLocation)
+        {
+            if (nextState == MachineState.Unknown)
+            {
+                return this with { LastHeartbeatTimeUtc = nowUtc, Location = machineLocation};
+            }
+
+            return this with { State = nextState, LastHeartbeatTimeUtc = nowUtc, Location = machineLocation };
+        }
+
         public bool IsOpen()
         {
             return State == MachineState.Open;

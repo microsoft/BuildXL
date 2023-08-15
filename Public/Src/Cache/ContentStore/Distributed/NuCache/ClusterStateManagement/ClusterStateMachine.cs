@@ -25,8 +25,10 @@ public static class ClusterStateMachineExtensions
         var priorMachineRecords = new MachineRecord[request.MachineIds.Count];
         foreach (var entry in request.MachineIds.AsIndexed())
         {
+            MachineLocation? newLocation = request.MachineLocations != null ? request.MachineLocations[entry.Index] : null;
+
             (state, priorMachineRecords[entry.Index]) =
-                state.Heartbeat(entry.Item, nowUtc, request.MachineState).ThrowIfFailure();
+                state.Heartbeat(entry.Item, nowUtc, request.MachineState, newLocation).ThrowIfFailure();
         }
 
         return (state, priorMachineRecords);
@@ -209,7 +211,7 @@ public record ClusterStateMachine
         }
     }
 
-    public Result<(ClusterStateMachine Next, MachineRecord Previous)> Heartbeat(MachineId machineId, DateTime nowUtc, MachineState state)
+    public Result<(ClusterStateMachine Next, MachineRecord Previous)> Heartbeat(MachineId machineId, DateTime nowUtc, MachineState state, MachineLocation? machineLocation = null)
     {
         if (!machineId.Valid)
         {
@@ -222,7 +224,14 @@ public record ClusterStateMachine
         MachineRecord? previous = null;
         foreach (var record in Records)
         {
-            if (record.Id == machineId)
+            if (record.Id == machineId && machineLocation != null)
+            {
+                // TODO: This is a hack to allow the machine location to be updated https://dev.azure.com/mseng/1ES/_workitems/edit/2095358
+                // Update the machine location in case it has changed due to migration to a different format (e.g. GRPC format)
+                records.Add(record.Heartbeat(nowUtc, state, (MachineLocation)machineLocation));
+                previous = record;
+            }
+            else if (record.Id == machineId)
             {
                 records.Add(record.Heartbeat(nowUtc, state));
                 previous = record;

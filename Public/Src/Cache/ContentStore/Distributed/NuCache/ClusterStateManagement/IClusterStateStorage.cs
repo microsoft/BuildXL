@@ -39,7 +39,7 @@ public interface IClusterStateStorage : IStartupShutdownSlim
     public Task<Result<RegisterMachineOutput>> RegisterMachinesAsync(OperationContext context, RegisterMachineInput request);
 
     [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-    public record HeartbeatInput(IReadOnlyList<MachineId> MachineIds, MachineState MachineState)
+    public record HeartbeatInput(IReadOnlyList<MachineId> MachineIds, MachineState MachineState, IReadOnlyList<MachineLocation> MachineLocations = null)
     {
         /// <summary>
         /// This parameterless constructor exists only to allow ProtoBuf.NET initialization

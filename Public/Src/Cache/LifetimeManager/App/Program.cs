@@ -26,7 +26,7 @@ namespace BuildXL.Cache.BlobLifetimeManager
 
         private static void Main(string[] args)
         {
-            Parser.Run<Program>(args);
+            Parser.RunConsole<Program>(args);
         }
 
         [Verb(
@@ -96,6 +96,15 @@ namespace BuildXL.Cache.BlobLifetimeManager
             catch (Exception e)
             {
                 Console.WriteLine($"Failed to read configuration file {configPath}: {e}");
+                return;
+            }
+
+            if (config.LastAccessTimeDeletionThreshold < TimeSpan.FromDays(1))
+            {
+                Console.WriteLine($"To minimize the impact on read access latency, Azure Blob Storage only updates the last access time on the first read on a given 24-hour period. " +
+                    $"Subsequent reads in the same 24-hour period do not update the last access time.\n" +
+                    $"Because of this, {nameof(config.LastAccessTimeDeletionThreshold)} can't be less than one day, since otherwise we might be acting on outdated information. " +
+                    $"Configured value: {config.LastAccessTimeDeletionThreshold}");
                 return;
             }
 

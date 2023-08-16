@@ -514,6 +514,12 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, IOEvent &e
         return sNotChecked;
     }
 
+    // Aviod reporting/blocking anonymous files
+    if (is_anonymous_file(event.GetSrcPath()) || (event.GetDstPath().length() > 0 && is_anonymous_file(event.GetDstPath())))
+    {
+        return sNotChecked;
+    }
+
     AccessCheckResult result = sNotChecked;
     pid_t pid = event.GetPid() == 0 ? getpid() : event.GetPid();
     bool accessShouldBeBlocked = false;
@@ -594,7 +600,7 @@ AccessCheckResult BxlObserver::create_access_fd(const char *syscallName, es_even
         return sNotChecked; 
     }
 
-    std::string fullpath = fd_to_path(fd);
+    std::string fullpath = fd_to_path(fd, associatedPid);
 
     // Only reports when fd_to_path succeeded.
     return fullpath.length() > 0
@@ -606,6 +612,13 @@ bool BxlObserver::is_non_file(const mode_t mode)
 {
     // Observe we don't care about block devices here. It is unlikely that we'll support them e2e, this is just an FYI.
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
+}
+
+bool BxlObserver::is_anonymous_file(string path)
+{
+    // The path to an anonymous file reported by stat will always be '/memfd:<fileName> (deleted)'
+    // the length of the string prefix '/memfd:', 7, is used as the max for characters to compare in strncmp
+    return strncmp(path.c_str(), "/memfd:", 7) == 0;
 }
 
 AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &report, int flags, bool getModeWithFd, pid_t associatedPid)

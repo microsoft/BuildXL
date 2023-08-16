@@ -425,6 +425,9 @@ public:
     // Whether the given descriptor is a non-file (e.g., a pipe, or socket, etc.)
     static bool is_non_file(const mode_t mode);
 
+    // Checks whether a given path is an anonymous file (a file that lives in RAM and only exists until all references to that file are dropped)
+    bool is_anonymous_file(string path);
+
     // Enumerates a specified directory
     bool EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);
 

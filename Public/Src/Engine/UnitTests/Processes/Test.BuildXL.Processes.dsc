@@ -99,7 +99,8 @@ namespace Processes {
                     contents: [
                         LinuxSandboxTest.StaticLinkingTestProcess.exe(true),
                         LinuxSandboxTest.StaticLinkingTestProcess.exe(false),
-                        ...LinuxSandboxTest.UnitTests.BoostTestExecutables
+                        ...LinuxSandboxTest.UnitTests.BoostTestExecutables,
+                        LinuxSandboxTest.LinuxTestProcess.exe(),
                     ]
                 }
             ]),

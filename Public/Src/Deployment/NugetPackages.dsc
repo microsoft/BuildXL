@@ -11,6 +11,16 @@ namespace NugetPackages {
     export declare const qualifier : { configuration: "debug" | "release" };
     const defaultTargetFramework = Managed.TargetFrameworks.DefaultTargetFramework;
     
+    /**
+     * Readme before adding a new package here.
+     * 
+     * 1. Whenever possible, ensure that a Nuget package only contains a single assembly.
+     * 2. Create a package identifier with a name that matches the name of the assembly being packaged.
+     * 3. Create a Nuget.PackageSpecification for the new package.
+     * 4. Add the PackageSpecification into the `packageSpecifications` array.
+     * 5. Call `Nuget.packAssemblies` with inferInternalDependencies set to true to enable package dependency verification.
+     */
+
     // Windows Qualifiers
     const net472packageQualifier = {
         targetFramework: "net472",
@@ -57,34 +67,35 @@ namespace NugetPackages {
         ? "BuildXL"
         : "Microsoft.BuildXL";
 
-    const buildXLUtilitiesIdentity = { id: `${packageNamePrefix}.Utilities`, version: Branding.Nuget.packageVersion};
-    const buildXLUtilitiesCoreIdentity = { id: `${packageNamePrefix}.Utilities.Core`, version: Branding.Nuget.packageVersion};
-    const buildXLNativeIdentity = { id: `${packageNamePrefix}.Native`, version: Branding.Nuget.packageVersion};
-    const buildXLPipsIdentity = { id: `${packageNamePrefix}.Pips`, version: Branding.Nuget.packageVersion};
+    const buildXLAriaCommonIdentity = { id: `${packageNamePrefix}.AriaCommon`, version: Branding.Nuget.packageVersion };
+    const buildXLUtilitiesIdentity = { id: `${packageNamePrefix}.Utilities`, version: Branding.Nuget.packageVersion };
+    const buildXLUtilitiesCoreIdentity = { id: `${packageNamePrefix}.Utilities.Core`, version: Branding.Nuget.packageVersion };
+    const buildXLNativeIdentity = { id: `${packageNamePrefix}.Native`, version: Branding.Nuget.packageVersion };
+    const buildXLPipsIdentity = { id: `${packageNamePrefix}.Pips`, version: Branding.Nuget.packageVersion };
 
     // Old cache packages to be phased out
-    const buildXLCacheHashingIdentity = { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion};
-    const buildXLCacheInterfacesIdentity = { id: `${packageNamePrefix}.Cache.Interfaces`, version: Branding.Nuget.packageVersion};
-    const buildXLCacheLibrariesIdentity = { id: `${packageNamePrefix}.Cache.Libraries`, version: Branding.Nuget.packageVersion};
-    const buildXLCacheServiceIdentity = { id: `${packageNamePrefix}.Cache.Service`, version: Branding.Nuget.packageVersion};
+    const buildXLCacheHashingIdentity = { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion };
+    const buildXLCacheInterfacesIdentity = { id: `${packageNamePrefix}.Cache.Interfaces`, version: Branding.Nuget.packageVersion };
+    const buildXLCacheLibrariesIdentity = { id: `${packageNamePrefix}.Cache.Libraries`, version: Branding.Nuget.packageVersion };
+    const buildXLCacheServiceIdentity = { id: `${packageNamePrefix}.Cache.Service`, version: Branding.Nuget.packageVersion };
 
     // Cache Packages
-    const buildXLContentStoreDistributedIdentity = { id: `${packageNamePrefix}.ContentStore.Distributed`, version: Branding.Nuget.packageVersion };
-    const buildXLContentStoreLibraryIdentity = { id: `${packageNamePrefix}.ContentStore.Library`, version: Branding.Nuget.packageVersion };
-    const buildXLContentStoreGrpcIdentity = { id: `${packageNamePrefix}.ContentStore.Grpc`, version: Branding.Nuget.packageVersion };
-    const buildXLContentStoreVstsIdentity = { id: `${packageNamePrefix}.ContentStore.Vsts`, version: Branding.Nuget.packageVersion };
-    const buildXLContentStoreVstsInterfacesIdentity = { id: `${packageNamePrefix}.ContentStore.VstsInterfaces`, version: Branding.Nuget.packageVersion };
-    const buildXLMemoizationStoreDistributedIdentity = { id: `${packageNamePrefix}.MemoizationStore.Distributed`, version: Branding.Nuget.packageVersion };
-    const buildXLMemoizationStoreLibraryIdentity = { id: `${packageNamePrefix}.MemoizationStore.Library`, version: Branding.Nuget.packageVersion };
-    const buildXLMemoizationStoreVstsIdentity = { id: `${packageNamePrefix}.MemoizationStore.Vsts`, version: Branding.Nuget.packageVersion };
-    const buildXLMemoizationStoreVstsInterfacesIdentity = { id: `${packageNamePrefix}.MemoizationStore.VstsInterfaces`, version: Branding.Nuget.packageVersion };
-    const buildXLCacheHostServicesIdentity = { id: `${packageNamePrefix}.DistributedCacheHost.Service`, version: Branding.Nuget.packageVersion };
-    const buildXLCacheHostConfigurationIdentity = { id: `${packageNamePrefix}.DistributedCacheHost.Configuration`, version: Branding.Nuget.packageVersion };
-    const buildXLCacheLoggingIdentity = { id: `${packageNamePrefix}.CacheLogging`, version: Branding.Nuget.packageVersion };
-    const buildXLContentStoreInterfacesIdentity = { id: `${packageNamePrefix}.ContentStore.Interfaces`, version: Branding.Nuget.packageVersion };
-    const buildXLMemoizationStoreInterfacesIdentity = { id: `${packageNamePrefix}.MemoizationStore.Interfaces`, version: Branding.Nuget.packageVersion };
-    const buildXLContentStoreHashingIdentity = { id: `${packageNamePrefix}.ContentStore.Hashing`, version: Branding.Nuget.packageVersion };
-    const buildXLContentStoreUtilitiesCoreIdentity = { id: `${packageNamePrefix}.ContentStore.UtilitiesCore`, version: Branding.Nuget.packageVersion };
+    const buildXLContentStoreDistributedIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Distributed`, version: Branding.Nuget.packageVersion };
+    const buildXLContentStoreLibraryIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Library`, version: Branding.Nuget.packageVersion };
+    const buildXLContentStoreGrpcIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Grpc`, version: Branding.Nuget.packageVersion };
+    const buildXLContentStoreVstsIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Vsts`, version: Branding.Nuget.packageVersion };
+    const buildXLContentStoreVstsInterfacesIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.VstsInterfaces`, version: Branding.Nuget.packageVersion };
+    const buildXLMemoizationStoreDistributedIdentity = { id: `${packageNamePrefix}.Cache.MemoizationStore.Distributed`, version: Branding.Nuget.packageVersion };
+    const buildXLMemoizationStoreLibraryIdentity = { id: `${packageNamePrefix}.Cache.MemoizationStore.Library`, version: Branding.Nuget.packageVersion };
+    const buildXLMemoizationStoreVstsIdentity = { id: `${packageNamePrefix}.Cache.MemoizationStore.Vsts`, version: Branding.Nuget.packageVersion };
+    const buildXLMemoizationStoreVstsInterfacesIdentity = { id: `${packageNamePrefix}.Cache.MemoizationStore.VstsInterfaces`, version: Branding.Nuget.packageVersion };
+    const buildXLCacheHostServicesIdentity = { id: `${packageNamePrefix}.Cache.DistributedCacheHost.Service`, version: Branding.Nuget.packageVersion };
+    const buildXLCacheHostConfigurationIdentity = { id: `${packageNamePrefix}.Cache.DistributedCacheHost.Configuration`, version: Branding.Nuget.packageVersion };
+    const buildXLCacheLoggingIdentity = { id: `${packageNamePrefix}.Cache.Logging`, version: Branding.Nuget.packageVersion };
+    const buildXLContentStoreInterfacesIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Interfaces`, version: Branding.Nuget.packageVersion };
+    const buildXLMemoizationStoreInterfacesIdentity = { id: `${packageNamePrefix}.Cache.MemoizationStore.Interfaces`, version: Branding.Nuget.packageVersion };
+    const buildXLContentStoreHashingIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Hashing`, version: Branding.Nuget.packageVersion };
+    const buildXLContentStoreUtilitiesCoreIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.UtilitiesCore`, version: Branding.Nuget.packageVersion };
 
     const packageTargetFolder = BuildXLSdk.Flags.isMicrosoftInternal
         ? r`${qualifier.configuration}/pkgs`
@@ -145,8 +156,19 @@ namespace NugetPackages {
         deployment: Sdks.deployment,
     });
 
-    const utilities = packAssemblies({
-        id: buildXLUtilitiesIdentity.id,
+    // BuildXL.AriaCommon
+    const ariaCommonSpecification : Nuget.PackageSpecification = {
+        id: buildXLAriaCommonIdentity,
+        assemblies: [
+            importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.withQualifier(net472packageQualifier).dll,
+            importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.withQualifier(net6PackageQualifier).dll,
+            importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.withQualifier(net7PackageQualifier).dll,
+            importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.withQualifier(netstandard20PackageQualifier).dll,
+        ]
+    };
+
+    const utilitiesSpecification : Nuget.PackageSpecification = {
+        id: buildXLUtilitiesIdentity,
         assemblies: [
             // BuildXL.Utilities
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).dll,
@@ -199,8 +221,7 @@ namespace NugetPackages {
             ),
         ],
         dependencies: [
-            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
-            // Therefore for now we manually declare these.
+            // This package has contains multiple assemblies so for now we will manually declare its dependencies
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
         ],
@@ -226,10 +247,10 @@ namespace NugetPackages {
                 ],
             },
         ]
-    });
+    };
 
-    const utilitiesCore = packAssemblies({
-        id: buildXLUtilitiesCoreIdentity.id,
+    const utilitiesCoreSpecification = {
+        id: buildXLUtilitiesCoreIdentity,
         assemblies: [
             // BuildXL.Utilities.Core
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Utilities.Core.dll,
@@ -238,10 +259,10 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).Utilities.Core.dll,
         ],
         deploymentOptions: reducedDeploymentOptions,
-    });
+    };
 
-    const native = packAssemblies({
-        id: buildXLNativeIdentity.id,
+    const nativeSpecification = {
+        id: buildXLNativeIdentity,
         assemblies: [
             // BuildXL.Native
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Native.dll,
@@ -250,15 +271,15 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifier).Native.dll,
         ],
         dependencies: [
-            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
-            // Therefore for now we manually declare these.
+            // This package references BuildXL.Tracing, which means that it requires a dependency on BuildXL.Utilities
+            // However, it's not possible to add a dependency on BuildXL.Utilities because of the way this package is consumed by downstream consumers.
             buildXLUtilitiesCoreIdentity,
         ],
         deploymentOptions: reducedDeploymentOptions,
-    });
+    };
 
-    const pips = packAssemblies({
-        id: buildXLPipsIdentity.id,
+    const pipsSpecification = {
+        id: buildXLPipsIdentity,
         assemblies: [
             // BuildXL.Utilities
             importFrom("BuildXL.Pips").withQualifier(net472packageQualifier).dll,
@@ -276,8 +297,7 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).Storage.dll,
         ],
         dependencies: [
-            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
-            // Therefore for now we manually declare these.
+            // This package still uses the old cache packages, so inferInternalDependencies is set to false
             buildXLUtilitiesIdentity,
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
@@ -292,10 +312,10 @@ namespace NugetPackages {
             // buildXLMemoizationStoreInterfacesIdentity,
         ],
         deploymentOptions: reducedDeploymentOptions,
-    });
+    };
 
-    const processes = packAssemblies({
-        id: `${packageNamePrefix}.Processes`,
+    const processesSpecification = {
+        id: { id: `${packageNamePrefix}.Processes`, version: Branding.Nuget.packageVersion },
         assemblies: [
             // BuildXL.Processes
             importFrom("BuildXL.Engine").withQualifier(net472packageQualifier).Processes.dll,
@@ -303,31 +323,31 @@ namespace NugetPackages {
             importFrom("BuildXL.Engine").withQualifier(net7PackageQualifier).Processes.dll,
         ],
         dependencies: [
-            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
-            // Therefore for now we manually declare these.
+            // This package references BuildXL.Tracing, which means that it requires a dependency on BuildXL.Utilities
+            // However, it's not possible to add a dependency on BuildXL.Utilities because of the way this package is consumed by downstream consumers.
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
         ],
         deploymentOptions: reducedDeploymentOptions
-    });
+    };
 
-    const processesLinux = packAssemblies({
-        id: `${packageNamePrefix}.Processes.linux-x64`,
+    const processesLinuxSpecification = {
+        id: { id: `${packageNamePrefix}.Processes.linux-x64`, version: Branding.Nuget.packageVersion },
         assemblies: [
             importFrom("BuildXL.Engine").withQualifier(net6LinuxPackageQualifier).Processes.dll,
             importFrom("BuildXL.Engine").withQualifier(net7LinuxPackageQualifier).Processes.dll
         ],
         dependencies: [
-            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
-            // Therefore for now we manually declare these.
+            // This package references BuildXL.Tracing, which means that it requires a dependency on BuildXL.Utilities
+            // However, it's not possible to add a dependency on BuildXL.Utilities because of the way this package is consumed by downstream consumers.
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
         ],
         deploymentOptions: reducedDeploymentOptions
-    });
+    };
 
-    const engineCache = packAssemblies({
-        id: `${packageNamePrefix}.Engine.Cache`,
+    const engineCacheSpecification = {
+        id: { id: `${packageNamePrefix}.Engine.Cache`, version: Branding.Nuget.packageVersion },
         assemblies: [
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).InMemory.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).Interfaces.dll,
@@ -357,8 +377,7 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(net7PackageQualifier).Storage.dll,
         ],
         dependencies: [
-            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
-            // Therefore for now we manually declare these.
+            // This package still uses the old cache packages, so inferInternalDependencies is set to false
             buildXLUtilitiesIdentity,
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
@@ -389,7 +408,7 @@ namespace NugetPackages {
             // buildXLCacheHostConfigurationIdentity,
             // buildXLCacheLoggingIdentity
         ]
-    });
+    };
 
     const cacheServiceDeployment : Deployment.Definition = {
         contents: [
@@ -488,261 +507,172 @@ namespace NugetPackages {
     // NOTE: Only dependencies on other BuildXL packages need to be declared as dependencies here.
     // External dependencies will be inferred from the references made by the assemblies in this package. 
     // BuildXL.ContentStore.Distributed
-    const cacheContentStoreDistributed = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLContentStoreDistributedIdentity.id,
-        assemblies: [
-            ...Cache.NugetPackages.contentStoreDistributed
-        ],
-        dependencies: [
-            // BuildXL
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-            buildXLNativeIdentity,
-
-            // Cache
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreLibraryIdentity,
-            buildXLCacheHostConfigurationIdentity,
-            buildXLMemoizationStoreInterfacesIdentity,
-            buildXLContentStoreGrpcIdentity,
-        ]
-    });
+    const cacheContentStoreDistributedSpecification = {
+        id: buildXLContentStoreDistributedIdentity,
+        assemblies: [ ...Cache.NugetPackages.contentStoreDistributed ],
+    };
 
     // BuildXL.ContentStore.Library
-    const cacheContentStoreLibrary = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLContentStoreLibraryIdentity.id,
-        assemblies: [ ...Cache.NugetPackages.contentStoreLibrary ],
-        dependencies: [
-            // BuildXL
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-            buildXLNativeIdentity,
-
-            // Cache
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreGrpcIdentity,
-            buildXLCacheHostConfigurationIdentity,
-        ]
-    });
+    const cacheContentStoreLibrarySpecification = {
+        id: buildXLContentStoreLibraryIdentity,
+        assemblies: [ ...Cache.NugetPackages.contentStoreLibrary ]
+    };
 
     // BuildXL.ContentStore.Grpc
-    const cacheContentStoreGrpc = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLContentStoreGrpcIdentity.id,
-        assemblies: [ ...Cache.NugetPackages.contentStoreGrpc ],
-        dependencies: [
-            // Cache
-            buildXLContentStoreInterfacesIdentity,
-        ]
-    });
+    const cacheContentStoreGrpcSpecification = {
+        id: buildXLContentStoreGrpcIdentity,
+        assemblies: [ ...Cache.NugetPackages.contentStoreGrpc ]
+    };
 
     // BuildXL.ContentStore.Vsts
-    const cacheContentStoreVsts = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : packAssemblies({
-        id: buildXLContentStoreVstsIdentity.id,
+    const cacheContentStoreVstsSpecification = {
+        id: buildXLContentStoreVstsIdentity,
         assemblies: [ ...Cache.NugetPackages.contentStoreVsts ],
-        dependencies: [
-            // BuildXL
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-            buildXLNativeIdentity,
-
-            // Cache
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreLibraryIdentity,
-        ]
-    });
+    };
 
     // BuildXL.ContentStore.VstsInterfaces
-    const cacheContentStoreVstsInterfaces = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : packAssemblies({
-        id: buildXLContentStoreVstsInterfacesIdentity.id,
+    const cacheContentStoreVstsInterfacesSpecification = {
+        id: buildXLContentStoreVstsInterfacesIdentity,
         assemblies: [ ...Cache.NugetPackages.contentStoreVstsInterfaces ],
-        dependencies: [
-            // Cache
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreHashingIdentity,
-        ]
-    });
+    };
 
     // BuildXL.MemoizationStore.Distributed
-    const cacheMemoizationStoreDistributed = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLMemoizationStoreDistributedIdentity.id,
+    const cacheMemoizationStoreDistributedSpecification = {
+        id: buildXLMemoizationStoreDistributedIdentity,
         assemblies: [ ...Cache.NugetPackages.memoizationStoreDistributed ],
-        dependencies: [
-            // BuildXL
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-
-            // Cache
-            buildXLContentStoreDistributedIdentity,
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreLibraryIdentity,
-            buildXLMemoizationStoreInterfacesIdentity,
-            buildXLMemoizationStoreLibraryIdentity,
-            buildXLCacheHostConfigurationIdentity,
-        ]
-    });
+    };
 
     // BuildXL.MemoizationStore.Library
-    const cacheMemoizationStoreLibrary = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLMemoizationStoreLibraryIdentity.id,
+    const cacheMemoizationStoreLibrarySpecification = {
+        id: buildXLMemoizationStoreLibraryIdentity,
         assemblies: [ ...Cache.NugetPackages.memoizationStoreLibrary ],
-        dependencies: [
-            // BuildXL
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-
-            // Cache
-            buildXLContentStoreDistributedIdentity,
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLContentStoreGrpcIdentity,
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreLibraryIdentity,
-            buildXLMemoizationStoreInterfacesIdentity,
-            buildXLCacheHostConfigurationIdentity,
-        ]
-    });
+    };
 
     // BuildXL.MemoizationStore.Vsts
-    const cacheMemoizationStoreVsts = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : packAssemblies({
-        id: buildXLMemoizationStoreVstsIdentity.id,
+    const cacheMemoizationStoreVstsSpecification = {
+        id: buildXLMemoizationStoreVstsIdentity,
         assemblies: [ ...Cache.NugetPackages.memoizationStoreVsts ],
-        dependencies: [
-            // BuildXL
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-
-            // Cache
-            buildXLMemoizationStoreLibraryIdentity,
-            buildXLMemoizationStoreInterfacesIdentity,
-            buildXLMemoizationStoreVstsInterfacesIdentity,
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreLibraryIdentity,
-            buildXLContentStoreVstsIdentity,
-        ]
-    });
+    };
 
     // BuildXL.MemoizationStore.VstsInterfaces
-    const cacheMemoizationStoreVstsInterfaces = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLMemoizationStoreVstsInterfacesIdentity.id,
+    const cacheMemoizationStoreVstsInterfacesSpecification = {
+        id: buildXLMemoizationStoreVstsInterfacesIdentity,
         assemblies: [ ...Cache.NugetPackages.memoizationStoreVstsInterfaces ],
-        dependencies: [
-            // Cache
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreVstsIdentity,
-            buildXLMemoizationStoreInterfacesIdentity,
-        ]
-    });
+    };
 
     // BuildXL.Cache.Host.Service
-    const cacheHostServices = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLCacheHostServicesIdentity.id,
+    const cacheHostServicesSpecification = {
+        id: buildXLCacheHostServicesIdentity,
         assemblies: [ ...Cache.NugetPackages.buildxlCacheHostServices ],
-        dependencies: [
-            // BuildXL
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-            buildXLNativeIdentity,
-
-            // Cache
-            buildXLCacheHostConfigurationIdentity,
-            buildXLContentStoreLibraryIdentity,
-            buildXLContentStoreGrpcIdentity,
-            buildXLContentStoreDistributedIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLMemoizationStoreLibraryIdentity,
-            ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [ buildXLMemoizationStoreVstsIdentity ]),
-            buildXLMemoizationStoreDistributedIdentity,
-            buildXLMemoizationStoreInterfacesIdentity,   
-            buildXLCacheLoggingIdentity,         
-        ]
-    });
+    };
 
     // BuildXL.Cache.Host.Configuration
-    const cacheHostConfiguration = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLCacheHostConfigurationIdentity.id,
+    const cacheHostConfigurationSpecification = {
+        id: buildXLCacheHostConfigurationIdentity,
         assemblies: [ ...Cache.NugetPackages.buildxlCacheHostConfiguration ],
-        dependencies: [
-            // Cache
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreGrpcIdentity,
-        ]
-    });
+    };
 
     // BuildXL.Cache.Logging
-    const cacheLogging = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLCacheLoggingIdentity.id,
+    const cacheLoggingSpecification = {
+        id: buildXLCacheLoggingIdentity,
         assemblies: [ ...Cache.NugetPackages.buildxlCacheLogging ],
-        dependencies: [
-            // BuildXL
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-        
-            // Cache
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreLibraryIdentity,
-            buildXLCacheHostConfigurationIdentity,
-        ]
-    });
+    };
 
     // BuildXL.ContentStore.Interfaces
-    const cacheContentStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLContentStoreInterfacesIdentity.id,
+    const cacheContentStoreInterfacesSpecification = {
+        id: buildXLContentStoreInterfacesIdentity,
         assemblies: [ ...Cache.NugetPackages.contentStoreInterfaces ],
-        dependencies: [
-            // Cache
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreUtilitiesCoreIdentity,
-        ]
-    });
+    };
 
     // BuildXL.MemoizationStore.Interfaces
-    const cacheMemoizationStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLMemoizationStoreInterfacesIdentity.id,
+    const cacheMemoizationStoreInterfacesSpecification = {
+        id: buildXLMemoizationStoreInterfacesIdentity,
         assemblies: [ ...Cache.NugetPackages.memoizationStoreInterfaces ],
-        dependencies: [
-            // BuildXL
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-
-            // Cache
-            buildXLContentStoreUtilitiesCoreIdentity,
-            buildXLContentStoreHashingIdentity,
-            buildXLContentStoreInterfacesIdentity,
-            buildXLContentStoreLibraryIdentity,
-        ]
-    });
+    };
 
     // BuildXL.ContentStore.Hashing
-    const cacheContentStoreHashing = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLContentStoreHashingIdentity.id,
+    const cacheContentStoreHashingSpecification = {
+        id: buildXLContentStoreHashingIdentity,
         assemblies: [ ...Cache.NugetPackages.contentStoreHashing ],
-        dependencies: [
-            // Cache
-            buildXLContentStoreUtilitiesCoreIdentity,
-        ]
-    });
+    };
 
     // BuildXL.ContentStore.UtilitiesCore
-    const cacheContentStoreUtilitiesCore = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies({
-        id: buildXLContentStoreUtilitiesCoreIdentity.id,
+    const cacheContentStoreUtilitiesCoreSpecification = {
+        id: buildXLContentStoreUtilitiesCoreIdentity,
         assemblies: [ ...Cache.NugetPackages.contentStoreUtilitiesCore ],
-    });
+    };
+
+    /**
+     * A set of all package specifications built by BuildXL.
+     * When adding a new package, add its package specification here.
+     */
+    const packageSpecifications : Nuget.PackageSpecification[] = [
+        ariaCommonSpecification,
+        nativeSpecification,
+        utilitiesCoreSpecification,
+        utilitiesSpecification,
+        cacheContentStoreDistributedSpecification,
+        cacheContentStoreLibrarySpecification,
+        cacheContentStoreGrpcSpecification,
+        ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [ 
+            cacheContentStoreVstsSpecification,
+            cacheContentStoreVstsInterfacesSpecification,
+            cacheMemoizationStoreVstsSpecification,
+            cacheMemoizationStoreVstsInterfacesSpecification
+        ]),
+        cacheMemoizationStoreDistributedSpecification,
+        cacheMemoizationStoreLibrarySpecification,
+        cacheHostServicesSpecification,
+        cacheHostConfigurationSpecification,
+        cacheLoggingSpecification,
+        cacheContentStoreInterfacesSpecification,
+        cacheMemoizationStoreInterfacesSpecification,
+        cacheContentStoreHashingSpecification,
+        cacheContentStoreUtilitiesCoreSpecification,
+    ];
+
+    const packageBranding : Nuget.PackageBranding = {
+        company: Branding.company,
+        shortProductName: Branding.shortProductName,
+        version:Branding.Nuget.packageVersion,
+        authors: Branding.Nuget.packageAuthors,
+        owners:Branding.Nuget.packageOwners,
+        copyright: Branding.Nuget.pacakgeCopyright
+    };
+
+    /**
+     * Several of the packages below have inferInternalDependencies set to false on purpose.
+     * Many of these are older BuildXL nuget packages that have always had their dependencies incorrectly specified.
+     * Fixing them requires more work that will come in the future change.
+     * Changing them now would result in downstream consumers needing to include dependencies they may not necessarily want to add. 
+     * For example, BuildX.Processes will have a dependency on BuildXL.Utilties which is undesirable because Utilities contains a lot of external dependencies.
+     */
+    const ariaCommon = Nuget.packAssembliesAndAssertDependencies(ariaCommonSpecification, packageSpecifications, packageBranding, /** inferInternalDependencies */ true, /* dependencyScope */ []);
+    const utilities = Nuget.packAssemblies(utilitiesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
+    // NOTE: utilitiesCore, native, processes, and processesLinux have a restricted set of dependencies.
+    // Do not modify its set of allowed dependencies without first consulting with the BuildXL team.
+    const utilitiesCore = Nuget.packAssembliesAndAssertDependencies(utilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true, /* dependencyScope */ []);
+    const native = Nuget.packAssembliesAndAssertDependencies(nativeSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false,/* dependencyScope */ [buildXLUtilitiesCoreIdentity]);
+    const pips = Nuget.packAssemblies(pipsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
+    const processes = Nuget.packAssembliesAndAssertDependencies(processesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
+    const processesLinux = Nuget.packAssembliesAndAssertDependencies(processesLinuxSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
+    const engineCache = Nuget.packAssemblies(engineCacheSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
+    const cacheContentStoreDistributed = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreDistributedSpecification, packageSpecifications, packageBranding, /* inferBuildXLDepencies */ true);
+    const cacheContentStoreLibrary = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreGrpc = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreGrpcSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreVsts = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : Nuget.packAssemblies(cacheContentStoreVstsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreVstsInterfaces = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : Nuget.packAssemblies(cacheContentStoreVstsInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreDistributed = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheMemoizationStoreDistributedSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreLibrary = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheMemoizationStoreLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreVsts = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : Nuget.packAssemblies(cacheMemoizationStoreVstsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreVstsInterfaces = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : Nuget.packAssemblies(cacheMemoizationStoreVstsInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheHostServices = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheHostServicesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheHostConfiguration = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheHostConfigurationSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheLogging = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheLoggingSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheMemoizationStoreInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreHashing = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreHashingSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreUtilitiesCore = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreUtilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
 
     const cacheLibrariesPackages = [
         cacheContentStoreDistributed,
@@ -802,6 +732,7 @@ namespace NugetPackages {
                 cacheService,
                 cacheHashing,
                 ...cacheHashingPackages,
+                ariaCommon,
                 utilities,
                 utilitiesCore,
                 native,
@@ -828,72 +759,6 @@ namespace NugetPackages {
         targetLocation: packageTargetFolder,
     });
 
-    /**
-     * Helper to pack assemblies. 
-     * We'll keep it in the BuildXL side for now. 
-     * If useful we should move it to the Nuget sdk.
-     */
-    function packAssemblies(args: {
-        id: string,
-        assemblies: Managed.Assembly[],
-        dependencies?: Nuget.Dependency[],
-        deploymentOptions?: Managed.Deployment.FlattenOptions,
-        additionalContent?: Deployment.DeployableItem[],
-    }) : File
-    {
-        let dependencies : Nuget.Dependency[] = args
-            .assemblies
-            .filter(asm => asm !== undefined)
-            .mapMany(asm => asm
-                .references
-                .filter(ref => Managed.isManagedPackage(ref))
-                .map(ref => <Managed.ManagedNugetPackage>ref)
-                .map(ref => { return {id: ref.name, version: ref.version, targetFramework: asm.targetFramework}; })
-                .concat( (args.dependencies || []).map(dep => { return {id: dep.id, version: dep.version, targetFramework: asm.targetFramework }; }) )
-            );
-
-        // If we ever add support for Mac packages here, we will have a problem because nuget does not
-        // support our scenario as of Jan 2020.
-        //  * We can't use contentFiles/any/{tfm} pattern because it doesn't support {rid}
-        //  * We can't place stuff in runtimes/{rid}/lib/{tfm}/xxxx nor in runtimes/{rid}/native/xxxx beause:
-        //        a) packages.config projects don't support the runtimes folder
-        //        b) nuget does not copy files on build. So F5 and unittests are broken. One has to hit 'publish'
-        //        c) nuget does not copy subfolders under those
-        // So the only solution is to include a custom targets file, which is hard to write because now that
-        // targets file is responsible for doing the {rid} graph resolution between win10-x64, win10, win-x64 etc.
-        // Therefore we will stick to only supporting windows platform and using contentFiles pattern
-        let contentFiles : Deployment.DeployableItem[] = args
-            .assemblies
-            .filter(asm => asm !== undefined && asm.runtimeContent !== undefined)
-            .map(asm => <Deployment.NestedDefinition>{
-                // Note since all windows tfms have the same content, we are manually
-                // if we ever create differences between tmfs, we will have to change the second 
-                // any to ${asm.targetFramework}
-                subfolder: r`contentFiles/any/any`,
-                contents: [
-                    asm.runtimeContent
-                ]
-            });
-
-        return Nuget.pack({
-            metadata:  createMetaData({
-                id: args.id, 
-                dependencies: dependencies, 
-                copyContentFiles: contentFiles.length > 0,
-            }),
-            deployment: {
-                contents: [
-                    ...args.assemblies.map(asm => Nuget.createAssemblyLayout(asm)),
-                    ...contentFiles,
-                    ...args.additionalContent || [],
-                ]
-            },
-            deploymentOptions: args.deploymentOptions,
-            noPackageAnalysis: true,
-            noDefaultExcludes: true,
-        }).nuPkg;
-    }
-
     export function pack(args: {
         id: string,
         deployment: Deployment.Definition,
@@ -913,38 +778,13 @@ namespace NugetPackages {
             });
 
         return Nuget.pack({
-            metadata:  createMetaData({id: args.id, dependencies: dependencies,copyContentFiles: args.copyContentFiles}),
+            metadata:  Nuget.createMetaData({id: args.id, dependencies: dependencies,copyContentFiles: args.copyContentFiles, packageBranding: packageBranding}),
             deployment: args.deployment,
             deploymentOptions: args.deploymentOptions,
             noPackageAnalysis: true,
             noDefaultExcludes: true,
             filterFiles: args.filterFiles,
         }).nuPkg;
-    }
-
-    export function createMetaData(args: {
-        id: string,
-        dependencies: Nuget.Dependency[],
-        copyContentFiles?: boolean,
-    }) : Nuget.PackageMetadata
-    {
-        return {
-            id: args.id,
-            version: Branding.Nuget.packageVersion,
-            authors: Branding.Nuget.packageAuthors,
-            owners: Branding.Nuget.packageOwners,
-            copyright: Branding.Nuget.pacakgeCopyright,
-            tags: `${Branding.company} ${Branding.shortProductName} MSBuild Build`,
-            description: `${Branding.shortProductName} is a build engine that comes with a new build automation language. ${Branding.shortProductName} performs fast parallel incremental builds enabled by fine-grained dataflow dependency information. All build artifacts are cached locally, and eventually shared between different machines. The engine can run on a single machine, and it will perform distributed builds on many machines in a lab or in the cloud.`,
-            dependencies: args.dependencies,
-            contentFiles: args.copyContentFiles
-                ? [{
-                    include: "**",
-                    copyToOutput: true,
-                    buildAction: "None",
-                    }]
-                : undefined,
-        };
     }
 
     export function isManagedPackage(item: Nuget.Dependency | Managed.ManagedNugetPackage) : item is Managed.ManagedNugetPackage {

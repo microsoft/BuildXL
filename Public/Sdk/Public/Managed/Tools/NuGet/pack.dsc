@@ -3,11 +3,11 @@
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
-import * as Managed    from "Sdk.Managed.Shared";
 import * as Deployment from "Sdk.Deployment";
+import * as Managed    from "Sdk.Managed.Shared";
+import * as Mono       from "Sdk.Mono";
 import * as Nuget      from "NuGet.CommandLine";
 import * as Xml        from "Sdk.Xml";
-import * as Mono       from "Sdk.Mono";
 
 @@public
 export const tool : Transformer.ToolDefinition = {
@@ -109,15 +109,46 @@ export interface Dependency {
     targetFramework?: string;
 }
 
+@@public
+export interface PackageIdentifier {
+    /** Name of the Package. */
+    id: string,
+
+    /** Version of the Package. */
+    version: string,
+}
+
+@@public
+export interface PackageSpecification {
+    /** Identifier of the Package. */
+    id: PackageIdentifier,
+
+    /** Assemblies included in this package */
+    assemblies: Managed.Assembly[],
+
+    /** Dependencies for this package */
+    dependencies?: Dependency[],
+
+    /** Deployment options */
+    deploymentOptions?: Managed.Deployment.FlattenOptions,
+
+    /** Additional runtime content to include */
+    additionalContent?: Deployment.DeployableItem[],
+}
+
 export interface ContentFile {
     /** The location of the file or files to include, subject to exclusions specified by the exclude attribute. The path is relative to the .nuspec file unless an absolute path is specified. The wildcard character * is allowed, and the double wildcard ** implies a recursive folder search. */
     include: string,
+
     /** A semicolon-delimited list of files or file patterns to exclude from the src location. The wildcard character * is allowed, and the double wildcard ** implies a recursive folder search. */
     exclude?: string,
+
     /** The build action to assign to the content item for MSBuild, such as Content, None, Embedded Resource, Compile, etc. The default is Compile. */
     buildAction?: "Content" | "None" | "Embedded Resource" | "Compile",
+
     /** A Boolean indicating whether to copy content items to the build (or publish) output folder. The default is false. */
     copyToOutput?: boolean,
+
     /** A Boolean indicating whether to copy content items to a single folder in the build output (true), or to preserve the folder structure in the package (false). This flag only works when copyToOutput flag is set to true. The default is false. */
     flatten?: boolean,
 }
@@ -125,6 +156,224 @@ export interface ContentFile {
 @@public
 export interface PackResult {
     nuPkg: File;
+}
+
+@@public
+export interface PackageBranding
+{
+    /** The company name to be used in the package metadata. */
+    company: string;
+
+    /** The short product name to be used in the package metadata. */
+    shortProductName: string;
+
+    /** The package version to be used in the package metadata. */
+    version: string;
+
+    /** The package authors to be used in the package metadata. */
+    authors: string;
+
+    /** The package owners to be used in the package metadata. */
+    owners: string;
+
+    /** The package copy right to be used in the package metadata. */
+    copyright: string;
+}
+
+/**
+ * Helper to pack assemblies and assert that only the specified BuildXL package references are added as dependencies.
+ */
+@@public
+export function packAssembliesAndAssertDependencies(
+    args: PackageSpecification,
+    packageSpecifications : PackageSpecification[],
+    packageBranding : PackageBranding,
+    inferInternalDependencies : boolean,
+    allowedDependecies : PackageIdentifier[] ) : File
+{
+    assertAssemblyPrefix(args);
+
+    let dependencies = getDependencies(args, packageSpecifications, inferInternalDependencies);
+    let disallowedDependencies = dependencies
+        .filter(dep => dep.id.startsWith("BuildXL"))
+        .filter(dep => allowedDependecies.find(allowedDependency => allowedDependency.id === dep.id && allowedDependency.version === dep.version) === undefined);
+
+    if (disallowedDependencies.length > 0) {
+        Contract.fail(`Nuget Package '${args.id.id}.${args.id.version}' references the following disallowed dependencies: ${Environment.newLine()}${disallowedDependencies.map(dep => `name: '${dep.id}', targetFramework: '${dep.targetFramework}'`).join(Environment.newLine())}`);    
+    }
+
+    return buildNupkg(args, dependencies, packageBranding);
+}
+
+/**
+ * Helper to pack assemblies. 
+ * When 'inferInternalDependencies' is true, BuildXL package references will be automatically added and errors will be thrown if a reference cannot be found.
+ */
+@@public
+export function packAssemblies(
+    args: PackageSpecification,
+    packageSpecifications : PackageSpecification[],
+    packageBranding : PackageBranding,
+    inferInternalDependencies : boolean) : File
+{
+    assertAssemblyPrefix(args);
+    let dependencies = getDependencies(args, packageSpecifications, inferInternalDependencies);
+    return buildNupkg(args, dependencies, packageBranding);
+}
+
+/**
+ * Gets a list of dependencies for the the assemblies in this package.
+ */
+function getDependencies(args: PackageSpecification,
+    packageSpecifications : PackageSpecification[],
+    inferInternalDependencies : boolean) : Dependency[]
+{
+    let dependencies : Dependency[] = args
+        .assemblies
+        .filter(asm => asm !== undefined)
+        .mapMany(asm => asm
+            .references
+            .filter(ref => Managed.isManagedPackage(ref))
+            .map(ref => <Managed.ManagedNugetPackage>ref)
+            .map(ref => { return {id: ref.name, version: ref.version, targetFramework: asm.targetFramework}; })
+            .concat( (args.dependencies || []).map(dep => { return {id: dep.id, version: dep.version, targetFramework: asm.targetFramework }; }) )
+        );
+
+    // This step will gather all of the assembly references made by each assembly inside the nuget package with the prefix "BuildXL"
+    // and will search our package specifications for a matching assembly. If one is found, it will be added as a dependency.
+    // If one is not found, an error will be thrown containing a list of assemblies that are not already in an existing BuildXL package.
+    // To fix this, a new package must be produced for the missing binaries.
+    // See 'Public/Src/Deployment/NugetPackages.dsc' for instructions on how to add a new package.
+    if (inferInternalDependencies) {
+        // Gather all the dependencies for each assembly
+        let references = args.assemblies
+            .filter(asm => asm !== undefined)
+            .mapMany(asm => asm.references);
+
+        let assemblyDependencies = references
+            .filter(ref => Managed.isAssembly(ref))
+            .map(ref => <Managed.Assembly>ref)
+            .filter(ref => ref.name.toString().startsWith("BuildXL")); // Filters out non-BuildXL dependencies (e.g. System.*)
+
+        // Verify that all assembly dependencies are declared as dependencies
+        let missingDependencies : MutableSet<String> = MutableSet.empty<String>();
+
+        for (let dep of assemblyDependencies) {
+            let maybeDependency = packageSpecifications.find(
+                spec => spec
+                    .assemblies
+                    .find(asm => asm.name === dep.name && asm.targetFramework === dep.targetFramework) !== undefined
+            );
+
+            if (maybeDependency === undefined) {
+                missingDependencies.add(`name: '${dep.name}', targetFramework: '${dep.targetFramework}'`);
+            }
+            else {
+                dependencies = dependencies.push({
+                    id: maybeDependency.id.id,
+                    version: maybeDependency.id.version,
+                    targetFramework: dep.targetFramework
+                });
+            }
+        }
+
+        if (missingDependencies.count() > 0) {
+            Contract.fail(`Nuget Package '${args.id.id}.${args.id.version}' references the following assemblies, but a corresponding Nuget package could not be found to be declared as a dependency: ${Environment.newLine()}${missingDependencies.toArray().join(Environment.newLine())}`);
+        }
+    }
+
+    return dependencies;
+}
+
+/**
+ * Builds a nupkg given a package specification and its dependencies.
+ */
+function buildNupkg(args: PackageSpecification, dependencies : Dependency[], packageBranding : PackageBranding) : File {
+    // If we ever add support for Mac packages here, we will have a problem because nuget does not
+    // support our scenario as of Jan 2020.
+    //  * We can't use contentFiles/any/{tfm} pattern because it doesn't support {rid}
+    //  * We can't place stuff in runtimes/{rid}/lib/{tfm}/xxxx nor in runtimes/{rid}/native/xxxx beause:
+    //        a) packages.config projects don't support the runtimes folder
+    //        b) nuget does not copy files on build. So F5 and unittests are broken. One has to hit 'publish'
+    //        c) nuget does not copy subfolders under those
+    // So the only solution is to include a custom targets file, which is hard to write because now that
+    // targets file is responsible for doing the {rid} graph resolution between win10-x64, win10, win-x64 etc.
+    // Therefore we will stick to only supporting windows platform and using contentFiles pattern
+    let contentFiles : Deployment.DeployableItem[] = args
+        .assemblies
+        .filter(asm => asm !== undefined && asm.runtimeContent !== undefined)
+        .map(asm => <Deployment.NestedDefinition>{
+            // Note since all windows tfms have the same content, we are manually
+            // if we ever create differences between tmfs, we will have to change the second 
+            // any to ${asm.targetFramework}
+            subfolder: r`contentFiles/any/any`,
+            contents: [
+                asm.runtimeContent
+            ]
+        });
+
+    return pack({
+        metadata:  createMetaData({
+            id: args.id.id, 
+            dependencies: dependencies, 
+            copyContentFiles: contentFiles.length > 0,
+            packageBranding: packageBranding,
+        }),
+        deployment: {
+            contents: [
+                ...args.assemblies.map(asm => createAssemblyLayout(asm)),
+                ...contentFiles,
+                ...args.additionalContent || [],
+            ]
+        },
+        deploymentOptions: args.deploymentOptions,
+        noPackageAnalysis: true,
+        noDefaultExcludes: true,
+    }).nuPkg;
+}
+
+/**
+ * Verifies that all packages built by this SDK contain assemblies with the prefix "BuildXL."
+ */
+function assertAssemblyPrefix(args : PackageSpecification) {
+    // Enforce a requirement that all assemblies inside BuildXL packages must start with the 'BuildXL.' prefix 
+    // so that the filtering logic for inferring packages below properly picks up BuildXL references.
+    for (let asm of args.assemblies) {
+        if (asm === undefined) {
+            continue;
+        }
+        
+        if (!asm.name.toString().startsWith("BuildXL")) {
+            Contract.fail(`Assembly '${asm.name}' for package '${args.id.id}' does not start with the prefix 'BuildXL'. All assemblies being packaged for BuildXL must have this prefix.`);
+        }
+    }
+}
+
+@@public
+export function createMetaData(args: {
+    id: string,
+    dependencies: Dependency[],
+    copyContentFiles?: boolean,
+    packageBranding : PackageBranding,
+}) : PackageMetadata
+{
+    return {
+        id: args.id,
+        version: args.packageBranding.version,
+        authors: args.packageBranding.authors,
+        owners: args.packageBranding.owners,
+        copyright: args.packageBranding.copyright,
+        tags: `${args.packageBranding.company} ${args.packageBranding.shortProductName} MSBuild Build`,
+        description: `${args.packageBranding.shortProductName} is a build engine that comes with a new build automation language. ${args.packageBranding.shortProductName} performs fast parallel incremental builds enabled by fine-grained dataflow dependency information. All build artifacts are cached locally, and eventually shared between different machines. The engine can run on a single machine, and it will perform distributed builds on many machines in a lab or in the cloud.`,
+        dependencies: args.dependencies,
+        contentFiles: args.copyContentFiles
+            ? [{
+                include: "**",
+                copyToOutput: true,
+                buildAction: "None",
+                }]
+            : undefined,
+    };
 }
 
 @@public

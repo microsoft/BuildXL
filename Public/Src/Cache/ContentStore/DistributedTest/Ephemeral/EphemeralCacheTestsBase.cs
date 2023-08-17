@@ -158,7 +158,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             ShardingScheme: new ShardingScheme(ShardingAlgorithm.JumpHash, accounts),
             Universe: RunId,
             Namespace: "test",
-            RetentionPolicyInDays: 0);
+            RetentionPolicyInDays: null);
 
         var ephemeralManagementStorageCredentials = TestMode == Mode.DatacenterWide ? new AzureStorageCredentials(process.ConnectionString) : null;
         var host = new TestInstance(

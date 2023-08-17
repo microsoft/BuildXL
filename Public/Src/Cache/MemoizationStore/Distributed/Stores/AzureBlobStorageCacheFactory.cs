@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.Host.Configuration;
@@ -15,12 +16,21 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     /// <nodoc />
     public static class AzureBlobStorageCacheFactory
     {
-        /// <nodoc />
+        /// <summary>
+        /// Configuration for <see cref="AzureBlobStorageCacheFactory"/>
+        /// </summary>
+        /// <param name="ShardingScheme">Sharding scheme to use</param>
+        /// <param name="Universe">Cache universe</param>
+        /// <param name="Namespace">Cache namespace</param>
+        /// <param name="RetentionPolicyInDays">
+        /// Set to null to disable engine-side GC if you are using the BlobLifetimeManager to manage the size of the cache.
+        /// If not null, if a content hash list is older than this retention period, the engine will manually pin all of its contents to ensure that content still exists.
+        /// </param>
         public record Configuration(
             ShardingScheme ShardingScheme,
             string Universe,
             string Namespace,
-            int? RetentionPolicyInDays = 0)
+            int? RetentionPolicyInDays)
         {
             /// <summary>
             /// Maximum amount of time we're willing to wait for any operation against storage.
@@ -45,11 +55,11 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
             IBlobCacheTopology topology = CreateTopology(configuration, secretsProvider);
 
-            // If the user specifed a retention policy time greater than 0, we use that.
-            // Otherwise, we use null, which is equivalent to not setting it
-            TimeSpan? retentionPolicyTimeSpan = configuration.RetentionPolicyInDays > 0
-                ? TimeSpan.FromDays(configuration.RetentionPolicyInDays.Value)
-                : null;
+            Contract.Assert((configuration.RetentionPolicyInDays ?? 1) > 0, $"{nameof(configuration.RetentionPolicyInDays)} must be null or greater than 0");
+
+            TimeSpan? retentionPolicyTimeSpan = configuration.RetentionPolicyInDays is null
+                ? null
+                : TimeSpan.FromDays(configuration.RetentionPolicyInDays.Value);
 
             IMemoizationStore memoizationStore = CreateMemoizationStore(configuration, topology, retentionPolicyTimeSpan);
             IContentStore contentStore = CreateContentStore(configuration, topology);
@@ -115,7 +125,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 new MetadataStoreMemoizationDatabaseConfiguration()
                 {
                     RetentionPolicy = retentionPolicyTimeSpan,
-                    DisablePreventivePinning = configuration.RetentionPolicyInDays is null
+                    DisablePreventivePinning = retentionPolicyTimeSpan is null
                 });
 
             return new DatabaseMemoizationStore(blobMemoizationDatabase) { OptimizeWrites = true };

@@ -46,7 +46,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                     ShardingScheme: new ShardingScheme(ShardingAlgorithm.SingleShard, new List<BlobCacheStorageAccountName>() { BlobCacheStorageAccountName.Parse("devstoreaccount1") }),
                     Universe: "default",
                     Namespace: "default",
-                    RetentionPolicyInDays: 0)
+                    RetentionPolicyInDays: null)
             };
         }
 

@@ -10,7 +10,4 @@
    <FileRef
       location = "group:Interop/Interop.xcodeproj">
    </FileRef>
-   <FileRef
-      location = "group:Sandbox/Sandbox.xcodeproj">
-   </FileRef>
 </Workspace>

@@ -55,7 +55,6 @@ namespace Processes {
                 MacServices.Deployment.bxlESDaemon,
             ]),
             ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
-                MacServices.Deployment.kext,
                 MacServices.Deployment.sandboxMonitor,
                 MacServices.Deployment.sandboxLoadScripts
             ]),

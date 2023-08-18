@@ -12,57 +12,6 @@ namespace Deployment {
         ? (BuildXLSdk.Flags.isValidatingOsxRuntime ? "package" : "build")
         : (BuildXLSdk.Flags.isMicrosoftInternal    ? "package" : "none");
 
-    @@public
-    export const kext: SdkDeployment.Definition = {
-        contents: [
-        {
-            subfolder: r`native/MacOS/BuildXLSandbox.kext`,
-            contents: macBinaryUsage === "none"
-                ? []
-                : macBinaryUsage === "package"
-                    ? [ SdkDeployment.createFromFilteredStaticDirectory(
-                            importFrom("runtime.osx-x64.BuildXL").Contents.all.ensureContents({subFolder: r`runtimes/osx-x64/native/${qualifier.configuration}/BuildXLSandbox.kext`}),
-                            r`.`)]
-                    : [{
-                        subfolder: a`Contents`,
-                        contents: [
-                            Sandbox.kext.plist,
-                            {
-                                subfolder: a`MacOS`,
-                                contents: [ Sandbox.kext.sandbox ]
-                            },
-                            {
-                                subfolder: a`Resources`,
-                                contents: [ Sandbox.kext.license ]
-                            },
-                            {
-                                subfolder: a`_CodeSignature`,
-                                contents: [ Sandbox.kext.codeRes ]
-                            }
-                        ]
-                    }]
-        },
-        {
-            subfolder: r`native/MacOS/BuildXLSandbox.kext.dSYM`,
-            contents: macBinaryUsage === "none"
-                ? []
-                : macBinaryUsage === "package"
-                    ? [ SdkDeployment.createFromFilteredStaticDirectory(
-                        importFrom("runtime.osx-x64.BuildXL").Contents.all.ensureContents({subFolder: r`runtimes/osx-x64/native/${qualifier.configuration}/BuildXLSandbox.kext.dSYM`}),
-                        r`.`)]
-                    : [{
-                        subfolder: a`Contents`,
-                        contents: [
-                            Sandbox.kext.dSYMPlist,
-                            {
-                                subfolder: r`Resources/DWARF`,
-                                contents: [ Sandbox.kext.dSYMDwarf ]
-                            }
-                        ]
-                    }]
-        }]
-    };
-
     const EnvScript = f`${Context.getMount("Sandbox").path}/MacOs/scripts/env.sh`;
 
     @@public

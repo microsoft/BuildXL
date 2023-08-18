@@ -49,3 +49,11 @@ steps:
     packagesToPush: '$(Agent.TempDirectory)/BuildXLMacOS/pkg/*.nupkg'
     nuGetFeedType: 'external'
     publishFeedCredentials: 'BuildXL__PAT-TseBuild-AzureDevOps-1EsSharedAssets__BuildXL 1essharedassets public feed (PAT exp 05/24/2022)'
+    
+- task: NuGetCommand@2
+  displayName: Push Nuget Package to Public ms feed
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Agent.TempDirectory)/BuildXLMacOS/pkg/*.nupkg'
+    nuGetFeedType: 'external'
+    publishFeedCredentials: 'BuildXL__PAT-TseBuild-AzureDevOps-ms__BuildXL @ ms (PAT exp 05/24/2022)'

@@ -97,6 +97,11 @@ namespace NugetPackages {
     const buildXLContentStoreHashingIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Hashing`, version: Branding.Nuget.packageVersion };
     const buildXLContentStoreUtilitiesCoreIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.UtilitiesCore`, version: Branding.Nuget.packageVersion };
 
+    // External packages
+    // The macOS runtime package is only produced publicly, so 'Microsoft.BuildXL' will always be its prefix (ie: instead of using `packageNamePrefix`)
+    // To produce a new version of this package please refer to our internal BuildXL OneNote in the macOS section.
+    const buildXLMacOSRuntimeIdentity = { id: `Microsoft.BuildXL.Interop.Runtime.osx-x64`, version: `20230818.1.0` };
+
     const packageTargetFolder = BuildXLSdk.Flags.isMicrosoftInternal
         ? r`${qualifier.configuration}/pkgs`
         : r`${qualifier.configuration}/public/pkgs`;
@@ -224,6 +229,10 @@ namespace NugetPackages {
             // This package has contains multiple assemblies so for now we will manually declare its dependencies
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
+            // When making a change to the macOS interop dylib, ensure that a new version of this package is built
+            // and the version number for this identity is updated.
+            // For more details check the macOS section on the BuildXL onenote.
+            buildXLMacOSRuntimeIdentity,
         ],
         deploymentOptions: reducedDeploymentOptions,
         additionalContent: [
@@ -238,14 +247,7 @@ namespace NugetPackages {
                 contents: [
                     ...importFrom("BuildXL.Utilities").withQualifier(netStandardLinuxPackageQualifier).Native.nativeLinux,
                 ],
-            }]),
-            {
-                // macOS native binaries come from a nuget package, so we can deploy them on all platforms
-                subfolder: r`runtimes/osx-x64/native/`,
-                contents: [
-                    ...importFrom("BuildXL.Utilities").withQualifier(osxPackageQualifier).Native.nativeMac,
-                ],
-            },
+            }])
         ]
     };
 

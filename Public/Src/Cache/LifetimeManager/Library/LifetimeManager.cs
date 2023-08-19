@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -29,6 +30,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         public async Task RunAsync(
             OperationContext context,
             BlobQuotaKeeperConfig config,
+            IAbsFileSystem fileSystem,
             IBlobCacheSecretsProvider secretsProvider,
             IReadOnlyList<BlobCacheStorageAccountName> accountNames,
             IClock clock,
@@ -79,10 +81,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     {
                         await LogConfigAndAccountDifferencesAsync(context, secretsProvider, accountNames, config, metadataMatrix, contentMatrix);
 
-                        var temp = Path.Combine(Path.GetTempPath(), "LifetimeDatabase", Guid.NewGuid().ToString());
+                        using var temp = new DisposableDirectory(fileSystem);
+
+                        var rootPath = temp.Path / "LifetimeDatabase";
                         var dbConfig = new RocksDbLifetimeDatabase.Configuration
                         {
-                            DatabasePath = temp,
+                            DatabasePath = rootPath.Path,
                             LruEnumerationPercentileStep = config.LruEnumerationPercentileStep,
                             LruEnumerationBatchSize = config.LruEnumerationBatchSize,
                             BlobNamespaceIds = namespaces,
@@ -111,7 +115,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             registry,
                             centralStorage,
                             new CheckpointManagerConfiguration(
-                                WorkingDirectory: new ContentStore.Interfaces.FileSystem.AbsolutePath(Path.Combine(Path.GetTempPath(), "CheckpointManager")),
+                                WorkingDirectory: temp.Path / "CheckpointManager",
                                 PrimaryMachineLocation: machineLocation)
                             {
                                 // We don't want to restore checkpoints on a loop.

@@ -27,6 +27,7 @@ using System.IO;
 using Azure.Core;
 using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
+using BuildXL.Cache.ContentStore.FileSystem;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Test
 {
@@ -83,6 +84,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         await new TestBlobLifetimeManager(pages).RunAsync(
                             context,
                             config,
+                            PassThroughFileSystem.Default,
                             secretsProvider,
                             accounts,
                             SystemClock.Instance,

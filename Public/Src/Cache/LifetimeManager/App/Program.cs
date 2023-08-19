@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities;
 using CLAP;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.FileSystem;
 
 namespace BuildXL.Cache.BlobLifetimeManager
 {
@@ -124,6 +125,7 @@ namespace BuildXL.Cache.BlobLifetimeManager
             await new Library.BlobLifetimeManager().RunAsync(
                 context,
                 config,
+                PassThroughFileSystem.Default,
                 secretsProvider,
                 accounts,
                 SystemClock.Instance,

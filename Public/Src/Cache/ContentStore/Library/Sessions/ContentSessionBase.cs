@@ -195,12 +195,19 @@ namespace BuildXL.Cache.ContentStore.Sessions
             Counter fileCounter)
         {
             var tasks = contentHashes.Select(
-                    (contentHash, index) => PinCoreAsync(
+                (contentHash, index) =>
+                {
+                    if (contentHash.IsEmptyHash())
+                    {
+                        return PinResult.SuccessTask.WithIndexAsync(index);
+                    }
+
+                    return PinCoreAsync(
                         operationContext,
                         contentHash,
                         urgencyHint,
-                        retryCounter).WithIndexAsync(index))
-                .ToList(); // It is important to materialize a LINQ query in order to avoid calling 'PinCoreAsync' on every iteration.
+                        retryCounter).WithIndexAsync(index);
+                }).ToList(); // It is important to materialize a LINQ query in order to avoid calling 'PinCoreAsync' on every iteration.
 
             await TaskUtilities.SafeWhenAll(tasks);
             return tasks;
@@ -226,7 +233,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     {
                         Contract.Requires(realizationMode != FileRealizationMode.Move, "It is not allowed to move files out of the cache");
                         var fileSystem = PassThroughFileSystem.Default;
-                        ;
+
                         if (replacementMode is FileReplacementMode.SkipIfExists or FileReplacementMode.FailIfExists && fileSystem.FileExists(path))
                         {
                             return Task.FromResult(new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists));
@@ -234,18 +241,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
                         if (contentHash.IsEmptyHash())
                         {
-                            var code = realizationMode switch
-                            {
-                                FileRealizationMode.None => PlaceFileResult.ResultCode.PlacedWithCopy,
-                                FileRealizationMode.Any => PlaceFileResult.ResultCode.PlacedWithCopy,
-                                FileRealizationMode.Copy => PlaceFileResult.ResultCode.PlacedWithCopy,
-                                FileRealizationMode.HardLink => PlaceFileResult.ResultCode.PlacedWithHardLink,
-                                FileRealizationMode.CopyNoVerify => PlaceFileResult.ResultCode.PlacedWithCopy,
-                                _ => throw new ArgumentOutOfRangeException(nameof(realizationMode), realizationMode, null)
-                            };
-
-                            fileSystem.CreateEmptyFile(path);
-                            return Task.FromResult(new PlaceFileResult(code, fileSize: 0, source: PlaceFileResult.Source.LocalCache));
+                            return PlaceEmptyFileAsync(path, realizationMode, fileSystem);
                         }
 
                         return PlaceFileCoreAsync(
@@ -272,6 +268,22 @@ namespace BuildXL.Cache.ContentStore.Sessions
                                      },
                     traceErrorsOnly: TraceErrorsOnlyForPlaceFile(path),
                     counter: BaseCounters[ContentSessionBaseCounters.PlaceFile]));
+        }
+
+        private static Task<PlaceFileResult> PlaceEmptyFileAsync(AbsolutePath path, FileRealizationMode realizationMode, PassThroughFileSystem fileSystem)
+        {
+            var code = realizationMode switch
+            {
+                FileRealizationMode.None => PlaceFileResult.ResultCode.PlacedWithCopy,
+                FileRealizationMode.Any => PlaceFileResult.ResultCode.PlacedWithCopy,
+                FileRealizationMode.Copy => PlaceFileResult.ResultCode.PlacedWithCopy,
+                FileRealizationMode.HardLink => PlaceFileResult.ResultCode.PlacedWithHardLink,
+                FileRealizationMode.CopyNoVerify => PlaceFileResult.ResultCode.PlacedWithCopy,
+                _ => throw new ArgumentOutOfRangeException(nameof(realizationMode), realizationMode, null)
+            };
+
+            fileSystem.CreateEmptyFile(path);
+            return Task.FromResult(new PlaceFileResult(code, fileSize: 0, source: PlaceFileResult.Source.LocalCache));
         }
 
         /// <summary>
@@ -325,6 +337,21 @@ namespace BuildXL.Cache.ContentStore.Sessions
             var tasks = hashesWithPaths.Select(
                 (contentHashWithPath, index) =>
                 {
+                    var (contentHash, path) = contentHashWithPath;
+
+                    Contract.Requires(realizationMode != FileRealizationMode.Move, "It is not allowed to move files out of the cache");
+                    var fileSystem = PassThroughFileSystem.Default;
+
+                    if (replacementMode is FileReplacementMode.SkipIfExists or FileReplacementMode.FailIfExists && fileSystem.FileExists(path))
+                    {
+                        return Task.FromResult(new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists)).WithIndexAsync(index);
+                    }
+
+                    if (contentHash.IsEmptyHash())
+                    {
+                        return PlaceEmptyFileAsync(path, realizationMode, fileSystem).WithIndexAsync(index);
+                    }
+
                     return PlaceFileCoreAsync(
                         operationContext,
                         contentHashWithPath.Hash,
@@ -452,7 +479,15 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () => PutStreamCoreAsync(operationContext, hashType, stream, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutStreamRetries]),
+                    () =>
+                    {
+                        if (stream.CanSeek && stream.Length == 0)
+                        {
+                            return Task.FromResult(new PutResult(HashInfoLookup.Find(hashType).EmptyHash, contentSize: 0, contentAlreadyExistsInCache: true));
+                        }
+
+                        return PutStreamCoreAsync(operationContext, hashType, stream, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutStreamRetries]);
+                    },
                     extraStartMessage: $"({hashType})",
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,

@@ -8,7 +8,7 @@ using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         Secret GetRequiredSecret(string secretName);
 
         /// <nodoc />
-        AzureStorageCredentials[] GetStorageCredentials(IEnumerable<string> storageSecretNames);
+        SecretBasedAzureStorageCredentials[] GetStorageCredentials(IEnumerable<string> storageSecretNames);
     }
 
     /// <summary>

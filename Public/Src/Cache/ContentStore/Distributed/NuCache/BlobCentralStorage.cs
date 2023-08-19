@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -69,7 +70,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 (credentials, index) =>
                 {
                     Contract.Requires(credentials != null);
-                    var cloudBlobClient = credentials.CreateCloudBlobClient();
+                    Contract.Requires(credentials is SecretBasedAzureStorageCredentials);   // TODO: We depend on the old SDK here - we should migrate to the new one. User Story #2098047
+                    var cloudBlobClient = ((SecretBasedAzureStorageCredentials)credentials).CreateCloudBlobClient();
                     return (cloudBlobClient.GetContainerReference(configuration.ContainerName), shardId: index);
                 }).ToArray();
 

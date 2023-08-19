@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// </summary>
     public record BlobEventStorageConfiguration
     {
-        public AzureStorageCredentials Credentials { get; init; }
+        public SecretBasedAzureStorageCredentials Credentials { get; init; }
 
         public string FolderName { get; init; } = "eventlogs";
 

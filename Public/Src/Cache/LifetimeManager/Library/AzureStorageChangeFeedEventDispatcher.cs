@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -119,7 +119,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             DateTime now,
             CancellationTokenSource cts,
             BlobCacheStorageAccountName accountName,
-            AzureStorageCredentials creds)
+            IAzureStorageCredentials creds)
         {
             OperationContext nestedContext = context.CreateNested("StorageAccountChangeFeed").WithCancellationToken(cts.Token);
 
@@ -192,7 +192,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 : BoolResult.Success;
         }
 
-        internal virtual IChangeFeedClient CreateChangeFeedClient(AzureStorageCredentials creds)
+        internal virtual IChangeFeedClient CreateChangeFeedClient(IAzureStorageCredentials creds)
         {
             return new AzureChangeFeedClientWrapper(creds.CreateBlobChangeFeedClient());
         }

@@ -14,7 +14,7 @@ using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -69,7 +69,7 @@ public static class EphemeralCacheFactory
         /// <summary>
         /// Credentials for the storage account we use to store metadata about the cluster.
         /// </summary>
-        public required AzureStorageCredentials StorageCredentials { get; init; }
+        public required IAzureStorageCredentials StorageCredentials { get; init; }
     };
 
     /// <summary>

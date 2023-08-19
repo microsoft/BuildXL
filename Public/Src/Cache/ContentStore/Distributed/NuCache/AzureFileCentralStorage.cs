@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -39,7 +40,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 (credentials, index) =>
                 {
                     Contract.Requires(credentials != null);
-                    var cloudFileClient = credentials.CreateCloudStorageAccount().CreateCloudFileClient();
+                    Contract.Requires(credentials is SecretBasedAzureStorageCredentials); // NOTE: Currently only supports sas url support since this is only used by DeploymentService
+                    var cloudFileClient = ((SecretBasedAzureStorageCredentials)credentials).CreateCloudStorageAccount().CreateCloudFileClient();
                     return (cloudFileClient.GetShareReference(configuration.ContainerName).GetRootDirectoryReference(), shardId: index);
                 }).ToArray();
         }

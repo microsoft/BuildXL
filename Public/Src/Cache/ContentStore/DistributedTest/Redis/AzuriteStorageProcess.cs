@@ -15,7 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using ContentStoreTest.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Native.IO;
 using Microsoft.WindowsAzure.Storage;
 using ContentStoreTest.Distributed.Redis;
@@ -149,7 +149,7 @@ namespace ContentStoreTest.Distributed.Redis
 
         public async Task ClearAsync(string prefix = null)
         {
-            AzureStorageCredentials creds = new AzureStorageCredentials(ConnectionString);
+            var creds = new SecretBasedAzureStorageCredentials(ConnectionString);
             var blobClient = creds.CreateCloudBlobClient();
             using var cts = new CancellationTokenSource();
             cts.CancelAfter(TimeSpan.FromSeconds(10));
@@ -294,7 +294,7 @@ namespace ContentStoreTest.Distributed.Redis
 
                 ConnectionString = $"DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:{_portNumber}/devstoreaccount1;";
 
-                var creds = new AzureStorageCredentials(ConnectionString);
+                var creds = new SecretBasedAzureStorageCredentials(ConnectionString);
                 var client = creds.CreateCloudBlobClient();
                 try
                 {

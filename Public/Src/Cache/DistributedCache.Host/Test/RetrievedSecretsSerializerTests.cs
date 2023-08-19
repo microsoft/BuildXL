@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;

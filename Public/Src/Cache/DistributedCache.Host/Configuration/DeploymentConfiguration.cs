@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 
 #nullable disable
 #nullable enable annotations

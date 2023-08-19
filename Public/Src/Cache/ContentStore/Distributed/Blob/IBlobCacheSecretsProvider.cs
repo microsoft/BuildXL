@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Collections;
 
@@ -19,7 +19,7 @@ public interface IBlobCacheSecretsProvider
     /// <summary>
     /// Requests credentials to Azure Storage.
     /// </summary>
-    public Task<AzureStorageCredentials> RetrieveBlobCredentialsAsync(
+    public Task<IAzureStorageCredentials> RetrieveBlobCredentialsAsync(
         OperationContext context,
         BlobCacheStorageAccountName account);
 }

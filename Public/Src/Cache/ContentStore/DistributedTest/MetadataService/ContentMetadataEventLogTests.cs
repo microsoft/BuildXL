@@ -226,7 +226,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             var volatileEventStorage = new BlobWriteAheadEventStorage(
                 new BlobEventStorageConfiguration()
                 {
-                    Credentials = new Interfaces.Secrets.AzureStorageCredentials(connectionString: storage.ConnectionString),
+                    Credentials = new Interfaces.Auth.SecretBasedAzureStorageCredentials(connectionString: storage.ConnectionString),
                 });
             
             contentMetadataEventStreamConfiguration ??= new ContentMetadataEventStreamConfiguration();

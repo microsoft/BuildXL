@@ -19,7 +19,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -108,7 +108,7 @@ namespace BuildXL.Cache.Logging
             IClock clock,
             IAbsFileSystem fileSystem,
             ITelemetryFieldsProvider telemetryFieldsProvider,
-            AzureStorageCredentials credentials,
+            IAzureStorageCredentials credentials,
             IReadOnlyDictionary<string, string>? additionalBlobMetadata)
             : this(configuration, context, clock, fileSystem, telemetryFieldsProvider,
                 credentials.CreateBlobServiceClient(

@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 
 #nullable enable
 
@@ -17,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
         {
         }
 
-        public static Dictionary<BlobCacheStorageAccountName, AzureStorageCredentials> ExtractCredsFromEnvironmentVariable(string environmentVariableName)
+        public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> ExtractCredsFromEnvironmentVariable(string environmentVariableName)
         {
             var connectionStringsString = Environment.GetEnvironmentVariable(environmentVariableName);
             if (string.IsNullOrEmpty(connectionStringsString))
@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
             }
 
             var connectionStrings = connectionStringsString.Split(',');
-            var creds = connectionStrings.Select(connString => new AzureStorageCredentials(new PlainTextSecret(connString))).ToArray();
+            var creds = connectionStrings.Select(connString => new SecretBasedAzureStorageCredentials(new PlainTextSecret(connString)) as IAzureStorageCredentials).ToArray();
             return creds.ToDictionary(
                 cred => BlobCacheStorageAccountName.Parse(cred.GetAccountName()),
                 cred => cred);

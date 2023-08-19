@@ -6,7 +6,7 @@ using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -24,13 +24,13 @@ namespace BuildXL.Cache.Logging.Test
         {
         }
 
-        public Task WithConfiguration(Func<AzureBlobStorageLogConfiguration, OperationContext, IClock, IAbsFileSystem, ITelemetryFieldsProvider, AzureStorageCredentials, Task> action)
+        public Task WithConfiguration(Func<AzureBlobStorageLogConfiguration, OperationContext, IClock, IAbsFileSystem, ITelemetryFieldsProvider, SecretBasedAzureStorageCredentials, Task> action)
         {
             var fileSystem = new PassThroughFileSystem();
             using var workspace = new DisposableDirectory(fileSystem);
 
             // See: https://docs.microsoft.com/en-us/azure/storage/common/storage-use-emulator#connect-to-the-emulator-account-using-a-shortcut
-            var credentials = new AzureStorageCredentials(connectionString: "UseDevelopmentStorage=true");
+            var credentials = new SecretBasedAzureStorageCredentials(connectionString: "UseDevelopmentStorage=true");
 
             var tracingContext = new Context(Logger);
             var context = new OperationContext(tracingContext);

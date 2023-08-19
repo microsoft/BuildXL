@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var configuration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {
                 Storage = new AzureBlobStorageCheckpointRegistryConfiguration.StorageSettings(
-                    Credentials: new AzureStorageCredentials(storage.ConnectionString),
+                    Credentials: new SecretBasedAzureStorageCredentials(storage.ConnectionString),
                     ContainerName: "checkpoints",
                     FolderName: "checkpointRegistry"),
             };

@@ -15,7 +15,7 @@ using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -160,7 +160,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             Namespace: "test",
             RetentionPolicyInDays: null);
 
-        var ephemeralManagementStorageCredentials = TestMode == Mode.DatacenterWide ? new AzureStorageCredentials(process.ConnectionString) : null;
+        var ephemeralManagementStorageCredentials = TestMode == Mode.DatacenterWide ? new SecretBasedAzureStorageCredentials(process.ConnectionString) : null;
         var host = new TestInstance(
             blobCacheConfiguration,
             secretsProvider,
@@ -250,9 +250,9 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
         private readonly IClusterStateStorage _clusterStateStorage;
         private readonly AzureBlobStorageCacheFactory.Configuration _blobCacheConfiguration;
         private readonly IBlobCacheSecretsProvider _secretsProvider;
-        private readonly AzureStorageCredentials? _ephemeralManagementStorageCredentials;
+        private readonly IAzureStorageCredentials? _ephemeralManagementStorageCredentials;
 
-        public TestInstance(AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration, IBlobCacheSecretsProvider secretsProvider, AzureStorageCredentials? ephemeralManagementStorageCredentials)
+        public TestInstance(AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration, IBlobCacheSecretsProvider secretsProvider, IAzureStorageCredentials? ephemeralManagementStorageCredentials)
         {
             GrpcEnvironment.Initialize();
             var fileSystem = PassThroughFileSystem.Default;

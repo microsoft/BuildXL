@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using Xunit;
 
@@ -24,9 +24,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                     Namespace: "default",
                     RetentionPolicyInDays: 0);
 
-            var secretsProvider = new StaticBlobCacheSecretsProvider(new Dictionary<BlobCacheStorageAccountName, AzureStorageCredentials>()
+            var secretsProvider = new StaticBlobCacheSecretsProvider(new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>()
             {
-                { accountName, AzureStorageCredentials.StorageEmulator }
+                { accountName, SecretBasedAzureStorageCredentials.StorageEmulator }
             });
 
             Assert.Throws<ContractException>(() => AzureBlobStorageCacheFactory.Create(

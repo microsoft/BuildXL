@@ -24,7 +24,7 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Utilities.Core.Tasks;
 using System.Text.Json;
 using System.Runtime.Serialization;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using System.Linq;

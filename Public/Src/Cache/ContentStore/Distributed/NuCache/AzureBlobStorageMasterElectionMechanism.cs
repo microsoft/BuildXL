@@ -10,7 +10,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     public record AzureBlobStorageMasterElectionMechanismConfiguration()
     {
-        public record StorageSettings(AzureStorageCredentials Credentials, string ContainerName = "checkpoints", string FolderName = "masterElection")
+        public record StorageSettings(IAzureStorageCredentials Credentials, string ContainerName = "checkpoints", string FolderName = "masterElection")
             : AzureBlobStorageFolder.Configuration(Credentials, ContainerName, FolderName);
 
         public required StorageSettings Storage { get; init; }

@@ -20,7 +20,7 @@ using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using Azure;
 using Azure.Storage.Blobs.ChangeFeed;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using System.Linq;
 using BuildXL.Cache.MemoizationStore.Stores;
 using System.IO;
@@ -182,7 +182,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 : base(secretsProvider, accounts, updater, db, clock, metadataMatrix, contentMatrix)
                 => Pages = pages;
 
-            internal override IChangeFeedClient CreateChangeFeedClient(AzureStorageCredentials creds)
+            internal override IChangeFeedClient CreateChangeFeedClient(IAzureStorageCredentials creds)
             {
                 return new TestFeedClient(Pages);
             }

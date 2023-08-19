@@ -14,7 +14,7 @@ using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -335,7 +335,7 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
             account =>
             {
                 var connectionString = process.ConnectionString.Replace("devstoreaccount1", account.AccountName);
-                var credentials = new AzureStorageCredentials(connectionString);
+                IAzureStorageCredentials credentials = new SecretBasedAzureStorageCredentials(connectionString);
                 Contract.Assert(credentials.GetAccountName() == account.AccountName);
                 return (Account: account, Credentials: credentials);
             }).ToDictionary(kvp => kvp.Account, kvp => kvp.Credentials);

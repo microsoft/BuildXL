@@ -19,7 +19,7 @@ using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter

@@ -5,7 +5,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
@@ -20,24 +20,24 @@ public class StaticBlobCacheSecretsProvider : IBlobCacheSecretsProvider
 
     public IReadOnlyList<BlobCacheStorageAccountName> ConfiguredAccounts => _accounts;
 
-    private readonly AzureStorageCredentials? _fallback;
-    private readonly IReadOnlyDictionary<BlobCacheStorageAccountName, AzureStorageCredentials> _credentials = new Dictionary<BlobCacheStorageAccountName, AzureStorageCredentials>();
+    private readonly IAzureStorageCredentials? _fallback;
+    private readonly IReadOnlyDictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> _credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
     private readonly IReadOnlyList<BlobCacheStorageAccountName> _accounts;
 
-    public StaticBlobCacheSecretsProvider(IReadOnlyDictionary<BlobCacheStorageAccountName, AzureStorageCredentials> credentials, AzureStorageCredentials? fallback = null)
+    public StaticBlobCacheSecretsProvider(IReadOnlyDictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> credentials, IAzureStorageCredentials? fallback = null)
     {
         _credentials = credentials;
         _accounts = _credentials.Keys.ToArray();
         _fallback = fallback;
     }
 
-    public StaticBlobCacheSecretsProvider(AzureStorageCredentials fallback)
+    public StaticBlobCacheSecretsProvider(IAzureStorageCredentials fallback)
     {
         _fallback = fallback;
         _accounts = _credentials.Keys.ToArray();
     }
 
-    public Task<AzureStorageCredentials> RetrieveBlobCredentialsAsync(OperationContext context, BlobCacheStorageAccountName account)
+    public Task<IAzureStorageCredentials> RetrieveBlobCredentialsAsync(OperationContext context, BlobCacheStorageAccountName account)
     {
         Tracer.Info(context, $"Fetching credentials. Account=[{account}]");
 

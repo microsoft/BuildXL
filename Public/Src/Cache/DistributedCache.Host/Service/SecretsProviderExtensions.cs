@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -29,7 +29,7 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Gets blob credentials from the given secrets provider
         /// </summary>
-        public static async Task<AzureStorageCredentials> GetBlobCredentialsAsync(
+        public static async Task<IAzureStorageCredentials> GetBlobCredentialsAsync(
             this ISecretsProvider secretsProvider,
             string secretName,
             bool useSasTokens,
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.Host.Service
                     new RetrieveSecretsRequest(secretName, SecretKind.SasToken)
                 }, token);
 
-                return new AzureStorageCredentials((UpdatingSasToken)secrets.Secrets[secretName]);
+                return new SecretBasedAzureStorageCredentials((UpdatingSasToken)secrets.Secrets[secretName]);
             }
             else
             {
@@ -51,7 +51,7 @@ namespace BuildXL.Cache.Host.Service
                     new RetrieveSecretsRequest(secretName, SecretKind.PlainText)
                 }, token);
 
-                return new AzureStorageCredentials((PlainTextSecret)secrets.Secrets[secretName]);
+                return new SecretBasedAzureStorageCredentials((PlainTextSecret)secrets.Secrets[secretName]);
             }
         }
     }

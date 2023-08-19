@@ -12,7 +12,7 @@ using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -115,8 +115,8 @@ namespace BuildXL.Cache.MultiTool.App
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                IReadOnlyList<AzureStorageCredentials> credentials = new[] {
-                    new AzureStorageCredentials(storageConnectionString)
+                IReadOnlyList<SecretBasedAzureStorageCredentials> credentials = new[] {
+                    new SecretBasedAzureStorageCredentials(storageConnectionString)
                 };
 
                 var centralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(credentials, containerName, checkpointsKey: "useless")

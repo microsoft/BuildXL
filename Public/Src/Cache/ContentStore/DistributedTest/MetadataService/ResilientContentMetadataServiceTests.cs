@@ -9,7 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
@@ -234,7 +234,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 var volatileEventStorage = new BlobWriteAheadEventStorage(
                     new BlobEventStorageConfiguration
                     {
-                        Credentials = new AzureStorageCredentials(connectionString: storage.ConnectionString),
+                        Credentials = new SecretBasedAzureStorageCredentials(connectionString: storage.ConnectionString),
                     });
 
                 var contentMetadataEventStream = new ContentMetadataEventStream(
@@ -250,13 +250,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
                 {
                     Storage = new AzureBlobStorageCheckpointRegistryConfiguration.StorageSettings(
-                        Credentials: new AzureStorageCredentials(azureStorage.ConnectionString),
+                        Credentials: new SecretBasedAzureStorageCredentials(azureStorage.ConnectionString),
                         ContainerName: "gcsregistry",
                         FolderName: "checkpointregistry"),
                 };
                 var blobCheckpointRegistry = new AzureBlobStorageCheckpointRegistry(azureBlobStorageCheckpointRegistryConfiguration, clock);
 
-                var blobCentralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(new AzureStorageCredentials(azureStorage.ConnectionString), "gcscheckpoints", "key"));
+                var blobCentralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(new SecretBasedAzureStorageCredentials(azureStorage.ConnectionString), "gcscheckpoints", "key"));
 
                 var checkpointManager = new CheckpointManager(
                     rocksDbContentMetadataStore.Database,

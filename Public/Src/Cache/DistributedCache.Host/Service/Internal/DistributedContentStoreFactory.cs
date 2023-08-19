@@ -14,7 +14,7 @@ using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
@@ -715,7 +715,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             configuration.BlobClusterStateStorageConfiguration = blobClusterStateStorageConfiguration;
         }
 
-        private AzureStorageCredentials[] GetStorageCredentials(StringBuilder errorBuilder)
+        private SecretBasedAzureStorageCredentials[] GetStorageCredentials(StringBuilder errorBuilder)
         {
             IEnumerable<string> storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
             // This would have failed earlier otherwise
@@ -724,9 +724,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             return GetStorageCredentials(storageSecretNames);
         }
 
-        public AzureStorageCredentials[] GetStorageCredentials(IEnumerable<string> storageSecretNames)
+        public SecretBasedAzureStorageCredentials[] GetStorageCredentials(IEnumerable<string> storageSecretNames)
         {
-            var credentials = new List<AzureStorageCredentials>();
+            var credentials = new List<SecretBasedAzureStorageCredentials>();
             foreach (var secretName in storageSecretNames)
             {
                 var secret = GetRequiredSecret(secretName);
@@ -736,14 +736,14 @@ namespace BuildXL.Cache.Host.Service.Internal
                     var updatingSasToken = secret as UpdatingSasToken;
                     Contract.Assert(!(updatingSasToken is null));
 
-                    credentials.Add(new AzureStorageCredentials(updatingSasToken));
+                    credentials.Add(new SecretBasedAzureStorageCredentials(updatingSasToken));
                 }
                 else
                 {
                     var plainTextSecret = secret as PlainTextSecret;
                     Contract.Assert(!(plainTextSecret is null));
 
-                    credentials.Add(new AzureStorageCredentials(plainTextSecret));
+                    credentials.Add(new SecretBasedAzureStorageCredentials(plainTextSecret));
                 }
             }
 

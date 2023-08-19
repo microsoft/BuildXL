@@ -64,7 +64,6 @@ namespace Main {
             importFrom("BuildXL.FrontEnd").Factory.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("Azure.Identity").pkg,
             ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
             importFrom("Grpc.Core.Api").pkg,
         ],

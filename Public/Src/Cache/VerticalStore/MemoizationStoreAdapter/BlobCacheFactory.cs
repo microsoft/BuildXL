@@ -14,6 +14,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using System.Security.Principal;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -43,6 +44,24 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue("BlobCacheFactoryConnectionString")]
             public string ConnectionStringEnvironmentVariableName { get; set; }
+
+            /// <summary>
+            /// URI of the storage account endpoint to be used for this cache (e.g: https://mystorageaccount.blob.core.windows.net)
+            /// </summary>
+            /// <remarks>
+            /// This is an alternative to providing the connection string. If a connection string is provided (via <see cref="ConnectionStringEnvironmentVariableName"/>), that will be used for selecting and authenticating to the storage account for this cache.
+            /// If a connection string is not specified in the environment (via <see cref="ConnectionStringEnvironmentVariableName"/>), this configuration is expected to be present.
+            /// </remarks>
+            public string StorageAccountEndpoint { get; set; }
+
+            /// <summary>
+            /// The client id for the managed identity that will be used to authenticate against the storage account specified in <see cref="StorageAccountEndpoint"/>.
+            /// </summary>
+            /// <remarks>
+            /// This is an alternative to providing the connection string. If a connection string is provided (via <see cref="ConnectionStringEnvironmentVariableName"/>), that will be used for selecting and authenticating to the storage account for this cache.
+            /// If a connection string is not specified in the environment (via <see cref="ConnectionStringEnvironmentVariableName"/>), this configuration is expected to be present.
+            /// </remarks>
+            public string ManagedIdentityId { get; set; }
 
             /// <nodoc />
             [DefaultValue("default")]
@@ -147,14 +166,31 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static MemoizationStore.Interfaces.Caches.ICache CreateCache(Config configuration)
         {
+            IAzureStorageCredentials credentials;
+
             var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
 
-            if (string.IsNullOrEmpty(connectionString))
+            if (!string.IsNullOrEmpty(connectionString))
             {
-                throw new InvalidOperationException($"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}'.");
+                credentials = new SecretBasedAzureStorageCredentials(connectionString);
             }
-            
-            var credentials = new ContentStore.Interfaces.Secrets.AzureStorageCredentials(connectionString);
+            else if (configuration.ManagedIdentityId is not null && configuration.StorageAccountEndpoint is not null)
+            {
+                Contract.Requires(!string.IsNullOrEmpty(configuration.ManagedIdentityId));
+                Contract.Requires(!string.IsNullOrEmpty(configuration.StorageAccountEndpoint));
+
+                if (!Uri.TryCreate(configuration.StorageAccountEndpoint, UriKind.Absolute, out Uri uri))
+                {
+                    throw new InvalidOperationException($"'{configuration.StorageAccountEndpoint}' does not represent a valid URI.");
+                }
+
+                credentials = new ManagedIdentityAzureStorageCredentials(configuration.ManagedIdentityId, uri);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}', and the managed identity and/or storage account endpoint are also absent from the configuration");
+            }
+
             var accountName = BlobCacheStorageAccountName.Parse(credentials.GetAccountName());
 
             var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(

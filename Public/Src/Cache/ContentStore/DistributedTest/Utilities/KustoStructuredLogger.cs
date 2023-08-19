@@ -14,7 +14,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Collections;
@@ -72,7 +72,7 @@ namespace BuildXL.Cache.Logging
         {
             _output = output;
             _logger = this;
-            var credentials = new AzureStorageCredentials(connectionString);
+            var credentials = new SecretBasedAzureStorageCredentials(connectionString);
             var client = credentials.CreateCloudBlobClient();
             var testStartTime = (DateTime)_table.TestStartTime.DefaultValue;
             output.WriteLine($"Test start time: {testStartTime:o}");

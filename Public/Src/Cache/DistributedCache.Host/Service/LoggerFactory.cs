@@ -13,7 +13,7 @@ using System.Xml;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -212,7 +212,7 @@ namespace BuildXL.Cache.Host.Service
             // will likely be shared across all stamps, so there's no "stamp-specific" configuration in there. That
             // means all stamp-level configuration must be done through the JSON.
 
-            AzureStorageCredentials credentials = await arguments.SecretsProvider.GetBlobCredentialsAsync(
+            IAzureStorageCredentials credentials = await arguments.SecretsProvider.GetBlobCredentialsAsync(
                 configuration.SecretName,
                 configuration.UseSasTokens,
                 operationContext.Token);

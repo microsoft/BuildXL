@@ -14,7 +14,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -202,7 +202,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
         private static async Task RunWithLeaseAsync(
             OperationContext context,
-            AzureStorageCredentials checkpointManagerStorageAccount,
+            IAzureStorageCredentials checkpointManagerStorageAccount,
             string checkpointContainerName,
             MachineLocation machineLocation,
             CancellationTokenSource cts,

@@ -12,19 +12,19 @@ using Microsoft.WindowsAzure.Storage.Blob;
 
 #nullable enable
 
-namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
+namespace BuildXL.Cache.ContentStore.Interfaces.Auth
 {
     /// <summary>
-    /// Provides Azure Storage authentication options
+    /// Provides Azure Storage authentication options based on a <see cref="Secret"/> (Connection string or SAS Token)
     /// </summary>
-    public class AzureStorageCredentials
+    public class SecretBasedAzureStorageCredentials : IAzureStorageCredentials
     {
         /// <summary>
         /// Credentials for local storage emulator.
         ///
         /// Used for tests only.
         /// </summary>
-        public static AzureStorageCredentials StorageEmulator = new AzureStorageCredentials(connectionString: "UseDevelopmentStorage=true");
+        public static SecretBasedAzureStorageCredentials StorageEmulator = new SecretBasedAzureStorageCredentials(connectionString: "UseDevelopmentStorage=true");
 
         private readonly Secret _secret;
 
@@ -34,13 +34,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         /// <remarks>
         /// This is just a convenience method that's actually equivalent to using a <see cref="PlainTextSecret"/>
         /// </remarks>
-        public AzureStorageCredentials(string connectionString)
+        public SecretBasedAzureStorageCredentials(string connectionString)
             : this(new PlainTextSecret(secret: connectionString))
         {
         }
 
         /// <nodoc />
-        public AzureStorageCredentials(Secret secret)
+        public SecretBasedAzureStorageCredentials(Secret secret)
         {
             _secret = secret;
         }
@@ -116,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         public BlobServiceClient CreateBlobServiceClient(BlobClientOptions? blobClientOptions = null)
         {
             // We default to this specific version because tests run against the Azurite emulator. The emulator doesn't
-            // currently support any higher version than this, and we won't upgrade it because it's build process is
+            // currently support any higher version than this, and we won't upgrade it because its build process is
             // weird as hell and they don't just provide binaries.
             blobClientOptions ??= new BlobClientOptions(BlobClientOptions.ServiceVersion.V2021_02_12);
 

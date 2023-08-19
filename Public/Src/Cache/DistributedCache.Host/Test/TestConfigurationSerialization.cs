@@ -3,7 +3,7 @@
 
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.Host.Service;
@@ -20,7 +20,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
             var testConfig = new LocalLocationStoreConfiguration();
             var blobConnectionString = "blobConnectionString";
 
-            testConfig.CentralStore = new BlobCentralStoreConfiguration(new AzureStorageCredentials(blobConnectionString), "testContainer", "testKey");
+            testConfig.CentralStore = new BlobCentralStoreConfiguration(new SecretBasedAzureStorageCredentials(blobConnectionString), "testContainer", "testKey");
             string configString = ConfigurationPrinter.ConfigToString(testConfig);
 
             configString.Should().NotContain(blobConnectionString);

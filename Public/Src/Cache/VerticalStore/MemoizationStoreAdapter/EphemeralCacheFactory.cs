@@ -15,7 +15,7 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Grpc;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -187,7 +187,7 @@ public class EphemeralCacheFactory : ICacheFactory
             {
                 throw new InvalidOperationException($"Can't find a connection string in environment variable '{configuration.ManagementConnectionStringEnvironmentVariableName}'.");
             }
-            var credentials = new AzureStorageCredentials(connectionString);
+            var credentials = new SecretBasedAzureStorageCredentials(connectionString);
 
             factoryConfiguration = new ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.DatacenterWideCacheConfiguration()
             {
@@ -221,7 +221,7 @@ public class EphemeralCacheFactory : ICacheFactory
             throw new InvalidOperationException($"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}'.");
         }
 
-        var credentials = new ContentStore.Interfaces.Secrets.AzureStorageCredentials(connectionString);
+        var credentials = new SecretBasedAzureStorageCredentials(connectionString);
         var accountName = BlobCacheStorageAccountName.Parse(credentials.GetAccountName());
 
         var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(

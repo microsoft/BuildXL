@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
@@ -35,9 +35,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
     {
         private record TestAzureBlobStorageFolderConfiguration : AzureBlobStorageFolder.Configuration
         {
-            public TestAzureBlobStorageFolderConfiguration(AzureStorageCredentials? credentials = null)
+            public TestAzureBlobStorageFolderConfiguration(IAzureStorageCredentials? credentials = null)
                 : base(
-                    Credentials: credentials ?? AzureStorageCredentials.StorageEmulator,
+                    Credentials: credentials ?? SecretBasedAzureStorageCredentials.StorageEmulator,
                     ContainerName: "blobfolderstoragetests",
                     // Use a random folder every time to avoid clashes
                     FolderName: Guid.NewGuid().ToString())
@@ -62,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
         {
             using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
 
-            var creds = new AzureStorageCredentials(storage.ConnectionString);
+            var creds = new SecretBasedAzureStorageCredentials(storage.ConnectionString);
 
             var client = creds.CreateCloudBlobClient();
 
@@ -208,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                     using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
                     connectionString ??= storage.ConnectionString;
 
-                    folderConfiguration ??= new TestAzureBlobStorageFolderConfiguration(new AzureStorageCredentials(connectionString));
+                    folderConfiguration ??= new TestAzureBlobStorageFolderConfiguration(new SecretBasedAzureStorageCredentials(connectionString));
                     var blobFolderStorage = new BlobStorageClientAdapter(tracer, configuration ?? new BlobFolderStorageConfiguration());
 
                     await runTest(context, folderConfiguration.Create(), blobFolderStorage, clock);

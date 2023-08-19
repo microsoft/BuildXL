@@ -11,7 +11,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Collections;
@@ -404,7 +404,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public record BlobCentralStoreConfiguration : CentralStoreConfiguration
     {
         /// <nodoc />
-        public BlobCentralStoreConfiguration(IReadOnlyList<AzureStorageCredentials> credentials, string containerName, string checkpointsKey)
+        public BlobCentralStoreConfiguration(IReadOnlyList<IAzureStorageCredentials> credentials, string containerName, string checkpointsKey)
             : base(checkpointsKey, containerName)
         {
             Contract.Requires(!string.IsNullOrEmpty(containerName));
@@ -416,7 +416,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         }
 
         /// <nodoc />
-        public BlobCentralStoreConfiguration(AzureStorageCredentials credentials, string containerName, string checkpointsKey)
+        public BlobCentralStoreConfiguration(IAzureStorageCredentials credentials, string containerName, string checkpointsKey)
             : this(new[] { credentials }, containerName, checkpointsKey)
         {
         }
@@ -424,7 +424,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// List of connection strings.
         /// </summary>
-        public IReadOnlyList<AzureStorageCredentials> Credentials { get; }
+        public IReadOnlyList<IAzureStorageCredentials> Credentials { get; }
 
         /// <summary>
         /// The retention time for checkpoint blobs.

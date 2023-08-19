@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using Azure.Storage.Blobs;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 
 #nullable enable
 
@@ -13,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// </summary>
 public class AzureBlobStorageFolder
 {
-    public record Configuration(AzureStorageCredentials Credentials, string ContainerName, string? FolderName)
+    public record Configuration(IAzureStorageCredentials Credentials, string ContainerName, string? FolderName)
     {
         public AzureBlobStorageFolder Create()
         {

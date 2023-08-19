@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 
 #nullable enable
 
-namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
+namespace BuildXL.Cache.ContentStore.Interfaces.Auth
 {
     /// <nodoc />
     public enum SecretKind

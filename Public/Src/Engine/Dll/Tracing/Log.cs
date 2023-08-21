@@ -773,7 +773,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionServiceInitializationError,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "Distribution {role} service could not be initialized on port {port}. Verify that port is available.\nException:\n{exceptionMessage}",
+            Message = "Distribution {role} service could not be initialized on port {port}. This may be due to an unavailable port or other service initialization failure.\nException:\n{exceptionMessage}",
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Info,

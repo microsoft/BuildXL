@@ -470,7 +470,7 @@ namespace BuildXL.Engine.Distribution
             }
             catch (Exception ex)
             {
-                Logger.Log.DistributionServiceInitializationError(m_appLoggingContext, DistributedBuildRole.Worker.ToString(), m_port, ExceptionUtilities.GetLogEventMessage(ex));
+                Logger.Log.DistributionServiceInitializationError(m_appLoggingContext, DistributedBuildRole.Worker.ToString(), m_port, ex.ToStringDemystified());
                 return false;
             }
         }

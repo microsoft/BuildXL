@@ -34,11 +34,14 @@ using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
 
+// These tests are currently for Cloudbuild-specific scenarios, so they are disabled on macOS for now.
+[TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
 public class BuildWideEphemeralCacheTests : EphemeralCacheTestsBase
 {
     protected override Mode TestMode => Mode.BuildWide;

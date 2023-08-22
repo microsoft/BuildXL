@@ -80,7 +80,9 @@ jobs:
                         "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
                         "CacheId": "L3Cache",
                         "Universe": "blob3bxlselfhost",
-                        "RetentionPolicyInDays": 1
+                        "RetentionPolicyInDays": 1,
+                        "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
+                        "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
                       },
       "LocalCache":  {
                         "MaxCacheSizeInMB":  20240,
@@ -110,7 +112,6 @@ jobs:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
-      BlobCacheFactoryConnectionString: $(BuildXL-Selfhost-L3-ConnectionString)
       
   - bash: |
       echo "== Deleting Out/frontend/Nuget/tmp, Out/bin, Out/Bootstrap folders to reduce the size of the NuGet cache dir"
@@ -136,7 +137,9 @@ jobs:
           "CacheId":  "L1L2L3Cache",
           "Universe":  "bxlselfhost",
           "CacheLogPath":  "[BuildXLSelectedLogPath]",
-          "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter"
+          "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+          "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
+          "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
       }
       EOF
     displayName: Write cache config file for distributed build
@@ -155,7 +158,6 @@ jobs:
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AdoBuildRunnerWaitForOrchestratorExit: true
-      BlobCacheFactoryConnectionString: $(BuildXL-Selfhost-L3-ConnectionString)
 
   - task: PublishTestResults@2
     displayName: Publish Test Results

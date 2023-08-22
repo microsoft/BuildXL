@@ -102,10 +102,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 return LifetimeDatabaseCreator.ProcessContentHashListResult.ContentHashListDoesNotExist;
             }
 
-            if (db.GetContentHashList(strongFingerprint, out _) is not null)
+            var oldContentHashList = db.GetContentHashList(strongFingerprint, out _);
+            if (oldContentHashList is not null)
             {
-                // Already in DB. Ignoring update.
-                return LifetimeDatabaseCreator.ProcessContentHashListResult.Success;
+                // The CHL was updated. This can happen for various reasons, such as a non-deterministic fingerprint being replaced by a deterministic one,
+                // or the build engine failing to match a target to a selector.
+                // In any case, we need to make sure that we reflect the fact that the old CHL no longer truly exists.
+                db.DeleteContentHashList(blobName, oldContentHashList.Hashes);
             }
 
             var containerClient = await topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(strongFingerprint.WeakFingerprint));

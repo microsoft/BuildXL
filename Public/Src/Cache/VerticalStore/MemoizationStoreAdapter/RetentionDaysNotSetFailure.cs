@@ -9,7 +9,7 @@ using BuildXL.Cache.Interfaces;
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
     /// <summary>
-    /// Failure describing that <see cref="BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory.Config.RetentionPolicyInDays"/> was not set
+    /// Failure describing that <see cref="BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory.BlobCacheConfig.RetentionPolicyInDays"/> was not set
     /// </summary>
     internal class RetentionDaysNotSetFailure : CacheBaseFailure
     {

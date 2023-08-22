@@ -31,16 +31,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
     public partial class BlobCacheFactory : ICacheFactory
     {
         /// <summary>
-        /// Configuration for <see cref="MemoizationStoreCacheFactory"/>.
+        /// Inheritable configuration settings for cache factories that wish to configure a connection to a blob cache
         /// </summary>
-        public sealed class Config
+        public abstract class BlobCacheConfig
         {
-            /// <summary>
-            /// The Id of the cache instance
-            /// </summary>
-            [DefaultValue(typeof(CacheId))]
-            public CacheId CacheId { get; set; }
-
             /// <nodoc />
             [DefaultValue("BlobCacheFactoryConnectionString")]
             public string ConnectionStringEnvironmentVariableName { get; set; }
@@ -52,6 +46,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// This is an alternative to providing the connection string. If a connection string is provided (via <see cref="ConnectionStringEnvironmentVariableName"/>), that will be used for selecting and authenticating to the storage account for this cache.
             /// If a connection string is not specified in the environment (via <see cref="ConnectionStringEnvironmentVariableName"/>), this configuration is expected to be present.
             /// </remarks>
+            [DefaultValue(null)]
             public string StorageAccountEndpoint { get; set; }
 
             /// <summary>
@@ -61,7 +56,38 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// This is an alternative to providing the connection string. If a connection string is provided (via <see cref="ConnectionStringEnvironmentVariableName"/>), that will be used for selecting and authenticating to the storage account for this cache.
             /// If a connection string is not specified in the environment (via <see cref="ConnectionStringEnvironmentVariableName"/>), this configuration is expected to be present.
             /// </remarks>
+            [DefaultValue(null)]
             public string ManagedIdentityId { get; set; }
+
+            /// <summary>
+            /// The configured number of days the storage account will retain blobs before deleting (or soft deleting) them based
+            /// on last access time. If content and metadata have different retention policies, the shortest retention period is expected here.
+            /// </summary>
+            /// <remarks>
+            /// By setting this value to reflect the storage account life management configuration policy, pin operations can be optimized.
+            /// If unset, pin operations will likely be costlier. If the value is set to a number larger than the storage account policy, that
+            /// can lead to build failures.
+            /// 
+            /// When enabled (a non-zero value), every time that a content hash list is stored, a last upload time is associated to it and stored as well.
+            /// This last upload time is deemed very close to the one used for storing all the corresponding content for that content hash list
+            /// (since typically that's the immediate step prior to storing the fingerprint). Whenever a content hash list is retrieved and has a last upload
+            /// time associated to it, the metadata store notifies the cache of it. The cache then uses that information to determine whether the content
+            /// associated to that fingerprint can be elided, based on the provided configured blob retention policy of the blob storage account.
+            /// </remarks>
+            [DefaultValue(0)]
+            public int RetentionPolicyInDays { get; set; }
+        }
+
+        /// <summary>
+        /// Configuration for <see cref="MemoizationStoreCacheFactory"/>.
+        /// </summary>
+        public sealed class Config : BlobCacheConfig
+        {
+            /// <summary>
+            /// The Id of the cache instance
+            /// </summary>
+            [DefaultValue(typeof(CacheId))]
+            public CacheId CacheId { get; set; }
 
             /// <nodoc />
             [DefaultValue("default")]
@@ -82,24 +108,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// </summary>
             [DefaultValue(0)]
             public uint LogFlushIntervalSeconds { get; set; }
-
-            /// <summary>
-            /// The configured number of days the storage account will retain blobs before deleting (or soft deleting) them based
-            /// on last access time. If content and metadata have different retention policies, the shortest retention period is expected here.
-            /// </summary>
-            /// <remarks>
-            /// By setting this value to reflect the storage account life management configuration policy, pin operations can be optimized.
-            /// If unset, pin operations will likely be costlier. If the value is set to a number larger than the storage account policy, that
-            /// can lead to build failures.
-            /// 
-            /// When enabled (a non-zero value), every time that a content hash list is stored, a last upload time is associated to it and stored as well.
-            /// This last upload time is deemed very close to the one used for storing all the corresponding content for that content hash list
-            /// (since typically that's the immediate step prior to storing the fingerprint). Whenever a content hash list is retrieved and has a last upload
-            /// time associated to it, the metadata store notifies the cache of it. The cache then uses that information to determine whether the content
-            /// associated to that fingerprint can be elided, based on the provided configured blob retention policy of the blob storage account.
-            /// </remarks>
-            [DefaultValue(0)]
-            public int RetentionPolicyInDays { get; set; }
 
             /// <nodoc />
             public Config()
@@ -166,8 +174,23 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static MemoizationStore.Interfaces.Caches.ICache CreateCache(Config configuration)
         {
-            IAzureStorageCredentials credentials;
+            IAzureStorageCredentials credentials = GetAzureCredentialsFromBlobFactoryConfig(configuration);
 
+            var accountName = BlobCacheStorageAccountName.Parse(credentials.GetAccountName());
+
+            var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
+                ShardingScheme: new ShardingScheme(ShardingAlgorithm.SingleShard, new List<BlobCacheStorageAccountName> { accountName }),
+                Universe: configuration.Universe,
+                Namespace: configuration.Namespace,
+                RetentionPolicyInDays: configuration.RetentionPolicyInDays);
+
+            return AzureBlobStorageCacheFactory.Create(factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
+        }
+
+        /// <nodoc />
+        internal static IAzureStorageCredentials GetAzureCredentialsFromBlobFactoryConfig(BlobCacheConfig configuration)
+        {
+            IAzureStorageCredentials credentials;
             var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
 
             if (!string.IsNullOrEmpty(connectionString))
@@ -191,15 +214,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 throw new InvalidOperationException($"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}', and the managed identity and/or storage account endpoint are also absent from the configuration");
             }
 
-            var accountName = BlobCacheStorageAccountName.Parse(credentials.GetAccountName());
-
-            var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
-                ShardingScheme: new ShardingScheme(ShardingAlgorithm.SingleShard, new List<BlobCacheStorageAccountName> { accountName }),
-                Universe: configuration.Universe,
-                Namespace: configuration.Namespace,
-                RetentionPolicyInDays: configuration.RetentionPolicyInDays);
-
-            return AzureBlobStorageCacheFactory.Create(factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
+            return credentials;
         }
 
         /// <inheritdoc />

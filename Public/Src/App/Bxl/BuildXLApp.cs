@@ -1849,15 +1849,8 @@ namespace BuildXL
                     return null;
                 }
 
-                // Specify the Client and Tenant ID if using user-assigned managed identities
-                // This should point to the managed identity that has Contribute permissions to write into the blob storage
-                var credentialOptions = new DefaultAzureCredentialOptions
-                {
-                    ManagedIdentityClientId = m_configuration.LogToKustoIdentityId,
-                    TenantId = m_configuration.LogToKustoTenantId,
-                };
-
-                var credentials = new DefaultAzureCredential(credentialOptions);
+                // The client id should point to the managed identity that has Contribute permissions to write into the blob storage
+                var credentials = new ManagedIdentityCredential(clientId: m_configuration.LogToKustoIdentityId);
                 var blobServiceClient = new BlobServiceClient(new Uri(uri.GetLeftPart(UriPartial.Authority)), credentials);
 
                 // In case any error happens while uploading messages to Kusto, log those as warnings

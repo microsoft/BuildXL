@@ -16,11 +16,9 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.Core.AbsolutePath>;
 
@@ -799,7 +797,11 @@ namespace BuildXL.FrontEnd.MsBuild
         {
             // On some machines, the current user and public user desktop.ini are read by Powershell.exe.
             // Ignore accesses to the user profile and Public common user profile.
-            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+            // On Linux the user profile maps to the user home folder, which is a location too broad to untrack.
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+            }
 
             if (Engine.TryGetBuildParameter("PUBLIC", m_frontEndName, out string publicDir))
             {

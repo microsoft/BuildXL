@@ -36,7 +36,7 @@ namespace BuildXL.Cache.BlobLifetimeManager
                 $"environment variable in the format of comma-separated strings.")]
         public static void Run(
             [Required]
-            [Description("Path to the garbage collection configuration. The configuration should be a JSON document with a list of objects: { Universe:string, Namespace:string, MaxSizeGb:number }")]
+            [Description("Path to the garbage collection configuration.")]
             string configPath,
 
             [Description("Perform a dry run. Delete operations against blob storage will be logged, but not performed.")]

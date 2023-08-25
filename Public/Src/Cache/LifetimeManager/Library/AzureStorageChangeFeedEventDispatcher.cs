@@ -8,15 +8,17 @@ using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
 using Azure.Storage.Blobs.ChangeFeed;
 using BuildXL.Utilities.Core.Tasks;
 using System;
 using Azure;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using System.Threading;
-using Microsoft.WindowsAzure.Storage;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Timers;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Library
 {
@@ -55,6 +57,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         private readonly LifetimeDatabaseUpdater _updater;
         private readonly RocksDbLifetimeDatabase _db;
         private readonly IClock _clock;
+        private readonly CheckpointManager _checkpointManager;
 
         private readonly string _metadataMatrix;
         private readonly string _contentMatrix;
@@ -63,12 +66,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             IBlobCacheSecretsProvider secretsProvider,
             IReadOnlyList<BlobCacheStorageAccountName> accounts,
             LifetimeDatabaseUpdater updater,
+            CheckpointManager checkpointManager,
             RocksDbLifetimeDatabase db,
             IClock clock,
             string metadataMatrix,
             string contentMatrix)
         {
             _secretsProvider = secretsProvider;
+            _checkpointManager = checkpointManager;
             _accounts = accounts;
             _updater = updater;
             _db = db;
@@ -78,7 +83,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             _contentMatrix = contentMatrix;
         }
 
-        public Task<BoolResult> ConsumeNewChangesAsync(OperationContext context)
+        public Task<BoolResult> ConsumeNewChangesAsync(OperationContext context, TimeSpan checkpointCreationInterval)
         {
             return context.PerformOperationAsync(
                 Tracer,
@@ -88,13 +93,20 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     using var cts = new CancellationTokenSource();
 
+                    var acquirer = new LockSetAcquirer<BoolResult>(lockCount: _accounts.Count);
+
+                    using var checkpointTimer = new IntervalTimer(
+                        () => PauseConsumeChangesAndCreateCheckpointAsync(context, acquirer),
+                        checkpointCreationInterval,
+                        dueTime: checkpointCreationInterval);
+
                     // It should be OK to do this unbounded, since we never expect a number of accounts big enough to overwhelm the system with tasks.
-                    var tasks = _accounts.Select(accountName =>
+                    var tasks = _accounts.Select((accountName, i) =>
                     {
                         return Task.Run(async () =>
                         {
                             var creds = await _secretsProvider.RetrieveBlobCredentialsAsync(context, accountName);
-                            return await ConsumeAccountChanges(context, now, cts, accountName, creds);
+                            return await ConsumeAccountChanges(context, now, cts, accountName, creds, acquirer.Locks[i]);
                         });
                     });
 
@@ -114,12 +126,41 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 });
         }
 
+        private Task<BoolResult> PauseConsumeChangesAndCreateCheckpointAsync(OperationContext context, LockSetAcquirer<BoolResult> acquirer)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>
+                {
+                    return acquirer.UseAsync(
+                        latestPages =>
+                        {
+                            if (latestPages.Any(r => r?.Succeeded == false))
+                            {
+                                var result = BoolResult.Success;
+                                foreach (var r in latestPages)
+                                {
+                                    result &= (r ?? BoolResult.Success);
+                                }
+
+                                return Task.FromResult(new BoolResult(result, "One or more page failed to be processed. Checkpoint creation skipped."));
+                            }
+
+                            return _checkpointManager.CreateCheckpointAsync(
+                                context,
+                                new EventSequencePoint(_clock.UtcNow),
+                                maxEventProcessingDelay: null);
+                        });
+                });
+        }
+
         private async Task<BoolResult> ConsumeAccountChanges(
             OperationContext context,
             DateTime now,
             CancellationTokenSource cts,
             BlobCacheStorageAccountName accountName,
-            IAzureStorageCredentials creds)
+            IAzureStorageCredentials creds,
+            Lock<BoolResult> consumePageLock)
         {
             OperationContext nestedContext = context.CreateNested("StorageAccountChangeFeed").WithCancellationToken(cts.Token);
 
@@ -147,43 +188,57 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
             while (!nestedContext.Token.IsCancellationRequested)
             {
-                var hasMore = await nestedContext.PerformNonResultOperationAsync(
+                bool shouldReturn = false;
+                var result = await consumePageLock.UseAsync(async _ =>
+                {
+                    shouldReturn = true;
+
+                    var hasMore = await nestedContext.PerformNonResultOperationAsync(
                     Tracer,
                     () => enumerator.MoveNextAsync().AsTask(),
                     caller: "GetChangeFeedPage",
                     traceOperationStarted: false,
                     extraEndMessage: hasMore => $"ContinuationToken=[{continuationToken}], HasMore=[{hasMore}], NextContinuationToken=[{(hasMore ? enumerator.Current.ContinuationToken : null)}]");
 
-                if (!hasMore)
+                    if (!hasMore)
+                    {
+                        return BoolResult.Success;
+                    }
+
+                    var page = enumerator.Current;
+                    var maxDateProcessed = await ProcessPageAsync(nestedContext, page, accountName, continuationToken);
+
+                    if (nestedContext.Token.IsCancellationRequested)
+                    {
+                        return new BoolResult("Cancellation was requested");
+                    }
+
+                    if (!maxDateProcessed.Succeeded)
+                    {
+                        // We've failed to process a page. This is unrecoverable. Cancel further page processing.
+                        cts.Cancel();
+                        return maxDateProcessed;
+                    }
+
+                    continuationToken = page.ContinuationToken;
+
+                    if (continuationToken is not null)
+                    {
+                        _db.SetCursor(accountName.AccountName, continuationToken);
+                    }
+
+                    if (maxDateProcessed.Value > now)
+                    {
+                        return BoolResult.Success;
+                    }
+
+                    shouldReturn = false;
+                    return BoolResult.Success;
+                });
+
+                if (shouldReturn)
                 {
-                    break;
-                }
-
-                var page = enumerator.Current;
-                var maxDateProcessed = await ProcessPageAsync(nestedContext, page, accountName, continuationToken);
-
-                if (nestedContext.Token.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                if (!maxDateProcessed.Succeeded)
-                {
-                    // We've failed to process a page. This is unrecoverable. Cancel further page processing.
-                    cts.Cancel();
-                    return maxDateProcessed;
-                }
-
-                continuationToken = page.ContinuationToken;
-
-                if (continuationToken is not null)
-                {
-                    _db.SetCursor(accountName.AccountName, continuationToken);
-                }
-
-                if (maxDateProcessed.Value > now)
-                {
-                    break;
+                    return result;
                 }
             }
 
@@ -263,6 +318,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                 if (blobPath.Container.Matrix.Equals(_metadataMatrix, StringComparison.OrdinalIgnoreCase))
                                 {
                                     var result = await _updater.ContentHashListCreatedAsync(context, namespaceId, blobPath.Path.Path, blobLength);
+
+                                    // Failing to process a content hash list is a fatal error, so we must abort further processing.
+                                    if (!result.Succeeded)
+                                    {
+                                        return new Result<DateTime?>(result);
+                                    }
                                 }
 
                                 break;

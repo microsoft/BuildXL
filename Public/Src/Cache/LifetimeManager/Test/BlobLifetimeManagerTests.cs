@@ -28,6 +28,7 @@ using Azure.Core;
 using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Test
 {
@@ -160,9 +161,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 string contentMatrix,
                 RocksDbLifetimeDatabase db,
                 LifetimeDatabaseUpdater updater,
-                IClock clock)
+                IClock clock,
+                CheckpointManager checkpointManager)
             {
-                return TestDispatcher = new TestDispatcher(secretsProvider, accountNames, updater, db, clock, metadataMatrix, contentMatrix, _pages);
+                return TestDispatcher = new TestDispatcher(secretsProvider, accountNames, updater, db, clock, metadataMatrix, contentMatrix, _pages, checkpointManager);
             }
         }
 
@@ -178,8 +180,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 IClock clock,
                 string metadataMatrix,
                 string contentMatrix,
-                List<Page<IBlobChangeFeedEvent>> pages)
-                : base(secretsProvider, accounts, updater, db, clock, metadataMatrix, contentMatrix)
+                List<Page<IBlobChangeFeedEvent>> pages,
+                CheckpointManager checkpointManager)
+                : base(secretsProvider, accounts, updater, checkpointManager, db, clock, metadataMatrix, contentMatrix)
                 => Pages = pages;
 
             internal override IChangeFeedClient CreateChangeFeedClient(IAzureStorageCredentials creds)

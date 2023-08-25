@@ -158,9 +158,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                 // Only get updates from Azure if the database already existed
                                 var updater = new LifetimeDatabaseUpdater(topologies, accessors, clock, fingerprintDegreeOfParallelism);
                                 AzureStorageChangeFeedEventDispatcher dispatcher =
-                                    CreateDispatcher(secretsProvider, accountNames, metadataMatrix, contentMatrix, db, updater, clock);
+                                    CreateDispatcher(secretsProvider, accountNames, metadataMatrix, contentMatrix, db, updater, clock, checkpointManager);
 
-                                await dispatcher.ConsumeNewChangesAsync(context).ThrowIfFailure();
+                                await dispatcher.ConsumeNewChangesAsync(context, config.CheckpointCreationInterval).ThrowIfFailure();
                             }
 
                             // TODO: consider doing this in parallel, although it could be argued that if each of these calls
@@ -195,9 +195,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             string contentMatrix,
             RocksDbLifetimeDatabase db,
             LifetimeDatabaseUpdater updater,
-            IClock clock)
+            IClock clock,
+            CheckpointManager checkpointManager)
         {
-            return new AzureStorageChangeFeedEventDispatcher(secretsProvider, accountNames, updater, db, clock, metadataMatrix, contentMatrix);
+            return new AzureStorageChangeFeedEventDispatcher(secretsProvider, accountNames, updater, checkpointManager, db, clock, metadataMatrix, contentMatrix);
         }
 
         private static async Task RunWithLeaseAsync(

@@ -16,7 +16,7 @@ namespace Test.BuildXL
     {
         private MessageLevel m_lastMessageLevel;
         // This list is used in ADOConsole for DX64 errors where the message is split into various segments and logged to ensure that only a part of the error message is highlighted.
-        private List<string> m_errorMessage = new List<string>();
+        internal List<string> Messages = new List<string>();
 
         public void Dispose()
         {
@@ -29,7 +29,7 @@ namespace Test.BuildXL
         public void WriteOutputLine(MessageLevel messageLevel, string line)
         {
             m_lastMessageLevel = messageLevel;
-            m_errorMessage.Add(line);
+            Messages.Add(line);
         }
 
         public void ValidateCall(MessageLevel messageLevel, string lineEnd)
@@ -39,30 +39,30 @@ namespace Test.BuildXL
 
         public void ValidateCall(MessageLevel messageLevel, string lineStart, string lineEnd)
         {
-            XAssert.IsNotNull(m_errorMessage.LastOrDefault(), "WriteOutputLine was not called");
+            XAssert.IsNotNull(Messages.LastOrDefault(), "WriteOutputLine was not called");
             XAssert.AreEqual(messageLevel, m_lastMessageLevel);
 
             if (lineStart != null)
             {
-                Assert.StartsWith(lineStart, m_errorMessage.LastOrDefault());
+                Assert.StartsWith(lineStart, Messages.LastOrDefault());
             }
 
             if (lineEnd != null)
             {
-                Assert.EndsWith(lineEnd, m_errorMessage.LastOrDefault());
+                Assert.EndsWith(lineEnd, Messages.LastOrDefault());
             }
 
-            m_errorMessage.Clear();
+            Messages.Clear();
         }
 
         public void ValidateCallForPipProcessEventinADO(MessageLevel messageLevel, List<string> expectedErrorMessage)
         {
-            XAssert.IsNotNull(m_errorMessage.LastOrDefault(), "WriteOutputLine was not called");
+            XAssert.IsNotNull(Messages.LastOrDefault(), "WriteOutputLine was not called");
             XAssert.AreEqual(messageLevel, m_lastMessageLevel);
 
-            XAssert.IsTrue(expectedErrorMessage.SequenceEqual(m_errorMessage));
+            XAssert.IsTrue(expectedErrorMessage.SequenceEqual(Messages));
 
-            m_errorMessage.Clear();
+            Messages.Clear();
         }
 
 
@@ -71,7 +71,7 @@ namespace Test.BuildXL
         /// </summary>
         public void ValidateNoCall()
         {
-            XAssert.IsNull(m_errorMessage.LastOrDefault(), "Console printed a message while it was not supposed to do it.");
+            XAssert.IsNull(Messages.LastOrDefault(), "Console printed a message while it was not supposed to do it.");
         }
 
         public void WriteOverwritableOutputLine(MessageLevel messageLevel, string standardLine, string overwritableLine)

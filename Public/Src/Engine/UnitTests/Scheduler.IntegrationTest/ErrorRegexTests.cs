@@ -78,7 +78,7 @@ err3" };
         [MemberData(nameof(Test1Data))]
         public void Test1(bool useStdErr, string text, string errRegex, bool enableMultiLineScanning, string expectedPrintedError)
         {
-            EventListener.NestedLoggerHandler += eventData =>
+            EventListener.NestedLoggerHandler += (eventData, _) =>
             {
                 if (eventData.EventId == (int)LogEventId.PipProcessError)
                 {
@@ -114,7 +114,7 @@ err3" };
         [InlineData(global::BuildXL.Utilities.Configuration.OutputReportingMode.TruncatedOutputOnError)]
         public void StdFileCopyTest(global::BuildXL.Utilities.Configuration.OutputReportingMode outputReportingMode)
         {
-            EventListener.NestedLoggerHandler += eventData =>
+            EventListener.NestedLoggerHandler += (eventData, _) =>
             {
                 if (eventData.EventId == (int)LogEventId.PipProcessError)
                 {

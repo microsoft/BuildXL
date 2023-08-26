@@ -859,7 +859,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public void IncrementalToolEnumerateNonSealedDirectoryTest(bool hasExplicitMemberDependency, bool useDotNetEnumerationOnWindows)
         {
-            // System.Diagnostics.Debugger.Launch();
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
             Configuration.IncrementalTools = new List<RelativePath>
             {

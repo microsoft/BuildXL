@@ -1775,7 +1775,6 @@ namespace Test.BuildXL.Storage.Admin
             WriteFile(File1, "Stuff1");
             WriteFile(File2, "Stuff2");
 
-            // System.Diagnostics.Debugger.Launch();
             support.TrackDirectoryMembership(
                 Directory,
                 (relativePath, _) => string.Equals(relativePath, File1, OperatingSystemHelper.PathComparison),

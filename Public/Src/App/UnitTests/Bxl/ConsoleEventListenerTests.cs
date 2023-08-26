@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
+using System.Linq;
 using System.Threading;
 using BuildXL;
 using BuildXL.ToolSupport;
@@ -275,10 +275,10 @@ namespace Test.BuildXL
             // Let's create and register a redirector listener to send an arbitrary message to the console
             using var redirectorListener = new ConsoleRedirectorEventListener(Events.Log, DateTime.UtcNow, new List<int> { (int)TestEvents.EventId.VerboseEvent }, loggingContext, warningMapper: null);
             using var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, cancellationToken);
-            
+
             // Register the "payload" event on the redirector listener and log it as a forwarded event
             // The redirector listener will unpack the inner message and replay it in the console
-            redirectorListener.RegisterEventSource(TestEvents.Log);
+            redirectorListener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             var message = "I'm an event that should be redirected to the console";
             global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedEvent(loggingContext, new WorkerForwardedEvent()
             {
@@ -286,8 +286,11 @@ namespace Test.BuildXL
                 EventId = (int)TestEvents.EventId.VerboseEvent
             });
 
-            TestEvents.Log.VerboseEvent(message);
-            console.ValidateCall(MessageLevel.Info, message);
+            // Check that the logged message is the inner payload, without "Worker X logged event..."
+            var loggedMessage = console.Messages.Single();
+            XAssert.IsTrue(loggedMessage.EndsWith(message));
+            XAssert.IsFalse(loggedMessage.Contains("Worker"));
+            XAssert.IsFalse(loggedMessage.Contains("logged"));
         }
     }
 }

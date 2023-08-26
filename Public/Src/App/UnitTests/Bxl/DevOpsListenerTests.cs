@@ -5,9 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using BuildXL;
 using BuildXL.Processes.Tracing;
+using BuildXL.ToolSupport;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
@@ -32,7 +33,7 @@ namespace Test.BuildXL
         public void LogAzureDevOpsIssueTest(bool isPipProcessError)
         {
             m_eventListener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
-            m_eventListener.NestedLoggerHandler += eventData =>
+            m_eventListener.NestedLoggerHandler += (eventData, s) =>
             {
                 if (isPipProcessError)
                 {
@@ -70,7 +71,7 @@ namespace Test.BuildXL
         {
             var adoConsoleMaxIssuesToLog = 1;
             m_eventListener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
-            m_eventListener.NestedLoggerHandler += eventData =>
+            m_eventListener.NestedLoggerHandler += (eventData, _) =>
             {
                 m_pipProcessEventFields = new PipProcessEventFields(eventData.Payload, forwardedPayload: false, isPipProcessError: true);
             };
@@ -105,7 +106,7 @@ namespace Test.BuildXL
             var pipSemiStableHash = (long)24;
 
             m_eventListener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
-            m_eventListener.NestedLoggerHandler += eventData =>
+            m_eventListener.NestedLoggerHandler += (eventData, _) =>
             {
                 m_pipProcessEventFields = new PipProcessEventFields(eventData.Payload, forwardedPayload: true, isPipProcessError: true);
             };
@@ -129,6 +130,79 @@ namespace Test.BuildXL
             }
         }
 
+        [Theory]
+        [InlineData("error")]
+        [InlineData("warning")]
+        [InlineData("event")]
+        public void DependOnASpecificMessageFormatForForwardedEvents(string eventType)
+        {
+            // For console logging on ADO, we depend on a specific format for the rendered text in a forwarded event.
+            // This test makes sure these messages are not changed willy-nilly in the future, possibly making these assumptions invalid.
+            // See also ConsoleEventListenerTests.TestEventRedirectionOfForwardedEvents, which relies on these assumptions
+            // If this test fails, the logic in ConsoleRedirectorEventListener.Output might fail too.
+
+            var forwardedText = "This is the full text of the event logged in the worker";
+
+            m_eventListener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
+
+            // Capture the fully formatted message when logged
+            string loggedMessage = "";
+            m_eventListener.NestedLoggerHandler += (_, s) =>
+            {
+                XAssert.IsTrue(loggedMessage == "");    // We expect a single message to be logged
+                loggedMessage = s;
+            };
+
+            using var testElements = PipProcessEventTestElement.Create(this, isPipProcessError: eventType == "error");
+            using var listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, AdoConsoleMaxIssuesToLog);
+
+            listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
+
+            (Action<LoggingContext, WorkerForwardedEvent> LogAction, LogEventId EventId) testData =
+                eventType switch
+                {
+                    "error" => (global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedError, LogEventId.PipProcessError),
+                    "warning" => (global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedWarning, LogEventId.PipProcessWarning),
+                    "event" => (global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedEvent, LogEventId.PipProcessOutput),
+                    _ => throw new InvalidArgumentException("Shouldn't happen"),
+                };
+
+            testData.LogAction.Invoke(LoggingContext, new WorkerForwardedEvent()
+            {
+                WorkerName = "0",
+                EventId = (int)testData.EventId,
+                EventName = testData.EventId.ToString(),
+                EventKeywords = 0,
+                Text = forwardedText,
+                PipProcessEvent = eventType == "error" ? testElements.PipProcessError : eventType == "warning" ? testElements.PipProcessWarning : default,
+            });
+
+
+            XAssert.IsFalse(string.IsNullOrEmpty(loggedMessage));
+
+            // The heart of this test: we rely on the raw message logged on the worker side to be
+            // logged after a single newline, so we can strip it and log it transparently to the console.
+            var regex = new Regex(@"Worker .* logged " + eventType + @":\n");
+            XAssert.IsTrue(regex.IsMatch(loggedMessage));
+
+            var splits = loggedMessage.Split('\n', 2);
+            XAssert.IsTrue(splits.Length == 2);
+            XAssert.AreEqual(forwardedText, splits[1]);
+            
+            switch (eventType)
+            {
+                case "error":
+                    AssertErrorEventLogged(SharedLogEventId.DistributionWorkerForwardedError);
+                    break;
+                case "warning":
+                    AssertWarningEventLogged(SharedLogEventId.DistributionWorkerForwardedWarning);
+                    break;
+                case "event":
+                    AssertVerboseEventLogged(SharedLogEventId.DistributionWorkerForwardedEvent);
+                    break;
+            }
+        }
+
         [Fact]
         public void ForwardedPipProcessWarningTest()
         {
@@ -136,7 +210,7 @@ namespace Test.BuildXL
             var warningMessage = "I'm a warning you want to ignore; it hurts.";
 
             m_eventListener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
-            m_eventListener.NestedLoggerHandler += eventData =>
+            m_eventListener.NestedLoggerHandler += (eventData, _) =>
             {
                 m_pipProcessEventFields = new PipProcessEventFields(eventData.Payload, forwardedPayload: true, isPipProcessError: false);
             };

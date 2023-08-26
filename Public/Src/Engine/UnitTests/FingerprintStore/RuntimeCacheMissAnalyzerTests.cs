@@ -541,7 +541,7 @@ namespace Test.BuildXL.FingerprintStore
         [Fact]
         public void BatchingProcessTest()
         {
-            EventListener.NestedLoggerHandler += eventData =>
+            EventListener.NestedLoggerHandler += (eventData, _) =>
             {
                 if (eventData.EventId == (int)SharedLogEventId.CacheMissAnalysisBatchResults)
                 {
@@ -680,7 +680,7 @@ namespace Test.BuildXL.FingerprintStore
         [Fact]
         public void BatchingRealResultTruncateTest()
         {
-            EventListener.NestedLoggerHandler += eventData =>
+            EventListener.NestedLoggerHandler += (eventData, _) =>
             {
                 if (eventData.EventId == (int)SharedLogEventId.CacheMissAnalysisBatchResults)
                 {
@@ -752,7 +752,7 @@ namespace Test.BuildXL.FingerprintStore
         [InlineData(false)]
         public void FormatContractTesting(bool cacheMissBatch)
         {
-            EventListener.NestedLoggerHandler += eventData =>
+            EventListener.NestedLoggerHandler += (eventData, _) =>
             {
                 if (eventData.EventId == (int)SharedLogEventId.CacheMissAnalysis)
                 {

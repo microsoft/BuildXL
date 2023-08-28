@@ -14,6 +14,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         public int LruEnumerationBatchSize { get; init; } = 1000;
 
         /// <summary>
+        /// Page size for consuming the Azure change feed. If null, it will use the Azure-defined default value.
+        /// </summary>
+        public int? ChangeFeedPageSize { get; init; } = null;
+
+        /// <summary>
         /// Specifies how often to create checkpoints while consuming the Azure Storage change feed.
         /// </summary>
         public TimeSpan CheckpointCreationInterval { get; set; } = TimeSpan.FromMinutes(10);

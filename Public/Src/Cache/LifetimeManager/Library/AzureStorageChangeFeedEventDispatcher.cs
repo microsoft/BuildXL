@@ -39,9 +39,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
     /// </summary>
     internal interface IChangeFeedClient
     {
-        IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(string? continuationToken);
+        IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(string? continuationToken, int? pageSizeHint);
 
-        IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(DateTime? startTimeUtc);
+        IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(DateTime? startTimeUtc, int? pageSizeHint);
     }
 
     /// <summary>
@@ -58,6 +58,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         private readonly RocksDbLifetimeDatabase _db;
         private readonly IClock _clock;
         private readonly CheckpointManager _checkpointManager;
+        private readonly int? _changeFeedPageSize;
 
         private readonly string _metadataMatrix;
         private readonly string _contentMatrix;
@@ -70,7 +71,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             RocksDbLifetimeDatabase db,
             IClock clock,
             string metadataMatrix,
-            string contentMatrix)
+            string contentMatrix,
+            int? changeFeedPageSize)
         {
             _secretsProvider = secretsProvider;
             _checkpointManager = checkpointManager;
@@ -81,6 +83,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
             _metadataMatrix = metadataMatrix;
             _contentMatrix = contentMatrix;
+            _changeFeedPageSize = changeFeedPageSize;
         }
 
         public Task<BoolResult> ConsumeNewChangesAsync(OperationContext context, TimeSpan checkpointCreationInterval)
@@ -176,12 +179,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 Tracer.Debug(nestedContext, $"Starting enumeration of change feed for account=[{accountName.AccountName}] " +
                     $"with startTimeUtc=[{creationDate.ToString() ?? "null"}]");
 
-                pagesEnumerable = changeFeedClient.GetChangesAsync(creationDate);
+                pagesEnumerable = changeFeedClient.GetChangesAsync(creationDate, _changeFeedPageSize);
             }
             else
             {
                 Tracer.Debug(nestedContext, $"Starting enumeration of change feed for account=[{accountName.AccountName}] with cursor=[{continuationToken ?? "null"}]");
-                pagesEnumerable = changeFeedClient.GetChangesAsync(continuationToken);
+                pagesEnumerable = changeFeedClient.GetChangesAsync(continuationToken, _changeFeedPageSize);
             }
 
             var enumerator = pagesEnumerable.GetAsyncEnumerator();
@@ -347,9 +350,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
             public AzureChangeFeedClientWrapper(BlobChangeFeedClient client) => _client = client;
 
-            public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(string? continuationToken)
+            public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(string? continuationToken, int? pageSizeHint)
             {
-                var enunmerator = _client.GetChangesAsync(continuationToken).AsPages().GetAsyncEnumerator();
+                var enunmerator = _client.GetChangesAsync(continuationToken).AsPages(pageSizeHint: pageSizeHint).GetAsyncEnumerator();
                 while (await enunmerator.MoveNextAsync())
                 {
                     var page = enunmerator.Current;
@@ -359,9 +362,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 }
             }
 
-            public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(DateTime? startTimeUtc)
+            public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(DateTime? startTimeUtc, int? pageSizeHint)
             {
-                var enunmerator = _client.GetChangesAsync(start: startTimeUtc).AsPages().GetAsyncEnumerator();
+                var enunmerator = _client.GetChangesAsync(start: startTimeUtc).AsPages(pageSizeHint: pageSizeHint).GetAsyncEnumerator();
                 while (await enunmerator.MoveNextAsync())
                 {
                     var page = enunmerator.Current;

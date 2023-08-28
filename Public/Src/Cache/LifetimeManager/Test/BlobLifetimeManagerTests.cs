@@ -162,9 +162,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 RocksDbLifetimeDatabase db,
                 LifetimeDatabaseUpdater updater,
                 IClock clock,
-                CheckpointManager checkpointManager)
+                CheckpointManager checkpointManager,
+                int? changeFeedPageSize)
             {
-                return TestDispatcher = new TestDispatcher(secretsProvider, accountNames, updater, db, clock, metadataMatrix, contentMatrix, _pages, checkpointManager);
+                return TestDispatcher = new TestDispatcher(secretsProvider, accountNames, updater, db, clock, metadataMatrix, contentMatrix, _pages, checkpointManager, changeFeedPageSize);
             }
         }
 
@@ -181,8 +182,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 string metadataMatrix,
                 string contentMatrix,
                 List<Page<IBlobChangeFeedEvent>> pages,
-                CheckpointManager checkpointManager)
-                : base(secretsProvider, accounts, updater, checkpointManager, db, clock, metadataMatrix, contentMatrix)
+                CheckpointManager checkpointManager,
+                int? changeFeedPageSize)
+                : base(secretsProvider, accounts, updater, checkpointManager, db, clock, metadataMatrix, contentMatrix, changeFeedPageSize)
                 => Pages = pages;
 
             internal override IChangeFeedClient CreateChangeFeedClient(IAzureStorageCredentials creds)
@@ -233,8 +235,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
 
             public TestFeedClient(List<Page<IBlobChangeFeedEvent>> pages) => _pages = pages;
 
-            public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(string? continuationToken)
+            public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(string? continuationToken, int? pageSizeHint)
             {
+                // We'll ignore page sizes in tests since it's purely a perf optimization.
+
                 if (!int.TryParse(continuationToken, out var skip))
                 {
                     skip = 0;
@@ -247,8 +251,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 }
             }
 
-            public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(DateTime? startTimeUtc)
+            public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(DateTime? startTimeUtc, int? pageSizeHint)
             {
+                // We'll ignore page sizes in tests since it's purely a perf optimization.
+
                 // This is intended to skip events that happened before DB creation. In the case of these tests, there are none.
                 foreach (var page in _pages)
                 {

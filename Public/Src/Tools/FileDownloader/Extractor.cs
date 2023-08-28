@@ -12,6 +12,8 @@ using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.GZip;
 using ICSharpCode.SharpZipLib.Tar;
 using ICSharpCode.SharpZipLib.Zip;
+using static BuildXL.Interop.Unix.IO;
+using System.Collections.Generic;
 
 namespace Tool.Download
 {
@@ -20,6 +22,12 @@ namespace Tool.Download
     /// </summary>
     internal sealed class Extractor : ToolProgram<ExtractorArgs>
     {
+        private static readonly Dictionary<string, string> packagesToBeChecked = new Dictionary<string, string>
+        {
+            {"NodeJs.linux-x64",  "node-v18.6.0-linux-x64/bin/node"},
+            {"YarnTool", "yarn-v1.22.19/bin/yarn"}
+        };
+
         private Extractor() : base("Extractor")
         {
         }
@@ -49,7 +57,7 @@ namespace Tool.Download
         /// <inheritdoc />
         public override int Run(ExtractorArgs arguments)
         {
-            return TryExtractToDisk(arguments)? 0 : 1;
+            return TryExtractToDisk(arguments) ? 0 : 1;
         }
 
         private bool TryExtractToDisk(ExtractorArgs arguments)
@@ -127,6 +135,19 @@ namespace Tool.Download
                         using (var tar = TarArchive.CreateInputTarArchive(gzipStream, nameEncoding: null))
                         {
                             tar.ExtractContents(target);
+                            if (OperatingSystemHelper.IsLinuxOS)
+                            {
+                                foreach (var packageName in packagesToBeChecked.Keys)
+                                {
+                                    if (target.Contains(packageName))
+                                    {
+                                        if (!CheckForNodePermissions(target, packagesToBeChecked[packageName]))
+                                        {
+                                            return false;
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     catch (GZipException e)
@@ -174,5 +195,45 @@ namespace Tool.Download
         {
             Console.Error.WriteLine($"Error occured trying to extract archive. Nothing was extracted from '{archive}' to '{target}.'");
         }
+
+        /// <summary>
+        /// This method is used to check if the execute permission bit has been set or not.
+        /// </summary>
+        /// <remarks>
+        /// In the method below we are checking this specifically for Node package in linux, as that was causing the issue.
+        /// TODO: Need to remove this hack once the bug is fixed. Refer bug https://dev.azure.com/mseng/1ES/_workitems/edit/2073919 for further information.
+        /// </remarks>
+        private bool CheckForNodePermissions(string target, string relativePath)
+        {
+            string fullPathForExecutableFile = Path.Combine(target, relativePath);
+
+            if (File.Exists(fullPathForExecutableFile))
+            {
+                var mode = GetFilePermissionsForFilePath(fullPathForExecutableFile, false);
+                if (mode < 0)
+                {
+                    Console.Error.WriteLine($"Failed to retrieve file permissions for : {fullPathForExecutableFile}");
+                    return false;
+                }
+                else
+                {
+                    // Check if the execute file permission bit has been set or not.
+                    var filePermissions = checked((FilePermissions)mode);
+                    if ((filePermissions & FilePermissions.S_IXUSR) == FilePermissions.S_IXUSR)
+                    {
+                        Console.Error.WriteLine($"File : {fullPathForExecutableFile} does not have the execute bit set for the user account");
+                        return false;
+                    }
+                }
+            }
+            else
+            {
+                Console.Error.WriteLine($"Failed to find the file - {relativePath} at the expected location: {fullPathForExecutableFile}");
+                return false;
+            }
+
+            return true;
+        }
     }
 }
+

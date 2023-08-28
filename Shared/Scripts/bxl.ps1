@@ -290,6 +290,11 @@ if (($DominoArguments -match "/c(onfig)?:.*").Length -eq 0) {
     }
 }
 
+if (($DominoArguments -match "/p:BUILDXL_FINGERPRINT_SALT.*").Length -eq 0) {
+    # A casing related PR polluted the cache, so let's force a salt. This could be removed after the poisoned content gets evicted.
+    $AdditionalBuildXLArguments += "/p:BUILDXL_FINGERPRINT_SALT=casingPR";
+}
+
 if (! $Vanilla) {
     $AdditionalBuildXLArguments += $NonVanillaOptions;
 }

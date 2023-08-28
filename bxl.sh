@@ -326,6 +326,11 @@ elif [[ -z "$BUILDXL_BIN" ]]; then
     getLkg
 fi
 
+# A casing related PR polluted the cache, so let's force a salt. This could be removed after the poisoned content gets evicted.
+if [[ $arg_UserProvidedBxlArguments != *"/p:BUILDXL_FINGERPRINT_SALT"* ]]; then
+    arg_Positional+=("/p:BUILDXL_FINGERPRINT_SALT=casingPR")
+fi
+
 compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}
 
 if [[ -n "$arg_DeployDev" ]]; then

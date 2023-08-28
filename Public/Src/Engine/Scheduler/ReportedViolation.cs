@@ -120,7 +120,7 @@ namespace BuildXL.Scheduler
                     case SimplifiedViolationType.DoubleWrite:
                         return $"{ReportingType.ToAbbreviation()} = Double Write";
                     case SimplifiedViolationType.MissingDependency:
-                        return $"{ReportingType.ToAbbreviation()} = Missing dependency between a reader and a writer";
+                        return $"{ReportingType.ToAbbreviation()} = Missing dependency between a reader and a writer. Please declare a dependency between these pips if you believe the access is legitimate";
                     default:
                         throw new NotImplementedException("Need to implement for: " + ReportingType.ToString());
                 }

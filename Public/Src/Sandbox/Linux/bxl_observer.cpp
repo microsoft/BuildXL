@@ -5,6 +5,7 @@
 #include "bxl_observer.hpp"
 #include "IOHandler.hpp"
 #include <stack>
+#include <sys/prctl.h>
 #include <sys/wait.h>
 
 static void HandleAccessReport(AccessReport report, int _)
@@ -749,6 +750,9 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
 
     if (IsPTraceForced(path) || CheckUnconditionallyEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
     {
+        // Allow this process to be traced by the tracer process.
+        set_ptrace_permissions();
+
         // We force ptrace for this process. 
         // Send a "statically linked" report so that the managed side can track it.
         AccessReport report =
@@ -792,16 +796,23 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
         [key](const std::pair<std::string, bool>& item) { return item.first == key; }
     );
 
+    bool isStaticallyLinked;
     if (maybeProcess != staticallyLinkedProcessCache_.end())
     {
-        // Already reported previously so we don't need to send a report here
-        return maybeProcess->second;
+        // Already checked this process
+        isStaticallyLinked = maybeProcess->second;
     }
-    
-    auto isStaticallyLinked = is_statically_linked(path);
+    else
+    {
+        isStaticallyLinked = is_statically_linked(path);
+        staticallyLinkedProcessCache_.push_back(std::make_pair(key, isStaticallyLinked));
+    }
 
     if (isStaticallyLinked)
     {
+        // Allow this process to be traced by the daemon process
+        set_ptrace_permissions();
+
         AccessReport report =
         {
             .operation        = kOpStaticallyLinkedProcess,
@@ -823,8 +834,19 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
         SendReport(report, /* isDebugMessage */ false, /* useSecondaryPipe */ true);
     }
 
-    staticallyLinkedProcessCache_.push_back(std::make_pair(key, isStaticallyLinked));
     return isStaticallyLinked;
+}
+
+void BxlObserver::set_ptrace_permissions()
+{
+    // This should happen before sending a kOpStaticallyLinkedProcess report to bxl because it will signal bxl to launch the tracer.
+    if (prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY) == -1)
+    {
+        std::cerr << "[BuildXL] Failed to allow ptrace for process " << getpid() << ": " << strerror(errno) << "\n";
+        // This process is going to fail anyways when the tracer fails to attach, so we should exit here with a bad exit code.
+        // Interposed exit here is used on purpose to inform bxl this process should be removed from its process table.
+        exit(-1);
+    }
 }
 
 // Executes objdump against the provided path to determine whether the binary is statically linked.

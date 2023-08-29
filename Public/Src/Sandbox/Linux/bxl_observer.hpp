@@ -404,6 +404,7 @@ public:
     bool check_and_report_statically_linked_process(const char *path);
     bool check_and_report_statically_linked_process(int fd);
     bool is_statically_linked(const char *path);
+    void set_ptrace_permissions();
 
     // Clears the specified entry on the file descriptor table
     void reset_fd_table_entry(int fd);

@@ -48,10 +48,7 @@ PTraceSandbox::~PTraceSandbox()
 }
 
 int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, char *const argv[], char *const envp[], const char *fam)
-{
-    // Allow this process to be traced by the daemon process
-    prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
-    
+{    
     // Filter for the syscalls that BXL is interested in tracing
     // Only the syscalls in here will be signalled to the main process by seccomp
     // List of available syscalls to ptrace: https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl

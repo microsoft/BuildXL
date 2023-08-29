@@ -89,13 +89,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
         internal record ContentEntry(long BlobSize, int ReferenceCount)
         {
-            public void Serialize(SpanWriter writer)
+            public void Serialize(ref SpanWriter writer)
             {
                 writer.Write(BlobSize);
                 writer.Write(ReferenceCount);
             }
 
-            public static ContentEntry Deserialize(SpanReader reader)
+            public static ContentEntry Deserialize(ref SpanReader reader)
             {
                 var blobSize = reader.ReadInt64();
                 var referenceCount = reader.ReadInt32();
@@ -106,14 +106,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
         internal record MetadataEntry(long BlobSize, DateTime LastAccessTime, ContentHash[] Hashes)
         {
-            public void Serialize(SpanWriter writer)
+            public void Serialize(ref SpanWriter writer)
             {
                 writer.Write(BlobSize);
                 writer.Write(LastAccessTime);
                 writer.Write(Hashes, (ref SpanWriter w, ContentHash hash) => HashSerializationExtensions.Write(ref w, hash));
             }
 
-            public static MetadataEntry Deserialize(SpanReader reader)
+            public static MetadataEntry Deserialize(ref SpanReader reader)
             {
                 var blobSize = reader.ReadInt64();
                 var lastAccessTime = reader.ReadDateTime();
@@ -220,8 +220,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             ReadOnlySpan<byte> value2,
             MergeResult result)
         {
-            var deserialized1 = ContentEntry.Deserialize(value1.AsReader());
-            var deserialized2 = ContentEntry.Deserialize(value2.AsReader());
+            var reader1 = value1.AsReader();
+            var reader2 = value2.AsReader();
+            var deserialized1 = ContentEntry.Deserialize(ref reader1);
+            var deserialized2 = ContentEntry.Deserialize(ref reader2);
 
             var resultEntry = new ContentEntry(
                 // When decrementing the ref count of a content hash, we don't get the size, so
@@ -231,7 +233,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
             result.ValueBuffer.Resize(value1.Length);
             var writer = result.ValueBuffer.Value.AsWriter();
-            resultEntry.Serialize(writer);
+            resultEntry.Serialize(ref writer);
 
             return true;
         }
@@ -240,7 +242,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         {
             using var key = _serializationPool.SerializePooled(CreationTimeKey, static (string s, ref SpanWriter writer) => writer.Write(s));
 
-            var existing = Get<DateTime?>(key.WrittenSpan, cfHandle: null, reader => reader.ReadDateTime());
+            var existing = Get<DateTime?>(key.WrittenSpan, cfHandle: null, (ref SpanReader reader) => reader.ReadDateTime());
             Contract.Assert(existing is null, "DB creation time can only be set once.");
 
             using var value = _serializationPool.SerializePooled(creationTimeUtc, static (DateTime instance, ref SpanWriter writer) => writer.Write(instance));
@@ -251,7 +253,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         public DateTime? GetCreationTime()
         {
             using var key = _serializationPool.SerializePooled(CreationTimeKey, static (string s, ref SpanWriter writer) => writer.Write(s));
-            return Get<DateTime?>(key.WrittenSpan, cfHandle: null, reader => reader.ReadDateTime()); 
+            return Get<DateTime?>(key.WrittenSpan, cfHandle: null, (ref SpanReader reader) => reader.ReadDateTime());
         }
 
         private void AddContentHashList(
@@ -263,7 +265,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             var batch = new WriteBatch();
 
             // Make sure we don't dispose of any of the pooled spans until the batch is complete.
-            var disposables = new List<IDisposable>();
+            var disposables = new List<IDisposable> { batch };
 
             try
             {
@@ -272,7 +274,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 var key = _serializationPool.SerializePooled(contentHashList.BlobName, static (string s, ref SpanWriter writer) => writer.Write(s));
                 disposables.Add(key);
 
-                var value = _serializationPool.SerializePooled(entry, static (MetadataEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
+                var value = _serializationPool.SerializePooled(entry, static (MetadataEntry instance, ref SpanWriter writer) => instance.Serialize(ref writer));
                 disposables.Add(value);
 
                 batch.Put(key.WrittenSpan, value.WrittenSpan, fingerprintCf);
@@ -288,7 +290,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     var valueSpan = _serializationPool.SerializePooled(
                         contentEntry,
-                        static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
+                        static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(ref writer));
                     disposables.Add(valueSpan);
 
                     batch.Merge(hashKey.WrittenSpan, valueSpan.WrittenSpan, contentCf);
@@ -314,7 +316,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             var batch = new WriteBatch();
 
             // Make sure we don't dispose of any of the pooled spans until the batch is complete.
-            var disposables = new List<IDisposable>();
+            var disposables = new List<IDisposable> { batch };
 
             try
             {
@@ -335,7 +337,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     var valueSpan = _serializationPool.SerializePooled(
                         value,
-                        static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
+                        static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(ref writer));
                     disposables.Add(valueSpan);
 
                     batch.Merge(hashKey.WrittenSpan, valueSpan.WrittenSpan, contentCf);
@@ -355,7 +357,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         public string? GetCursor(string accountName)
         {
             using var key = _serializationPool.SerializePooled(accountName, static (string instance, ref SpanWriter writer) => writer.Write(instance));
-            return Get(key.WrittenSpan, _cursorsCf, static reader => reader.ReadString());
+            return Get(key.WrittenSpan, _cursorsCf, static (ref SpanReader reader) => reader.ReadString());
         }
 
         public void SetCursor(string accountName, string cursor)
@@ -373,7 +375,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             var value = new ContentEntry(BlobSize: blobSize, ReferenceCount: 0);
             using var valueSpan = _serializationPool.SerializePooled(
                 value,
-                static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
+                static (ContentEntry instance, ref SpanWriter writer) => instance.Serialize(ref writer));
 
             _db.Merge(key.WrittenSpan, valueSpan.WrittenSpan, contentCf);
         }
@@ -401,7 +403,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     MetadataEntry metadataEntry;
                     try
                     {
-                        metadataEntry = MetadataEntry.Deserialize(iterator.Value().AsReader());
+                        var reader = iterator.Value().AsReader();
+                        metadataEntry = MetadataEntry.Deserialize(ref reader);
                     }
                     catch
                     {
@@ -458,7 +461,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             IterateDbContent(
                 iterator =>
                 {
-                    var contentEntry = ContentEntry.Deserialize(iterator.Value().AsReader());
+                    var reader = iterator.Value().AsReader();
+                    var contentEntry = ContentEntry.Deserialize(ref reader);
                     totalSize += contentEntry.BlobSize;
                     firstPassScannedEntries++;
                     contentBlobCount++;
@@ -597,12 +601,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 context,
                 limit,
                 startKey,
-                (ref ReadOnlySpan<byte> key, ref ReadOnlySpan<byte> value, IList<ContentHashList> result) =>
+                (ReadOnlySpan<byte> key, ReadOnlySpan<byte> value, IList<ContentHashList> result) =>
                 {
                     var reader = key.AsReader();
                     var blobName = reader.ReadString();
 
-                    var metadataEntry = MetadataEntry.Deserialize(value.AsReader());
+                    var valueReader = value.AsReader();
+                    var metadataEntry = MetadataEntry.Deserialize(ref valueReader);
 
                     if (metadataEntry.LastAccessTime > lowerLimitNonInclusive &&
                         metadataEntry.LastAccessTime <= upperLimitInclusive)
@@ -623,9 +628,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 context,
                 limit,
                 startKey,
-                (ref ReadOnlySpan<byte> key, ref ReadOnlySpan<byte> value, IList<(ContentHash, long)> result) =>
+                (ReadOnlySpan<byte> key, ReadOnlySpan<byte> value, IList<(ContentHash, long)> result) =>
                 {
-                    var contentEntry = ContentEntry.Deserialize(value.AsReader());
+                    var reader = value.AsReader();
+                    var contentEntry = ContentEntry.Deserialize(ref reader);
 
                     if (contentEntry.ReferenceCount == 0)
                     {
@@ -636,8 +642,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 contentCf);
         }
 
-        private delegate void EnumerationBatchHandler<T>(ref ReadOnlySpan<byte> key, ref ReadOnlySpan<byte> value, IList<T> result);
-        private delegate T SpanReaderDeserializer<T>(SpanReader reader);
+        private delegate void EnumerationBatchHandler<T>(ReadOnlySpan<byte> key, ReadOnlySpan<byte> value, IList<T> result);
+        private delegate T SpanReaderDeserializer<T>(ref SpanReader reader);
 
         private (IReadOnlyList<T> batch, bool reachedEnd, byte[]? next) GetEnumerationBatch<T>(
             OperationContext context,
@@ -667,7 +673,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     var value = iterator.Value();
 
-                    handle(ref key, ref value, result);
+                    handle(key, value, result);
                 },
                 cfHandle,
                 startKey,
@@ -709,7 +715,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             // We can simply override the existing value.
             var entry = new MetadataEntry(contentHashList.BlobSize, contentHashList.LastAccessTime, contentHashList.Hashes);
             using var key = _serializationPool.SerializePooled(contentHashList.BlobName, static (string s, ref SpanWriter writer) => writer.Write(s));
-            using var value = _serializationPool.SerializePooled(entry, static (MetadataEntry instance, ref SpanWriter writer) => instance.Serialize(writer));
+            using var value = _serializationPool.SerializePooled(entry, static (MetadataEntry instance, ref SpanWriter writer) => instance.Serialize(ref writer));
 
             _db.Put(key.WrittenSpan, value.WrittenSpan, fingerprintsCf, _writeOptions);
         }
@@ -751,7 +757,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             using (pinnable)
             {
                 var spanReader = pinnable.Value.UnsafePin().AsReader();
-                return deserializer(spanReader)!;
+                return deserializer(ref spanReader)!;
             }
         }
 
@@ -914,7 +920,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 Contract.Assert(Database is not null);
 
                 using var keySpan = Database._serializationPool.SerializePooled(key, static (string instance, ref SpanWriter writer) => writer.Write(instance));
-                value = Database.Get(keySpan.WrittenSpan, cfHandle: null, (SpanReader r) => r.ReadString());
+                value = Database.Get(keySpan.WrittenSpan, cfHandle: null, (ref SpanReader r) => r.ReadString());
                 return value is not null;
             }
         }

@@ -67,10 +67,10 @@ namespace Test.Tool.DropDaemon
 
             var sbomGenerationRootDirectory = Path.Combine(Path.GetTempPath(), "sbom");
             
-            var specs = new List<SBOMSpecification>() { new("SPDX", "2.2"), new("CloudBuildManifest", "1.0.0") };
+            var specs = new List<SbomSpecification>() { new("SPDX", "2.2"), new("CloudBuildManifest", "1.0.0") };
 
             // A file with VSO and SHA1 hashes to generate both SPDX and CBManifest
-            var myfile = new SBOMFile()
+            var myfile = new SbomFile()
             {
                 Id = "MyFileId",
                 Path = "Oh/What/A/Cool/Path.txt",
@@ -93,7 +93,7 @@ namespace Test.Tool.DropDaemon
                     },
                 }
             };
-            IEnumerable<SBOMFile> files = new List<SBOMFile>() { myfile };
+            IEnumerable<SbomFile> files = new List<SbomFile>() { myfile };
 
             var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(GenerateBcdeOutput(Path.GetTempFileName()));
             XAssert.IsNotNull(packages);
@@ -105,7 +105,7 @@ namespace Test.Tool.DropDaemon
                 }
             }
 
-            var result = await sbomGenerator.GenerateSBOMAsync(sbomGenerationRootDirectory, files, packages, metadata, specs);
+            var result = await sbomGenerator.GenerateSbomAsync(sbomGenerationRootDirectory, files, packages, metadata, specs);
             if (!result.IsSuccessful)
             {
                 var errorDetails = GetSbomGenerationErrorDetails(result.Errors);

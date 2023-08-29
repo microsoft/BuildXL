@@ -39,6 +39,7 @@ namespace Test.Tool.DropDaemon {
             ...importFrom("BuildXL.Tools.DropDaemon").dropDaemonSbomPackages(),
         ],
 
+        deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Text.Encodings.Web.dll`, a`System.Text.Json.dll`] },
         runtimeContentToSkip: importFrom("BuildXL.Tools.DropDaemon").dropDaemonRuntimeContentToSkip(),
     });
 }

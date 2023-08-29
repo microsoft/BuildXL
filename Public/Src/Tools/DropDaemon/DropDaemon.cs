@@ -885,7 +885,7 @@ namespace Tool.DropDaemon
                 hasMoreData = bxlResult.Result.HasMoreData;
             } while (hasMoreData);
 
-            IEnumerable<SBOMFile> manifestFileList = fileList.Select(ToSbomFile);
+            IEnumerable<SbomFile> manifestFileList = fileList.Select(ToSbomFile);
 
             string sbomGenerationRootDirectory = null;
             var logger = GetDropSpecificLogger(dropConfig);
@@ -905,13 +905,13 @@ namespace Tool.DropDaemon
                 FileUtilities.CreateDirectory(sbomGenerationRootDirectory);
 
                 // Always generate SPDX, but exclude CloudBuild manifest if configured to do so
-                var specs = new List<SBOMSpecification>() { new("SPDX", "2.2") };
+                var specs = new List<SbomSpecification>() { new("SPDX", "2.2") };
                 if (!m_disableCloudBuildManifest)
                 {
                     specs.Add(new("CloudBuildManifest", "1.0.0"));
                 }
 
-                Possible<IEnumerable<SBOMPackage>> maybePackages;
+                Possible<IEnumerable<SbomPackage>> maybePackages;
                 using (m_counters.StartStopwatch(DropDaemonCounter.BuildManifestComponentConversionDuration))
                 {
                     maybePackages = await GetSbomPackagesAsync(logger);
@@ -924,7 +924,7 @@ namespace Tool.DropDaemon
 
                 var packages = maybePackages.Result;
 				logger.Verbose("Starting SBOM Generation");
-                var result = await m_sbomGenerator.GenerateSBOMAsync(sbomGenerationRootDirectory, manifestFileList, packages, metadata, specs);
+                var result = await m_sbomGenerator.GenerateSbomAsync(sbomGenerationRootDirectory, manifestFileList, packages, metadata, specs);
                 logger.Verbose("Finished SBOM Generation");
 
                 if (!result.IsSuccessful)
@@ -991,7 +991,7 @@ namespace Tool.DropDaemon
             return sb.ToString();
         }
 
-		private SBOMFile ToSbomFile(BuildXL.Ipc.ExternalApi.Commands.BuildManifestFileInfo fileInfo)
+		private SbomFile ToSbomFile(BuildXL.Ipc.ExternalApi.Commands.BuildManifestFileInfo fileInfo)
         {
             // Include artifacts hash only when computing CloudBuildV1 Manifest
             var maybeArtifactsHash = m_disableCloudBuildManifest ? Array.Empty<ContentHash>() : new[] { fileInfo.AzureArtifactsHash };
@@ -1021,14 +1021,14 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        /// Tries to convert output from component detection to a list of <see cref="SBOMPackage"/>.
+        /// Tries to convert output from component detection to a list of <see cref="SbomPackage"/>.
         /// </summary>
         /// <returns>
-        /// A converted list of <see cref="SBOMPackage"/> if successful.
+        /// A converted list of <see cref="SbomPackage"/> if successful.
         /// If not successful, errors messages will be logged and also returned as a Failure{string}.
         /// Any warnings raised by the tooling are also logged via the APIServer.
         /// </returns>
-        private async Task<Possible<IEnumerable<SBOMPackage>>> GetSbomPackagesAsync(IIpcLogger logger)
+        private async Task<Possible<IEnumerable<SbomPackage>>> GetSbomPackagesAsync(IIpcLogger logger)
         {
             // Read Path for bcde output from environment, this should already be set by Cloudbuild
             var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
@@ -1039,7 +1039,7 @@ namespace Tool.DropDaemon
                 // and the SBOM creation here can still happen without a set of packages.
                 // Log a message on the ApiServer it and return an empty set.
                 Analysis.IgnoreResult(await ApiClient.LogMessage($"[GetSbomPackages] The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. This happens when component governance on the build runner is disabled. Component detection data will not be included in build manifest.", isWarning: false));
-                return new List<SBOMPackage>();
+                return new List<SbomPackage>();
             }
             else if (!System.IO.File.Exists(bcdeOutputJsonPath))
             {

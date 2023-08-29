@@ -16,7 +16,6 @@ export namespace DropDaemon {
         appConfig: f`DropDaemon.exe.config`,
         assemblyBindingRedirects: dropDaemonBindingRedirects(),
         sources: globR(d`.`, "*.cs"),
-
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
@@ -56,6 +55,7 @@ export namespace DropDaemon {
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",
         ],
+        deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Text.Encodings.Web.dll`, a`System.Text.Json.dll`] },
         runtimeContentToSkip: dropDaemonRuntimeContentToSkip()
     });
 
@@ -136,15 +136,15 @@ export namespace DropDaemon {
                 name: "System.Text.Json",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "5.0.0.0",
+                oldVersion: "0.0.0.0-7.0.0.0",
+                newVersion: "7.0.0.0"
             },
             {
                 name: "System.Text.Encodings.Web",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-5.0.0.1",
-                newVersion: "5.0.0.1", // Corresponds to { id: "System.Text.Encodings.Web", version: "4.7.2" },
+                oldVersion: "0.0.0.0-7.0.0.0",
+                newVersion: "7.0.0.0"
             }
         ];
     }
@@ -172,9 +172,9 @@ export namespace DropDaemon {
             importFrom("Microsoft.ComponentDetection.Contracts").pkg,
             importFrom("Microsoft.Sbom.Adapters").pkg,
             importFrom("packageurl-dotnet").pkg,
-            importFrom("System.Text.Json.v5.0.0").pkg,
+            importFrom("System.Text.Json.v7.0.0").pkg,
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("System.Text.Encodings.Web.v5.0.1").pkg,
+            importFrom("System.Text.Encodings.Web.v7.0.0").pkg,
         ];
     }
 

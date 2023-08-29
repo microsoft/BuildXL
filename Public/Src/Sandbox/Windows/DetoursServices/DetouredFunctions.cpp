@@ -878,17 +878,35 @@ static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_
 /// </summary>
 static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ std::shared_ptr<vector<wstring>>& order, _Inout_ std::shared_ptr<map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>>& finalPaths, _In_ const PolicyResult& policyResult)
 {
-    order->push_back(path.GetPathString());
-    finalPaths->emplace(path.GetPathString(), ResolvedPathType::Intermediate);
-
-    wstring nextPath;
-
-    if (!TryGetNextPath(path.GetPathString(), hInput, nextPath, policyResult))
+    HANDLE handle = hInput;
+    wstring currentPath = path.GetPathString();
+    
+    while(true)
     {
-        return;
-    }
+        order->push_back(currentPath);
+        finalPaths->emplace(currentPath, ResolvedPathType::Intermediate);
 
-    DetourGetFinalPaths(CanonicalizedPath::Canonicalize(nextPath.c_str()), INVALID_HANDLE_VALUE, order, finalPaths, policyResult);
+        wstring nextPath;
+        auto nextPathResult = TryGetNextPath(currentPath, handle, nextPath, policyResult);
+        handle = INVALID_HANDLE_VALUE;
+
+        if (nextPathResult)
+        {
+            currentPath = CanonicalizedPath::Canonicalize(nextPath.c_str()).GetPathString();
+        }
+
+        // Break out of the loop if the canonicalized next path is not found or if the path was already encountered before (indicating a cycle)
+        if (!nextPathResult)
+        {
+            break;
+        }
+        else if (std::find(order->begin(), order->end(), currentPath) != order->end())
+        {
+            // If a cycle was detected in the chain of symlinks, we will log it, and return back the symlinks up to the last resolved path, not including any duplicates.
+            WriteWarningOrErrorF(L"Cycle found when attempting to resolve symlink path '%s'.", path.GetPathString());
+            break;
+        }
+    }
 }
 
 /// <summary>

@@ -20,15 +20,12 @@ namespace FileDownloader {
         skipDefaultReferences: true,
         sources: globR(d`.`, "Downloader*.cs"),
         references:[
-            importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").VstsAuthentication.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-            importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
         ],
     });

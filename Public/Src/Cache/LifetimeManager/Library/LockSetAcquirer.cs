@@ -82,7 +82,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             await _semaphore.AcquireAsync();
             try
             {
-                return _state = new Result<T?>(await operation(_state));
+                return _state = new Result<T?>(await operation(_state), isNullAllowed: true);
             }
             catch (Exception e)
             {

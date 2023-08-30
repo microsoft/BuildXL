@@ -158,12 +158,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             return new RocksDbLifetimeDatabase(configuration, clock, db);
         }
 
-        // There is a bug in our RocksDb library that requires that we keep a reference to created ColumnFamilyOptions,
-        // otherwise an Exception will be thrown with the error:
-        // A callback was made on a garbage collected delegate of type 'RocksDbSharp!RocksDbSharp.ColumnFamilyOptions+GetMergeOperator::Invoke'.
-        // Bug#2090673
-        private static readonly List<ColumnFamilyOptions> Hack = new List<ColumnFamilyOptions>();
-
         protected static RocksDb CreateDb(Configuration configuration)
         {
             var options = new DbOptions();
@@ -200,9 +194,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                 columnFamilies.Add(new ColumnFamilies.Descriptor(GetColumnFamilyName(ColumnFamily.Content, namespaceId), contentOptions));
                 columnFamilies.Add(new ColumnFamilies.Descriptor(GetColumnFamilyName(ColumnFamily.Fingerprints, namespaceId), fingerprintsOptions));
-
-                Hack.Add(contentOptions);
-                Hack.Add(fingerprintsOptions);
             }
 
             Directory.CreateDirectory(configuration.DatabasePath);

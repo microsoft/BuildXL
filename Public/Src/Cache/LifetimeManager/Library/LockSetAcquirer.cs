@@ -13,7 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 namespace BuildXL.Cache.BlobLifetimeManager.Library
 {
     /// <summary>
-    /// Provides a set of locks and a method that will aquire all of them and release them only until a provided action is complete.
+    /// Provides a set of locks and a method that will aquire all of them and release them only after a provided action is complete.
     /// </summary>
     internal class LockSetAcquirer<T>
     {
@@ -23,12 +23,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
         public async Task<T> UseAsync(Func<IReadOnlyList<T?>, Task<T>> action)
         {
-            var actionCompletionSource = new TaskCompletionSource<T?>();
+            var actionCompletionSource = new TaskSourceSlim<T?>();
             T? actionResult = default;
             Task<Result<T?>>[]? lockUntilDoneTasks = null;
             try
             {
-                var lockAcquiredCompletionSources = Locks.Select(_ => new TaskCompletionSource<Result<T?>?>()).ToArray();
+                var lockAcquiredCompletionSources = Locks.Select(_ => new TaskSourceSlim<Result<T?>?>()).ToArray();
 
                 lockUntilDoneTasks = Locks.Select((l, i) => l.UseAsync(lastOperationResult =>
                 {
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 // Wait until we've aquired all locks and have all the latest results.
                 var latestResults = await TaskUtilities.SafeWhenAll(lockAcquiredCompletionSources.Select(tcs => tcs.Task));
 
-                if (!latestResults.Any(r => r?.Succeeded == false))
+                if (latestResults.Any(r => r?.Succeeded == false))
                 {
                     var result = BoolResult.Success;
                     foreach (var r in latestResults)
@@ -73,13 +73,16 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
     /// </summary>
     internal class Lock<T>
     {
-        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(initialCount: 1);
+        /// <summary>
+        /// Internal for testing. DO NOT use the semaphore directly.
+        /// </summary>
+        internal readonly SemaphoreSlim Semaphore = new SemaphoreSlim(initialCount: 1);
 
         private Result<T?>? _state;
 
         public async Task<Result<T?>> UseAsync(Func<Result<T?>?, Task<T?>> operation)
         {
-            await _semaphore.AcquireAsync();
+            await Semaphore.AcquireAsync();
             try
             {
                 return _state = new Result<T?>(await operation(_state), isNullAllowed: true);
@@ -90,7 +93,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
             finally
             {
-                _semaphore.Release();
+                Semaphore.Release();
             }
         }
     }

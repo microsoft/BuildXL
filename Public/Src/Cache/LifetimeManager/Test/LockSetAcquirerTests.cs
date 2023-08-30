@@ -1,10 +1,12 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.BlobLifetimeManager.Library;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using FluentAssertions;
 using Xunit;
@@ -75,6 +77,36 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
 
             // If this fails, it means something is seriously wrong. This test should not be flaky.
             resultList.Should().BeEquivalentTo(new[] { 1, 2, 3, 4 });
+        }
+
+        [Fact]
+        public async Task ThrownExceptionReturnsFailedResult()
+        {
+            var @lock = new Lock<bool>();
+            var result = await @lock.UseAsync(_ => throw new Exception());
+            result.Succeeded.Should().BeFalse();
+
+            // Assert that the lock is released after an exception
+            @lock.Semaphore.CurrentCount.Should().Be(1);
+            (await @lock.Semaphore.WaitAsync(TimeSpan.FromMilliseconds(100))).Should().BeTrue();
+            @lock.Semaphore.Release();
+        }
+
+        [Fact]
+        public async Task LockSetWithFailedLockThrows()
+        {
+            var acquirer = new LockSetAcquirer<bool>(lockCount: 1);
+            await acquirer.Locks[0].UseAsync(_ => throw new Exception()).ShouldBeError();
+
+            var e = await Assert.ThrowsAsync<ResultPropagationException>(() => acquirer.UseAsync(_ => Task.FromResult(true)));
+
+            // Assert that all locks are released after a failure
+            foreach (var @lock in acquirer.Locks)
+            {
+                @lock.Semaphore.CurrentCount.Should().Be(1);
+                (await @lock.Semaphore.WaitAsync(TimeSpan.FromMilliseconds(100))).Should().BeTrue();
+                @lock.Semaphore.Release();
+            }
         }
     }
 }

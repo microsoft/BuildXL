@@ -191,20 +191,31 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
             while (!nestedContext.Token.IsCancellationRequested)
             {
-                bool shouldReturn = false;
-                var result = await consumePageLock.UseAsync(async _ =>
+                bool doneProcessingItems = false;
+                Result<BoolResult?> lockResult = await consumePageLock.UseAsync(async _ =>
                 {
-                    shouldReturn = true;
+                    doneProcessingItems = true;
 
-                    var hasMore = await nestedContext.PerformNonResultOperationAsync(
-                    Tracer,
-                    () => enumerator.MoveNextAsync().AsTask(),
-                    caller: "GetChangeFeedPage",
-                    traceOperationStarted: false,
-                    extraEndMessage: hasMore => $"ContinuationToken=[{continuationToken}], HasMore=[{hasMore}], NextContinuationToken=[{(hasMore ? enumerator.Current.ContinuationToken : null)}]");
+                    var hasMoreResult = await nestedContext.PerformOperationAsync(
+                        Tracer,
+                        async () =>
+                        {
+                            var hasMore = await enumerator.MoveNextAsync();
+                            return new Result<bool>(hasMore);
+                        },
+                        caller: "GetChangeFeedPage",
+                        traceOperationStarted: false,
+                        extraEndMessage: hasMore => $"ContinuationToken=[{continuationToken}], HasMore=[{(hasMore.Succeeded ? hasMore.Value : null)}], NextContinuationToken=[{((hasMore.Succeeded && hasMore.Value) ? enumerator.Current.ContinuationToken : null)}]");
 
-                    if (!hasMore)
+                    if (!hasMoreResult.Succeeded)
                     {
+                        // We failed to download the next page.
+                        return hasMoreResult;
+                    }
+
+                    if (!hasMoreResult.Value)
+                    {
+                        // We've finished consuming the change feed.
                         return BoolResult.Success;
                     }
 
@@ -218,8 +229,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     if (!maxDateProcessed.Succeeded)
                     {
-                        // We've failed to process a page. This is unrecoverable. Cancel further page processing.
-                        cts.Cancel();
                         return maxDateProcessed;
                     }
 
@@ -235,13 +244,20 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         return BoolResult.Success;
                     }
 
-                    shouldReturn = false;
+                    doneProcessingItems = false;
                     return BoolResult.Success;
                 });
 
-                if (shouldReturn)
+                if (!lockResult.Succeeded || !lockResult.Value.Succeeded)
                 {
-                    return result;
+                    // We've failed to process a page. This is unrecoverable. Cancel further page processing.
+                    cts.Cancel();
+                    return lockResult.Succeeded ? lockResult.Value : lockResult;
+                }
+
+                if (doneProcessingItems)
+                {
+                    return lockResult;
                 }
             }
 

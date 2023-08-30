@@ -1162,4 +1162,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_LimitPathSetsOnCacheLookup" xml:space="preserve">
     <value>Limits the number of path sets to be checked during cache lookup. Once the limit is reached, the pip is determined to have a cache miss. Defaults to off. The number of path sets can also be set. Defaults to 0 (off).</value>
   </data>
+  <data name="HelpText_DisplayHelp_HonorDirectoryCasingOnDisk" xml:space="preserve">
+    <value>When true, casing of directories for dynamic outputs will match the ones found on disk when a pip is done executing (as opposed to using the casing of the first time the path is mentioned in the build). Useful on Windows when tools are case sensitive. Defaults to false.</value>
+  </data>
 </root>

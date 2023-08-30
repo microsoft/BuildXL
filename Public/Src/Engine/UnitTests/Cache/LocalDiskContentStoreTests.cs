@@ -24,6 +24,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Utilities.Collections;
 
 namespace Test.BuildXL.Engine.Cache
 {
@@ -798,17 +799,17 @@ namespace Test.BuildXL.Engine.Cache
             FileContentInfo info = harness.WriteFileAndHashContents(tempPath, "Fancy contents");
             FileArtifact tempFile = FileArtifact.CreateSourceFile(tempPath);
 
-            var maybeTrackedFileContentInfo = await harness.Store.TryTrackAsync(tempFile, true, ignoreKnownContentHashOnDiscoveringContent: false);
+            var maybeTrackedFileContentInfo = await harness.Store.TryTrackAsync(tempFile, true, outputDirectoryRoot: AbsolutePath.Invalid, ignoreKnownContentHashOnDiscoveringContent: false);
             XAssert.IsTrue(maybeTrackedFileContentInfo.Succeeded);
             XAssert.AreEqual(info.Hash, maybeTrackedFileContentInfo.Result.Hash);
 
             FileContentInfo newInfo = harness.WriteFileAndHashContents(tempPath, "New fancy contents");
-            maybeTrackedFileContentInfo = await harness.Store.TryTrackAsync(tempFile, true, ignoreKnownContentHashOnDiscoveringContent: false);
+            maybeTrackedFileContentInfo = await harness.Store.TryTrackAsync(tempFile, true, outputDirectoryRoot: AbsolutePath.Invalid, ignoreKnownContentHashOnDiscoveringContent: false);
 
             XAssert.IsTrue(maybeTrackedFileContentInfo.Succeeded);
             XAssert.AreEqual(newInfo.Hash, maybeTrackedFileContentInfo.Result.Hash);
 
-            maybeTrackedFileContentInfo = await harness.Store.TryTrackAsync(tempFile, true, ignoreKnownContentHashOnDiscoveringContent: true);
+            maybeTrackedFileContentInfo = await harness.Store.TryTrackAsync(tempFile, true, outputDirectoryRoot: AbsolutePath.Invalid, ignoreKnownContentHashOnDiscoveringContent: true);
             XAssert.IsTrue(maybeTrackedFileContentInfo.Succeeded);
             XAssert.AreEqual(newInfo.Hash, maybeTrackedFileContentInfo.Result.Hash);
         }
@@ -867,9 +868,34 @@ namespace Test.BuildXL.Engine.Cache
             var testFile = Path.Combine(TemporaryDirectory, "myfile.txt");
             File.WriteAllText(testFile, "hello");
             ACLHelpers.RevokeAccess(testFile);
-            var result = harness.Store.TryPrepareFileToTrackOrStore(new ExpandedAbsolutePath(AbsolutePath.Create(harness.Context.PathTable, testFile), harness.Context.PathTable), tryFlushPageCacheToFileSystem: true);
+            var result = harness.Store.TryPrepareFileToTrackOrStore(
+                new ExpandedAbsolutePath(AbsolutePath.Create(harness.Context.PathTable, testFile), 
+                harness.Context.PathTable), 
+                tryFlushPageCacheToFileSystem: true, 
+                outputDirectoryRoot: AbsolutePath.Invalid);
             // We should not see the verbose event about failing to flush the file without an ACL
             AssertVerboseEventLogged(LogEventId.StorageFailureToOpenFileForFlushOnIngress, 0, false);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void HonorDirectoryCasingOnDisk()
+        {
+            var harness = CreateHarness(useDummyFileContentTable: true, honorDirectoryCasingOnDisk: true);
+            var parent = Path.Combine(TemporaryDirectory, "LowercaseDirOnDisk");
+            Directory.CreateDirectory(parent);
+            var testFile = Path.Combine(parent, "myfile.txt");
+            File.WriteAllText(testFile, "hello");
+
+            var testFileWithIncorrectCasing = Path.Combine(TemporaryDirectory, "LOWERCASEDIRONDISK", "MYFILE.TXT");
+            var wrongCasingPath = AbsolutePath.Create(harness.Context.PathTable, testFileWithIncorrectCasing);
+
+            var result = harness.Store.TryPrepareFileToTrackOrStore(
+                wrongCasingPath.Expand(harness.Context.PathTable),
+                tryFlushPageCacheToFileSystem: false,
+                AbsolutePath.Create(harness.Context.PathTable, TemporaryDirectory));
+
+            XAssert.IsTrue(result.Succeeded);
+            XAssert.AreEqual(testFile, result.Result.ExpandedPath.ExpandedPath);
         }
 
         private Harness CreateHarness(
@@ -877,7 +903,8 @@ namespace Test.BuildXL.Engine.Cache
             DirectoryTranslator directoryTranslator = null,
             bool verifyKnownIdentityOnTrackingFile = true,
             IArtifactContentCacheForTest contentCacheForTest = null,
-            bool inCloudBuild = false)
+            bool inCloudBuild = false,
+            bool honorDirectoryCasingOnDisk = false)
         {
             return new Harness(
                 TemporaryDirectory, 
@@ -885,12 +912,14 @@ namespace Test.BuildXL.Engine.Cache
                 directoryTranslator: directoryTranslator,
                 verifyKnownIdentityOnTrackingFile: verifyKnownIdentityOnTrackingFile,
                 contentCacheForTest: contentCacheForTest,
-                inCloudBuild: inCloudBuild);
+                inCloudBuild: inCloudBuild,
+                honorDirectoryCasingOnDisk: honorDirectoryCasingOnDisk);
         }
 
         private class Harness : IArtifactContentCache
         {
             private readonly bool m_inCloudBuild;
+            private readonly bool m_honorDirectoryCasingOnDisk;
             private readonly AbsolutePath m_outputRoot;
             private readonly DirectoryTranslator m_directoryTranslator;
             private LocalDiskContentStore m_store;
@@ -908,7 +937,9 @@ namespace Test.BuildXL.Engine.Cache
                         Tracker, 
                         m_directoryTranslator,
                         new TestFileChangeTrackingSelector(this),
-                        inCloudBuild: m_inCloudBuild);
+                        inCloudBuild: m_inCloudBuild,
+                        honorDirectoryCasingOnDisk: m_honorDirectoryCasingOnDisk,
+                        directoryCasingOnDiskCache: m_honorDirectoryCasingOnDisk ? new ConcurrentBigMap<string, string>() : null);
                     return m_store;
                 }
             }
@@ -927,10 +958,13 @@ namespace Test.BuildXL.Engine.Cache
                 DirectoryTranslator directoryTranslator,
                 bool verifyKnownIdentityOnTrackingFile, 
                 IArtifactContentCacheForTest contentCacheForTest,
-                bool inCloudBuild)
+                bool inCloudBuild,
+                bool honorDirectoryCasingOnDisk)
             {
                 m_directoryTranslator = directoryTranslator;
                 m_inCloudBuild = inCloudBuild;
+                m_honorDirectoryCasingOnDisk = honorDirectoryCasingOnDisk;
+
                 // Dummy FCT should always prevent tracking from succeeding.
                 FilesShouldBeTracked = !useDummyFileContentTable;
 

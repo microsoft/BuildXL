@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities;
@@ -1274,6 +1275,85 @@ namespace Test.BuildXL.Storage
                 var delete = FileUtilities.TryDeletePathIfExists(file);
                 XAssert.PossiblySucceeded(delete);
             }
+        }
+
+        /// <nodoc />
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void GetPathWithExactCasingTests(bool useCache)
+        {
+            var dir = Path.Combine(TemporaryDirectory, "FOO", "BAR");
+            Directory.CreateDirectory(dir);
+            var filePath = Path.Combine(dir, "FILE.txt");
+            File.WriteAllText(filePath, "content");
+
+            var cache = useCache ? new ConcurrentBigMap<string, string>() : null;
+
+            var testPath = Path.Combine(TemporaryDirectory, "foo", "bar");
+            var resolved = FileUtilities.GetPathWithExactCasing(testPath, guaranteedExistence: true, cache);
+
+            XAssert.IsTrue(resolved.Succeeded);
+            XAssert.AreEqual(dir, resolved.Result);
+
+            if (useCache)
+            {
+                XAssert.IsTrue(cache.ContainsKey(Path.Combine(TemporaryDirectory)));
+                XAssert.IsTrue(cache.ContainsKey(Path.Combine(TemporaryDirectory, "foo")));
+                XAssert.IsTrue(cache.ContainsKey(Path.Combine(TemporaryDirectory, "foo", "bar")));
+                XAssert.AreEqual(resolved, cache[testPath]);
+            }
+
+            // Wrong value of guaranteed existence - query a non existent directory
+            testPath = Path.Combine(TemporaryDirectory, "foo", "baz", "bar");
+            resolved = FileUtilities.GetPathWithExactCasing(testPath, guaranteedExistence: true, cache);
+            XAssert.IsFalse(resolved.Succeeded);
+            if (useCache)
+            {
+                // Don't cache absent paths
+                XAssert.IsFalse(cache.ContainsKey(testPath));
+            }
+
+            // False guaranteed existence - query a non existent directory
+            testPath = Path.Combine(TemporaryDirectory, "foo", "zZz");
+            resolved = FileUtilities.GetPathWithExactCasing(testPath, guaranteedExistence: false, cache);
+            XAssert.IsTrue(resolved.Succeeded);
+
+            var expected = Path.Combine(TemporaryDirectory, "FOO", "zZz"); // correctly resolved up to the non existent path
+            XAssert.AreEqual(expected, resolved);
+            if (useCache)
+            {
+                // Don't cache absent paths
+                XAssert.IsFalse(cache.ContainsKey(testPath));
+            }
+
+            // Verify it works on files
+            testPath = Path.Combine(TemporaryDirectory, "Foo", "Bar", "File.txt");
+            resolved = FileUtilities.GetPathWithExactCasing(testPath, guaranteedExistence: true, cache);
+            XAssert.IsTrue(resolved.Succeeded);
+            XAssert.AreEqual(filePath, resolved);
+            if (useCache)
+            {
+                // Don't cache absent paths
+                XAssert.IsTrue(cache.ContainsKey(testPath));
+                XAssert.AreEqual(filePath, cache[testPath]);
+            }
+        }
+
+        [InlineData("C:\\Test\\", "C:\\Test\\Relative\\Path", "Relative\\Path")]
+        [InlineData("C:\\Test", "C:\\Test\\Relative\\Path", "Relative\\Path")]
+        [InlineData("C:\\Test\\", "C:\\Test\\Relative\\Path\\", "Relative\\Path\\")]
+        [InlineData("C:\\Test", "C:\\Test\\Relative\\Path", "Relative\\Path")]
+        [InlineData("C:\\Test", "C:\\Test\\relative\\PATH", "relative\\PATH")]
+        [InlineData("C:\\TEST", "C:\\Test\\relative\\PATH", "relative\\PATH")]
+        [InlineData("D:\\test", "C:\\anotherTest\\relative\\PATH", "C:\\anotherTest\\relative\\PATH")]
+        [InlineData("D:\\test", "C:\\anotherTest\\relative\\PATH\\", "C:\\anotherTest\\relative\\PATH\\")]
+        // Net472 is not used beyond Windows
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void TestGetRelativePathForNet472(string relativeTo, string path, string expectedResult)
+        {
+            var result = FileUtilities.GetRelativePathForNet472(relativeTo, path);
+            XAssert.AreEqual(expectedResult, result);
         }
 
         private void AssertNonexistent(Possible<PathExistence, NativeFailure> maybeFileExistence)

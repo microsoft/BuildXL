@@ -48,7 +48,8 @@ namespace BuildXL.Pips.Graph
                         validateDistribution: false,
                         requiredKextVersionNumber: s_requiredKextVersionNumber,
                         explicitlyReportDirectoryProbes: false,
-                        ignoreDeviceIoControlGetReparsePoint: true // Remove this flag from the fingerprint once we validated there are no breaking changes
+                        ignoreDeviceIoControlGetReparsePoint: true, // Remove this flag from the fingerprint once we validated there are no breaking changes
+                        honorDirectoryCasingOnDisk: false
             );
 
         /// <summary>
@@ -94,7 +95,8 @@ namespace BuildXL.Pips.Graph
                 searchPathToolsHash,
                 requiredKextVersionNumber: s_requiredKextVersionNumber,
                 config.Sandbox.ExplicitlyReportDirectoryProbes,
-                config.Sandbox.IgnoreDeviceIoControlGetReparsePoint
+                config.Sandbox.IgnoreDeviceIoControlGetReparsePoint,
+                config.Cache.HonorDirectoryCasingOnDisk
                 )
         {
         }
@@ -138,6 +140,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="requiredKextVersionNumber">The required kernel extension version number.</param>
         /// <param name="explicitlyReportDirectoryProbes">Whether /unsafe_explicitlyReportDirectoryProbes was passed to BuildXL.</param>
         /// <param name="ignoreDeviceIoControlGetReparsePoint">Whether /ignoreDeviceIoControlGetReparsePoint was passed to BuildXL.</param>
+        /// <param name="honorDirectoryCasingOnDisk">Whether /honorDirectoryCasingOnDisk was passed to BuildXL.</param>
         public ExtraFingerprintSalts(
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
@@ -162,7 +165,8 @@ namespace BuildXL.Pips.Graph
             ContentHash? searchPathToolsHash,
             string requiredKextVersionNumber,
             bool explicitlyReportDirectoryProbes,
-            bool ignoreDeviceIoControlGetReparsePoint
+            bool ignoreDeviceIoControlGetReparsePoint,
+            bool honorDirectoryCasingOnDisk
             )
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
@@ -190,6 +194,7 @@ namespace BuildXL.Pips.Graph
             m_calculatedSaltsFingerprint = null;
             ExplicitlyReportDirectoryProbes = explicitlyReportDirectoryProbes;
             IgnoreDeviceIoControlGetReparsePoint = ignoreDeviceIoControlGetReparsePoint;
+            HonorDirectoryCasingOnDisk = honorDirectoryCasingOnDisk;
         }
 #pragma warning restore CS1572
 
@@ -322,6 +327,11 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public bool IgnoreDeviceIoControlGetReparsePoint { get; set; }
 
+        /// <summary>
+        /// Whether /honorDirectoryCasingOnDIsk flag was passed to BuildXL. (disabled by default)
+        /// </summary>
+        public bool HonorDirectoryCasingOnDisk { get; set; }
+
         /// <nodoc />
         public static bool operator ==(ExtraFingerprintSalts left, ExtraFingerprintSalts right)
         {
@@ -365,7 +375,8 @@ namespace BuildXL.Pips.Graph
                 && other.ValidateDistribution == ValidateDistribution
                 && other.RequiredKextVersionNumber.Equals(RequiredKextVersionNumber)
                 && other.ExplicitlyReportDirectoryProbes.Equals(ExplicitlyReportDirectoryProbes)
-                && other.IgnoreDeviceIoControlGetReparsePoint.Equals(IgnoreDeviceIoControlGetReparsePoint);
+                && other.IgnoreDeviceIoControlGetReparsePoint.Equals(IgnoreDeviceIoControlGetReparsePoint)
+                && other.HonorDirectoryCasingOnDisk.Equals(HonorDirectoryCasingOnDisk);
         }
 
         /// <inheritdoc />
@@ -403,6 +414,7 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ IgnoreFullReparsePointResolving.GetHashCode();
                 hashCode = (hashCode * 397) ^ ExplicitlyReportDirectoryProbes.GetHashCode();
                 hashCode = (hashCode * 397) ^ IgnoreDeviceIoControlGetReparsePoint.GetHashCode();
+                hashCode = (hashCode * 397) ^ HonorDirectoryCasingOnDisk.GetHashCode();
 
                 return hashCode;
             }
@@ -473,6 +485,11 @@ namespace BuildXL.Pips.Graph
             if (!IgnoreDeviceIoControlGetReparsePoint)
             {
                 fingerprinter.Add(nameof(IgnoreDeviceIoControlGetReparsePoint), 1);
+            }
+
+            if (HonorDirectoryCasingOnDisk)
+            {
+                fingerprinter.Add(nameof(HonorDirectoryCasingOnDisk), 1);
             }
 
             fingerprinter.Add(nameof(FingerprintVersion), (int)FingerprintVersion);

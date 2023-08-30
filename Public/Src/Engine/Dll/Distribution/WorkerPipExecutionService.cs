@@ -250,7 +250,23 @@ namespace BuildXL.Engine.Distribution
                         fileContentManager.SourceChangeAffectedInputs.ReportSourceChangedAffectedFile(file.Path);
                     }
 
-                    var materializationInfo = fileArtifactKeyedHash.GetFileMaterializationInfo(m_environment.Context.PathTable);
+                    AbsolutePath outputDirectoryRoot = AbsolutePath.Invalid;
+                    // Let's try to identify whether this file artifact is a dynamic one. Output directories only allow rewrite count 1, therefore there can be at most one
+                    if (fileArtifactKeyedHash.AssociatedDirectories?.Count == 1)
+                    {
+                        var associatedDirectory = fileArtifactKeyedHash.AssociatedDirectories[0];
+                        var directoryArtifact = new DirectoryArtifact(
+                                new AbsolutePath(associatedDirectory.DirectoryPathValue),
+                                associatedDirectory.DirectorySealId,
+                                associatedDirectory.IsDirectorySharedOpaque);
+                        
+                        if (m_environment.GetSealDirectoryKind(directoryArtifact).IsDynamicKind())
+                        {
+                            outputDirectoryRoot = directoryArtifact.Path;
+                        }
+                    }
+                    
+                    var materializationInfo = fileArtifactKeyedHash.GetFileMaterializationInfo(m_environment.Context.PathTable, outputDirectoryRoot);
                     if (!fileContentManager.ReportWorkerPipInputContent(
                         LoggingContext,
                         file,

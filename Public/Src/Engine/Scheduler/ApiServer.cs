@@ -616,7 +616,7 @@ namespace BuildXL.Scheduler
             Tracing.Logger.Log.ApiServerGetSealedDirectoryContentExecuted(m_loggingContext, cmd.Directory.Path.ToString(m_context.PathTable), files.Length);
 
             var inputContentsTasks = files
-                .Select(f => m_fileContentManager.TryQuerySealedOrUndeclaredInputContentAsync(f.Path, nameof(ApiServer), allowUndeclaredSourceReads: true))
+                .Select(f => m_fileContentManager.TryQuerySealedOrUndeclaredMaterializationInfoAsync(f.Path, nameof(ApiServer), allowUndeclaredSourceReads: true))
                 .ToArray();
 
             var inputContents = await TaskUtilities.SafeWhenAll(inputContentsTasks);
@@ -629,16 +629,22 @@ namespace BuildXL.Scheduler
                 // If the content has no value or has unknown length, then we have some inconsistency wrt the sealed directory content
                 // Absent files are an exception since it is possible to have sealed directories with absent files (shared opaques is an example of this). 
                 // In those cases we leave the consumer to deal with them.
-                if (!inputContents[i].HasValue || (inputContents[i].Value.Hash != WellKnownContentHashes.AbsentFile && !inputContents[i].Value.HasKnownLength))
+                if (!inputContents[i].HasValue || (inputContents[i].Value.Hash != WellKnownContentHashes.AbsentFile && !inputContents[i].Value.FileContentInfo.HasKnownLength))
                 {
                     failedResults.Add(files[i].Path.ToString(m_context.PathTable));
                 }
                 else
                 {
+                    var expandedPath = new ExpandedAbsolutePath(files[i].Path, m_context.PathTable);
+
+                    // If the associated materialization info is available, we always prefer to honor the case sensitivity
+                    // of the path. Otherwise, we fall back to whathever casing we have on the path table.
+                    expandedPath = inputContents[i].Value.GetPathWithProperCasingIfAvailable(m_context.PathTable, expandedPath);
+
                     results.Add(new BuildXL.Ipc.ExternalApi.SealedDirectoryFile(
-                        files[i].Path.ToString(m_context.PathTable),
+                        expandedPath.ExpandedPath,
                         files[i],
-                        inputContents[i].Value));
+                        inputContents[i].Value.FileContentInfo));
                 }
             }
 

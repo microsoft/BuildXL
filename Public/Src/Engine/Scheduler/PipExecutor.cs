@@ -262,7 +262,9 @@ namespace BuildXL.Scheduler
                             knownContentHash: null,
 
                             // Source should have been tracked by hash-source file pip or by CheckValidSymlinkChainAsync, no need to retrack.
-                            trackPath: false);
+                            trackPath: false,
+                            // A copy file is never a dynamic output
+                            outputDirectoryRoot: AbsolutePath.Invalid);
 
                         if (!maybeStored.Succeeded)
                         {
@@ -360,6 +362,8 @@ namespace BuildXL.Scheduler
                     var possiblyTracked = await environment.LocalDiskContentStore.TryTrackAsync(
                         FileArtifact.CreateSourceFile(chainElement),
                         environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
+                        // Tracking symlinks happen in the context of a non-process pip, so this is never a dynamic output
+                        outputDirectoryRoot: AbsolutePath.Invalid,
                         ignoreKnownContentHashOnDiscoveringContent: true,
                         isReparsePoint: true);
 
@@ -496,7 +500,13 @@ namespace BuildXL.Scheduler
                 MakeSharedOpaqueOutputIfNeeded(environment, copyFile.Destination);
             }
 
-            var mayBeTracked = await TrackPipOutputAsync(operationContext, copyFile, environment, copyFile.Destination);
+            var mayBeTracked = await TrackPipOutputAsync(
+                operationContext, 
+                copyFile, 
+                environment, 
+                copyFile.Destination, 
+                // This is a copy file and therefore never a dynamic file
+                outputDirectoryRoot: AbsolutePath.Invalid);
 
             if (!mayBeTracked.Succeeded)
             {
@@ -846,8 +856,16 @@ namespace BuildXL.Scheduler
                                 destinationFile,
                                 tryFlushPageCacheToFileSystem: environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
                                 knownContentHash: contentHash,
-                                isReparsePoint: false)
-                            : await TrackPipOutputAsync(operationContext, producerPip, environment, destinationFile);
+                                isReparsePoint: false,
+                                // This is a write file and therefore never a dynamic output
+                                outputDirectoryRoot: AbsolutePath.Invalid)
+                            : await TrackPipOutputAsync(
+                                operationContext, 
+                                producerPip, 
+                                environment, 
+                                destinationFile, 
+                                // This is a write file and therefore never a dynamic output
+                                outputDirectoryRoot: AbsolutePath.Invalid);
 
                         if (!possiblyStored.Succeeded)
                         {
@@ -1860,7 +1878,9 @@ namespace BuildXL.Scheduler
 
                             // Source should have been tracked by hash-source file pip, no need to retrack.
                             trackPath: false,
-                            isReparsePoint: false);
+                            isReparsePoint: false,
+                            // This is a source file, and therefore never a dynamic output
+                            outputDirectoryRoot: AbsolutePath.Invalid);
 
                         if (!maybeStored.Succeeded)
                         {
@@ -3834,7 +3854,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(environment != null);
             Contract.Requires(state != null);
             Contract.Requires(pip != null);
-
+            
             var pathTable = environment.Context.PathTable;
             var stringTable = environment.Context.StringTable;
             var pathExpander = state.PathExpander;
@@ -3870,8 +3890,8 @@ namespace BuildXL.Scheduler
                 foreach (var staticOutputHashes in metadata.StaticOutputHashes)
                 {
                     // TODO: The code path that returns null looks dubious. Could they ever be reached? Should we write a contract here instead of silently concluding weak fingerprint miss?
-
-                    FileMaterializationInfo materializationInfo = staticOutputHashes.Info.ToFileMaterializationInfo(pathTable);
+                    
+                    FileMaterializationInfo materializationInfo = staticOutputHashes.Info.ToFileMaterializationInfo(pathTable, outputDirectoryRoot: AbsolutePath.Invalid, dynamicOutputCaseSensitiveRelativeDirectory: RelativePath.Invalid);
                     AbsolutePath metadataPath = AbsolutePath.Create(pathTable, staticOutputHashes.AbsolutePath);
 
                     if (!outputs.TryGetValue(metadataPath, out attributedOutput))
@@ -3923,7 +3943,8 @@ namespace BuildXL.Scheduler
                     // Dynamic output is stored with content hash and relative path from its opaque directory.
                     var filePath = dirPath.Combine(pathTable, RelativePath.Create(stringTable, dynamicOutput.RelativePath));
                     FileArtifact outputFile = FileArtifact.CreateOutputFile(filePath);
-                    cachedArtifactContentHashes.Add((outputFile, dynamicOutput.Info.ToFileMaterializationInfo(pathTable)));
+                    var relativeDirectory = RelativePath.Create(stringTable, dynamicOutput.RelativePath).GetParent();
+                    cachedArtifactContentHashes.Add((outputFile, dynamicOutput.Info.ToFileMaterializationInfo(pathTable, opaqueDir.Path, relativeDirectory)));
                 }
             }
 
@@ -4358,7 +4379,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(cachedArtifactContentHashes != null);
 
             var allHashes =
-                new List<(FileArtifact fileArtifact, ContentHash contentHash)>(
+                new List<(FileArtifact fileArtifact, ContentHash contentHash, AbsolutePath outputDirectoryRoot)>(
                     cachedArtifactContentHashes.Count + (standardError == null ? 0 : 1) + (standardOutput == null ? 0 : 1));
 
             // only check/load "real" files - reparse points are not stored in CAS, they are stored in metadata that we have already obtained
@@ -4367,16 +4388,16 @@ namespace BuildXL.Scheduler
             // Also, do not load zero-hash files (there is nothing in CAS with this hash)
             allHashes.AddRange(cachedArtifactContentHashes
                 .Where(pair => pair.fileMaterializationInfo.IsCacheable)
-                .Select(a => (a.fileArtifact, a.fileMaterializationInfo.Hash)));
+                .Select(a => (a.fileArtifact, a.fileMaterializationInfo.Hash, a.fileMaterializationInfo.OpaqueDirectoryRoot)));
 
             if (standardOutput != null)
             {
-                allHashes.Add((FileArtifact.CreateOutputFile(standardOutput.Item1), standardOutput.Item2));
+                allHashes.Add((FileArtifact.CreateOutputFile(standardOutput.Item1), standardOutput.Item2, AbsolutePath.Invalid));
             }
 
             if (standardError != null)
             {
-                allHashes.Add((FileArtifact.CreateOutputFile(standardError.Item1), standardError.Item2));
+                allHashes.Add((FileArtifact.CreateOutputFile(standardError.Item1), standardError.Item2, AbsolutePath.Invalid));
             }
 
             // Check whether the cache provides a strong guarantee that content will be available for a successful pin
@@ -5139,21 +5160,30 @@ namespace BuildXL.Scheduler
                     && ((environment.Configuration.Schedule.StoreOutputsToCache && !shouldOutputBePreserved) || isRewrittenOutputFile)
                     && !isReparsePoint;
 
+                AbsolutePath outputDirectoryRoot = AbsolutePath.Invalid;
+                if (outputData.HasAnyFlag(OutputFlags.DynamicFile))
+                {
+                    // If it is a dynamic file, let's find the declared directory path.
+                    outputDirectoryRoot = process.DirectoryOutputs[outputData.OpaqueDirectoryIndex].Path;
+                }
+
                 Possible<TrackedFileContentInfo> possiblyStoredOutputArtifact = shouldStoreOutputToCache
                     ? await StoreProcessOutputToCacheAsync(
-                        operationContext,
-                        environment,
-                        process,
+                        operationContext, 
+                        environment, 
+                        process, 
                         outputArtifact,
-                        output.IsUndeclaredFileRewrite,
-                        isReparsePoint,
-                        isProcessCacheable: isProcessCacheable,
+                        outputDirectoryRoot,
+                        output.IsUndeclaredFileRewrite, 
+                        isReparsePoint, 
+                        isProcessCacheable: isProcessCacheable, 
                         isExecutable: isExecutable.Result)
                     : await TrackPipOutputAsync(
                         operationContext,
                         process,
                         environment,
                         outputArtifact,
+                        outputDirectoryRoot,
                         createHandleWithSequentialScan: environment.ShouldCreateHandleWithSequentialScan(outputArtifact),
                         isReparsePoint: isReparsePoint,
                         shouldOutputBePreserved: shouldOutputBePreserved,
@@ -5251,8 +5281,20 @@ namespace BuildXL.Scheduler
                     int opaqueIndex = outputData.OpaqueDirectoryIndex;
                     Contract.Assert(process.DirectoryOutputs.Length > opaqueIndex);
                     RelativePath relativePath;
-                    var success = process.DirectoryOutputs[opaqueIndex].Path.TryGetRelative(pathTable, path, out relativePath);
-                    Contract.Assert(success);
+                    // Make sure we honor the case sensitivity of the relative path if available.
+                    if (materializationInfo.DynamicOutputCaseSensitiveRelativeDirectory.IsValid)
+                    {
+                        // the final atom of the relative path is not really relevant for casing enforcement since the current machinery uses materializationInfo.FileName for that,
+                        // but if the file name is available we honor it here as well for consistency. In this way the relative path stored in the cache will always honor all casing
+                        // information available.
+                        relativePath = materializationInfo.DynamicOutputCaseSensitiveRelativeDirectory.Combine(
+                            materializationInfo.FileName.IsValid ? materializationInfo.FileName : path.GetName(pathTable));
+                    }
+                    else
+                    {
+                        var success = process.DirectoryOutputs[opaqueIndex].Path.TryGetRelative(pathTable, path, out relativePath);
+                        Contract.Assert(success);
+                    }
                     var keyedHash = new RelativePathFileMaterializationInfo
                     {
                         RelativePath = relativePath.ToString(pathTable.StringTable),
@@ -5563,6 +5605,7 @@ namespace BuildXL.Scheduler
             IPipExecutionEnvironment environment,
             Process process,
             FileArtifact outputFileArtifact,
+            AbsolutePath outputDirectoryRoot,
             bool isUndeclaredFileRewrite,
             bool isReparsePoint,
             bool isProcessCacheable,
@@ -5582,7 +5625,8 @@ namespace BuildXL.Scheduler
                         isReparsePoint: isReparsePoint,
                         isUndeclaredFileRewrite: isUndeclaredFileRewrite,
                         isStoringCachedProcessOutput: isProcessCacheable,
-                        isExecutable: isExecutable);
+                        isExecutable: isExecutable,
+                        outputDirectoryRoot: outputDirectoryRoot);
 
             if (!possiblyStored.Succeeded)
             {
@@ -5612,6 +5656,7 @@ namespace BuildXL.Scheduler
             Pip pip,
             IPipExecutionEnvironment environment,
             FileArtifact outputFileArtifact,
+            AbsolutePath outputDirectoryRoot,
             bool createHandleWithSequentialScan = false,
             bool isReparsePoint = false,
             bool shouldOutputBePreserved = false,
@@ -5628,6 +5673,7 @@ namespace BuildXL.Scheduler
             var possiblyTracked = await environment.LocalDiskContentStore.TryTrackAsync(
                 outputFileArtifact,
                 tryFlushPageCacheToFileSystem: environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
+                outputDirectoryRoot,
                 // In tracking file, LocalDiskContentStore will call TryDiscoverAsync to compute the content hash of the file.
                 // TryDiscoverAsync uses FileContentTable to avoid re-hashing the file if the hash is already in the FileContentTable.
                 // Moreover, FileContentTable can enable so-called path mapping optimization that allows one to avoid opening handles and by-passing checking

@@ -39,6 +39,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ElideMinimalGraphEnumerationAbsentPathProbes = true;
             AugmentWeakFingerprintRequiredPathCommonalityFactor = 1;
             MonitorAugmentedPathSets = 0;
+            HonorDirectoryCasingOnDisk = false;
         }
 
         /// <nodoc />
@@ -75,6 +76,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MonitorAugmentedPathSets = template.MonitorAugmentedPathSets;
             MaxPathSetsOnCacheLookup = template.MaxPathSetsOnCacheLookup;
             UseLocalOnly = template.UseLocalOnly;
+            HonorDirectoryCasingOnDisk = template.HonorDirectoryCasingOnDisk;
         }
 
         /// <nodoc />
@@ -178,5 +180,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? UseLocalOnly { get; set; }
+
+        /// <inheritdoc/>
+        public bool HonorDirectoryCasingOnDisk { get; set; }
     }
 }

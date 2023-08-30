@@ -13,10 +13,11 @@ using BuildXL.Native.IO.Windows;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Tracing;
-using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
 using VfsUtilities = BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
@@ -61,6 +62,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         private readonly LoggingContext m_loggingContext;
         private readonly string m_vfsCasRoot;
         private readonly bool m_inCloudBuild;
+        private readonly bool m_honorDirectoryCasingOnDisk;
+        private readonly ConcurrentBigMap<string, string> m_directoryCasingOnDiskCache;
 
         /// <summary>
         /// Creates a store which tracks files and content with the provided <paramref name="fileContentTable"/> and <paramref name="fileChangeTracker"/>.
@@ -75,12 +78,15 @@ namespace BuildXL.Engine.Cache.Artifacts
             DirectoryTranslator directoryTranslator = null,
             FileChangeTrackingSelector changeTrackingFilter = null,
             AbsolutePath vfsCasRoot = default,
-            bool inCloudBuild = false)
+            bool inCloudBuild = false,
+            bool honorDirectoryCasingOnDisk = false,
+            ConcurrentBigMap<string, string> directoryCasingOnDiskCache = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(pathTable != null);
             Contract.Requires(fileContentTable != null);
             Contract.Requires(fileChangeTracker != null);
+            Contract.Requires(!honorDirectoryCasingOnDisk || directoryCasingOnDiskCache != null);
 
             m_loggingContext = loggingContext;
             m_pathTable = pathTable;
@@ -95,6 +101,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                 // Resolve vfs cas root to actual path
                 m_vfsCasRoot = m_normalizedPathToRealPathTranslator.Translate(m_vfsCasRoot);
             }
+            m_honorDirectoryCasingOnDisk = honorDirectoryCasingOnDisk;
+            m_directoryCasingOnDiskCache = directoryCasingOnDiskCache;
         }
 
         /// <nodoc />
@@ -112,11 +120,16 @@ namespace BuildXL.Engine.Cache.Artifacts
             AbsolutePath path,
             ContentHash contentHash,
             PathAtom fileName = default,
+            RelativePath caseSensitiveRelativeDirectory = default,
             ReparsePointInfo? reparsePointInfo = null,
             bool trackPath = true,
             bool recordPathInFileContentTable = true,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            AbsolutePath outputDirectoryRoot = default)
         {
+            // If the case sensitivity is specified for the relative directory, then it needs to be specified for the file atom
+            Contract.Requires(!caseSensitiveRelativeDirectory.IsValid || fileName.IsValid);
+
             using (Counters.StartStopwatch(LocalDiskContentStoreCounter.TryMaterializeTime))
             {
                 ExpandedAbsolutePath expandedPath = Expand(path);
@@ -170,12 +183,16 @@ namespace BuildXL.Engine.Cache.Artifacts
                                             handle,
                                             expandedPath,
                                             existingDestinationIdentityAndHash,
-                                            reparsePointInfo: reparsePointInfo)
+                                            outputDirectoryRoot,
+                                            reparsePointInfo: reparsePointInfo,
+                                            knownFileName: fileName,
+                                            dynamicOutputCaseSensitiveRelativeDirectory: caseSensitiveRelativeDirectory)
                                         : TrackedFileContentInfo.CreateUntracked(existingDestinationIdentityAndHash.FileContentInfo);
 
                                     // If couldn't get file name or the file (failure in tracking) name does not match, we need to materialize from the cache
                                     if (maybeTrackedContentInfoForExistingFile.Succeeded &&
-                                        (!fileName.IsValid || maybeTrackedContentInfoForExistingFile.Result.FileName == fileName))
+                                        (!fileName.IsValid || maybeTrackedContentInfoForExistingFile.Result.FileName == fileName) &&
+                                        (!caseSensitiveRelativeDirectory.IsValid || maybeTrackedContentInfoForExistingFile.Result.DynamicOutputCaseSensitiveRelativeDirectory == caseSensitiveRelativeDirectory))
                                     {
                                         return new ContentMaterializationResult(
                                             ContentMaterializationOrigin.UpToDate,
@@ -194,9 +211,21 @@ namespace BuildXL.Engine.Cache.Artifacts
                     }
                 }
 
-                if (fileName.IsValid)
+                // Before asking the cache to try to materialize, make sure the expanded path honors the casing enforcements that are available
+                if (fileName.IsValid || caseSensitiveRelativeDirectory.IsValid)
                 {
-                    expandedPath = expandedPath.WithFileName(m_pathTable, fileName);
+                    // if the file name is not valid, let's use what's in the path already
+                    var finalFileName = fileName;
+                    if (!finalFileName.IsValid)
+                    {
+                        finalFileName = expandedPath.Path.GetName(m_pathTable);
+                    }
+
+                    RelativePath relativePath = caseSensitiveRelativeDirectory.IsValid
+                        ? caseSensitiveRelativeDirectory.Combine(finalFileName)
+                        : RelativePath.Create(finalFileName);
+                    
+                    expandedPath = expandedPath.WithTrailingRelativePath(m_pathTable, relativePath);
                 }
 
                 Possible<Unit, Failure> possibleMaterialization;
@@ -227,7 +256,9 @@ namespace BuildXL.Engine.Cache.Artifacts
                         expandedPath,
                         contentHash,
                         fileName,
+                        caseSensitiveRelativeDirectory,
                         isReparsePoint,
+                        outputDirectoryRoot,
                         trackPath: trackPath,
                         recordPathInFileContentTable: recordPathInFileContentTable));
 
@@ -270,6 +301,11 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <summary>
         /// Ensures that the file name casing matches for the destination if file name is provided.
         /// </summary>
+        /// <remarks>
+        /// Observe we don't take into account <see cref="m_honorDirectoryCasingOnDisk"/> and we do the enforcement only
+        /// on the filename. The philosophy is that buildxl honors the casing of directories when pushing to the cache assuming
+        /// no casing races involving directories of produced files.
+        /// </remarks>
         private async Task<Possible<Unit, Failure>> EnsureFileNameCasingMatchAsync(ExpandedAbsolutePath expandedPath, PathAtom fileNameAtom)
         {
             var pathNameAtom = expandedPath.Path.GetName(m_pathTable);
@@ -280,7 +316,6 @@ namespace BuildXL.Engine.Cache.Artifacts
             }
 
             Contract.Assert(pathNameAtom.CaseInsensitiveEquals(m_pathTable.StringTable, fileNameAtom), "File name should only differ by casing");
-
             try
             {
                 var destination = expandedPath.ExpandedPath;
@@ -436,6 +471,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <param name="createHandleWithSequentialScan">When true access to file is intended to be sequential from beginning to end, which the system can use as a hint to optimize file caching.</param>
         /// <param name="isUndeclaredFileRewrite">Whether the file is an undeclared source or alien file rewrite. This is reflected in the file materialization info for future scrubbing purposes</param>
         /// <param name="isExecutable">Whether the file has the execution permission bit set for the file owner. Only applicable on Mac/Linux, false otherwise.</param>
+        /// <param name="outputDirectoryRoot">If the given <paramref name="path"/> represents a dynamic output, then the caller must specify this parameter pointing to the 
+        /// corresponding output directory root path that contains the dynamic output. Invalid otherwise.</param>
         /// <remarks>
         /// The content hash of the file is recorded in <see cref="FileContentTable"/>.
         ///
@@ -465,7 +502,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             bool ignoreKnownContentHash = false,
             bool createHandleWithSequentialScan = false,
             bool isUndeclaredFileRewrite = false,
-            bool isExecutable = false)
+            bool isExecutable = false,
+            AbsolutePath outputDirectoryRoot = default)
         {
             Contract.Requires(fileArtifact.Path.IsValid);
 
@@ -658,10 +696,11 @@ namespace BuildXL.Engine.Cache.Artifacts
                             path,
                             info,
                             // Only output files require file name to be retrieved in order to maintain casing when caching
-                            requiresFileName: fileArtifact.IsOutputFile,
+                            preserveFilenameCasing: fileArtifact.IsOutputFile,
                             reparsePointInfo: ReparsePointInfo.Create(reparsePointType, finalLocation),
                             isUndeclaredFileRewrite: isUndeclaredFileRewrite,
-                            isExecutable: isExecutable);
+                            isExecutable: isExecutable,
+                            outputDirectoryRoot: outputDirectoryRoot);
                         return maybeTracked.Then(tracked => new ContentDiscoveryResult(origin, tracked, hashingDuration));
                     }
                 }
@@ -777,6 +816,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// If the file is a reparse point, then this method will log a warning because storing reparse point to cache makes builds behave unexpectedly,
         /// e.g., cache replays reparse point as concrete files, pip may not rebuild if reparse point target is modified, pip may fail if reparse point target
         /// is nonexistent, etc.
+        /// If the given <paramref name="path"/> represents a dynamic output, then the caller must specify <paramref name="outputDirectoryRoot"/> pointing to the 
+        /// corresponding output directory root path that contains the dynamic output
         /// </summary>
         public async Task<Possible<TrackedFileContentInfo>> TryStoreAsync(
             IArtifactContentCache cache,
@@ -788,21 +829,22 @@ namespace BuildXL.Engine.Cache.Artifacts
             bool? isReparsePoint = null,
             bool isUndeclaredFileRewrite = false,
             bool isStoringCachedProcessOutput = false,
-            bool isExecutable = false)
+            bool isExecutable = false,
+            AbsolutePath outputDirectoryRoot = default)
         {
             Contract.Requires(cache != null);
             Contract.Requires(path.IsValid);
-
-            var expandedPath = Expand(path);
-            var possiblyPreparedFile = TryPrepareFileToTrackOrStore(expandedPath, tryFlushPageCacheToFileSystem);
+            
+            var possiblyPreparedFile = TryPrepareFileToTrackOrStore(Expand(path), tryFlushPageCacheToFileSystem, outputDirectoryRoot);
 
             if (!possiblyPreparedFile.Succeeded)
             {
                 return possiblyPreparedFile.Failure;
             }
 
-            PathAtom fileName = possiblyPreparedFile.Result.FileName;
-            expandedPath = expandedPath.WithFileName(m_pathTable, fileName);
+            var expandedPath = possiblyPreparedFile.Result.ExpandedPath;
+            var fileName = possiblyPreparedFile.Result.FileName;
+            var dynamicOutputCaseSensitiveRelativeDirectory = possiblyPreparedFile.Result.DynamicOutputCaseSensitiveRelativeDirectory;
 
             if (!isReparsePoint.HasValue)
             {
@@ -831,7 +873,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 return await possiblyStored
                     .Then(p => TrySetExecutePermissionIfNeeded(expandedPath.ExpandedPath, isExecutable))
                     .ThenAsync(
-                        p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isReparsePoint.Value, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable));
+                        p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, dynamicOutputCaseSensitiveRelativeDirectory, isReparsePoint.Value, outputDirectoryRoot, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable));
             }
             else
             {
@@ -843,7 +885,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 return await possiblyStored
                     .Then(contentHash => TrySetExecutePermissionIfNeeded(expandedPath.ExpandedPath, isExecutable).Then(unit => contentHash))
                     .ThenAsync(
-                        contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, isReparsePoint.Value, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable));
+                        contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, dynamicOutputCaseSensitiveRelativeDirectory, isReparsePoint.Value, outputDirectoryRoot, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable));
             }
         }
 
@@ -861,9 +903,14 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <summary>
         /// Attempts to track file without storing into the cache.
         /// </summary>
+        /// <remarks>
+        /// If the given <paramref name="file"/> represents a dynamic output, then the caller must specify <paramref name="outputDirectoryRoot"/> pointing to the 
+        /// corresponding output directory root path that contains the dynamic output
+        /// </remarks>
         public async Task<Possible<TrackedFileContentInfo>> TryTrackAsync(
             FileArtifact file,
             bool tryFlushPageCacheToFileSystem,
+            AbsolutePath outputDirectoryRoot,
             ContentHash? knownContentHash = null,
             bool ignoreKnownContentHashOnDiscoveringContent = false,
             bool createHandleWithSequentialScan = false,
@@ -873,20 +920,19 @@ namespace BuildXL.Engine.Cache.Artifacts
         {
             Contract.Requires(file.IsValid);
 
-            var expandedPath = Expand(file.Path);
-            var possiblyPreparedFile = TryPrepareFileToTrackOrStore(expandedPath, tryFlushPageCacheToFileSystem);
-
+            var possiblyPreparedFile = TryPrepareFileToTrackOrStore(Expand(file.Path), tryFlushPageCacheToFileSystem, outputDirectoryRoot);
+            
             if (!possiblyPreparedFile.Succeeded)
             {
                 return possiblyPreparedFile.Failure;
             }
 
-            PathAtom fileName = possiblyPreparedFile.Result.FileName;
-            expandedPath = expandedPath.WithFileName(m_pathTable, fileName);
+            var preparedFile = possiblyPreparedFile.Result;
+            ExpandedAbsolutePath expandedPath = preparedFile.ExpandedPath;
 
             if (knownContentHash.HasValue)
             {
-                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isReparsePoint, isUndeclaredFileRewrite, isExecutable);
+                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, preparedFile.FileName, preparedFile.DynamicOutputCaseSensitiveRelativeDirectory, isReparsePoint, outputDirectoryRoot, isUndeclaredFileRewrite, isExecutable);
             }
 
             var possibleDiscover = await TryDiscoverAsync(
@@ -895,7 +941,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                 ignoreKnownContentHash: ignoreKnownContentHashOnDiscoveringContent,
                 createHandleWithSequentialScan: createHandleWithSequentialScan,
                 isUndeclaredFileRewrite: isUndeclaredFileRewrite,
-                isExecutable: isExecutable);
+                isExecutable: isExecutable,
+                outputDirectoryRoot: outputDirectoryRoot);
 
             if (!possibleDiscover.Succeeded)
             {
@@ -908,7 +955,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <summary>
         /// Prepares file for tracking or storing to cache purpose.
         /// </summary>
-        public Possible<PrepareFileToTrackOrStoreResult> TryPrepareFileToTrackOrStore(ExpandedAbsolutePath path, bool tryFlushPageCacheToFileSystem)
+        public Possible<PrepareFileToTrackOrStoreResult> TryPrepareFileToTrackOrStore(ExpandedAbsolutePath path, bool tryFlushPageCacheToFileSystem, AbsolutePath outputDirectoryRoot)
         {
             Contract.Requires(path.IsValid);
 
@@ -922,7 +969,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             // Get file name prior to storing to the cache because cache may overwrite file with
             // improper casing (i.e. casing matching the path in the path table not what's on disk)
-            var possibleFileName = TryGetFileName(path);
+            Possible<PathAtom> possibleFileName = TryGetFileName(path);
             if (!possibleFileName.Succeeded)
             {
                 // A failure here means the file is inaccessable after being noted as an output. This could be due to
@@ -931,7 +978,25 @@ namespace BuildXL.Engine.Cache.Artifacts
                 return new TryPrepareFailure(possibleFileName.Failure.DescribeIncludingInnerFailures());
             }
 
-            return new PrepareFileToTrackOrStoreResult(possibleFileName.Result);
+            var fileName = possibleFileName.Result;
+
+            var possibleResult = GetPathWithExactCasing(path, fileName, guaranteedExistence: true, isDynamicOutput: outputDirectoryRoot.IsValid);
+
+            if (!possibleResult.Succeeded)
+            {
+                return possibleResult.Failure;
+            }
+
+            // The result has the right casing, now if it is a dynamic output, make it relative to the directory root
+            RelativePath dynamicOutputCaseSensitiveRelativeDirectory = RelativePath.Invalid;
+            if (outputDirectoryRoot.IsValid)
+            {
+                string caseSensitiveRelativePath = FileUtilities.GetRelativePath(outputDirectoryRoot.ToString(m_pathTable), possibleResult.Result.ExpandedPath);
+
+                dynamicOutputCaseSensitiveRelativeDirectory = RelativePath.Create(m_pathTable.StringTable, caseSensitiveRelativePath).GetParent();
+            }
+
+            return possibleResult.Then(result => new PrepareFileToTrackOrStoreResult(result, fileName, dynamicOutputCaseSensitiveRelativeDirectory));
         }
 
         /// <summary>
@@ -1016,7 +1081,9 @@ namespace BuildXL.Engine.Cache.Artifacts
             ExpandedAbsolutePath path,
             ContentHash hash,
             PathAtom fileName,
+            RelativePath dynamicOutputCaseSensitiveRelativeDirectory,
             bool isReparsePoint,
+            AbsolutePath outputDirectoryRoot,
             bool trackPath = true,
             // For legacy reason, recordPathInFileContentTable is default to false because if trackPath is false,
             // then recordPathInFileContentTable used to automatically be false.
@@ -1075,14 +1142,14 @@ namespace BuildXL.Engine.Cache.Artifacts
                                 {
                                     // We are not interested in tracking the file (perhaps because it has been tracked, see our handling of copy-file pip),
                                     // but we need the file length, and potentially need to ensure that the file name casing match.
-                                    return new TrackedFileContentInfo(fileContentInfo, FileChangeTrackingSubscription.Invalid, fileName, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable);
+                                    return new TrackedFileContentInfo(fileContentInfo, FileChangeTrackingSubscription.Invalid, fileName, outputDirectoryRoot, dynamicOutputCaseSensitiveRelativeDirectory, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable);
                                 }
 
                                 Contract.Assert(recordPathInFileContentTable && identityAndContentInfo.HasValue);
 
                                 // Note that the identity kind may be Anonymous if we couldn't establish an identity for the target file;
                                 // in that case we still need to call TrackChangesToFile to ensure the tracker latches to disabled.
-                                return TrackChangesToFile(handle, path, identityAndContentInfo.Value, knownFileName: fileName, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable);
+                                return TrackChangesToFile(handle, path, identityAndContentInfo.Value, outputDirectoryRoot, fileName, preserveFilenameCasing: true, dynamicOutputCaseSensitiveRelativeDirectory, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable);
                             });
 
                         if (attempt.Succeeded)
@@ -1098,15 +1165,17 @@ namespace BuildXL.Engine.Cache.Artifacts
             SafeFileHandle handle,
             ExpandedAbsolutePath path,
             in VersionedFileIdentityAndContentInfo identityAndContentInfo,
+            AbsolutePath outputDirectoryRoot,
             PathAtom knownFileName = default,
-            bool requiresFileName = true,
+            bool preserveFilenameCasing = true,
+            RelativePath dynamicOutputCaseSensitiveRelativeDirectory = default,
             ReparsePointInfo? reparsePointInfo = null,
             bool isUndeclaredFileRewrite = false,
             bool isExecutable = false)
         {
             FileChangeTrackingSubscription subscription = TrackChangesToFile(handle, path, identityAndContentInfo.Identity);
 
-            if (requiresFileName && !knownFileName.IsValid)
+            if (preserveFilenameCasing && !knownFileName.IsValid)
             {
                 var possibleFileName = TryGetFileName(path);
 
@@ -1116,9 +1185,56 @@ namespace BuildXL.Engine.Cache.Artifacts
                 }
 
                 knownFileName = possibleFileName.Result;
-            }
 
-            return new TrackedFileContentInfo(identityAndContentInfo.FileContentInfo, subscription, knownFileName, reparsePointInfo, isUndeclaredFileRewrite, isExecutable);
+                // If the case sensitive directory is not available and preserve casing is required, we need to compute it here
+                if (!dynamicOutputCaseSensitiveRelativeDirectory.IsValid)
+                {
+                    var possibleResult = GetPathWithExactCasing(path, knownFileName, guaranteedExistence: false, outputDirectoryRoot.IsValid);
+
+                    if (!possibleResult.Succeeded)
+                    {
+                        return possibleResult.Failure;
+                    }
+
+                    // The result has the right casing, now if it is a dynamic output, make it relative to the directory root
+                    if (outputDirectoryRoot.IsValid)
+                    {
+                        string caseSensitiveRelativePath = FileUtilities.GetRelativePath(outputDirectoryRoot.ToString(m_pathTable), possibleResult.Result.ExpandedPath);
+                        dynamicOutputCaseSensitiveRelativeDirectory = RelativePath.Create(m_pathTable.StringTable, caseSensitiveRelativePath).GetParent();
+                    }
+                }
+            }
+            
+            return new TrackedFileContentInfo(identityAndContentInfo.FileContentInfo, subscription, knownFileName, outputDirectoryRoot, dynamicOutputCaseSensitiveRelativeDirectory, reparsePointInfo, isUndeclaredFileRewrite, isExecutable);
+        }
+
+        /// <summary>
+        /// Reflects the current casing found on disk for the parent of <paramref name="path"/> (that is, the containing directory) and combines it with the given <paramref name="fileName"/>
+        /// </summary>
+        /// <remarks>
+        /// If <see cref="m_honorDirectoryCasingOnDisk"/> is false, it just makes sure the returned path last atom has the same casing as the given <paramref name="fileName"/>
+        /// This funcion also caches all the (present) directories of the given path (and excludes the full path) to avoid polluting the cache with an output filename that via explicit rewrites has different casing across a given build
+        /// </remarks>
+        private Possible<ExpandedAbsolutePath> GetPathWithExactCasing(ExpandedAbsolutePath path, PathAtom fileName, bool guaranteedExistence, bool isDynamicOutput)
+        {
+            // We only enforce casing of the directory if the path is a dynamic output
+            if (m_honorDirectoryCasingOnDisk && isDynamicOutput)
+            {
+                var directoryWithExactCasing = FileUtilities.GetPathWithExactCasing(path.Path.GetParent(m_pathTable).ToString(m_pathTable), guaranteedExistence, knownResolutions: m_directoryCasingOnDiskCache);
+
+                if (!directoryWithExactCasing.Succeeded)
+                {
+                    return directoryWithExactCasing.Failure;
+                }
+                
+                var pathAsString = Path.Combine(directoryWithExactCasing.Result, fileName.ToString(m_pathTable.StringTable));
+                
+                return ExpandedAbsolutePath.CreateUnsafe(path.Path, pathAsString);
+            }
+            else
+            {
+                return path.WithFileName(m_pathTable, fileName);
+            }
         }
 
         private FileChangeTrackingSubscription TrackChangesToFile(SafeFileHandle handle, ExpandedAbsolutePath path, in VersionedFileIdentity identity)
@@ -1165,22 +1281,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <summary>
         /// Result of preparing file to track or to store.
         /// </summary>
-        public readonly struct PrepareFileToTrackOrStoreResult
-        {
-            /// <summary>
-            /// File name.
-            /// </summary>
-            public readonly PathAtom FileName;
-
-            /// <summary>
-            /// Creates an instance of <see cref="PrepareFileToTrackOrStoreResult"/>.
-            /// </summary>
-            /// <param name="fileName"></param>
-            public PrepareFileToTrackOrStoreResult(PathAtom fileName)
-            {
-                FileName = fileName;
-            }
-        }
+        public record PrepareFileToTrackOrStoreResult(ExpandedAbsolutePath ExpandedPath, PathAtom FileName, RelativePath DynamicOutputCaseSensitiveRelativeDirectory);
     }
 
     /// <summary>

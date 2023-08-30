@@ -810,7 +810,12 @@ namespace Test.BuildXL.Scheduler
             var fileContentInfo = new FileContentInfo(contentHash, contentHash.Length);
             var outputsContent = new (FileArtifact, FileMaterializationInfo, PipOutputOrigin)[]
                 {
-                    (doubleWriteOutputArtifact, new FileMaterializationInfo(fileContentInfo, doubleWriteOutput.GetName(context.PathTable)), PipOutputOrigin.NotMaterialized)
+                    (doubleWriteOutputArtifact, new FileMaterializationInfo(
+                        fileContentInfo, 
+                        doubleWriteOutput.GetName(context.PathTable), 
+                        opaqueDirectoryRoot: AbsolutePath.Invalid, 
+                        dynamicOutputCaseSensitiveRelativeDirectory: RelativePath.Invalid), 
+                    PipOutputOrigin.NotMaterialized)
                 }.ToReadOnlyArray();
             var sharedOpaqueRoot = doubleWriteOutput.GetParent(context.PathTable);
             var sharedOpaqueDirectoryWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> { [sharedOpaqueRoot] = 

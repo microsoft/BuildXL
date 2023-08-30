@@ -694,6 +694,14 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Creates an output without creating the backing file.
+        /// </summary>
+        protected string CreateOutputFileAsString(string root = null, string prefix = null)
+        {
+            return CreateUniqueObjPathAsString(prefix ?? "obj", root);
+        }
+
+        /// <summary>
         /// Creates an output artifact without creating the backing file. Output artifacts may be created by scheduled pips.
         /// </summary>
         protected FileArtifact CreateOutputFileArtifact(AbsolutePath root, string prefix = null)
@@ -723,13 +731,23 @@ namespace Test.BuildXL.Scheduler
             return CreateUniquePath(prefix, root ?? ObjectRoot);
         }
 
+        protected string CreateUniqueObjPathAsString(string prefix, string root = null)
+        {
+            Contract.Requires(prefix != null);
+            return CreateUniquePathAsString(prefix, root ?? ObjectRoot);
+        }
+
         protected AbsolutePath CreateUniquePath(string prefix, string root)
+        {
+            return AbsolutePath.Create(Context.PathTable, CreateUniquePathAsString(prefix, root));
+        }
+
+        protected string CreateUniquePathAsString(string prefix, string root)
         {
             Contract.Requires(prefix != null);
             Contract.Requires(root != null);
 
-            string uniqueFilePath = Path.Combine(root, string.Format(CultureInfo.InvariantCulture, "{0}_{1}", prefix, m_uniqueFileId++));
-            return AbsolutePath.Create(Context.PathTable, uniqueFilePath);
+            return Path.Combine(root, string.Format(CultureInfo.InvariantCulture, "{0}_{1}", prefix, m_uniqueFileId++));
         }
 
         protected PipProvenance CreateProvenance(AbsolutePath? specPath = null)

@@ -497,10 +497,23 @@ namespace BuildXL.Scheduler.Distribution
                     var reparsePointTarget = ReadNullableString(reader);
                     var isAllowedFileRewrite = reader.ReadBoolean();
                     var isExecutable = reader.ReadBoolean();
+                    var opaqueDirectoryRoot = ReadAbsolutePath(reader);
+                    var relativePathList = reader.ReadNullableReadOnlyList((reader) => reader.ReadString());
+
+                    var relativePath = relativePathList == null 
+                        ? RelativePath.Invalid 
+                        : RelativePath.Create(relativePathList.Select(atom => PathAtom.Create(m_executionContext.StringTable, atom)).ToArray());
 
                     outputContent[i] = (
                         file,
-                        new FileMaterializationInfo(new FileContentInfo(hash, FileContentInfo.LengthAndExistence.Deserialize(length)), fileName, ReparsePointInfo.Create(reparsePointType, reparsePointTarget), isAllowedFileRewrite, isExecutable),
+                        new FileMaterializationInfo(
+                            new FileContentInfo(hash, FileContentInfo.LengthAndExistence.Deserialize(length)), 
+                            fileName, 
+                            opaqueDirectoryRoot, 
+                            relativePath, 
+                            ReparsePointInfo.Create(reparsePointType, reparsePointTarget), 
+                            isAllowedFileRewrite, 
+                            isExecutable),
                         PipOutputOrigin.NotMaterialized);
                 }
             }
@@ -531,6 +544,14 @@ namespace BuildXL.Scheduler.Distribution
                     WriteNullableString(writer, output.fileMaterializationInfo.ReparsePointInfo.GetReparsePointTarget());
                     writer.Write(output.fileMaterializationInfo.IsUndeclaredFileRewrite);
                     writer.Write(output.fileMaterializationInfo.IsExecutable);
+                    WriteAbsolutePath(writer, output.fileMaterializationInfo.OpaqueDirectoryRoot);
+
+                    // Do not send the path atoms id directly as this belongs to dynamic outputs and string tables may differ
+                    IReadOnlyList<string> relativePath = output.fileMaterializationInfo.DynamicOutputCaseSensitiveRelativeDirectory.IsValid
+                        ? output.fileMaterializationInfo.DynamicOutputCaseSensitiveRelativeDirectory.GetAtoms().Select(atom => atom.ToString(m_executionContext.StringTable)).ToList()
+                        : null;
+
+                    writer.WriteNullableReadOnlyList(relativePath, (writer, atom) => writer.Write(atom));
                 }
             }
         }

@@ -21,6 +21,16 @@ namespace BuildXL.Distribution.Grpc
             return new FileArtifact(new AbsolutePath(f.PathValue), f.RewriteCount);
         }
 
+        /// <summary>
+        /// Gets the string representation of the absolute path that carries either <see cref="FileArtifactKeyedHash.PathString"/> or <see cref="FileArtifactKeyedHash.PathValue"></see>
+        /// </summary>
+        public static string GetAbsolutePathAsString(this FileArtifactKeyedHash f, PathTable pathTable)
+        {
+            return !string.IsNullOrEmpty(f.PathString)
+                ? f.PathString 
+                : new AbsolutePath(f.PathValue).ToString(pathTable);
+        }
+
         public static void SetFileArtifact(this FileArtifactKeyedHash f, FileArtifact fa)
         {
             f.PathValue = fa.Path.Value.Value;
@@ -60,11 +70,20 @@ namespace BuildXL.Distribution.Grpc
         }
 
         /// <nodoc/>
-        public static FileMaterializationInfo GetFileMaterializationInfo(this FileArtifactKeyedHash f, PathTable pathTable)
+        public static FileMaterializationInfo GetFileMaterializationInfo(this FileArtifactKeyedHash f, PathTable pathTable, AbsolutePath outputDirectoryRoot)
         {
+            RelativePath dynamicOutputCaseSensitiveRelativeDirectory = RelativePath.Invalid;
+            if (outputDirectoryRoot.IsValid)
+            {
+                var relativePath = FileUtilities.GetRelativePath(outputDirectoryRoot.ToString(pathTable), f.GetAbsolutePathAsString(pathTable));
+                dynamicOutputCaseSensitiveRelativeDirectory = RelativePath.Create(pathTable.StringTable, relativePath).GetParent();
+            }
+
             return new FileMaterializationInfo(
                 new FileContentInfo(ContentHashingUtilities.FromSpan(f.ContentHash.Span), FileContentInfo.LengthAndExistence.Deserialize(f.Length)),
                 !string.IsNullOrEmpty(f.FileName) ? PathAtom.Create(pathTable.StringTable, f.FileName) : PathAtom.Invalid,
+                outputDirectoryRoot,
+                dynamicOutputCaseSensitiveRelativeDirectory,
                 ReparsePointInfo.Create(f.ReparsePointType.ToReparsePointType(), f.ReparsePointTarget),
                 f.IsAllowedFileRewrite,
                 f.IsExecutable);

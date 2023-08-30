@@ -668,6 +668,9 @@ namespace BuildXL
                             "ignoreDeviceIoControlGetReparsePoint",
                             sign => { sandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint = sign; }),
                         OptionHandlerFactory.CreateBoolOption(
+                            "honorDirectoryCasingOnDisk",
+                            sign => configuration.Cache.HonorDirectoryCasingOnDisk = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "inCloudBuild",
                             sign => configuration.InCloudBuild = sign),
                         OptionHandlerFactory.CreateBoolOption(

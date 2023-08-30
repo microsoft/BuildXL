@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
@@ -55,16 +56,40 @@ namespace BuildXL.Storage
         public readonly bool IsExecutable;
 
         /// <summary>
+        /// For dynamic outputs, the case preserving relative directory of the output (relative to the output directory root).
+        /// </summary>
+        /// <remarks>
+        /// Only valid for dynamic outputs and when preserve directory casing is enabled. When combined with <see cref="FileName"/>, it represents the relative path of the output
+        /// </remarks>
+        public readonly RelativePath DynamicOutputCaseSensitiveRelativeDirectory;
+
+        /// <summary>
+        /// For dynamic outputs, the opaque directory root of the output. Invalid for non-dynamic outputs
+        /// </summary>
+        public readonly AbsolutePath OpaqueDirectoryRoot;
+
+        /// <summary>
         /// Creates a <see cref="FileMaterializationInfo"/> with an associated change tracking subscription.
         /// </summary>
-        public FileMaterializationInfo(FileContentInfo fileContentInfo, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null, bool isAllowedSourceRewrite = false, bool isExecutable = false)
+        public FileMaterializationInfo(
+            FileContentInfo fileContentInfo, 
+            PathAtom fileName, 
+            AbsolutePath opaqueDirectoryRoot, 
+            RelativePath dynamicOutputCaseSensitiveRelativeDirectory, 
+            ReparsePointInfo ? reparsePointInfo = null, 
+            bool isAllowedSourceRewrite = false, 
+            bool isExecutable = false)
         {
+            // If the case sensitive relative path for a dynamic output is specified, then its output directory root needs to be valid
+            Contract.Requires(!dynamicOutputCaseSensitiveRelativeDirectory.IsValid || opaqueDirectoryRoot.IsValid);
+
             FileName = fileName;
             FileContentInfo = fileContentInfo;
             ReparsePointInfo = reparsePointInfo ?? ReparsePointInfo.CreateNoneReparsePoint();
             IsUndeclaredFileRewrite = isAllowedSourceRewrite;
             IsExecutable = isExecutable;
-
+            OpaqueDirectoryRoot = opaqueDirectoryRoot;
+            DynamicOutputCaseSensitiveRelativeDirectory = dynamicOutputCaseSensitiveRelativeDirectory;
             // NOTE: Update ExecutionResultSerializer WriteOutputContent/ReadOutputContent when adding new fields (i.e., BuildXL.Engine.Cache protobuf structure) 
             // NOTE: Update FileArtifactKeyedHash when adding new fields (i.e., BuildXL.Engine protobuf structure) 
         }
@@ -75,7 +100,7 @@ namespace BuildXL.Storage
         /// </summary>
         public static FileMaterializationInfo CreateWithUnknownLength(ContentHash hash)
         {
-            return new FileMaterializationInfo(FileContentInfo.CreateWithUnknownLength(hash), PathAtom.Invalid);
+            return new FileMaterializationInfo(FileContentInfo.CreateWithUnknownLength(hash), PathAtom.Invalid, AbsolutePath.Invalid, RelativePath.Invalid);
         }
 
         /// <summary>
@@ -84,7 +109,30 @@ namespace BuildXL.Storage
         /// </summary>
         public static FileMaterializationInfo CreateWithUnknownName(in FileContentInfo contentInfo)
         {
-            return new FileMaterializationInfo(contentInfo, PathAtom.Invalid);
+            return new FileMaterializationInfo(contentInfo, PathAtom.Invalid, AbsolutePath.Invalid, RelativePath.Invalid);
+        }
+
+        /// <summary>
+        /// Given a path representing the absolute path of this file materialization info, returns an equivalent path with the proper casing enforced, if 
+        /// either <see cref="FileName"/> or <see cref="DynamicOutputCaseSensitiveRelativeDirectory"/> are valid.
+        /// </summary>
+        public ExpandedAbsolutePath GetPathWithProperCasingIfAvailable(PathTable pathTable, ExpandedAbsolutePath path)
+        {
+            if (!FileName.IsValid && !DynamicOutputCaseSensitiveRelativeDirectory.IsValid)
+            {
+                return path;
+            }
+
+            // If the filename with the proper casing is not available, use the existing one
+            var finalFileName = FileName;
+            if (!finalFileName.IsValid)
+            {
+                finalFileName = path.Path.GetName(pathTable);
+            }
+
+            RelativePath relativePath = DynamicOutputCaseSensitiveRelativeDirectory.IsValid ? DynamicOutputCaseSensitiveRelativeDirectory.Combine(finalFileName) : RelativePath.Create(finalFileName);
+
+            return path.WithTrailingRelativePath(pathTable, relativePath);
         }
 
         /// <summary>
@@ -103,17 +151,19 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public override string ToString()
         {
-            return I($"[Content {FileContentInfo} with file name '{FileName}']");
+            return I($"[Content {FileContentInfo} with path '{FileName}']");
         }
 
         /// <inheritdoc />
         public bool Equals(FileMaterializationInfo other)
         {
-            return other.FileName == FileName &&
+            return other.FileName == FileName && 
                    other.FileContentInfo == FileContentInfo &&
                    other.ReparsePointInfo == ReparsePointInfo &&
                    other.IsUndeclaredFileRewrite == IsUndeclaredFileRewrite &&
-                   other.IsExecutable == IsExecutable;
+                   other.IsExecutable == IsExecutable &&
+                   other.OpaqueDirectoryRoot == OpaqueDirectoryRoot &&
+                   other.DynamicOutputCaseSensitiveRelativeDirectory == DynamicOutputCaseSensitiveRelativeDirectory;
         }
 
         /// <inheritdoc />
@@ -125,7 +175,14 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(FileContentInfo.GetHashCode(), FileName.GetHashCode(), ReparsePointInfo.GetHashCode(), IsUndeclaredFileRewrite.GetHashCode(), IsExecutable.GetHashCode());
+            return HashCodeHelper.Combine(
+                FileName.GetHashCode(),
+                FileContentInfo.GetHashCode(), 
+                ReparsePointInfo.GetHashCode(), 
+                IsUndeclaredFileRewrite.GetHashCode(), 
+                IsExecutable.GetHashCode(),
+                OpaqueDirectoryRoot.GetHashCode(),
+                DynamicOutputCaseSensitiveRelativeDirectory.GetHashCode());
         }
 
         /// <nodoc />

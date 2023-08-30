@@ -342,7 +342,7 @@ namespace Test.BuildXL.Executables.TestProcess
         /// <summary>
         /// Path to file. NOTE: This will not be accessible within TestProcess.exe
         /// </summary>
-        public FileOrDirectoryArtifact Path { get; private set; }
+        public FileOrDirectoryArtifactOrString Path { get; private set; }
 
         /// <summary>
         /// Content to write to file
@@ -389,7 +389,7 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private Operation(
             Type type,
-            FileOrDirectoryArtifact? path = null,
+            FileOrDirectoryArtifactOrString? path = null,
             string content = null,
             FileOrDirectoryArtifact? linkPath = null,
             SymbolicLinkFlag? symLinkFlag = null,
@@ -402,7 +402,7 @@ namespace Test.BuildXL.Executables.TestProcess
 
             RetriesOnWrite = retriesOnWrite;
             OpType = type;
-            Path = path ?? FileOrDirectoryArtifact.Invalid;
+            Path = path ?? FileOrDirectoryArtifactOrString.Invalid;
             Content = content;
             LinkPath = linkPath ?? FileOrDirectoryArtifact.Invalid;
             SymLinkFlag = symLinkFlag ?? SymbolicLinkFlag.None;
@@ -442,7 +442,7 @@ namespace Test.BuildXL.Executables.TestProcess
             }
             if (Path.IsValid)
             {
-                PathAsString = Path.Path.ToString(PathTable);
+                PathAsString = Path.Path(PathTable);
             }
 
             try
@@ -612,7 +612,7 @@ namespace Test.BuildXL.Executables.TestProcess
         /// <summary>
         /// Creates a create directory operation (uses WinAPI)
         /// </summary>
-        public static Operation CreateDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string additionalArgs = null)
+        public static Operation CreateDir(FileOrDirectoryArtifactOrString path, bool doNotInfer = false, string additionalArgs = null)
         {
             return new Operation(Type.CreateDir, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
         }
@@ -629,7 +629,7 @@ namespace Test.BuildXL.Executables.TestProcess
         /// Creates a write file operation that appends. The file is created if it does not exist.
         /// Writes random content to file at path if no content is specified.
         /// </summary>
-        public static Operation WriteFile(FileArtifact path, string content = null, bool doNotInfer = false, bool changePathToAllUpperCase = false, bool useLongPathPrefix = false)
+        public static Operation WriteFile(FileOrDirectoryArtifactOrString path, string content = null, bool doNotInfer = false, bool changePathToAllUpperCase = false, bool useLongPathPrefix = false)
         {
             Contract.Assert(!changePathToAllUpperCase || !useLongPathPrefix, "Cannot specify changePathToAllUpperCase and useLongPathPrefix simultaneously");
 
@@ -957,7 +957,7 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation AugmentedRead(string path, bool doNotInfer = false)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
-            return new Operation(Type.AugmentedReadFile, FileOrDirectoryArtifact.Invalid, doNotInfer: doNotInfer, additionalArgs: path);
+            return new Operation(Type.AugmentedReadFile, FileOrDirectoryArtifactOrString.Invalid, doNotInfer: doNotInfer, additionalArgs: path);
         }
 
         /// <summary>
@@ -977,7 +977,7 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public static Operation AugmentedWrite(string path, bool doNotInfer = false)
         {
-            return new Operation(Type.AugmentedWriteFile, FileOrDirectoryArtifact.Invalid, doNotInfer: doNotInfer, additionalArgs: path);
+            return new Operation(Type.AugmentedWriteFile, FileOrDirectoryArtifactOrString.Invalid, doNotInfer: doNotInfer, additionalArgs: path);
         }
 
         /// <summary>
@@ -1843,7 +1843,7 @@ namespace Test.BuildXL.Executables.TestProcess
 
             var orderOfArgs = new string[]
             {
-                Path.IsValid ? FileOrDirectoryToString(Path) : null,
+                Path.IsValid ? Path.Path(PathTable) : null,
                 Content,
                 LinkPath.IsValid ? FileOrDirectoryToString(LinkPath) : null,
                 SymLinkFlag.ToString(),

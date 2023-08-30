@@ -934,7 +934,12 @@ namespace BuildXL.Engine.Distribution
                         // Never set a gRPC field to null
                         if (sendStringPath)
                         {
-                            keyedHash.PathString = file.Path.ToString(pathTable);
+                            var expandedPath = new ExpandedAbsolutePath(file.Path, pathTable);
+
+                            // Honor casing if specified
+                            expandedPath = fileMaterializationInfo.GetPathWithProperCasingIfAvailable(pathTable, expandedPath);
+
+                            keyedHash.PathString = expandedPath.ExpandedPath;
                         }
 
                         if (isDynamicFile)

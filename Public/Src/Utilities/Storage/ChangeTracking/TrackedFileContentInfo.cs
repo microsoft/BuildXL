@@ -36,6 +36,19 @@ namespace BuildXL.Storage.ChangeTracking
         public readonly PathAtom FileName;
 
         /// <summary>
+        /// For dynamic outputs, the opaque directory root of the output. Invalid for non-dynamic outputs
+        /// </summary>
+        public readonly AbsolutePath OpaqueDirectoryRoot;
+
+        /// <summary>
+        /// For dynamic outputs, the case preserving relative path of the output (relative to the output directory root).
+        /// </summary>
+        /// <remarks>
+        /// Only valid for dynamic outputs and when preserve directory casing is enabled.
+        /// </remarks>
+        public readonly RelativePath DynamicOutputCaseSensitiveRelativeDirectory;
+
+        /// <summary>
         /// Type and target (if available) of the reparse point
         /// </summary>
         public readonly ReparsePointInfo ReparsePointInfo;
@@ -56,16 +69,26 @@ namespace BuildXL.Storage.ChangeTracking
         /// <summary>
         /// Gets the file materialization info
         /// </summary>
-        public FileMaterializationInfo FileMaterializationInfo => new FileMaterializationInfo(FileContentInfo, FileName, ReparsePointInfo, IsUndeclaredFileRewrite, IsExecutable);
+        public FileMaterializationInfo FileMaterializationInfo => new FileMaterializationInfo(FileContentInfo, FileName, OpaqueDirectoryRoot, DynamicOutputCaseSensitiveRelativeDirectory, ReparsePointInfo, IsUndeclaredFileRewrite, IsExecutable);
 
         /// <summary>
         /// Creates a <see cref="TrackedFileContentInfo"/> with an associated change tracking subscription.
         /// </summary>
-        public TrackedFileContentInfo(FileContentInfo fileContentInfo, FileChangeTrackingSubscription subscription, PathAtom fileName, ReparsePointInfo? reparsePointInfo = null, bool isUndeclaredFileRewrite = false, bool isExecutable = false)
+        public TrackedFileContentInfo(
+            FileContentInfo fileContentInfo, 
+            FileChangeTrackingSubscription subscription, 
+            PathAtom fileName, 
+            AbsolutePath opaqueDirectoryRoot, 
+            RelativePath dynamicOutputCaseSensitiveRelativeDirectory, 
+            ReparsePointInfo? reparsePointInfo = null, 
+            bool isUndeclaredFileRewrite = false, 
+            bool isExecutable = false)
         {
             Subscription = subscription;
             FileContentInfo = fileContentInfo;
             FileName = fileName;
+            OpaqueDirectoryRoot = opaqueDirectoryRoot;
+            DynamicOutputCaseSensitiveRelativeDirectory = dynamicOutputCaseSensitiveRelativeDirectory;
             ReparsePointInfo = reparsePointInfo ?? ReparsePointInfo.CreateNoneReparsePoint();
             IsUndeclaredFileRewrite = isUndeclaredFileRewrite;
             IsExecutable = isExecutable;
@@ -75,9 +98,9 @@ namespace BuildXL.Storage.ChangeTracking
         /// Creates a <see cref="TrackedFileContentInfo"/> with a hash but no tracking information.
         /// This is intended for when change tracking is disable or unsupported (due to e.g. a volume having change journaling disabled).
         /// </summary>
-        public static TrackedFileContentInfo CreateUntracked(FileContentInfo fileContentInfo, PathAtom fileName = default)
+        public static TrackedFileContentInfo CreateUntracked(FileContentInfo fileContentInfo, PathAtom filename = default, AbsolutePath outputDirectoryRoot = default, RelativePath dynamicOutputCaseSensitiveRelativeDirectory = default)
         {
-            return new TrackedFileContentInfo(fileContentInfo, FileChangeTrackingSubscription.Invalid, fileName);
+            return new TrackedFileContentInfo(fileContentInfo, FileChangeTrackingSubscription.Invalid, filename, outputDirectoryRoot, dynamicOutputCaseSensitiveRelativeDirectory);
         }
 
         /// <summary>
@@ -86,7 +109,7 @@ namespace BuildXL.Storage.ChangeTracking
         /// </summary>
         public static TrackedFileContentInfo CreateUntrackedWithUnknownLength(ContentHash hash, PathExistence? existence = null)
         {
-            return new TrackedFileContentInfo(FileContentInfo.CreateWithUnknownLength(hash, existence), FileChangeTrackingSubscription.Invalid, PathAtom.Invalid);
+            return new TrackedFileContentInfo(FileContentInfo.CreateWithUnknownLength(hash, existence), FileChangeTrackingSubscription.Invalid, PathAtom.Invalid, AbsolutePath.Invalid, RelativePath.Invalid);
         }
 
         /// <summary>

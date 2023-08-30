@@ -493,6 +493,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public bool IgnoreDeviceIoControlGetReparsePoint;
 
+        /// <summary>
+        /// Whether /honorDirectoryCasingOnDIsk flag was passed to BuildXL. (disabled by default)
+        /// </summary>
+        public bool HonorDirectoryCasingOnDisk;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
@@ -526,6 +531,7 @@ namespace BuildXL.Scheduler.Tracing
             RequiredKextVersionNumber = salts.RequiredKextVersionNumber;
             ExplicitlyReportDirectoryProbes = salts.ExplicitlyReportDirectoryProbes;
             IgnoreDeviceIoControlGetReparsePoint = salts.IgnoreDeviceIoControlGetReparsePoint;
+            HonorDirectoryCasingOnDisk = salts.HonorDirectoryCasingOnDisk;
         }
 
         /// <summary>
@@ -560,7 +566,8 @@ namespace BuildXL.Scheduler.Tracing
                        pipWarningsPromotedToErrors: PipWarningsPromotedToErrors,
                        requiredKextVersionNumber: RequiredKextVersionNumber,
                        explicitlyReportDirectoryProbes: ExplicitlyReportDirectoryProbes,
-                       ignoreDeviceIoControlGetReparsePoint: IgnoreDeviceIoControlGetReparsePoint
+                       ignoreDeviceIoControlGetReparsePoint: IgnoreDeviceIoControlGetReparsePoint,
+                       honorDirectoryCasingOnDisk: HonorDirectoryCasingOnDisk
                    )
                    {
                        // Constructor appends EngineEnvironmentSettings.FingerprintSalt
@@ -598,6 +605,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(IgnoreFullReparsePointResolving);
             writer.Write(ExplicitlyReportDirectoryProbes);
             writer.Write(IgnoreDeviceIoControlGetReparsePoint);
+            writer.Write(HonorDirectoryCasingOnDisk);
         }
 
         /// <inheritdoc />
@@ -628,6 +636,7 @@ namespace BuildXL.Scheduler.Tracing
             IgnoreFullReparsePointResolving = reader.ReadBoolean();
             ExplicitlyReportDirectoryProbes = reader.ReadBoolean();
             IgnoreDeviceIoControlGetReparsePoint = reader.ReadBoolean();
+            HonorDirectoryCasingOnDisk = reader.ReadBoolean();
         }
     }
 

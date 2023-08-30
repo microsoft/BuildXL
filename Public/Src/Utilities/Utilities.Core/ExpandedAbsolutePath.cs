@@ -67,15 +67,27 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         public ExpandedAbsolutePath WithFileName(PathTable pathTable, PathAtom fileNameAtom)
         {
-            Contract.Assert(fileNameAtom.CaseInsensitiveEquals(pathTable.StringTable, Path.GetName(pathTable)), "File name should only differ by casing");
+            return WithTrailingRelativePath(pathTable, RelativePath.Create(fileNameAtom));
+        }
 
-            var fileName = fileNameAtom.ToString(pathTable.StringTable);
-            if (ExpandedPath.EndsWith(fileName, StringComparison.Ordinal))
+        /// <summary>
+        /// Creates an expanded path with trailing relative path matching the given relative path casing. This is used to ensure expanded path 
+        /// casing which is different than that which is in the path table
+        /// </summary>
+        public ExpandedAbsolutePath WithTrailingRelativePath(PathTable pathTable, RelativePath relativePath)
+        {
+            var relativePathAsString = relativePath.ToString(pathTable.StringTable);
+            if (!ExpandedPath.EndsWith(relativePathAsString, StringComparison.OrdinalIgnoreCase))
+            {
+                Contract.Assert(false, $"File path '{ExpandedPath}' should only differ by casing with respect to '{relativePathAsString}'");
+            }
+
+            if (ExpandedPath.EndsWith(relativePathAsString, StringComparison.Ordinal))
             {
                 return this;
             }
 
-            return new ExpandedAbsolutePath(Path, ExpandedPath.Remove(ExpandedPath.Length - fileName.Length) + fileName);
+            return new ExpandedAbsolutePath(Path, ExpandedPath.Remove(ExpandedPath.Length - relativePathAsString.Length) + relativePathAsString);
         }
 
         /// <summary>

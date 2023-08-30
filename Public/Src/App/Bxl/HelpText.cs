@@ -558,6 +558,11 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_EnableDedupChunk,
                 HelpLevel.Verbose);
 
+            hw.WriteOption(
+                "/honorDirectoryCasingOnDisk[+|-]",
+                Strings.HelpText_DisplayHelp_HonorDirectoryCasingOnDisk,
+                HelpLevel.Verbose);
+
             #endregion
 
             hw.WriteBanner(Strings.HelpText_DisplayHelp_ExecutionControlBanner);

@@ -101,7 +101,7 @@ namespace BuildXL.Scheduler.Tracing
                     if (data.FileArtifact.IsSourceFile)
                     {
                         PathAtom fileName = data.FileArtifact.Path.GetName(m_scheduler.Context.PathTable);
-                        var materializationInfo = new FileMaterializationInfo(data.FileContentInfo, fileName);
+                        var materializationInfo = new FileMaterializationInfo(data.FileContentInfo, fileName, opaqueDirectoryRoot: AbsolutePath.Invalid, dynamicOutputCaseSensitiveRelativeDirectory: RelativePath.Invalid);
                         m_scheduler.State.FileContentManager.ReportInputContent(data.FileArtifact, materializationInfo, contentMismatchErrorsAreWarnings: true);
                     }
                 }

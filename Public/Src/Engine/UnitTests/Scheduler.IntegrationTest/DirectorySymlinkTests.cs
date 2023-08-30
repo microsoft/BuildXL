@@ -432,13 +432,13 @@ Versions/sym-sym-A -> sym-A/
                     switch (op.OpType)
                     {
                         case Operation.Type.CreateDir:
-                            ValidateDirectoryExists(ArtifactToString(op.Path));
+                            ValidateDirectoryExists(op.Path.Path(Context.PathTable));
                             break;
                         case Operation.Type.CreateSymlink:
                             ValidateSymlinkExists(ArtifactToString(op.LinkPath), op.SymLinkFlag);
                             break;
                         case Operation.Type.WriteFile:
-                            ValidateNonSymlinkFileExists(ArtifactToString(op.Path));
+                            ValidateNonSymlinkFileExists(op.Path.Path(Context.PathTable));
                             break;
                         case Operation.Type.ReadFile:
                             break;

@@ -114,13 +114,15 @@ namespace BuildXL.Engine.Cache.Fingerprints
         }
 
         /// <nodoc />
-        public static FileMaterializationInfo ToFileMaterializationInfo(this GrpcFileMaterializationInfo grpcInfo, PathTable pathTable)
+        public static FileMaterializationInfo ToFileMaterializationInfo(this GrpcFileMaterializationInfo grpcInfo, PathTable pathTable, AbsolutePath outputDirectoryRoot, RelativePath dynamicOutputCaseSensitiveRelativeDirectory)
         {
             Contract.Requires(grpcInfo != null);
 
             return new FileMaterializationInfo(
                 new FileContentInfo(grpcInfo.Hash.ToContentHash(), FileContentInfo.LengthAndExistence.Deserialize(grpcInfo.Length)),
                 grpcInfo.FileName != null ? PathAtom.Create(pathTable.StringTable, grpcInfo.FileName) : PathAtom.Invalid,
+                outputDirectoryRoot,
+                dynamicOutputCaseSensitiveRelativeDirectory,
                 ReparsePointInfo.Create(grpcInfo.ReparsePointType.ToReparsePointType(), grpcInfo.ReparsePointTarget),
                 grpcInfo.IsAllowedFileRewrite, grpcInfo.IsExecutable);
         }

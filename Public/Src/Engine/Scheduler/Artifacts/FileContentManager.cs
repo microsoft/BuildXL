@@ -695,7 +695,7 @@ namespace BuildXL.Scheduler.Artifacts
         public async Task<bool> TryLoadAvailableOutputContentAsync(
             PipInfo pipInfo,
             OperationContext operationContext,
-            IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash)> filesAndContentHashes,
+            IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, AbsolutePath outputDirectoryRoot)> filesAndContentHashes,
             Action onFailure = null,
             Action<int, string, string, Failure> onContentUnavailable = null,
             bool materialize = false)
@@ -711,7 +711,7 @@ namespace BuildXL.Scheduler.Artifacts
                     materializingOutputs: true,
                     // Only failures matter since we are checking a cache entry and not actually materializing
                     onlyLogUnavailableContent: true,
-                    filesAndContentHashes: filesAndContentHashes.SelectList((tuple, index) => (tuple.fileArtifact, tuple.contentHash, index)),
+                    filesAndContentHashes: filesAndContentHashes.SelectList((tuple, index) => (tuple.fileArtifact, tuple.contentHash, index, tuple.outputDirectoryRoot)),
                     onFailure: failure => { onFailure?.Invoke(); },
                     onContentUnavailable: onContentUnavailable ?? ((index, expectedHash, hashOnDiskIfAvailableOrNull, failure) => { /* Do nothing. Callee already logs the failure */ }));
 
@@ -1049,7 +1049,7 @@ namespace BuildXL.Scheduler.Artifacts
             var result = await TryQuerySealedOrUndeclaredInputContentInternalAsync(path, consumerDescription, allowUndeclaredSourceReads: true);
             if (result.isUndeclaredInput)
             {
-                return result.fileContentInto;
+                return result.fileMaterialization?.FileContentInfo;
             }
 
             return null;
@@ -1065,10 +1065,18 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public async Task<FileContentInfo?> TryQuerySealedOrUndeclaredInputContentAsync(AbsolutePath path, string consumerDescription, bool allowUndeclaredSourceReads)
         {
-            return (await TryQuerySealedOrUndeclaredInputContentInternalAsync(path, consumerDescription, allowUndeclaredSourceReads)).fileContentInto;
+            return (await TryQuerySealedOrUndeclaredInputContentInternalAsync(path, consumerDescription, allowUndeclaredSourceReads)).fileMaterialization?.FileContentInfo;
         }
 
-        private async Task<(FileContentInfo? fileContentInto, bool isUndeclaredInput)> TryQuerySealedOrUndeclaredInputContentInternalAsync(AbsolutePath path, string consumerDescription, bool allowUndeclaredSourceReads)
+        /// <summary>
+        /// <see cref="TryQueryUndeclaredInputContentAsync(AbsolutePath, string)"/>
+        /// </summary>
+        public async Task<FileMaterializationInfo?> TryQuerySealedOrUndeclaredMaterializationInfoAsync(AbsolutePath path, string consumerDescription, bool allowUndeclaredSourceReads)
+        {
+            return (await TryQuerySealedOrUndeclaredInputContentInternalAsync(path, consumerDescription, allowUndeclaredSourceReads)).fileMaterialization;
+        }
+
+        private async Task<(FileMaterializationInfo? fileMaterialization, bool isUndeclaredInput)> TryQuerySealedOrUndeclaredInputContentInternalAsync(AbsolutePath path, string consumerDescription, bool allowUndeclaredSourceReads)
         {
             FileOrDirectoryArtifact declaredArtifact;
 
@@ -1145,10 +1153,10 @@ namespace BuildXL.Scheduler.Artifacts
                 // This causes the ObservedInputProcessor to abort the strong fingerprint computation
                 // by indicating a failure in hashing a path
                 // TODO: In theory, ObservedInputProcessor should not treat
-                return (FileContentInfo.CreateWithUnknownLength(WellKnownContentHashes.UntrackedFile), isUndeclaredInput);
+                return (FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.UntrackedFile), isUndeclaredInput);
             }
 
-            return (materializationInfo.Value.FileContentInfo, isUndeclaredInput);
+            return (materializationInfo.Value, isUndeclaredInput);
         }
 
         /// <summary>
@@ -2073,17 +2081,6 @@ namespace BuildXL.Scheduler.Artifacts
             }
         }
 
-        private FileMaterializationInfo GetOrComputeReparsePointInputContent(FileArtifact file)
-        {
-            FileMaterializationInfo materializationInfo;
-            if (!TryGetInputContent(file, out materializationInfo))
-            {
-                var hash = m_host.LocalDiskContentStore.ComputePathHash(file.Path);
-                materializationInfo = new FileMaterializationInfo(FileContentInfo.CreateWithUnknownLength(hash), file.Path.GetName(Context.PathTable));
-            }
-
-            return materializationInfo;
-        }
 
         private async Task<bool> DeleteFilesRequiredAbsentAsync(PipArtifactsState state, OperationContext operationContext)
         {
@@ -2283,7 +2280,6 @@ namespace BuildXL.Scheduler.Artifacts
                         FileArtifact file = materializationFile.Artifact;
                         FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
                         ContentHash hash = materializationInfo.Hash;
-                        PathAtom fileName = materializationInfo.FileName;
                         bool allowReadOnly = materializationFile.AllowReadOnly;
                         int materializationFileIndex = i;
 
@@ -2436,6 +2432,7 @@ namespace BuildXL.Scheduler.Artifacts
             FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
             ContentHash hash = materializationInfo.Hash;
             PathAtom fileName = materializationInfo.FileName;
+            RelativePath dynamicOutputCaseSensitiveRelativeDirectory = materializationInfo.DynamicOutputCaseSensitiveRelativeDirectory;
             // Read only is allowed if set on the materialization file and the file is not an allowed source rewrite: we don't want to make the
             // file readonly when placing it since the rewrite was allowed to begin with, in a source or alien file which was very likely not a readonly one.
             // The ultimate goal is to allow the file to continue to be rewritten in subsequent builds, if possible
@@ -2486,7 +2483,7 @@ namespace BuildXL.Scheduler.Artifacts
                                     new Possible<ContentMaterializationResult>(
                                         new ContentMaterializationResult(
                                             ContentMaterializationOrigin.DeployedFromCache,
-                                            TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo, fileName)));
+                                            TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo, fileName, materializationInfo.OpaqueDirectoryRoot, dynamicOutputCaseSensitiveRelativeDirectory)));
                                 return WithLineInfo(possiblyPlaced);
                             }
                             else
@@ -2501,7 +2498,8 @@ namespace BuildXL.Scheduler.Artifacts
                                 outerContext,
                                 materializationFile.Artifact,
                                 state.PipInfo,
-                                state.MaterializingOutputs);
+                                state.MaterializingOutputs,
+                                materializationInfo.OpaqueDirectoryRoot);
 
                             if (checkExistsOnDisk
                                 && contentOnDiskInfo.HasValue
@@ -2521,8 +2519,9 @@ namespace BuildXL.Scheduler.Artifacts
                                 fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly)
                                     .WithAllowVirtualization(allowVirtualization: canVirtualize),
                                 path: file.Path,
-                                contentHash: hash,
                                 fileName: fileName,
+                                caseSensitiveRelativeDirectory: dynamicOutputCaseSensitiveRelativeDirectory,
+                                contentHash: hash,
                                 reparsePointInfo: materializationInfo.ReparsePointInfo,
                                 // Don't track or record hashes of virtual files since they should be replaced if encountered
                                 // in subsequent builds. Due to the volatility of the VFS provider.
@@ -2679,7 +2678,7 @@ namespace BuildXL.Scheduler.Artifacts
                 operationContext,
                 pipInfo,
                 state.MaterializingOutputs,
-                state.GetCacheMaterializationFiles().SelectList(i => (i.materializationFile.Artifact, i.materializationFile.MaterializationInfo.Hash, i.index)),
+                state.GetCacheMaterializationFiles().SelectList(i => (i.materializationFile.Artifact, i.materializationFile.MaterializationInfo.Hash, i.index, i.materializationFile.MaterializationInfo.OpaqueDirectoryRoot)),
                 onFailure: failure =>
                 {
                     for (int index = 0; index < state.MaterializationFiles.Count; index++)
@@ -2745,7 +2744,8 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             FileArtifact fileArtifact,
             PipInfo pipInfo,
-            bool materializingOutputs)
+            bool materializingOutputs,
+            AbsolutePath outputDirectoryRoot)
         {
             bool isPreservedOutputFile = IsPreservedOutputFile(pipInfo.UnderlyingPip, materializingOutputs, fileArtifact);
 
@@ -2759,7 +2759,7 @@ namespace BuildXL.Scheduler.Artifacts
                 using (operationContext.StartOperation(OperationCounter.FileContentManagerDiscoverExistingContent, fileArtifact))
                 {
                     // Discover the existing file (if any) and get its content hash
-                    Possible<ContentDiscoveryResult, Failure> existingContent = await LocalDiskContentStore.TryDiscoverAsync(fileArtifact);
+                    Possible<ContentDiscoveryResult, Failure> existingContent = await LocalDiskContentStore.TryDiscoverAsync(fileArtifact, outputDirectoryRoot: outputDirectoryRoot);
                     return existingContent.Succeeded
                         ? (true, isPreservedOutputFile, existingContent.Result.TrackedFileContentInfo)
                         : (true, isPreservedOutputFile, default);
@@ -2779,7 +2779,7 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             PipInfo pipInfo,
             bool materializingOutputs,
-            IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, int fileIndex)> filesAndContentHashes,
+            IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, int fileIndex, AbsolutePath outputDirectoryRoot)> filesAndContentHashes,
             Action<Failure> onFailure,
             Action<int, string, string, Failure> onContentUnavailable,
             bool onlyLogUnavailableContent = false,
@@ -2854,7 +2854,7 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializingOutputs,
             Action<int, string, string, Failure> onContentUnavailable,
             ContentAvailabilityResult result,
-            (FileArtifact fileArtifact, ContentHash contentHash, int fileIndex) filesAndContentHashesEntry,
+            (FileArtifact fileArtifact, ContentHash contentHash, int fileIndex, AbsolutePath outputDirectoryRoot) filesAndContentHashesEntry,
             bool onlyLogUnavailableContent = false,
             PipArtifactsState state = null)
         {
@@ -2870,6 +2870,7 @@ namespace BuildXL.Scheduler.Artifacts
             var fileArtifact = filesAndContentHashesEntry.fileArtifact;
             var contentHash = filesAndContentHashesEntry.contentHash;
             var currentFileIndex = filesAndContentHashesEntry.fileIndex;
+            var outputDirectoryRoot = filesAndContentHashesEntry.outputDirectoryRoot;
 
             Contract.Assume(contentHash == result.Hash);
             var outerContext = operationContext.StartAsyncOperation(OperationCounter.FileContentManagerHandleContentAvailabilityOuter, fileArtifact);
@@ -2888,7 +2889,8 @@ namespace BuildXL.Scheduler.Artifacts
                         outerContext,
                         fileArtifact,
                         pipInfo,
-                        materializingOutputs);
+                        materializingOutputs,
+                        outputDirectoryRoot);
 
                     if (checkExistsOnDisk && contentOnDiskInfo.HasValue)
                     {
@@ -2923,7 +2925,8 @@ namespace BuildXL.Scheduler.Artifacts
                                     materializingOutputs,
                                     fileArtifact,
                                     contentHash,
-                                    fileArtifact);
+                                    fileArtifact,
+                                    outputDirectoryRoot);
 
                             // Try to be conservative here due to distributed builds (e.g., the files may not exist on other machines).
                             isAvailable = possiblyStored.Succeeded;
@@ -2950,7 +2953,7 @@ namespace BuildXL.Scheduler.Artifacts
                         // into the cache to ensure the content is available
                         // This is mainly used for incremental scheduling which does not account
                         // for content which has been evicted from the cache when performing copies
-                        FileArtifact otherFile = TryGetFileArtifactForHash(contentHash);
+                        (FileArtifact otherFile, AbsolutePath otherFileOutputDirectoryRoot) = TryGetFileArtifactForHash(contentHash);
                         if (!otherFile.IsValid)
                         {
                             FileArtifact copyOutput = fileArtifact;
@@ -2958,6 +2961,7 @@ namespace BuildXL.Scheduler.Artifacts
                             while (m_host.TryGetCopySourceFile(copyOutput, out copySource))
                             {
                                 // Use the source of the copy file as the file to restore
+                                // Observe in this case the other file is never a dynamic one, so otherFileDirectoryRoot is not updated (and kept invalid)
                                 otherFile = copySource;
 
                                 if (copySource.IsSourceFile)
@@ -2982,7 +2986,8 @@ namespace BuildXL.Scheduler.Artifacts
                                         materializingOutputs,
                                         otherFile,
                                         contentHash,
-                                        fileArtifact);
+                                        fileArtifact,
+                                        otherFileOutputDirectoryRoot);
 
                                 isAvailable = possiblyStored.Succeeded;
                             }
@@ -3175,7 +3180,8 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializingOutputs,
             FileArtifact fileArtifact,
             ContentHash hash,
-            FileArtifact targetFile)
+            FileArtifact targetFile,
+            AbsolutePath fileArtifactOutputDirectoryRoot)
         {
             if (!Configuration.Schedule.StoreOutputsToCache && !m_host.IsFileRewritten(targetFile))
             {
@@ -3193,7 +3199,8 @@ namespace BuildXL.Scheduler.Artifacts
                     path: fileArtifact.Path,
                     tryFlushPageCacheToFileSystem: shouldReTrack,
                     knownContentHash: hash,
-                    trackPath: shouldReTrack);
+                    trackPath: shouldReTrack,
+                    outputDirectoryRoot: fileArtifactOutputDirectoryRoot);
 
                 return possiblyStored;
             }
@@ -3497,8 +3504,12 @@ namespace BuildXL.Scheduler.Artifacts
 
                 if (possibleProbeResult.Result == PathExistence.ExistsAsFile)
                 {
+                    var outputDirectoryRoot = declaredArtifact.IsDirectory && m_host.GetSealDirectoryKind(declaredArtifact.DirectoryArtifact).IsDynamicKind() 
+                        ? declaredArtifact.Path 
+                        : AbsolutePath.Invalid;
+
                     Possible<ContentDiscoveryResult> possiblyDiscovered =
-                        await LocalDiskContentStore.TryDiscoverAsync(fileArtifact, artifactExpandedPath);
+                        await LocalDiskContentStore.TryDiscoverAsync(fileArtifact, artifactExpandedPath, outputDirectoryRoot: outputDirectoryRoot);
 
                     DiscoveredContentHashOrigin origin;
                     if (possiblyDiscovered.Succeeded)
@@ -3908,19 +3919,22 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Attempts to get the file artifact which has the given hash (if any)
         /// </summary>
-        private FileArtifact TryGetFileArtifactForHash(ContentHash hash)
+        /// <remarks>
+        /// If the file artifact is a dynamic output, its opaque directory root is also returned. Otherwise, an invalid path is returned.
+        /// </remarks>
+        private (FileArtifact fileArtifact, AbsolutePath opaqueDirectoryRoot) TryGetFileArtifactForHash(ContentHash hash)
         {
             ContentId contentId;
             if (m_allCacheContentHashes.TryGetItem(new ContentIdSetItem(hash, this), out contentId))
             {
-                var file = contentId.GetFile(this);
+                var (file, materializationInfo) = contentId.GetFileAndMaterializationInfo(this);
                 if (IsFileMaterialized(file) || m_host.CanMaterializeFile(file))
                 {
-                    return file;
+                    return (file, materializationInfo.OpaqueDirectoryRoot);
                 }
             }
 
-            return FileArtifact.Invalid;
+            return (FileArtifact.Invalid, AbsolutePath.Invalid);
         }
 
         private void LogOutputOrigin(OperationContext operationContext, long pipSemiStableHash, AbsolutePath absPath, PathTable pathTable, in FileMaterializationInfo info, PipOutputOrigin origin, string additionalInfo = null)
@@ -3969,7 +3983,7 @@ namespace BuildXL.Scheduler.Artifacts
         private static void AssertFileNamesMatch(PipExecutionContext context, FileArtifact fileArtifact, in FileMaterializationInfo fileMaterializationInfo)
         {
             Contract.Requires(fileArtifact.IsValid);
-
+            
             if (!fileMaterializationInfo.FileName.IsValid)
             {
                 return;
@@ -4115,6 +4129,12 @@ namespace BuildXL.Scheduler.Artifacts
             public FileArtifact GetFile(FileContentManager manager)
             {
                 return GetEntry(manager).Key;
+            }
+
+            public (FileArtifact, FileMaterializationInfo) GetFileAndMaterializationInfo(FileContentManager manager)
+            {
+                var entry = GetEntry(manager);
+                return (entry.Key, entry.Value);
             }
         }
 

@@ -226,8 +226,10 @@ namespace Test.BuildXL.Scheduler
             var outputFile = CreateOutputFile();
             var contentHash = ContentHashingUtilities.CreateRandom();
             var fileContentInfo = new FileMaterializationInfo(
-                new FileContentInfo(contentHash, r.Next(0, 102400)), 
-                outputFile.Path.GetName(Context.PathTable));
+                new FileContentInfo(contentHash, r.Next(0, 102400)),
+                outputFile.Path.GetName(Context.PathTable),
+                opaqueDirectoryRoot: AbsolutePath.Invalid,
+                dynamicOutputCaseSensitiveRelativeDirectory: RelativePath.Invalid);
             return (outputFile, fileContentInfo, PipOutputOrigin.Produced);
         }
 

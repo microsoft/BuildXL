@@ -18,6 +18,7 @@ using BuildXL.Utilities.Core.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using UnixIO = BuildXL.Interop.Unix.IO;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Native.IO
 {
@@ -588,6 +589,89 @@ namespace BuildXL.Native.IO
             return OsFileUtilities.IsAclInheritanceDisabled(path);
         }
 
+        /// <summary>
+        /// Query the file system and get the exact path name (with respect to casing) for a given path (with arbitrary casing).
+        /// The path isn't assumed to exist, but see 'guaranteedExistence' below.
+        /// This method isn't cheap. The optional parameters allow for some optimizations: 
+        ///     - guaranteedExistence can be set to true when the path is known to exist, saving some existence checks.
+        ///     - cacheAncestorsOnly: the given path is not cached, only its ancestors. Useful for only caching directories and not files.
+        ///     - A dictionary of known resolutions can be given: This dictionary is modified by this method to include the resolutions carried out in its execution,
+        ///       so using it in subsequent calls will allow for short-circuiting while traversing parent directories all the way to the root.
+        ///       This is useful when invoking this method for many paths under the same directory cone.
+        /// </summary>
+        /// <remarks>
+        /// On OSs where path comparison is case sensitive, this method is a no-op.
+        /// </remarks>
+        public static Possible<string> GetPathWithExactCasing(string path, bool guaranteedExistence = false, ConcurrentBigMap<string, string> knownResolutions = null)
+        {
+            if (OperatingSystemHelper.IsPathComparisonCaseSensitive)
+            {
+                return path;
+            }
+
+            if (knownResolutions?.TryGetValue(path, out var result) ?? false)
+            {
+                return result;
+            }
+
+            string resolved;
+
+            try
+            {
+                bool pathExists = false;
+
+                // If the path points to a file, it's still okay to construct a directory info,
+                // it's just that 'di.Exists' will be false.
+                var di = new DirectoryInfo(path);
+                if (di.Parent != null)
+                {
+                    string resolvedAtom = di.Name;
+
+                    // Check if the parent path exists (while propagating guaranteedExistence upwards so we only check once)
+                    // If the parent does not exist, then this path doesn't either, so we will keep the provided name of this component
+                    // (assigned in the declaration above) but we will still crawl up the ancestors to try to get the correct casing
+                    // for them.
+                    if (guaranteedExistence || (guaranteedExistence = di.Parent.Exists))
+                    {
+                        var infos = di.Parent.GetFileSystemInfos(di.Name);
+                        if (infos.Length > 0)
+                        {
+                            resolvedAtom = infos[0].Name;
+                            pathExists = true;
+                        }
+                    }
+
+                    var possibleParent = GetPathWithExactCasing(di.Parent.FullName, guaranteedExistence, knownResolutions);
+
+                    if (!possibleParent.Succeeded)
+                    {
+                        return possibleParent;
+                    }
+
+                    resolved = Path.Combine(
+                        possibleParent.Result,
+                        resolvedAtom);
+                }
+                else
+                {
+                    // di.Parent == null means we are at the root (i.e., drive letter) 
+                    pathExists = true;
+                    resolved = di.Name;
+                }
+
+                if (pathExists)
+                {
+                    knownResolutions?.TryAdd(path, resolved);
+                }
+            }
+            catch (Exception e)
+            {
+                return new Failure<Exception>(e);
+            }
+
+            return resolved;
+        }
+
         #endregion
 
         #region General file and directory utilities
@@ -607,6 +691,64 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileUtilities.TryTakeOwnershipAndSetWriteable(string)"/>
         public static bool TryTakeOwnershipAndSetWriteable(string path) => OsFileUtilities.TryTakeOwnershipAndSetWriteable(path);
 
+        /// <summary>
+        /// Returns a relative path from one path to another.
+        /// </summary>
+        public static string GetRelativePath(string relativeTo, string path)
+        {
+#if NETCOREAPP
+            return Path.GetRelativePath(relativeTo, path);
+#else // NET 472 - get relative path is not available
+            return GetRelativePathForNet472(relativeTo, path);
+#endif
+        }
+
+        /// <summary>
+        /// Returns a relative path from one path to another.
+        /// </summary>
+        /// <remarks>
+        /// This functionality is available starting with .netCore2.0 as Path.GetRelativePath. This is an explicit implementation for .net472. Please use the standard libraries when
+        /// possible.
+        /// </remarks>
+        /// <param name="relativeTo">The source path the result should be relative to. This path is always considered to be a directory.</param>
+        /// <param name="path">The destination path.</param>
+        /// <returns>The relative path, or path if the paths don't share the same root.</returns>
+        internal static string GetRelativePathForNet472(string relativeTo, string path)
+        {
+            Contract.Requires(path != null);
+            Contract.Requires(relativeTo != null);
+
+            static string addSeparatorIfNeeded(string path) => !path.EndsWith(Path.DirectorySeparatorChar.ToString())
+                ? path + Path.DirectorySeparatorChar
+                : path;
+
+            // Make sure both paths end with a separator so the relative computation on URIs works
+            var fromUri = new Uri(addSeparatorIfNeeded(relativeTo));
+            var toUri = new Uri(addSeparatorIfNeeded(path));
+
+            if (fromUri.Scheme != toUri.Scheme)
+            {
+                return path;
+            }
+
+            var relativeUri = fromUri.MakeRelativeUri(toUri);
+            string relativePath = Uri.UnescapeDataString(relativeUri.ToString());
+
+            if (string.Equals(toUri.Scheme, Uri.UriSchemeFile, StringComparison.OrdinalIgnoreCase))
+            {
+                relativePath = relativePath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            }
+
+            // If the original path didn't end with a separator, remove it from the result as well
+            if (!path.EndsWith(Path.DirectorySeparatorChar.ToString()))
+            {
+                return relativePath.Substring(0, relativePath.Length - 1);
+            }
+
+            return relativePath;
+        }
+
+            
         #endregion
 
         #region Soft- (Junction) and Hardlink functions

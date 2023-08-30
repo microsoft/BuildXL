@@ -111,14 +111,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             var creds = await _secretsProvider.RetrieveBlobCredentialsAsync(context, accountName);
                             return await ConsumeAccountChanges(context, now, cts, accountName, creds, acquirer.Locks[i]);
                         });
-                    });
+                    }).ToArray();
 
-                    await TaskUtilities.SafeWhenAll(tasks);
+                    var results = await TaskUtilities.SafeWhenAll(tasks);
 
                     var aggregatedResult = BoolResult.Success;
-                    foreach (var task in tasks)
+                    foreach (var result in results)
                     {
-                        var result = await task;
                         if (!result.Succeeded)
                         {
                             aggregatedResult &= result;

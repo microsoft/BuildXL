@@ -116,7 +116,7 @@ namespace Node {
                 Cmd.argument("-c"),
                 Cmd.rawArgument('"'),
                 // Copy the contents to its final destination
-                Cmd.args([ "rsync", "-arvh", Cmd.join("", [Artifact.none(pkgRoot), '/']), Artifact.none(outDir)]),
+                Cmd.args([ "rsync", "-rlpgoDvhI", Cmd.join("", [Artifact.none(pkgRoot), '/']), Artifact.none(outDir)]),
                 Cmd.rawArgument(" && "),
                 // Create and npm node executable
                 Cmd.args([ "echo", "'#!/usr/bin/env", "node'", ">", Artifact.none(npmExe) ]),

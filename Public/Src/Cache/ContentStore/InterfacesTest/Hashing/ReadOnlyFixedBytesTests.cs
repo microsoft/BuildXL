@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -384,5 +385,105 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 }
             }
         }
+
+        #region FixedBytesShouldContinueReadingOnPartialStreams
+        [Fact]
+        public void FixedBytesShouldContinueReadingOnPartialStreams()
+        {
+            // Depending on the underlying stream's implementation, not all requested bytes may be available at once.
+            // This test makes sure that the FixedBytes class continues reading until the requested number of bytes.
+            using (var testStream = new TestStream())
+            {
+                var testBytes = new byte[] {
+                    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                    0, 1, 2};
+
+                // Break up the 33 bytes into 2 results
+                testStream.SetResult(testBytes, new List<int>() {30, 3});
+
+                using (var reader = new BinaryReader(testStream))
+                {
+                    var fb = ReadOnlyFixedBytes.ReadFrom(reader, length: 33);
+
+                    // Make sure we got all of the expected bytes back
+                    for (int i = 0; i < testBytes.Length; i++)
+                    {
+                        Assert.Equal(fb[i], testBytes[i]);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// This stream implements the minimal surface area necessary for the <see cref="FixedBytesShouldContinueReadingOnPartialStreams"/> test.
+        /// </summary>
+        private class TestStream : Stream
+        {
+            private readonly Queue<byte> _bytes = new Queue<byte>();
+
+            private readonly Queue<int> _byteCountToReturn = new Queue<int>();
+
+            public override bool CanRead => true;
+
+            public override bool CanSeek => throw new NotImplementedException();
+
+            public override bool CanWrite => throw new NotImplementedException();
+
+            public override long Length => throw new NotImplementedException();
+
+            public override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+            public void SetResult(byte[] bytes, List<int> byteCountsToReturn)
+            {
+                foreach (var b in bytes)
+                {
+                    _bytes.Enqueue(b);
+                }
+
+                foreach (var b in byteCountsToReturn)
+                {
+                    _byteCountToReturn.Enqueue(b);
+                }
+            }
+
+            public override void Flush()
+            {
+                throw new NotImplementedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                int bytesToReturn = _byteCountToReturn.Dequeue();
+                if (bytesToReturn > count)
+                {
+                    throw new InvalidOperationException($"Requested byte count of {count} does not match test data of: {bytesToReturn}");
+                }
+
+                for (int i=0; i < bytesToReturn; i++)
+                {
+                    buffer[offset + i] = _bytes.Dequeue();
+                }
+
+                return bytesToReturn;
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                throw new NotImplementedException();
+            }
+        }
+        #endregion
     }
 }

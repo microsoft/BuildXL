@@ -98,13 +98,31 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
 #if NETCOREAPP
             Span<ReadOnlyFixedBytes> result = stackalloc ReadOnlyFixedBytes[1];
-            _ = reader.Read(MemoryMarshal.AsBytes(result).Slice(start: 0, length));
-            return result[0];
 #else
             using var pooledHandle = ContentHashExtensions.ContentHashBytesArrayPool.Get();
-            var bytesRead = reader.Read(pooledHandle.Value, index: 0, count: length);
+#endif
 
-            return FromSpan(pooledHandle.Value.AsSpan(0, length: bytesRead));
+            int totalBytesRead = 0;
+            while (totalBytesRead < length)
+            {
+#if NETCOREAPP
+                var currentRead = reader.Read(MemoryMarshal.AsBytes(result).Slice(start: totalBytesRead, length - totalBytesRead));
+#else
+                var currentRead = reader.Read(pooledHandle.Value, index: totalBytesRead, count: length - totalBytesRead);
+#endif
+
+                if (currentRead == 0)
+                {
+                    break;
+                }
+
+                totalBytesRead += currentRead;
+            }
+
+#if NETCOREAPP
+            return result[0];
+#else
+            return FromSpan(pooledHandle.Value.AsSpan(0, length: totalBytesRead));
 #endif
 
         }

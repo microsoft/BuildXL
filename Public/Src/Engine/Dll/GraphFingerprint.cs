@@ -142,6 +142,14 @@ namespace BuildXL.Engine
             {
                 writer.WriteLine(I($"Filter:"));
                 writer.WriteLine(EvaluationFilter.ToDisplayString());
+                if (EvaluationFilter.ModulesToResolveAsStrings.Count > 0)
+                {
+                    writer.WriteLine(I($"Modules:"));
+                    foreach (var module in EvaluationFilter.ModulesToResolveAsStrings)
+                    {
+                        writer.WriteLine(I($"  {module}"));
+                    }
+                }
             }
         }
 

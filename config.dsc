@@ -201,13 +201,13 @@ config({
                 { id: "Microsoft.IdentityModel.JsonWebTokens", version: "5.4.0" },
 
                 // Key Vault
-                { id: "Azure.Security.KeyVault.Secrets", version: "4.0.3" },
-                { id: "Azure.Security.KeyVault.Certificates", version: "4.0.3" },
-                { id: "Azure.Identity", version: "1.8.2" },
+                { id: "Azure.Security.KeyVault.Secrets", version: "4.5.0" },
+                { id: "Azure.Security.KeyVault.Certificates", version: "4.5.1" },
+                { id: "Azure.Identity", version: "1.10.0" },
                 { id: "Microsoft.Identity.Client", version: "4.54.1" },
                 { id: "Microsoft.IdentityModel.Abstractions", version: "6.29.0" },
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.18.4" },
-                { id: "Azure.Core", version: "1.31.0", 
+                { id: "Azure.Core", version: "1.34.0", 
                     dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors", "Microsoft.Bcl.AsyncInterfaces" ] },
                 { id: "System.Memory.Data", version: "1.0.2",
                     dependentPackageIdsToSkip: [ "System.Memory", "System.Text.Json" ] },

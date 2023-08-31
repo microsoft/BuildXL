@@ -1,6 +1,28 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20230825.2.1 (Release [323902] (https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=323902))
+-	Not untrack user profile on Linux on the MsBuild pip constructor
+-	[Blob L3 GC] Periodically stop consuming new changes and create a new checkpoint
+-	Simplify Kusto logging authentication with managed identities.
+-	Build new interop binaries with xcode when running macos PR pipeline.
+-	Allow the blob-based cache to authenticate to a storage account using a managed identity.
+-	Various changes related to MacOS.
+
+# 0.1.0-20230818.3 (Release [321099] (https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=321099))
+-	Ignore anonymous files on Linux Sandbox
+-	Fix Linux sandbox crash bugs
+-	Allow configuring additional verbose events for workers to forward to orchestrator
+-	Improvements to how BuildXL repo packages are created
+
+# 0.1.0-20230810.2.1 (Release [320235] (https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=320235))
+-	Add self-recovery capabilities for the blob L3 cache
+-	Fix processor usage percentage for pips in linux
+-	Only publish release binaries for macos interop library
+-	Remove IcmClient from cache monitor
+-	Report back enumerations when running front end related process under a sandbox
+-	Kill active ptracerunners on SandboxedProcess.KillAsync
+
 # 0.1.0-20230804.6  (Release [317902](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=317902))
 -	Cache related components are now shipped with multiple NuGet packages
 -	Added extra data to PXL related to cached pips 

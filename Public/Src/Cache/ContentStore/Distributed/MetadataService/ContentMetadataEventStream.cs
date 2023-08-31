@@ -248,16 +248,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using var wrapper = GetEvent(request, out var logEvent);
 
-            if (!TryAddToBlock(logEvent, out var block))
+            using (_blockSwitchLock.AcquireReadLock())
             {
-                return false;
+                LogBlock block = _currentBlock;
+
+                if (!_active || !block.IsInitialized)
+                {
+                    return false;
+                }
+
+                block.Add(logEvent);
+
+                request.BlockId = block.QualifiedBlockId;
+
+                // Writing to the block under the read lock to avoid 'ChannelAlreadyClosedException' being thrown
+                // since the writer is already might be closed.
+                await block.Events.Writer.WriteAsync(logEvent);
             }
 
-            request.BlockId = block.QualifiedBlockId;
-
-            await block.Events.Writer.WriteAsync(logEvent);
+            // Awaiting the completion outside the lock to avoid holding the lock for excessive amount of time unnecessarily.
             await logEvent.WriteAheadWriteCompleted.Task;
-
             return true;
         }
 
@@ -419,23 +429,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 },
                 extraStartMessage: msg,
                 extraEndMessage: r => $"{msg} CompletedLogId=[{r.GetValueOrDefault()}]").ThrowIfFailureAsync();
-        }
-
-        private bool TryAddToBlock(LogEvent logEvent, out LogBlock block)
-        {
-            using (_blockSwitchLock.AcquireReadLock())
-            {
-                block = _currentBlock;
-
-                if (!_active || !block.IsInitialized)
-                {
-                    block = null;
-                    return false;
-                }
-
-                block.Add(logEvent);
-                return true;
-            }
         }
 
         private PooledObjectWrapper<LogEvent> GetEvent(ServiceRequestBase request, out LogEvent logEvent)

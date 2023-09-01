@@ -73,7 +73,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
                 Indexed<TResult> result = await resultTask;
 
                 int originalIndex = indexedFailures[result.Index].Index;
-                fixedFallbackResults.Add(result.Item.WithIndex(originalIndex));
+
+                // In case the fallback function failed, we want to add the original failure to the results
+                var unifiedResult = !isSuccessFunc(result.Item) ? indexedFailures[result.Index] : result.Item.WithIndex(originalIndex);
+                fixedFallbackResults.Add(unifiedResult);
             }
 
             // Merge original successful results with fallback results
@@ -126,7 +129,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
                 Indexed<TResult> result = await resultTask;
 
                 int originalIndex = indexedFailures[result.Index].Index;
-                fixedFallbackResults.Add(result.Item.WithIndex(originalIndex));
+
+                // In case the fallback function failed, we want to add the original failure to the results
+                var unifiedResult = !isSuccessFunc(result.Item) ? indexedFailures[result.Index] : result.Item.WithIndex(originalIndex);
+                fixedFallbackResults.Add(unifiedResult);
             }
 
             // Merge original successful results with fallback results
@@ -181,7 +187,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
                 Indexed<TResult> result = await resultTask;
 
                 int originalIndex = indexedFailures[result.Index].Index;
-                fixedFallbackResults.Add(result.Item.WithIndex(originalIndex));
+
+                // In case the fallback function failed, we want to add the original failure to the results
+                var unifiedResult = !isSuccessFunc(result.Item) ? indexedFailures[result.Index] : result.Item.WithIndex(originalIndex);
+                fixedFallbackResults.Add(unifiedResult);
             }
 
             // Merge original successful results with fallback results

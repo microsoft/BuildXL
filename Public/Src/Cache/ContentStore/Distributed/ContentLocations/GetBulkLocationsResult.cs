@@ -166,7 +166,8 @@ namespace BuildXL.Cache.ContentStore.Distributed
             Contract.Requires(left.Size == -1 || right.Size == -1 || right.Size == left.Size);
 
             var finalList = (left.Locations ?? Enumerable.Empty<MachineLocation>()).Except(right.Locations ?? Enumerable.Empty<MachineLocation>());
-            return new ContentHashWithSizeAndLocations(left.ContentHash, Math.Max(left.Size, right.Size), finalList.ToList());
+            var locationSubtracted = left.Locations != null && finalList.Count() < left.Locations.Count;
+            return new ContentHashWithSizeAndLocations(left.ContentHash, Math.Max(left.Size, right.Size), finalList.ToList(), locationSubtracted: locationSubtracted);
         }
 
         /// <summary>

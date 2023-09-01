@@ -63,6 +63,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public GetBulkOrigin? Origin { get; set; }
 
+        /// <summary>
+        /// True if some locations were subtracted from the original list
+        /// This happens because in order not to repeat our failures we remove locations that we already tried
+        /// For example, if we have 3 locations in LLS and we fail to get the content from all of them, we will remove them from the GCS result list
+        /// </summary>
+        public bool LocationSubtracted { get; set; } = false;
+
         /// <nodoc />
         public ContentHashWithSizeAndLocations(ContentHash contentHash, long size = -1)
         {
@@ -77,7 +84,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
             IReadOnlyList<MachineLocation> locations,
             ContentLocationEntry? entry = null,
             IReadOnlyList<MachineLocation>? filteredOutLocations = null,
-            GetBulkOrigin? origin = null)
+            GetBulkOrigin? origin = null,
+            bool locationSubtracted = false
+            )
         {
             ContentHash = contentHash;
             Size = size;
@@ -85,6 +94,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
             Entry = entry;
             FilteredOutInactiveMachineLocations = filteredOutLocations;
             Origin = origin;
+            LocationSubtracted = locationSubtracted;
         }
 
         /// <summary>

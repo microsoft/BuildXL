@@ -70,13 +70,16 @@ namespace BuildXL.Scheduler
                     case DependencyViolationType.WriteInExclusiveOpaque:
                     case DependencyViolationType.WriteInExistingFile:
                     case DependencyViolationType.WriteToTempPathInsideSharedOpaque:
-                    case DependencyViolationType.WriteOnAbsentPathProbe:
                     case DependencyViolationType.TempFileProducedByIndependentPips:
                     case DependencyViolationType.WriteInStaticallyDeclaredSourceFile:
                         return SimplifiedViolationType.Write;
                     case DependencyViolationType.AbsentPathProbeUnderUndeclaredOpaque:
                         return SimplifiedViolationType.Probe;
                     case DependencyViolationType.WriteInUndeclaredSourceRead:
+                    // WriteOnAbsentPathProbe's verbose message states that a user need to add a dependency to make a build deterministic.
+                    // While the violator pip is always the one that wrote to the path, we don't know which pip lost the race in DFA analysis.
+                    // Because of that, classify this violation as a missing dependency, so the summary is consistent and not misleading.
+                    case DependencyViolationType.WriteOnAbsentPathProbe:
                         return SimplifiedViolationType.MissingDependency;
                     default:
                         throw new NotImplementedException("Need to implement for: " + Type.ToString());

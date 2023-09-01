@@ -2068,11 +2068,13 @@ namespace BuildXL.Scheduler
                     {
                         Logger.Log.DependencyViolationWriteOnAbsentPathProbe(
                             LoggingContext,
+                            // pip that wrote to the path (we always classify writer as a violator)
                             violator.SemiStableHash,
                             violator.GetDescription(Context),
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
                             GetProcessWorkingDirectory(violator),
                             path.ToString(Context.PathTable),
+                            // pip that probed the path
                             related.GetDescription(Context),
                             processPath.ToString(Context.PathTable));
                     }

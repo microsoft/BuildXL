@@ -53,7 +53,7 @@ jobs:
     displayName: Download CloudBuild drop
     inputs:
       dropServiceURI: https://cloudbuild.artifacts.visualstudio.com/DefaultCollection
-      buildNumber: CloudBuild.GIT/4f4758ef15b9cb205148c1aaffae94139cb26149/75f433b3-760a-20d0-ca5e-6cc7a2f0c39e
+      buildNumber: CloudBuild.GIT/1803926f9b46a2f4014f5b2850ee02be95a68df0/ee46fe64-a65c-a046-299a-22b39c953e37
       destinationPath: $(CloudBuild.DropPath)
       rootPaths: retail/amd64/App/BuildRunners/GenericBuildRunner/BuildXLRunner/ComplianceBuildConfig
       usePat: false
@@ -63,7 +63,7 @@ jobs:
     displayName: Download Guardian drop
     inputs:
       dropServiceURI: https://cloudbuild.artifacts.visualstudio.com/DefaultCollection
-      buildNumber: Cloudbuild/GuardianDrops/287571
+      buildNumber: Cloudbuild/GuardianDrops/322767
       destinationPath: $(Guardian.DropPath)
       rootPaths: Guardian
       usePat: false

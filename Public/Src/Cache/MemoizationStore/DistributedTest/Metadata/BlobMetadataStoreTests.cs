@@ -32,6 +32,7 @@ using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
+using System.Threading;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -317,6 +318,58 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 // This operation shoukd have triggered preventive pins, since no metadata was present
                 Assert.Equal(1, GetPinCount(tracer));
             });
+        }
+
+        [Fact]
+        public Task TestSelectorsAreMRUOrdered()
+        {
+            var context = new Context(Logger);
+           
+            var retentionPolicy = TimeSpan.FromDays(1);
+
+            return RunTestAsync(context, retentionPolicy, async (
+                DatabaseMemoizationStore store,
+                AzureBlobStorageMetadataStore metadataStore,
+                MetadataStoreMemoizationDatabase database,
+                ICacheSession cacheSession,
+                IContentSession contentSession,
+                ContentStoreInternalTracer tracer,
+                FileSystemContentStore fileSystemContentStore) =>
+            {
+                var ctx = new OperationContext(context);
+
+                // Store a new content hash list
+                var strongFingerprint = StrongFingerprint.Random();
+                _ =await AddContentHashListWithStrongFingerprint(database, cacheSession, context, strongFingerprint, ctx);
+
+                // Make sure there is a 1 second delay between pushes. The last modified time for blobs has a 1 second granularity.
+                Thread.Sleep(1000);
+
+                // Store another one with the same weak fingerprint
+                var strongFingerprint2 = StrongFingerprint.Random(weakFingerprint: strongFingerprint.WeakFingerprint);
+                _ = await AddContentHashListWithStrongFingerprint(database, cacheSession, context, strongFingerprint2, ctx);
+
+                // We should get two selectors
+                var result = await database.GetLevelSelectorsAsync(ctx, strongFingerprint.WeakFingerprint, 0).ShouldBeSuccess();
+                var selectors = result.Value.Selectors;
+
+                Assert.Equal(2, selectors.Count);
+
+                // The second content hash list should be listed first (since it got added last)
+                Assert.Equal(strongFingerprint2.Selector.ContentHash, selectors[0].ContentHash);
+                Assert.Equal(strongFingerprint.Selector.ContentHash, selectors[1].ContentHash);
+            });
+        }
+
+        private static async Task<ContentStore.Interfaces.Results.PutResult> AddContentHashListWithStrongFingerprint(MetadataStoreMemoizationDatabase database, ICacheSession cacheSession, Context context, StrongFingerprint strongFingerprint, OperationContext ctx)
+        {
+            var putResult = await cacheSession.PutStreamAsync(context, ContentStore.Hashing.HashType.Vso0, new MemoryStream(new byte[] { 1, 2, 3 }), Token);
+
+            var contentHashList = new ContentHashList(new[] { putResult.ContentHash });
+            var addResult = await database.CompareExchangeAsync(
+                ctx, strongFingerprint, string.Empty, new ContentHashListWithDeterminism(null, CacheDeterminism.None), new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None)).ShouldBeSuccess();
+
+            return putResult;
         }
 
         private static long GetPinCount(ContentStoreInternalTracer tracer)

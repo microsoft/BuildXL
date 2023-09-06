@@ -469,9 +469,9 @@ public class BlobStorageClientAdapter
     }
 
     /// <summary>
-    /// Lists blobs in folder ordered by last access or write time
+    /// Lists blobs in folder ordered by most recently used (using last access or write time)
     /// </summary>
-    public async Task<IReadOnlyList<BlobItem>> ListLruOrderedBlobsAsync(
+    public async Task<IReadOnlyList<BlobItem>> ListMruOrderedBlobsAsync(
         OperationContext context,
         BlobContainerClient client,
         string? prefix = null,
@@ -486,14 +486,14 @@ public class BlobStorageClientAdapter
             blobTraits: BlobTraits.Metadata,
             maxResults: maxResults).ToListAsync(cancellationToken: context.Token);
 
-        blobs.Sort(LruCompareBlobs);
+        blobs.Sort(MruCompareBlobs);
 
         return blobs;
     }
 
-    private int LruCompareBlobs(BlobItem x, BlobItem y)
+    private int MruCompareBlobs(BlobItem x, BlobItem y)
     {
-        return GetLastAccessTime(x).CompareTo(GetLastAccessTime(y));
+        return GetLastAccessTime(y).CompareTo(GetLastAccessTime(x));
     }
 
     private DateTimeOffset GetLastAccessTime(BlobItem b)

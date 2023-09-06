@@ -182,7 +182,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 {
                     var selectors = new List<Selector>();
                     var client = await GetContainerClientAsync(context, weakFingerprint);
-                    var blobs = await _storageClientAdapter.ListLruOrderedBlobsAsync(
+                    var blobs = await _storageClientAdapter.ListMruOrderedBlobsAsync(
                         context,
                         client,
                         GetWeakFingerprintPrefix(weakFingerprint));

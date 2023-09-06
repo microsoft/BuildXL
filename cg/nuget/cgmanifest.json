@@ -626,6 +626,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Artifacts.Authentication",
+          "Version": "0.1.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.AspNet.WebApi.Client",
           "Version": "5.2.7"
         }
@@ -1374,7 +1383,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client",
-          "Version": "4.54.1"
+          "Version": "4.55.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Identity.Client.Broker",
+          "Version": "4.55.0"
         }
       }
     },
@@ -1383,7 +1401,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client.Extensions.Msal",
-          "Version": "2.18.4"
+          "Version": "2.32.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Identity.Client.NativeInterop",
+          "Version": "0.13.8"
         }
       }
     },
@@ -1392,7 +1419,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Abstractions",
-          "Version": "6.29.0"
+          "Version": "6.32.1"
         }
       }
     },

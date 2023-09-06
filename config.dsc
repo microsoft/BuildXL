@@ -204,14 +204,18 @@ config({
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.5.0" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.5.1" },
                 { id: "Azure.Identity", version: "1.10.0" },
-                { id: "Microsoft.Identity.Client", version: "4.54.1" },
-                { id: "Microsoft.IdentityModel.Abstractions", version: "6.29.0" },
-                { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.18.4" },
+                { id: "Microsoft.Identity.Client", version: "4.55.0" },
+                { id: "Microsoft.IdentityModel.Abstractions", version: "6.32.1" },
+                { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.32.0" },
                 { id: "Azure.Core", version: "1.34.0", 
                     dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors", "Microsoft.Bcl.AsyncInterfaces" ] },
                 { id: "System.Memory.Data", version: "1.0.2",
                     dependentPackageIdsToSkip: [ "System.Memory", "System.Text.Json" ] },
 
+                // Authentication
+                { id: "Microsoft.Identity.Client.Broker", version: "4.55.0" },
+                { id: "Microsoft.Identity.Client.NativeInterop", version: "0.13.8" },
+                
                 // Package sets
                 ...importFile(f`config.nuget.vssdk.dsc`).pkgs,
                 ...importFile(f`config.nuget.aspNetCore.dsc`).pkgs,

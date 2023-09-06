@@ -1,33 +1,42 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
-=======
-# 0.1.0-20230825.2.1 (Release [323902] (https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=323902))
--	Not untrack user profile on Linux on the MsBuild pip constructor
--	[Blob L3 GC] Periodically stop consuming new changes and create a new checkpoint
--	Simplify Kusto logging authentication with managed identities.
--	Build new interop binaries with xcode when running macos PR pipeline.
--	Allow the blob-based cache to authenticate to a storage account using a managed identity.
--	Various changes related to MacOS.
+---
+---
 
-# 0.1.0-20230818.3 (Release [321099] (https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=321099))
--	Ignore anonymous files on Linux Sandbox
--	Fix Linux sandbox crash bugs
--	Allow configuring additional verbose events for workers to forward to orchestrator
--	Improvements to how BuildXL repo packages are created
+# 0.1.0-20230901.1 (Release [324492](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=324492&_a=release-pipeline-progress))
+- Forward console messages from workers to orchestrator.
+- Add option to honor directory path casing for dynamic outputs.
+- Classify write-on-absent-path-probe as missing dependency in DFA summary.
+- [Detours] Detect cycles when resolving chain of symlinks.
+- Ensure tracee process has ptrace pemission before tracer is launched.
 
-# 0.1.0-20230810.2.1 (Release [320235] (https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=320235))
--	Add self-recovery capabilities for the blob L3 cache
--	Fix processor usage percentage for pips in linux
--	Only publish release binaries for macos interop library
--	Remove IcmClient from cache monitor
--	Report back enumerations when running front end related process under a sandbox
--	Kill active ptracerunners on SandboxedProcess.KillAsync
+# 0.1.0-20230825.2.1 (Release [323902](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=323902))
+- Not untrack user profile on Linux on the MsBuild pip constructor
+- [Blob L3 GC] Periodically stop consuming new changes and create a new checkpoint
+- Simplify Kusto logging authentication with managed identities.
+- Build new interop binaries with xcode when running macos PR pipeline.
+- Allow the blob-based cache to authenticate to a storage account using a managed identity.
+- Various changes related to MacOS.
+
+# 0.1.0-20230818.3 (Release [321099](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=321099))
+- Ignore anonymous files on Linux Sandbox
+- Fix Linux sandbox crash bugs
+- Allow configuring additional verbose events for workers to forward to orchestrator
+- Improvements to how BuildXL repo packages are created
+
+# 0.1.0-20230810.2.1 (Release [320235](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=320235))
+- Add self-recovery capabilities for the blob L3 cache
+- Fix processor usage percentage for pips in linux
+- Only publish release binaries for macos interop library
+- Remove IcmClient from cache monitor
+- Report back enumerations when running front end related process under a sandbox
+- Kill active ptracerunners on SandboxedProcess.KillAsync
 
 # 0.1.0-20230804.6  (Release [317902](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=317902))
--	Cache related components are now shipped with multiple NuGet packages
--	Added extra data to PXL related to cached pips 
--	Report DFAs from past attempts on retry
--	Perf improvements for generating binary logs
+- Cache related components are now shipped with multiple NuGet packages
+- Added extra data to PXL related to cached pips 
+- Report DFAs from past attempts on retry
+- Perf improvements for generating binary logs
 
 # 0.1.0-20230727.4.2 (Release [316902](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=316902))
 - Improvements to address a potential pathset explosion
@@ -54,7 +63,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Make AdoBuildRunner work on job retries
 - Limit the amount of open connections from the blob storage L3 cache
 
-# 0.1.0-20230630.6.1 (Release [311085](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=311085&_a=release-pipeline-progress)) Released 7/6/2023
+# 0.1.0-20230630.6.1 (Release [311085](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=311085&_a=release-pipeline-progress)), released on 7/6/2023
 - Remove observed path set from execution result to reduce the overhead of data sent from workers to orchestrator
 - Add customization capabilities for displaying pips to the end user
 - Update QTest SDK to include BlameCollectorMode
@@ -63,55 +72,55 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add the ability to selectively send logs to the console
 - Introduce DScript Workflow SDK for easily writing build workflow in DScript
 
-# 0.1.0-20230622.2 (Release [308283](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=308283&_a=release-pipeline-progress)) Released 6/28/2023
--	Properly propagate failure when updating metadata.
--	Add documentation for configuring a blob-based L3 cache
--	Add more logging to cache eviction logic
--	Interpose realpath and report all intermediate symlink resolutions
--	Abstract away initialization of grpc core server.
+# 0.1.0-20230622.2 (Release [308283](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=308283&_a=release-pipeline-progress)), released on 6/28/2023
+- Properly propagate failure when updating metadata.
+- Add documentation for configuring a blob-based L3 cache
+- Add more logging to cache eviction logic
+- Interpose realpath and report all intermediate symlink resolutions
+- Abstract away initialization of grpc core server.
 
-# 0.1.0-20230617.0 (Release [307141](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=307141&_a=release-pipeline-progress)) Released 6/21/2023
+# 0.1.0-20230617.0 (Release [307141](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=307141&_a=release-pipeline-progress)), released on 6/21/2023
 - Add pin elision capabilities for the blob-based L3 cache
--	Optionally add symbol indexing data to the BSI
--	Include standard output in DX0016 timeout log messages
--	Run DumpPipLite for DFA pips
--	Implement ReportProcessArgs in the Linux sandbox
--	Fail workers if pips have pending messages for particular pips on successful exits
--	Change some configuration defaults on AdoBuildRunner
+- Optionally add symbol indexing data to the BSI
+- Include standard output in DX0016 timeout log messages
+- Run DumpPipLite for DFA pips
+- Implement ReportProcessArgs in the Linux sandbox
+- Fail workers if pips have pending messages for particular pips on successful exits
+- Change some configuration defaults on AdoBuildRunner
 
-# 0.1.0-20230608.2 (Release [305070](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=305070&_a=release-pipeline-progress)) Released 6/14/2023
--	Perf improvements for file content table loading
--	Revert Microsoft.Artifacts.Authenticate package to address auth issues with interactive login
--	Perf improvements in FileContentManager
--	Address occasional IPC errors about failures binding to port for service pips
--	Linux support for VsCode DScript extension
--	Expose Symbol drop events to data stream to be rendered in CloudBuild UI
+# 0.1.0-20230608.2 (Release [305070](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=305070&_a=release-pipeline-progress)), released on 6/14/2023
+- Perf improvements for file content table loading
+- Revert Microsoft.Artifacts.Authenticate package to address auth issues with interactive login
+- Perf improvements in FileContentManager
+- Address occasional IPC errors about failures binding to port for service pips
+- Linux support for VsCode DScript extension
+- Expose Symbol drop events to data stream to be rendered in CloudBuild UI
 
-# 0.1.0-20230601.0 (Release [303270](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=303270&_a=release-pipeline-progress)) Released 6/7/2023
--	Correctly report process creation ID for the PTrace sandbox
--	Correctly retrieve the Linux filesystem type
--	Fix EventHub connection with managed identity
+# 0.1.0-20230601.0 (Release [303270](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=303270&_a=release-pipeline-progress)), released on 6/7/2023
+- Correctly report process creation ID for the PTrace sandbox
+- Correctly retrieve the Linux filesystem type
+- Fix EventHub connection with managed identity
 
-# 0.1.0-20230526.0 (Release [301868](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=301868) Released 6/1/2023)
+# 0.1.0-20230526.0 (Release [301868](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=301868)), released on 6/1/2023
 - Flip default for the includeMonikersInNuspecDependencies setting in NugetResolver 
 - Intermediate symlinks are now resolved when deleting symlinks under directory symlinks
 - Add the output file of component detection to produced drops
 - Fix the deletion of rewritten sources on pip retry
 - Fix calculation for graph shape limiting resource
 
-# 0.1.0-20230518.3 (Release [299901](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=299901) Released 5/24/2023)
+# 0.1.0-20230518.3 (Release [299901](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=299901)), released on 5/24/2023
 - Paginate results in GenerateBuildManifestFileList API
 - Various fixes to the Guardian SDK
 - Enable the ptrace sandbox by default on Linux
 
-# 0.1.0-20230512.2 (Release [298428](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=298428) Released 5/18/2023)
+# 0.1.0-20230512.2 (Release [298428](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=298428)), released on 5/18/2023
 - Allow safe source rewrites for QTest
 - Log full output for pips in compliance builds
 - Copy output files from policheck for compliance build
 - Consider monikers in nuspec dependency target frameworks
 - Various bug fixes
 
-# 0.1.0-20230505.4 (Release [296804](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=296804) Released 5/10/2023)
+# 0.1.0-20230505.4 (Release [296804](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=296804)), released on 5/10/2023
 - Complete missing USN change reasons
 - Added missing parenthesis in journal debug info
 - Make frontend less aggressive for expected use cases
@@ -119,7 +128,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Translate the result of DeviceIoControl (FSCTL_GET_REPARSE_POINT case) under an unsafe flag
 - Track AppData in Linux
 
-# 0.1.0-20230428.1 (Release [294986](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=294986) Released 5/3/2023)
+# 0.1.0-20230428.1 (Release [294986](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=294986)), released on 5/3/2023
 - Update .net 7 to 7.0.5
 - Debug info for USN journalling feature.
 - Untrack Microsoft monitoring agent.
@@ -132,7 +141,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Report PID from ptracesandbox to report_access calls.
 - Fix ProcessCachedWithAllowlistedFileMonitoringViolations test on Linux
 
-# 0.1.0-20230424.4 (Release [293854](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=293854) Released 4/26/2023)
+# 0.1.0-20230424.4 (Release [293854](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=293854)), released on 4/26/2023
 - Documentation update for pip environment variables
 - Fix for crash when CloudBuild timeout is hit
 - Documentation for weak fingerprint augmentation
@@ -140,7 +149,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Allow forcing PTrace linux sandbox for specific processes
 - Reliability fixes for PTrace sandbox
 
-# 0.1.0-20230414.2.1 (Release [292538](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=292538) Released 4/19/2023)
+# 0.1.0-20230414.2.1 (Release [292538](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=292538)), released on 4/19/2023
 - Track source changes in ProgramData
 - Update nugetcache fingerprint version
 - Only avoid querying the remote cache (under /remoteCacheCutoff) if the remote is read-only
@@ -150,27 +159,27 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Fixed the missing dependency used by ComponentDetectionToSBOMPackageAdapter
 - Various bug fixes
 
-# 0.1.0-20230407.6 (Release [289924](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=289924) Released 4/12/2023)
+# 0.1.0-20230407.6 (Release [289924](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=289924)), released on 4/12/2023
 - Track source changes in UserProfile and LocalAppData by default
 - Embed sources into PDBs for internal builds
 - Migrate Bond to Protobuf for cache serialization
 - Bug fixes and perf improvements
 
-# 0.1.0-20230331.2 (Release [288278](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=288278) Released 4/5/2023)
+# 0.1.0-20230331.2 (Release [288278](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=288278)), released on 4/5/2023
 - Fix grouping commands for Lage resolver
 - Change the log message on ADO console for DX64 errors
 - Temporarily skip signing nuget packages
 - Add an option to disable sending XLG events from workers
 - Correct negative ResourcePaused count
 
-# 0.1.0-20230324.3.2 (Release [287737](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=287737) Released 3/30/2023)
+# 0.1.0-20230324.3.2 (Release [287737](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=287737)), released on 3/30/2023
 - Optimize allow list check for undeclared accesses
 - Linux sandbox considers O_RDWR when marking access modes as writes
 - Add push to outputs duration on the critical path
 - Fix for Lage graph being too big for stdio
 - Various other bug fixes.
 
-# 0.1.0-20230317.0 (Release [284911](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=284911) Released 3/22/2023)
+# 0.1.0-20230317.0 (Release [284911](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=284911)), released on 3/22/2023
 - [Linux sandbox] Propagate __BUILDXL_PTRACE_MQ_NAME through the process tree
 - Spanify parsing of the Linux sandbox reports
 - Decouple SandboxProcessPipExecutor out of Processes
@@ -183,51 +192,51 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add error handling to CreateFileStream() GraphAgnosticIncrementalSchedulingState.cs in to avoid crashing on failure during incremental scheduling.
 - Handle pips that are too large to serialize to fingerprint store
 
-# 0.1.0-20230310.5 (Release [283306](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=283306) Released 3/15/2023)
--	Fix directory enumeration with legacy Win32 pattern *.*
--	Merge ConcurrencyLimit and UnavailableSlots in build summary reporting
--	Log specific user level error on VSTS cache startup failure.
--	Remove grpc.core support for client
--	Promoting credential scanner warnings to errors fix
--	Enable dev logs across the board
--	Pretty print result of Fingerprint store analyzer
--	Allow machine total ram to dynamically increase for ram forecasting
+# 0.1.0-20230310.5 (Release [283306](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=283306)), released on 3/15/2023
+- Fix directory enumeration with legacy Win32 pattern *.*
+- Merge ConcurrencyLimit and UnavailableSlots in build summary reporting
+- Log specific user level error on VSTS cache startup failure.
+- Remove grpc.core support for client
+- Promoting credential scanner warnings to errors fix
+- Enable dev logs across the board
+- Pretty print result of Fingerprint store analyzer
+- Allow machine total ram to dynamically increase for ram forecasting
 
-# 0.1.0-20230303.6 (Release [281691](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=281691) Released 3/8/2023)
--	Remove non-merge logic from RocksDb Databases.
--	Fix PipsExecuting counter in Batmon.
--	Clean up linux sandbox logs in release mode.
--	Infer default output file for DumpProcess Analyzer.
--	Add /ado argument to single machine builds.
--	Ensure latest file path in consisten in Azureblobstoragecheckpointregistry.
--	Break Instrumentation.Common dependency from BuildXl.Utilties.Core.
--	Enable remote injection from 32-bit process by default.
+# 0.1.0-20230303.6 (Release [281691](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=281691)), released on 3/8/2023
+- Remove non-merge logic from RocksDb Databases.
+- Fix PipsExecuting counter in Batmon.
+- Clean up linux sandbox logs in release mode.
+- Infer default output file for DumpProcess Analyzer.
+- Add /ado argument to single machine builds.
+- Ensure latest file path in consisten in Azureblobstoragecheckpointregistry.
+- Break Instrumentation.Common dependency from BuildXl.Utilties.Core.
+- Enable remote injection from 32-bit process by default.
 
-# 0.1.0-20230227.0 (Release [280708](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=280708) Released 3/1/2023)
--	Fix mistargeted directory symlinks in opaque directories when using preserved outputs
--	Linux file monitoring sandbox reliability improvements
--	Handle newlines in process command lines in windows sandbox
--	NetCore security update
--	Fix for some long DX0064 errors missing on CloudBuild UI
--	Make environment variable CredScan violations verbose level until promoted to errors in a future release
--	Address crash when failing to create Windows Error Reporting event
+# 0.1.0-20230227.0 (Release [280708](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=280708)), released on 3/1/2023
+- Fix mistargeted directory symlinks in opaque directories when using preserved outputs
+- Linux file monitoring sandbox reliability improvements
+- Handle newlines in process command lines in windows sandbox
+- NetCore security update
+- Fix for some long DX0064 errors missing on CloudBuild UI
+- Make environment variable CredScan violations verbose level until promoted to errors in a future release
+- Address crash when failing to create Windows Error Reporting event
 
-# 0.1.0-20230209.1 (Release [276369](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=276369) Released 2/15/2023)
--	Allow BuildXL to run without enabling the change journal
--	Added some missing interposed methods in the Linux sandbox
--	Enable heartbeats by default
--	Improvements on distributed builds handshaking
+# 0.1.0-20230209.1 (Release [276369](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=276369)), released on 2/15/2023
+- Allow BuildXL to run without enabling the change journal
+- Added some missing interposed methods in the Linux sandbox
+- Enable heartbeats by default
+- Improvements on distributed builds handshaking
 
-# 0.1.0-20221209.1.11 (Release [256361](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=252305) Released 12/15/2022)
--	Reenable Ninja tests
--	Deploy OS-specific RocksDB binaries
--	Move from ActionBlock to ActionBlockSlim across the codebase
--	Scan environment variables using the CredScan library 
--	Properly invalidate file descriptor table invalidations on Linux clone/forks
--	Fix capturing ADO requester info
--	Increase ProcessDumper default depth to 20
+# 0.1.0-20221209.1.11 (Release [256361](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=252305)), released on 12/15/2022
+- Reenable Ninja tests
+- Deploy OS-specific RocksDB binaries
+- Move from ActionBlock to ActionBlockSlim across the codebase
+- Scan environment variables using the CredScan library 
+- Properly invalidate file descriptor table invalidations on Linux clone/forks
+- Fix capturing ADO requester info
+- Increase ProcessDumper default depth to 20
 
-# 0.1.0-20221202.8 (Release [252305](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=252305) Released 12/7/2022)
+# 0.1.0-20221202.8 (Release [252305](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=252305)), released on 12/7/2022
 - Fixes to null reference exception on dynamic worker release.
 - Fix dynamic workers' names in statsperf file.
 - Fix null reference exception when computing sha256 during pip graph construction from MSBuild graph.
@@ -235,7 +244,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Report whether a file access was a directory on the Linux sandbox.
 - Various miscellaneous bug fixes.
 
-# 0.1.0-20221125.2 (Release [249470](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=249470) Released 11/30/2022)
+# 0.1.0-20221125.2 (Release [249470](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=249470)), released on 11/30/2022
 - Report statically linked processes on the Linux sandbox
 - Enable generation of file access trace files on Linux
 - Separate BuildManifest events from ExecutionLog events when sending from workers
@@ -249,7 +258,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various other improvements for Linux sandbox
 - Various improvements and bug fixesArtifacts
 
-# 0.1.0-20221104.7 (Release [241075](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=2410751&_a=release-pipeline-progress) Released 11/9/2022)
+# 0.1.0-20221104.7 (Release [241075](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=2410751&_a=release-pipeline-progress)), released on 11/9/2022
 - Allow cache lookup pips to be reschedule on other machines when machine processing task is lost
 - Various dependency security patches
 - Reliability improvements for per-pip process dumps
@@ -263,32 +272,32 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - BuildXL uses Ubuntu built file access observation sandbox
 - Do not set timestamps or scrub shared opaque directories in CloudBuild
 
-# 0.1.0-20221020.0.1 (Release [236579](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=236579&_a=release-pipeline-progress) Released 10/26/2022)
+# 0.1.0-20221020.0.1 (Release [236579](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=236579&_a=release-pipeline-progress)), released on 10/26/2022
 - Improved documentation and examples for the Ninja resolver
 - Fix CMake resolver invocation command line
 - Add extra provenance when logging environment variables impacting the build
 - Choose worker logic redesign
 
-# 0.1.0-20221013.0 (Release [232249](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=232249&_a=release-pipeline-progress) Released 10/19/2022)
+# 0.1.0-20221013.0 (Release [232249](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=232249&_a=release-pipeline-progress)), released on 10/19/2022
 - Allow gRPC IPC server to receive arbitrarily large messages
 - Introduce /assumeCleanOutputDirs to avoid scrubber for shared opaque dirs
 - Expose running unsandboxed in yarn SDK
 
-# 0.1.0-20221007.3 (Release [229981](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=229981&_a=release-pipeline-progress) Released 10/12/2022)
+# 0.1.0-20221007.3 (Release [229981](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=229981&_a=release-pipeline-progress)), released on 10/12/2022
 - Reuse weak identity for source files.
 - Remove MaterializeInput step for IPC pips.
 - Add yarn fast to Yarn SDK.
 - Add support for Linux sandbox logging for JS resolvers.
 - Various bug fixes.
 
-# 0.1.0-20221003.19.1 (Release [228699](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=228699) Released 10/6/2022)
+# 0.1.0-20221003.19.1 (Release [228699](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=228699)), released on 10/6/2022
 - Update Google.Protobuf to 3.19.5
 - Remove directory deletion lock
 - Do not emit stale location traces on master
 - Various performance optimizations
 - Add Linux support for capturing process dumps
 
-# 0.1.0-20220923.4.1 (Release [226434](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=226434) Released 9/28/2022)
+# 0.1.0-20220923.4.1 (Release [226434](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=226434)), released on 9/28/2022
 - Add support for trace files (sandbox observations) on Windows
 - Avoid dynamic memory allocation in ReportProcessData
 - Fix DFA due incremental tool enumeration
@@ -296,61 +305,61 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Clean some object pools for server process
 - Fix to handle crash during the failure of deserialization in FingerprintStore
 
-# 0.1.0-20220916.6 (Release [221995](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=221995) Released 9/21/2022)
--	Remove the OpenBond distribution layer.
--	Add grpc option to enable gzip compression.
--	Added ability to config chooseworkerlight and default to 100.
--	Enabling various unit tests on Linux.
--	Developer Guide for Linux.
--	Introducing multiple container support and migrating off of azure pipeline.
--	Add nuget resolver signing.
--	Perf bash changes related to using pooled memory stream in PipTwoPhaseCache.
--	Various bug fixes.
+# 0.1.0-20220916.6 (Release [221995](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=221995)), released on 9/21/2022
+- Remove the OpenBond distribution layer.
+- Add grpc option to enable gzip compression.
+- Added ability to config chooseworkerlight and default to 100.
+- Enabling various unit tests on Linux.
+- Developer Guide for Linux.
+- Introducing multiple container support and migrating off of azure pipeline.
+- Add nuget resolver signing.
+- Perf bash changes related to using pooled memory stream in PipTwoPhaseCache.
+- Various bug fixes.
 
-# 0.1.0-20220908.0 (Release [218898](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=218898)) Released 9/14/2022
--	Various optimizations for bxl.exe memory footprint and performance
--	Improvement for domioninvocation telemetry retention
--	Fix for race condition in HierarchialNameTable that caused unnecessary cache misses
--	SourceSealDirectory patterns added to DumpPip Analyzer
--	Default IPC pip protocol to gRPC
--	Expose nested process termination timeout to Javascript resolvers
+# 0.1.0-20220908.0 (Release [218898](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=218898)), released on 9/14/2022
+- Various optimizations for bxl.exe memory footprint and performance
+- Improvement for domioninvocation telemetry retention
+- Fix for race condition in HierarchialNameTable that caused unnecessary cache misses
+- SourceSealDirectory patterns added to DumpPip Analyzer
+- Default IPC pip protocol to gRPC
+- Expose nested process termination timeout to Javascript resolvers
 
-# 0.1.0-20220831.2 (Release [215995](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=215995)) Released 9/7/2022
--	Reduce storage operations and bandwidth utilization when uploading logs
--	QTest on BuildXL: Allow additional QTest arguments to be passed in a rsp file
--	Avoid warning for low worker count if we performed early releases
--	Log a specific error when a file is unavailable to be stored to cache
--	[Linux] BuildXL npm package updates
--	Some bug fixes and memory optimizations
+# 0.1.0-20220831.2 (Release [215995](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=215995)), released on 9/7/2022
+- Reduce storage operations and bandwidth utilization when uploading logs
+- QTest on BuildXL: Allow additional QTest arguments to be passed in a rsp file
+- Avoid warning for low worker count if we performed early releases
+- Log a specific error when a file is unavailable to be stored to cache
+- [Linux] BuildXL npm package updates
+- Some bug fixes and memory optimizations
 
-# 0.1.0-20220818.0.1 (Release [212415](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=212415)) Released 8/26/22
--	Fix crash caused by pip cancellation
--	Resolve reparse points when creating a process
+# 0.1.0-20220818.0.1 (Release [212415](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=212415)), released on 8/26/22
+- Fix crash caused by pip cancellation
+- Resolve reparse points when creating a process
 
-# 0.1.0-20220811.1 (Release [208433](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=208433)) Released 8/18/2022
--	Resolve reparse points when creating a process
--	Change Ninja resolver settings to intervene CXX command lines into an environment setting
--	Change BuildXL.Summary.md to make it easier to differentiate between different builds in ADO
--	Various bug fixes
+# 0.1.0-20220811.1 (Release [208433](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=208433)), released on 8/18/2022
+- Resolve reparse points when creating a process
+- Change Ninja resolver settings to intervene CXX command lines into an environment setting
+- Change BuildXL.Summary.md to make it easier to differentiate between different builds in ADO
+- Various bug fixes
 
-# 0.1.0-20220804.0 (Release [205184](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=205184)) Released 8/10/2022
--	Add StageId property to captured build info.
--	Redesign of IpcMoniker abstraction.
--	Add support for PAT authentication with DropDaemon.
--	Add performance optimized extension methods for IReadOnlyList.
--	Various bug fixes.
+# 0.1.0-20220804.0 (Release [205184](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=205184)), released on 8/10/2022
+- Add StageId property to captured build info.
+- Redesign of IpcMoniker abstraction.
+- Add support for PAT authentication with DropDaemon.
+- Add performance optimized extension methods for IReadOnlyList.
+- Various bug fixes.
 
-# 0.1.0-20220728.5 (Release [202601](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=202601)) Released 8/3/2022
--	Track source rewrites on Linux
--	Expose allowed surviving processes in JS/MSBuild resolvers
--	Some bug fixes 
+# 0.1.0-20220728.5 (Release [202601](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=202601)), released on 8/3/2022
+- Track source rewrites on Linux
+- Expose allowed surviving processes in JS/MSBuild resolvers
+- Some bug fixes 
 
-# 0.1.0-20220721.4 (Release [199845](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=199845)) Released 7/27/2022
--	Fix windows language pack file access violation for Javascript builds
--	Enable additional unit & integration tests on Linux
--	Misc bug fixes
+# 0.1.0-20220721.4 (Release [199845](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=199845)), released on 7/27/2022
+- Fix windows language pack file access violation for Javascript builds
+- Enable additional unit & integration tests on Linux
+- Misc bug fixes
 
-# 0.1.0-20220711.4.2 (Release [196363](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=196363)) Released 7/13/2022
+# 0.1.0-20220711.4.2 (Release [196363](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=196363)), released on 7/13/2022
 - Log unexpected exceptions in grpc server interceptor 
 - Capture more info related to the organization triggering the build.
 - Introduce temp folder shared by pips executed in VM
@@ -362,40 +371,40 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Update grpc.net to 2.47.0
 - Decrease grpc communication overhead between worker and orchestrator
 
-# 0.1.0-20220626.0 (Release [190089](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=190089)) Released 6/29/2022
--	\[Linux Sandbox\] Stop wrapping processes in a bash script.
--	Fail pips faster when a connection is lost with a worker.
--	\[Linux Sandbox\] Implement a tiny bxl-env program to use instead of /usr/bin/env.
--	Remove spansort extension.
--	\[libDetours\] Don't crash if no FileAccessManifest is specified.
--	Capture Infra property for Telemetry.
--	Disable suspending service pips.
--	\[BXL Remoting\]\[AnyBuild\] Enable VFS pre-rendering using hardlinks
--	Add more diagnostic info to FindAllOpenHandlesInDirectory.
+# 0.1.0-20220626.0 (Release [190089](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=190089)), released on 6/29/2022
+- \[Linux Sandbox\] Stop wrapping processes in a bash script.
+- Fail pips faster when a connection is lost with a worker.
+- \[Linux Sandbox\] Implement a tiny bxl-env program to use instead of /usr/bin/env.
+- Remove spansort extension.
+- \[libDetours\] Don't crash if no FileAccessManifest is specified.
+- Capture Infra property for Telemetry.
+- Disable suspending service pips.
+- \[BXL Remoting\]\[AnyBuild\] Enable VFS pre-rendering using hardlinks
+- Add more diagnostic info to FindAllOpenHandlesInDirectory.
 
-# 0.1.0-20220617.5.2 (Release [187820](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=187820)) Released 6/22/2022
+# 0.1.0-20220617.5.2 (Release [187820](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=187820)), released on 6/22/2022
 - Fail pips faster when a connection is lost with a worker
 - Fix underbuild due to dirty check
 - Expand Peformance Summary Logging
 
-# 0.1.0-20220603.4 (Release [181226](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=181226&_a=release-pipeline-progress)) Released 6/8/2022
--	Reduce the number of events going to the XLG to optimize space
--	Allow for interactive authentication in linux/mac local builds
--	Use path based sorting to improve cache stability when generating dependency files
--	Stop using dev cache when the chances of getting a remote cache hit are low
--	Incremental scheduling improvements
--	Bug fixes
+# 0.1.0-20220603.4 (Release [181226](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=181226&_a=release-pipeline-progress)), released on 6/8/2022
+- Reduce the number of events going to the XLG to optimize space
+- Allow for interactive authentication in linux/mac local builds
+- Use path based sorting to improve cache stability when generating dependency files
+- Stop using dev cache when the chances of getting a remote cache hit are low
+- Incremental scheduling improvements
+- Bug fixes
 
-# 0.1.0-20220527.6 (Release [178572](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=178572&_a=release-pipeline-progress)) Released 6/1/2022
--	Stop materializing IPC pip outputs due to value pip dependencies
--	NuGet resolver changes reapplied after some fixes
--	Add support for AzureAuth
--	Scrub stale packages by default on ADO builds
--	Removed netcoreapp3.1 and net5.0 qualifiers
--	Change maxProcMultiplier to 0.9 by default
--	Some bug fixes and optimizations
+# 0.1.0-20220527.6 (Release [178572](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=178572&_a=release-pipeline-progress)), released on 6/1/2022
+- Stop materializing IPC pip outputs due to value pip dependencies
+- NuGet resolver changes reapplied after some fixes
+- Add support for AzureAuth
+- Scrub stale packages by default on ADO builds
+- Removed netcoreapp3.1 and net5.0 qualifiers
+- Change maxProcMultiplier to 0.9 by default
+- Some bug fixes and optimizations
 
-# 0.1.0-202200523.0 (Release [176841](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=176841&_a=release-pipeline-progress)) Released 5/25/2022
+# 0.1.0-202200523.0 (Release [176841](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=176841&_a=release-pipeline-progress)), released on 5/25/2022
 - Register enumerated files with the output file system so that directory enumerations are properly detected
 - Rehash dropped files when necessary
 - Remove net462 support
@@ -405,118 +414,118 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [Guardian] Fix policheck timeout issue and infrastructure error
 - [Guardian] Add Policheck gdnsuppress
 
-# 0.1.0-202200517.1 (Release [174531](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=174531&_a=release-pipeline-progress)) Released 5/19/2022
--	Make ADO message limit configurable
--	Udate grpc.core packages
--	Performance improvements for RocksDB
--	Ctrl-c related crash fix
--	Various bug fixes
+# 0.1.0-202200517.1 (Release [174531](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=174531&_a=release-pipeline-progress)), released on 5/19/2022
+- Make ADO message limit configurable
+- Udate grpc.core packages
+- Performance improvements for RocksDB
+- Ctrl-c related crash fix
+- Various bug fixes
 
-# 0.1.0-20220509.1.1 (Release [171893](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=171893&_a=release-pipeline-progress)) Released 5/11/2022
--	Context.GetBuildEngineDirectory() returns a normalized engine path
--	ExecutionLogSDK is now dotnet core only
--	CredScan updated to 2.2.7.8
--	Update Grpc.Net client to fix unobserved Task exceptions
--	Various bug fixes
+# 0.1.0-20220509.1.1 (Release [171893](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=171893&_a=release-pipeline-progress)), released on 5/11/2022
+- Context.GetBuildEngineDirectory() returns a normalized engine path
+- ExecutionLogSDK is now dotnet core only
+- CredScan updated to 2.2.7.8
+- Update Grpc.Net client to fix unobserved Task exceptions
+- Various bug fixes
 
-# 0.1.0-20220429.3 (Release [167793](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=167793&_a=release-pipeline-progress)) Released 5/6/2022
--	Eagerly ensure minimum workers
--	Early worker release for COSINE builds
--	Various fixes and improvements
+# 0.1.0-20220429.3 (Release [167793](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=167793&_a=release-pipeline-progress)), released on 5/6/2022
+- Eagerly ensure minimum workers
+- Early worker release for COSINE builds
+- Various fixes and improvements
 
-# 0.1.0-20220413.1 (Release [161474](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=161474&_a=release-pipeline-progress)) Released 4/20/2022
--	Spanify StringTable GetExtension and RemoveExtension.
--	Add Support for FlawFinder with Guardian.
--	Add unsafe execute option to disable sandboxing at the pip level
--	Make status update frequency more dynamic for Azure DevOps Listener.
--	Various bug fixes.
+# 0.1.0-20220413.1 (Release [161474](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=161474&_a=release-pipeline-progress)), released on 4/20/2022
+- Spanify StringTable GetExtension and RemoveExtension.
+- Add Support for FlawFinder with Guardian.
+- Add unsafe execute option to disable sandboxing at the pip level
+- Make status update frequency more dynamic for Azure DevOps Listener.
+- Various bug fixes.
 
-# 0.1.0-20220331.4.2 (Release [159571](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=159571)) Released 4/8/2022
--	Avoid calling globR on ComplianceBuild
--	Handle incorrect file name length for SetFileInfoByHandle
--	Various fixes 
+# 0.1.0-20220331.4.2 (Release [159571](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=159571)), released on 4/8/2022
+- Avoid calling globR on ComplianceBuild
+- Handle incorrect file name length for SetFileInfoByHandle
+- Various fixes 
 
-# 0.1.0-20220327.0 (Release [154760](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=154760)) Released 3/30/2022
--	Added support for using Grpc.NET with .net6
--	Fix for cache client logger crash
--	Emit target failed event for eventual display on CloudBuild UI
--	Configuration cleanup
--	Preserve state of statsprf.json file on build timeout
--	Incremental scheduling performance improvements
--	Improvements for process remoting server initialization
+# 0.1.0-20220327.0 (Release [154760](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=154760)), released on 3/30/2022
+- Added support for using Grpc.NET with .net6
+- Fix for cache client logger crash
+- Emit target failed event for eventual display on CloudBuild UI
+- Configuration cleanup
+- Preserve state of statsprf.json file on build timeout
+- Incremental scheduling performance improvements
+- Improvements for process remoting server initialization
 
-# 0.1.0-20220318.6.1 (Release [152886](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=152886)) Released 3/23/2022
--	Add some tolerance for late-joining workers 
--	Enable module affinity
--	Enable net6.0 by default
--	Handle new line characters in detours
--	Improve cache stability for directories created by pips
--	Several bug fixes
+# 0.1.0-20220318.6.1 (Release [152886](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=152886)), released on 3/23/2022
+- Add some tolerance for late-joining workers 
+- Enable module affinity
+- Enable net6.0 by default
+- Handle new line characters in detours
+- Improve cache stability for directories created by pips
+- Several bug fixes
 
-# 0.1.0-20220311.6 (Release [148943](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148934)) Released 3/16/2022
--	Better descriptions for ninja pips
--	Various fixes and improvements
+# 0.1.0-20220311.6 (Release [148943](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148934)), released on 3/16/2022
+- Better descriptions for ninja pips
+- Various fixes and improvements
 
-# 0.1.0-20220306.0.2 (Release [148113](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148113)) Released 3/9/2022
+# 0.1.0-20220306.0.2 (Release [148113](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=148113)), released on 3/9/2022
 - Allow increasing batch limit for orchestrator->worker RPC when sending MaterializeOutput requests
 - Support custom SBOM overrides through DropDaemon arguments
 - Entries in RuntimeConfigFiles are sorted to avoid artificial cache misses
 - Environment variable inputs to the graph are now compared in a case-sensitive way
 - Various fixes and improvements
 
-# 0.1.0-20220225.2 (Release [144135](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=144135)) Released 3/2/2022
+# 0.1.0-20220225.2 (Release [144135](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=144135)), released on 3/2/2022
 - Updated BuildXL trace documentation
 - Enable remoting cache tests
 - BsiMetadataExtractor to take custom PackageVersion
 
-# 0.1.0-20220218.5 (Release [141436](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=141436)) Released 2/24/2022
--	Add milliseconds to CriticalPath table logging
--	Globally skip logging specific warnings when CtrlC cancellation token is signaled
--	Add option in cache dump analyzer to process multiple pips in single invocation
--	Sort outputs to mitigate same-content concurrent pushes
--	Add experimental CPU resource awareness option to scheduler
--	Enable high pipe read retry count for Net6
--	Disable embedded webview for interactive authentication
--	Update Lage graph builder tool to accept a lage location parameter
+# 0.1.0-20220218.5 (Release [141436](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=141436)), released on 2/24/2022
+- Add milliseconds to CriticalPath table logging
+- Globally skip logging specific warnings when CtrlC cancellation token is signaled
+- Add option in cache dump analyzer to process multiple pips in single invocation
+- Sort outputs to mitigate same-content concurrent pushes
+- Add experimental CPU resource awareness option to scheduler
+- Enable high pipe read retry count for Net6
+- Disable embedded webview for interactive authentication
+- Update Lage graph builder tool to accept a lage location parameter
 
-# 0.1.0-20220211.6 (Release [138769](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=138769)) Released 2/16/2022
--	Improve performance of storing outputs in cache
--	Add remotely run processes to the console.
--	Detours improvements
--	Increase service pip handshake timeout Increase service pip handshake timeout
--	Add WMI counters to monitor CPU congestion
--	Log MaterializeOutputOverhang duration for MetaBuild.
--	Remove HashFile pip from source nodes in CriticalPathAnalyzer
--	Explicitly report directory probes in detours
--	Update critical path calculation and priority assignment
+# 0.1.0-20220211.6 (Release [138769](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=138769)), released on 2/16/2022
+- Improve performance of storing outputs in cache
+- Add remotely run processes to the console.
+- Detours improvements
+- Increase service pip handshake timeout Increase service pip handshake timeout
+- Add WMI counters to monitor CPU congestion
+- Log MaterializeOutputOverhang duration for MetaBuild.
+- Remove HashFile pip from source nodes in CriticalPathAnalyzer
+- Explicitly report directory probes in detours
+- Update critical path calculation and priority assignment
 
-# 0.1.0-20220204.4 (Release [136160](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=136160)) Released 2/10/2022
--	Switch BuildXL.Tools.CredentialProvider to .NET6
--	Limit rush tests concurrency
--	Enable limiting resource stats for distributed builds
--	Add configurable waiting time for remote worker attachment
--	Include the drop name in the drop log filename
--	Various bug and dependency fixes
+# 0.1.0-20220204.4 (Release [136160](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=136160)), released on 2/10/2022
+- Switch BuildXL.Tools.CredentialProvider to .NET6
+- Limit rush tests concurrency
+- Enable limiting resource stats for distributed builds
+- Add configurable waiting time for remote worker attachment
+- Include the drop name in the drop log filename
+- Various bug and dependency fixes
 
-# 0.1.0-20220128.1 (Release [133425](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=133425)) Released 2/2/2022
+# 0.1.0-20220128.1 (Release [133425](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=133425)), released on 2/2/2022
 - Move sarif files under a single location
 - Add counter for time spent replaying outputs on remote cache hit
 - Handle cancellation for cache pin operation
 - Migrate cache, drop, and symbols authentication to MSAL
 - Publish .net6 packages for all platforms
 
-# 0.1.0-20220114.1 (Release [128430](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=128430)) Released 1/19/2022
--	Reduce high-volume logging for distributed pip requests
--	Allow specifying search paths for JS coordinators in resolver configuration
--	Handle Crtl+C cancellation when interacting with the cache
--	Simplify subst usage for dev cache with new /runInSubst flag
--	Various bug fixes
+# 0.1.0-20220114.1 (Release [128430](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=128430)), released on 1/19/2022
+- Reduce high-volume logging for distributed pip requests
+- Allow specifying search paths for JS coordinators in resolver configuration
+- Handle Crtl+C cancellation when interacting with the cache
+- Simplify subst usage for dev cache with new /runInSubst flag
+- Various bug fixes
 
-# 0.1.0-20220107.4.1 (Release [128274](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=128274)) Released 1/14/2022
+# 0.1.0-20220107.4.1 (Release [128274](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=128274)), released on 1/14/2022
 - SPDX Improvements
 - Various bug fixes
 
- # 0.1.0-20211203.5 (Release [123327](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=123327)) Released 12/8/2021
+ # 0.1.0-20211203.5 (Release [123327](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=123327)), released on 12/8/2021
 - Add SBOM packages to SBOM generation step in DropDaemon
 - Light process pips are fully supported by scheduler
 - Add .net6.0 support 
@@ -525,24 +534,24 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Generate SBOMs by default and add the options to the Drop SDK
 - Various bug fixes
 
- # 0.1.0-20211112.2 (Release [121971](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=121971)) Released 11/18/2021
--	Address SBOM API scaling issues
--	Mount table is properly populated for DScript VSCode extension
--	Fix collisions during build manifest generation in multi-drop build
--	Various bug fixes
+ # 0.1.0-20211112.2 (Release [121971](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=121971)), released on 11/18/2021
+- Address SBOM API scaling issues
+- Mount table is properly populated for DScript VSCode extension
+- Fix collisions during build manifest generation in multi-drop build
+- Various bug fixes
 
-# 0.1.0-20211105.0 (Release [121386](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=121386)) Released 11/10/2021
+# 0.1.0-20211105.0 (Release [121386](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=121386)), released on 11/10/2021
 -  Telemetry is enabled by default for Microsoft internal developer builds
 -  Update DSCript VSCode plugin to the latest VSCode infrastructure
 -  Various bug fixes and perf improvements
 
-# 0.1.0-20211029.3 (Release [120929](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=120929)) Released 11/3/2021
+# 0.1.0-20211029.3 (Release [120929](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=120929)), released on 11/3/2021
 -  Improved cache miss analysis in dev cache builds
 -  Allow fingerprint augmentation for QTest pips
 -  Documentation updates
 -  Various bug fixes
 
-# 0.1.0-20211022.4 (Release [120385](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=120385&_a=release-pipeline-progress)) Released 10/27/2021
+# 0.1.0-20211022.4 (Release [120385](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=120385&_a=release-pipeline-progress)), released on 10/27/2021
 - New packed execution logging framework.
 - Object cache to fingerprint store for optimized access of the store.
 - Update ASPNetCore version to address security issue.
@@ -550,44 +559,44 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Differentiate between an individual DropConfig and global DropServiceConfig
 - Use native method for setting ACL instead of executing takeown/icacls.
 
-# 0.1.0-20211014.2.2 (Release [119987](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=119987&_a=release-pipeline-progress)) Released 10/20/2021
--	Only consider stale shared opaques in minimal + alien enumeration mode when lazy scrubbing is enabled.
--	Various fixes in DropDaemon service and SDK.
--	Direct console output to parent when there is no stdout/stderr hook for UnsandboxedProcess.
--	Improve compatibility with EnforceSomeTypeSanity linter policy.
--	Add environment variable BuildXLGrpcVerbosityLevel to control the verbosity level of GRPC logging. 
--	Use CloudBuild’s ESRP sign tool to sign BuildXL binaries.
--	.NET 6 support for Nuget spec generator.
--	Optimization: Replace blocking collection with concurrent queue for processing events in binary logger.
--	Various bug fixes.
+# 0.1.0-20211014.2.2 (Release [119987](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=119987&_a=release-pipeline-progress)), released on 10/20/2021
+- Only consider stale shared opaques in minimal + alien enumeration mode when lazy scrubbing is enabled.
+- Various fixes in DropDaemon service and SDK.
+- Direct console output to parent when there is no stdout/stderr hook for UnsandboxedProcess.
+- Improve compatibility with EnforceSomeTypeSanity linter policy.
+- Add environment variable BuildXLGrpcVerbosityLevel to control the verbosity level of GRPC logging. 
+- Use CloudBuild’s ESRP sign tool to sign BuildXL binaries.
+- .NET 6 support for Nuget spec generator.
+- Optimization: Replace blocking collection with concurrent queue for processing events in binary logger.
+- Various bug fixes.
 
 
-# 0.1.0-20211003.0.1 (Release [119237](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=119237)) Released 10/6/2021
--	Multi-drop handling by a single daemon 
--	Add various Materialization Daemon counters
--	Add network configuration to Yarn SDK
--	Fix taking file ownership and applying ACL
+# 0.1.0-20211003.0.1 (Release [119237](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=119237)), released on 10/6/2021
+- Multi-drop handling by a single daemon 
+- Add various Materialization Daemon counters
+- Add network configuration to Yarn SDK
+- Fix taking file ownership and applying ACL
 
-# 0.1.0-20210924.6.3 (Release [118701](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=118701)) Released 9/29/2021
--	[Detours] Account for null terminator in GetFinalPathNameByHandle
--	Reduce size of VSCode DScript package to allow auto-updating the package
--	Add --ignore-optional option to yard install arguments
--	Fix build manifest signing compatibility issue with some build queues
--	Various bug fixes
+# 0.1.0-20210924.6.3 (Release [118701](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=118701)), released on 9/29/2021
+- [Detours] Account for null terminator in GetFinalPathNameByHandle
+- Reduce size of VSCode DScript package to allow auto-updating the package
+- Add --ignore-optional option to yard install arguments
+- Fix build manifest signing compatibility issue with some build queues
+- Various bug fixes
 
-# 0.1.0-20210917.2  (Release [117834](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=117843)) Released 9/22/2021
--	Download resolver schedules proper pips
--	Full reparse point resolution can be disabled at the pip level
--	DScript support for expanding environment variables in paths and strings
--	Improvements on the Ninja frontend in order to better deal with the environment
--	Exclusive opaques can now be nested under shared opaques
--	Various bug fixes
+# 0.1.0-20210917.2  (Release [117834](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=117843)), released on 9/22/2021
+- Download resolver schedules proper pips
+- Full reparse point resolution can be disabled at the pip level
+- DScript support for expanding environment variables in paths and strings
+- Improvements on the Ninja frontend in order to better deal with the environment
+- Exclusive opaques can now be nested under shared opaques
+- Various bug fixes
 
-# 0.1.0-20210909.1  (Release [117108](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=117108)) Released 9/15/2021
+# 0.1.0-20210909.1  (Release [117108](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=117108)), released on 9/15/2021
 - Add new option to force regenerate nuget package specs.
--	Retry external VM processes on a different worker during retryable failures.
+- Retry external VM processes on a different worker during retryable failures.
 
-# 0.1.0-20210903.0  (Release [116707](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=116707)) Released 9/8/2021
+# 0.1.0-20210903.0  (Release [116707](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=116707)), released on 9/8/2021
 - Support VS2022 to BuildXL VS extension
 - Relax exclusive opaque violations to only consider actually produced files
 - [QTest] Update NuGet package to incorporate Gradle fix
@@ -595,17 +604,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [JavaScript] Add support for older Yarn workspace format
 - Various bug fixes
 
-# 0.1.0-20210826.4  (Release [116164](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=116164)) Released 9/1/2021
+# 0.1.0-20210826.4  (Release [116164](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=116164)), released on 9/1/2021
 - [QTest] Add support for uploading test coverage for JS
 - Various bugfixes
 
-# 0.1.0-20210821.0  (Release [115264](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=115764)) Released 8/26/2021
+# 0.1.0-20210821.0  (Release [115264](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=115764)), released on 8/26/2021
 - Enable useHistoricalCpuUsage by default in CloudBuild
 - Fixes to worker early release handling to avoid failures in certain conditions
 - Allow managing cluster state in distributed cache orchestrator
 - Various bug fixes
 
-# 0.1.0-20210813.0  (Release [115264](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=115264)) Released 8/18/2021
+# 0.1.0-20210813.0  (Release [115264](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=115264)), released on 8/18/2021
 - Added Drive write counters for C Drive in all Windows OS
 - Add ColdStorage using a FSCS
 - Update Node.js version to v16.6.1
@@ -614,14 +623,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Adding a new dispatcher to choose a worker for light pips
 - Various bug fixes
 
-# 0.1.0-20210808.0  (Release [114717](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=114717)) Released 8/11/2021
+# 0.1.0-20210808.0  (Release [114717](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=114717)), released on 8/11/2021
 - Light process pip improvements
 - Support encryption and authentication for grpc.core
 - Honor global passthroughs when building a Ninja pip's environment
 - Fixes for Guardian support
 - Limit the number of pip errors written into ADO summary file
 
-# 0.1.0-20210730.1.1  (Release [114273](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=114273)) Released 8/4/2021
+# 0.1.0-20210730.1.1  (Release [114273](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=114273)), released on 8/4/2021
 - [Guardian] Case insensitive directory name comparisons on Windows
 - [IPC/Service pips] Keep track of assigned ports (to avoid collisions)
 - [JavaScript] Use forwards slashes when passing paths to node.exe
@@ -629,22 +638,22 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [FileConsumptionAnalyzer] Include file hashes
 - A few other scheduler fixes/optimizations
 
-# 0.1.0-20210723.4  (Release [113559](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=113559)) Released 7/28/2021
--	Address race condition around remote pip timeout
--	Improvements for resource tracking for linux and macOS sandboxes
--	BuildXL support for honoring externally configured build session timeout
--	Support for building BuildXL repo with updated MSVC
--	Fix bug that caused suboptimal distribution/parallelization of IPC pips
--	Engine side changes to support encrypting RPC traffic in distributed builds
+# 0.1.0-20210723.4  (Release [113559](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=113559)), released on 7/28/2021
+- Address race condition around remote pip timeout
+- Improvements for resource tracking for linux and macOS sandboxes
+- BuildXL support for honoring externally configured build session timeout
+- Support for building BuildXL repo with updated MSVC
+- Fix bug that caused suboptimal distribution/parallelization of IPC pips
+- Engine side changes to support encrypting RPC traffic in distributed builds
 
-# 0.1.0-20210716.3.3  (Release [113341](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=113341)) Released 7/21/2021
--	Performance improvements around logging.
--	Fix failure when building BuildXL with missing VisualCppTools NuGet package
--	Allow accessing mount information during config evaluation 
--	Store the hash->buildManifestHash mapping in historic metadata cache
--	Disable remote pip timeouts
+# 0.1.0-20210716.3.3  (Release [113341](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=113341)), released on 7/21/2021
+- Performance improvements around logging.
+- Fix failure when building BuildXL with missing VisualCppTools NuGet package
+- Allow accessing mount information during config evaluation 
+- Store the hash->buildManifestHash mapping in historic metadata cache
+- Disable remote pip timeouts
 
-# 0.1.0-20210709.1 (Release [112441](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=112441)) Released 7/14/2021
+# 0.1.0-20210709.1 (Release [112441](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=112441)), released on 7/14/2021
 - [LinuxSandbox] Compile libDetours against glibc 2.17
 - [Guardian] Add updates for compliance build
 - [JS] Turn on full reparse point resolution whenever a JS resolver is present
@@ -653,20 +662,20 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - RocksDb Upgrade
 - Minor Bug fixes and improvements
 
-# 0.1.0-20210625.2.1 (Release [111646](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=111646)) Released 6/30/2021
+# 0.1.0-20210625.2.1 (Release [111646](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=111646)), released on 6/30/2021
 - [Detours] Fix buggy trim functions used in substitute process execution.
 - [JS] Enable extra dependencies to JavaScript projects.
 - [Drop] Allow customization of drop paths for directory content.
 - Handle non-existent safe rewrite.
 - Add orchestrator-side pip timeout for pips scheduled in the remote workers.
 
-# 0.1.0-20210618.5 (Release [110868](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=110868)) Released 6/23/2021
+# 0.1.0-20210618.5 (Release [110868](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=110868)), released on 6/23/2021
 - InKernelFileCopy will no longer throw an exception when it is not supported by the OS.
 - Print info about command-line length violation.
 - Use scoped PAT for build cache.
 - Workers message every two minutes even if there are no pip results to send.
 
-# 0.1.0-20210611.5 (Release [110170](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=110170)) Released 6/16/2021
+# 0.1.0-20210611.5 (Release [110170](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=110170)), released on 6/16/2021
 - Remap paths properly for reparse point paths to enforce
 - Add a flag to disable source file verification
 - Improve client-to-server connection monitoring
@@ -674,7 +683,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add enforceFullReparsePointsUnderPath argument
 - Optimize searching for reparse points in a path
 
-# 0.1.0-20210528.7 (Release [108880](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=108880)) Released 6/2/2021
+# 0.1.0-20210528.7 (Release [108880](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=108880)), released on 6/2/2021
 - DumpStringTable Analyzer
 - Deprecate IDistributionConfiguration.EnableSourceFileMaterialization
 - Fix SandboxedProcessInfo.MaxCommandLineLength to reflect true OS-imposed limits
@@ -683,39 +692,39 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Bugfix: RemoteWorker xlg blob processing 
 - Bugfix: avoid arithmetic overflow in ChooseQueueFastNextCount
 
-# 0.1.0-20210521.7.1 (Release [108460](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=108460)) Released 5/26/2021
+# 0.1.0-20210521.7.1 (Release [108460](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=108460)), released on 5/26/2021
 - Perf improvement on detours reparse point resolution logic
 - Expanded capacity of StringTable to deal with overflows
 - JavaScript SourceMap symbol support added to Symbol Daemon
 - Enable source verification across workers
 - Usability improvements for Guardian under BuildXL
 
-# 0.1.0-20210507.6 (Release [106582](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=106582)) Released 5/12/2021
+# 0.1.0-20210507.6 (Release [106582](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=106582)), released on 5/12/2021
 - [Dump pip Lite] Fixed minor issues in the output file
 - [MS Guardian] Add DScript SDK and documentation
 - Fixed an overflow in HistoricPerfDataTable
 - Various fixes and improvements
 
-# 0.1.0-20210430.2 (Release [105633](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=105633)) Released 5/6/2021
--	[JavaScript] Allow configuring process exit/retry codes and max number of retries in JavaScript resolvers.
+# 0.1.0-20210430.2 (Release [105633](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=105633)), released on 5/6/2021
+- [JavaScript] Allow configuring process exit/retry codes and max number of retries in JavaScript resolvers.
 - Update the calculation of orchestrator's slots in the distributed builds.
 
-# 0.1.0-20210423.8 (Release [104915](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=104915)) Released 4/28/2021
--	Rename “master” to “orchestrator” in distribution code.
--	Fixes to path combination and normalization logic in Detours.
--	Fix to delete present directories before materializing reparse points.
--	Build manifest performance and file materialization race fixes.
--	Add distribution testing.
--	Update default process retries to 3 and honour global untracked scopes for JS builds.
--	Various bug fixes to memory management.
+# 0.1.0-20210423.8 (Release [104915](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=104915)), released on 4/28/2021
+- Rename “master” to “orchestrator” in distribution code.
+- Fixes to path combination and normalization logic in Detours.
+- Fix to delete present directories before materializing reparse points.
+- Build manifest performance and file materialization race fixes.
+- Add distribution testing.
+- Update default process retries to 3 and honour global untracked scopes for JS builds.
+- Various bug fixes to memory management.
 
-# 0.1.0-20210416.5 (Release [104096](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=104096)) Released 4/21/2021
+# 0.1.0-20210416.5 (Release [104096](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=104096)), released on 4/21/2021
 - Dump Pip Lite - Track observed file accesses for failed pips 
 - Build Manifest: XLG event batching
--	Track the size of the associated files in the drop
+- Track the size of the associated files in the drop
 - Bug fixes for grpc communication layer.
 
-# 0.1.0-20210409.1.1 (Release [103647](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=103647)) Released 4/15/2021
+# 0.1.0-20210409.1.1 (Release [103647](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=103647)), released on 4/15/2021
 - Implement a file descriptor table in the Linux sandbox
 - [AnyBuild] Ensure deterministic output of DLLs for native builders
 - Improved logging in substitute shim, drop daemon and memory management
@@ -728,7 +737,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Minor adjustments for AnyBuild usage
 - Various bug fixes
 
-# 0.1.0-20210319.2 (Release [101111](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=101111)) Released 3/24/2021
+# 0.1.0-20210319.2 (Release [101111](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=101111)), released on 3/24/2021
 - Fix reparse point cache invalidation logic
 - Add azure artifacts credential helper support
 - Ignore events sent to orchestrator when pip results marked as complete
@@ -736,46 +745,46 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Fix MachineReimagesRule with empty stamp
 - Other bug fixes, auth fixes and unit test improvements.
 
-# 0.1.0-20210312.6 (Release [100149](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=100149)) Released 3/17/2021
+# 0.1.0-20210312.6 (Release [100149](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=100149)), released on 3/17/2021
 - Improve early worker release logic
 
-# 0.1.0-20210308.3 (Release [99402](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=99402)) Released 3/10/2021
+# 0.1.0-20210308.3 (Release [99402](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=99402)), released on 3/10/2021
 - [JavaScript] Add Yarn/Rush/Npm install to JavaScript SDK
 - [Build manifest] Generate and upload signed catalog file
 - Configurable critical commit level
 - Increase BuildXL API server concurrency to handle multiple daemons from service pips
 - Various bug fixes
 
-# 0.1.0-20210226.4.1 (Release [98790](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=98790)) Released 3/4/2021
--	Fix allowed same content source rewrite on convergence.
--	Warn on writes declared outside mounts. 
--	[Frontend] Add a method for getting a subdir of a shared opaque
--	[Build Manifest] Improve perf and logging, and add additional counter.
--	Add Azure Artifacts Credential Provider
--	Correct successfully attached workers count
--	Fix a crash in DumpPip analyzer
+# 0.1.0-20210226.4.1 (Release [98790](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=98790)), released on 3/4/2021
+- Fix allowed same content source rewrite on convergence.
+- Warn on writes declared outside mounts. 
+- [Frontend] Add a method for getting a subdir of a shared opaque
+- [Build Manifest] Improve perf and logging, and add additional counter.
+- Add Azure Artifacts Credential Provider
+- Correct successfully attached workers count
+- Fix a crash in DumpPip analyzer
 
-# 0.1.0-20210205.3.1  (Release [96124](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=96124&_a=release-pipeline-progress)) Released 2/10/2021
--	Added Dump pip lite analyzer
--	Improved synchronization for detoured processes
--	Better handling of connection timeouts on workers
--	Various bug fixes and perf improvements
+# 0.1.0-20210205.3.1  (Release [96124](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=96124&_a=release-pipeline-progress)), released on 2/10/2021
+- Added Dump pip lite analyzer
+- Improved synchronization for detoured processes
+- Better handling of connection timeouts on workers
+- Various bug fixes and perf improvements
 
 
-# 0.1.0-20210129.4 (Release [94335](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=94335)) Released 2/3/2021
+# 0.1.0-20210129.4 (Release [94335](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=94335)), released on 2/3/2021
 - Added handler for XLG event for failed pips
 - Improvements to Redis autoscaler
 - Upgrade AsyncFixer to v1.5.1 and fix the new async cases
 - QTest: Add LogUploadMode option and update nuget to change parser name
 - Various bug fixes and documentation improvements
 
-# 0.1.0-20210122.8 (Release [93209](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=93209)) Released 1/27/2021
+# 0.1.0-20210122.8 (Release [93209](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=93209)), released on 1/27/2021
 - Add breakaway process option in JS resolvers
 - [Detours] Fix symlink traversal for CreateFileW and NtCreateFile
 - Add the ability for DScript modules to define mounts
 - Various fixes and improvements
 
-# 0.1.0-20210118.0 (Release [92598](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=92598)) Released 1/20/2021
+# 0.1.0-20210118.0 (Release [92598](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=92598)), released on 1/20/2021
 - Process remoting via AnyBuild.
 - Added JavaScript SDK
 - Added Array.find ambient.
@@ -783,12 +792,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various updates on documentations.
 - Various bug fixes.
 
-# 0.1.0-20210107.0 (Release [91421](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=91421)) Released 1/13/2021
+# 0.1.0-20210107.0 (Release [91421](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=91421)), released on 1/13/2021
 - Added implicit DScript resolver to automatically reference build-in SDKs
 - Added getdirectories DScript function to return all directories output by a pip
 - Misc crash and bug fixes
 
-# 0.1.0-20201211.3.1 (Release [89756](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=89756)) Released 12/16/2020
+# 0.1.0-20201211.3.1 (Release [89756](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=89756)), released on 12/16/2020
 - Updated QTest nuget version
 - Verifying VolatileSet before sending reconcile events
 - Re-enable ChangingColumnFamilies KeyValueStoreTest
@@ -797,13 +806,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Detect connectivity issues between VM and Host (Improved VM retry logic)
 - Some code clean-up. Removed some features that were unused for a long time.
 
-# 0.1.0-20201204.5.1 (Release [88993](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=88993)) Released 12/9/2020
+# 0.1.0-20201204.5.1 (Release [88993](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=88993)), released on 12/9/2020
 - Added succeed fast pips
 - Better handling of frontend errors
 - [QTest] Update QTest SDK to facilitate JavaScript integration
 - Various fixes and improvements
 
-# 0.1.0-20201125.2 (Release [87786](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=87786)) Released 12/2/2020
+# 0.1.0-20201125.2 (Release [87786](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=87786)), released on 12/2/2020
 - File content table in server process
 - Engine state becoming immutable.
 - Exit-early-on-new-graph feature.
@@ -812,7 +821,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [JS Frontend] Support for customizing scheduling to enable Qtest into JavaScript frontend.
 - [LinuxSandbox] Report new process when libDetours.so is dynamically loaded
 
-# 0.1.0-20201107.0 (Release [85798](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=85798)) Released 11/11/2020
+# 0.1.0-20201107.0 (Release [85798](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=85798)), released on 11/11/2020
 - Don't delete parents of temp directories during scrubbing
 - Enable GRPC keepalive by default
 - Extra counters for Symbol Daemon
@@ -823,14 +832,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Fix Detours resolution cache
 - Make directory enumeration fingerprint more stable
 
-# 0.1.0-20201030.5 (Release [84823](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=84823)) Released 11/4/2020
--	[JavaScript] Support grouping script commands into a single pip
--	Handle duplicate file registration with different content in drop
--	Build manifest uploads from master to drop
--	Extra telemetry
--	Various bug fixes
+# 0.1.0-20201030.5 (Release [84823](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=84823)), released on 11/4/2020
+- [JavaScript] Support grouping script commands into a single pip
+- Handle duplicate file registration with different content in drop
+- Build manifest uploads from master to drop
+- Extra telemetry
+- Various bug fixes
 
-# 0.1.0-20201023.7.4 (Release [84361](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=84361)) Released 10/28/2020
+# 0.1.0-20201023.7.4 (Release [84361](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=84361)), released on 10/28/2020
 - Expose a DScript flag to control full reparse point resolving
 - Detours Reparse Point Resolver Improvements
 - Made directory fingerprint sensible to new undeclared directories for MinimalGraphWithAlienFiles
@@ -843,7 +852,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Skip IPC pips when materializing outputs by default
 - Minor bug fixes, flaky Unit Test fixes and some performance improvements
 
-# 0.1.0-20201017.0 (Release [83009](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=83009)) Released 10/21/2020
+# 0.1.0-20201017.0 (Release [83009](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=83009)), released on 10/21/2020
 - ModuleAffinity extra logging when used with earlyWorkerRelease
 - Add a new machine CPU reporting and jobObject stats
 - Untrack AppData and LocalAppData for QTest
@@ -852,36 +861,36 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [QTest support] Expose an option to let bxl communicate the retry attempt number to a pip via an env variable
 - Various bug fixes
 
-# 0.1.0-20201010.0.1 (Release [82325](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=82325)) Released 10/14/2020
+# 0.1.0-20201010.0.1 (Release [82325](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=82325)), released on 10/14/2020
 - Support for specifying per process pip retry.
 - Allow for specifying domain id in drop daemon.
 - QTest: change default retry mode to full.
 - Various bug fixes.
 
-# 0.1.0-20201004.2.3 (Release [81534](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=81534)) Released 10/7/2020
--	Allow creation junctions to non-existent targets.
--	Some fixes on the managed reparse point resolver.
--	SymbolDaemon - don't fail on empty SODs 
--	Fix module affinity hangs.
--	MaterializationDaemon - retry external parser on failure
--	Ensure that a service is running before a finalization pip is called.
--	Increase drop default timeout from 5m to 15m
+# 0.1.0-20201004.2.3 (Release [81534](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=81534)), released on 10/7/2020
+- Allow creation junctions to non-existent targets.
+- Some fixes on the managed reparse point resolver.
+- SymbolDaemon - don't fail on empty SODs 
+- Fix module affinity hangs.
+- MaterializationDaemon - retry external parser on failure
+- Ensure that a service is running before a finalization pip is called.
+- Increase drop default timeout from 5m to 15m
 
-# 0.1.0-20200927.0 (Release [80424](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=80424)).  Released 9/30/2020
+# 0.1.0-20200927.0 (Release [80424](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=80424)), released on 9/30/2020
 - Collecting machine counters became non-blocking for Scheduler
 - Optionally disable IsObsolete check during Ast Conversion for perf reasons
 - Expose preserve path casing as a DScript option
 - QTest: Upgrade QTest package version to 20.9.22.220402
 - QTest: Add untrackedPaths argument to QTest
 
-# 0.1.0-20200918.3 (Release [79359](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=79359)).  Released 9/23/2020
+# 0.1.0-20200918.3 (Release [79359](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=79359)), released on 9/23/2020
 - Materialization daemon: Add support for materializing output directories
 - Support for adding paths to graph file system
 - Add the case for VisualBasic task in VBCSCompiler
 - QTest: Fix DFA issue for target binaries and add retry mode
 - Some polishing on the Lage frontend
 
-# 0.1.0-20200914.5.2 (Release [78915](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=78915)).  Released 9/16/2020
+# 0.1.0-20200914.5.2 (Release [78915](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=78915)), released on 9/16/2020
 - Enable full reparse point resolving in Detours
 - Materialization daemon prep work
 - Add plugin support
@@ -889,7 +898,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Support caching pips producing junctions as outputs
 - Various bug fixes
 
-# 0.1.0-20200828.6.2 (Release [77557](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=77557)).  Released 9/2/2020
+# 0.1.0-20200828.6.2 (Release [77557](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=77557)), released on 9/2/2020
 - Scrub RestrictedTemp post build
 - Scrubber does not traverse directory junctions/symlinks anymore
 - Preserve path casing for all Unix systems inside of the observed path sets
@@ -898,7 +907,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add timeout for fingerprintstore operations
 - Various bug fixes and optimizations
 
-# 0.1.0-20200822.0 (Release [76190](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=76190)).  Released 8/26/2020
+# 0.1.0-20200822.0 (Release [76190](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=76190)), released on 8/26/2020
 - [QTest] Increate QTest timeout pip so BuildXL doesn’t cancel a test run before dbs.qtest.exe can
 - Escaping for PipDescription in PipExecutionPerformanceAnalyzer
 - Fix semistable hash in some log events
@@ -909,42 +918,42 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - More aggressive retries for pips running on Admin VM
 - Logging for per-pip expected and actual disk usage
 
-# 0.1.0-20200814.1 (Release [75164](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=75164)).  Released 8/19/2020
+# 0.1.0-20200814.1 (Release [75164](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=75164)), released on 8/19/2020
 - Retry processes that fail in VM
 - Use existing artifacts on disk during file materializations in dev mode
 - Safe source rewrite relaxation policy
 - Report intermediate directory symlink resolved paths as probe/read
 
-# 0.1.0-20200807.11.1 (Release [74593](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=74593)).  Released 8/12/2020
+# 0.1.0-20200807.11.1 (Release [74593](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=74593)), released on 8/12/2020
 - Fix blolbID mismatch due to incorrect chunkDedup hashes
--	Enable manageMemoryMode.EmptyWorkingSet by default for CB 
--	Remove pip description from distribution logs to reduce logging volume
--	Disable enableEvaluationThrottling by default
--	Add an env var to disable retry for detours-related failures
--	Asynchronous FingerprintStore loading
--	Fix retry crash with pip failing without logging an error
--	[QTest] Add CorruptCoverageFileFixer package to QTest SDK files
--	[JavaScript]Add support for untracking directories based on relative paths
+- Enable manageMemoryMode.EmptyWorkingSet by default for CB 
+- Remove pip description from distribution logs to reduce logging volume
+- Disable enableEvaluationThrottling by default
+- Add an env var to disable retry for detours-related failures
+- Asynchronous FingerprintStore loading
+- Fix retry crash with pip failing without logging an error
+- [QTest] Add CorruptCoverageFileFixer package to QTest SDK files
+- [JavaScript]Add support for untracking directories based on relative paths
 
-# 0.1.0-20200801.0 (Release [73610](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=73610)).  Released 8/5/2020
+# 0.1.0-20200801.0 (Release [73610](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=73610)), released on 8/5/2020
 - Add symbols support for output directories 
 - Add support for gRPC keepalive
 - Fix KeyNotFoundException in SandboxedProcessPipExecutor
 
-# 0.1.0-20200724.3.1 (Release [73072](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=73072)).  Released 7/29/2020
+# 0.1.0-20200724.3.1 (Release [73072](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=73072)), released on 7/29/2020
 - Fix passthrough user-profile environment variables when running in VM
 - Fix several issues with fingerprint store lookups
 - Fix double-write violations on temporary files under shared opaque directories
 - Fix misclassified pip materialization failures
 - Update to latest QTest
 
-# 0.1.0-20200717.1 (Release [71912](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=71912)).  Released 7/22/2020
--	Perf improvements on junction resolution in detours
--	Clean dynamic outputs on pip retry
--	Update .NET Core runtime to 3.1.6
--	Various bug fixes
+# 0.1.0-20200717.1 (Release [71912](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=71912)), released on 7/22/2020
+- Perf improvements on junction resolution in detours
+- Clean dynamic outputs on pip retry
+- Update .NET Core runtime to 3.1.6
+- Various bug fixes
 
-# 0.1.0-20200711.0 (Release [71168](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=71168)).  Released 7/15/2020
+# 0.1.0-20200711.0 (Release [71168](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=71168)), released on 7/15/2020
 - Enable non-nullable reference types for Cache Library 
 - Exclude ClientTelemetry.pdb from getting copied several times as a part of packages/final deployment.
 - Add Chromium tracer for BuildXL
@@ -959,7 +968,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Fix under build related to directory enumerations and undeclared sources
 - Some other bug fixes, documentation updates and test additions
 
-# 0.1.0-20200703.4.1 (Release [70555](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=70555)).  Released 7/8/2020
+# 0.1.0-20200703.4.1 (Release [70555](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=70555)), released on 7/8/2020
 - A new Yarn frontend
 - New counters for the size of materialized files
 - Minimum value of MaxNumPipTelemetryBatches is now 0
@@ -967,7 +976,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Process cancellation messages are now verbose
 - Misc bug fixes
 
-# 0.1.0-20200628.1 (Release [69479](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=69479)).  Released 7/1/2020
+# 0.1.0-20200628.1 (Release [69479](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=69479)), released on 7/1/2020
 - Improvements for FileConsumption analyzer to help optimize materialization
 - DumpPip analyzer – filter by produced shared opaque directory
 - Upgrade RocksDb to 6.10.2
@@ -978,14 +987,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Retry PipProcessStartFailed and PipTempDirectoryCleanup errors no another machine
 - Misc bug fixes 
 
-# 0.1.0-20200619.6.2 (Release [68625](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=68625)).  Released 6/24/2020
+# 0.1.0-20200619.6.2 (Release [68625](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=68625)), released on 6/24/2020
 - [Rush] Various fixes on Rush frontend.
 - Retry Detours semaphore creation in VM
 - Fix on Aria reporting limit.
 - [Linux] Cache reads/writes in sandbox.
 - [QTest] Upgrade QTest version to 20.6.12.220844 that includes fix for DFA in code coverage.
 
-# 0.1.0-20200612.5.1 (Release [68123](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=68123)).  Released 6/18/2020
+# 0.1.0-20200612.5.1 (Release [68123](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=68123)), released on 6/18/2020
 - Refine the default value of disableDefaultSourceResolver to false.
 - Clarify the cache saving message.
 - Add the resolver kinds used by the build as part of the statistics we send to Kusto 
@@ -995,13 +1004,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Added telemetry tags to toppipsperformanceinfo
 - Fixed Fields in graph fingerprints being ignored during fingerprint matching causing false matched
 
-# 0.1.0-20200608.2 (Release [67013](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=67013)).  Released 6/10/2020
+# 0.1.0-20200608.2 (Release [67013](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=67013)), released on 6/10/2020
 - Add more data to the detouring status: Is64BitProcess
 - Don't report surviving child processes when execution is canceled
 - Upgrading CB.QTest that includes old version of vstest to avoid new DFAs
 - Handle the case when a surviving child process crashes for linux-sandboxing
 
-# 0.1.0-20200602.10.2 (Release [66472](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=66472)).  Released 6/4/2020
+# 0.1.0-20200602.10.2 (Release [66472](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=66472)), released on 6/4/2020
 - New JavaScript dependency fixer analyzer
 - Composite shared opaque directories perf improvements
 - More configuration options for Drop
@@ -1009,7 +1018,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - New feature: output directory exclusions
 - Various Rush front end improvements 
 
-# 0.1.0-20200517.1 (Release [64507](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=64507)).  Released 5/20/2020
+# 0.1.0-20200517.1 (Release [64507](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=64507)), released on 5/20/2020
 - Allow client to recreate directories
 - Process Execution: implement chroot jail for *nix
 - Updated QTest nuget package to 20.5.15.183816
@@ -1021,14 +1030,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [Rush] Allow configuring to preserve the pathset casing at the pip process level.
 - Make composite Shared Opaque Directory content filters more flexible
 
-# 0.1.0-20200506.4 (Release [63394](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=63394)).  Released 5/13/2020
+# 0.1.0-20200506.4 (Release [63394](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=63394)), released on 5/13/2020
 - Fix for DisallowedFileAccess under user profile when running pips under admin VM in CloudBuild
 - [Windows] Not scrubbing directory symlinks anymore
 - [macOS] Catalina adjustments
 - Improvements to ADO listener
 - Various bug fixes
 
-# 0.1.0-20200501.3 (Release [62855](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=62855)).  Released 5/6/2020
+# 0.1.0-20200501.3 (Release [62855](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=62855)), released on 5/6/2020
 - Improved logging for memory AccessViolations
 - Update linux runtime to Ubuntu 18.04
 - Drop upload support for Rush resolver
@@ -1036,14 +1045,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Allow pips to specify they are uncancelable
 - Misc bug fixes
 
-# 0.1.0-20200424.6 (Release [62176](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=62176)).  Released 4/29/2020
+# 0.1.0-20200424.6 (Release [62176](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=62176)), released on 4/29/2020
 - Nicer rendering for batched cache miss analysis result.
 - Shared opaque filtering.
 - Selfhost build in Linux.
 - Use different server process for different hash type.
 - [Mac] XPC communication for MacOS Detours and ES extension.
 
-# 0.1.0-20200418.4 (Release [61546](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=61546)).  Released 4/22/2020
+# 0.1.0-20200418.4 (Release [61546](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=61546)), released on 4/22/2020
 - Deploy Rush builder tool in a way drop understands
 - Add telemetry event with per-pip runtimes for top N pips
 - Making external sandboxed process executor work on non-Windows 
@@ -1054,7 +1063,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Update historic perf data format version
 
 
-# 0.1.0-20200412.2.1 (Release [60874](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=60874)).  Released 4/15/2020
+# 0.1.0-20200412.2.1 (Release [60874](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=60874)), released on 4/15/2020
 - An option for less aggressive memory projection: /enableLessAggresiveMemoryProjection
 - Various Rush frontend improvements and new features
 - Do not publish empty fingerprint store 
@@ -1063,7 +1072,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [QTest] Update Nuget Package to 20.04.06
 
 
-# 0.1.0-20200403.2.1 (Release [60559](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=60559)).  Released 4/8/2020
+# 0.1.0-20200403.2.1 (Release [60559](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=60559)), released on 4/8/2020
 - Add BuildXL workingset usage to TotalAvailableRam at Execution phase 
 - Hook up logging to execution analyzer for graph loading failure details
 - Various Rush frontend improvements and new features
@@ -1078,49 +1087,49 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add a logic to remove redirectedProfile directory when junction creation fails
 
 
-# 0.1.0-20200315.0 (Release [58569](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=58569)).  Released 3/18/2020
--	Add support for nested shared opaque directories.
--	Add Rush frontend.
--	Optimizations for trusted file accesses.
--	Improvements for memory estimation for cancelled process pips.
--	Relax probing explicitly declared outputs that are also under an output directory.
--	Various bug fixes and improvements.
+# 0.1.0-20200315.0 (Release [58569](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=58569)), released on 3/18/2020
+- Add support for nested shared opaque directories.
+- Add Rush frontend.
+- Optimizations for trusted file accesses.
+- Improvements for memory estimation for cancelled process pips.
+- Relax probing explicitly declared outputs that are also under an output directory.
+- Various bug fixes and improvements.
 
 
-# 0.1.0-20200315.0 (Release [58569](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=58569)).  Released 3/18/2020
--	Add support for nested shared opaque directories.
--	Add Rush frontend.
--	Optimizations for trusted file accesses.
--	Improvements for memory estimation for cancelled process pips.
--	Relax probing explicitly declared outputs that are also under an output directory.
--	Various bug fixes and improvements.
+# 0.1.0-20200315.0 (Release [58569](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=58569)), released on 3/18/2020
+- Add support for nested shared opaque directories.
+- Add Rush frontend.
+- Optimizations for trusted file accesses.
+- Improvements for memory estimation for cancelled process pips.
+- Relax probing explicitly declared outputs that are also under an output directory.
+- Various bug fixes and improvements.
 
 
-# 0.1.0-20200306.7 (Release [57833](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=57833)).  Released 3/11/2020
--	Introduce EngineVersion feature to help management of breaking changes
--	Check file existence or executable before reporting access in CreateProcess()
--	Improve memory throttling and cancellation for dev builds
--	[QTest] Update to 20.3.2.221403
--	Progress towards Linux support for ContentStore layer
--	Enable pip retry on another worker by default in CloudBuild
--	Improve classification for failures that get retries on other workers
--	Experiment for closing timing gap between cache lookup and execution to reduce redundant work across build sessions
--	Fix CacheMiss bug around directory membership fingerprint missing
+# 0.1.0-20200306.7 (Release [57833](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=57833)), released on 3/11/2020
+- Introduce EngineVersion feature to help management of breaking changes
+- Check file existence or executable before reporting access in CreateProcess()
+- Improve memory throttling and cancellation for dev builds
+- [QTest] Update to 20.3.2.221403
+- Progress towards Linux support for ContentStore layer
+- Enable pip retry on another worker by default in CloudBuild
+- Improve classification for failures that get retries on other workers
+- Experiment for closing timing gap between cache lookup and execution to reduce redundant work across build sessions
+- Fix CacheMiss bug around directory membership fingerprint missing
 
 
-# 0.1.0-20200228.5 (Release [57057](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=57057)).  Released 3/4/2020
+# 0.1.0-20200228.5 (Release [57057](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=57057)), released on 3/4/2020
 - Added an ExecuteConvergedProcessDuration counter.
 - Disable batch logging in cache miss analysis by default.
 - Added full eviction sort which ensures content is sorted by distributed age.
 - Added 'requiresMacOperatingSystem' to *IfSupported attributes.
 
-# 0.1.0-20200221.3.1 (Release [56624](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=56624)).  Released 2/26/2020
+# 0.1.0-20200221.3.1 (Release [56624](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=56624)), released on 2/26/2020
 - Directory scrubber can follow directory symlinks
 - A new dispatcher in scheduler for seal directory pips.
 - [MacOS] Sandboxing using Endpoint Security API.
 
 
-# 0.1.0-20200214.6 (Release [55661](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=55661)).  Released 2/19/2020
+# 0.1.0-20200214.6 (Release [55661](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=55661)), released on 2/19/2020
 - Stop running in unsafe_IgnorePreloadedDlls mode by default
 - Convert to user-error: CTMIS due to 'access denied' errors
 - Log available physical memory at the beginning of the build
@@ -1128,7 +1137,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [QTest] Fix -testMethod problem
 - [QTest] Add environment variable for dotnetcore path in Cloudbuild
 
-# 0.1.0-20200207.4.1 (Release [55353](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=55353)).  Released 2/13/2020
+# 0.1.0-20200207.4.1 (Release [55353](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=55353)), released on 2/13/2020
 - Detours plugin for substitute process execution
 - Plumb ctrl-c through to PlaceFilesAsync
 - Add unsafe options detail to cache miss analysis result
@@ -1136,7 +1145,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Track paths used for weak fingerprint augmentation
 - Add new Dscript Api to Path: Path.createFromAbsolutePathString
 
-# 0.1.0-20200131.5.1 (Release [54373](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=54373)).  Released 2/5/2020
+# 0.1.0-20200131.5.1 (Release [54373](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=54373)), released on 2/5/2020
  - Re-enable `-TestMethod` and `-TestClass` in BuildXL selfhost
  - Make MSBuild resolver more robust
  - Runtime cache miss analysis fixes
@@ -1148,14 +1157,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
  - [QTest] Plumb 'acquireSemaphores' into QTest
  - [QTest] Enable code coverage
 
-# 0.1.0-20200124.5 (Release [53523](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=53523)).  Released 1/29/2020
--	Add session ID and session related ID to fingerprint store entry
--	Speed up write operations in fingerprint store
--	Support running crossgen on produced netcore binaries
--	DScript managed SDK improvements
--	Various bug fixes
+# 0.1.0-20200124.5 (Release [53523](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=53523)), released on 1/29/2020
+- Add session ID and session related ID to fingerprint store entry
+- Speed up write operations in fingerprint store
+- Support running crossgen on produced netcore binaries
+- DScript managed SDK improvements
+- Various bug fixes
 
-# 0.1.0-20200119.0 (Release [53036](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=53036)).  Released 1/22/2020
+# 0.1.0-20200119.0 (Release [53036](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=53036)), released on 1/22/2020
 - CriticalPath analyzer improvements
 - Improvements to handle larger builds (office multiple architectures)
 - [QTest] Add QTestMock support
@@ -1168,7 +1177,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various bugfixes
 
 
-# 0.1.0-20200103.10.2 (Release [51927](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49574)).  Released 1/8/2020
+# 0.1.0-20200103.10.2 (Release [51927](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49574)), released on 1/8/2020
 - Server GC re-enabled for macOS platform
 - Std err/out files get copied to the log directory upon pip failure
 - Improvements for runtime cache miss analysis accuracy and presentation
@@ -1184,17 +1193,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Stopped producing the net472 nuget package of BuildXL and the net472 version in drop
 - Misc bug fixes
 
-# 0.1.0-20191208.3 (Release [49574](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49574)).  Released 12/11/2019
--	ADO Listener respects /nowarn and other warning mappings.
--	Use cheaper hash algorithm for server deployment.
--	Add more parallelism in (and make async) Fingerprint store event processing.
--	Expose fingerprint computation data and shared opaque outputs.
--	Ensure that different repositories get different app servers.
--	DScript: detect cycles in ValueCache factories.
--	Fix a race condition when flushing execution log blobs at the end of a build.
--	Remove duplicates from ObservedAccessedFileNames
+# 0.1.0-20191208.3 (Release [49574](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49574)), released on 12/11/2019
+- ADO Listener respects /nowarn and other warning mappings.
+- Use cheaper hash algorithm for server deployment.
+- Add more parallelism in (and make async) Fingerprint store event processing.
+- Expose fingerprint computation data and shared opaque outputs.
+- Ensure that different repositories get different app servers.
+- DScript: detect cycles in ValueCache factories.
+- Fix a race condition when flushing execution log blobs at the end of a build.
+- Remove duplicates from ObservedAccessedFileNames
 
-# 0.1.0-20191127.2 (Release [49076](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49076)).  Released 12/4/2019
+# 0.1.0-20191127.2 (Release [49076](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49076)), released on 12/4/2019
 - Capture average phase working set in stats
 - Log duration of different phases during process execution
 - Improve cached graph log readability
@@ -1206,7 +1215,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Update ObservedInputSummaryAnalyzer to work consider ExistingFileProbe
 - Various logging improvements
 
-# 0.1.0-20191117.0 (Release [47500](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=47500&_a=release-pipeline-progress)). Released 11/20/2019
+# 0.1.0-20191117.0 (Release [47500](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=47500&_a=release-pipeline-progress)), released on 11/20/2019
 - Add vstestSettingsFileForCoverage in QTest SDK for code coverage setting file
 - Support existing file probe in incremental scheduling
 - Keep track of commit memory as a resource 
@@ -1214,7 +1223,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Improved handling of weak fingerprint augmentation
 
 
-# 0.1.0-20191107.6 (Release [46433](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=46433&_a=release-pipeline-progress)). Released 11/13/2019
+# 0.1.0-20191107.6 (Release [46433](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=46433&_a=release-pipeline-progress)), released on 11/13/2019
 - Proper handling of exceptions when reading sideband files.
 - Support for dotnetcore 3.0 for QTest.
 - Use POSIX delete for CASAAS.
@@ -1223,7 +1232,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Nuget credential provider improvements.
 
 
-# 0.1.0-20191102.0.2 (Release [45962](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=45962&_a=release-pipeline-progress)). Released 11/6/2019
+# 0.1.0-20191102.0.2 (Release [45962](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=45962&_a=release-pipeline-progress)), released on 11/6/2019
 - Improvements in memory-based scheduler throttling.
 - Make the ProcessRunScriptAnalyzer x-plat compatible.
 - [macOS] Low memory resource throttling improvements.
@@ -1233,7 +1242,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - New default arguments for CloudBuild.
 
 
-# 0.1.0-20191025.2.1 (Release [45157](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=45157&_a=release-pipeline-progress)). Released 10/30/2019
+# 0.1.0-20191025.2.1 (Release [45157](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=45157&_a=release-pipeline-progress)), released on 10/30/2019
 - Fix crashes in process dumper, and only dump processes under the same username
 - Fix access control check with scrubbing in net core builds.
 - Extend waiting period when creating crash dumps.
@@ -1243,15 +1252,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Re-include pdb files in the released binary.
 - Update documentation of several features.
 
-# 0.1.0-20191019.0.2 (Release [44428](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=44428)). Released 10/23/2019
--	Journal for shared opaque outputs.
--	Add preserveoutput trust level to process serializer and pip dump.
--	PipGraphFragmentGenerator: tool for generating pip graph fragment from specs
--	Fix access control check with scrubbing in NetCore builds
--	Fix the rendering of pip arguments for cache purposes
--	[macOS] Allow VM max memory pressure level to be configurable
+# 0.1.0-20191019.0.2 (Release [44428](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=44428)), released on 10/23/2019
+- Journal for shared opaque outputs.
+- Add preserveoutput trust level to process serializer and pip dump.
+- PipGraphFragmentGenerator: tool for generating pip graph fragment from specs
+- Fix access control check with scrubbing in NetCore builds
+- Fix the rendering of pip arguments for cache purposes
+- [macOS] Allow VM max memory pressure level to be configurable
 
-# 0.1.0-20191011.9.1 (Release [43540](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=43540)). Released 10/16/2019
+# 0.1.0-20191011.9.1 (Release [43540](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=43540)), released on 10/16/2019
 - Support for partial preserve outputs
 - Symbol daemon runner is configured for CloudBuild environment
 - New QTest version (19.10.5.1051)
@@ -1261,7 +1270,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Enforce weak fingerprint augmentation for MSBuild-scheduled pips
 - Use xattrs to mark shared opaque outputs on Mac
 
-# 0.1.0-20191003.4 (Release [42310](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=42310)). Released 10/9/2019
+# 0.1.0-20191003.4 (Release [42310](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=42310)), released on 10/9/2019
 - Removed old Microsoft.ContentStoreApp.exe from deployment (replaced with ContentStoreApp.exe)
 - Proper SIGILL handling on macOS
 - Optimizations for Office Mularchy builds
@@ -1272,17 +1281,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Build BuildXL VSCode extension with BuildXL
 - Make QTest SDK public
 
-# 0.1.0-20190925.15.6 (Release [42115](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=42115&_a=release-pipeline-progress)). Released 10/2/2019
+# 0.1.0-20190925.15.6 (Release [42115](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=42115&_a=release-pipeline-progress)), released on 10/2/2019
 - Fix source files missing in drop
 - Component Governance for NuGet Packages
 - Various bug fixes and stability improvements
 
-# 0.1.0-20190919.1.4  (Release [41538](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=41538&_a=release-pipeline-progress)). Released 9/26/2019
+# 0.1.0-20190919.1.4  (Release [41538](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=41538&_a=release-pipeline-progress)), released on 9/26/2019
 - Resource based cancelling with shared opaque output producers.
 - Less data to Kusto telemetry.
 - Reduce the amount of tracing produced by BuildXL’s cache client.
 
-# 0.1.0-20190913.9  (Release [40498](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=40498)). Released 9/19/2019
+# 0.1.0-20190913.9  (Release [40498](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=40498)), released on 9/19/2019
 - Use proper pip data support for directory id.
 - Augment (strengthen) weak fingerprint with common paths from observed path sets when a certain threshold of path sets is reached.
 - Rename DominoInvocation and ExtraEventDataReported Events.
@@ -1291,14 +1300,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add user facing documentation for XLDB.
 - Fix front end throttling arguments.
 
-# 0.1.0-20190906.8.2  (Release [40211](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=40211)). Released 9/11/2019
+# 0.1.0-20190906.8.2  (Release [40211](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=40211)), released on 9/11/2019
 - Optimization for elision of AbsentPathProbes under shared opaque directories
 - Allow error regex to apply to multiple lines of tool output
 - Improve caching when using GlobalUnsafePassthroughEnvironmentVariables
 - Update to QTest 19.9.6.1149. Expose qTestExcludeCcTargetsFile to exclude files from code coverage computation 
 - Various bug fixes and improvements
 
-# 0.1.0-20190830.7 (Release [39177](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=39177)). Released 9/5/2019
+# 0.1.0-20190830.7 (Release [39177](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=39177)), released on 9/5/2019
 - Ignore directory probes for produced files in shared opaques
 - Add more information to Disallowed File Access summary messages
 - Add support for parallel graph loading [BinaryGraph]
@@ -1306,7 +1315,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various bug fixes and improvements
 
 
-# 0.1.0-20190823.1.1 (Release [38769](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=38769)). Released 8/28/2019
+# 0.1.0-20190823.1.1 (Release [38769](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=38769)), released on 8/28/2019
 - Add CODE_OF_CONDUCT.md and SECURITY.md documents
 - Support for AzureDevOps formatting, summary page, etc.
 - Remove Bond RCP
@@ -1317,7 +1326,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Update to newest version of QTest
 
 
-# 0.1.0-20190816.9 (Release [37763](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=37763)). Released 8/21/2019
+# 0.1.0-20190816.9 (Release [37763](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=37763)), released on 8/21/2019
 - Add support for Azure devops Optimized output
 - Binary graph fragments for BuildXL
 - Introduce external input change list to BuildXL
@@ -1326,14 +1335,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - macOS customers shouldn’t use this release due to a regression
 
 
-# 0.1.0-20190809.3.4 (Release [37480](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=37480)). Released 8/15/2019
+# 0.1.0-20190809.3.4 (Release [37480](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=37480)), released on 8/15/2019
 - New macOS sandbox based on EndpointSecurity APIs
 - Introduce incrementalTool option to support gradle 
 - Add BuildXLRuntimeCacheMissAllPips environment variable
 - Various bug fixes and improvements
 
 
-# 0.1.0-20190803.1 (Release [36404](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=36404)). Released 8/7/2019
+# 0.1.0-20190803.1 (Release [36404](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=36404)), released on 8/7/2019
 - Reclassify some drop errors as user or infrastructure errors
 - CloudBuild paths are no longer hardcoded in BuildXL repo, but controlled externally by CloudBuild,
 - Improve colorization of DScript by default in VsCode
@@ -1341,7 +1350,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Some micro perf optimizations
 - Various bugfixes
 
-# 0.1.0-20190729.0 (Release [35768](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=35768)). Released 7/31/2019
+# 0.1.0-20190729.0 (Release [35768](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=35768)), released on 7/31/2019
 - **[BREAKING CHANGE]** Statistic and BulkStatistic tables will stopped being populated in Aria. FinalStatistics will still be populated
 - **[BREAKING CHANGE]** /unsafe_IgnoreUndeclaredAccessUnderSharedOpaques will no longer be enabled by default
 - File access monitoring fix for probing a synlink chaing without the reparse point flag
@@ -1352,7 +1361,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - We no longer publish net461 assemblies in our nuget packages
 - The VsCode language server now runs on netcoreapp3.0 rather than net472
 
-# 0.1.0-20190720.3.1 (Release [35267](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=35267)). Released 7/24/2019
+# 0.1.0-20190720.3.1 (Release [35267](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=35267)), released on 7/24/2019
 - Don't delete contents of preserved opaque directories on cache replay.
 - VstsCache with CoreCLR bits on Windows.
 - Fix overflow issue in FIleContentInfo.Existence.
@@ -1361,13 +1370,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add a warning when execution analyzer inputs are incomplete.
 - Distributed build bug fixes.
 
-# 0.1.0-20190707.2 (Release [33603](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=33603)). Released 7/10/2019
+# 0.1.0-20190707.2 (Release [33603](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=33603)), released on 7/10/2019
 - Fix errors getting into custom logs. 
 - Improve error handling on master when connection is lost with worker.
 - Force server redeployment on pipe exceptions.
 - Report violations under shared opaques for writes in existing files.
 
-# 0.1.0-20190630.0 (Release [32989](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=32989)). Released 7/3/2019
+# 0.1.0-20190630.0 (Release [32989](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=32989)), released on 7/3/2019
 - Added remote telemetry for ContentStoreApp.
 - Demoted file open failure message to diagnostics.
 - Fix hole in file access monitoring for shared opaques. Add /unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques- to receive new behavior. Expect us to reach out to you to coordinate migration if you are a shared opaques user.
@@ -1378,7 +1387,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - New copy file analyzer that prints out a list of all copy file pips.
 - Spec generator changes to always include dependency closure for full framework packages and allow for compatibility between 4.6.1+ full framework packages and .NETStandard only specs.
 
-# 0.1.0-20190622.1 (Release [32218](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=32218)). Released 6/26/2019
+# 0.1.0-20190622.1 (Release [32218](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=32218)), released on 6/26/2019
 - Improve Ctrl+C experience
 - Increase default number of retries for IPC connections
 - Don't force full framework for detours tests
@@ -1392,7 +1401,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [macOS] Make signal handling resilient to asynchronous calls
 - Add better support for opaque directories in DependencyAnalyzer 
 
-# 0.1.0-20190615.0 (Release [31601](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=31601)). Released 6/19/2019
+# 0.1.0-20190615.0 (Release [31601](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=31601)), released on 6/19/2019
 - New arguments - unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes
 - Add a way to specify passthrough environment variables for the MSBuild resolver
 - Reduce noise in cachemiss.log (fixed the ordering of elements in a fingerprint)
@@ -1400,19 +1409,19 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various perf improvements
 - Various bug fixes
 
-# 0.1.0-20190607.4 (Release [30942](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=30942)). Released 6/12/2019
+# 0.1.0-20190607.4 (Release [30942](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=30942)), released on 6/12/2019
 - When watson crash handling reports 0xDEAD BuildXl will retry the pip.
 - Various perf improvements
 - Various bug fixes
 
-# 0.1.0-20190531.4.3 (Release [30629](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=30629)). Released 6/5/2019
+# 0.1.0-20190531.4.3 (Release [30629](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=30629)), released on 6/5/2019
 - Update QTest to 19.5.29.221321
 - Redirect temp directories to be local when run in VM in CLoudBuild
 - Csv option for PipExecutionPerformanceAnalyzer
 - Improvements for cache logging
 - Misc bug fixes
 
-# 0.1.0-20190525.4.1 (Release [29991](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=29991)). Released 5/29/2019
+# 0.1.0-20190525.4.1 (Release [29991](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=29991)), released on 5/29/2019
 
 - Switched BuildXL public LKG to be the DotNetCore one.
 - Report the existence of outputs on workers.
@@ -1422,7 +1431,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [ContentStore] Avoid non-terminating process in quota keeper.
 - Mac kext is now notarized.
 
-# 0.1.0-20190518.0 (Release [29134](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=29134)). Released 5/22/2019
+# 0.1.0-20190518.0 (Release [29134](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=29134)), released on 5/22/2019
  - Allowed injection of shim process in lieu of all or some child processes.
  - Added ability to launch pips in VM.
  - Updated Google.Protobuf to 3.7
@@ -1432,7 +1441,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
  - [QTest] Added qTestRuntimeDependencies for explicit specification of extra run-time dependencies.
 
 
-# 0.1.0-20190510.8 (Release [28504](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=28504&_a=release-pipeline-progress)). Released 5/15/2019
+# 0.1.0-20190510.8 (Release [28504](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=28504&_a=release-pipeline-progress)), released on 5/15/2019
  - Increase WorkerAttachTimeout to 45min from 30min
  - Fix long path with SetFileAccessControl and HasWritableAccessControl operations
  - Adding qTestContextInfo to upload qtest results to VSTS
@@ -1440,7 +1449,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
  - [macOS] CoreRT native compilation for select projects targeting osx
  - [macOS] Use 'dependsOnCurrentHostOSDirectories' for tool definitions 
 
-# 0.1.0-20190503.9 (Release [27992](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=27992&_a=release-pipeline-progress)). Released 5/8/2019
+# 0.1.0-20190503.9 (Release [27992](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=27992&_a=release-pipeline-progress)), released on 5/8/2019
  - Add support for pip priority field and schedule according to pip priority as well as historic data.
  - ExecutionLog events are now processed asynchronously on master
  - Avoid using and killing VBCSCompiler.exe
@@ -1453,7 +1462,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
  - Update Microsft.Net.Compilers(Roslyn) to 3.0.0 to enable C#/CSharp 8 features
  - [macOS] Fix pip materialization issues on macOS
 
-# 0.1.0-20190426.9 (Release [27516](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=27516)). Released 5/1/2019
+# 0.1.0-20190426.9 (Release [27516](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=27516)), released on 5/1/2019
 - Fix EventCount telemetry for macOS
 - Switch cache miss analysis to json diff  (new output format)
 - Add lazy directory materialization for IPC pips
@@ -1462,7 +1471,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Use historic cpu usage info as weight during scheduling
 - Various bugfixes
 
-# 0.1.0-20190419.5 (Release [26949](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=26949)). Released 4/24/2019
+# 0.1.0-20190419.5 (Release [26949](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=26949)), released on 4/24/2019
  - Add support for default untracking for MacOs from DScript to match windows
  - Support to parse and merge in additional config files
  - MsBuild supports multi qualifeir builds
@@ -1472,7 +1481,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
  - Handle some new RS6 filesystem behavior changes
  - Various bugfixes
 
-# 0.1.0-20190412.7 (Release [26501](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=26501)). Released 4/17/2019
+# 0.1.0-20190412.7 (Release [26501](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=26501)), released on 4/17/2019
 - Scrub stray files in QTest deployment directories
 - Default mounts added for Mac
 - Switch expression added to DScript
@@ -1486,7 +1495,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various bug fixes
 
 
-# 0.1.0-20190329.14.1 (Release [25731](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=25731&_a=release-pipeline-progress)). Released 4/4/2019
+# 0.1.0-20190329.14.1 (Release [25731](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=25731&_a=release-pipeline-progress)), released on 4/4/2019
   - BuildXL now ships as a net472 instead of net461
   - Some initial long path support
   - Stop tracing TaskCanceledException as errors in cache
@@ -1497,21 +1506,21 @@ This page is a curated list of the release notes for releases after 0.20170619.4
   - Allow absent path probes of temp files under opaque directories if a pip depends on them
   - Various fixes
 
-# 0.1.0-20190324.0 (Release [24943](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=24943)). Released 3/27/2019
+# 0.1.0-20190324.0 (Release [24943](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=24943)), released on 3/27/2019
   - Net472 bits are ready-to-use. 
   - Delete extra files in fully sealed directories (if scrub flag is set).
   - Change OutputGraph file system to include dynamic outputs.
   - Allow default mounts to be respecified.
   - Various bug fixes.
 
-# 0.1.0-20190316.0 (Release [24373](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=24373)). Released 3/20/2019
+# 0.1.0-20190316.0 (Release [24373](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=24373)), released on 3/20/2019
   - Rename BuildXLScript to DScript.
   - BuildXL selfhost on Mac.
   - DScript SDK for managed code contains cross-plat resgen.
   - DScript has Array.sort method.
   - Various bug fixes.
 
-# 0.1.0-20190309.0.3 (Release [23983](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=23983)). Released 3/13/2019
+# 0.1.0-20190309.0.3 (Release [23983](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=23983)), released on 3/13/2019
   - Fixes for VsCode extensions
   - Fixes to FileImpactAnalyzer and PipExecutionPerformanceAnalyzer
   - Support for adding all kinds of artifacts to drop
@@ -1519,7 +1528,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
   - Memory guardrails for p-invoke calls on Mac
   - Nuget packages for CloudBuild, VSO and cache now contain net472 versions
 
-# 0.1.0-20190302.2 (Release [23179](https://dev.azure.com/mseng/Domino/_release?releaseId=23179&_a=release-summary)). Released 3/6/2019
+# 0.1.0-20190302.2 (Release [23179](https://dev.azure.com/mseng/Domino/_release?releaseId=23179&_a=release-summary)), released on 3/6/2019
 - Improved graph cache hits when environment variables or mount accesses are removed
 - Improved runtime cache miss analysis on strong fingerprint misses
 - Update from NetCore2.2.0-preview3 to NetCore2.2.0
@@ -1527,19 +1536,19 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Update QTest version to support qtestVstsContext flag
 
 
-# 0.1.0-20190224.0 (Release [22568](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=22568)). Released 2/27/2019
+# 0.1.0-20190224.0 (Release [22568](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=22568)), released on 2/27/2019
 - New Download resolver
 - Fixed drop error when calling addFilesToDrop with empty list
 - Fixed runtime cache miss analysis crashing a build
 - Various bug fixes
 
-# 0.1.0-20190215.7 (Release [22052](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=22052)). Released 2/20/2019
+# 0.1.0-20190215.7 (Release [22052](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=22052)), released on 2/20/2019
 - Net472 drop and BuildXL.net472 package are now produced to improve long path support on windows
 - SandboxExec tool is now a standalone package
 - Improve KEXT installation process
 - Various bug fixes
 
-# 0.1.0-20190208.9.1 (Release [21776](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=21776)). Released 2/13/2019
+# 0.1.0-20190208.9.1 (Release [21776](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=21776)), released on 2/13/2019
 - macOS KEXT performance improvements
 - Detour hardlink creation via SetInformationFile(FileLinkInformationEx)
 - Build runtime cache miss analysis improvements
@@ -1547,11 +1556,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Move telemetry tag statistics to a separate "PipCounters" kusto table and fix bug with tags containing underscores
 
 
-# 0.1.0-20190202.3 (Release [21316](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=21316)). Released 2/6/2019
+# 0.1.0-20190202.3 (Release [21316](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=21316)), released on 2/6/2019
 - Domino has been renamed to BuildXL
 - Misc crash and bug fixes
 
-# 0.20190119.2.2 (Release [20895](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=20895)). Released 1/24/2019
+# 0.20190119.2.2 (Release [20895](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=20895)), released on 1/24/2019
 - Fix underbuild caused by directory junctions
 - Fix IPC hanging issue
 - PipFingerprintAnalyzer for dumping pip fingerprint inputs from FingerprintStore
@@ -1566,13 +1575,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Improved shared opaque reliability for distributed builds
 - Various bug fixes
 
-# 0.20181207.2.1 (Release [19532](https://dev.azure.com/mseng/domino/_releasereleaseId=19532&_a=release-pipeline-progress)). Released 12/12/2018
+# 0.20181207.2.1 (Release [19532](https://dev.azure.com/mseng/domino/_releasereleaseId=19532&_a=release-pipeline-progress)), released on 12/12/2018
 - Perf and logging improvements for macOS
 - Better handling for ERROR_CANT_ACCESS_FILE result returned by CreateFile()
 - Improvements for .net standard consumers of repo artifacts
 - Crash fixes
 
-# 0.20181130.7.1 (Release [19155](https://dev.azure.com/mseng/domino/_releasereleaseId=19155&_a=release-pipeline-progress)). Released 12/5/2018.
+# 0.20181130.7.1 (Release [19155](https://dev.azure.com/mseng/domino/_releasereleaseId=19155&_a=release-pipeline-progress)), released on 12/5/2018
 - DominoScript's deployment Sdk has improved diagnostics for double deployment errors. The diagnostic now mentions the assemblies target framework as well.
 - Add netCoreApp support to our NuGet package generation
 - Cache tracing improvements
@@ -1580,7 +1589,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Keep RunInSubst.exe alive until child processes exit & reduce the wait time on substed drive from 30 to 5 seconds
 
 
-# 0.20181124.1.0 (Release [18756](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=18756)). Released 11/28/2018.
+# 0.20181124.1.0 (Release [18756](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=18756)), released on 11/28/2018
 - Introducing File Content Table to BuildXL Mac
 - Renaming the macOS sandbox to BuildXLSandbox
 - Perf improvements for highly cached builds in CloudBuild
@@ -1589,7 +1598,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Move CloudStoreSDk closer to DominoSdk
 
 
-# 0.20181110.3.0  (Release [18159](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=18159)). Released 11/14/2018.
+# 0.20181110.3.0  (Release [18159](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=18159)), released on 11/14/2018
 - Adding option in DScript to glob folders recursively
 - SharedOpaque distributed build fix
 - Add static predictions to the MsBuild resolver
@@ -1597,12 +1606,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - MacOS: perf fixes
 - MacOS: control spotlight indexing of artifact folders
 
-# 0.20181102.2.0  (Release [17787](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=17787)). Released 11/7/2018.
+# 0.20181102.2.0  (Release [17787](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=17787)), released on 11/7/2018
 - MacOS: Dynamic sandbox child process timeout & improved sandbox telemetry
 - MacOS: Dedupe Kext file access reports before sending to BuildXL client
 - Misc. bug fixes
 
-# 0.20181029.4.0 (Release [17574](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=17574&view=mine)). Released 10/31/2018.
+# 0.20181029.4.0 (Release [17574](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=17574&view=mine)), released on 10/31/2018
 - Don’t use POSIX delete on Windows to avoid hangs
 - Fix deadlock on pass-through file system
 - Handle files with multiple hard links in MacOS sandbox
@@ -1611,7 +1620,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Experimental MsBuild resolver based on MsBuild build graph construction API
 
 
-# 0.20181021.2.0 (Release [17290](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=17290)). Released 10/24/2018.
+# 0.20181021.2.0 (Release [17290](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=17290)), released on 10/24/2018
 - Fix false absent file probes under opaque directories with lazy materialization
 - Fix directory enumeration filters to handle allowspace file names
 - Detour move/rename directory correctly
@@ -1619,25 +1628,25 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Fix cache miss diff when UnsafeOptions are cut off
 
 
-# 0.20181012.14.0 (Release [16997](https://dev.azure.com/mseng/domino/_releasereleaseId=16997&_a=release-pipeline-progress)). Released 10/17/2018.
--	Fix the deletion of hardlinked source files on Unix
--	Enable cache miss analyzer (mode '/m:cachemiss') on macOS
--	Fixes/improvement for macOS Sandbox
--	Add information about input/output directory dependencies to DependencyAnalyzer
--	Improved handling of Nuget packages
--	Add support for opaque directories in Drop
--	Miscellaneous bug fixes and perf improvements
+# 0.20181012.14.0 (Release [16997](https://dev.azure.com/mseng/domino/_releasereleaseId=16997&_a=release-pipeline-progress)), released on 10/17/2018
+- Fix the deletion of hardlinked source files on Unix
+- Enable cache miss analyzer (mode '/m:cachemiss') on macOS
+- Fixes/improvement for macOS Sandbox
+- Add information about input/output directory dependencies to DependencyAnalyzer
+- Improved handling of Nuget packages
+- Add support for opaque directories in Drop
+- Miscellaneous bug fixes and perf improvements
 
 
-# 0.20181005.9.0 (Release [16715](https://dev.azure.com/mseng/domino/_releasereleaseId=16715&_a=release-pipeline-progress)). Released 10/10/2018.
--	Opaque directory details exposed in execution analyzers
--	Caching effectiveness improvement around weak fingerprint stability
--	Fix detours file probing hole around CreateFile without any access mode requested
--	BuildXL support for macOS Mojave
--	Misc bug fixes and perf improvements 
+# 0.20181005.9.0 (Release [16715](https://dev.azure.com/mseng/domino/_releasereleaseId=16715&_a=release-pipeline-progress)), released on 10/10/2018
+- Opaque directory details exposed in execution analyzers
+- Caching effectiveness improvement around weak fingerprint stability
+- Fix detours file probing hole around CreateFile without any access mode requested
+- BuildXL support for macOS Mojave
+- Misc bug fixes and perf improvements 
 
 
-# 0.20180928.5.0 (Release [16413](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=16413)). Released 10/3/2018.
+# 0.20180928.5.0 (Release [16413](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=16413)), released on 10/3/2018
 - Improved incremental scheduling to better handle file-system changes during build
 - Improved telemetry for FileChangeTracker
 - Added directory symlinks for macOS
@@ -1650,7 +1659,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Handle cases where an output file is declared as well as part of output directory
 - Fixed bug that can cause an incorrect graph to be reloaded when only the user account requesting a build changes
 
-# 0.20180922.1.0 (Release [16133](https://dev.azure.com/mseng/domino/_releasereleaseId=16133&_a=release-pipeline-progress)). Released 9/26/2018.
+# 0.20180922.1.0 (Release [16133](https://dev.azure.com/mseng/domino/_releasereleaseId=16133&_a=release-pipeline-progress)), released on 9/26/2018
 - Improved Shared Opaque directories
 - Removed legacy symlink options
 - Improved MacOs
@@ -1658,21 +1667,21 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various bugfixes
 
 
-# 0.20180914.8.2 (Release [15959](https://dev.azure.com/mseng/domino/_releasereleaseId=15959&_a=release-pipeline-progress)). Released 9/19/2018.
+# 0.20180914.8.2 (Release [15959](https://dev.azure.com/mseng/domino/_releasereleaseId=15959&_a=release-pipeline-progress)), released on 9/19/2018
 - Remove Mono.Posix/Unix dependencies
 - Logging updates to push status csv to Kusto in CloudBuild and include skipped/failed pips in dev.log.
 - Undeclared source read mode fixes
 - Update ENL to version that fixes Generated input flags for predicted outputs
 - Delete roots of pips' temporary directories after pips finish their executions
 
-# 0.20180907.10.0 (Release [15568](https://dev.azure.com/mseng/domino/_releasereleaseId=15568&_a=release-pipeline-progress)). Released 9/12/2018.
+# 0.20180907.10.0 (Release [15568](https://dev.azure.com/mseng/domino/_releasereleaseId=15568&_a=release-pipeline-progress)), released on 9/12/2018
 - Published signed Kext version 1.4.99
 - Enabled file change tracker to track paths crossing volume boundaries.
 - Add correctness check for copy-file pips when copying symlinks.
 - Handle dynamic writes (writes inside opaque directories) on paths that have been probed to be absent.
 - Added environment options for APEX builds. 
 
-# 0.20180905.5.0 (Release [15436](https://dev.azure.com/mseng/domino/_releasereleaseId=15436&_a=release-pipeline-progress)). Released 9/7/2018.
+# 0.20180905.5.0 (Release [15436](https://dev.azure.com/mseng/domino/_releasereleaseId=15436&_a=release-pipeline-progress)), released on 9/7/2018
 - Deprecate the following options: HashSymlinkAsTargetPath and AllowMissingOutputs
 - Store symlink targets as string
 - Measure the difference between the status logging frequency vs. how frequently it was scheduled as a signal for how unresponsive a machine is.
@@ -1681,19 +1690,19 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Introduce /masterDownThrottleCpu arg to reduce the load on master
 - Misc. bug fixes
 
-# 0.20180816.8.1 (Release [14801](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=14801)). Released 8/22/2018.
+# 0.20180816.8.1 (Release [14801](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=14801)), released on 8/22/2018
 - Optimize handling of reparse points in detours
 - Some legacy flags removed for DScript 
 - Event hub based event propagation for CloudStore
 - Various bug fixes
 
-# 0.20180810.7.0 (Release [14478](https://dev.azure.com/mseng/domino/_releasereleaseId=14478&_a=release-pipeline-progress)). Released 8/15/2018.
+# 0.20180810.7.0 (Release [14478](https://dev.azure.com/mseng/domino/_releasereleaseId=14478&_a=release-pipeline-progress)), released on 8/15/2018
 - Optimize handling of reparse points in detours
 - Some legacy flags removed for DScript 
 - Event hub based event propagation for CloudStore
 - Various bug fixes
 
-#  0.20180803.11.1 (Release [14338](https://dev.azure.com/mseng/domino/_releasereleaseId=14338&_a=release-pipeline-progress)). Released 8/9/2018.
+#  0.20180803.11.1 (Release [14338](https://dev.azure.com/mseng/domino/_releasereleaseId=14338&_a=release-pipeline-progress)), released on 8/9/2018
 - Pips can now safely produce symlinks
 - More tests are now running on Mac
 - GraphCache enabled for Mac
@@ -1705,7 +1714,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Simplified knobs for the file monitoring violation analyzer
 - Various bugfixes
 
-#  0.20180727.13.1 (Release [14122](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=14122)). Released 8/3/2018.
+#  0.20180727.13.1 (Release [14122](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=14122)), released on 8/3/2018
 
 - Fix performance regression due to FingerprintStore hitting RocksDB write stalls 
 - Fix graph agnostic incremental scheduling underbuild 
@@ -1714,7 +1723,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Fix pip StdOut logs being truncated 
 - Make ProcessRunScript setlocal and don't print invalid directories 
 
-# 0.20180720.22.1 (Release [13820](https://dev.azure.com/mseng/domino/_releasereleaseId=13820&_a=release-pipeline-progress)). Released 7/25/2018.
+# 0.20180720.22.1 (Release [13820](https://dev.azure.com/mseng/domino/_releasereleaseId=13820&_a=release-pipeline-progress)), released on 7/25/2018
 * Improved garbage collection in Fingerprint store
 * Rename QuickBuild into MsBuild in DominoScript
 * Add telemetry tags (allowing for aggregating telemetry stats based on special tags assigned to pips)
@@ -1722,7 +1731,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Fix underbuild due to File Content Table and File Change Tracker going out of sync
 * Fix number overflow in DScript literals
 
-# 0.20180713.2.0 (Release [13471](https://dev.azure.com/mseng/domino/_releasereleaseId=13471&_a=release-pipeline-progress)). Released 7/18/2018.
+# 0.20180713.2.0 (Release [13471](https://dev.azure.com/mseng/domino/_releasereleaseId=13471&_a=release-pipeline-progress)), released on 7/18/2018
 * macOS sandbox features and fixes
 * CacheMiss analyzer refinements for uncacheable pips
 * Reliability improvements for shared opaque directories
@@ -1732,7 +1741,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Fix effectiveness bug in Graph Agnostic Incremental Scheduling
 
 
-# 0.20180706.11.2 (Release [13360](https://dev.azure.com/mseng/domino/_releasereleaseId=13360&_a=release-pipeline-progress)). Released 7/11/2018.
+# 0.20180706.11.2 (Release [13360](https://dev.azure.com/mseng/domino/_releasereleaseId=13360&_a=release-pipeline-progress)), released on 7/11/2018
 * Create output file handle with sequential scan based on extension filter
 * Fixes for graph agnostic incremental scheduling
 * Updates to console logging to include copy, IPC, and write file status
@@ -1742,7 +1751,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Miscellanies bug fixes and perf improvements
 * Added an Api for caching values in DScript in module `Sdk.ValueCache`
 
-# 0.20180629.6.0 (Release [13031](https://dev.azure.com/mseng/domino/_releasereleaseId=13031&_a=release-pipeline-progress)). Released 7/5/2018.
+# 0.20180629.6.0 (Release [13031](https://dev.azure.com/mseng/domino/_releasereleaseId=13031&_a=release-pipeline-progress)), released on 7/5/2018
 * Introduced composite shared opaque directories.
 * Introduced safe handles for Helium containers.
 * Revamped KEXT communication.
@@ -1755,14 +1764,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
    - Fix for spec filters that ignore IPC pips.
 
 
-# 0.20180622.13.0 (Release [12817](https://dev.azure.com/mseng/domino/_releasereleaseId=12817&_a=release-pipeline-progress)). Released 6/27/2018.
+# 0.20180622.13.0 (Release [12817](https://dev.azure.com/mseng/domino/_releasereleaseId=12817&_a=release-pipeline-progress)), released on 6/27/2018
 * Created Build Break Analyzer
 * Experimental Graph Agnostic Incremental Scheduling with improvements
 * Fixed Drop failing in CB for Office
 * Miscellaneous bug fixes and perf improvements
 
 
-# 0.20180615.11.0 (Release [12554](https://dev.azure.com/mseng/domino/_releasereleaseId=12554&_a=release-pipeline-progress)). Released 6/15/2018.
+# 0.20180615.11.0 (Release [12554](https://dev.azure.com/mseng/domino/_releasereleaseId=12554&_a=release-pipeline-progress)), released on 6/15/2018
 * Output strong fingerprint calculation to XLG for failed pips
 * Enable critical path telemetry event
 * Handle anti dependency validation when file change tracker failed to track non-existent path
@@ -1772,7 +1781,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Bugfix: Fix OutOfMemoryException when reading large stdout stream
 
 
-# 0.20180608.12.0 (Release [12344](https://dev.azure.com/mseng/domino/DominoCore/_releasereleaseId=12344&_a=release-pipeline-progress)). Released 6/13/2018.
+# 0.20180608.12.0 (Release [12344](https://dev.azure.com/mseng/domino/DominoCore/_releasereleaseId=12344&_a=release-pipeline-progress)), released on 6/13/2018
 * Qualifier details are displayed as part of pip progress indicator
 * XML transformers are removed
 * Improved crash telemetry
@@ -1781,7 +1790,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Several bug fixes
 
 
-# 0.20180602.3.2 (Release [12226](https://dev.azure.com/mseng/domino/_releasereleaseId=12226&_a=release-pipeline-progress)) Released 6/6/2018
+# 0.20180602.3.2 (Release [12226](https://dev.azure.com/mseng/domino/_releasereleaseId=12226&_a=release-pipeline-progress)), released on 6/6/2018
 * Add per-phase disk active time to stats file
 * Change the default of /escapeIdentifiers to true
 * Exclude spec path from semi-stable hash in DScript V2 builds
@@ -1794,10 +1803,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Bugfix: Handle the case where Journal can go back in time
 * Bugfix: Fix crash in LogStats
 ## Patches
-1. 0.20180602.3.3 (Release [12283](https://dev.azure.com/mseng/domino/TSE%20Team/_releasereleaseId=12283&_a=release-pipeline-progress)) Released 6/7/2018
+1. 0.20180602.3.3 (Release [12283](https://dev.azure.com/mseng/domino/TSE%20Team/_releasereleaseId=12283&_a=release-pipeline-progress)), released on 6/7/2018
    * Fix counter collection for stopwatches
 
-# 0.20180525.3.0 (Release [11939](https://dev.azure.com/mseng/domino/_releasereleaseId=11939&_a=release-pipeline-progress)) Released 5/31/2018
+# 0.20180525.3.0 (Release [11939](https://dev.azure.com/mseng/domino/_releasereleaseId=11939&_a=release-pipeline-progress)), released on 5/31/2018
 * Associate FileChangeTracker with BuildXL engine version
 * Tokenize machine specific paths in pathsets to improve x-machine cache hit rate
 * Allow source files to be inputs even if a directory is fully sealed
@@ -1805,10 +1814,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Fixes for critical path analyzer
 * IO reduction for FingerprintStore and HistoricMetadataCache
 
-# 0.20180520.2.1 (Release [11913](https://dev.azure.com/mseng/domino/_releasereleaseId=11913&_a=release-pipeline-progress)) Released 5/24/2018
+# 0.20180520.2.1 (Release [11913](https://dev.azure.com/mseng/domino/_releasereleaseId=11913&_a=release-pipeline-progress)), released on 5/24/2018
 * Pip data paths should be case insensitive in fingerprints 
 
-# 0.20180520.2.0 (Release [11772](https://dev.azure.com/mseng/domino/_releasereleaseId=11772&_a=release-pipeline-progress)) Released 5/24/2018
+# 0.20180520.2.0 (Release [11772](https://dev.azure.com/mseng/domino/_releasereleaseId=11772&_a=release-pipeline-progress)), released on 5/24/2018
 * Graph Agnostic Icnremental Scheduling
 * Updated QTest version
 * Starting to collect telemetry on the Cache Miss Analyzer, Viewer and XlgAnalyzer
@@ -1821,10 +1830,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * BuildXL now runs on Net461, We'll stop building Net451 after 2 releases on June 10th.
 * Various bug fixes
 
-# 0.20180512.1.4 (Release [11662](https://dev.azure.com/mseng/domino/_releasereleaseId=11662&_a=release-pipeline-progress)) Released 5/18/2018
+# 0.20180512.1.4 (Release [11662](https://dev.azure.com/mseng/domino/_releasereleaseId=11662&_a=release-pipeline-progress)), released on 5/18/2018
 * Patch:  Garbage collect historic metadata cache in background on load rather than waiting till end of build
 
-# 0.20180512.1.3 (Release [11610](https://dev.azure.com/mseng/domino/_release?releaseId=11610&_a=release-summary)) Released 5/16/2018
+# 0.20180512.1.3 (Release [11610](https://dev.azure.com/mseng/domino/_release?releaseId=11610&_a=release-summary)), released on 5/16/2018
 * /nowarn prints warning to log, but not to console.
 * Fixes for enabling optimized mode of path mappings and journal for probing.
 * Make dpc filter work.
@@ -1835,10 +1844,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
    * Fix for /nowarn that incorrectly sends warnings to .wrn file.
    * Fix for stack overflow due to large module filters.
 
-# 0.20180504.4.2 (Release [11609](https://dev.azure.com/mseng/domino/_release?releaseId=11609&_a=release-summary)) Released 5/16/2018
+# 0.20180504.4.2 (Release [11609](https://dev.azure.com/mseng/domino/_release?releaseId=11609&_a=release-summary)), released on 5/16/2018
 * Fix for stack overflow due to large module filters.
 
-# 0.20180504.4.1 (Release [11392](https://dev.azure.com/mseng/domino/_release?releaseId=11392&_a=release-summary)) Released 5/11/2018
+# 0.20180504.4.1 (Release [11392](https://dev.azure.com/mseng/domino/_release?releaseId=11392&_a=release-summary)), released on 5/11/2018
 * Extended telemetry for graph cache miss analysis
 * Important perf update for Office
 * Cloud perf fixes for Office
@@ -1847,21 +1856,21 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Fix incremental scheduling overbuild
 * Patch: Incremental scheduling underbuild due to improperly order drives after deserialization
 
-# 0.20180427.9.0 (Release [11050](https://dev.azure.com/mseng/domino/_release?releaseId=11050&_a=release-summary)) Released 5/2/2018
+# 0.20180427.9.0 (Release [11050](https://dev.azure.com/mseng/domino/_release?releaseId=11050&_a=release-summary)), released on 5/2/2018
 * Add more glob support to BuildXL. Glob can now skip one directory level via ``glob(d`.`, "*/module.config.dsc")`` ([Documentation](/BuildXL/User-Guide/Script/Globbing))
 * Qualifiers can now be specified as value on the commandline i.e. ``/q:configuration=debug;platform=x64``. ([Documentation](/BuildXL/User-Guide/Script/Qualifiers))
 * Writing out Json files now has a convenience feature for dynamic keys.
 * Reduce frontend memory footprint
 * Various bug fixes
 
-# 0.20180420.10.0 (Release [10854](https://dev.azure.com/mseng/domino/_release?releaseId=10854&_a=release-workitems)) Released 4/25/2018
+# 0.20180420.10.0 (Release [10854](https://dev.azure.com/mseng/domino/_release?releaseId=10854&_a=release-workitems)), released on 4/25/2018
 
 - Pin caching (in-memory caching of remote pin operations) 
 - Journal scanning performance improvements 
 - Cache miss analyzer for incremental scheduling & graph filtering (in beta) 
 - Misc. bug fixes & performance improvements
 
-# 0.20180413.5.0 (Release [10599](https://dev.azure.com/mseng/domino/_release?releaseId=10599&_a=release-summary)) Released 4/18/2018
+# 0.20180413.5.0 (Release [10599](https://dev.azure.com/mseng/domino/_release?releaseId=10599&_a=release-summary)), released on 4/18/2018
 * A built-in DScript prelude is used when not specified
 * Scrubbing phase can now be cancelled
 * Improved help for the execution analyzer
@@ -1870,7 +1879,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Improved front-end statistics
 
 
-# 0.20180405.5.0 (Release [10352](https://dev.azure.com/mseng/domino/_release?releaseId=10352&_a=release-summary)) Released 4/11/2018
+# 0.20180405.5.0 (Release [10352](https://dev.azure.com/mseng/domino/_release?releaseId=10352&_a=release-summary)), released on 4/11/2018
 * Various memory optimizations
 * Add StringBuilder as ambient DScript type
 * Address the /forceSkipDeps hang in Office
@@ -1878,7 +1887,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Fix an underbuild bug involving weird interplay between BuildXL and InputTracker
 * Add support for optional outputs
 
-# 0.20180330.2.4 (Release [10310](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=10310&_a=release-summary)) Released 4/4/2018
+# 0.20180330.2.4 (Release [10310](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=10310&_a=release-summary)), released on 4/4/2018
 * Optimized directory membership fingerprint computation.
 * Fix on the use of OutputDebugString in Detours.
 * Retry when opening files for hashing time out.
@@ -1887,7 +1896,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
   - Fix non-terminating dirty build. 
   - Fix for underbuild due to cross-talk between different BuildXL versions through tracker file.
 
-# 0.20180316.7.0 (Release [9737](https://dev.azure.com/mseng/domino/_release?releaseId=9737&_a=release-summary)) Released 3/21/2018
+# 0.20180316.7.0 (Release [9737](https://dev.azure.com/mseng/domino/_release?releaseId=9737&_a=release-summary)), released on 3/21/2018
 * Add RAM throttling
 * Shrink serialized size for small StringTables
 * Target TLS 1.2 in domino & drop
@@ -1895,7 +1904,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Fix underbuild when a new directory is created under read-only mount
 
 
-# 0.20180309.2.0 (Release [9452](https://dev.azure.com/mseng/domino/_release?releaseId=9452&_a=release-summary)) Released 3/14/2018
+# 0.20180309.2.0 (Release [9452](https://dev.azure.com/mseng/domino/_release?releaseId=9452&_a=release-summary)), released on 3/14/2018
 * Ability to run journal scan in verify mode for absent file probes
 * Filename filter on Source Seal Directory
 * Historic metadata cache perf improvement
@@ -1904,7 +1913,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 # 0.20180303.2.1 
 * Hotfix patched release for adding directory creation of copy file pips under no CAS
 
-# 0.20180303.2.0 (Release [9249](https://dev.azure.com/mseng/domino/_release?releaseId=9249&_a=release-summary)) Released 3/7/2018
+# 0.20180303.2.0 (Release [9249](https://dev.azure.com/mseng/domino/_release?releaseId=9249&_a=release-summary)), released on 3/7/2018
 * BuildXL now compiles against net461 (next to net451 and netcore2.0)
 * Improve obsolete feature in DominoScript
 * Decrease amount of materialization for office builds
@@ -1913,10 +1922,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * More foundational work for BuildXL on Mac
 * Assorted bug fixes
 
-# 0.20180226.2.1 (Release [9289](https://dev.azure.com/mseng/domino/_release?releaseId=9289&_a=release-summary)) Released 3/5/2018
+# 0.20180226.2.1 (Release [9289](https://dev.azure.com/mseng/domino/_release?releaseId=9289&_a=release-summary)), released on 3/5/2018
 * Hotfix patched release for Fix incremental scheduling underbuild by retracking absent paths.
 
-# 0.20180226.2.0 (Release [9027](https://dev.azure.com/mseng/domino/_release?releaseId=9027&_a=release-summary)) Released 3/1/2018
+# 0.20180226.2.0 (Release [9027](https://dev.azure.com/mseng/domino/_release?releaseId=9027&_a=release-summary)), released on 3/1/2018
 * This release follows a week with no Prod release, so there is rather substantial set of changes.
 * A fix for Office underbuild issue (due to ChangeTracking) is not included in this build, so the same underbuild exists with this build. I’m not aware of any specific issue for WDG
 * Many reliability improvements for caching related issues
@@ -1924,16 +1933,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Improvements to fancy Console
 * Assorted bug fixes
 
-# 0.20180209.14.0 (Release [8433](https://dev.azure.com/mseng/domino/_release?releaseId=8433&_a=release-summary?releaseId=8433)) Released 2/14/2018
+# 0.20180209.14.0 (Release [8433](https://dev.azure.com/mseng/domino/_release?releaseId=8433&_a=release-summary?releaseId=8433)), released on 2/14/2018
 * Auto recovery and reliability improvements for caching related issues
 * Nuget improvements
 * VsCode improvements
 * Assorted bug fixes
 
-# 0.20180202.6.2 (Release [8423](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=8423&_a=release-summary)) Released 2/12/2018
+# 0.20180202.6.2 (Release [8423](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=8423&_a=release-summary)), released on 2/12/2018
 * Hotfix patched release for contract assertion failure in ObservedInputProcessor
 
-# 0.20180202.6.1 (Release [8219](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=8219)) Released 2/7/2018
+# 0.20180202.6.1 (Release [8219](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=8219)), released on 2/7/2018
 * Add support for incremental linker
 * Faster cache lookups
 * Separate existing file probes from file content reads to reduce cache sensitivity
@@ -1946,14 +1955,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * VsCode plugin bug fixes 
 * Various engine bug fixes 
 
-# 0.20180119.7.0 (Release [7635](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=7635)) Released 1/24/2018
+# 0.20180119.7.0 (Release [7635](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=7635)), released on 1/24/2018
 * Decorator support for string literals in DominoScript
 * TTL support to BFS cache
 * DScript plugin for Visual Studio Code improvements
 * Re-routing all execution logs back to master in distributed builds
 * Dedicated thread logger for CloudBuild
 
-# 0.20180112.9.0 (Release [7383](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=7383)) Released 1/17/2018
+# 0.20180112.9.0 (Release [7383](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=7383)), released on 1/17/2018
 * Add R/W (read/write) to new Disallowed File Access console messages
 * Analog DominoXml simplifications for Xtensa Ipa and Designer workflow.
 * Improve performance of Office Builds
@@ -1961,10 +1970,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Various memory improvements
 * Perf improvements for Find All References in Language Server
 
-# 0.20180105.8.2 (Release [7366](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=7366)) Released 1/12/2018
+# 0.20180105.8.2 (Release [7366](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=7366)), released on 1/12/2018
 * Fix under build in incremental scheduling after a cache hit
 
-# 0.20180105.8.0 (Release [7123](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=7123)) Released 1/10/2018
+# 0.20180105.8.0 (Release [7123](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=7123)), released on 1/10/2018
 * Directory deleting improvements
 * DScript IDE perf improvements
 * Fix for DScript frontend cache corruption
@@ -1976,7 +1985,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Cache database hardening for malformed image
 * Various bug fixes
 
-# 0.20171215.8.1 (Release [6740](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=6740)) Released 12/20/2017
+# 0.20171215.8.1 (Release [6740](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=6740)), released on 12/20/2017
 * New cache that can wrap existing cache and expose it through HTTP endpoint
 * Error reclassifying into User, Infrastructure, and Internal
 * Aggregating and simplifying file access violation logging
@@ -1986,7 +1995,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Various bug fixes
 
 
-# 0.20171207.10.0 (Release [6377](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=6377)) Released 12/12/2017
+# 0.20171207.10.0 (Release [6377](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=6377)), released on 12/12/2017
 * BuildXL Engine: Post graph validation
 * DScript workspace fixes and improvements
 * DominoScript: Allow @@Tool.option on types
@@ -2010,8 +2019,8 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Various bug fixes
 
 # 0.20171111.1.4 (Release [5820](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=5820))
-*	Fix under-build problem when DScript configuration files change (fix for #1129847)
-*	Fix issue where ChooseWorker is continually active if there are constrained resources (fix for #1124383) 
+* Fix under-build problem when DScript configuration files change (fix for #1129847)
+* Fix issue where ChooseWorker is continually active if there are constrained resources (fix for #1124383) 
 
 # 0.20171111.1.1 (Release [5677](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=5677))
 * Make NtCreateFile return NULL instead of INVALID_HANDLE_VALUE (fix for #1126681)

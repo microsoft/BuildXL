@@ -18,7 +18,6 @@ namespace BuildCacheAdapter {
             MemoizationStoreAdapter.dll,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
-            importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
 
             ...addIf(BuildXLSdk.isDotNetCoreOrStandard,

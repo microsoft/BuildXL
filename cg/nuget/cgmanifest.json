@@ -806,15 +806,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Azure.Services.AppAuthentication",
-          "Version": "1.0.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Azure.Storage.Common",
           "Version": "11.2.2"
         }
@@ -1420,15 +1411,6 @@
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Abstractions",
           "Version": "6.32.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.IdentityModel.Clients.ActiveDirectory",
-          "Version": "5.2.9"
         }
       }
     },

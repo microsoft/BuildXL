@@ -10,7 +10,6 @@ namespace Distributed {
         importFrom("Azure.Messaging.EventHubs").pkg,
         importFrom("Azure.Identity").pkg,
         importFrom("Azure.Core").pkg,
-        importFrom("Microsoft.Azure.Services.AppAuthentication").pkg,
         // Microsoft.Azure.EventHubs removes 'System.Diagnostics.DiagnosticSource' as the dependency to avoid deployment issue for .netstandard2.0, but this dependency
         // is required for non-.net core builds.
         ...(BuildXLSdk.isFullFramework 

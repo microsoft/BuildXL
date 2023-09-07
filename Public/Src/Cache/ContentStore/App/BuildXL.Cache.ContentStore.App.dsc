@@ -38,7 +38,6 @@ namespace App {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             
-            importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Newtonsoft.Json").pkg,
 
             ...getAzureBlobStorageSdkPackages(true),

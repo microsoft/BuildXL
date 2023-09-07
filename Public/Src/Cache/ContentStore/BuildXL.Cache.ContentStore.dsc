@@ -20,7 +20,6 @@ export const kustoPackages = [
     ...addIf(!BuildXLSdk.isDotNetCore, importFrom("System.Security.AccessControl").pkg),
     importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
     importFrom("Azure.ResourceManager.Kusto").pkg,
-    importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
     ...getAzureBlobStorageSdkPackages(true),
 ];
 

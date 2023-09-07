@@ -192,7 +192,6 @@ config({
                     dependentPackageIdsToSkip: ["System.Net.Http", "System.Reflection.TypeExtensions", "System.Runtime.Serialization.Primitives", "Newtonsoft.Json", "System.Diagnostics.DiagnosticSource"],
                 },
                 { id: "Microsoft.Azure.KeyVault.Core", version: "1.0.0" },
-                { id: "Microsoft.Azure.Services.AppAuthentication", version: "1.0.3" },
                 { id: "Microsoft.IdentityModel.Logging", version: "5.4.0" },
                 { id: "Microsoft.IdentityModel.Tokens", version: "5.4.0",
                     dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
@@ -259,8 +258,6 @@ config({
                 { id: "Microsoft.NET.Test.Sdk", version: "15.9.0" },
                 { id: "Microsoft.CodeCoverage", version: "15.9.0" },
 
-                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "5.2.9", /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                    dependentPackageIdsToSkip: ["Xamarin.Android.Support.CustomTabs", "Xamarin.Android.Support.v7.AppCompat"] },
                 { id: "System.Private.Uri", version: "4.3.2" },
 
                 // CloudStore dependencies

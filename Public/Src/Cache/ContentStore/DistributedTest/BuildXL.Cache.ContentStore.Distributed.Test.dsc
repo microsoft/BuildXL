@@ -65,8 +65,6 @@ namespace DistributedTest {
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("Azure.Core.Amqp").pkg,
                 importFrom("Microsoft.Azure.Amqp").pkg,
-                importFrom("Microsoft.Azure.Services.AppAuthentication").pkg,
-                importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
                 importFrom("System.IdentityModel.Tokens.Jwt").pkg
             ),
             ...getSerializationPackages(true),

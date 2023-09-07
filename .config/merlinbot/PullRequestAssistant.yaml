@@ -1,0 +1,10 @@
+# See merlinbot doc for details about updating this config:
+# https://eng.ms/docs/products/1es-merlinbot/extensions/prassistant
+enabled: true
+onPullRequestCreate:            # List of automated actions to take on a pull request create.
+- prompt: 'copilot: review'     # Perform code review on create of a pull request. 
+  autoResolve: true             # Auto resolve code review feedback comment.
+  detailed: false               # Should the generated review feedback be detailed.
+# Pull Request Assistant generated summaries are disabled
+#- prompt: 'copilot: summary'    # Append pull request summary with an AI-Generated description.
+#  autoResolve: true             # Auto resolve a comment posted after pull request summary is generated.

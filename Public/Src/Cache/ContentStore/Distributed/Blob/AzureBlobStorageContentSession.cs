@@ -465,8 +465,11 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                 if (contentAlreadyExistsInCache)
                 {
                     // Garbage collection requires that we bump the last access time of blobs when we attempt
-                    // to add a content hash list and one of its contents already exists. Performing a 1-byte
-                    // download to achieve this.
+                    // to add a content hash list and one of its contents already exists. The reason for this is that,
+                    // if we don't, a race condition exists where GC could attempt to delete the piece of content before
+                    // it knows that the new CHL exists. By touching the content, the last access time for this blob will
+                    // now be above the deletion threshold (GC will not delete blobs touched more recently than 24 hours ago)
+                    // and the race condition is eliminated.
                     var touchResult = await _clientAdapter.TouchAsync(context, client);
 
                     if (!touchResult.Succeeded)

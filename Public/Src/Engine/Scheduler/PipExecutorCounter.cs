@@ -1172,11 +1172,6 @@ namespace BuildXL.Scheduler
         ObservedInputProcessorComputePipFileSystemPaths,
 
         /// <nodoc/>
-        // TODO: Is this used?
-        [CounterType(CounterType.Stopwatch)]
-        ObservedInputProcessorReportUnexpectedAccess,
-
-        /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         RegisterStaticDirectory,
 

@@ -744,7 +744,6 @@ namespace BuildXL.App.Tracing
     /// There may be a cache creation involved and the server mode may not be able to start properly
     /// </summary>
     [SuppressMessage("Microsoft.Performance", "CA1815")]
-    [Serializable]
     public struct ServerModeStatusAndPerf
     {
         /// <summary>
@@ -752,21 +751,15 @@ namespace BuildXL.App.Tracing
         /// </summary>
         public ServerDeploymentUpToDateCheck UpToDateCheck { get; set; }
 
-        // TODO:for an owner: why the type is serializable? We're not using BinaryFormatter here.
-#pragma warning disable CA2235 // Mark all non-serializable fields
         /// <summary>
         /// Server mode couldn't be started
         /// </summary>
         public ServerModeCannotStart? ServerModeCannotStart { get; set; }
-#pragma warning restore CA2235 // Mark all non-serializable fields
 
-        // TODO:for an owner: why the type is serializable? We're not using BinaryFormatter here.
-#pragma warning disable CA2235 // Mark all non-serializable fields
         /// <summary>
         /// The server cache was created
         /// </summary>
         public ServerDeploymentCacheCreated? CacheCreated { get; set; }
-#pragma warning restore CA2235 // Mark all non-serializable fields
 
         public void Write(BinaryWriter writer)
         {

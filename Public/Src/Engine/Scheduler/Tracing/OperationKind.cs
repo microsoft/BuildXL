@@ -200,7 +200,6 @@ namespace BuildXL.Scheduler.Tracing
                 case PipExecutorCounter.ObservedInputProcessorTryQuerySealedInputContentDuration:
                 case PipExecutorCounter.ObservedInputProcessorTryProbeForExistenceDuration:
                 case PipExecutorCounter.ObservedInputProcessorComputePipFileSystemPaths:
-                case PipExecutorCounter.ObservedInputProcessorReportUnexpectedAccess:
                 case PipExecutorCounter.ObservedInputProcessorComputeSearchPathsAndFilterDuration:
                 case PipExecutorCounter.ObservedInputProcessorTryQueryDirectoryFingerprintDuration:
                 case PipExecutorCounter.ComputeWeakFingerprintDuration:

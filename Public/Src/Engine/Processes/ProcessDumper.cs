@@ -232,8 +232,6 @@ namespace BuildXL.Processes
                     // Ignore processes explicitly configured to be skipped or 
                     // that were created after the tree dump was initiated in case of the likely rare
                     // possibility that a pid got immediately reused.
-                    // TODO: this would be quite a bit more robust if it checked the job object to get parent rather than
-                    // relying on querying for pid and start times.
                     continue;
                 }
 

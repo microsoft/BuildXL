@@ -40,7 +40,6 @@ namespace BuildXL.Engine
     /// Environment variables
     /// Command line environment variable overrides
     /// Qualifiers
-    /// TODO:  Make EnvironmentVariables and paths machine independent
     /// </remarks>
     public sealed class InputTracker
     {

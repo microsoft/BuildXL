@@ -46,9 +46,6 @@ namespace BuildXL.Engine.Cache.Artifacts
     /// <remarks>
     /// TODO: Anti-dependencies: This thing should learn how to probe for files gracefully (instead of caller probing),
     ///         and add appropriate tracking entries for the anti-dependency (e.g. TryDiscover on an absent source file should be self sufficient).
-    /// TODO: Zig-zag: We should maybe only track changes to files which are *final*.
-    ///     We need to revisit the management of artifact states in zig-zag, so that we distinguish non-final placement (maybe
-    ///     we place the same file multiple times during top-down materialization) from final placement.
     /// </remarks>
     [SuppressMessage("Microsoft.Design", "CA1001:TypesThatOwnDisposableFieldsShouldBeDisposable")]
     public sealed class LocalDiskContentStore : ILocalDiskFileSystemView

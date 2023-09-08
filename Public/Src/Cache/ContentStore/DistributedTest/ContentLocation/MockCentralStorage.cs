@@ -85,5 +85,15 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             return BoolResult.Success;
         }
+
+        protected override Task<BoolResult> PruneInternalCacheCoreAsync(OperationContext context, string storageId)
+        {
+            lock (_storage)
+            {
+                _storage.Remove(storageId);
+            }
+
+            return Task.FromResult(BoolResult.Success);
+        }
     }
 }

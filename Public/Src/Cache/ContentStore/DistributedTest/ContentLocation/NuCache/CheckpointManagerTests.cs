@@ -9,7 +9,15 @@ using System.Text.Json;
 using Xunit;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
-using System.Drawing;
+using ContentStoreTest.Distributed.ContentLocation.NuCache;
+using System.Collections.Generic;
+using BuildXL.Utilities.Core;
+using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
+using System.Diagnostics;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using ContentStoreTest.Test;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 {
@@ -206,6 +214,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 
             Assert.Equal(test.CheckpointId, deserialized.CheckpointId);
             Assert.Equal(test.Producer, deserialized.Producer);
+        }
+
+        [Fact]
+        public async Task TestRemoveOldCheckpointsAsync()
+        {
+            var storage = new Dictionary<string, byte[]> { {"storageId1", new byte[1]}, {"storageId2", new byte[2]}, {"storageId3", new byte[3]}, {"storageId4", new byte[4]} };
+            var mockCentralStorage = new MockCentralStorage(storage);
+            var configuration = new CheckpointManagerConfiguration(new Interfaces.FileSystem.AbsolutePath(Constants.ValidAbsoluteLocalLongPath), new MachineLocation(string.Empty))
+            {
+                RestoreCheckpoints = false
+            };
+            var checkpointManager = new CheckpointManager(
+                database: null,
+                checkpointRegistry: null,
+                storage: mockCentralStorage,
+                configuration,
+                counters: new CounterCollection<ContentLocationStoreCounters>(),
+                new MemoryClock());
+
+            var oldManifest = new CheckpointManifest();
+            // Old checkpoints
+            oldManifest.Add(new CheckpointManifestContentEntry(new ShortHash("MD5:9777E590B9643C080FD001"), "relative_path_mock1", "storageId1", 1234));
+            oldManifest.Add(new CheckpointManifestContentEntry(new ShortHash("MD5:9777E590B9643C080FD003"), "relative_path_mock3", "storageId3", 1233));
+            var newManifest = new CheckpointManifest();
+
+            await checkpointManager.RemoveOldCheckpointsAsync(new BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext(new Context(TestGlobal.Logger)), oldManifest, newManifest);
+
+            // 2 entries should be removed
+            Assert.Equal(2, storage.Count);
+            Assert.True(storage.ContainsKey("storageId2"));
+            Assert.True(storage.ContainsKey("storageId4"));
         }
 
         [Fact]

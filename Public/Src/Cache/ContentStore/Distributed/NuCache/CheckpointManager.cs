@@ -25,6 +25,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 
 #nullable enable
 
@@ -224,14 +225,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var incrementalCheckpointsPrefix = $"incrementalCheckpoints/{sequencePoint.SequenceNumber}.{checkpointGuid}/";
 
             var files = _fileSystem.EnumerateFiles(_checkpointStagingDirectory, EnumerateOptions.Recurse).Select(s => s.FullPath);
-            var manifest = await UploadFilesAsync(
+
+            var currentManifest = DatabaseLoadManifest(context);
+            var newManifest = await UploadFilesAsync(
                 context,
                 _checkpointStagingDirectory,
                 files,
-                incrementalCheckpointsPrefix);
+                incrementalCheckpointsPrefix,
+                currentManifest);
 
             var manifestFilePath = _checkpointStagingDirectory / "checkpointInfo.txt";
-            DumpCheckpointManifest(manifestFilePath, manifest);
+            DumpCheckpointManifest(manifestFilePath, newManifest);
 
             var checkpointId = await Storage.UploadFileAsync(
                 context,
@@ -239,7 +243,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 incrementalCheckpointsPrefix + manifestFilePath.FileName,
                 garbageCollect: true).ThrowIfFailureAsync();
 
-            AddEntryToManifest(manifest, manifestFilePath.FileName, checkpointId);
+            AddEntryToManifest(newManifest, manifestFilePath.FileName, checkpointId);
 
             // Add incremental suffix so consumer knows that the checkpoint is an incremental checkpoint
             checkpointId += IncrementalCheckpointIdSuffix;
@@ -247,11 +251,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var checkpointState = new CheckpointState(
                 StartSequencePoint: sequencePoint,
                 CheckpointId: checkpointId,
-                Manifest: manifest,
+                Manifest: newManifest,
                 CheckpointTime: _clock.UtcNow,
                 Producer: _configuration.PrimaryMachineLocation);
 
             await CheckpointRegistry.RegisterCheckpointAsync(context, checkpointState).ThrowIfFailure();
+
+            if (currentManifest != null) {
+                RemoveOldCheckpointsAsync(context, currentManifest, newManifest).FireAndForget(context);
+            }
 
             return checkpointId;
         }
@@ -260,17 +268,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             AbsolutePath basePath,
             IEnumerable<AbsolutePath> files,
-            string incrementalCheckpointsPrefix)
+            string incrementalCheckpointsPrefix,
+            CheckpointManifest? currentManifest)
         {
             // Since checkpoints are extremely large and upload incurs a hashing operation, not having incrementality
             // at this level means that we may need to hash >100GB of data every few minutes, which is a lot.
             //
             // Hence:
             //  - We store the manifest for the previous checkpoint inside of the DB
-            //  - When creating a new checkpoint, we load that, and we only upload the files that were either not in
+            //  - When creating a new checkpoint, we load the currentManifest, and we only upload the files that were either not in
             //  there, are new, or are mutable.
-            //  - Then, we store the manifest into the DB.
-            var currentManifest = DatabaseLoadManifest(context);
+            //  - Then, we store the new manifest into the DB.
 
             long uploadSize = 0;
             long retainedSize = 0;
@@ -337,6 +345,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return newManifest;
         }
 
+        public async Task RemoveOldCheckpointsAsync(OperationContext context, CheckpointManifest oldManifest, CheckpointManifest newManifest)
+        {
+            foreach (var content in oldManifest.ContentByPath)
+            {
+                if (newManifest.TryGetValue(content.RelativePath) == null)
+                {
+                    await Storage.PruneInternalCacheAsync(context, content.StorageId).IgnoreFailure();
+                }
+            }
+        }
+
         internal static readonly Regex RocksDbCorruptionRegex = new Regex(
             @".*Slot(?:1|2)(?:\/|\\)(?<name>.*\.sst).*",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -364,6 +383,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Making sure that the extracted checkpoint directory exists before copying the files there.
                         _fileSystem.CreateDirectory(extractedCheckpointDirectory);
 
+                        var oldManifest = DatabaseLoadManifest(context);
                         var checkpointManifest = new CheckpointManifest();
 
                         if (!string.IsNullOrEmpty(checkpointState.CheckpointId) || checkpointState.Manifest is not null)
@@ -387,6 +407,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         var restoreResult = Database.RestoreCheckpoint(nestedContext, extractedCheckpointDirectory);
                         if (restoreResult.Succeeded)
                         {
+                            if (oldManifest != null)
+                            {
+                                RemoveOldCheckpointsAsync(nestedContext, oldManifest, checkpointManifest).FireAndForget(nestedContext);
+                            }
                             return BoolResult.Success;
                         }
 

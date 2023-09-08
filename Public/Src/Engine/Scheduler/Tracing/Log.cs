@@ -3476,7 +3476,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.KextFailedToInitializeConnectionManager,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
@@ -3485,7 +3485,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.KextFailureNotificationReceived,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),

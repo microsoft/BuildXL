@@ -104,7 +104,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndEndEvaluateValues,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             Message = EventConstants.PhasePrefix + "Done evaluating values in {statistics.ElapsedMilliseconds} ms.",
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Engine,
@@ -144,7 +144,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndWorkspaceAnalysisPhaseComplete,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             Message =
                 EventConstants.PhasePrefix + "Done type checking workspace in {statistics.ElapsedMilliseconds} ms. Projects: {statistics.ProjectCount}, modules: {statistics.ModuleCount}.",
             EventLevel = Level.Informational,
@@ -175,7 +175,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndParsePhaseComplete,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             Message = EventConstants.PhasePrefix + "Done creating evaluation model. {statistics.FileCount} files in {statistics.ElapsedMilliseconds} ms.",
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Engine,
@@ -195,7 +195,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndConvertPhaseComplete,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             Message = EventConstants.PhasePrefix + "Done creating evaluation model in {statistics.ElapsedMilliseconds} ms. Projects: {statistics.FileCount}, modules: {statistics.ModuleCount}.",
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Engine,
@@ -982,7 +982,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
         
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndWorkspaceMemoryCollectionSkipped,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "Workspace memory collection skipped. {message}",
@@ -991,7 +991,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
         
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndWorkspaceMemoryCollectedSuccessfully,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "Workspace memory collected successfully",
@@ -1000,7 +1000,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
         
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndWorkspaceMemoryNotCollected,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "Workspace memory was not collected. This increases memory footprint during evaluation phase.",

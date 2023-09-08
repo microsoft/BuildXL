@@ -50,7 +50,7 @@ namespace BuildXL.Engine.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.ParsePhaseComplete,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             Message = EventConstants.PhasePrefix + "Done parsing {parseStatistics.FileCount} files in {parseStatistics.ElapsedMilliseconds} ms.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
@@ -70,7 +70,7 @@ namespace BuildXL.Engine.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.EndEvaluateValues,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             Message = EventConstants.PhasePrefix + "Done evaluating values in {evaluateStatistics.ElapsedMilliseconds}ms. {evaluateStatistics.ValueCount} total values resolved, Full evaluation:{evaluateStatistics.FullEvaluation}.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
@@ -1393,7 +1393,7 @@ If you can't update and need this feature after July 2018 please reach out to th
 
         [GeneratedEvent(
             (ushort)LogEventId.EngineLoadedFileContentTable,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,

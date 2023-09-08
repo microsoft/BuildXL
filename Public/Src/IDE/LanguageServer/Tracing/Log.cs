@@ -28,7 +28,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.LanguageServerStarted,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.LanguageServer,
             Message = EventConstants.PhasePrefix + "Language server is started.",
@@ -37,7 +37,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.LanguageServerStoped,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.LanguageServer,
             Message = EventConstants.PhasePrefix + "Language server is stopped.",
@@ -46,7 +46,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.LanguageServerClientType,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.LanguageServer,
             Message = EventConstants.PhasePrefix + "Language server client type is '{clientType}'.",
@@ -64,7 +64,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.OperationIsTooLong,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.LanguageServer,
             Message = EventConstants.PhasePrefix + "Operation {operation} took longer ({durationInMs}ms) than expected.",

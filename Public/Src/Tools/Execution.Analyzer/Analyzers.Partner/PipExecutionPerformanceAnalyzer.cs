@@ -258,6 +258,7 @@ namespace BuildXL.Execution.Analyzer
                 IncrementIndent();
                 var p = level[i];
                 WriteLineIndented(I($"\"tool\" : \"{NormalizeString(GetToolName(p.Path))}\","));
+                WriteLineIndented(I($"\"processId\" : \"{p.ProcessId}\","));
                 WriteLineIndented(I($"\"path\" : \"{NormalizeString(TranslatePaths(p.Path))}\","));
                 WriteLineIndented(I($"\"commandLine\" : \"{NormalizeString(TranslatePaths(p.ProcessArgs))}\","));
                 WriteIOData(p.IOCounters);

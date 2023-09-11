@@ -107,18 +107,18 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
 
-            var connectionPool = new GrpcConnectionPool(new ConnectionPoolConfiguration()
+            var connectionPool = new GrpcConnectionMap(new ConnectionPoolConfiguration()
             {
                 DefaultPort = (int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort,
                 ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
                 UseGrpcDotNet = _distributedSettings.UseGrpcDotForMetadata(),
                 GrpcDotNetOptions = _distributedSettings.ContentMetadataClientGrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default,
             },
-            context: new OperationContext(_arguments.TracingContext.CreateNested(componentName: nameof(GrpcConnectionPool))));
+            context: new OperationContext(_arguments.TracingContext.CreateNested(componentName: nameof(GrpcConnectionMap))));
 
             var serviceArguments = new DistributedContentStoreServicesArguments
             (
-                ConnectionPool: connectionPool,
+                ConnectionMap: connectionPool,
                 DistributedContentSettings: _distributedSettings,
                 ContentLocationStoreConfiguration: ContentLocationStoreConfiguration,
                 Overrides: _arguments.Overrides,

@@ -30,22 +30,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement
 
         public Task<Result<IClusterStateStorage.HeartbeatOutput>> HeartbeatAsync(OperationContext context, IClusterStateStorage.HeartbeatInput request)
         {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                using var guard = await _lock.AcquireAsync(context.Token);
-                var (currentState, result) = _clusterStateMachine.HeartbeatMany(request, _clock.UtcNow);
-                _clusterStateMachine = currentState;
-                return Result.Success(new IClusterStateStorage.HeartbeatOutput(_clusterStateMachine, result));
-            });
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    using var guard = await _lock.AcquireAsync(context.Token);
+                    var (currentState, result) = _clusterStateMachine.HeartbeatMany(request, _clock.UtcNow);
+                    _clusterStateMachine = currentState;
+                    return Result.Success(new IClusterStateStorage.HeartbeatOutput(_clusterStateMachine, result));
+                },
+                traceOperationStarted: false);
         }
 
         public Task<Result<ClusterStateMachine>> ReadStateAsync(OperationContext context)
         {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                using var guard = await _lock.AcquireAsync(context.Token);
-                return Result.Success(_clusterStateMachine);
-            });
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    using var guard = await _lock.AcquireAsync(context.Token);
+                    return Result.Success(_clusterStateMachine);
+                },
+                traceOperationStarted: false);
         }
 
         public Task<Result<IClusterStateStorage.RegisterMachineOutput>> RegisterMachinesAsync(OperationContext context, IClusterStateStorage.RegisterMachineInput request)
@@ -80,7 +86,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement
                                          var locations = string.Join(", ", request.MachineLocations.Select(l => l.ToString()));
                                          return $"Locations=[{locations}]";
                                      }
-                                 });
+                                 },
+                traceOperationStarted: false);
         }
     }
 }

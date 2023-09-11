@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
@@ -11,12 +12,15 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces;
 using Microsoft.Azure.Amqp.Serialization;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -29,6 +33,8 @@ public class EphemeralCacheConfiguration
     public required GrpcCoreServerHostConfiguration GrpcConfiguration { get; init; }
 
     public required AbsolutePath Workspace { get; init; }
+
+    public TimeSpan PutCacheTimeToLive { get; init; } = TimeSpan.FromDays(1);
 }
 
 public class EphemeralHost : StartupShutdownComponentBase
@@ -41,7 +47,7 @@ public class EphemeralHost : StartupShutdownComponentBase
 
     public ILocalContentTracker LocalContentTracker { get; }
 
-    public IDistributedContentTracker DistributedContentTracker { get; }
+    public ChangeProcessor ChangeProcessor { get; }
 
     public ClusterStateManager ClusterStateManager { get; }
 
@@ -49,41 +55,55 @@ public class EphemeralHost : StartupShutdownComponentBase
 
     public IGrpcServiceEndpoint? GrpcClusterStateEndpoint { get; set; }
 
+    public IMasterElectionMechanism MasterElectionMechanism { get; }
+
     public GrpcCopyServer CopyServer { get; }
 
     public DistributedContentCopier ContentCopier { get; }
 
+    public IContentResolver ContentResolver { get; }
+
     private readonly GrpcCoreServerHost _initializer = new();
+
+    internal readonly LockSet<ContentHash> RemoteFetchLocks = new();
+
+    internal readonly VolatileMap<ContentHash, long> PutElisionCache = new(SystemClock.Instance);
 
     public EphemeralHost(
         EphemeralCacheConfiguration configuration,
         IAbsFileSystem fileSystem,
         ILocalContentTracker localContentTracker,
-        IDistributedContentTracker distributedContentTracker,
+        ChangeProcessor changeProcessor,
         ClusterStateManager clusterStateManager,
         IGrpcServiceEndpoint grpcContentTrackerEndpoint,
         GrpcCopyServer copyServer,
         DistributedContentCopier contentCopier,
-        IGrpcServiceEndpoint? grpcClusterStateEndpoint)
+        IGrpcServiceEndpoint? grpcClusterStateEndpoint,
+        IMasterElectionMechanism masterElectionMechanism,
+        IContentResolver contentResolver)
     {
         Configuration = configuration;
         FileSystem = fileSystem;
         LocalContentTracker = localContentTracker;
-        DistributedContentTracker = distributedContentTracker;
+        ChangeProcessor = changeProcessor;
         ClusterStateManager = clusterStateManager;
         GrpcContentTrackerEndpoint = grpcContentTrackerEndpoint;
         CopyServer = copyServer;
         ContentCopier = contentCopier;
         GrpcClusterStateEndpoint = grpcClusterStateEndpoint;
+        MasterElectionMechanism = masterElectionMechanism;
+        ContentResolver = contentResolver;
 
-        LinkLifetime(ClusterStateManager);
+        LinkLifetime(MasterElectionMechanism);
+
         if (grpcClusterStateEndpoint is IStartupShutdownSlim grpcClusterStateEndpointStartupShutdown)
         {
             LinkLifetime(grpcClusterStateEndpointStartupShutdown);
         }
+        LinkLifetime(ClusterStateManager);
 
         LinkLifetime(LocalContentTracker);
-        LinkLifetime(DistributedContentTracker);
+        LinkLifetime(ChangeProcessor);
 
         if (GrpcContentTrackerEndpoint is IStartupShutdownSlim grpcContentTrackerEndpointStartupShutdown)
         {
@@ -96,6 +116,16 @@ public class EphemeralHost : StartupShutdownComponentBase
 
     protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)
     {
+        // We need a way to identify leaders of builds that are running at any given point. We do this by piggybacking
+        // on to the machine's state:
+        // - Build orchestrators will have Role = Master and State = Open.
+        // - Build workers will have Role = Worker and State = Closed.
+        // - Machines from builds that have completed or exited will have State = DeadUnavailable.
+        if (MasterElectionMechanism.Role != Role.Master)
+        {
+            await ClusterStateManager.HeartbeatAsync(context, MachineState.Closed).ThrowIfFailureAsync();
+        }
+
         var endpoints = new List<IGrpcServiceEndpoint>() { GrpcContentTrackerEndpoint, CopyServer.GrpcAdapter };
         if (GrpcClusterStateEndpoint is not null)
         {
@@ -111,8 +141,15 @@ public class EphemeralHost : StartupShutdownComponentBase
 
     protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
     {
-        await _initializer.StopAsync(context, Configuration.GrpcConfiguration).ThrowIfFailureAsync();
-        return BoolResult.Success;
+        var result = BoolResult.Success;
+
+        // If this fails to heartbeat, there's absolutely nothing we can do for error recovery other than accept that
+        // we're screwed, so don't throw!
+        result &= await ClusterStateManager.HeartbeatAsync(context, MachineState.DeadUnavailable);
+
+        result &= await _initializer.StopAsync(context, Configuration.GrpcConfiguration);
+
+        return result;
     }
 };
 

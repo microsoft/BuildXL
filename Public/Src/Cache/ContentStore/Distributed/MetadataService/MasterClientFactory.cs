@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -18,10 +17,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// Creates a gRPC connection to the CASaaS master, and returns a client that implements <typeparamref name="T"/>
     /// by talking via gRPC with it.
     /// </summary>
-    public class MasterClientFactory<T> : StartupShutdownComponentBase, IClientAccessor<T>
+    public class MasterClientFactory<T> : StartupShutdownComponentBase, IFixedClientAccessor<T>
         where T : class
     {
+        /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(MasterClientFactory<T>));
+
+        /// <inheritdoc />
+        public MachineLocation Location
+        {
+            get
+            {
+                try
+                {
+                    return _currentMasterLocationLazy.Value.Value;
+                }
+                catch
+                {
+#pragma warning disable ERP022 // Swallowing an unobserved exception on purpose. This is only used for telemetry.
+                    return MachineLocation.Invalid;
+#pragma warning restore ERP022
+                }
+            }
+        }
 
         private readonly IMasterElectionMechanism _masterElectionMechanism;
         private readonly IClientAccessor<MachineLocation, T> _clientAccessor;

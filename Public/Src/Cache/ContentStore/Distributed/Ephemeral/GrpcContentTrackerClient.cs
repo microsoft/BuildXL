@@ -15,13 +15,18 @@ using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 
+/// <summary>
+/// This class serves as an adapter for <see cref="IGrpcContentTracker"/> in terms of <see cref="IContentTracker"/>.
+///
+/// It is used to wrap a gRPC client and expose it as a <see cref="IContentTracker"/>.
+/// </summary>
 public class GrpcContentTrackerClient : GrpcCodeFirstClient<IGrpcContentTracker>, IContentTracker
 {
     public record Configuration(TimeSpan OperationTimeout, RetryPolicyConfiguration RetryPolicy);
 
     protected override Tracer Tracer { get; } = new(nameof(GrpcContentTrackerClient));
 
-    public GrpcContentTrackerClient(Configuration configuration, IClientAccessor<IGrpcContentTracker> accessor)
+    public GrpcContentTrackerClient(Configuration configuration, IFixedClientAccessor<IGrpcContentTracker> accessor)
         : base(accessor, CreateRetryPolicy(configuration.RetryPolicy), SystemClock.Instance, configuration.OperationTimeout)
     {
     }

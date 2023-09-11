@@ -15,7 +15,7 @@ public class LastWriterWinsSetTests
     [Fact]
     public void MergeAddsNewValue()
     {
-        var set = new LastWriterWinsSet<int>();
+        var set = LastWriterWinsSet<int>.Empty();
         var t1 = ChangeStamp.Create(new SequenceNumber(1), DateTime.UtcNow, ChangeStampOperation.Add);
         set.Merge(new Stamped<int>(t1, 42));
         Assert.True(set.Contains(42));
@@ -24,7 +24,7 @@ public class LastWriterWinsSetTests
     [Fact]
     public void MergeReplacesValueWithLaterTimestamp()
     {
-        var set = new LastWriterWinsSet<int>();
+        var set = LastWriterWinsSet<int>.Empty();
         var t1 = ChangeStamp.Create(new SequenceNumber(1), DateTime.UtcNow, ChangeStampOperation.Add);
         var t2 = t1.Next(ChangeStampOperation.Add, DateTime.UtcNow);
 
@@ -39,7 +39,7 @@ public class LastWriterWinsSetTests
     [Fact]
     public void TryGetTimestampReturnsTrueAndValidTimestamp()
     {
-        var set = new LastWriterWinsSet<string>();
+        var set = LastWriterWinsSet<string>.Empty();
         var t1 = ChangeStamp.Create(new SequenceNumber(1), DateTime.UtcNow, ChangeStampOperation.Add);
         var t2 = t1.Next(ChangeStampOperation.Delete, DateTime.UtcNow);
         set.Merge(new Stamped<string>(t1, "apple"));
@@ -54,7 +54,7 @@ public class LastWriterWinsSetTests
     [Fact]
     public void TryGetTimestampReturnsFalseForNonexistentValue()
     {
-        var set = new LastWriterWinsSet<string>();
+        var set = LastWriterWinsSet<string>.Empty();
         var t1 = ChangeStamp.Create(new SequenceNumber(1), DateTime.UtcNow, ChangeStampOperation.Add);
         set.Merge(new Stamped<string>(t1, "apple"));
         set.Merge(new Stamped<string>(t1, "banana"));
@@ -66,7 +66,7 @@ public class LastWriterWinsSetTests
     [Fact]
     public void MergeSameTimestampAddsBothValues()
     {
-        var set = new LastWriterWinsSet<int>();
+        var set = LastWriterWinsSet<int>.Empty();
         var t1 = ChangeStamp.Create(new SequenceNumber(1), DateTime.UtcNow, ChangeStampOperation.Add);
 
         set.Merge(new Stamped<int>(t1, 42));
@@ -79,7 +79,7 @@ public class LastWriterWinsSetTests
     [Fact]
     public void MergeDeleteTimestampRemovesValueAndKeepsChangeStamp()
     {
-        var set = new LastWriterWinsSet<string>();
+        var set = LastWriterWinsSet<string>.Empty();
         var t1 = ChangeStamp.Create(new SequenceNumber(1), DateTime.UtcNow, ChangeStampOperation.Add);
         var t2 = t1.Next(ChangeStampOperation.Delete, DateTime.UtcNow);
 

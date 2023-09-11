@@ -4,8 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -13,7 +12,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using static Grpc.Core.Metadata;
 
 #nullable enable
 
@@ -22,45 +20,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 /// <summary>
 /// Entry in <see cref="LocalContentTracker"/> that holds information about a specific content hash.
 /// </summary>
+/// <remarks>
+/// This doesn't store the <see cref="ShortHash"/> it belongs to in order to prevent memory bloat.
+/// </remarks>
 public class LastWriterWinsContentEntry
 {
-    public required long Size { get; init; }
+    public required long Size { get; set; }
 
-    public DateTime CreationTime { get; private set; } = DateTime.MaxValue;
-
-    public DateTime LastAccessTime { get; private set; } = DateTime.MinValue;
-    
     /// <summary>
     /// The least upper bound of operations that have been applied to this entry. Can be used to determine the set of
     /// MachineId that currently have the piece of content. Since it contains timestamp information, it can also be
     /// used to determine if information about that specific machine is stale.
     /// </summary>
-    public LastWriterWinsSet<MachineId> Operations { get; } = new();
+    public LastWriterWinsSet<MachineId> Operations { get; } = LastWriterWinsSet<MachineId>.Empty();
 
-    /// <summary>
-    /// Incorporate knowledge from a single operation into this entry.
-    /// </summary>
-    public void Merge(Stamped<MachineId> operation)
+    public void Merge(ContentEntry other)
     {
-        // TODO: filter out inactive machines
-        CreationTime = CreationTime.Min(operation.ChangeStamp.TimestampUtc);
-        LastAccessTime = LastAccessTime.Max(operation.ChangeStamp.TimestampUtc);
-
-        Operations.Merge(operation);
+        Size = Math.Max(Size, other.Size);
+        Operations.MergePreSorted(other.Operations);
     }
 
-    /// <summary>
-    /// Incorporate knowledge from multiple operations into this entry.
-    /// </summary>
-    public void MergeMany(IEnumerable<Stamped<MachineId>> operations)
+    public static LastWriterWinsContentEntry From(ContentEntry entry)
     {
-        // TODO: if there are many, sort them and use a single merge operation (as in merge sort). We should also
-        // enforce that anything that makes it into this method is pre-sorted to avoid the cost of sorting in the first
-        // place.
-        foreach (var operation in operations)
+        var output = new LastWriterWinsContentEntry()
         {
-            Merge(operation);
-        }
+            Size = entry.Size
+        };
+        output.Merge(entry);
+        return output;
     }
 }
 
@@ -86,37 +73,27 @@ public class LocalContentTracker : StartupShutdownComponentBase, ILocalContentTr
 #if NET6_0_OR_GREATER
                 _content.AddOrUpdate(
                     key: entry.Hash,
-                    static (hash, incoming) =>
+                    static (hash, entry) => LastWriterWinsContentEntry.From(entry),
+                    static (hash, existing, entry) =>
                     {
-                        var created = new LastWriterWinsContentEntry { Size = incoming.Size, };
-                        created.MergeMany(incoming.Operations);
-                        return created;
-                    },
-                    static (hash, existing, incoming) =>
-                    {
-                        existing.MergeMany(incoming.Operations);
+                        existing.Merge(entry);
                         return existing;
                     },
                     factoryArgument: entry);
 #else
                 _content.AddOrUpdate(
                     key: entry.Hash,
-                    _ =>
-                    {
-                        var created = new LastWriterWinsContentEntry { Size = entry.Size, };
-                        created.MergeMany(entry.Operations);
-                        return created;
-                    },
+                    _ => LastWriterWinsContentEntry.From(entry),
                     (_, existing) =>
                     {
-                        existing.MergeMany(entry.Operations);
+                        existing.Merge(entry);
                         return existing;
                     });
 #endif
             }
             catch (Exception exception)
             {
-                return Task.FromResult(new BoolResult(exception, message: $"Failed processing entry {entry}"));
+                Tracer.Error(context, exception, $"Failed processing entry {entry}. Skipping it instead.");
             }
         }
 
@@ -143,19 +120,29 @@ public class LocalContentTracker : StartupShutdownComponentBase, ILocalContentTr
         var entries = new List<ContentEntry>(capacity: request.Hashes.Count);
         foreach (var shortHash in request.Hashes)
         {
+            bool added = false;
             try
             {
                 if (_content.TryGetValue(shortHash, out var entry))
                 {
-                    entries.Add(new ContentEntry() { Hash = shortHash, Size = entry.Size, Operations = entry.Operations.Operations, });
+                    entries.Add(ContentEntry.FromLastWriterWins(shortHash, entry));
+                    added = true;
                 }
             }
             catch (Exception exception)
             {
-                return Task.FromResult(Result.FromException<GetLocationsResponse>(exception, message: $"Failed processing hash {shortHash}"));
+                Tracer.Error(context, exception, $"Failed processing hash {shortHash}. Returning empty response for it.");
+            }
+            finally
+            {
+                if (!added)
+                {
+                    entries.Add(ContentEntry.Unknown(shortHash));
+                }
             }
         }
 
+        Contract.Assert(request.Hashes.Count == entries.Count, "The number of output responses must be equal and in the same order as the input requests");
         return Task.FromResult(Result.Success(new GetLocationsResponse { Results = entries, }));
     }
 }

@@ -192,7 +192,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     }
 
                     return Result.Success(new LevelSelectors(selectors, false));
-                });
+                },
+                traceOperationStarted: false);
         }
 
         /// <nodoc />
@@ -217,7 +218,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     }
                     
                     return Result.Success(new SerializedMetadataEntry() { ReplacementToken = state.ETag, Data = state.Value, LastContentPinnedTime = lastContentPinnedTime });
-                });
+                },
+                traceOperationStarted: false);
         }
 
         /// <nodoc />
@@ -236,7 +238,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                             });
 
                     return (await TaskUtilities.SafeWhenAll(tasks)).And();
-                });
+                },
+                traceOperationStarted: false);
         }
 
         private static string GetWeakFingerprintPrefix(Fingerprint weakFingerprint)

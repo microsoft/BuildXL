@@ -3,6 +3,7 @@
 
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,29 +18,36 @@ using ProtoBuf;
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 
 /// <summary>
-/// The <see cref="IContentTracker"/> is responsible for tracking the location of content in the system. That is, it
-/// knows which machines have which pieces of content.
+/// An <see cref="IContentResolver"/> knows how to resolve content locations.
 /// </summary>
-public interface IContentTracker : IStartupShutdownSlim
+public interface IContentResolver : IStartupShutdownSlim
 {
-    /// <summary>
-    /// Update the content tracker with additional information about the location of content.
-    /// </summary>
-    public Task<BoolResult> UpdateLocationsAsync(OperationContext context, UpdateLocationsRequest request);
-
     /// <summary>
     /// Obtain information about the location of content.
     /// </summary>
     public Task<Result<GetLocationsResponse>> GetLocationsAsync(OperationContext context, GetLocationsRequest request);
 }
 
-public static class ContentTrackerExtensions
+/// <summary>
+/// An <see cref="IContentUpdater"/> knows how to update a content tracker with additional information about pieces of
+/// content.
+/// </summary>
+public interface IContentUpdater : IStartupShutdownSlim
 {
-    public static async Task<Result<ContentEntry>> GetSingleLocationAsync(this IContentTracker contentTracker, OperationContext context, ShortHash hash)
-    {
-        var result = await contentTracker.GetLocationsAsync(context, new GetLocationsRequest() { Hashes = new[] { hash }, });
-        return result.Select(v => v.Results.First());
-    }
+    /// <summary>
+    /// Update the content tracker with additional information about the location of content.
+    /// </summary>
+    public Task<BoolResult> UpdateLocationsAsync(OperationContext context, UpdateLocationsRequest request);
+}
+
+/// <summary>
+/// The <see cref="IContentTracker"/> is responsible for tracking the location of content in the system. That is, it
+/// knows which machines have which pieces of content.
+///
+/// CODESYNC: <see cref="IGrpcContentTracker"/>
+/// </summary>
+public interface IContentTracker : IContentResolver, IContentUpdater
+{
 }
 
 /// <summary>
@@ -62,41 +70,87 @@ public interface ILocalContentTracker : IContentTracker
     public SequenceNumber GetSequenceNumber(ShortHash shortHash, MachineId machineId);
 }
 
-/// <summary>
-/// The <see cref="IDistributedContentTracker"/> represents an <see cref="IContentTracker"/> that communicates with
-/// other machines as necessary to power a datacenter-scale cache.
-/// </summary>
-/// <remarks>
-/// This interface mainly exists for testing.
-/// </remarks>
-public interface IDistributedContentTracker : IContentTracker
+[ProtoContract]
+public record GetLocationsRequest
 {
-    public Task ProcessLocalChangeAsync(Context tracingContext, ChangeStampOperation operation, ContentHashWithSize contentHashWithSize);
+    [ProtoMember(1)]
+    public IReadOnlyList<ShortHash> Hashes { get; init; } = new List<ShortHash>(capacity: 0);
+
+    [ProtoMember(2)]
+    public bool Recursive { get; private init; } = false;
+
+    public override string ToString()
+    {
+        var entries = string.Join("; ", Hashes.Select(h => h.ToString()));
+        return $"{nameof(GetLocationsRequest)} (R={Recursive}) {{ {entries} }}";
+    }
+
+    public static GetLocationsRequest SingleHash(ShortHash shortHash, bool recursive = false)
+    {
+        return new GetLocationsRequest { Hashes = new List<ShortHash>(capacity: 1) { shortHash }, Recursive = recursive };
+    }
 }
 
 [ProtoContract]
 public record GetLocationsResponse
 {
     [ProtoMember(1)]
-    public IReadOnlyList<ContentEntry> Results { get; init; } = new List<ContentEntry>();
+    public IReadOnlyList<ContentEntry> Results { get; init; } = new List<ContentEntry>(capacity: 0);
 
     public override string ToString()
     {
         var entries = string.Join("; ", Results.Select(h => h.ToString()));
         return $"{nameof(GetLocationsResponse)} {{ {entries} }}";
     }
-}
 
-[ProtoContract]
-public record GetLocationsRequest
-{
-    [ProtoMember(1)]
-    public IReadOnlyList<ShortHash> Hashes { get; init; } = new List<ShortHash>();
-
-    public override string ToString()
+    /// <summary>
+    /// Creates a response having the same structure as the given request, but with all entries unknown. This is the way
+    /// we're meant to fail.
+    /// </summary>
+    public static GetLocationsResponse Empty(GetLocationsRequest request)
     {
-        var entries = string.Join("; ", Hashes.Select(h => h.ToString()));
-        return $"{nameof(GetLocationsRequest)} {{ {entries} }}";
+        var results = new List<ContentEntry>(capacity: request.Hashes.Count);
+        foreach (var hash in request.Hashes)
+        {
+            results.Add(ContentEntry.Unknown(hash));
+        }
+
+        return new GetLocationsResponse { Results = results };
+    }
+
+    /// <summary>
+    /// Creates a response that is consistent with the given request, by gathering the entries from the given
+    /// enumerable into a response.
+    /// </summary>
+    public static GetLocationsResponse Gather(GetLocationsRequest request, IEnumerable<ContentEntry> entries)
+    {
+        var groups = new Dictionary<ShortHash, List<ContentEntry>>(capacity: request.Hashes.Count);
+        foreach (var entry in entries)
+        {
+            if (groups.TryGetValue(entry.Hash, out var group))
+            {
+                group.Add(entry);
+            }
+            else
+            {
+                groups[entry.Hash] = new List<ContentEntry>(capacity: 1) { entry };
+            }
+        }
+
+        var results = new List<ContentEntry>(capacity: request.Hashes.Count);
+        foreach (var hash in request.Hashes)
+        {
+            if (groups.TryGetValue(hash, out var group))
+            {
+                results.Add(ContentEntry.Merge(group));
+            }
+            else
+            {
+                results.Add(ContentEntry.Unknown(hash));
+            }
+        }
+
+        return new GetLocationsResponse { Results = results, };
     }
 }
 
@@ -104,12 +158,60 @@ public record GetLocationsRequest
 public record UpdateLocationsRequest
 {
     [ProtoMember(1)]
-    public IReadOnlyList<ContentEntry> Entries { get; init; } = new List<ContentEntry>();
+    public IReadOnlyList<ContentEntry> Entries { get; init; } = new List<ContentEntry>(capacity: 0);
+
+    /// <summary>
+    /// The concept of TimeToLeave here is the same as in networking. An update may travel only as many hops as it's
+    /// TTL allows, and it's used to prevent infinite loops, by ensuring that every forwarding intermediary drops all
+    /// updates with TTL = 0.
+    ///
+    /// <see cref="Hop"/> is used to decrement the TTL.
+    /// </summary>
+    [ProtoMember(2)]
+    public int TimeToLive { get; private init; } = 1;
+
+    public bool Drop => TimeToLive <= 0;
 
     public override string ToString()
     {
         var entries = string.Join("; ", Entries.Select(h => h.ToString()));
-        return $"{nameof(UpdateLocationsRequest)} {{ {entries} }}";
+        return $"{nameof(UpdateLocationsRequest)} ({TimeToLive}) {{ {entries} }}";
+    }
+
+    public static UpdateLocationsRequest SingleHash(ContentEntry entry, int? timeToLive = null)
+    {
+        return new UpdateLocationsRequest
+        {
+            Entries = new List<ContentEntry>(capacity: 1) { entry },
+            TimeToLive = timeToLive ?? 1,
+        };
+    }
+
+    public UpdateLocationsRequest Derived(ContentEntry entry)
+    {
+        return new UpdateLocationsRequest
+        {
+            Entries = new List<ContentEntry>(capacity: 1) { entry },
+            TimeToLive = TimeToLive
+        };
+    }
+
+    public static UpdateLocationsRequest FromGetLocationsResponse(GetLocationsResponse response)
+    {
+        return new UpdateLocationsRequest
+        {
+            Entries = response.Results
+        };
+    }
+
+    public UpdateLocationsRequest Hop()
+    {
+        if (Drop)
+        {
+            throw new InvalidOperationException("Can't decrement time to live on a dead request");
+        }
+
+        return this with { TimeToLive = TimeToLive - 1 };
     }
 }
 
@@ -123,7 +225,7 @@ public record ContentEntry
     public long Size { get; init; } = -1;
 
     [ProtoMember(3)]
-    public IReadOnlyList<Stamped<MachineId>> Operations { get; init; } = new List<Stamped<MachineId>>();
+    public IReadOnlyList<Stamped<MachineId>> Operations { get; init; } = new List<Stamped<MachineId>>(capacity: 0);
 
     public override string ToString()
     {
@@ -159,5 +261,45 @@ public record ContentEntry
     private bool HasOperation(MachineId machineId, ChangeStampOperation operation)
     {
         return Operations.Any(o => o.Value == machineId && o.ChangeStamp.Operation == operation);
+    }
+
+    public static ContentEntry Unknown(ShortHash shortHash)
+    {
+        return new ContentEntry { Hash = shortHash, Size = -1, Operations = new List<Stamped<MachineId>>(capacity: 0) };
+    }
+
+    public static ContentEntry FromLastWriterWins(ShortHash shortHash, LastWriterWinsContentEntry entry)
+    {
+        return new ContentEntry { Hash = shortHash, Size = entry.Size, Operations = entry.Operations.Operations, };
+    }
+
+    public static ContentEntry Merge(IReadOnlyList<ContentEntry> entries)
+    {
+        if (entries.Count == 0)
+        {
+            throw new ArgumentException("Cannot merge empty list of entries");
+        }
+
+        var baseline = LastWriterWinsContentEntry.From(entries[0]);
+        foreach (var entry in entries.Skip(1))
+        {
+            if (entry.Hash != entries[0].Hash)
+            {
+                throw new ArgumentException("Cannot merge entries with different hashes");
+            }
+
+            baseline.Merge(entry);
+        }
+
+        return FromLastWriterWins(entries[0].Hash, baseline);
+    }
+}
+
+public static class ContentTrackerExtensions
+{
+    public static async Task<Result<ContentEntry>> GetSingleLocationAsync(this IContentResolver resolver, OperationContext context, ShortHash hash)
+    {
+        var result = await resolver.GetLocationsAsync(context, GetLocationsRequest.SingleHash(hash, recursive: true));
+        return result.Select(v => v.Results.First());
     }
 }

@@ -60,7 +60,7 @@ public class GrpcClusterStateStorageTests
                 TimeSpan.FromMinutes(1),
                 RetryPolicyConfiguration.Exponential()),
             accessor: new FixedClientAccessor<IGrpcClusterStateStorage>(
-                connectionHandle.Channel.CreateGrpcService<IGrpcClusterStateStorage>(MetadataServiceSerializer.ClientFactory))));
+                connectionHandle.Channel.CreateGrpcService<IGrpcClusterStateStorage>(MetadataServiceSerializer.ClientFactory), location)));
 
         await clusterStateManager.StartupAsync(context).ThrowIfFailureAsync();
 

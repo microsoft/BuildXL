@@ -41,6 +41,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
             StopwatchSlim stopwatch = StopwatchSlim.Start();
             LockHandle thisHandle = new LockHandle(this, key);
 
+            bool waitFree = true;
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -49,6 +50,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
 
                 if (currentHandle != thisHandle)
                 {
+                    waitFree = false;
                     await TaskUtilities.AwaitWithCancellationAsync(currentHandle.TaskCompletionSource.Task, cancellationToken);
                 }
                 else
@@ -57,8 +59,14 @@ namespace BuildXL.Cache.ContentStore.Synchronization
                 }
             }
 
-            Interlocked.Add(ref _totalLockWaitTimeTicks, stopwatch.Elapsed.Ticks);
-            return thisHandle.WithDuration(stopwatch.Elapsed);
+            var elapsed = stopwatch.Elapsed;
+            if (waitFree)
+            {
+                elapsed = TimeSpan.Zero;
+            }
+
+            Interlocked.Add(ref _totalLockWaitTimeTicks, elapsed.Ticks);
+            return thisHandle.With(elapsed, waitFree);
         }
 
         /// <summary>
@@ -72,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
             LockHandle currentHandle = _exclusiveLocks.GetOrAdd(key, thisHandle);
             if (currentHandle == thisHandle)
             {
-                return thisHandle;
+                return thisHandle.With(lockAcquisitionDuration: TimeSpan.Zero, waitFree: true);
             }
 
             return null;
@@ -136,6 +144,11 @@ namespace BuildXL.Cache.ContentStore.Synchronization
             public TimeSpan? LockAcquisitionDuration { get; }
 
             /// <summary>
+            /// Whether there was any waiting to obtain this lock.
+            /// </summary>
+            public bool WaitFree { get; }
+
+            /// <summary>
             /// Initializes a new instance of the <see cref="LockHandle" /> struct for the given collection/key.
             /// </summary>
             public LockHandle(LockSet<TKey> locks, TKey key)
@@ -150,13 +163,14 @@ namespace BuildXL.Cache.ContentStore.Synchronization
                 LockAcquisitionDuration = null;
             }
 
-            private LockHandle(LockHandle lockHandle, TimeSpan lockAcquisitionDuration)
+            private LockHandle(LockHandle lockHandle, TimeSpan? lockAcquisitionDuration, bool waitFree)
             {
-                _locks = lockHandle._locks;
                 TaskCompletionSource = lockHandle.TaskCompletionSource;
+                _locks = lockHandle._locks;
                 Key = lockHandle.Key;
                 _handleId = lockHandle._handleId;
                 LockAcquisitionDuration = lockAcquisitionDuration;
+                WaitFree = waitFree;
             }
 
             /// <inheritdoc />
@@ -208,9 +222,9 @@ namespace BuildXL.Cache.ContentStore.Synchronization
             /// <summary>
             /// Clones the current instance and adds <paramref name="lockAcquisitionDuration"/> to it for diagnostic purposes.
             /// </summary>
-            public LockHandle WithDuration(TimeSpan lockAcquisitionDuration)
+            public LockHandle With(TimeSpan? lockAcquisitionDuration, bool waitFree)
             {
-                return new LockHandle(this, lockAcquisitionDuration);
+                return new LockHandle(this, lockAcquisitionDuration, waitFree);
             }
         }
 

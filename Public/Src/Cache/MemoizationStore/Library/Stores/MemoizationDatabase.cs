@@ -59,6 +59,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 nestedContext => CompareExchangeCore(nestedContext, strongFingerprint, expectedReplacementToken, expected, replacement),
                 extraStartMessage: $"StrongFingerprint=[{strongFingerprint}] ExpectedReplacementToken=[{expectedReplacementToken}] Expected=[{expected.ToTraceString()}] Replacement=[{replacement.ToTraceString()}]",
                 extraEndMessage: result => $"StrongFingerprint=[{strongFingerprint}] ExpectedReplacementToken=[{expectedReplacementToken}] Expected=[{expected.ToTraceString()}] Replacement=[{replacement.ToTraceString()}] Exchanged=[{result.GetValueOrDefault(false)}]",
+                traceOperationStarted: false,
                 timeout: _timeout);
         }
 
@@ -109,6 +110,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 Tracer,
                 nestedContext => RegisterAssociatedContentCoreAsync(nestedContext, strongFingerprint, contentHashList),
                 extraEndMessage: result => $"StrongFingerprint=[{strongFingerprint}] ContentHashList=[{contentHashList.ToTraceString()}]",
+                traceOperationStarted: false,
                 timeout: _timeout);
         }
 
@@ -131,6 +133,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 nestedContext => GetContentHashListCoreAsync(nestedContext, strongFingerprint, preferShared),
                 extraStartMessage: $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}]",
                 extraEndMessage: result => getStringResult(result),
+                traceOperationStarted: false,
                 timeout: _timeout);
 
             string getStringResult(ContentHashListResult result)
@@ -174,6 +177,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
                     return $"WeakFingerprint=[{weakFingerprint}] Level=[{level}] NumSelectors=[{numSelectors}] HasMore=[{hasMore}]";
                 },
+                traceOperationStarted: false,
                 timeout: _timeout);
         }
 

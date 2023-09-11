@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -32,14 +34,14 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
     public Task LeaderDoesntMakeWorkerAwareOfChanges()
     {
         return RunTestAsync(
-            async (context, host) =>
+            async (context, silentContext, host) =>
             {
                 var ring = host.Ring(0);
                 var leader = host.Instance(ring.Leader);
 
                 var content = new ContentHashWithSize(ContentHash.Random(), 100);
 
-                await leader.DistributedContentTracker.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
+                await leader.ChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
                 leader.ContentTracker.GetSequenceNumber(content.Hash, leader.Id).Should().Be(
                     new SequenceNumber(1),
                     "Sequence number must increment when doing a mutation");
@@ -65,7 +67,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
     public Task WorkerMakesLeaderAwareOfChanges()
     {
         return RunTestAsync(
-            async (context, host) =>
+            async (context, silentContext, host) =>
             {
                 var ring = host.Ring(0);
                 var leader = host.Instance(ring.Leader);
@@ -73,7 +75,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
 
                 var content = new ContentHashWithSize(ContentHash.Random(), 100);
 
-                await worker.DistributedContentTracker.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
+                await worker.ChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
                 worker.ContentTracker.GetSequenceNumber(content.Hash, worker.Id).Should().Be(new SequenceNumber(1));
                 leader.ContentTracker.GetSequenceNumber(content.Hash, worker.Id).Should().Be(new SequenceNumber(1));
 
@@ -81,7 +83,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
                 entry.Size.Should().Be(content.Size);
                 entry.Contains(worker.Id).Should().BeTrue("The worker added the content and should have notified the leader");
 
-                await worker.DistributedContentTracker.ProcessLocalChangeAsync(context, ChangeStampOperation.Delete, content);
+                await worker.ChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Delete, content);
                 worker.ContentTracker.GetSequenceNumber(content.Hash, worker.Id).Should().Be(new SequenceNumber(2));
                 leader.ContentTracker.GetSequenceNumber(content.Hash, worker.Id).Should().Be(new SequenceNumber(2));
 
@@ -95,7 +97,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
     public Task DistributedHashTableIsMadeAwareOfChanges()
     {
         return RunTestAsync(
-            async (context, host) =>
+            async (context, silentContext, host) =>
             {
                 var r1 = host.Ring(0);
                 var r1l = host.Instance(r1.Leader);
@@ -107,9 +109,9 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
 
                 var content = new ContentHashWithSize(ContentHash.Random(), 100);
 
-                await r1w.DistributedContentTracker.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
+                await r1w.ChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
 
-                var entry = await r2w.DistributedContentTracker.GetSingleLocationAsync(context, content.Hash).ThrowIfFailureAsync();
+                var entry = await r2w.ContentResolver.GetSingleLocationAsync(context, content.Hash).ThrowIfFailureAsync();
                 entry.Size.Should().Be(content.Size);
                 entry.Contains(r1w.Id).Should()
                     .BeTrue($"{nameof(r1w)} added a piece of content, so {nameof(r2w)} should be able to look it up via the DHT");
@@ -121,7 +123,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
     public Task UpdatesArePropagatedFromLocalContentStore()
     {
         return RunTestAsync(
-            async (context, host) =>
+            async (context, silentContext, host) =>
             {
                 var r1 = host.Ring(0);
                 var r1l = host.Instance(r1.Leader);
@@ -134,17 +136,27 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
                 var putResult = await r1w.Session!.PutRandomAsync(context, HashType.Vso0, provideHash: true, size: 100, context.Token)
                     .ThrowIfFailureAsync();
 
-                var entry = await r2w.DistributedContentTracker.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
-                entry.Size.Should().Be(putResult.ContentSize);
-                entry.Contains(r1w.Id).Should()
+                var r1le = await r1l.ContentResolver.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
+                r1le.Contains(r1w.Id).Should()
+                    .BeTrue($"{nameof(r1w)} added a piece of content, so {nameof(r1l)} should be able to look it up via the DHT");
+                r1le.Size.Should().Be(putResult.ContentSize);
+
+                var r2le = await r2l.ContentResolver.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
+                r2le.Contains(r1w.Id).Should()
+                    .BeTrue($"{nameof(r1w)} added a piece of content, so {nameof(r2l)} should be able to look it up via the DHT");
+                r2le.Size.Should().Be(putResult.ContentSize);
+
+                var r2we = await r2w.ContentResolver.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
+                r2we.Contains(r1w.Id).Should()
                     .BeTrue($"{nameof(r1w)} added a piece of content, so {nameof(r2w)} should be able to look it up via the DHT");
+                r2we.Size.Should().Be(putResult.ContentSize);
 
                 var evictResult = await r1w.Cache.DeleteAsync(context, putResult.ContentHash, null).ThrowIfFailureAsync();
 
-                entry = await r2w.DistributedContentTracker.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
-                entry.Size.Should().Be(putResult.ContentSize);
-                entry.Tombstone(r1w.Id).Should()
+                r2we = await r2w.ContentResolver.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
+                r2we.Tombstone(r1w.Id).Should()
                     .BeTrue($"{nameof(r1w)} removed a piece of content, so {nameof(r2w)} should be able to see the tombstone");
+                r2we.Size.Should().Be(putResult.ContentSize);
             },
             numRings: 2);
     }
@@ -153,8 +165,9 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
     public Task TestFileCopyAcrossMachinesAsync()
     {
         return RunTestAsync(
-            async (context, host) =>
+            async (context, silentContext, host) =>
             {
+                //Debugger.Launch();
                 var r1 = host.Ring(0);
                 var r1l = host.Instance(r1.Leader);
                 var r1w = host.Instance(r1.Builders[1]);
@@ -178,7 +191,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
                 placeResult.ShouldBeSuccess();
                 placeResult.MaterializationSource.Should().Be(PlaceFileResult.Source.DatacenterCache);
 
-                await host.RemoveRingAsync(context, r1.Id).ThrowIfFailureAsync();
+                await host.RemoveRingAsync(silentContext, r1.Id).ThrowIfFailureAsync();
 
                 // In order for this to succeed, it needs to copy a file from r2w
                 placeResult = await r2l.Session!.PlaceFileAsync(
@@ -199,7 +212,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
     public Task TestFileExistsAfterRingShutsDownAsync()
     {
         return RunTestAsync(
-            async (context, host) =>
+            async (context, silentContext, host) =>
             {
                 var r1 = host.Ring(0);
                 var r1l = host.Instance(r1.Leader);
@@ -212,7 +225,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
                 var putResult = await r1w.Session!.PutRandomAsync(context, HashType.Vso0, provideHash: true, size: 100, context.Token)
                     .ThrowIfFailureAsync();
 
-                await host.RemoveRingAsync(context, r1.Id).ThrowIfFailureAsync();
+                await host.RemoveRingAsync(silentContext, r1.Id).ThrowIfFailureAsync();
 
                 // In order for this to succeed, it needs to download a file from the persistent cache 
                 var placeResult = await r2w.Session!.PlaceFileAsync(
@@ -233,7 +246,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
     public Task AddedMachinesCanFindOldFilesTestAsync()
     {
         return RunTestAsync(
-            async (context, host) =>
+            async (context, silentContext, host) =>
             {
                 var r1 = host.Ring(0);
                 var r1l = host.Instance(r1.Leader);
@@ -246,11 +259,16 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
                 var putResult = await r1w.Session!.PutRandomAsync(context, HashType.Vso0, provideHash: true, size: 100, context.Token)
                     .ThrowIfFailureAsync();
 
-                var r3 = await host.AddRingAsync(context, "1234", 2).ThrowIfFailureAsync();
+                var r3 = await host.AddRingAsync(silentContext, "1234", 2).ThrowIfFailureAsync();
                 var r3l = host.Instance(r3.Leader);
                 var r3w = host.Instance(r3.Builders[1]);
 
-                await host.HearbeatAsync(context).ThrowIfFailure();
+                await host.HearbeatAsync(silentContext).ThrowIfFailure();
+
+                var r3we = await r3w.ContentResolver.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
+                r3we.Contains(r1w.Id).Should()
+                    .BeTrue($"{nameof(r1w)} added a piece of content, so {nameof(r3w)} should be able to look it up via the DHT");
+                r3we.Size.Should().Be(putResult.ContentSize);
 
                 // In order for this to succeed, it needs to download a file from the machines that had it before it
                 // joined

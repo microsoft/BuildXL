@@ -17,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public required IClock Clock { get; init; }
 
-        public required GrpcConnectionPool ConnectionPool { get; init; }
+        public required GrpcConnectionMap ConnectionMap { get; init; }
 
         public required IContentStore PreferredContentStore { get; init; }
 

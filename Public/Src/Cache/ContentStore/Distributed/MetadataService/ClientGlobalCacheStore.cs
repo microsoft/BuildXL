@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         protected override Tracer Tracer { get; } = new(nameof(ClientGlobalCacheStore));
 
         public ClientGlobalCacheStore(
-            IClientAccessor<IGlobalCacheService> metadataServiceClientFactory,
+            IFixedClientAccessor<IGlobalCacheService> metadataServiceClientFactory,
             ClientContentMetadataStoreConfiguration configuration)
             : base(metadataServiceClientFactory, CreateRetryPolicy(configuration), SystemClock.Instance, configuration.OperationTimeout)
         {

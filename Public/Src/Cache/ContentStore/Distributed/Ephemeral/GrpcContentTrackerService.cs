@@ -18,7 +18,7 @@ using ProtoBuf.Grpc;
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 
 /// <summary>
-/// Server-side implementation of <see cref="ILocalContentTracker"/> using gRPC.NET.
+/// Server-side implementation of <see cref="IContentTracker"/>.
 /// </summary>
 /// <remarks>
 /// This class expects a high volume of requests and is designed to avoid logging because of it. We only log
@@ -29,14 +29,17 @@ public class GrpcContentTrackerService : StartupShutdownComponentBase, IGrpcCont
     /// <inheritdoc />
     protected override Tracer Tracer { get; } = new(nameof(GrpcContentTrackerService));
 
-    private readonly ILocalContentTracker _localContentTracker;
+    private readonly IContentResolver _resolver;
+    private readonly IContentUpdater _updater;
 
     private ILogger _logger = NullLogger.Instance;
 
-    public GrpcContentTrackerService(ILocalContentTracker localContentTracker)
+    public GrpcContentTrackerService(IContentResolver resolver, IContentUpdater updater)
     {
-        _localContentTracker = localContentTracker;
-        LinkLifetime(_localContentTracker);
+        _resolver = resolver;
+        _updater = updater;
+        LinkLifetime(_resolver);
+        LinkLifetime(_updater);
     }
 
     /// <inheritdoc />
@@ -53,7 +56,7 @@ public class GrpcContentTrackerService : StartupShutdownComponentBase, IGrpcCont
 
         try
         {
-            await _localContentTracker.UpdateLocationsAsync(operationContext, request).ThrowIfFailureAsync();
+            await _updater.UpdateLocationsAsync(operationContext, request).ThrowIfFailureAsync();
         }
         catch (Exception exception)
         {
@@ -69,7 +72,7 @@ public class GrpcContentTrackerService : StartupShutdownComponentBase, IGrpcCont
 
         try
         {
-            return await _localContentTracker.GetLocationsAsync(operationContext, request).ThrowIfFailureAsync();
+            return await _resolver.GetLocationsAsync(operationContext, request).ThrowIfFailureAsync();
         }
         catch (Exception exception)
         {

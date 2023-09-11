@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -21,6 +20,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -34,56 +34,14 @@ using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using FluentAssertions;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using IContentResolver = BuildXL.Cache.ContentStore.Distributed.Ephemeral.IContentResolver;
+// ReSharper disable ExplicitCallerInfoArgument
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
 
 // These tests are currently for Cloudbuild-specific scenarios, so they are disabled on macOS for now.
-[TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
-public class BuildWideEphemeralCacheTests : EphemeralCacheTestsBase
-{
-    protected override Mode TestMode => Mode.BuildWide;
-
-    public BuildWideEphemeralCacheTests(LocalRedisFixture fixture, ITestOutputHelper output)
-        : base(fixture, output)
-    {
-    }
-
-    [Fact]
-    public Task MachinesFallbackToStorageWhenCopyingOutsideTheRing()
-    {
-        return RunTestAsync(
-            async (context, host) =>
-            {
-                var r1 = host.Ring(0);
-                var r1l = host.Instance(r1.Leader);
-                var r1w = host.Instance(r1.Builders[1]);
-
-                var r2 = host.Ring(1);
-                var r2l = host.Instance(r2.Leader);
-                var r2w = host.Instance(r2.Builders[1]);
-
-                var putResult = await r1w.Session!.PutRandomAsync(context, HashType.Vso0, provideHash: true, size: 100, context.Token)
-                    .ThrowIfFailureAsync();
-                putResult.ShouldBeSuccess();
-
-                var placeResult = await r2w.Session!.PlaceFileAsync(
-                    context,
-                    putResult.ContentHash,
-                    host.TestDirectory.CreateRandomFileName(),
-                    FileAccessMode.ReadOnly,
-                    FileReplacementMode.ReplaceExisting,
-                    FileRealizationMode.Any,
-                    context.Token);
-                placeResult.ShouldBeSuccess();
-                placeResult.MaterializationSource.Should().Be(PlaceFileResult.Source.BackingStore);
-            }, numRings: 2, instancesPerRing: 2);
-    }
-
-
-}
 
 [Collection("Redis-based tests")]
 public abstract class EphemeralCacheTestsBase : TestWithOutput
@@ -110,7 +68,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
     public Task MachineCanCopyFromOtherMachinesInsideRing()
     {
         return RunTestAsync(
-            async (context, host) =>
+            async (context, silentContext, host) =>
             {
                 var r1 = host.Ring(0);
                 var r1l = host.Instance(r1.Leader);
@@ -142,10 +100,14 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                    context.Token);
                 placeResult.ShouldBeSuccess();
                 placeResult.MaterializationSource.Should().Be(PlaceFileResult.Source.DatacenterCache);
+
+                r1l.ChangeProcessor.Counters[ChangeProcessor.Counter.ProcessLocalChangeCalls].Value.Should().Be(1);
+                r1l.ChangeProcessor.Counters[ChangeProcessor.Counter.ProcessLocalAdd].Value.Should().Be(1);
+                r1l.ChangeProcessor.Counters[ChangeProcessor.Counter.ProcessLocalDelete].Value.Should().Be(0);
             }, instancesPerRing: 3);
     }
 
-    protected async Task RunTestAsync(Func<OperationContext, TestInstance, Task> runTest, int numRings = 1, int instancesPerRing = 2)
+    protected async Task RunTestAsync(Func<OperationContext, OperationContext, TestInstance, Task> runTest, int numRings = 1, int instancesPerRing = 2)
     {
         Contract.Requires(numRings > 0);
         Contract.Requires(instancesPerRing > 0);
@@ -168,26 +130,37 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             blobCacheConfiguration,
             secretsProvider,
             ephemeralManagementStorageCredentials);
+
+        var silentTracingContext = new Context(NullLogger.Instance);
+        var silentContext = new OperationContext(silentTracingContext, context.Token);
+
+        var setupContext = silentContext.CreateNested(nameof(RunTestAsync), caller: "SetupTestContext");
         foreach (var ringNum in Enumerable.Range(0, numRings))
         {
-            await host.AddRingAsync(context, ringNum.ToString(), instancesPerRing).ThrowIfFailureAsync();
+            // TODO: parallelize
+            await host.AddRingAsync(setupContext, ringNum.ToString(), instancesPerRing).ThrowIfFailureAsync();
         }
 
         try
         {
-            await host.StartupAsync(context).ThrowIfFailureAsync();
+            var startupContext = silentContext.CreateNested(nameof(RunTestAsync), caller: "StartupTestContext");
+            await host.StartupAsync(startupContext).ThrowIfFailureAsync();
 
-            // Ensure all machines advertise themselves as Open
-            await host.HearbeatAsync(context, MachineState.Open).ThrowIfFailureAsync();
+            // Ensure all machines see each other
+            await host.HearbeatAsync(silentContext).ThrowIfFailureAsync();
 
-            // Ensure all machines see that each other is Open
-            await host.HearbeatAsync(context).ThrowIfFailureAsync();
+            foreach (var entry in host.Instances.First().ClusterStateManager.ClusterState.QueryableClusterState.RecordsByMachineLocation)
+            {
+                context.TracingContext.Info($"Machine {entry.Key} maps to {entry.Value}", component: "RunTestContext", operation: "LogMachineMapping");
+            }
 
-            await runTest(context, host);
+            var testContext = context.CreateNested(nameof(RunTestAsync), caller: "RunTestContext");
+            await runTest(testContext, silentContext, host);
         }
         finally
         {
-            await host.ShutdownAsync(context).ThrowIfFailureAsync();
+            var shutdownContext = silentContext.CreateNested(nameof(RunTestAsync), caller: "ShutdownTestContext");
+            await host.ShutdownAsync(shutdownContext).ThrowIfFailureAsync();
         }
     }
 
@@ -205,7 +178,9 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         public ILocalContentTracker ContentTracker => Host.LocalContentTracker;
 
-        public IDistributedContentTracker DistributedContentTracker => Host.DistributedContentTracker;
+        public IContentResolver ContentResolver => Host.ContentResolver;
+
+        public ChangeProcessor ChangeProcessor => Host.ChangeProcessor;
 
         public ClusterStateManager ClusterStateManager => Host.ClusterStateManager;
 
@@ -250,7 +225,6 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         public DisposableDirectory TestDirectory { get; }
 
-        private readonly IClusterStateStorage _clusterStateStorage;
         private readonly AzureBlobStorageCacheFactory.Configuration _blobCacheConfiguration;
         private readonly IBlobCacheSecretsProvider _secretsProvider;
         private readonly IAzureStorageCredentials? _ephemeralManagementStorageCredentials;
@@ -261,7 +235,6 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             var fileSystem = PassThroughFileSystem.Default;
 
             TestDirectory = new DisposableDirectory(fileSystem);
-            _clusterStateStorage = new InMemoryClusterStateStorage();
             _blobCacheConfiguration = blobCacheConfiguration;
             _secretsProvider = secretsProvider;
             _ephemeralManagementStorageCredentials = ephemeralManagementStorageCredentials;
@@ -272,6 +245,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             var result = BoolResult.Success;
             while (_rings.Count > 0)
             {
+                // TODO: prallelize
                 result &= await RemoveRingAsync(context, _rings.First().Key);
             }
 
@@ -307,6 +281,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         public async Task<Result<BuildRing>> AddRingAsync(OperationContext context, string id, int numInstances)
         {
+            // TODO: operation and cleanup
             var instances = await CreateTestRingAsync(context, numInstances);
             var ring = new BuildRing(id, instances.Select(instance => instance.Location).ToList());
 
@@ -339,8 +314,15 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             _rings.Remove(id);
 
             var result = BoolResult.Success;
-            foreach (var instance in ring.Builders.ToList())
+
+            // Start by removing non-leader machines first. This is crucial for the build-wide cache because the leader
+            // hosts
+            var builders = ring.Builders.ToList();
+            builders.Reverse();
+
+            foreach (var instance in builders)
             {
+                // TODO: parallelize
                 result &= await RemoveNodeAsync(context, instance);
             }
 
@@ -349,6 +331,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         public async Task<BoolResult> RemoveNodeAsync(OperationContext context, MachineLocation location)
         {
+            // TODO: operation and cleanup
             if (!_instances.TryGetValue(location, out var kvp))
             {
                 return new BoolResult(errorMessage: $"Failed to find node {location}");
@@ -390,6 +373,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                     leader = location;
                 }
 
+                // TODO: parallelize
                 var (host, cache) = await CreateSingleInstanceAsync(context, location, leader);
                 instances.Add(new TestNode(location, port, host, cache));
             }
@@ -411,7 +395,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                     Location = location,
                     Leader = leader,
                     StorageCredentials = _ephemeralManagementStorageCredentials,
-                    MaxCacheSizeMb = 1024
+                    MaxCacheSizeMb = 1024,
                 };
             }
             else
@@ -421,10 +405,21 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                     RootPath = TestDirectory.CreateRandomFileName(),
                     Location = location,
                     Leader = leader,
-                    MaxCacheSizeMb = 1024
+                    MaxCacheSizeMb = 1024,
                 };
             }
 
+            factoryConfiguration = factoryConfiguration with
+            {
+                // When running in production, these operations happen in very few milliseconds because the code
+                // paths are warmed up. When running in tests, we'll often have 1 or 2 of these, so we'll always
+                // fall into the worst-case times. If we use tight timeouts, we'll cause tests to fail.
+                ConnectionTimeout = TimeSpan.FromSeconds(30),
+                GetLocationsTimeout = TimeSpan.FromSeconds(1),
+                UpdateLocationsTimeout = TimeSpan.FromSeconds(1),
+                // Inline change processing to ensure that all changes are processed before we return from methods.
+                TestInlineChangeProcessing = true,
+            };
 
             var (host, cache) = await EphemeralCacheFactory.CreateInternalAsync(
                 context,

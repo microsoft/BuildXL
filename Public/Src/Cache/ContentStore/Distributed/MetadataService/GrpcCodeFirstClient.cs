@@ -17,13 +17,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService;
 
 public abstract class GrpcCodeFirstClient<TClient> : StartupShutdownComponentBase
 {
-    private readonly IClientAccessor<TClient> _accessor;
+    private readonly IFixedClientAccessor<TClient> _accessor;
     private readonly IRetryPolicy _retryPolicy;
     private readonly IClock _clock;
     private readonly TimeSpan _operationTimeout;
 
     protected GrpcCodeFirstClient(
-        IClientAccessor<TClient> accessor,
+        IFixedClientAccessor<TClient> accessor,
         IRetryPolicy retryPolicy,
         IClock clock,
         TimeSpan operationTimeout)
@@ -49,13 +49,23 @@ public abstract class GrpcCodeFirstClient<TClient> : StartupShutdownComponentBas
         var context = contextWithShutdown.Context;
         var callerAttempt = $"{caller}_Attempt";
 
+        var baselineMessage = $"Location=[{_accessor.Location}] ";
+
         return await context.PerformOperationWithTimeoutAsync(
             Tracer,
             context =>
             {
                 var callOptions = new CallOptions(
                     headers: new Metadata() { MetadataServiceSerializer.CreateContextIdHeaderEntry(context.TracingContext.TraceId) },
+#if NETCOREAPP3_1_OR_GREATER
+                    // We use the deadline as a last resort timeout. The actual timeout is meant to be controlled
+                    // through the cancellation token.
+                    deadline: _clock.UtcNow + 1.5 * _operationTimeout,
+#else
+                    // We use the deadline as a last resort timeout. The actual timeout is meant to be controlled
+                    // through the cancellation token.
                     deadline: _clock.UtcNow + _operationTimeout,
+#endif
                     cancellationToken: context.Token);
 
                 return _retryPolicy.ExecuteAsync(
@@ -83,7 +93,7 @@ public abstract class GrpcCodeFirstClient<TClient> : StartupShutdownComponentBas
                             },
                             extraStartMessage: extraStartMessage,
                             extraEndMessage:
-                            r => $"Attempt=[{attempt}] ClientCreationTimeMs=[{clientCreationTime.TotalMilliseconds}] {extraEndMessage(r)}",
+                            r => $"{baselineMessage}Attempt=[{attempt}] ClientCreationTimeMs=[{clientCreationTime.TotalMilliseconds}] {extraEndMessage(r)}",
                             caller: callerAttempt,
                             traceErrorsOnly: true);
 
@@ -100,7 +110,7 @@ public abstract class GrpcCodeFirstClient<TClient> : StartupShutdownComponentBas
             caller: caller,
             traceErrorsOnly: true,
             extraStartMessage: extraStartMessage,
-            extraEndMessage: r => $"Attempts=[{attempt + 1}] {extraEndMessage(r)}",
+            extraEndMessage: r => $"Location=[{_accessor.Location}] Attempts=[{attempt + 1}] {extraEndMessage(r)}",
             timeout: _operationTimeout);
     }
 }

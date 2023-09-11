@@ -58,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public OptionalServiceDefinition<ClientGlobalCacheStore> ClientGlobalCacheStore { get; }
 
         /// <nodoc />
-        public IServiceDefinition<IClientAccessor<IGlobalCacheService>> MasterClientAccessor { get; }
+        public IServiceDefinition<IFixedClientAccessor<IGlobalCacheService>> MasterClientAccessor { get; }
 
         /// <nodoc />
         public IServiceDefinition<IMasterElectionMechanism> MasterElectionMechanism { get; }
@@ -180,17 +180,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             return ClientGlobalCacheStore.GetRequiredInstance();
         }
 
-        private IClientAccessor<IGlobalCacheService> CreateMasterClientAccessor()
+        private IFixedClientAccessor<IGlobalCacheService> CreateMasterClientAccessor()
         {
             var clientAccessor = Configuration.GlobalCacheClientAccessorForTests;
             if (clientAccessor is null)
             {
                 // This is the code-path followed outside of tests
                 var localClient = Dependencies.GlobalCacheService.TryGetInstance(out var localService)
-                    ? new LocalClient<IGlobalCacheService>(Configuration.PrimaryMachineLocation, localService)
+                    ? new FixedClientAccessor<IGlobalCacheService>(localService, Configuration.PrimaryMachineLocation)
                     : null;
 
-                clientAccessor = new GrpcClientAccessor<IGlobalCacheService>(Arguments.ConnectionPool, localClient);
+                clientAccessor = new GrpcDotNetClientAccessor<IGlobalCacheService, IGlobalCacheService>(Arguments.ConnectionMap, (location, service) => service, localClient);
             }
 
             return new MasterClientFactory<IGlobalCacheService>(clientAccessor, MasterElectionMechanism.Instance);

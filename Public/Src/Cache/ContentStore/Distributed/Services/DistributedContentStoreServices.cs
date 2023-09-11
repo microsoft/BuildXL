@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
     /// <nodoc />
     public record DistributedContentStoreServicesArguments(
         DistributedContentSettings DistributedContentSettings,
-        GrpcConnectionPool ConnectionPool,
+        GrpcConnectionMap ConnectionMap,
         LocalLocationStoreConfiguration ContentLocationStoreConfiguration,
         DistributedCacheServiceHostOverrides Overrides,
         IDistributedServicesSecrets Secrets,
@@ -116,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     {
                         Clock = Arguments.Clock,
                         Copier = Arguments.DistributedContentCopier,
-                        ConnectionPool = Arguments.ConnectionPool,
+                        ConnectionMap = Arguments.ConnectionMap,
                         PreferredContentStore = Arguments.PreferredContentStore,
                         Dependencies = new ContentLocationStoreServicesDependencies()
                         {

@@ -265,6 +265,7 @@ private:
     std::string fdTable_[MAX_FD];
     const char* const empty_str_ = "";
     bool useFdTable_ = true;
+    bool sandboxLoggingEnabled_ = false;
 
     std::shared_ptr<SandboxedPip> pip_;
     std::shared_ptr<SandboxedProcess> process_;
@@ -335,11 +336,7 @@ private:
     static BxlObserver *sInstance;
     static AccessCheckResult sNotChecked;
 
-#if _DEBUG
-   #define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) { pid_t pid = getpid(); bxl->LogDebug(pid, "[%s:%d] " fmt, __progname, pid, __VA_ARGS__); }
-#else
-    #define BXL_LOG_DEBUG(bxl, fmt, ...)
-#endif
+#define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) { pid_t pid = getpid(); bxl->LogDebug(pid, "[%s:%d] " fmt, __progname, pid, __VA_ARGS__); }
 
 #define LOG_DEBUG(fmt, ...) BXL_LOG_DEBUG(this, fmt, __VA_ARGS__)
 
@@ -443,7 +440,7 @@ public:
             return false;
         }
 
-        return CheckEnableLinuxSandboxLogging(pip_->GetFamExtraFlags());
+        return sandboxLoggingEnabled_;
     }
 
     void LogDebug(pid_t pid, const char *fmt, ...);

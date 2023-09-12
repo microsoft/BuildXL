@@ -480,7 +480,10 @@
   <data name="Args_ForcedCacheMiss_InvalidPipId" xml:space="preserve">
     <value>The specified value '{0}' in the /forcedCacheMiss argument is not a valid pip id.</value>
   </data>
-  <data name="HelpText_DisplayHelp_InjectCacheMisses" xml:space="preserve">
+  <data name="Args_EnableVerboseProcessLogging_InvalidPipId" xml:space="preserve">
+    <value>The specified value '{0}' in the /debug_enableVerboseProcessLogging argument is not a valid pip id.</value>
+  </data>
+    <data name="HelpText_DisplayHelp_InjectCacheMisses" xml:space="preserve">
     <value>Sets a rate for artificial cache misses (pips may be re-run with this likelihood, when otherwise not necessary). Miss rate and options are specified as "[~]Rate[#Seed]". The '~' symbol negates the rate (it becomes an allowed hit rate). The 'Rate' must be a numeric value in the range [0.0, 1.0]. The optional 'Seed' is an integer value fully determining the random aspect of the miss rate (the same seed and miss rate will always pick the same set of pips).</value>
   </data>
   <data name="HelpText_DisplayHelp_ForcedCacheMiss" xml:space="preserve">
@@ -1164,5 +1167,8 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_HonorDirectoryCasingOnDisk" xml:space="preserve">
     <value>When true, casing of directories for dynamic outputs will match the ones found on disk when a pip is done executing (as opposed to using the casing of the first time the path is mentioned in the build). Useful on Windows when tools are case sensitive. Defaults to false.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EnableVerboseProcessLogging" xml:space="preserve">
+    <value>Enables verbose sandbox logging for specific pips based on their formatted semistable hashes. This is tantamount to switching /logObservedFileAccesses and /logProcesses for these pips, and also enabling verbose debug logging in the sandbox. A list of semistable hashes might be specified, separated by semicolons. If the special value "*" is given, sandbox logging will be enabled for every pip. Example: /debug_enableVerboseProcessLogging:Pip3855A4C7E1E820D0;PipE9638AD7DDD6AF67</value>
   </data>
 </root>

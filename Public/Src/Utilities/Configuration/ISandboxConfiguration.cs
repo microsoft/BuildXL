@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration
@@ -307,6 +308,16 @@ namespace BuildXL.Utilities.Configuration
         /// There will be a significant performance impact on the executing process under this sandbox.
         /// </remarks>
         public bool EnableLinuxPTraceSandbox { get; }
+
+
+        /// <summary>
+        /// A collection of formatted semistable hashes for pips which will have verbose sandbox logging enableed. 
+        /// If this set contains the special value "*", sandbox logging will be enabled for every pip
+        /// </summary>
+        /// <remarks>
+        /// For debugging purposes. Can be null
+        /// </remarks>
+        public IReadOnlyCollection<string> VerboseProcessLoggingEnabledPips { get; }
 
         /// <summary>
         /// Always use remote detours injection when launching processes from a 32-bit process.

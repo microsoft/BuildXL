@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
@@ -111,6 +112,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ExplicitlyReportDirectoryProbes = template.ExplicitlyReportDirectoryProbes;
             PreserveFileSharingBehaviour = template.PreserveFileSharingBehaviour;
             EnableLinuxPTraceSandbox = template.EnableLinuxPTraceSandbox;
+            VerboseProcessLoggingEnabledPips = template.VerboseProcessLoggingEnabledPips == null ? null : new HashSet<string>(template.VerboseProcessLoggingEnabledPips);
             AlwaysRemoteInjectDetoursFrom32BitProcess = template.AlwaysRemoteInjectDetoursFrom32BitProcess;
             UnconditionallyEnableLinuxPTraceSandbox = template.UnconditionallyEnableLinuxPTraceSandbox;
             IgnoreDeviceIoControlGetReparsePoint = template.IgnoreDeviceIoControlGetReparsePoint;
@@ -182,6 +184,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool LogObservedFileAccesses { get; set; }
+
+        /// <inheritdoc />
+        public HashSet<string> VerboseProcessLoggingEnabledPips { get; set; }
+    
+        /// <inheritdoc />
+        IReadOnlyCollection<string> ISandboxConfiguration.VerboseProcessLoggingEnabledPips => VerboseProcessLoggingEnabledPips;
 
         /// <inheritdoc />
         public bool LogProcesses { get; set; }

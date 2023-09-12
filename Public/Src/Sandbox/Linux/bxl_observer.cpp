@@ -140,6 +140,8 @@ void BxlObserver::InitFam(pid_t pid)
     process_ = sandbox_->FindTrackedProcess(pid);
     process_->SetPath(progFullPath_);
     sandbox_->SetAccessReportCallback(HandleAccessReport);
+
+    sandboxLoggingEnabled_ = CheckEnableLinuxSandboxLogging(pip_->GetFamExtraFlags());
 }
 
 void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...)

@@ -24,6 +24,7 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Collections;
 #if PLATFORM_OSX
 using static BuildXL.Interop.Unix.Memory;
 #endif
@@ -355,6 +356,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "debug_LoadGraph",
                             opt => HandleLoadGraphOption(opt, pathTable, cacheConfiguration)),
+                        OptionHandlerFactory.CreateOption(
+                            "debug_enableVerboseProcessLogging",
+                            opt => HandleVerboseProcessLoggingOption(opt, sandboxConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
                             "determinismProbe",
                             sign =>
@@ -2258,6 +2262,31 @@ namespace BuildXL
                 }
 
                 cacheConfiguration.ForcedCacheMissSemistableHashes.Add(pipId);
+            }
+        }
+
+        private static void HandleVerboseProcessLoggingOption(CommandLineUtilities.Option opt, SandboxConfiguration sandboxConfiguration)
+        {
+            sandboxConfiguration.VerboseProcessLoggingEnabledPips ??= new ReadOnlyHashSet<string>();
+
+            var mutableSet = (ReadOnlyHashSet<string>)sandboxConfiguration.VerboseProcessLoggingEnabledPips;
+
+            string[] pipIds = opt.Value.Split(';', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var maybePipId in pipIds)
+            {
+                if (maybePipId == "*")
+                {
+                    mutableSet.Add(maybePipId);
+                }
+                else if (FilterParser.TryParsePipId(maybePipId, out _))
+                {
+                    mutableSet.Add(maybePipId);
+                }
+                else
+                {
+                    throw CommandLineUtilities.Error(Strings.Args_EnableVerboseProcessLogging_InvalidPipId, maybePipId);
+                }
             }
         }
 

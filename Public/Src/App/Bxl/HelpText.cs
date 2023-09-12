@@ -1180,6 +1180,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/debug_enableVerboseProcessLogging:<list>",
+                Strings.HelpText_DisplayHelp_EnableVerboseProcessLogging,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/launchDebugger",
                 Strings.HelpText_DisplayHelp_LaunchDebugger,
                 HelpLevel.Verbose);

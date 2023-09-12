@@ -320,9 +320,10 @@ namespace BuildXL.ProcessPipExecutor
                     UseExtraThreadToDrainNtClose = m_sandboxConfig.UseExtraThreadToDrainNtClose,
                     DisableDetours = m_sandboxConfig.UnsafeSandboxConfiguration.DisableDetours(),
                     // Identifying Azure watson exit code requires logging process data, e.g., exit code.
-                    LogProcessData = 
-                        (m_sandboxConfig.LogProcesses && m_sandboxConfig.LogProcessData) 
-                        || (m_sandboxConfig.RetryOnAzureWatsonExitCode && OperatingSystemHelper.IsWindowsOS),
+                    LogProcessData =
+                        (m_sandboxConfig.LogProcesses && m_sandboxConfig.LogProcessData)
+                        || (m_sandboxConfig.RetryOnAzureWatsonExitCode && OperatingSystemHelper.IsWindowsOS)
+                        || IsVerboseProcessLoggingEnabled,
                     IgnoreGetFinalPathNameByHandle = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreGetFinalPathNameByHandle,
                     // SemiStableHash is 0 for pips with no provenance;
                     // since multiple pips can have no provenance, SemiStableHash is not always unique across all pips
@@ -333,7 +334,7 @@ namespace BuildXL.ProcessPipExecutor
                     ExplicitlyReportDirectoryProbes = m_sandboxConfig.ExplicitlyReportDirectoryProbes,
                     PreserveFileSharingBehaviour = m_sandboxConfig.PreserveFileSharingBehaviour,
                     EnableLinuxPTraceSandbox = m_sandboxConfig.EnableLinuxPTraceSandbox,
-                    EnableLinuxSandboxLogging = m_sandboxConfig.LogObservedFileAccesses,
+                    EnableLinuxSandboxLogging = IsVerboseProcessLoggingEnabled,
                     AlwaysRemoteInjectDetoursFrom32BitProcess = m_sandboxConfig.AlwaysRemoteInjectDetoursFrom32BitProcess,
                     UnconditionallyEnableLinuxPTraceSandbox = m_sandboxConfig.UnconditionallyEnableLinuxPTraceSandbox,
                     IgnoreDeviceIoControlGetReparsePoint = m_sandboxConfig.IgnoreDeviceIoControlGetReparsePoint,
@@ -1970,7 +1971,7 @@ namespace BuildXL.ProcessPipExecutor
             // N.B. here 'observed' means 'all', not observed in the terminology of SandboxedProcessPipExecutor.
             List<ReportedFileAccess> allFileAccesses = null;
 
-            if (MonitorFileAccesses && m_sandboxConfig.LogObservedFileAccesses)
+            if (MonitorFileAccesses && (m_sandboxConfig.LogObservedFileAccesses || IsVerboseProcessLoggingEnabled))
             {
                 allFileAccesses = new List<ReportedFileAccess>(result.FileAccesses);
                 allFileAccesses.AddRange(result.AllUnexpectedFileAccesses);
@@ -2299,7 +2300,8 @@ namespace BuildXL.ProcessPipExecutor
                 m_sandboxConfig.LogObservedFileAccesses
                 // When sandboxed process needs to be remoted, the remoting infrastructure, like AnyBuild, typically requires all
                 // reported file accesses.
-                || SandboxedProcessShouldExecuteRemote;
+                || SandboxedProcessShouldExecuteRemote
+                || IsVerboseProcessLoggingEnabled;
             m_fileAccessManifest.BreakOnUnexpectedAccess = m_sandboxConfig.BreakOnUnexpectedFileAccess;
             m_fileAccessManifest.FailUnexpectedFileAccesses = m_sandboxConfig.FailUnexpectedFileAccesses;
             m_fileAccessManifest.ReportProcessArgs = m_sandboxConfig.LogProcesses;
@@ -2340,6 +2342,8 @@ namespace BuildXL.ProcessPipExecutor
 
             return true;
         }
+
+        private bool IsVerboseProcessLoggingEnabled => m_sandboxConfig.VerboseProcessLoggingEnabledPips != null && (m_sandboxConfig.VerboseProcessLoggingEnabledPips.Contains("*") || m_sandboxConfig.VerboseProcessLoggingEnabledPips.Contains(m_pip.FormattedSemiStableHash));
 
         private bool SetMessageCountSemaphoreIfRequested()
         {

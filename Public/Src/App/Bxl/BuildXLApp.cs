@@ -1059,7 +1059,8 @@ namespace BuildXL
                         translatedLogDirectory,
                         m_configuration.InCloudBuild(),
                         Directory.GetCurrentDirectory(),
-                        m_initialConfiguration.Startup.ConfigFile.ToString(m_pathTable));
+                        m_initialConfiguration.Startup.ConfigFile.ToString(m_pathTable),
+                        m_configuration.Distribution.BuildRole.ToLoggingString());
 
                     // "o" means it is round-trippable. It happens to be ISO-8601.
                     Logger.Log.StartupTimestamp(
@@ -1167,10 +1168,11 @@ namespace BuildXL
             string logDirectory,
             bool inCloudBuild,
             string startupDirectory,
-            string mainConfigurationFile)
+            string mainConfigurationFile,
+            string role)
         {
-            Logger.Log.DominoInvocation(context, ScrubCommandLine(commandLine, 10000, 10000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
-            Logger.Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
+            Logger.Log.DominoInvocation(context, ScrubCommandLine(commandLine, 10000, 10000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, role);
+            Logger.Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, role);
 
             if (inCloudBuild)
             {

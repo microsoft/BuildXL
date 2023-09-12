@@ -48,6 +48,21 @@ namespace BuildXL.Utilities.Configuration
         {
             return role == DistributedBuildRoles.Master || role == DistributedBuildRoles.Orchestrator;
         } 
+
+        /// <summary>
+        /// returns a string representation of the role for logging purposes
+        /// </summary>
+        public static string ToLoggingString(this DistributedBuildRoles distributedBuildRole)
+        {
+            return distributedBuildRole switch
+            {
+                DistributedBuildRoles.None => "None",
+                DistributedBuildRoles.Master => "Orchestrator",
+                DistributedBuildRoles.Worker => "Worker",
+                DistributedBuildRoles.Orchestrator => "Orchestrator",
+                _ => throw new ArgumentOutOfRangeException(nameof(distributedBuildRole), distributedBuildRole, "Unknown role")
+            };
+        }
     }
 }
 

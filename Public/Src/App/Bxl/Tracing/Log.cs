@@ -31,7 +31,7 @@ namespace BuildXL.App.Tracing
         public static Logger Log => m_log;
         
         [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Engine configuration version: {buildInfo.EngineConfigurationVersion}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Available Physical Memory: {machineInfo.AvailableMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Runtime Framework: '{machineInfo.RuntimeFrameworkName}', Starup directory: {startupDirectory}, Main configuration file: {mainConfig}";
+        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Engine configuration version: {buildInfo.EngineConfigurationVersion}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Available Physical Memory: {machineInfo.AvailableMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Runtime Framework: '{machineInfo.RuntimeFrameworkName}', Starup directory: {startupDirectory}, Main configuration file: {mainConfig}, Distributed build role: {role}";
 
         /// <summary>
         /// CAUTION!!
@@ -48,7 +48,7 @@ namespace BuildXL.App.Tracing
             // Prevent this from going to the log. It is only for ETW and telemetry. DominoInvocationForLocalLog is for the log.
             Keywords = (int)Keywords.SelectivelyEnabled,
             Message = AppInvocationMessage)]
-        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig);
+        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, string role);
 
         /// <summary>
         /// This is the event that populates the local log file. It differs from DominoInvocation in that it contains the raw commandline without any truncation
@@ -59,7 +59,7 @@ namespace BuildXL.App.Tracing
             EventLevel = Level.Verbose,
             EventOpcode = (byte)EventOpcode.Start,
             Message = AppInvocationMessage)]
-        public abstract void DominoInvocationForLocalLog(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig);
+        public abstract void DominoInvocationForLocalLog(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, string role);
 
         [GeneratedEvent(
             (ushort)LogEventId.StartupTimestamp,

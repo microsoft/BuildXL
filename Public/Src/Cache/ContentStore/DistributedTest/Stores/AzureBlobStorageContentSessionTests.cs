@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -20,6 +21,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
+using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
@@ -149,31 +151,31 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
             });
     }
 
-        [Fact]
-        public Task TouchEmptyBlob()
-        {
-            // By putting an empty file twice, we ensure we're triggering the Touch logic.
-            return RunTestAsync(
-                ImplicitPin.None,
-                null,
-                async (context, session) =>
-                {
-                    var stream = new MemoryStream(0);
-                    await session.PutStreamAsync(context, HashType.Vso0, stream, CancellationToken.None).ShouldBeSuccess();
-                    await session.PutStreamAsync(context, HashType.Vso0, stream, CancellationToken.None).ShouldBeSuccess();
-                });
-        }
+    [Fact]
+    public Task TouchEmptyBlob()
+    {
+        // By putting an empty file twice, we ensure we're triggering the Touch logic.
+        return RunTestAsync(
+            ImplicitPin.None,
+            null,
+            async (context, session) =>
+            {
+                var stream = new MemoryStream(0);
+                await session.PutStreamAsync(context, HashType.Vso0, stream, CancellationToken.None).ShouldBeSuccess();
+                await session.PutStreamAsync(context, HashType.Vso0, stream, CancellationToken.None).ShouldBeSuccess();
+            });
+    }
 
-        [Fact]
-        public Task RepeatedBulkPinShouldSucceedAsync()
-        {
-            return RunTestAsync(
-                ImplicitPin.None,
-                null,
-                async (context, session) =>
-                {
-                    var fileCount = 5;
-                    var contentHashes = await session.PutRandomAsync(context, ContentHashType, false, fileCount, ContentByteCount, true);
+    [Fact]
+    public Task RepeatedBulkPinShouldSucceedAsync()
+    {
+        return RunTestAsync(
+            ImplicitPin.None,
+            null,
+            async (context, session) =>
+            {
+                var fileCount = 5;
+                var contentHashes = await session.PutRandomAsync(context, ContentHashType, false, fileCount, ContentByteCount, true);
 
                 {
                     var results = (await session.PinAsync(context, contentHashes, Token)).ToList();
@@ -297,6 +299,54 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
         }
     }
 
+    [Fact]
+    public async Task DoesntDownloadMismatchingHashes()
+    {
+        // This test downloads a file in parallel, hence why we check
+        using var placeDirectory = new DisposableDirectory(FileSystem);
+        var path = placeDirectory.Path / "file.dat";
+        await RunTestAsync(
+            ImplicitPin.None,
+            null,
+            async (context, sess) =>
+            {
+                var session = (sess as ITrustedContentSession)!;
+
+                // Generate some content
+                var putResult = await session.PutContentAsync(context, "hello").ThrowIfFailureAsync();
+                await session.PlaceFileAsync(
+                    context,
+                    putResult.ContentHash,
+                    path,
+                    FileAccessMode.ReadOnly,
+                    FileReplacementMode.ReplaceExisting,
+                    FileRealizationMode.Any,
+                    CancellationToken.None).ThrowIfFailureAsync();
+
+                // Perform a trusted put with invalid hash.
+                var invalidHash = ContentHash.Random();
+                await session.PutTrustedFileAsync(
+                    context,
+                    new ContentHashWithSize(invalidHash, 5),
+                    path,
+                    FileRealizationMode.Any,
+                    CancellationToken.None,
+                    UrgencyHint.Nominal).ThrowIfFailureAsync();
+
+                // Placing the invalid hash should fail.
+                var result = await session.PlaceFileAsync(
+                    context,
+                    invalidHash,
+                    path,
+                    FileAccessMode.ReadOnly,
+                    FileReplacementMode.ReplaceExisting,
+                    FileRealizationMode.Any,
+                    Token);
+
+                result.Code.Should().Be(PlaceFileResult.ResultCode.NotPlacedContentNotFound);
+            });
+    }
+
     internal string? OverrideFolderName { get; set; }
 
     private IDisposable CreateBlobContentStore(out AzureBlobStorageContentStore store)
@@ -310,14 +360,14 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
         var (process, secretsProvider) = CreateTestTopology(_fixture, shards);
 
         var configuration = new AzureBlobStorageContentStoreConfiguration()
-                            {
-                                Topology = new ShardedBlobCacheTopology(
+        {
+            Topology = new ShardedBlobCacheTopology(
                                     new ShardedBlobCacheTopology.Configuration(
                                         new ShardingScheme(ShardingAlgorithm.JumpHash, shards),
                                         SecretsProvider: secretsProvider,
                                         Universe: OverrideFolderName ?? _runId,
                                         Namespace: "default")),
-                            };
+        };
 
         store = new AzureBlobStorageContentStore(configuration);
 

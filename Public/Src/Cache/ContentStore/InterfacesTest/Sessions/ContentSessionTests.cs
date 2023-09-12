@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Service;
@@ -24,6 +25,8 @@ using BuildXL.Cache.ContentStore.InterfacesTest;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.Sessions.Internal;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
 {
@@ -581,6 +584,42 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         }
 
         [Fact]
+        public Task PutStreamWithNonMatchingHashFailsTest()
+        {
+            return RunTestAsync(
+                ImplicitPin.None,
+                null,
+                async (context, session) =>
+                {
+                    var hash = ContentHash.Random();
+                    using var content = "hello".ToUTF8Stream();
+
+                    var putResult = await session.PutStreamAsync(context, hash, content, CancellationToken.None);
+                    putResult.ShouldBeError();
+                });
+        }
+
+        [Fact]
+        public Task PutFileWithNonMatchingHashFailsTest()
+        {
+            return RunTestAsync(
+                ImplicitPin.None,
+                null,
+                async (context, session) =>
+                {
+                    var hash = ContentHash.Random();
+
+                    using var directory = new DisposableDirectory(FileSystem);
+
+                    var path = directory.Path / "file.dat";
+                    FileSystem.WriteAllBytes(path, "funny"u8.ToArray());
+
+                    var putResult = await session.PutFileAsync(context, hash, path, FileRealizationMode.Any, CancellationToken.None);
+                    putResult.ShouldBeError();
+                });
+        }
+
+        [Fact]
         public Task SessionGivesPinnedContentForHibernation()
         {
             // Puts are not blocked, nor is content evicted, during sensitive sessions.
@@ -598,7 +637,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
                     contentHashes.Add(r.ContentHash);
                 }
 
-                var hibernateSession = (IHibernateContentSession) session;
+                var hibernateSession = (IHibernateContentSession)session;
 
                 var pinnedContentHashes = hibernateSession.EnumeratePinnedContentHashes().ToHashSet();
                 Assert.Equal(contentHashes, pinnedContentHashes);
@@ -622,7 +661,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
                     contentHashes.Add(r.ContentHash);
                 }
 
-                var hibernateSession = (IHibernateContentSession) session;
+                var hibernateSession = (IHibernateContentSession)session;
 
                 var pinnedContentHashes = hibernateSession.EnumeratePinnedContentHashes().ToHashSet();
                 Assert.Equal(0, pinnedContentHashes.Count);

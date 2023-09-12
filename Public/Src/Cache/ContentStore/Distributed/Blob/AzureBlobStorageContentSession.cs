@@ -6,10 +6,12 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -18,7 +20,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tracing;
@@ -32,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// <summary>
 /// A content session implementation backed by Azure Blobs.
 /// </summary>
-public sealed class AzureBlobStorageContentSession : ContentSessionBase, IContentNotFoundRegistration
+public sealed class AzureBlobStorageContentSession : ContentSessionBase, IContentNotFoundRegistration, ITrustedContentSession
 {
     public record Configuration(
         string Name,
@@ -116,11 +120,6 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
-        if (contentHash.IsEmptyHash())
-        {
-            return new OpenStreamResult(new MemoryStream(Array.Empty<byte>()).WithLength(0));
-        }
-
         var stream = await TryOpenRemoteStreamAsync(context, contentHash).ThrowIfFailureAsync();
         return new OpenStreamResult(stream);
     }
@@ -245,7 +244,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         return (FileStream)stream;
     }
 
-    private Task<Result<RemoteDownloadResult>> PlaceRemoteFileAsync(
+    private async Task<Result<RemoteDownloadResult>> PlaceRemoteFileAsync(
         OperationContext context,
         ContentHash contentHash,
         AbsolutePath path,
@@ -253,61 +252,81 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         FileReplacementMode replacementMode)
     {
         string blobPath = string.Empty;
-        return context.PerformOperationWithTimeoutAsync(
+        var result = await context.PerformOperationWithTimeoutAsync(
             Tracer,
             async context =>
             {
                 var stopwatch = StopwatchSlim.Start();
-
-                try
+                (StreamWithLength? stream, blobPath) = await TryOpenReadAsync(context, contentHash);
+                if (stream == null)
                 {
-                    StreamWithLength? stream;
-                    (stream, blobPath) = await TryOpenReadAsync(context, contentHash);
-                    if (stream == null)
+                    return Result.Success(new RemoteDownloadResult()
                     {
-                        return CreateDownloadResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, stopwatch.Elapsed);
-                    }
-
-                    var timeToFirstByteDuration = stopwatch.ElapsedAndReset();
-
-                    using var remoteStream = stream.Value.Stream;
-
-                    using var fileStream = OpenFileStream(path, stream.Value.Length, randomAccess: false);
-
-                    var openFileStreamDuration = stopwatch.ElapsedAndReset();
-
-                    await remoteStream.CopyToAsync(fileStream, _configuration.FileDownloadBufferSize, context.Token);
-
-                    var downloadDuration = stopwatch.ElapsedAndReset();
-
-                    return Result.Success(
-                        new RemoteDownloadResult
-                        {
-                            ResultCode = PlaceFileResult.ResultCode.PlacedWithCopy,
-                            FileSize = remoteStream.Length,
-                            TimeToFirstByteDuration = timeToFirstByteDuration,
-                            DownloadResult = new DownloadResult()
-                            {
-                                OpenFileStreamDuration = openFileStreamDuration,
-                                DownloadDuration = downloadDuration,
-                                WriteDuration = fileStream.GetWriteDurationIfAvailable(),
-                            },
-                        });
+                        ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
+                        DownloadResult = new DownloadResult() { DownloadDuration = stopwatch.Elapsed, },
+                    });
                 }
-                catch
+
+                var timeToFirstByteDuration = stopwatch.ElapsedAndReset();
+
+                using var remoteStream = stream.Value.Stream;
+
+                using var fileStream = OpenFileStream(path, stream.Value.Length, randomAccess: false);
+                var openFileStreamDuration = stopwatch.ElapsedAndReset();
+
+                ContentHash observedContentHash;
+                await using (var hashingStream = HashInfoLookup
+                                 .GetContentHasher(contentHash.HashType)
+                                 .CreateWriteHashingStream(
+                                     fileStream,
+                                     parallelHashingFileSizeBoundary: _configuration.FileDownloadBufferSize))
                 {
-                    // Probably the file should be missing, but deleting it if the failure occurred in the process.
+                    await remoteStream.CopyToAsync(hashingStream, _configuration.FileDownloadBufferSize, context.Token);
+                    observedContentHash = await hashingStream.GetContentHashAsync();
+                }
+                var downloadDuration = stopwatch.ElapsedAndReset();
+
+                if (observedContentHash != contentHash)
+                {
+                    // TODO: there should be some way to either notify or delete the file in storage
+                    Tracer.Error(context, $"Expected to download file with hash {contentHash} into file {path}, but found {observedContentHash} instead");
+
+                    // The file we downloaded on to disk has the wrong file. Delete it so it can't be used incorrectly.
                     try
                     {
                         _fileSystem.DeleteFile(path);
                     }
-                    catch (Exception e)
+                    catch (Exception exception)
                     {
-                        Tracer.Warning(context, e, $"Failure deleting a file '{path}'.");
+                        return new Result<RemoteDownloadResult>(exception, $"Failed to delete {path} containing partial download results for content {contentHash}");
                     }
 
-                    throw;
+                    return Result.Success(
+                        new RemoteDownloadResult()
+                        {
+                            ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
+                            DownloadResult = new DownloadResult()
+                            {
+                                OpenFileStreamDuration = openFileStreamDuration,
+                                DownloadDuration = downloadDuration,
+                                WriteDuration = fileStream.GetWriteDurationIfAvailable()
+                            },
+                        });
                 }
+
+                return Result.Success(
+                    new RemoteDownloadResult
+                    {
+                        ResultCode = PlaceFileResult.ResultCode.PlacedWithCopy,
+                        FileSize = remoteStream.Length,
+                        TimeToFirstByteDuration = timeToFirstByteDuration,
+                        DownloadResult = new DownloadResult()
+                        {
+                            OpenFileStreamDuration = openFileStreamDuration,
+                            DownloadDuration = downloadDuration,
+                            WriteDuration = fileStream.GetWriteDurationIfAvailable(),
+                        },
+                    });
             },
             traceOperationStarted: false,
             timeout: _configuration.StorageInteractionTimeout,
@@ -323,15 +342,23 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                                  var d = r.Value;
                                  return $"{baseline} {r.Value}";
                              });
-    }
 
-    private static RemoteDownloadResult CreateDownloadResult(PlaceFileResult.ResultCode resultCode, TimeSpan downloadDuration)
-    {
-        return new RemoteDownloadResult()
+        if (result.Succeeded)
         {
-            ResultCode = resultCode,
-            DownloadResult = new DownloadResult() { DownloadDuration = downloadDuration, },
-        };
+            return result;
+        }
+
+        // If the above failed, then it's likely there's a leftover partial download at the target path. Deleting it preemptively.
+        try
+        {
+            _fileSystem.DeleteFile(path);
+        }
+        catch (Exception e)
+        {
+            return new Result<RemoteDownloadResult>(e, $"Failed to delete {path} containing partial download results for content {contentHash}");
+        }
+
+        return result;
     }
 
     /// <inheritdoc />
@@ -349,53 +376,8 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             FileMode.Open,
             FileShare.Read,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
+
         return await PutStreamCoreAsync(context, hashType, streamWithLength.Stream, urgencyHint, retryCounter);
-    }
-
-    /// <inheritdoc />
-    protected override async Task<PutResult> PutFileCoreAsync(
-        OperationContext context,
-        ContentHash contentHash,
-        AbsolutePath path,
-        FileRealizationMode realizationMode,
-        UrgencyHint urgencyHint,
-        Counter retryCounter)
-    {
-        using var streamWithLength = _fileSystem.Open(
-            path,
-            FileAccess.Read,
-            FileMode.Open,
-            FileShare.Read,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        return await UploadFromStreamAsync(
-            context,
-            contentHash,
-            streamWithLength.Stream,
-            streamWithLength.Length);
-    }
-
-    protected override Task<PutResult> PutStreamCoreAsync(
-        OperationContext context,
-        ContentHash contentHash,
-        Stream stream,
-        UrgencyHint urgencyHint,
-        Counter retryCounter)
-    {
-        // This is on purpose because we don't know what the stream implementation is here.
-        long contentSize = -1;
-        try
-        {
-            contentSize = stream.Length;
-        }
-        catch
-#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
-        {
-            // Obtaining the length is an optimization which may not be allowed by the underlying stream. We'll proceed
-            // anyways without it.
-        }
-#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
-
-        return UploadFromStreamAsync(context, contentHash, stream, contentSize);
     }
 
     /// <inheritdoc />
@@ -420,9 +402,46 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             streamWithLength.Length);
     }
 
+    // TODO: In the ContentHash-based variants of PutFile and PutStream, we can know the name of the file before
+    // hashing it. Therefore, we could have a custom Stream implementation that lets us hash the file as we upload it
+    // and cancel the upload if the hash doesn't match at the end of the file. In those cases, we could also do a
+    // existence check before uploading to avoid that extra API request.
+
     #endregion
 
-    private Task<PutResult> UploadFromStreamAsync(
+    #region ITrustedContentSession implementation
+
+    public async Task<PutResult> PutTrustedFileAsync(
+        Context context,
+        ContentHashWithSize contentHashWithSize,
+        AbsolutePath path,
+        FileRealizationMode realizationMode,
+        CancellationToken cts,
+        UrgencyHint urgencyHint)
+    {
+        var operationContext = new OperationContext(context, cts);
+        using var streamWithLength = _fileSystem.Open(
+            path,
+            FileAccess.Read,
+            FileMode.Open,
+            FileShare.Read,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        if (contentHashWithSize.Size != streamWithLength.Length)
+        {
+            return new PutResult(contentHashWithSize.Hash, $"Expected content size to be {contentHashWithSize.Size} as advertised, but found {streamWithLength.Length} instead");
+        }
+
+        return await UploadFromStreamAsync(operationContext, contentHashWithSize.Hash, streamWithLength.Stream, streamWithLength.Length);
+    }
+
+    public AbsolutePath? TryGetWorkingDirectory(AbsolutePath? pathHint)
+    {
+        return null;
+    }
+
+    #endregion
+
+    internal Task<PutResult> UploadFromStreamAsync(
         OperationContext context,
         ContentHash contentHash,
         Stream stream,
@@ -519,15 +538,12 @@ public readonly record struct DownloadResult
 
     public TimeSpan? OpenFileStreamDuration { get; init; }
 
-    public TimeSpan? MemoryMapDuration { get; init; }
-
     public TimeSpan? WriteDuration { get; init; }
 
     /// <inheritdoc />
     public override string ToString()
     {
         return $"OpenFileStreamDurationMs=[{OpenFileStreamDuration?.TotalMilliseconds ?? -1}] " +
-               $"MemoryMapDurationMs=[{MemoryMapDuration?.TotalMilliseconds ?? -1}] " +
                $"DownloadDurationMs=[{DownloadDuration.TotalMilliseconds}]" +
                $"WriteDuration=[{WriteDuration?.TotalMilliseconds ?? -1}]";
     }

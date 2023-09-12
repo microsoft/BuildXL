@@ -25,14 +25,13 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 namespace BuildXL.Cache.ContentStore.Sessions
 {
     /// <summary>
-    ///     Base implementation of IContentSession. The purpose of having this class is to add common tracing
-    /// behavior to all implementations.
+    /// Base implementation of IContentSession. This class serves multiple purposes:
+    /// 1. Add common tracing behavior to all implementations.
+    /// 2. Provide default implementations for convenience and bulk methods.
+    /// 3. Ensure all calls get cancelled when Shutdown is called.
     ///
-    ///     Note that this is intended to be subclassed by readonly content sessions but implements the full
-    /// IContentSession, which is why methods for IContentSession are hidden by implementing them explicitly
-    /// and making the Core implementations virtual and not abstract. The constraint that forced this design
-    /// is that C# does not allow for multiple inheritance, and this was the only way to get base implementations
-    /// for IContentSession.
+    /// It is possible that subclasses may be able to implement some of the methods more efficiently, which is why the
+    /// methods are often marked as virtual.
     /// </summary>
     public abstract class ContentSessionBase : StartupShutdownBase, IContentSession
     {
@@ -458,13 +457,22 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <summary>
         /// Core implementation of PutFileAsync.
         /// </summary>
-        protected abstract Task<PutResult> PutFileCoreAsync(
+        protected virtual async Task<PutResult> PutFileCoreAsync(
             OperationContext operationContext,
             ContentHash contentHash,
             AbsolutePath path,
             FileRealizationMode realizationMode,
             UrgencyHint urgencyHint,
-            Counter retryCounter);
+            Counter retryCounter)
+        {
+            var result = await PutFileCoreAsync(operationContext, contentHash.HashType, path, realizationMode, urgencyHint, retryCounter);
+            if (result.Succeeded && result.ContentHash != contentHash)
+            {
+                return new PutResult(contentHash, $"Calculated hash={result.ContentHash} does not match caller's hash={contentHash}");
+            }
+
+            return result;
+        } 
 
         /// <inheritdoc />
         Task<PutResult> IContentSession.PutStreamAsync(
@@ -540,12 +548,21 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <summary>
         /// Core implementation of PutStreamAsync.
         /// </summary>
-        protected abstract Task<PutResult> PutStreamCoreAsync(
+        protected virtual async Task<PutResult> PutStreamCoreAsync(
             OperationContext operationContext,
             ContentHash contentHash,
             Stream stream,
             UrgencyHint urgencyHint,
-            Counter retryCounter);
+            Counter retryCounter)
+        {
+            var result = await PutStreamCoreAsync(operationContext, contentHash.HashType, stream, urgencyHint, retryCounter);
+            if (result.Succeeded && result.ContentHash != contentHash)
+            {
+                return new PutResult(contentHash, $"Calculated hash={result.ContentHash} does not match caller's hash={contentHash}");
+            }
+
+            return result;
+        }
 
         /// <nodoc />
         protected internal virtual CounterSet GetCounters() => BaseCounters.ToCounterSet();

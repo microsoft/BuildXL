@@ -73,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             DatacenterCache,
 
             /// <summary>
-            /// The file comes from backing store, i.e. Artifact Services or "L3".
+            /// The file comes from persistent storage ("L3").
             /// </summary>
             BackingStore,
 

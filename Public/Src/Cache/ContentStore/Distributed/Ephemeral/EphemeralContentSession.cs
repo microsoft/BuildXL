@@ -54,6 +54,10 @@ public class EphemeralContentSession : ContentSessionBase
         }
     }
 
+    // TODO: when we confirm existence (or lack of) of content in the persistent session, it'd be ideal to add that
+    // fact to the ephemeral cache as a "permanent fact". This would allow us to avoid the existence check in the
+    // future.
+
     public EphemeralContentSession(string name, IContentSession local, IContentSession persistent, EphemeralHost ephemeralHost)
         : base(name, counterTracker: null)
     {

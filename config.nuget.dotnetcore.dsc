@@ -3,13 +3,13 @@
 
 const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
-const core60Version = "6.0.21";
-const core70Version = "7.0.10";
+const core60Version = "6.0.22";
+const core70Version = "7.0.11";
 
 // Microsoft.NETCore.Platforms has become out of sync with the rest of the packages that use core60Version
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
-const core60VersionPlatforms = "6.0.9"; 
-const core70VersionPlatforms = "7.0.2";
+const core60VersionPlatforms = "6.0.11"; 
+const core70VersionPlatforms = "7.0.4";
 
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";

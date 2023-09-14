@@ -95,7 +95,7 @@ namespace BuildXL.Engine.Distribution
         private class NotifyStream : Stream
         {
             /// <summary>
-            /// Threshold over which events are sent to master. 32MB limit
+            /// Threshold over which events are sent to orchestrator. 32MB limit
             /// </summary>
             internal const int EventDataSizeThreshold = 1 << 16; //64kb
                 //1 << 25;

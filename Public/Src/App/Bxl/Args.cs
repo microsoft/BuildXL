@@ -2109,9 +2109,6 @@ namespace BuildXL
 
             switch (experimentalOptionAndValue.Item1.ToUpperInvariant())
             {
-                case "DONTBRINGOUTPUTSTOMASTER":
-                    // deprecated (no effect)
-                    break;
                 case "USEHARDLINKS":
                     // Deprecated alias: Hardlinks are no longer experimental, so we treat this as an alias for the new /useHardLinks option.
                     engineConfiguration.UseHardlinks = experimentalOptionAndValue.Item2;

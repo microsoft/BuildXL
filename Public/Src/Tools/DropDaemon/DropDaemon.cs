@@ -846,7 +846,7 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        /// Generates and uploads the Manifest.json on the master using all file hashes computed and stored 
+        /// Generates and uploads the Manifest.json on the orchestrator using all file hashes computed and stored 
         /// by workers using <see cref="VsoClient.RegisterFilesForBuildManifestAsync"/> for the given drop.
         /// Should be called only when DropConfig.GenerateBuildManifest is true.
         /// </summary>

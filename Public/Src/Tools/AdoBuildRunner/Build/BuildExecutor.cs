@@ -108,7 +108,7 @@ namespace BuildXL.AdoBuildRunner.Build
             Logger.Info($@"Launching distributed build as orchestrator");
             return ExecuteBuild(
                 ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /distributedBuildRole:master" +
+                $" /distributedBuildRole:orchestrator" +
                 $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
                 $" /relatedActivityId:{relatedSessionId}",
                 buildContext.SourcesDirectory

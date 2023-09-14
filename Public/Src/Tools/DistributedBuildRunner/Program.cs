@@ -181,7 +181,7 @@ namespace Tool.DistributedBuildRunner
 
             // Construct the master command line
             InitializeArgs(commandLineBuilder, commonArgs + " " + masterArgs, 0, sourceRootLetter, objectRootLetter, masterCacheRoot);
-            commandLineBuilder.AppendArg("/distributedBuildRole:master");
+            commandLineBuilder.AppendArg("/distributedBuildRole:orchestrator");
 
             var masterPort = GetPortNumber();
             var workerPorts = new List<int>();

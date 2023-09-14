@@ -60,6 +60,21 @@ namespace BuildXL.Engine.Cache.Artifacts
         private readonly string m_vfsCasRoot;
         private readonly bool m_inCloudBuild;
         private readonly bool m_honorDirectoryCasingOnDisk;
+
+        /// <summary>
+        /// Caches the casing of directories on disk.
+        /// </summary>
+        /// <remarks>
+        /// Used by <see cref="FileUtilities.GetPathWithExactCasing(string, bool, ConcurrentBigMap{string, string})"/>
+        /// Retrieving the casing of a full path has been proven expensive and this cache tries to mitigate that.
+        /// The caveat here is that using a cache might mean that if two different tools disagree on the casing of a directory (used to produce a file under it),
+        /// then we will honor the first casing we see from that point on. This is a trade-off we are willing to make: producing
+        /// different files under the same directory where the directory is mentioned with different casing is a race by nature (BuildXL does not
+        /// track or produce a DFA over directory creations).
+        /// Note that this is not the same problem as what we have when <see cref="m_honorDirectoryCasingOnDisk"/> is disabled (where the path table
+        /// is used to produce the casing for materialized files), and the casing we are leaving out is about *producing* different files that
+        /// share a common directory, and the casing of that directory might be produced differently.
+        /// </remarks>
         private readonly ConcurrentBigMap<string, string> m_directoryCasingOnDiskCache;
 
         /// <summary>
@@ -83,7 +98,6 @@ namespace BuildXL.Engine.Cache.Artifacts
             Contract.Requires(pathTable != null);
             Contract.Requires(fileContentTable != null);
             Contract.Requires(fileChangeTracker != null);
-            Contract.Requires(!honorDirectoryCasingOnDisk || directoryCasingOnDiskCache != null);
 
             m_loggingContext = loggingContext;
             m_pathTable = pathTable;
@@ -99,7 +113,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 m_vfsCasRoot = m_normalizedPathToRealPathTranslator.Translate(m_vfsCasRoot);
             }
             m_honorDirectoryCasingOnDisk = honorDirectoryCasingOnDisk;
-            m_directoryCasingOnDiskCache = directoryCasingOnDiskCache;
+            m_directoryCasingOnDiskCache = honorDirectoryCasingOnDisk ? (directoryCasingOnDiskCache ?? new ConcurrentBigMap<string, string>()) : null;
         }
 
         /// <nodoc />

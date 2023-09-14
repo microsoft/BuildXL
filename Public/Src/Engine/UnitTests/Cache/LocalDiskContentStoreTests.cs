@@ -938,8 +938,7 @@ namespace Test.BuildXL.Engine.Cache
                         m_directoryTranslator,
                         new TestFileChangeTrackingSelector(this),
                         inCloudBuild: m_inCloudBuild,
-                        honorDirectoryCasingOnDisk: m_honorDirectoryCasingOnDisk,
-                        directoryCasingOnDiskCache: m_honorDirectoryCasingOnDisk ? new ConcurrentBigMap<string, string>() : null);
+                        honorDirectoryCasingOnDisk: m_honorDirectoryCasingOnDisk);
                     return m_store;
                 }
             }

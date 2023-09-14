@@ -938,19 +938,6 @@ namespace BuildXL.Scheduler
         private readonly ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> m_alienFileEnumerationCache;
 
         /// <summary>
-        /// When <see cref="CacheConfiguration.HonorDirectoryCasingOnDisk"/> is enabled, this cache is used to hold the casing of directories on disk for the whole build.
-        /// </summary>
-        /// <remarks>
-        /// Used by <see cref="FileUtilities.GetPathWithExactCasing(string, bool, ConcurrentBigMap{string, string})"/>
-        /// Retrieving the casing of a full path has been proven expensive and this build-wide cache tries to mitigate that. The caveat here is that using a cache might mean that if two different
-        /// tools disagree on the casing of a directory (used to produce a file under it), then we'll honor the first casing we see from that point on. This is a trade-off we're willing to make: producing
-        /// different files under the same directory where the directory is mentioned with different casing is racy by nature (BuildXL does not track or produce a DFA over directory creations).
-        /// Observe this is not the same problem we have when <see cref="CacheConfiguration.HonorDirectoryCasingOnDisk"/> is disabled (where the path table is used to produce the casing for materialized files), and the casing
-        /// we are leaving out is about *producing* different files that share a common directory, and the casing of that directory might be produced differently.
-        /// </remarks>
-        private readonly ConcurrentBigMap<string, string> m_directoryCasingOnDiskCache;
-
-        /// <summary>
         /// Used for making coarse grained decisions about files being created/modified after the build started
         /// when computing directory fingerprints in <see cref="ObservedInputProcessor"/>
         /// </summary>
@@ -1496,11 +1483,6 @@ namespace BuildXL.Scheduler
             ReparsePointAccessResolver = new ReparsePointResolver(context, directoryTranslator);
 
             m_alienFileEnumerationCache = new ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>>();
-
-            if (configuration.Cache.HonorDirectoryCasingOnDisk)
-            {
-                m_directoryCasingOnDiskCache = new ConcurrentBigMap<string, string>();
-            }
 
             m_diagnosticsEnabled = ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics);
 
@@ -6335,8 +6317,7 @@ namespace BuildXL.Scheduler
                     fileChangeTrackingSelector,
                     vfsCasRoot: m_configuration.Cache.VfsCasRoot,
                     inCloudBuild: m_configuration.InCloudBuild(),
-                    honorDirectoryCasingOnDisk: m_configuration.Cache.HonorDirectoryCasingOnDisk,
-                    m_directoryCasingOnDiskCache);
+                    honorDirectoryCasingOnDisk: m_configuration.Cache.HonorDirectoryCasingOnDisk);
                 
                 m_pipOutputMaterializationTracker = new PipOutputMaterializationTracker(this, IncrementalSchedulingState);
 

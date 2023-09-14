@@ -4,6 +4,8 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using BuildXL.Native.IO;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
@@ -80,6 +82,48 @@ namespace BuildXL.Pips.Filter
         }
 
         /// <summary>
+        /// Checks if the given path matches the patterns of source sealed directory.
+        /// </summary>
+        internal bool MatchWithSourceSealPatterns(SealDirectory sd, PathTable pathTable)
+        {
+            Contract.Requires(sd.Kind.IsSourceSeal());
+
+            if (!sd.Patterns.IsValid || sd.Patterns.Length == 0)
+            {
+                // Nothing to be matched with the patterns.
+                return true;
+            }
+
+            if (m_matchMode != MatchMode.FilePath)
+            {
+                // If filter path has wildcard, skip checking against sealed source patterns.
+                return true;
+            }
+
+            if (m_path == sd.DirectoryRoot)
+            {
+                // Nothing to be matched with the patterns because
+                // the filtered path matches the directory root.
+                return true;
+            }
+
+            var pathName = m_path.GetName(pathTable).ToString(pathTable.StringTable);
+            foreach (var pattern in sd.Patterns)
+            {
+                var patternStr = pattern.ToString(pathTable.StringTable);
+
+                // As this is potentially a hot path, think of replacing it
+                // with SingleWildcardPatternMatch for perf.
+                if (FileUtilities.PathMatchPattern(pathName, patternStr))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Checks if a directory path matches the filter
         /// </summary>
         internal bool DirectoryPathMatches(AbsolutePath path, bool topLevelOnly, PathTable pathTable)
@@ -87,55 +131,55 @@ namespace BuildXL.Pips.Filter
             switch (m_matchMode)
             {
                 case MatchMode.FilePath:
+                {
+                    // Filter: Z:\a\b\c\d
+                    // Path:
+                    // - Z:\a\b\c\d - OK
+                    // - Z:\a\b\c - OK
+                    // - Z:\a\b - OK if topLevelOnly is false.
+                    if (m_path == path)
                     {
-                        // Filter: Z:\a\b\c\d
-                        // Path:
-                        // - Z:\a\b\c\d - OK
-                        // - Z:\a\b\c - OK
-                        // - Z:\a\b - OK if topLevelOnly is false.
-                        if (m_path == path)
-                        {
-                            return true;
-                        }
-
-                        return topLevelOnly ? m_path.GetParent(pathTable) == path : m_path.IsWithin(pathTable, path);
+                        return true;
                     }
+
+                    return topLevelOnly ? m_path.GetParent(pathTable) == path : m_path.IsWithin(pathTable, path);
+                }
 
                 case MatchMode.WithinDirectory:
                     return path.GetParent(pathTable).Equals(m_path);
                 case MatchMode.WithinDirectoryAndSubdirectories:
                     return path.IsWithin(pathTable, m_path);
                 case MatchMode.PathPrefixWildcard:
-                    {
-                        // Filter: *\c\d
-                        // Path:
-                        // - Z:\a\b\c\d - OK
-                        // - Z:\p\q - Not OK, although there can be the file Z:\p\q\c\d
-                        // To be conservative, every path matches the path prefix wildcard, but the filtering would be too coarse.
-                        return path.ToString(pathTable).EndsWith(m_pathWildcardUpper, StringComparison.OrdinalIgnoreCase);
-                    }
+                {
+                    // Filter: *\c\d
+                    // Path:
+                    // - Z:\a\b\c\d - OK
+                    // - Z:\p\q - Not OK, although there can be the file Z:\p\q\c\d
+                    // To be conservative, every path matches the path prefix wildcard, but the filtering would be too coarse.
+                    return path.ToString(pathTable).EndsWith(m_pathWildcardUpper, StringComparison.OrdinalIgnoreCase);
+                }
 
                 case MatchMode.PathSuffixWildcard:
+                {
+                    // Filter: Z:\a\b\c\d\*
+                    // Path:
+                    // - Z:\a\b\c\d - OK
+                    // - Z:\a\b\c\d\e - OK
+                    // - Z:\a\b\c - OK if topLevelOnly is false.
+                    var pathStr = path.ToString(pathTable);
+                    if (pathStr.StartsWith(m_pathWildcardUpper, StringComparison.OrdinalIgnoreCase))
                     {
-                        // Filter: Z:\a\b\c\d\*
-                        // Path:
-                        // - Z:\a\b\c\d - OK
-                        // - Z:\a\b\c\d\e - OK
-                        // - Z:\a\b\c - OK if topLevelOnly is false.
-                        var pathStr = path.ToString(pathTable);
-                        if (pathStr.StartsWith(m_pathWildcardUpper, StringComparison.OrdinalIgnoreCase))
-                        {
-                            return true;
-                        }
-
-                        pathStr += Path.DirectorySeparatorChar.ToString();
-                        if (!m_pathWildcardUpper.StartsWith(pathStr, StringComparison.OrdinalIgnoreCase))
-                        {
-                            return false;
-                        }
-
-                        return !topLevelOnly || m_pathWildcardUpper.IndexOf(Path.DirectorySeparatorChar.ToString(), pathStr.Length, StringComparison.OrdinalIgnoreCase) == -1;
+                        return true;
                     }
+
+                    pathStr += Path.DirectorySeparatorChar.ToString();
+                    if (!m_pathWildcardUpper.StartsWith(pathStr, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    return !topLevelOnly || m_pathWildcardUpper.IndexOf(Path.DirectorySeparatorChar.ToString(), pathStr.Length, StringComparison.OrdinalIgnoreCase) == -1;
+                }
 
                 case MatchMode.PathPrefixAndSuffixWildcard:
                     return path.ToString(pathTable).ToUpperInvariant().Contains(m_pathWildcardUpper);

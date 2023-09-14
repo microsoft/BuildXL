@@ -384,7 +384,7 @@ namespace Test.BuildXL.Scheduler
             // For tests, allow writes outside of mounts unles defined otherwise
             ((EngineConfiguration)configuration.Engine).UnsafeAllowOutOfMountWrites ??= true;
             var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable).ComputeSearchPathToolsHash();
-            FrontEndContext  = FrontEndContext.CreateInstanceForTesting(pathTable: Context.PathTable, symbolTable: Context.SymbolTable, qualifierTable: Context.QualifierTable, frontEndConfig: configuration.FrontEnd, loggingContext: LoggingContext);
+            FrontEndContext = FrontEndContext.CreateInstanceForTesting(pathTable: Context.PathTable, symbolTable: Context.SymbolTable, qualifierTable: Context.QualifierTable, frontEndConfig: configuration.FrontEnd, loggingContext: LoggingContext);
 
             PipGraphBuilder = new PipGraph.Builder(
                 PipTable,
@@ -672,7 +672,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Creates a unique directory and wraps it in a <see cref="DirectoryArtifact"/>.
         /// </summary>
-        protected DirectoryArtifact CreateUniqueDirectoryArtifact(string root = null, string prefix = null) 
+        protected DirectoryArtifact CreateUniqueDirectoryArtifact(string root = null, string prefix = null)
             => DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(root, prefix));
 
         /// <summary>
@@ -1378,6 +1378,6 @@ namespace Test.BuildXL.Scheduler
             File.Delete(path.ToString(Context.PathTable));
         }
 
-#endregion
+        #endregion
     }
 }

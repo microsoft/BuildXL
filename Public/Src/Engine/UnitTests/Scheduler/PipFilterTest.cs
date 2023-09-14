@@ -616,6 +616,165 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestInputFilterOnPatternsSealedSourceDirectory()
+        {
+            FileArtifact input1 = CreateSourceFileWithPrefix(null, "Pattern1");
+            FileArtifact input2 = CreateSourceFileWithPrefix(null, "Pattern2");
+            SealDirectory sd = CreateAndScheduleSealDirectory(input1.Path.GetParent(Context.PathTable), SealDirectoryKind.Partial, input1, input2);
+
+            SealDirectory sourceSeal1 = CreateSourceSealDirectory(input1.Path.GetParent(Context.PathTable), SealDirectoryKind.SourceAllDirectories, new[] { "*Pattern1*" });
+            PipGraphBuilder.AddSealDirectory(sourceSeal1);
+            SealDirectory sourceSeal2 = CreateSourceSealDirectory(input2.Path.GetParent(Context.PathTable), SealDirectoryKind.SourceAllDirectories, new[] { "*Pattern2*" });
+            PipGraphBuilder.AddSealDirectory(sourceSeal2);
+
+            FileArtifact input3 = CreateSourceFile();
+            FileArtifact notAnInput = CreateSourceFile();
+
+            FileArtifact output1 = CreateOutputFileArtifact();
+            Process p1 = CreateAndScheduleProcess(
+                dependencies: new[] { input3 },
+                directoryDependencies: new[] { sourceSeal1.Directory, sd.Directory },
+                outputs: new[] { output1 },
+                tags: new[] { "T1" });
+
+            FileArtifact output2 = CreateOutputFileArtifact();
+            Process p2 = CreateAndScheduleProcess(
+                dependencies: new[] { input3 },
+                directoryDependencies: new[] { sourceSeal2.Directory, sd.Directory },
+                outputs: new[] { output2 },
+                tags: new[] { "T2" });
+
+            // Filter on a direct input of the process pip
+            XAssert.IsTrue(IsFilterMatch(new InputFileFilter(input3.Path, null, MatchMode.FilePath, pathFromMount: false), p1));
+            XAssert.IsTrue(IsFilterMatch(new InputFileFilter(input3.Path, null, MatchMode.FilePath, pathFromMount: false), p2));
+
+            // Filter on a member of the seal directory with matching pattern, should match only p1
+            var filter = new InputFileFilter(input1.Path, null, MatchMode.FilePath, pathFromMount: false);
+            var outputs = filter.FilterOutputs(
+                new PipFilterContext(
+                    Context.PathTable,
+                    allPips: new[] { p1.PipId, p2.PipId, sourceSeal1.PipId, sourceSeal2.PipId },
+                    pipHydrator: pipId =>
+                    {
+                        if (pipId == sourceSeal1.PipId)
+                        {
+                            return sourceSeal1;
+                        }
+
+                        if (pipId == sourceSeal2.PipId)
+                        {
+                            return sourceSeal2;
+                        }
+
+                        if (pipId == p2.PipId)
+                        {
+                            return p2;
+                        }
+
+                        Contract.Assert(pipId == p1.PipId);
+                        return p1;
+                    },
+                    pipDependenciesGetter: pipId => Enumerable.Empty<PipId>()));
+            XAssert.IsTrue(outputs.Count == 1);
+            XAssert.IsTrue(outputs.First().FileArtifact.Equals(output1), "Should have matched p1 based on the seal directory members");
+
+            // Filter on a member of the seal directory with matching pattern, should match only p2
+            filter = new InputFileFilter(input2.Path, null, MatchMode.FilePath, pathFromMount: false);
+            outputs = filter.FilterOutputs(
+                new PipFilterContext(
+                    Context.PathTable,
+                    allPips: new[] { p1.PipId, p2.PipId, sourceSeal1.PipId, sourceSeal2.PipId },
+                    pipHydrator: pipId =>
+                    {
+                        if (pipId == sourceSeal1.PipId)
+                        {
+                            return sourceSeal1;
+                        }
+
+                        if (pipId == sourceSeal2.PipId)
+                        {
+                            return sourceSeal2;
+                        }
+
+                        if (pipId == p2.PipId)
+                        {
+                            return p2;
+                        }
+
+                        Contract.Assert(pipId == p1.PipId);
+                        return p1;
+                    },
+                    pipDependenciesGetter: pipId => Enumerable.Empty<PipId>()));
+            XAssert.IsTrue(outputs.Count == 1);
+            XAssert.IsTrue(outputs.First().FileArtifact.Equals(output2), "Should have matched p2 based on the seal directory members");
+
+            // Filter with 'WithinDirectory' match mode on a member of the seal directory
+            var parentPath = input1.Path.GetParent(Context.PathTable);
+            filter = new InputFileFilter(parentPath, null, MatchMode.WithinDirectory, pathFromMount: false);
+            outputs = filter.FilterOutputs(
+                new PipFilterContext(
+                    Context.PathTable,
+                    allPips: new[] { p1.PipId, p2.PipId, sourceSeal1.PipId, sourceSeal2.PipId },
+                    pipHydrator: pipId =>
+                    {
+                        if (pipId == sourceSeal1.PipId)
+                        {
+                            return sourceSeal1;
+                        }
+
+                        if (pipId == sourceSeal2.PipId)
+                        {
+                            return sourceSeal2;
+                        }
+
+                        if (pipId == p2.PipId)
+                        {
+                            return p2;
+                        }
+
+                        Contract.Assert(pipId == p1.PipId);
+                        return p1;
+                    },
+                    pipDependenciesGetter: pipId => Enumerable.Empty<PipId>()));
+            XAssert.IsTrue(outputs.Count == 2);
+            XAssert.IsTrue(outputs.Any(output => output.FileArtifact.Equals(output1)) && outputs.Any(output => output.FileArtifact.Equals(output2)), "Should have matched both p1 and p2 based on the seal directory members");
+
+            // Filter with 'PathSuffixWildCard' match mode on a member of the seal directory
+            string parentPathString = parentPath.ToString(Context.PathTable);
+            filter = new InputFileFilter(AbsolutePath.Invalid, parentPathString, MatchMode.PathSuffixWildcard, pathFromMount: false);
+            outputs = filter.FilterOutputs(
+                new PipFilterContext(
+                    Context.PathTable,
+                    allPips: new[] { p1.PipId, p2.PipId, sourceSeal1.PipId, sourceSeal2.PipId },
+                    pipHydrator: pipId =>
+                    {
+                        if (pipId == sourceSeal1.PipId)
+                        {
+                            return sourceSeal1;
+                        }
+
+                        if (pipId == sourceSeal2.PipId)
+                        {
+                            return sourceSeal2;
+                        }
+
+                        if (pipId == p2.PipId)
+                        {
+                            return p2;
+                        }
+
+                        Contract.Assert(pipId == p1.PipId);
+                        return p1;
+                    },
+                    pipDependenciesGetter: pipId => Enumerable.Empty<PipId>()));
+            XAssert.IsTrue(outputs.Count == 2);
+            XAssert.IsTrue(outputs.Any(output => output.FileArtifact.Equals(output1)) && outputs.Any(output => output.FileArtifact.Equals(output2)), "Should have matched both p1 and p2 based on the seal directory members");
+
+            // filter on a file that isn't an input
+            XAssert.IsFalse(IsFilterMatch(new InputFileFilter(notAnInput.Path, null, MatchMode.FilePath, pathFromMount: false), p1));
+        }
+
+        [Fact]
         public void TestInputFilter()
         {
             FileArtifact input1 = CreateSourceFile();

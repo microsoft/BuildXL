@@ -55,22 +55,29 @@ namespace BuildXL.Pips.Filter
                             }
                         }
 
+                        bool topLevelOnly = true;
                         switch (sd.Kind)
                         {
                             case SealDirectoryKind.SourceAllDirectories:
                             case SealDirectoryKind.Opaque:
                             case SealDirectoryKind.SharedOpaque:
-                                if (DirectoryPathMatches(sd.DirectoryRoot, false, context.PathTable))
-                                {
-                                    localDirectories.Add(sd.Directory);
-                                }
+                                topLevelOnly = false;
                                 break;
                             case SealDirectoryKind.SourceTopDirectoryOnly:
-                                if (DirectoryPathMatches(sd.DirectoryRoot, true, context.PathTable))
-                                {
-                                    localDirectories.Add(sd.Directory);
-                                }
+                                topLevelOnly = true;
                                 break;
+                        }
+
+                        bool directoryMatched = DirectoryPathMatches(sd.DirectoryRoot, topLevelOnly, context.PathTable);
+
+                        if (directoryMatched && sd.Kind.IsSourceSeal())
+                        {
+                            directoryMatched = MatchWithSourceSealPatterns(sd, context.PathTable);
+                        }
+
+                        if (directoryMatched)
+                        {
+                            localDirectories.Add(sd.Directory);
                         }
                     }
                 });
@@ -112,7 +119,7 @@ namespace BuildXL.Pips.Filter
                             }
 
                             break;
-                             
+
                         default:
                             // the default case will consider pips with no inputs so the negated filter should include them
                             if (negate)

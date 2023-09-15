@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 #nullable enable
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -11,7 +10,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -90,36 +88,42 @@ public class EphemeralContentSession : ContentSessionBase
 
     protected override async Task<OpenStreamResult> OpenStreamCoreAsync(OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
     {
-        // The following logic relies on the fact that we can create a file stream pointing to a file, emit a delete,
-        // and the file will be deleted when the last remaining file handle is closed.
-        using var temporary = new DisposableFile(context, _ephemeralHost.FileSystem, AbsolutePath.CreateRandomFileName(_ephemeralHost.Configuration.Workspace));
-
-        var placeResult = await PlaceFileCoreAsync(
-            context,
-            contentHash,
-            temporary.Path,
-            FileAccessMode.ReadOnly,
-            FileReplacementMode.ReplaceExisting,
-            FileRealizationMode.Any,
-            urgencyHint,
-            retryCounter);
-        if (!placeResult.Succeeded)
+        var local = await _local.OpenStreamAsync(context, contentHash, context.Token, urgencyHint);
+        if (local.Succeeded)
         {
-            if (placeResult.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound)
-            {
-                return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, errorMessage: $"Content with hash {contentHash} was not found");
-            }
+            _ephemeralHost.PutElisionCache.TryAdd(contentHash, local.StreamWithLength!.Value.Length, _ephemeralHost.Configuration.PutCacheTimeToLive);
 
-            return new OpenStreamResult(placeResult, message: $"Failed to find content with hash {contentHash}");
+            return local;
         }
 
-        // We don't dispose the stream on purpose, because the callee takes ownership of it.
-        var stream = _ephemeralHost.FileSystem.TryOpen(
-            temporary.Path,
-            FileAccess.Read,
-            FileMode.Open,
-            FileShare.Delete);
-        return new OpenStreamResult(stream);
+        using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(contentHash, context.Token);
+
+        // Some other thread may have been downloading and inserting into the local cache. In such a case, we'll have
+        // blocked above, and we can just return the result of the local cache.
+        if (!guard.WaitFree)
+        {
+            local = await _local.OpenStreamAsync(context, contentHash, context.Token, urgencyHint);
+            if (local.Succeeded)
+            {
+                _ephemeralHost.PutElisionCache.TryAdd(contentHash, local.StreamWithLength!.Value.Length, _ephemeralHost.Configuration.PutCacheTimeToLive);
+
+                return local;
+            }
+        }
+
+        var putResult = await TryPeerToPeerFetchAsync(context, contentHash, urgencyHint);
+        if (putResult.Succeeded)
+        {
+            local = await _local.OpenStreamAsync(context, contentHash, context.Token, urgencyHint);
+            if (local.Succeeded)
+            {
+                _ephemeralHost.PutElisionCache.TryAdd(contentHash, local.StreamWithLength!.Value.Length, _ephemeralHost.Configuration.PutCacheTimeToLive);
+
+                return local;
+            }
+        }
+
+        return await _persistent.OpenStreamAsync(context, contentHash, context.Token, urgencyHint);
     }
 
     protected override async Task<PlaceFileResult> PlaceFileCoreAsync(
@@ -132,7 +136,6 @@ public class EphemeralContentSession : ContentSessionBase
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
-        // Step 1: try to fetch it from the local content store.
         var local = await _local.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, context.Token, urgencyHint);
         if (local.Succeeded)
         {
@@ -156,23 +159,29 @@ public class EphemeralContentSession : ContentSessionBase
             }
         }
 
-        // Step 2: try to fetch it from the datacenter cache.
-        var datacenter = await TryPlaceFromDatacenterCacheAsync(
+        var datacenter = await TryPeerToPeerFetchAsync(
             context,
             contentHash,
-            path,
-            accessMode,
-            replacementMode,
-            realizationMode,
             urgencyHint);
         if (datacenter.Succeeded)
         {
-            _ephemeralHost.PutElisionCache.TryAdd(contentHash, datacenter.FileSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
+            local = await _local.PlaceFileAsync(
+                context,
+                contentHash,
+                path,
+                accessMode,
+                replacementMode,
+                realizationMode,
+                context.Token,
+                urgencyHint);
+            if (local.Succeeded)
+            {
+                return local.WithMaterializationSource(PlaceFileResult.Source.DatacenterCache);
+            }
 
-            return datacenter;
+            return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage: $"Content hash `{contentHash}` inserted into local cache, but couldn't place from local");
         }
 
-        // Step 3: try to fetch it from the persistent cache.
         var persistent = await _persistent.PlaceFileAsync(
             context,
             contentHash,
@@ -195,13 +204,9 @@ public class EphemeralContentSession : ContentSessionBase
         return persistent.WithMaterializationSource(PlaceFileResult.Source.BackingStore);
     }
 
-    private Task<PlaceFileResult> TryPlaceFromDatacenterCacheAsync(
+    private Task<PutResult> TryPeerToPeerFetchAsync(
         OperationContext context,
         ContentHash contentHash,
-        AbsolutePath path,
-        FileAccessMode accessMode,
-        FileReplacementMode replacementMode,
-        FileRealizationMode realizationMode,
         UrgencyHint urgencyHint)
     {
         return context.PerformOperationAsync(
@@ -264,53 +269,33 @@ public class EphemeralContentSession : ContentSessionBase
                                     var (copyResult, tempLocation, attemptCount) = copyInfo;
                                     var local = _local as ITrustedContentSession;
                                     Contract.AssertNotNull(local, "The local content session was expected to be a trusted session, but failed to cast.");
-                                    return local.PutTrustedFileAsync(context, new ContentHashWithSize(contentHash, contentEntry.Size), tempLocation, FileRealizationMode.Any, context.Token, urgencyHint);
+                                    return local.PutTrustedFileAsync(context, new ContentHashWithSize(contentHash, contentEntry.Size), tempLocation, FileRealizationMode.Move, context.Token, urgencyHint);
                                 },
                                 CopyCompression.None,
                                 null,
                                 _ephemeralHost.Configuration.Workspace));
 
-                        if (datacenter.Succeeded)
-                        {
-                            var local = await _local.PlaceFileAsync(
-                                context,
-                                contentHash,
-                                path,
-                                accessMode,
-                                replacementMode,
-                                realizationMode,
-                                context.Token,
-                                urgencyHint);
-                            if (local.Succeeded)
-                            {
-                                return local.WithMaterializationSource(PlaceFileResult.Source.DatacenterCache);
-                            }
-
-                            return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage: $"Content hash `{contentHash}` inserted into local cache, but couldn't place from local");
-                        }
-
-                        return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage: $"Content hash `{contentHash}` couldn't be downloaded from peers");
+                        return datacenter;
                     }
 
-                    return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage: $"Content hash `{contentHash}` found in the content tracker, but without any active locations");
+                    return new PutResult(contentHash, $"Content hash `{contentHash}` found in the content tracker, but without any active locations");
                 }
 
-                return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage: $"Content hash `{contentHash}` not found in the content tracker");
+                return new PutResult(contentHash, errorMessage: $"Content hash `{contentHash}` not found in the content tracker");
 
             },
-            extraStartMessage: $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
+            extraStartMessage: $"({contentHash.ToShortString()})",
             traceOperationStarted: TraceOperationStarted,
             extraEndMessage: result =>
                              {
-                                 var message = $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})";
-                                 if (result.Metadata == null)
+                                 var message = $"({contentHash.ToShortString()})";
+                                 if (result.MetaData == null)
                                  {
                                      return message;
                                  }
 
-                                 return message + $" Gate.OccupiedCount={result.Metadata.GateOccupiedCount} Gate.Wait={result.Metadata.GateWaitTime.TotalMilliseconds}ms";
-                             },
-            traceErrorsOnly: TraceErrorsOnlyForPlaceFile(path));
+                                 return message + $" Gate.OccupiedCount={result.MetaData.GateOccupiedCount} Gate.Wait={result.MetaData.GateWaitTime.TotalMilliseconds}ms";
+                             });
     }
 
     protected override async Task<PutResult> PutFileCoreAsync(

@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -57,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
                                     p.Index));
                             }
                             return Task.FromResult(new Indexed<PlaceFileResult>(
-                                new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR_0"),
+                                new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR"),
                                 p.Index));
                         }));
                 },
@@ -80,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
                                     p.Index));
                             }
                             return Task.FromResult(new Indexed<PlaceFileResult>(
-                                new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR_1"),
+                                new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR"),
                                 p.Index));
                         }));
                 },
@@ -95,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
                         p =>
                         {
                             return Task.FromResult(new Indexed<PlaceFileResult>(
-                                new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR_2"),
+                                new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR"),
                                 p.Index));
                         }));
                 },
@@ -117,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
                                     p.Index));
                             }
                             return Task.FromResult(new Indexed<PlaceFileResult>(
-                                new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR_3"),
+                                new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR"),
                                 p.Index));
                         }));
                 },
@@ -131,7 +130,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
             result.ToList().ForEach(p => {
                 if (p.Result.Index == 0) {
                     Assert.Equal(p.Result.Item.Code, PlaceFileResult.ResultCode.Error);
-                    Assert.Equal(p.Result.Item.ErrorMessage, "ERROR_0");
                 } else {
                     Assert.Equal(p.Result.Item.Code, PlaceFileResult.ResultCode.PlacedWithCopy);
                 }

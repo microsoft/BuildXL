@@ -878,18 +878,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return false;
             }
 
-            if (!result.Locations.Any() && result.LocationSubtracted)
-            {
-                message = $"Replicas in LLS content tracker for hash {result.ContentHash.ToShortString()} but failed to copy all";
-                return false;
-            }
-
-            if (!result.Locations.Any() && result.FilteredOutInactiveMachineLocations != null && result.FilteredOutInactiveMachineLocations.Any())
-            {
-                message = $"Filtered all locations for {result.ContentHash.ToShortString()} because they were inactive machines ";
-                return false;
-            }
-
             if (!result.Locations.Any())
             {
                 message = $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}";

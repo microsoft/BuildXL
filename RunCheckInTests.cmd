@@ -267,7 +267,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Running SymLink Tests
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\ -SharedCacheMode disable
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\ -SharedCacheMode disable /nowarn:855
         rmdir /s /q %ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\Out
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!

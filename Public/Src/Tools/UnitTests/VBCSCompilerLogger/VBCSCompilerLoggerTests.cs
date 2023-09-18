@@ -8,13 +8,62 @@ using System.Reflection;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using System.Collections.Generic;
+using Microsoft.Build.Utilities;
+
+// Necessary to not collide with this file's namespace.
+using Logger = VBCSCompilerLogger.VBCSCompilerLogger;
 
 namespace Test.VBCSCompilerLogger
 {
     public class VBCSCompilerLoggerTests : TemporaryStorageTestBase
     {
+        private const string CscArgs = @"/out:MyProgram.exe /target:exe Program.cs";
+
+        private const string VbcArgs = @"/out:MyProgram.exe /target:exe Program.vb";
+
+        private static IEnumerable<object[]> HappyArgumentParsingData()
+        {
+            yield return new object[] { true, @"C:some\path\to\csc.exe " + CscArgs };
+            yield return new object[] { true, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\csc.dll"" " + CscArgs };
+            yield return new object[] { false, @"C:some\path\to\vbc.exe " + VbcArgs };
+            yield return new object[] { false, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\vbc.dll"" " + VbcArgs };
+        }
+
+        private static IEnumerable<object[]> ErroneousArgumentParsingData()
+        {
+            yield return new object[] { true, @"C:some\path\to\csc.abc " + CscArgs };
+            yield return new object[] { true, @"C:some\path\to\csc.exe" };
+            yield return new object[] { true, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\csc.dll" };
+            yield return new object[] { true, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\csc.abc"" " + CscArgs };
+            yield return new object[] { true, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\csc.abc" };
+            yield return new object[] { false, @"C:some\path\to\vbc.abc " + VbcArgs };
+            yield return new object[] { false, @"C:some\path\to\vbc.exe" };
+            yield return new object[] { false, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\vbc.dll" };
+            yield return new object[] { false, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\vbc.abc"" " + VbcArgs };
+            yield return new object[] { false, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\vbc.abc" };
+        }
+
         public VBCSCompilerLoggerTests(ITestOutputHelper output) : base(output)
         {}
+
+        [Fact]
+        [MemberData(nameof(HappyArgumentParsingData))]
+        public void HappyArgumentParsing(bool isCscTask, string commandLine)
+        {
+            XAssert.IsTrue(Logger.TryGetArgumentsFromCommandLine(isCscTask ? "Csc" : "Vbc", commandLine, out string arguments, out string error));
+            XAssert.AreEqual(isCscTask ? CscArgs : VbcArgs, arguments);
+            XAssert.IsEmpty(error);
+        }
+
+        [Fact]
+        [MemberData(nameof(ErroneousArgumentParsingData))]
+        public void ErroneousArgumentParsing(bool isCscTask, string commandLine)
+        {
+            XAssert.IsFalse(Logger.TryGetArgumentsFromCommandLine(isCscTask ? "Csc" : "Vbc", commandLine, out string arguments, out string error));
+            XAssert.IsNull(arguments);
+            XAssert.AreEqual($"Unexpected tool name in command line. Expected csc.exe, csc.dll, vbc.exe, or vbc.dll, but got: {commandLine}", error);
+        }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void NewSwitchMakesLoggerFail() 

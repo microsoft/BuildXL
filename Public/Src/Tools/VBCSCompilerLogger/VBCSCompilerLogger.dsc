@@ -32,7 +32,8 @@ namespace VBCSCompilerLogger {
         runtimeContentToSkip: [
             importFrom("System.Collections.Immutable").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("System.Memory").pkg,
-        ]
+        ],
+        internalsVisibleTo: ["Test.Tool.VBCSCompilerLogger"]
     });
 
     // We build here the VBCSCompiler logger with an older version

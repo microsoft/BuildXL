@@ -30,8 +30,6 @@ namespace VBCSCompilerLogger
     {
         private const string CscTaskName = "Csc";
         private const string VbcTaskName = "Vbc";
-        private const string CscToolName = "csc.exe";
-        private const string VbcToolName = "vbc.exe";
 
         private readonly ConcurrentBigSet<Diagnostic> m_badSwitchErrors = new();
 
@@ -62,21 +60,21 @@ namespace VBCSCompilerLogger
         {
             if (e is TaskCommandLineEventArgs commandLine)
             {
-                // We are only interested in CSharp and VisualBasic tasks
-                string language;
                 string? extractedArguments;
                 string error;
                 bool success;
-                
+                string language;
+
+                // We are only interested in CSharp and VisualBasic tasks
                 switch (commandLine.TaskName)
                 {
                     case CscTaskName:
                         language = LanguageNames.CSharp;
-                        success = TryGetArgumentsFromCommandLine(CscToolName, commandLine.CommandLine, out extractedArguments, out error);
+                        success = TryGetArgumentsFromCommandLine(CscTaskName, commandLine.CommandLine, out extractedArguments, out error);
                         break;
                     case VbcTaskName:
                         language = LanguageNames.VisualBasic;
-                        success = TryGetArgumentsFromCommandLine(VbcToolName, commandLine.CommandLine, out extractedArguments, out error);
+                        success = TryGetArgumentsFromCommandLine(VbcTaskName, commandLine.CommandLine, out extractedArguments, out error);
                         break;
                     default:
                         return;
@@ -128,25 +126,42 @@ namespace VBCSCompilerLogger
             }
         }
 
-        private static bool TryGetArgumentsFromCommandLine(string toolToTrim, string commandLine, out string? arguments, out string error)
+        // internal for unit testing.
+        internal static bool TryGetArgumentsFromCommandLine(string task, string commandLine, out string? arguments, out string error)
         {
-            toolToTrim += " ";
-            int index = commandLine.IndexOf(toolToTrim, StringComparison.OrdinalIgnoreCase);
-            
-            if (index == -1)
+            int taskIndex = commandLine.IndexOf(task, StringComparison.OrdinalIgnoreCase);
+            const int ExtensionLength = 4;
+            int indexFollowingTool = taskIndex + task.Length + ExtensionLength;
+            if (taskIndex == -1 || indexFollowingTool >= commandLine.Length
+                || !hasExeOrDllExtension(commandLine, taskIndex + task.Length, out bool hasExeExtension)
+                // A space follows csc.exe and vbc.exe, whereas a double quote and a space follow csc.dll and vbc.dll.
+                || indexFollowingTool + 1 + (hasExeExtension ? 0 : 1) >= commandLine.Length)
             {
                 arguments = null;
-                error = $"Unexpected tool name in command line. Expected '{CscToolName}' or '{VbcToolName}', but got: {commandLine}";
-                
+                error = $"Unexpected tool name in command line. Expected csc.exe, csc.dll, vbc.exe, or vbc.dll, but got: {commandLine}";
                 return false;
             }
 
-            arguments = commandLine.Substring(index + toolToTrim.Length);
+            // Obtain the arguments supplied to the task. Ignore the space following csc.exe and vbc.exe and double quote
+            // and space following csc.dll and vbc.dll.
+            arguments = commandLine.Substring(indexFollowingTool + 1 + (hasExeExtension ? 0 : 1));
             error = string.Empty;
 
             return true;
+
+            static bool hasExeOrDllExtension(string commandLineRemainder, int index, out bool hasExeExtension)
+            {
+                string extension = commandLineRemainder.Substring(index, ExtensionLength);
+                if (extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    return hasExeExtension = true;
+                }
+
+                hasExeExtension = false;
+                return extension.Equals(".dll", StringComparison.OrdinalIgnoreCase);
+            }
         }
-        
+
         private static void RegisterAccesses(ParseResult results)
         {
             // Even though CommandLineArguments class claims to always report back absolute paths, that's not the case.

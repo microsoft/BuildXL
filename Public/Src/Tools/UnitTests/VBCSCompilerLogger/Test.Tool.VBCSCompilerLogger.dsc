@@ -14,6 +14,8 @@ namespace Test.Tool.VBCSCompilerLogger {
         sources: globR(d`.`, "*.cs"),
         references:[
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
+            importFrom("Microsoft.Build.Utilities.Core").pkg,
+            importFrom("BuildXL.Tools").VBCSCompilerLogger.dll,
         ],
         runtimeContent: [
             {

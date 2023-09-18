@@ -2475,7 +2475,7 @@ namespace BuildXL.Scheduler
 
             var process = cacheableProcess.Process;
 
-            int numPathSetsDownloaded = 0, numCacheEntriesVisited = 0;
+            int numPathSetsDownloaded = 0, numCacheEntriesVisited = 0, numCacheEntriesAbsent = 0;
             WeakContentFingerprint weakFingerprint;
 
             using (operationContext.StartOperation(PipExecutorCounter.ComputeWeakFingerprintDuration))
@@ -2515,7 +2515,7 @@ namespace BuildXL.Scheduler
 
             // Update the strong fingerprint computations list
 
-            processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
+            processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited, numCacheEntriesAbsent);
 
             Logger.Log.PipCacheLookupStats(
                 operationContext,
@@ -2523,6 +2523,7 @@ namespace BuildXL.Scheduler
                 isWeakFingerprintAugmented,
                 weakFingerprint.ToString(),
                 numCacheEntriesVisited,
+                numCacheEntriesAbsent,
                 numPathSetsDownloaded);
 
             return result;
@@ -2565,11 +2566,14 @@ namespace BuildXL.Scheduler
                     // if we find a pair such that the generated strong fingerprint matches, then we should be able to find
                     // a usable entry (describing the output hashes, etc.) to replay.
 
-                    // We will set this to the first usable-looking entry we find, if any.
-                    // Note that we do not bother investigating further pairs if we find an entry-ref that can't be fetched,
-                    // or if the fetched entry refers to content that cannot be found. Both are fairly unusual failures for well-behaved caches.
-                    // So, this is assigned at most once for entry into Chapter 2.
+                    // We will generally set this to the first usable-looking entry we find, if any. In particular:
+                    // * If an entry-ref can't be fetched, we do not bother investigating further pairs. This is a fairly unusual failure for well-behaved caches.
+                    // * If an entry refers to content that cannot be found, we keep traversing potential pairs. This is a case that is not uncommon when garbage collection
+                    //   is done purely based on access time and without a semantic knowledge of all the elements that make up the cache metadata (e.g. a blob-based cache that uses 
+                    //   the blob lifetime management rules as the garbage collection mechanism)
+                    // Overall, a usable-looking entry is assigned at most once for entry into Chapter 2. Whenever a usable-looking entry is assigned, an entry fetch result is also set (successful or not)
                     PublishedEntryRef? maybeUsableEntryRef = null;
+                    Possible<CacheEntry?>? entryFetchResult = null;
                     ObservedPathSet? maybePathSet = null;
                     OperationHints hints = new() { AvoidRemote = avoidRemoteLookups };
 
@@ -2768,8 +2772,36 @@ namespace BuildXL.Scheduler
 
                             if (strongFingerprint.Value == entryRef.StrongFingerprint)
                             {
-                                // Hit! We will immediately commit to this entry-ref. We will have a cache-hit iff
-                                // the entry can be fetched and (if requested) the referenced content can be loaded.
+                                // Hit! Before we commit to this entry-ref, let's try to fetch the entry. We want to keep
+                                // traversing candidates if the entry happens to be absent (being eviction the most common cause for that).
+                                using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheChapter2RetrieveCacheEntryDuration))
+                                {
+                                    // Chapter 2: Retrieve Cache Entry
+                                    // If we found a usable-looking entry-ref, then we should be able to fetch the actual entry (containing metadata, and output hashes).
+
+                                    // The speed of Chapter2 is basically all just this call to GetContentHashList
+                                    var maybeEntryFetchResult = await cache.TryGetCacheEntryAsync(
+                                        cacheableProcess.Process,
+                                        weakFingerprint,
+                                        entryRef.PathSetHash,
+                                        entryRef.StrongFingerprint,
+                                        hints);
+
+                                    // TryGetCacheEntryAsync indicates a graceful miss by returning a null entry. We want to keep traversing candidates
+                                    // in this case. The entry may have been evicted, but there could be other (path set, strong fingerprint) pairs that
+                                    // match.
+                                    if (maybeEntryFetchResult.Succeeded == true && maybeEntryFetchResult.Result == null)
+                                    {
+                                        numCacheEntriesAbsent++;
+                                        continue;
+                                    }
+
+                                    // At this point we either successfully retrieved a non-absent entry, or we failed to retrieve an entry (e.g. due to a cache error). In any
+                                    // of these cases we will immediately commit to this entry-ref and won't explore further pairs. We will have a cache-hit iff
+                                    // the entry was fetched successfully and (if requested) the referenced content can be loaded.
+                                    entryFetchResult = maybeEntryFetchResult;
+                                }
+
                                 strongFingerprintComputation.Item1.Value.IsStrongFingerprintHit = true;
                                 maybeUsableEntryRef = entryRef;
 
@@ -2865,92 +2897,66 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-                    CacheEntry? maybeUsableCacheEntry = null;
-                    using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheChapter2RetrieveCacheEntryDuration))
+                    // If we commited to a usable entry ref, then the entry fetch result shouldn't be null
+                    Contract.Assert(!maybeUsableEntryRef.HasValue || entryFetchResult != null, "An entry ref was commited, and therefore the entry fetch result should be populated.");
+                    // If we commited to a usable entry ref and the entry fetch result is successful, the fetch result cannot be null, since in that case we should have kept traversing
+                    // candidates (and not commiting to an entry-ref)
+                    Contract.Assert(!(maybeUsableEntryRef.HasValue && entryFetchResult?.Succeeded == true) || entryFetchResult?.Result != null, "The entry fetch result is successful but the content is absent.");
+
+                    // Here we process the result of the lookup and set the cache miss type appropriately.
+                    if (maybeUsableEntryRef.HasValue)
                     {
-                        // Chapter 2: Retrieve Cache Entry
-                        // If we found a usable-looking entry-ref, then we should be able to fetch the actual entry (containing metadata, and output hashes).
-                        if (maybeUsableEntryRef.HasValue)
+                        // We commited to an entry-ref but we couldn't fetch the cache entry. This is a fairly unusual case that indicates something wrong on the cache side
+                        if (entryFetchResult?.Succeeded == false)
+                        { 
+                            Logger.Log.TwoPhaseFetchingCacheEntryFailed(
+                                operationContext,
+                                description,
+                                maybeUsableEntryRef.Value.StrongFingerprint.ToString(),
+                                entryFetchResult?.Failure.DescribeIncludingInnerFailures());
+                            pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForCacheEntry;
+                        }
+                    }
+                    else
+                    {
+                        // We didn't find a usable ref. We can attribute this as a new fingerprint (no refs checked at all)
+                        // or a mismatch of strong fingerprints (at least one ref checked).
+                        if (numCacheEntriesVisited == 0)
                         {
-                            PublishedEntryRef usableEntryRef = maybeUsableEntryRef.Value;
+                            pipCacheMiss.Value.CacheMissType = isWeakFingerprintAugmented
+                                ? PipCacheMissType.MissForDescriptorsDueToAugmentedWeakFingerprints
+                                : PipCacheMissType.MissForDescriptorsDueToWeakFingerprints;
 
-                            // The speed of Chapter2 is basically all just this call to GetContentHashList
-                            Possible<CacheEntry?> entryFetchResult = await cache.TryGetCacheEntryAsync(
-                                cacheableProcess.Process,
-                                weakFingerprint,
-                                usableEntryRef.PathSetHash,
-                                usableEntryRef.StrongFingerprint,
-                                hints);
-
-                            if (entryFetchResult.Succeeded)
-                            {
-                                if (entryFetchResult.Result != null)
-                                {
-                                    maybeUsableCacheEntry = entryFetchResult.Result;
-                                }
-                                else
-                                {
-                                    // TryGetCacheEntryAsync indicates a graceful miss by returning a null entry. In general, this is reasonable.
-                                    // However, since we tried to fetch an entry just recently mentioned by ListPublishedEntriesByWeakFingerprint,
-                                    // this is unusual (unusual enough that we don't bother looking for other (path set, strong fingerprint) pairs.
-                                    Logger.Log.TwoPhaseCacheEntryMissing(
-                                        operationContext,
-                                        description,
-                                        weakFingerprint: weakFingerprint.ToString(),
-                                        strongFingerprint: maybeUsableEntryRef.Value.StrongFingerprint.ToString());
-                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForCacheEntry;
-                                }
-                            }
-                            else
-                            {
-                                Logger.Log.TwoPhaseFetchingCacheEntryFailed(
+                            Logger.Log.TwoPhaseCacheDescriptorMissDueToWeakFingerprint(
                                     operationContext,
                                     description,
-                                    maybeUsableEntryRef.Value.StrongFingerprint.ToString(),
-                                    entryFetchResult.Failure.DescribeIncludingInnerFailures());
-                                pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForCacheEntry;
-                            }
+                                    weakFingerprint.ToString(),
+                                    isWeakFingerprintAugmented);
                         }
                         else
                         {
-                            // We didn't find a usable ref. We can attribute this as a new fingerprint (no refs checked at all)
-                            // or a mismatch of strong fingerprints (at least one ref checked).
-                            if (numCacheEntriesVisited == 0)
+                            if (augmentedWeakFingerprintMiss != null)
                             {
-                                pipCacheMiss.Value.CacheMissType = isWeakFingerprintAugmented
-                                    ? PipCacheMissType.MissForDescriptorsDueToAugmentedWeakFingerprints
-                                    : PipCacheMissType.MissForDescriptorsDueToWeakFingerprints;
-
-                                Logger.Log.TwoPhaseCacheDescriptorMissDueToWeakFingerprint(
-                                        operationContext,
-                                        description,
-                                        weakFingerprint.ToString(),
-                                        isWeakFingerprintAugmented);
+                                // If we ever check augmented weak fingerprint, then we use its miss reason as the miss type.
+                                // This gives priority to the result from cache look-up with augmented weak fingerprint.
+                                // This also makes the data align with execution because if we ever check augmented weak fingerprint,
+                                // then the weak fingerprint for execution is the augmented one.
+                                pipCacheMiss.Value.CacheMissType = augmentedWeakFingerprintMiss.Value.CacheMissType;
                             }
                             else
                             {
-                                if (augmentedWeakFingerprintMiss != null)
-                                {
-                                    // If we ever check augmented weak fingerprint, then we use its miss reason as the miss type.
-                                    // This gives priority to the result from cache look-up with augmented weak fingerprint.
-                                    // This also makes the data align with execution because if we ever check augmented weak fingerprint,
-                                    // then the weak fingerprint for execution is the augmented one.
-                                    pipCacheMiss.Value.CacheMissType = augmentedWeakFingerprintMiss.Value.CacheMissType;
-                                }
-                                else
-                                {
-                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToStrongFingerprints;
-                                    Logger.Log.TwoPhaseCacheDescriptorMissDueToStrongFingerprints(
-                                        operationContext,
-                                        description,
-                                        weakFingerprint.ToString(),
-                                        isWeakFingerprintAugmented);
-                                }
+                                pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToStrongFingerprints;
+                                Logger.Log.TwoPhaseCacheDescriptorMissDueToStrongFingerprints(
+                                    operationContext,
+                                    description,
+                                    weakFingerprint.ToString(),
+                                    isWeakFingerprintAugmented);
                             }
                         }
                     }
 
-                    if (maybeUsableCacheEntry.HasValue)
+                    // Having a successful entry fetched means that we are ready to try to convert this to a usable cache hit data instance
+                    if (entryFetchResult?.Succeeded == true)
                     {
                         cacheHitData = await TryConvertToRunnableFromCacheResultAsync(
                             processRunnable,
@@ -2963,7 +2969,7 @@ namespace BuildXL.Scheduler
                             weakFingerprint,
                             maybeUsableEntryRef.Value.PathSetHash,
                             maybeUsableEntryRef.Value.StrongFingerprint,
-                            maybeUsableCacheEntry,
+                            entryFetchResult?.Result,
                             maybePathSet,
                             pipCacheMiss);
                     }

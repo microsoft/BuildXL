@@ -22,6 +22,9 @@ namespace BuildXL.Scheduler
         /// <nodoc/>
         public int NumCacheEntriesVisited { get; private set; }
 
+        /// <nodoc/>
+        public int NumCacheEntriesAbsent { get; private set; }
+
         /// <summary>
         /// Represent <see cref="PipExecutorCounter"/> counters during CacheLookup
         /// </summary>
@@ -40,13 +43,14 @@ namespace BuildXL.Scheduler
         }
 
         /// <nodoc/>
-        public PipCachePerfInfo((long durationTicks, long occurrences)[] beforeExecutionCacheStepCounters, (long durationTicks, long occurrences)[] afterExecutionCacheStepCounters, PipCacheMissType cacheMissType, int numPathSetsDownloaded, int numCacheEntriesVisited)
+        public PipCachePerfInfo((long durationTicks, long occurrences)[] beforeExecutionCacheStepCounters, (long durationTicks, long occurrences)[] afterExecutionCacheStepCounters, PipCacheMissType cacheMissType, int numPathSetsDownloaded, int numCacheEntriesVisited, int numCacheEntriesAbsent)
         {
             BeforeExecutionCacheStepCounters = beforeExecutionCacheStepCounters;
             AfterExecutionCacheStepCounters = afterExecutionCacheStepCounters;
             CacheMissType = cacheMissType;
             NumPathSetsDownloaded = numPathSetsDownloaded;
             NumCacheEntriesVisited = numCacheEntriesVisited;
+            NumCacheEntriesAbsent = numCacheEntriesAbsent;
         }
 
         /// <nodoc/>
@@ -58,11 +62,12 @@ namespace BuildXL.Scheduler
         }
 
         /// <nodoc/>
-        public void LogCounters(PipCacheMissType cacheMissType, int numPathSetsDownloaded, int numCacheEntriesVisited)
+        public void LogCounters(PipCacheMissType cacheMissType, int numPathSetsDownloaded, int numCacheEntriesVisited, int numCacheEntriesAbsent)
         {
             CacheMissType = cacheMissType;
             NumPathSetsDownloaded += numPathSetsDownloaded;
             NumCacheEntriesVisited += numCacheEntriesVisited;
+            NumCacheEntriesAbsent += numCacheEntriesAbsent;
         }
 
         /// <nodoc/>
@@ -85,6 +90,7 @@ namespace BuildXL.Scheduler
             writer.Write((byte)CacheMissType);
             writer.WriteCompact(NumPathSetsDownloaded);
             writer.WriteCompact(NumCacheEntriesVisited);
+            writer.WriteCompact(NumCacheEntriesAbsent);
         }
 
         /// <nodoc/>
@@ -109,7 +115,8 @@ namespace BuildXL.Scheduler
             PipCacheMissType cacheMissType = (PipCacheMissType)reader.ReadByte();
             int numPathSetsDownloaded = reader.ReadInt32Compact();
             int numCacheEntriesVisited = reader.ReadInt32Compact();
-            return new PipCachePerfInfo(beforeExecutionCacheStepCounters, afterExecutionCacheStepCounters, cacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
+            int numCacheEntriesAbsent = reader.ReadInt32Compact();
+            return new PipCachePerfInfo(beforeExecutionCacheStepCounters, afterExecutionCacheStepCounters, cacheMissType, numPathSetsDownloaded, numCacheEntriesVisited, numCacheEntriesAbsent);
         }
     }
 }

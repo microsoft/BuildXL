@@ -2081,6 +2081,11 @@ namespace BuildXL.Scheduler
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxCacheEntriesVisitedForMiss, cacheLookupPerfInfosForMisses.Max(a => a?.NumCacheEntriesVisited) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MinCacheEntriesVisitedForMiss, cacheLookupPerfInfosForMisses.Min(a => a?.NumCacheEntriesVisited) ?? -1);
 
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxCacheEntriesAbsentForHit, cacheLookupPerfInfosForHits.Max(a => a?.NumCacheEntriesAbsent) ?? -1);
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.MinCacheEntriesAbsentForHit, cacheLookupPerfInfosForHits.Min(a => a?.NumCacheEntriesAbsent) ?? -1);
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxCacheEntriesAbsentForMiss, cacheLookupPerfInfosForMisses.Max(a => a?.NumCacheEntriesAbsent) ?? -1);
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.MinCacheEntriesAbsentForMiss, cacheLookupPerfInfosForMisses.Min(a => a?.NumCacheEntriesAbsent) ?? -1);
+
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxPathSetsDownloadedForHit, cacheLookupPerfInfosForHits.Max(a => a?.NumPathSetsDownloaded) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MinPathSetsDownloadedForHit, cacheLookupPerfInfosForHits.Min(a => a?.NumPathSetsDownloaded) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxPathSetsDownloadedForMiss, cacheLookupPerfInfosForMisses.Max(a => a?.NumPathSetsDownloaded) ?? -1);
@@ -5841,6 +5846,7 @@ namespace BuildXL.Scheduler
                 {
                     stringBuilder.AppendLine(I($"\t\t  {"NumCacheEntriesVisited",-88}: {performanceInfo.CacheLookupPerfInfo.NumCacheEntriesVisited,10}"));
                     stringBuilder.AppendLine(I($"\t\t  {"NumPathSetsDownloaded",-88}: {performanceInfo.CacheLookupPerfInfo.NumPathSetsDownloaded,10}"));
+                    stringBuilder.AppendLine(I($"\t\t  {"NumCacheEntriesAbsent",-88}: {performanceInfo.CacheLookupPerfInfo.NumCacheEntriesAbsent,10}"));
 
                     for (int j = 0; j < performanceInfo.CacheLookupPerfInfo.BeforeExecutionCacheStepCounters.Length; j++)
                     {

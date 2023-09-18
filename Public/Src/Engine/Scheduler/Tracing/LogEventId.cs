@@ -177,7 +177,7 @@ namespace BuildXL.Scheduler.Tracing
         TwoPhaseStrongFingerprintMatched = 2718,
         TwoPhaseStrongFingerprintRejected = 2719,
         TwoPhaseStrongFingerprintUnavailableForPathSet = 2720,
-        TwoPhaseCacheEntryMissing = 2721,
+        // Deleted: TwoPhaseCacheEntryMissing = 2721,
         TwoPhaseFetchingCacheEntryFailed = 2722,
         TwoPhaseMissingMetadataForCacheEntry = 2723,
         TwoPhaseFetchingMetadataForCacheEntryFailed = 2724,

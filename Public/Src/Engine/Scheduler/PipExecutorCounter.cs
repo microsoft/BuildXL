@@ -1182,10 +1182,16 @@ namespace BuildXL.Scheduler
         MaxCacheEntriesVisitedForHit,
 
         /// <nodoc/>
+        MaxCacheEntriesAbsentForHit,
+
+        /// <nodoc/>
         MinPathSetsDownloadedForHit,
 
         /// <nodoc/>
         MinCacheEntriesVisitedForHit,
+
+        /// <nodoc/>
+        MinCacheEntriesAbsentForHit,
 
         /// <nodoc/>
         MaxPathSetsDownloadedForMiss,
@@ -1194,10 +1200,16 @@ namespace BuildXL.Scheduler
         MaxCacheEntriesVisitedForMiss,
 
         /// <nodoc/>
+        MaxCacheEntriesAbsentForMiss,
+
+        /// <nodoc/>
         MinPathSetsDownloadedForMiss,
 
         /// <nodoc/>
         MinCacheEntriesVisitedForMiss,
+
+        /// <nodoc/>
+        MinCacheEntriesAbsentForMiss,
 
         /// <nodoc/>
         NumPipsUsingMinimalGraphFileSystem,

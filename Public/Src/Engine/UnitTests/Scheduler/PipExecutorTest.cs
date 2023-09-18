@@ -20,28 +20,27 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
-using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.Operations;
-using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Processes;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using Process = BuildXL.Pips.Operations.Process;
-using WriteFilePip = BuildXL.Pips.Operations.WriteFile;
-using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
+using Process = BuildXL.Pips.Operations.Process;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using WriteFilePip = BuildXL.Pips.Operations.WriteFile;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -1733,6 +1732,86 @@ namespace Test.BuildXL.Scheduler
                 });
         }
 
+        [Fact]
+        public Task CandidateTraversalContinuesOnAbsentContentHashList()
+        {
+            IgnoreWarnings();
+
+            return WithExecutionEnvironmentForCacheWithEviction(
+                // Need a readable mount under the temp directory because we want dir enumerations to actually read the disk
+                createMountExpander: (pathTable) =>
+                {
+                    var mounts = new MountPathExpander(pathTable);
+                    mounts.Add(
+                        pathTable,
+                        new Mount()
+                        {
+                            TrackSourceFileChanges = true,
+                            IsReadable = true,
+                            Location = LocationData.Create(AbsolutePath.Create(pathTable, TemporaryDirectory)),
+                            Name = PathAtom.Create(pathTable.StringTable, "Test"),
+                            Path = AbsolutePath.Create(pathTable, TemporaryDirectory)
+                        });
+
+                    return mounts;
+                },
+                act: async (env, fpstore) =>
+                {
+                    string mydir = GetFullPath("mydir");
+                    Directory.CreateDirectory(mydir);
+
+                    string outputPath = GetFullPath("out");
+                    var output = FileArtifact.CreateOutputFile(AbsolutePath.Create(env.Context.PathTable, outputPath));
+
+                    AbsolutePath workingDir = output.Path.GetParent(env.Context.PathTable);
+
+                    // Let's execute a pip that enumerates an empty directory
+                    string script = OperatingSystemHelper.IsUnixOS ? I($"ls mydir > {outputPath}") : I($"dir mydir > {outputPath}");
+                    Process process = CreateCmdProcess(
+                            env.Context,
+                            script,
+                            workingDirectory: workingDir,
+                            standardDirectory: workingDir,
+                            outputs: new[] { output.WithAttributes() }
+                            ); 
+                    await VerifyPipResult(PipResultStatus.Succeeded, env, process, verifyFingerprint: false);
+
+                    // Simulate scrubbing
+                    FileUtilities.DeleteFile(outputPath);
+                    // Add a file to the directory, so we change its fingerprint
+                    var pathUnderDir = Path.Combine(mydir, "one-file");
+                    File.WriteAllText(pathUnderDir, "content");
+
+                    // Run the pip again. Since the directory fingerprint changed, the pip should re-run. Observe the weak fp of the pip remains the same.
+                    await VerifyPipResult(PipResultStatus.Succeeded, env, process, verifyFingerprint: false);
+
+                    // At this point we should have in the two-phase fp store a single weak fingerprint with two candidate pairs, representing the two executions
+                    var weakfp = fpstore.AllWeakFingerprints.Single();
+                    var strongfps = await Task.WhenAll(fpstore.ListPublishedEntriesByWeakFingerprint(weakfp, new OperationHints()));
+                    XAssert.AreEqual(2, strongfps.Length);
+
+                    // Remove the file under the directory, so the first execution should be a hit
+                    File.Delete(pathUnderDir);
+                    // Evict the first entry, so cache lookup should get to the point where there is a hit but then the entry is missing (and the pip should execute)
+                    // Observe candidates are traversed in the order ListPublishedEntriesByWeakFingerprint returns, which means we are evicting the first candidate a cache lookup would consider
+                    fpstore.EvictCacheEntry(strongfps[0].Result.StrongFingerprint);
+                    
+                    // Simulate scrubbing
+                    FileUtilities.DeleteFile(outputPath);
+
+                    // The pip should be a miss
+                    await VerifyPipResult(PipResultStatus.Succeeded, env, process, verifyFingerprint: false);
+
+                    // Let's check the last cache lookup stats (corresponding to the last pip that executed)
+                    var result = EventListener.GetLogMessagesForEventId((int)LogEventId.PipCacheLookupStats).Last();
+
+                    // The last cache lookup should have found an absent entry. This means an entry which was a cache hit, but the content hash list was absent
+                    XAssert.Contains(result, "Visited absent entries: 1");
+                    // But this absent entry shouldn't have prevented the lookup to reach the other candidate, so in the end we should have visited 2 entries
+                    XAssert.Contains(result, "Visited entries: 2");
+                });
+        }
+
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public Task ProcessWithDirectoryEnumeration_Bug1021066()
         {
@@ -2585,6 +2664,25 @@ EXIT /b 3
                         fileAccessAllowlist: fileAccessAllowlist));
         }
 
+        private Task WithExecutionEnvironmentForCacheWithEviction(
+            Func<DummyPipExecutionEnvironment, TestPipExecutorTwoPhaseFingerprintStoreWithEviction, Task> act,
+            Func<PathTable, IConfiguration> config = null,
+            Func<PathTable, SemanticPathExpander> createMountExpander = null,
+            Func<PipExecutionContext, FileAccessAllowlist> allowlistCreator = null)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            FileAccessAllowlist fileAccessAllowlist = allowlistCreator?.Invoke(context);
+
+            var env = CreateExecutionEnvironmentForCacheWithEviction(
+                        context,
+                        config: config,
+                        pathExpander: createMountExpander == null ? SemanticPathExpander.Default : createMountExpander(context.PathTable),
+                        fileAccessAllowlist: fileAccessAllowlist);
+
+            return act(env, (TestPipExecutorTwoPhaseFingerprintStoreWithEviction)env.Cache.TwoPhaseFingerprintStore);
+        }
+
         private Task WithExecutionEnvironmentAndIpcServer(
             IIpcProvider ipcProvider,
             IIpcOperationExecutor ipcExecutor,
@@ -2693,18 +2791,43 @@ EXIT /b 3
                     new InMemoryArtifactContentCache(),
                     new TestPipExecutorTwoPhaseFingerprintStore());
 
+            return CreateDummyPipExecutionEnvironment(context, mountExpander, fileAccessAllowlist, configInstance, cacheLayer);
+        }
+
+        private DummyPipExecutionEnvironment CreateExecutionEnvironmentForCacheWithEviction(
+            BuildXLContext context, 
+            SemanticPathExpander pathExpander, 
+            Func<PathTable, IConfiguration> config = null,
+            FileAccessAllowlist fileAccessAllowlist = null)
+        {
+            IConfiguration configInstance = config == null ? ConfigurationHelpers.GetDefaultForTesting(context.PathTable, AbsolutePath.Create(context.PathTable, TestPath)) : config(context.PathTable);
+
+            EngineCache cacheLayer = new EngineCache(
+                        new InMemoryArtifactContentCache(),
+                        new TestPipExecutorTwoPhaseFingerprintStoreWithEviction());
+
+            return CreateDummyPipExecutionEnvironment(context, mountExpander: pathExpander, fileAccessAllowlist, configInstance, cacheLayer);
+        }
+
+        private DummyPipExecutionEnvironment CreateDummyPipExecutionEnvironment(
+            BuildXLContext context, 
+            SemanticPathExpander mountExpander, 
+            FileAccessAllowlist fileAccessAllowlist, 
+            IConfiguration configInstance, 
+            EngineCache cacheLayer)
+        {
             var env = new DummyPipExecutionEnvironment(
-                CreateLoggingContextForTest(),
-                context,
-                configInstance,
-                pipCache: cacheLayer,
-                semanticPathExpander: mountExpander,
-                fileAccessAllowlist: fileAccessAllowlist,
-                allowUnspecifiedSealedDirectories: false,
-                subst: TryGetSubstSourceAndTarget(out var substSource, out var substTarget)
-                    ? (substSource, substTarget)
-                    : default((string, string)?),
-                sandboxConnection: GetSandboxConnection());
+                            CreateLoggingContextForTest(),
+                            context,
+                            configInstance,
+                            pipCache: cacheLayer,
+                            semanticPathExpander: mountExpander,
+                            fileAccessAllowlist: fileAccessAllowlist,
+                            allowUnspecifiedSealedDirectories: false,
+                            subst: TryGetSubstSourceAndTarget(out var substSource, out var substTarget)
+                                ? (substSource, substTarget)
+                                : default((string, string)?),
+                            sandboxConnection: GetSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
             return env;
         }
@@ -3681,5 +3804,86 @@ EXIT /b 3
 
         // This is finished task that is used to prevent compilation warning in async method with no reasonable await.
         private static Task FinishedTask { get; } = Task.FromResult(42);
+    }
+
+    /// <summary>
+    /// A very simplified mock implementation of a two phase fingerprint store that supports evicting cache entries
+    /// </summary>
+    /// <remarks>
+    /// Not thread safe, only use in single threaded contexts.
+    /// Once a strong fingerprint is evicted (via <see cref="EvictCacheEntry(StrongContentFingerprint)"/>, there is no support for adding it back
+    /// Cache entry publishing is done in a very naive way: it always succeeds and there is no check for duplicate content
+    /// </remarks>
+    internal sealed class TestPipExecutorTwoPhaseFingerprintStoreWithEviction : ITwoPhaseFingerprintStore
+    {
+        private readonly MultiValueDictionary<WeakContentFingerprint, (StrongContentFingerprint strongFingerprint, ContentHash pathSetHash, CacheEntry entry)> m_entries = new();
+        private readonly HashSet<StrongContentFingerprint> m_evictedEntries = new();
+
+        internal TestPipExecutorTwoPhaseFingerprintStoreWithEviction()
+        {
+        }
+
+        public IEnumerable<Task<Possible<PublishedEntryRef, Failure>>> ListPublishedEntriesByWeakFingerprint(WeakContentFingerprint weak, OperationHints hints)
+        {
+            var publishedEntries = new List<Task<Possible<PublishedEntryRef, Failure>>>();
+
+            if (m_entries.TryGetValue(weak, out var entries))
+            {
+                foreach (var entry in entries)
+                {
+                    publishedEntries.Add(Task.FromResult(new Possible<PublishedEntryRef, Failure>(ToSuccessfulPublishedEntry(entry.strongFingerprint, entry.pathSetHash, entry.entry))));
+                }
+            }
+
+            return publishedEntries;
+        }
+
+        public IEnumerable<WeakContentFingerprint> AllWeakFingerprints => m_entries.Keys.ToArray();
+
+        public Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(
+            WeakContentFingerprint weakFingerprint,
+            ContentHash pathSetHash,
+            StrongContentFingerprint strongFingerprint,
+            OperationHints hints = default)
+        {
+            if (m_evictedEntries.Contains(strongFingerprint) || !m_entries.TryGetValue(weakFingerprint, out var entries))
+            {
+                // The content hash list is not there (or was evicted)
+                return Task.FromResult(new Possible<CacheEntry?, Failure>((CacheEntry?)null));
+            }
+
+            foreach (var entry in entries)
+            {
+                if (entry.strongFingerprint == strongFingerprint)
+                {
+                    return Task.FromResult(new Possible<CacheEntry?, Failure>(entry.entry));
+                }
+            }
+            
+            // The content hash list is not there
+            return Task.FromResult(new Possible<CacheEntry?, Failure>((CacheEntry?)null));
+        }
+
+        public Task<Possible<CacheEntryPublishResult, Failure>> TryPublishCacheEntryAsync(
+            WeakContentFingerprint weakFingerprint,
+            ContentHash pathSetHash,
+            StrongContentFingerprint strongFingerprint,
+            CacheEntry entry,
+            CacheEntryPublishMode mode = CacheEntryPublishMode.CreateNew,
+            PublishCacheEntryOptions options = default)
+        {
+
+            m_entries.Add(weakFingerprint, (strongFingerprint, pathSetHash, entry));
+
+            return Task.FromResult(new Possible<CacheEntryPublishResult, Failure>(CacheEntryPublishResult.CreatePublishedResult()));
+        }
+
+        public void EvictCacheEntry(StrongContentFingerprint strongFingerprint)
+        {
+            m_evictedEntries.Add(strongFingerprint);
+        }
+
+        private static PublishedEntryRef ToSuccessfulPublishedEntry(StrongContentFingerprint strongFingerprint, ContentHash pathSetHash, CacheEntry entry) => 
+            new(pathSetHash, strongFingerprint, entry.OriginatingCache, PublishedEntryRefLocality.Remote);
     }
 }

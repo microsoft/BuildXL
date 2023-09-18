@@ -952,16 +952,6 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseStrongFingerprintUnavailableForPathSet(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash);
 
         [GeneratedEvent(
-            (int)LogEventId.TwoPhaseCacheEntryMissing,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] The cache entry for strong fingerprint {strongFingerprint} could not be found, but the cache listed it as available for weak fingerprint {weakFingerprint}. " +
-                      "This will result in a cache-miss for this pip.")]
-        internal abstract void TwoPhaseCacheEntryMissing(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string strongFingerprint);
-
-        [GeneratedEvent(
             (int)LogEventId.TwoPhaseFetchingCacheEntryFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -3669,8 +3659,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "Cache lookup for {formattedSemistableHash} - WP: '{weakFigerprint}' (augmented: {isAugmentedFingerprint}), Visited entries: {visitedEntriesCount}, Unique pathsets: {pathsetCount}")]
-        public abstract void PipCacheLookupStats(LoggingContext context, string formattedSemistableHash, bool isAugmentedFingerprint, string weakFigerprint, int visitedEntriesCount, int pathsetCount);
+            Message = "Cache lookup for {formattedSemistableHash} - WP: '{weakFigerprint}' (augmented: {isAugmentedFingerprint}), Visited entries: {visitedEntriesCount}, Visited absent entries: {visitedAbsentEntriesCount}, Unique pathsets: {pathsetCount}")]
+        public abstract void PipCacheLookupStats(LoggingContext context, string formattedSemistableHash, bool isAugmentedFingerprint, string weakFigerprint, int visitedEntriesCount, int visitedAbsentEntriesCount, int pathsetCount);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipSourceDependencyCannotBeHashed,

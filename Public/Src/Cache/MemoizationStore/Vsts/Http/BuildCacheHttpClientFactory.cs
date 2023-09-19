@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -10,6 +12,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
+using BuildXL.Utilities;
 using Microsoft.VisualStudio.Services.Content.Common;
 using BuildXL.Utilities.Authentication;
 
@@ -52,6 +55,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
                 _httpSendTimeout,
                 tracer: new AppTraceSourceContextAdapter(context, "BuildCacheHttpClientFactory", SourceLevels.All),
                 verifyConnectionCancellationToken: CancellationToken.None); // TODO: Pipe down cancellation support (bug 1365340)
+            httpClientFactory.ClientSettings.UserAgent = new List<ProductInfoHeaderValue>
+                                                         {
+                                                             new("CASaaS", Branding.Version),
+                                                         };
+
             IBuildCacheHttpClient client =
                 httpClientFactory.CreateVssHttpClient<IArtifactBuildCacheHttpClient, ItemBuildCacheHttpClient>(_buildCacheBaseUri);
             await ArtifactHttpClientErrorDetectionStrategy.ExecuteAsync(

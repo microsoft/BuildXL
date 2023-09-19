@@ -8,12 +8,14 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Authentication;
 using BuildXL.Utilities.Collections;
@@ -67,12 +69,21 @@ namespace Tool.DropDaemon
 
         private readonly VssCredentialsFactory m_credentialFactory;
 
-        private ArtifactHttpClientFactory GetFactory() =>
-            new ArtifactHttpClientFactory(
+        private ArtifactHttpClientFactory GetFactory()
+        {
+            var factory = new ArtifactHttpClientFactory(
                 credentials: GetCredentials(),
                 httpSendTimeout: m_config.HttpSendTimeout,
                 tracer: Tracer,
                 verifyConnectionCancellationToken: Token);
+
+            factory.ClientSettings.UserAgent = new List<ProductInfoHeaderValue>
+                                               {
+                                                   new($"BuildXLDropDaemon", Branding.Version)
+                                               };
+
+            return factory;
+        }
 
         /// <nodoc/>
         public Uri ServiceEndpoint => m_config.Service;

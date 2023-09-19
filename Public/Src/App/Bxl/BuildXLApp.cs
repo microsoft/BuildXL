@@ -1011,7 +1011,7 @@ namespace BuildXL
             }
 
             var sessionId = ComputeSessionId(relatedActivityId);
-
+            var currentDirectory = Directory.GetCurrentDirectory();
             LoggingContext topLevelContext = new LoggingContext(
                 relatedActivityId,
                 Branding.ProductExecutableName,
@@ -1047,6 +1047,24 @@ namespace BuildXL
                         translatedLogDirectory = pathTranslator != null ? pathTranslator.Translate(logDirectory) : logDirectory;
                     }
 
+                    var gitRemoteRepoStopWatch = new StopwatchVar();
+                    string gitRemoteRepoURL = null;
+                    // Collect the remote repo URL and log it with DominoInvocationEvent for all the dev builds.
+                    using (gitRemoteRepoStopWatch.Start())
+                    {
+                        var captureGitInfo = new GitInfoManager(loggingContext, startDirectory: currentDirectory);
+                        gitRemoteRepoURL = captureGitInfo.GetRemoteRepoInfo();
+                    }
+
+                    Tracing.Logger.Log.Statistic(
+                        loggingContext,
+                        new Statistic()
+                        {
+                            Name = Statistics.GetGitRepoInfoTime,
+                            Value = (long)gitRemoteRepoStopWatch.TotalElapsed.TotalMilliseconds
+                        });
+
+
                     LogDominoInvocation(
                         loggingContext,
                         GetExpandedCmdLine(m_commandLineArguments),
@@ -1058,16 +1076,17 @@ namespace BuildXL
                         utcNow.Ticks,
                         translatedLogDirectory,
                         m_configuration.InCloudBuild(),
-                        Directory.GetCurrentDirectory(),
+                        currentDirectory,
                         m_initialConfiguration.Startup.ConfigFile.ToString(m_pathTable),
-                        m_configuration.Distribution.BuildRole.ToLoggingString());
+                        m_configuration.Distribution.BuildRole.ToLoggingString(),
+                        gitRemoteRepoURL);
 
                     // "o" means it is round-trippable. It happens to be ISO-8601.
                     Logger.Log.StartupTimestamp(
                         loggingContext,
                         utcNow.ToString("o", CultureInfo.InvariantCulture),
                         localNow.ToString("o", CultureInfo.InvariantCulture));
-                    Logger.Log.StartupCurrentDirectory(loggingContext, Directory.GetCurrentDirectory());
+                    Logger.Log.StartupCurrentDirectory(loggingContext, currentDirectory);
                     DetectProcessorGroupMisconfiguration(loggingContext, s_machineInfo);
                 },
                 (loggingContext) =>
@@ -1169,10 +1188,11 @@ namespace BuildXL
             bool inCloudBuild,
             string startupDirectory,
             string mainConfigurationFile,
-            string role)
+            string role,
+            string gitRemoteRepoUrl)
         {
-            Logger.Log.DominoInvocation(context, ScrubCommandLine(commandLine, 10000, 10000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, role);
-            Logger.Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, role);
+            Logger.Log.DominoInvocation(context, ScrubCommandLine(commandLine, 10000, 10000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, role, gitRemoteRepoUrl);
+            Logger.Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, role, gitRemoteRepoUrl);
 
             if (inCloudBuild)
             {

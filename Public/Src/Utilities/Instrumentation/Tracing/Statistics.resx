@@ -324,4 +324,7 @@
   <data name="Counter_MachineAverageCPUWMITime" xml:space="preserve">
     <value>MachineAverageCPUWMITime</value>
   </data>
+  <data name="GetGitRepoInfoTime" xml:space="preserve">
+    <value>GetGitRepoInfoTime</value>
+  </data>
 </root>

@@ -72,5 +72,8 @@ namespace BuildXL.App.Tracing
         CbTimeoutInvalid = 15003,
         CbTimeoutInfo = 15004,
         PerformanceCollectorCollectionFailed = 15005,
+        // Capture Git remote info
+        FailedToGetGitRemoteRepoInfo = 15007,
+        FoundGitConfigFile = 15009,
     }
 }

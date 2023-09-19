@@ -29,9 +29,9 @@ namespace BuildXL.App.Tracing
         /// Returns the logger instance
         /// </summary>
         public static Logger Log => m_log;
-        
+
         [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Engine configuration version: {buildInfo.EngineConfigurationVersion}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Available Physical Memory: {machineInfo.AvailableMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Runtime Framework: '{machineInfo.RuntimeFrameworkName}', Starup directory: {startupDirectory}, Main configuration file: {mainConfig}, Distributed build role: {role}";
+        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Engine configuration version: {buildInfo.EngineConfigurationVersion}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Available Physical Memory: {machineInfo.AvailableMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Runtime Framework: '{machineInfo.RuntimeFrameworkName}', Starup directory: {startupDirectory}, Main configuration file: {mainConfig}, Distributed build role: {role}, Git remote repo Url: {gitRemoteRepoUrl}";
 
         /// <summary>
         /// CAUTION!!
@@ -48,7 +48,7 @@ namespace BuildXL.App.Tracing
             // Prevent this from going to the log. It is only for ETW and telemetry. DominoInvocationForLocalLog is for the log.
             Keywords = (int)Keywords.SelectivelyEnabled,
             Message = AppInvocationMessage)]
-        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, string role);
+        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, string role, string gitRemoteRepoUrl);
 
         /// <summary>
         /// This is the event that populates the local log file. It differs from DominoInvocation in that it contains the raw commandline without any truncation
@@ -59,7 +59,7 @@ namespace BuildXL.App.Tracing
             EventLevel = Level.Verbose,
             EventOpcode = (byte)EventOpcode.Start,
             Message = AppInvocationMessage)]
-        public abstract void DominoInvocationForLocalLog(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, string role);
+        public abstract void DominoInvocationForLocalLog(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, string role, string gitRemoteRepoUrl);
 
         [GeneratedEvent(
             (ushort)LogEventId.StartupTimestamp,
@@ -502,7 +502,7 @@ namespace BuildXL.App.Tracing
             Message = "An exception was occurred/swallowed when initializing performance collector: {exception}.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void PerformanceCollectorInitializationFailed(LoggingContext context, string exception);
-        
+
         [GeneratedEvent(
                     (ushort)LogEventId.PerformanceCollectorCollectionFailed,
                     EventGenerators = EventGenerators.LocalOnly,
@@ -546,6 +546,22 @@ namespace BuildXL.App.Tracing
             Keywords = (int)(Keywords.UserMessage),
             Message = "{ShortProductName} will terminate if build exceeds {allowedRemainingMinutes} minutes ({minutesBeforeQueueTimeout} minutes before timeout specified in CloudBuild Queue configuration).")]
         public abstract void CbTimeoutInfo(LoggingContext context, int minutesBeforeQueueTimeout, int allowedRemainingMinutes);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FailedToGetGitRemoteRepoInfo,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)(Keywords.UserMessage),
+            Message = "Failed to capture git remote repository info: {errorMessage}")]
+        public abstract void FailedToCaptureGitRemoteRepoInfo(LoggingContext context, string errorMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FoundGitConfigFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)(Keywords.UserMessage),
+            Message = "Found git config file at '{gitConfigFilePath}'")]
+        public abstract void FoundGitConfigFile(LoggingContext context, string gitConfigFilePath);
     }
 
     /// <summary>

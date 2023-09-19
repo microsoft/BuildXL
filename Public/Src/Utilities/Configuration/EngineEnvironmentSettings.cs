@@ -464,6 +464,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int?> SandboxNumRetriesPipeReadOnCancel = CreateSetting("BuildXLSandboxNumRetriesPipeReadOnCancel", value => ParseInt32(value));
 
         /// <summary>
+        /// Whether to enable verbose process logging while retrying pips that are retried due to user-specified conditions (e.g., special exit code).
+        /// </summary>
+        public static readonly Setting<bool> VerboseModeForPipsOnRetry = CreateSetting("BuildXLVerboseProcessLoggingOnRetry", value => value == "1");
+
+        /// <summary>
         /// Kind of async pipe reader for file reporting and injector.
         /// </summary>
         /// <remarks>

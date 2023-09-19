@@ -1978,6 +1978,19 @@ namespace BuildXL.Scheduler
                 {
                     lastObservedMemoryCounters = default(ProcessMemoryCountersSnapshot);
 
+                    var verboseLogging = false;
+                    if (configuration.Sandbox.VerboseProcessLoggingEnabledPips != null 
+                        && (configuration.Sandbox.VerboseProcessLoggingEnabledPips.Contains("*")  
+                            || configuration.Sandbox.VerboseProcessLoggingEnabledPips.Contains(pip.FormattedSemiStableHash)))
+                    {
+                        verboseLogging = true;
+                    }
+
+                    if (userRetry && EngineEnvironmentSettings.VerboseModeForPipsOnRetry)
+                    {
+                        verboseLogging = true;
+                    }
+
                     var executor = new SandboxedProcessPipExecutor(
                         context,
                         operationContext.LoggingContext,
@@ -2008,7 +2021,8 @@ namespace BuildXL.Scheduler
                         pluginManager: environment.PluginManager,
                         pipGraphFileSystemView: environment.PipGraphView,
                         runLocation: runLocation,
-                        sandboxFileSystemView: environment.State.FileSystemView);
+                        sandboxFileSystemView: environment.State.FileSystemView,
+                        verboseProcessLogging: verboseLogging);
 
                     resourceScope.RegisterQueryRamUsageMb(
                         () =>

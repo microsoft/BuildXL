@@ -1244,6 +1244,7 @@ namespace BuildXL.Scheduler
                     operationContext,
                     processDescription,
                     runnableFromCacheCheckResult.Fingerprint.ToString(),
+                    cacheHitData.StrongFingerprint.ToString(),
                     cacheHitData.Metadata.Id);
 
                 // If the cache hit came from the remote cache, we want to know the duration of that in a separate counter

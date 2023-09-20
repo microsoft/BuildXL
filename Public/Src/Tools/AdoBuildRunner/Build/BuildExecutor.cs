@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using BuildXL.AdoBuildRunner.Vsts;
@@ -20,30 +22,23 @@ namespace BuildXL.AdoBuildRunner.Build
         private readonly string m_bxlExeLocation;
 
         /// <nodoc />
-        public BuildExecutor(ILogger logger) : base(logger) 
+        public BuildExecutor(ILogger logger) : base(logger)
         {
             // Resolve the bxl executable location
             var exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "bxl" : "bxl.exe";
             m_bxlExeLocation = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, exeName);
         }
 
-        private int ExecuteBuild(string arguments, string buildSourcesDirectory)
+        private int ExecuteBuild(IEnumerable<string> arguments, string buildSourcesDirectory)
         {
-            // We want these argument in all builds run by the AdoBuildRunner
-            arguments += " /ado";
-            
-            // Enable gRPC encryption
-            if (!(Environment.GetEnvironmentVariable(Constants.DisableEncryptionVariableName) == "1"))
-            {
-                arguments += " /p:GrpcCertificateSubjectName=CN=1es-hostedpools.default.microsoft.com /p:GrpcCertificateStoreLocation=CurrentUser";
-            }
+            var fullArguments = SetDefaultArguments(arguments);
 
             var process = new Process()
             {
                 StartInfo =
                 {
                     FileName = m_bxlExeLocation,
-                    Arguments = arguments,
+                    Arguments = ExtractAndEscapeCommandLineArguments(fullArguments),
                     RedirectStandardOutput = true,
                     RedirectStandardError = true
                 },
@@ -82,7 +77,7 @@ namespace BuildXL.AdoBuildRunner.Build
             // Extend this eventually, with the context needed for the builds
         }
 
-        private static string ExtractAndEscapeCommandLineArguments(string[] args) => string.Join(" ", args);
+        private static string ExtractAndEscapeCommandLineArguments(IEnumerable<string> args) => string.Join(' ', args);
 
         /// <inherit />
         public void PrepareBuildEnvironment(BuildContext buildContext)
@@ -99,7 +94,7 @@ namespace BuildXL.AdoBuildRunner.Build
         public int ExecuteSingleMachineBuild(BuildContext buildContext, string[] buildArguments)
         {
             Logger.Info($@"Launching single machine build");
-            return ExecuteBuild(ExtractAndEscapeCommandLineArguments(buildArguments), buildContext.SourcesDirectory);
+            return ExecuteBuild(buildArguments, buildContext.SourcesDirectory);
         }
 
         /// <inherit />
@@ -107,10 +102,12 @@ namespace BuildXL.AdoBuildRunner.Build
         {
             Logger.Info($@"Launching distributed build as orchestrator");
             return ExecuteBuild(
-                ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /distributedBuildRole:orchestrator" +
-                $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
-                $" /relatedActivityId:{relatedSessionId}",
+                buildArguments.Concat(new[]
+                {
+                    $"/distributedBuildRole:orchestrator",
+                    $"/distributedBuildServicePort:{Constants.MachineGrpcPort}",
+                    $"/relatedActivityId:{relatedSessionId}"
+                }),
                 buildContext.SourcesDirectory
             );
         }
@@ -121,12 +118,20 @@ namespace BuildXL.AdoBuildRunner.Build
             Logger.Info($@"Launching distributed build as worker");
 
             return ExecuteBuild(
-                "/p:BuildXLWorkerAttachTimeoutMin=20 " +  // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
-                ExtractAndEscapeCommandLineArguments(buildArguments) +
-                $" /distributedBuildRole:worker" +
-                $" /distributedBuildServicePort:{Constants.MachineGrpcPort}" +
-                $" /distributedBuildOrchestratorLocation:{buildInfo.OrchestratorLocation}:{Constants.MachineGrpcPort}" +
-                $" /relatedActivityId:{buildInfo.RelatedSessionId}",
+                // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
+                // (defaults are placed in front of user-provided arguments).
+                new[]
+                {
+                    "/p:BuildXLWorkerAttachTimeoutMin=20"
+                }
+                .Concat(buildArguments)
+                .Concat(new[]
+                {
+                    $"/distributedBuildRole:worker",
+                    $"/distributedBuildServicePort:{Constants.MachineGrpcPort}",
+                    $"/distributedBuildOrchestratorLocation:{buildInfo.OrchestratorLocation}:{Constants.MachineGrpcPort}",
+                    $"/relatedActivityId:{buildInfo.RelatedSessionId}"
+                }),
                 buildContext.SourcesDirectory
             );
         }
@@ -135,6 +140,36 @@ namespace BuildXL.AdoBuildRunner.Build
         public void InitializeAsWorker(BuildContext buildContext, string[] buildArguments)
         {
             // No prep work to do
+        }
+
+        private static IEnumerable<string> SetDefaultArguments(IEnumerable<string> arguments)
+        {
+            // The default values are added to the start of command line string.
+            // This way, user-provided arguments will be able to override the defaults.
+            var defaultArguments = new List<string>() {
+                // Out default pip timeout is 10 min; increase it to 30min
+                "/pipTimeoutMultiplier:3",
+                // We are indeed running in ADO
+                "/ado",
+                // Setting this high enough, so the scheduler pausing is only based on MaximumRamUtilizationPercentage.
+                // We check that both conditions (min ram and max utilization %) are met, before pausing the scheduler.
+                "/minAvailableRamMb:100000000",
+                // Both historical perf info and the early release are not working well in ADO environment,
+                // so temporarily disable them. This can be removed once the features are fixed (TODO #2106086)
+                "/useHistoricalRamUsageInfo-",
+                "/earlyWorkerRelease-",
+            };
+
+            // Enable gRPC encryption
+            if (!(Environment.GetEnvironmentVariable(Constants.DisableEncryptionVariableName) == "1"))
+            {
+                defaultArguments.Add("/p:GrpcCertificateSubjectName=CN=1es-hostedpools.default.microsoft.com /p:GrpcCertificateStoreLocation=CurrentUser");
+            }
+
+            // add specified arguments
+            defaultArguments.AddRange(arguments);
+
+            return defaultArguments;
         }
     }
 }

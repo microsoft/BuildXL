@@ -15,7 +15,7 @@ namespace BuildXL
     /// The current approach involves parsing of the .git/config file for the required remote Url.
     /// If there are numerous parsing errors or issues in detecting the .git/config file using this method, in the future we may consider another approach where we spawn an external git.exe process to get needed git info.
     /// With the other approach we will need to apply string manipulations on the path env var for finding the git.exe file path, which involves more or less the same effort as the other stratergy.
-    /// Note that, in the sample.git/config below, the remote origin Url denotes the fork repo, while the conventionally-named "upstream" Url points to the original repo from which the fork originated.
+    /// Note that, in the sample.git/config below, as per the triangular fork convention, the remote origin Url denotes the fork repo, while the conventionally-named "upstream" Url points to the original repo from which the fork originated.
     /// Sample gitconfig file
     /// [core]
     /// repositoryformatversion = 0
@@ -93,9 +93,8 @@ namespace BuildXL
         /// Parse git config file for the remote Url.
         /// </summary>
         /// <remarks>
-        /// Remote named as "upstream" will take the highest precendence.
-        /// If there exists no fork in the repo, then the "origin" Url is returned.
-        /// If there exists more than one fork and if none of them are named as "upstream", then nothing is returned.
+        /// The remote named as "upstream" will take the highest precendence. When using GitHub triangular forking conventions, the "origin" will be the user's fork while the remote named "upstream" will be the original repo that was forked.
+        /// Otherwise use the url of the remote named "origin" (if one exists).
         /// </remarks>
         private string GetGitRemoteUrl(string gitConfigFilePath)
         {
@@ -112,12 +111,11 @@ namespace BuildXL
         /// <summary>
         /// Parses the StreamReader to obtain the remote url of the repo.
         /// </summary>
-        public static string ParseGitConfigStreamReader(TextReader reader)
+        internal static string ParseGitConfigStreamReader(TextReader reader)
         {
             string line = null;
             string currentRemoteName = null;
             string remoteOriginUrl = null;
-            int remoteNameCount = 0;
 
             while ((line = reader.ReadLine()) != null)
             {
@@ -128,8 +126,6 @@ namespace BuildXL
                 if (match.Success)
                 {
                     currentRemoteName = match.Groups[1].Value;
-                    // The counter is incremented to handle the unique scenario where there's an origin and multiple upstreams that haven't been named according to the convention.
-                    remoteNameCount++;
                 }
                 else if (currentRemoteName != null)
                 {
@@ -137,12 +133,12 @@ namespace BuildXL
                     if (matchUrl.Success)
                     {
                         // Since a remote named as "upstream" is of highest precendece, we can stop parsing the file and return the remote Url of "upstream".
-                        if (string.Equals(currentRemoteName, "upstream", StringComparison.Ordinal))
+                        if (string.Equals(currentRemoteName, "upstream", StringComparison.OrdinalIgnoreCase))
                         {
                             return matchUrl.Groups[1].Value;
                         }
 
-                        if (string.Equals(currentRemoteName, "origin", StringComparison.Ordinal))
+                        if (string.Equals(currentRemoteName, "origin", StringComparison.OrdinalIgnoreCase))
                         {
                             remoteOriginUrl = matchUrl.Groups[1].Value;
                         }
@@ -151,8 +147,8 @@ namespace BuildXL
                 }
             }
 
-            // If the repo has only one remote called "origin", we return that origin Url.
-            if (remoteNameCount == 1 && remoteOriginUrl != null)
+            // If the repo has a remote named origin and no fork has been named as upstream, we return that origin Url.
+            if (remoteOriginUrl != null)
             {
                 return remoteOriginUrl;
             }

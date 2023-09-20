@@ -77,11 +77,10 @@ namespace BuildXL.Cache.BuildCacheAdapter
 
            try
            {
-                Microsoft.VisualStudio.Services.WebApi.VssClientHttpRequestSettings.Default.SessionId = activityId;
                 var logPath = new AbsolutePath(cacheConfig.CacheLogPath);
                 var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
 
-                var vstsCache = BuildCacheUtils.CreateBuildCacheCache(cacheConfig, logger, Environment.GetEnvironmentVariable("VSTSPERSONALACCESSTOKEN"));
+                var vstsCache = BuildCacheUtils.CreateBuildCacheCache(cacheConfig, logger, Environment.GetEnvironmentVariable("VSTSPERSONALACCESSTOKEN"), activityId);
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
                 var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, vstsCache, logger, statsFilePath);

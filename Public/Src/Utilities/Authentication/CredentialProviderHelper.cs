@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
 using System;
 using System.IO;
@@ -219,8 +220,14 @@ namespace BuildXL.Utilities.Authentication
         /// Create a <see cref="CredentialProviderHelper"/> object to provide ADO PATs.
         /// </summary>
         /// <param name="logger">Logging method to output debug information.</param>
-        public CredentialProviderHelper(Action<string> logger)
+        /// <param name="vsoSessionGuid">The session guid to use for all calls to Azure DevOps.</param>
+        public CredentialProviderHelper(Action<string> logger, Guid? vsoSessionGuid)
         {
+            if (vsoSessionGuid.HasValue)
+            {
+                VssClientHttpRequestSettings.Default.SessionId = vsoSessionGuid.Value;
+            }
+
             m_logger = logger;
 
             foreach (var providerVariable in new string[] { CloudbuildCredentialHelperPathEnvVariable, GenericCredentialProvidersPathEnvVariable, AzureAuthCredentialProviderPathEnvVariable })

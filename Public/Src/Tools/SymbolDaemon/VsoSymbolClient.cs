@@ -100,7 +100,7 @@ namespace Tool.SymbolDaemon
             m_logger.Info(I($"[{nameof(VsoSymbolClient)}] Using symbol config: {JsonConvert.SerializeObject(m_config)}"));
 
             string pat = !string.IsNullOrEmpty(config.PersonalAccessTokenEnv) ? Environment.GetEnvironmentVariable(config.PersonalAccessTokenEnv) : null;
-            m_credentialFactory = new VssCredentialsFactory(pat: pat, new CredentialProviderHelper(m => m_logger.Verbose(m)), m => m_logger.Verbose(m));
+            m_credentialFactory = new VssCredentialsFactory(pat: pat, new CredentialProviderHelper(m => m_logger.Verbose(m), config.SessionId), m => m_logger.Verbose(m));
 
             m_symbolClient = new ReloadingSymbolClient(
                 logger: logger,

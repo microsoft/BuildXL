@@ -346,6 +346,15 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultUploadBcdeFileToDrop,
         });
 
+        internal static readonly StrOption SessionId = RegisterConfigOption(new StrOption("sessionId")
+        {
+            ShortName = "sid",
+            HelpText = "Optional guid to use as a session id when communicating to AzDO.",
+            IsRequired = false,
+            // TODO: Remove after golden update (#2104026)
+            DefaultValue = Environment.GetEnvironmentVariable("Q_SESSION_GUID")
+        });
+
         // ==============================================================================
         // 'addfile' and 'addartifacts' parameters
         // ==============================================================================
@@ -1458,6 +1467,12 @@ namespace Tool.DropDaemon
                 domainId = (byte?)conf.Get(OptionalDropDomainId);
             }
 
+            Guid? sessionId = null;
+            if (Guid.TryParse(conf.Get(SessionId), out var parsedSessionId))
+            {
+                sessionId = parsedSessionId;
+            }
+
             return new DropConfig(
                 dropName: conf.Get(DropNameOption),
                 serviceEndpoint: conf.Get(DropEndpoint),
@@ -1475,7 +1490,8 @@ namespace Tool.DropDaemon
                 sbomPackageVersion: conf.Get(SbomPackageVersion),
                 reportTelemetry: conf.Get(ReportIndidualDropTelemetry),
                 personalAccessTokenEnv: conf.Get(PersonalAccessTokenEnv),
-                uploadBcdeFileToDrop: conf.Get(UploadBcdeFileToDrop));
+                uploadBcdeFileToDrop: conf.Get(UploadBcdeFileToDrop),
+                sessionId: sessionId);
         }
 
         private static T RegisterConfigOption<T>(T option) where T : Option => RegisterOption(ConfigOptions, option);

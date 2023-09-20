@@ -422,6 +422,7 @@ function getExecuteArguments(command: string, args: UberArguments, ...additional
             Cmd.option("--retentionDays ", args.retentionDays),
             Cmd.option("--maxConnectRetries ", args.maxConnectRetries),
             Cmd.option("--connectRetryDelayMillis ", args.connectRetryDelayMillis),
+            Cmd.option("--sessionId ", args.sessionId),
             Cmd.flag("--enableCloudBuildIntegration", args.enableCloudBuildIntegration),
             Cmd.flag("--enableTelemetry", args.enableTelemetry),
             (args.debugEntryCreateBehavior !== undefined) ? Cmd.option("--debugEntryCreateBehavior ", debugEntryCreateBehaviorToString(args.debugEntryCreateBehavior)) : undefined,
@@ -514,7 +515,8 @@ const cbEnvironmentVariables: string[] = [
     "__CLOUDBUILD_AUTH_HELPER_ROOT__",
     "__Q_DPAPI_Secrets_Dir",
     "__CREDENTIAL_PROVIDER_LOG_DIR",
-    "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH" // Cloudbuild auth helper executable path for build cache, symbol, and drop
+    "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH", // Cloudbuild auth helper executable path for build cache, symbol, and drop
+    "Q_SESSION_GUID" // TODO: Remove after golden update (#2104026)
 ];
 
 function applyCloudBuildDefaultsAndSetEnvVars(args: SymbolCreateArguments): SymbolCreateArguments {

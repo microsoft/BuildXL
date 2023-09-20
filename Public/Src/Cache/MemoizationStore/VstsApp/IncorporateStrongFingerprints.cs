@@ -150,7 +150,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
         private async Task RunBuildCacheAsync(
             Context context, BuildCacheServiceConfiguration config, Func<ICache, Task> funcAsync)
         {
-            VssCredentialsFactory credentialsFactory = new VssCredentialsFactory(pat: null, new CredentialProviderHelper(m => _tracer.Info(context, m)), m => _tracer.Info(context, m));
+            VssCredentialsFactory credentialsFactory = new VssCredentialsFactory(pat: null, new CredentialProviderHelper(m => _tracer.Info(context, m), vsoSessionGuid: null), m => _tracer.Info(context, m));
             ICache cache = BuildCacheCacheFactory.Create(_fileSystem, _logger, credentialsFactory, config, null);
 
             using (cache)

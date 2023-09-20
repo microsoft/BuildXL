@@ -20,7 +20,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
     {
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Disposed by another object")]
         [SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", Justification = "Not applicable")]
-        internal static BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache CreateBuildCacheCache<T>(T cacheConfig, ILogger logger, string pat = null) where T : BuildCacheCacheConfig
+        internal static BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache CreateBuildCacheCache<T>(T cacheConfig, ILogger logger, string pat = null, Guid? sessionId = null) where T : BuildCacheCacheConfig
         {
             // TODO: Remove check when all clients are updated with unified Dedup flag
             if ((ContentHashingUtilities.HashInfo.HashType.IsValidDedup()) ^ cacheConfig.UseDedupStore)
@@ -29,7 +29,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 throw new ArgumentException($"HashType {ContentHashingUtilities.HashInfo.HashType} cannot be used with {store}");
             }
 
-            var credentialProviderHelper = new CredentialProviderHelper(m => logger.Debug(m));
+            var credentialProviderHelper = new CredentialProviderHelper(m => logger.Debug(m), sessionId);
 
             if (credentialProviderHelper.IsCredentialProviderSpecified())
             {

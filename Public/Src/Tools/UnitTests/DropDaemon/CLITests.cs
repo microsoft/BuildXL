@@ -330,6 +330,15 @@ namespace Test.Tool.DropDaemon
                 };
             }
 
+            if (propType == typeof(Guid?))
+            {
+                Guid? val = Guid.NewGuid();
+                return new[]
+                {
+                    TupleCreate(QuoteStr(val.ToString()), val)
+                };
+            }
+
             return null;
         }
 

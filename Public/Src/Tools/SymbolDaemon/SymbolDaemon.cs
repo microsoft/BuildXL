@@ -170,12 +170,27 @@ namespace Tool.SymbolDaemon
             DefaultValue = string.Empty,
         });
 
+        internal static readonly StrOption SessionId = RegisterSymbolConfigOption(new StrOption("sessionId")
+        {
+            ShortName = "sid",
+            HelpText = "Optional guid to use as a session id when communicating to AzDO.",
+            IsRequired = false,
+            // TODO: Remove after golden update (#2104026)
+            DefaultValue = Environment.GetEnvironmentVariable("Q_SESSION_GUID")
+        });
+
         internal static SymbolConfig CreateSymbolConfig(ConfiguredCommand conf)
         {
             byte? domainId;
             checked
             {
                 domainId = (byte?)conf.Get(OptionalDomainId);
+            }
+
+            Guid? sessionId = null;
+            if (Guid.TryParse(conf.Get(SessionId), out var parsedSessionId))
+            {
+                sessionId = parsedSessionId;
             }
 
             return new SymbolConfig(
@@ -192,7 +207,8 @@ namespace Tool.SymbolDaemon
                 maxParallelUploads: conf.Get(MaxParallelUploads),
                 nagleTimeMs: conf.Get(NagleTimeMs),
                 reportTelemetry: conf.Get(ReportTelemetry),
-                personalAccessTokenEnv: conf.Get(PersonalAccessTokenEnv));
+                personalAccessTokenEnv: conf.Get(PersonalAccessTokenEnv),
+                sessionId: sessionId);
         }
 
         private static Client CreateClient(string serverMoniker, IClientConfig config)

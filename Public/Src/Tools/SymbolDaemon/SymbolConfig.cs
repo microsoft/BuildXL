@@ -89,6 +89,11 @@ namespace Tool.SymbolDaemon
         /// </summary>
         public string PersonalAccessTokenEnv { get; }
 
+        /// <summary>
+        /// Optional guid to use as a session id when communicating to AzDO.
+        /// </summary>
+        public Guid? SessionId { get; }
+
         /// <nodoc/>
         public static TimeSpan DefaultRetention { get; } = TimeSpan.FromDays(10);
 
@@ -125,7 +130,8 @@ namespace Tool.SymbolDaemon
             int? maxParallelUploads = null,
             int? nagleTimeMs = null,
             bool? reportTelemetry = null,
-            string personalAccessTokenEnv = null)
+            string personalAccessTokenEnv = null,
+            Guid? sessionId = null)
         {
             Name = requestName;
             Service = serviceEndpoint;
@@ -140,6 +146,7 @@ namespace Tool.SymbolDaemon
             MaxParallelUploads = maxParallelUploads ?? DefaultMaxParallelUploads;
             ReportTelemetry = reportTelemetry ?? false;
             PersonalAccessTokenEnv = personalAccessTokenEnv;
+            SessionId = sessionId;
 
             if (debugEntryCreateBehaviorStr == null)
             {

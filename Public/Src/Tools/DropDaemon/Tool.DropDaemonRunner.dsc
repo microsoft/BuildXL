@@ -444,6 +444,7 @@ export namespace DropDaemonRunner {
                 Cmd.option("--retentionDays ", args.retentionDays),
                 Cmd.option("--maxConnectRetries ", args.maxConnectRetries),
                 Cmd.option("--connectRetryDelayMillis ", args.connectRetryDelayMillis),
+                Cmd.option("--sessionId ", args.sessionId),
                 Cmd.flag("--enableCloudBuildIntegration", args.enableCloudBuildIntegration),
                 Cmd.flag("--enableTelemetry", args.enableTelemetry),
                 Cmd.flag("--verbose", true),
@@ -559,6 +560,7 @@ export namespace DropDaemonRunner {
         "__CLOUDBUILD_AUTH_HELPER_CONFIG__", 
         "QAUTHMATERIALROOT",                        // Auth material for low-privilege build.
         "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH", // Cloudbuild auth helper executable path for build cache, symbol, and drop
+        "Q_SESSION_GUID", // TODO: Remove after golden update (#2104026)
         ...cloudBuildVarsPointingToDirs];
     /**
      * Sets the values of the 'forwardEnvironmentVars'
@@ -574,10 +576,8 @@ export namespace DropDaemonRunner {
             connectRetryDelayMillis: 3000,
             batchSize: 500,
             maxConcurrentClients: 500,
-            timeoutInMilliseconds: 5 * 60 * 60 * 1000,
-            // 5 hours
-            warningTimeoutInMilliseconds: 4 * 60 * 60 * 1000,
-            // 4 hours
+            timeoutInMilliseconds: 5 * 60 * 60 * 1000, // 5 hours
+            warningTimeoutInMilliseconds: 4 * 60 * 60 * 1000, // 4 hours
         };
         return defaults.merge<T>(args).merge<T>(
             <CommonArguments>{

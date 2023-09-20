@@ -87,6 +87,9 @@ export interface SymbolRequestSettings {
 
     /** The expected behavior when a debug entry to add already exists. */
     debugEntryCreateBehavior?: DebugEntryCreateBehavior;
+
+    /** Session guid to use when e.g. calling Azure DevOps. */
+    sessionId?: string;
 }
 
 /**

@@ -52,6 +52,9 @@ export interface DropSettings {
 
     /** Optional domain id. If no value specified, a default domain id is used. Must have a non-negative value. */
     dropDomainId? : number;
+
+    /** Session guid to use when e.g. calling Azure DevOps. */
+    sessionId?: string;
 }
 
 /**

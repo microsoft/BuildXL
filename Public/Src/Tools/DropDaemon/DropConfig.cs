@@ -101,6 +101,11 @@ namespace Tool.DropDaemon
         ///    Env of personal access token for authentication.
         /// </summary>
         public string PersonalAccessTokenEnv { get; }
+
+        /// <summary>
+        ///    Optional guid to use as a session id when communicating to AzDO.
+        /// </summary>
+        public Guid? SessionId { get; }
         #endregion
 
         #region Defaults
@@ -164,7 +169,8 @@ namespace Tool.DropDaemon
             string sbomPackageVersion = null,
             bool? reportTelemetry = null,
             string personalAccessTokenEnv = null,
-            bool? uploadBcdeFileToDrop = null)
+            bool? uploadBcdeFileToDrop = null,
+            Guid? sessionId = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -183,6 +189,7 @@ namespace Tool.DropDaemon
             ReportTelemetry = reportTelemetry ?? false;
             PersonalAccessTokenEnv = personalAccessTokenEnv;
             UploadBcdeFileToDrop = uploadBcdeFileToDrop ?? DefaultUploadBcdeFileToDrop;
+            SessionId = sessionId;
         }
     }
 }

@@ -2,6 +2,18 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20230915.6 (Release [327814](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=327814&_a=release-pipeline-progress))
+
+- Make LocalDiskContentStore automatically creates the path casing cache when the honoring flag is enabled
+- Update dotnet versions to latest
+- Change Input Filter to consider sealed source directory with patterns
+- Add argument to enable verbose process and sandbox logging for specific pips
+- Include distributed build role in DominoInvocation telemetry
+- Remove various low value telemetry events
+- PipExecutionPerformance should record the PIDs as part of the processTree
+- Remove various obsolete todos
+- Removing old AD-based auth packages
+- Use Microsoft.Artifacts.Authentication for authentication 
 
 # 0.1.0-20230901.1 (Release [324492](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=324492&_a=release-pipeline-progress))
 - Forward console messages from workers to orchestrator.

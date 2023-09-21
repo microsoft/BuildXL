@@ -26,6 +26,7 @@ namespace BuildXL.Plugin
     {
         private readonly ConcurrentDictionary<string, Task<Possible<IPlugin>>> m_plugins;
         private readonly PluginHandlers m_pluginHandlers;
+        private readonly PluginFactory m_pluginFactory;
         private bool m_isDisposed = false;
         private readonly LoggingContext m_loggingContext;
         private readonly IReadOnlyList<string> m_pluginPaths;
@@ -73,6 +74,7 @@ namespace BuildXL.Plugin
         {
             m_plugins = new ConcurrentDictionary<string, Task<Possible<IPlugin>>>();
             m_pluginHandlers = new PluginHandlers();
+            m_pluginFactory = new PluginFactory(loggingContext);
             m_pluginStopTaskSource = TaskSourceSlim.Create<Unit>();
             m_loggingContext = loggingContext;
             m_logDirectory = logDirectory;
@@ -178,7 +180,7 @@ namespace BuildXL.Plugin
                 }
 
                 var sw = Stopwatch.StartNew();
-                var result = await PluginFactory.Instance.CreatePluginAsync(pluginCreationArgument);
+                var result = await m_pluginFactory.CreatePluginAsync(pluginCreationArgument);
 
                 Interlocked.Add(ref m_pluginLoadingTime, sw.ElapsedMilliseconds);
 
@@ -250,7 +252,7 @@ namespace BuildXL.Plugin
 
         private PluginCreationArgument GetPluginArgument(string pluginPath, bool runInSeparateProcess)
         {
-            var pluginId = PluginFactory.Instance.CreatePluginId();
+            var pluginId = m_pluginFactory.CreatePluginId();
             return new PluginCreationArgument()
             {
                 PluginPath = pluginPath,

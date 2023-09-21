@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,22 +39,31 @@ namespace Tool.SymbolDaemon
         private static IAppTraceSource Tracer => SymbolAppTraceSource.SingleInstance;
 
         private readonly Client m_apiClient;
-
         private readonly IIpcLogger m_logger;
         private readonly SymbolConfig m_config;
         private readonly ISymbolServiceClient m_symbolClient;
         private readonly CancellationTokenSource m_cancellationSource;
         private readonly DebugEntryCreateBehavior m_debugEntryCreateBehavior;
-
-        private CancellationToken CancellationToken => m_cancellationSource.Token;
-        private string m_requestId;
-        private IDomainId m_domainId;
         private readonly SemaphoreSlim m_requestIdAcquisitionMutex = TaskUtilities.CreateMutex();
         private readonly NagleQueue<BatchedSymbolFile> m_nagleQueue;
+        private readonly VssCredentialsFactory m_credentialFactory;
         private readonly ActionQueue m_fileUploadQueue;
+
+        private string m_requestId;
+        private IDomainId m_domainId;
         private int m_batchCount;
 
-        private readonly VssCredentialsFactory m_credentialFactory;
+        /// <summary>
+        /// Won't be set for clients running on workers because workers don't create symbol requests.
+        /// </summary>
+        private DateTime? m_symbolRequestCreatedAtUtc;
+
+        /// <summary>
+        /// Won't be set for clients running on workers because workers don't finalize symbol requests.
+        /// </summary>
+        private DateTime? m_symbolRequestFinalizedAtUtc;
+
+        private CancellationToken CancellationToken => m_cancellationSource.Token;
 
         private ArtifactHttpClientFactory GetFactory() =>
             new ArtifactHttpClientFactory(
@@ -179,6 +189,7 @@ namespace Tool.SymbolDaemon
 
             m_requestId = result.Id;
             m_domainId = result.DomainId;
+            m_symbolRequestCreatedAtUtc = DateTime.UtcNow;
 
             // info about a request in a human-readable form
             var requestDetails = $"Symbol request has been created:{Environment.NewLine}"
@@ -472,6 +483,8 @@ namespace Tool.SymbolDaemon
                     isUpdateOperation: false,
                     token);
 
+                m_symbolRequestFinalizedAtUtc = DateTime.UtcNow;
+
                 return result;
             }
         }
@@ -520,14 +533,24 @@ namespace Tool.SymbolDaemon
 
             Contract.Requires(m_apiClient != null);
 
-            var telemetry = new Dictionary<string, string>
+            var symbolRequestInfo = new Dictionary<string, string>
             {
                 { addPrefix("Endpoint"), ServiceEndpoint.ToString() },
                 { addPrefix("RequestName"), RequestName },
                 { addPrefix("RequestId"), RequestId }
             };
 
-            string serializedSymbolInfo = JsonConvert.SerializeObject(telemetry, Formatting.Indented);
+            if (m_symbolRequestCreatedAtUtc.HasValue)
+            {
+                symbolRequestInfo.Add(addPrefix("CreatedAtUtc"), m_symbolRequestCreatedAtUtc.Value.ToString("s", CultureInfo.InvariantCulture));
+            }
+
+            if (m_symbolRequestFinalizedAtUtc.HasValue)
+            {
+                symbolRequestInfo.Add(addPrefix("FinalizedAtUtc"), m_symbolRequestFinalizedAtUtc.Value.ToString("s", CultureInfo.InvariantCulture));
+            }
+
+            string serializedSymbolInfo = JsonConvert.SerializeObject(symbolRequestInfo, Formatting.Indented);
             string serializedSymbolStats = JsonConvert.SerializeObject(GetStats(), Formatting.Indented);
 
             m_logger.Info("Reporting telemetry to BuildXL");

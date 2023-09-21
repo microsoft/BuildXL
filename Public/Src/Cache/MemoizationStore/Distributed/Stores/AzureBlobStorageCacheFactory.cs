@@ -75,9 +75,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                             configuration: new OneLevelCacheBaseConfiguration(
                                 Id: Guid.NewGuid(),
                                 AutomaticallyOverwriteContentHashLists: false,
-                                MetadataPinElisionDuration: configuration.MetadataPinElisionDuration,
-                                // TODO: remove when we implement preventive pin elision for GetLevelSelectorsAsync
-                                DoNotElidePinsForGetLevelSelectors: true
+                                MetadataPinElisionDuration: configuration.MetadataPinElisionDuration
                             ));
         }
 

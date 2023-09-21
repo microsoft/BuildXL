@@ -35,9 +35,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         Guid Id,
         // Whether AddOrGets will automatically overwrite ContentHashLists if any content is unavailable.
         bool AutomaticallyOverwriteContentHashLists,
-        TimeSpan? MetadataPinElisionDuration = null,
-        // This is a temporary flag to disable pin elision for GetLevelSelectors until we can implement something similar to what we are doing with GetContentHashListAsync wrt preventing pinning.
-        bool DoNotElidePinsForGetLevelSelectors = false);
+        TimeSpan? MetadataPinElisionDuration = null);
 
     /// <summary>
     ///     A reference implementation of <see cref="ICache"/> that represents a single level of content and metadata.

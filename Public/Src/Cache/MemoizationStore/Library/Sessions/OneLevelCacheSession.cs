@@ -227,14 +227,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             {
                 var result = await withLevelSelectors.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
 
-                if (result.Succeeded && Parent is not null && !Parent.Configuration.DoNotElidePinsForGetLevelSelectors)
-                {
-                    foreach (var selector in result.Value.Selectors)
-                    {
-                        Parent.AddOrExtendPin(context, selector.ContentHash, selector.ToString());
-                    }
-                }
-
                 return result;
             }
 
@@ -252,11 +244,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             var result = await MemoizationReadOnlySession.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
             if (result.Succeeded && Parent is not null && result.ContentHashListWithDeterminism.ContentHashList is not null)
             {
-                if (!Parent.Configuration.DoNotElidePinsForGetLevelSelectors)
-                {
-                    Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash, strongFingerprint.Selector.ToString());
-                }
-
                 var contentHashList = result.ContentHashListWithDeterminism.ContentHashList.Hashes;
                 foreach (var contentHash in contentHashList)
                 {
@@ -432,11 +419,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
             if (result.Succeeded && Parent is not null && result.ContentHashListWithDeterminism.ContentHashList is not null)
             {
-                if (!Parent.Configuration.DoNotElidePinsForGetLevelSelectors)
-                {
-                    Parent.AddOrExtendPin(context, strongFingerprint.Selector.ContentHash, strongFingerprint.Selector.ToString());
-                }
-
                 var contentHashList = result.ContentHashListWithDeterminism.ContentHashList.Hashes;
                 foreach (var contentHash in contentHashList)
                 {

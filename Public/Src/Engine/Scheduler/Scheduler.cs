@@ -7214,7 +7214,7 @@ namespace BuildXL.Scheduler
                 }
                 catch (BuildXLException e)
                 {
-                    return new NativeFailure(e.GetLogEventErrorCode()).Annotate(e.Message);
+                    return new NativeFailure(e.GetLogEventErrorCode()).Annotate($"An error occurred updating the file content table for modified file '{pathAsString}'. Details: {e.Message}");
                 }
             }
 

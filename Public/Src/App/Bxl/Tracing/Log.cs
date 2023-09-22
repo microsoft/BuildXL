@@ -31,7 +31,7 @@ namespace BuildXL.App.Tracing
         public static Logger Log => m_log;
 
         [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Engine configuration version: {buildInfo.EngineConfigurationVersion}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Available Physical Memory: {machineInfo.AvailableMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Runtime Framework: '{machineInfo.RuntimeFrameworkName}', Starup directory: {startupDirectory}, Main configuration file: {mainConfig}, Distributed build role: {role}, Git remote repo Url: {gitRemoteRepoUrl}";
+        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Engine configuration version: {buildInfo.EngineConfigurationVersion}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Available Physical Memory: {machineInfo.AvailableMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Runtime Framework: '{machineInfo.RuntimeFrameworkName}', Startup directory: {startupDirectory}, Main configuration file: {mainConfig}, Distributed build role: {role}, Git remote repo Url: {gitRemoteRepoUrl}";
 
         /// <summary>
         /// CAUTION!!
@@ -552,7 +552,7 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage),
-            Message = "Failed to capture git remote repository info: {errorMessage}")]
+            Message = "{errorMessage}")]
         public abstract void FailedToCaptureGitRemoteRepoInfo(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(

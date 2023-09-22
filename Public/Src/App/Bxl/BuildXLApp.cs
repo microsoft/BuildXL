@@ -1048,12 +1048,12 @@ namespace BuildXL
                     }
 
                     var gitRemoteRepoStopWatch = new StopwatchVar();
-                    string gitRemoteRepoURL = null;
+                    string gitRemoteRepoUrl = null;
                     // Collect the remote repo URL and log it with DominoInvocationEvent for all the dev builds.
                     using (gitRemoteRepoStopWatch.Start())
                     {
                         var captureGitInfo = new GitInfoManager(loggingContext, startDirectory: currentDirectory);
-                        gitRemoteRepoURL = captureGitInfo.GetRemoteRepoInfo();
+                        gitRemoteRepoUrl = captureGitInfo.GetRemoteRepoUrl();
                     }
 
                     Tracing.Logger.Log.Statistic(
@@ -1079,7 +1079,7 @@ namespace BuildXL
                         currentDirectory,
                         m_initialConfiguration.Startup.ConfigFile.ToString(m_pathTable),
                         m_configuration.Distribution.BuildRole.ToLoggingString(),
-                        gitRemoteRepoURL);
+                        gitRemoteRepoUrl);
 
                     // "o" means it is round-trippable. It happens to be ISO-8601.
                     Logger.Log.StartupTimestamp(

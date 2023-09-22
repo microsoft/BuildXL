@@ -328,9 +328,11 @@ private:
     // Builds the report to be sent over the FIFO in the given buffer
     inline int BuildReport(char* buffer, int maxMessageLength, const AccessReport &report, const char *path)
     {
+        // Note: when adding new fields, always leave 'path' as the last component of this message
+        // This is for the sake of the arithmetic when truncating debug messages, where this assumption is made (see SendReport). 
         return snprintf(
-            buffer, maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s|%d\n",
-            __progname, report.pid <= 0 ? getpid() : report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, path, report.isDirectory);
+            buffer, maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%d|%s\n",
+            __progname, report.pid <= 0 ? getpid() : report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.isDirectory, path);
     }
 
     static BxlObserver *sInstance;

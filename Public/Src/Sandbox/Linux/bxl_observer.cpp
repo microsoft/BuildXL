@@ -362,8 +362,11 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bo
         }
         else
         {
-            // The debug message was truncated. Let's crop the debug message so it fits
-            int truncatedSize = PATH_MAX - (numWritten - maxMessageLength);
+            // The report couldn't be fully built for a debug message. Let's crop the message so it fits.
+            // We calculate the maximum size allowed, considering that 'path' is the last component of the
+            // message (plus the \n that ends any report, hence the -1), so it's the last thing 
+            // we tried to write when hitting the size limit.
+            int truncatedSize = PATH_MAX - (numWritten - maxMessageLength) - 1;
             char truncatedMessage[truncatedSize] = {0};
 
             // Let's leave an ending \0

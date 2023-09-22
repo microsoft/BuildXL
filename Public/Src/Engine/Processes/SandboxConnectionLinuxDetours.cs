@@ -384,7 +384,7 @@ namespace BuildXL.Processes
                     var message = s_encoding.GetString(item.wrapper.Instance, index: 0, count: item.length).AsSpan().TrimEnd('\n');
 
                     // parse the message, consuming the span field by field. The format is:
-                    //  "%s|%d|%d|%d|%d|%d|%d|%s|%d\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath, isDirectory
+                    //  "%s|%d|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, isDirectory, reportPath
                     var restOfMessage = message;
                     _ = nextField(restOfMessage, out restOfMessage);  // ignore progname
                     var pid = AssertInt(nextField(restOfMessage, out restOfMessage));
@@ -393,8 +393,8 @@ namespace BuildXL.Processes
                     var explicitlogging = AssertInt(nextField(restOfMessage, out restOfMessage));
                     var err = AssertInt(nextField(restOfMessage, out restOfMessage));
                     var opCode = AssertInt(nextField(restOfMessage, out restOfMessage));
-                    var path = nextField(restOfMessage, out restOfMessage);
                     var isDirectory = AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var path = nextField(restOfMessage, out restOfMessage);
                     Contract.Assert(restOfMessage.IsEmpty);  // We should have reached the end of the message
                                                              
                     // ignore accesses to libDetours.so, because we injected that library

@@ -85,6 +85,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         internal long SuspendedDurationMs { get; private set; }
 
+        /// <summary>
+        /// The time it took to run all the retries but excluding the last successful execution.
+        /// </summary>
+        internal long RetryDurationMs { get; private set; }
+
         /// <remarks>
         /// MaterializeOutput is executed per each worker
         /// so the single index of the array might be concurrently mutated.
@@ -104,9 +109,11 @@ namespace BuildXL.Scheduler
             Workers = new Dictionary<PipExecutionStep, uint>();
         }
 
-        internal void Retried(RetryInfo pipRetryInfo)
+        internal void Retried(RetryInfo pipRetryInfo, TimeSpan? duration)
         {
             Contract.Requires(pipRetryInfo?.RetryReason != null, "If retry occurs, we need to have a retry reason");
+
+            RetryDurationMs += (long)(duration?.TotalMilliseconds ?? 0);
 
             switch (pipRetryInfo.RetryReason)
             {

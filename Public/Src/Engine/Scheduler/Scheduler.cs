@@ -5510,7 +5510,7 @@ namespace BuildXL.Scheduler
                 IList<long> totalBeforeExecutionCacheStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
                 IList<long> totalAfterExecutionCacheStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
 
-                long totalCacheMissAnalysisDuration = 0, totalSuspendedDuration = 0, totalRetryCount = 0, totalPushOutputsToCacheDuration = 0;
+                long totalCacheMissAnalysisDuration = 0, totalSuspendedDuration = 0, totalRetryCount = 0, totalPushOutputsToCacheDuration = 0, totalRetryDuration = 0;
 
                 var summaryTable = new StringBuilder();
                 var detailedLog = new StringBuilder();
@@ -5599,6 +5599,7 @@ namespace BuildXL.Scheduler
 
                     totalCacheMissAnalysisDuration += (long)performance.CacheMissAnalysisDuration.TotalMilliseconds;
                     totalSuspendedDuration += performance.SuspendedDurationMs;
+                    totalRetryDuration += performance.RetryDurationMs;
                     totalRetryCount += performance.RetryCount;
                     totalPushOutputsToCacheDuration += performance.PushOutputsToCacheDurationMs;
 
@@ -5719,6 +5720,7 @@ namespace BuildXL.Scheduler
 
                 statistics.Add("CriticalPath.CacheMissAnalysisDurationMs", totalCacheMissAnalysisDuration);
                 statistics.Add("CriticalPath.TotalSuspendedDurationMs", totalSuspendedDuration);
+                statistics.Add("CriticalPath.TotalRetryDurationMs", totalRetryDuration);
                 statistics.Add("CriticalPath.TotalRetryCount", totalRetryCount);
                 statistics.Add("CriticalPath.TotalPushOutputsToCacheDurationMs", totalPushOutputsToCacheDuration);
                 statistics.Add("CriticalPath.ExeDurationMs", exeDurationCriticalPathMs);
@@ -5757,6 +5759,7 @@ namespace BuildXL.Scheduler
                         {
                             logDuration("Push Outputs to Cache", totalPushOutputsToCacheDuration, indentLevel: 3);
                             logDuration("Suspend due to Memory", totalSuspendedDuration, indentLevel: 3);
+                            logDuration("Retry Duration", totalRetryDuration, indentLevel: 3);
                             logDuration("Retry Count", totalRetryCount, indentLevel: 3);
 
                             for (int j = 0; j < totalAfterExecutionCacheStepDurations.Count; j++)
@@ -5876,6 +5879,11 @@ namespace BuildXL.Scheduler
                     if (performanceInfo.SuspendedDurationMs != 0)
                     {
                         stringBuilder.AppendLine(I($"\t\t  {"SuspendedDurationMs",-88}: {performanceInfo.SuspendedDurationMs,10}"));
+                    }
+
+                    if (performanceInfo.RetryDurationMs != 0)
+                    {
+                        stringBuilder.AppendLine(I($"\t\t  {"RetryDurationMs",-88}: {performanceInfo.RetryDurationMs,10}"));
                     }
 
                     if (performanceInfo.RetryCount != 0)

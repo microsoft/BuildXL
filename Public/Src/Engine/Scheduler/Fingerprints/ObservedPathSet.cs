@@ -2,13 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
@@ -92,7 +93,7 @@ namespace BuildXL.Scheduler.Fingerprints
         public ObservedPathSet(
             SortedReadOnlyArray<ObservedPathEntry, ObservedPathEntryExpandedPathComparer> paths,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
-            [AllowNull]UnsafeOptions unsafeOptions)
+            [AllowNull] UnsafeOptions unsafeOptions)
         {
             Contract.Requires(paths.IsValid);
             Paths = paths;
@@ -256,104 +257,111 @@ namespace BuildXL.Scheduler.Fingerprints
             Func<BuildXLReader, AbsolutePath> pathReader = null,
             Func<BuildXLReader, StringId> stringReader = null)
         {
-            PathTable.ExpandedAbsolutePathComparer comparer = pathTable.ExpandedPathComparer;
-
-            int pathCount = reader.ReadInt32Compact();
-            ObservedPathEntry[] paths = new ObservedPathEntry[pathCount];
-
-            string lastStr = null;
-            AbsolutePath lastPath = default(AbsolutePath);
-            for (int i = 0; i < pathCount; i++)
+            try
             {
-                var flags = (ObservedPathEntryFlags) reader.ReadByte();
-                string enumeratePatternRegex = null;
-                if ((flags & ObservedPathEntryFlags.DirectoryEnumerationWithCustomPattern) != 0)
-                {
-                    enumeratePatternRegex = reader.ReadString();
-                }
-                else if ((flags & ObservedPathEntryFlags.DirectoryEnumerationWithAllPattern) != 0)
-                {
-                    enumeratePatternRegex = RegexDirectoryMembershipFilter.AllowAllRegex;
-                }
+                PathTable.ExpandedAbsolutePathComparer comparer = pathTable.ExpandedPathComparer;
 
-                AbsolutePath newPath;
-                string full = null;
+                int pathCount = reader.ReadInt32Compact();
+                ObservedPathEntry[] paths = new ObservedPathEntry[pathCount];
 
-                if (pathReader != null)
+                string lastStr = null;
+                AbsolutePath lastPath = default(AbsolutePath);
+                for (int i = 0; i < pathCount; i++)
                 {
-                    newPath = pathReader(reader);
-                }
-                else
-                {
-                    int reuseCount = reader.ReadInt32Compact();
-
-                    if (reuseCount == 0)
+                    var flags = (ObservedPathEntryFlags)reader.ReadByte();
+                    string enumeratePatternRegex = null;
+                    if ((flags & ObservedPathEntryFlags.DirectoryEnumerationWithCustomPattern) != 0)
                     {
-                        full = reader.ReadString();
+                        enumeratePatternRegex = reader.ReadString();
+                    }
+                    else if ((flags & ObservedPathEntryFlags.DirectoryEnumerationWithAllPattern) != 0)
+                    {
+                        enumeratePatternRegex = RegexDirectoryMembershipFilter.AllowAllRegex;
+                    }
+
+                    AbsolutePath newPath;
+                    string full = null;
+
+                    if (pathReader != null)
+                    {
+                        newPath = pathReader(reader);
                     }
                     else
                     {
-                        if (lastStr == null || lastStr.Length < reuseCount)
+                        int reuseCount = reader.ReadInt32Compact();
+
+                        if (reuseCount == 0)
                         {
-                            // This path set is invalid.
-                            return new DeserializeFailure($"Invalid reuseCount: {reuseCount}; last: '{lastStr}', last string length: {lastStr?.Length}");
+                            full = reader.ReadString();
+                        }
+                        else
+                        {
+                            if (lastStr == null || lastStr.Length < reuseCount)
+                            {
+                                // This path set is invalid.
+                                return new DeserializeFailure($"Invalid reuseCount: {reuseCount}; last: '{lastStr}', last string length: {lastStr?.Length}");
+                            }
+
+                            string partial = reader.ReadString();
+                            full = lastStr.Substring(0, reuseCount) + partial;
                         }
 
-                        string partial = reader.ReadString();
-                        full = lastStr.Substring(0, reuseCount) + partial;
+                        if (!AbsolutePath.TryCreate(pathTable, full, out newPath))
+                        {
+                            // It might be failed due to the tokenized path.
+                            if (pathExpander == null || !pathExpander.TryCreatePath(pathTable, full, out newPath))
+                            {
+                                return new DeserializeFailure($"Invalid path: '{full}'");
+                            }
+                        }
                     }
 
-                    if (!AbsolutePath.TryCreate(pathTable, full, out newPath))
+                    paths[i] = new ObservedPathEntry(newPath, flags, enumeratePatternRegex);
+
+                    if (lastPath.IsValid)
                     {
-                        // It might be failed due to the tokenized path.
-                        if (pathExpander == null || !pathExpander.TryCreatePath(pathTable, full, out newPath))
-                        {
-                            return new DeserializeFailure($"Invalid path: '{full}'");
-                        }
-                    }
-                }
-
-                paths[i] = new ObservedPathEntry(newPath, flags, enumeratePatternRegex);
-
-                if (lastPath.IsValid)
-                {
 #if DEBUG
-                    if (comparer.Compare(lastPath, newPath) >= 0)
-                    {
-                        return new DeserializeFailure($"Paths not sorted: " +
-                            $"old = '{lastPath.ToString(pathTable)}', new = '{newPath.ToString(pathTable)}';" +
-                            $"old str = '{lastStr}', new str = '{full}'");
-                    }
+                        if (comparer.Compare(lastPath, newPath) >= 0)
+                        {
+                            return new DeserializeFailure($"Paths not sorted: " +
+                                $"old = '{lastPath.ToString(pathTable)}', new = '{newPath.ToString(pathTable)}';" +
+                                $"old str = '{lastStr}', new str = '{full}'");
+                        }
 #endif
+                    }
+
+                    lastPath = newPath;
+                    lastStr = full;
                 }
 
-                lastPath = newPath;
-                lastStr = full;
-            }
+                int fileNameCount = reader.ReadInt32Compact();
+                StringId[] fileNames = new StringId[fileNameCount];
+                for (int i = 0; i < fileNameCount; i++)
+                {
+                    fileNames[i] = stringReader?.Invoke(reader) ?? StringId.Create(pathTable.StringTable, reader.ReadString());
+                }
 
-            int fileNameCount = reader.ReadInt32Compact();
-            StringId[] fileNames = new StringId[fileNameCount];
-            for (int i = 0; i < fileNameCount; i++)
+                // Read unsafe options
+                var unsafeOptions = UnsafeOptions.TryDeserialize(reader);
+                if (unsafeOptions == null)
+                {
+                    return new DeserializeFailure("UnsafeOptions are null");
+                }
+
+                // Note that we validated sort order above.
+                return new ObservedPathSet(
+                    SortedReadOnlyArray<ObservedPathEntry, ObservedPathEntryExpandedPathComparer>.FromSortedArrayUnsafe(
+                        ReadOnlyArray<ObservedPathEntry>.FromWithoutCopy(paths),
+                        new ObservedPathEntryExpandedPathComparer(comparer)),
+                    SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>.FromSortedArrayUnsafe(
+                        ReadOnlyArray<StringId>.FromWithoutCopy(fileNames),
+                        new CaseInsensitiveStringIdComparer(pathTable.StringTable)),
+                    unsafeOptions);
+            }
+            catch (Exception ex) when (ex is FormatException || ex is IOException)
             {
-                fileNames[i] = stringReader?.Invoke(reader) ?? StringId.Create(pathTable.StringTable, reader.ReadString());
+                return new DeserializeFailure($"Failed to read from stream {ex}");
             }
-
-            // Read unsafe options
-            var unsafeOptions = UnsafeOptions.TryDeserialize(reader);
-            if (unsafeOptions == null)
-            {
-                return new DeserializeFailure("UnsafeOptions are null");
-            }
-
-            // Note that we validated sort order above.
-            return new ObservedPathSet(
-                SortedReadOnlyArray<ObservedPathEntry, ObservedPathEntryExpandedPathComparer>.FromSortedArrayUnsafe(
-                    ReadOnlyArray<ObservedPathEntry>.FromWithoutCopy(paths),
-                    new ObservedPathEntryExpandedPathComparer(comparer)),
-                SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>.FromSortedArrayUnsafe(
-                    ReadOnlyArray<StringId>.FromWithoutCopy(fileNames),
-                    new CaseInsensitiveStringIdComparer(pathTable.StringTable)),
-                unsafeOptions);
         }
 
         #endregion Serialization

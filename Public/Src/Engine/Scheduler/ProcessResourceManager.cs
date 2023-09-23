@@ -104,6 +104,9 @@ namespace BuildXL.Scheduler
         /// <nodoc />
         public ManageMemoryMode? LastManageMemoryMode { get; set; }
 
+        /// <nodoc />
+        private bool m_cancelLargestRamUseFirst = EngineEnvironmentSettings.CancelLargestRamUseFirst.Value;
+
         /// <summary>
         /// Updates the ram usage indicators for all cancelable resource scopes
         /// </summary>
@@ -184,8 +187,9 @@ namespace BuildXL.Scheduler
                     case ManageMemoryMode.CancellationRam:
                     case ManageMemoryMode.CancellationCommit:
                         isEligible = (scope) => scope.CanCancel && scope.MemoryCounters.PeakWorkingSetMb != 0;
-                        // When cancelling processes, we start from the processes having the shortest running time.
-                        comparer = s_shortestRunningTimeFirstComparer;
+                        // When cancelling processes, we start from the processes having the shortest running time by default.
+                        // However, there is another option to start from the processes having the largest ram usage.
+                        comparer = m_cancelLargestRamUseFirst ? s_largestWorkingSetFirstComparer : s_shortestRunningTimeFirstComparer;
                         break;
 
                     case ManageMemoryMode.EmptyWorkingSet:

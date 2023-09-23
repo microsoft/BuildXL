@@ -508,7 +508,12 @@ namespace BuildXL.Utilities.Configuration
         /// cause cache client logs to get routed to Kusto in CloudBuild.
         /// </summary>
         public static readonly Setting<bool> EnableCacheClientLogFileTelemetry = CreateSetting("EnableCacheClientLogFileTelemetry", value => value == "1");
-        
+
+        /// <summary>
+        /// Whether to cancel the processes with the largest ram usage first in case of the memory exhaustion.
+        /// </summary>
+        public static readonly Setting<bool> CancelLargestRamUseFirst = CreateSetting("BuildXLCancelLargestRamUseFirst", value => value == "1");
+
         /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>

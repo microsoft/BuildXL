@@ -27,8 +27,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <nodoc />
-        public ByteArrayPool(int bufferSize)
-            : base(() => CreateNew(bufferSize), Reset)
+        public ByteArrayPool(int bufferSize, int maxReserveInstances = -1)
+            : base(() => CreateNew(bufferSize), Reset, maxReserveInstances)
         {
             ArraySize = bufferSize;
         }

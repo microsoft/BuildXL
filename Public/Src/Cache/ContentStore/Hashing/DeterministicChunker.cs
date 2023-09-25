@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -13,6 +14,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 {
     internal class DeterministicChunker : IChunker, IHashAlgorithmBufferPool, IDisposable
     {
+        private static readonly ConcurrentDictionary<int,ByteArrayPool> s_pushBufferPools = new ConcurrentDictionary<int, ByteArrayPool>();
         private readonly ByteArrayPool _pushBufferPool;
         private readonly INonDeterministicChunker _chunker;
 
@@ -22,7 +24,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             Configuration = configuration;
             _chunker = chunker;
-            _pushBufferPool = new ByteArrayPool(configuration.MinPushBufferSize);
+            _pushBufferPool = s_pushBufferPools.GetOrAdd(
+                configuration.MinPushBufferSize,
+                (bufferSize) => new ByteArrayPool(bufferSize, maxReserveInstances: Environment.ProcessorCount));
         }
 
         public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)

@@ -9,7 +9,10 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -238,11 +241,22 @@ public class FallbackContentResolver : StartupShutdownComponentBase, IContentRes
 
     private readonly IContentTracker _local;
     private readonly IContentResolver _fallbackResolver;
+    private readonly IClock _clock;
 
-    public FallbackContentResolver(IContentTracker local, IContentResolver fallbackResolver)
+    /// <summary>
+    /// This is the maximum allowed staleness in the last authoritative response. Basically, how long to avoid reaching
+    /// out to the authoritative node for information on a given content hash.
+    /// </summary>
+    private readonly TimeSpan _staleness;
+
+    public FallbackContentResolver(IContentTracker local, IContentResolver fallbackResolver, IClock clock, TimeSpan staleness)
     {
+        Contract.Requires(staleness >= TimeSpan.Zero);
+
         _local = local;
         _fallbackResolver = fallbackResolver;
+        _clock = clock;
+        _staleness = staleness;
         Tracer = new Tracer($"{nameof(FallbackContentResolver)}({local.GetType().Name} -> {fallbackResolver.GetType().Name})");
 
         LinkLifetime(_local);
@@ -251,29 +265,57 @@ public class FallbackContentResolver : StartupShutdownComponentBase, IContentRes
 
     public async Task<Result<GetLocationsResponse>> GetLocationsAsync(OperationContext context, GetLocationsRequest request)
     {
-        if (request.Recursive)
+        var local = await _local.GetLocationsAsync(context, request);
+        if (!request.Recursive)
         {
-            // TODO: elision of remote queries based on timestamp?
-            var fallbackTask = _fallbackResolver.GetLocationsAsync(context, request);
-            var localTask = _local.GetLocationsAsync(context, request);
+            return local;
+        }
 
-            await TaskUtilities.SafeWhenAll(localTask, fallbackTask);
-            var local = await localTask;
-            var fallback = await fallbackTask;
-
-            // TODO: avoid allocations here, and nicer error behavior
-            var responses = new[] { local.GetValueOr(GetLocationsResponse.Empty(request)), fallback.GetValueOr(GetLocationsResponse.Empty(request)) };
-            var response = GetLocationsResponse.Gather(request, responses.SelectMany(response => response.Results));
-
-            // TODO: we don't need an update with everything we already know, just the diff
-            var update = UpdateLocationsRequest.FromGetLocationsResponse(response);
-            await _local.UpdateLocationsAsync(context, update).IgnoreFailure();
-
-            return Result.Success(response);
+        var now = _clock.UtcNow;
+        GetLocationsRequest fallbackRequest;
+        if (!local.Succeeded)
+        {
+            fallbackRequest = request;
+        }
+        else if (_staleness <= TimeSpan.Zero)
+        {
+            fallbackRequest = request;
         }
         else
         {
-            return await _local.GetLocationsAsync(context, request);
+            // Determine which hashes need to be queried from the remote
+            var cutoff = now - _staleness;
+            var fallbackQueries = new List<ShortHash>();
+            foreach (var entry in local.Value.Results)
+            {
+                if (entry.Empty() || entry.LastAuthoritativeUpdate < cutoff)
+                {
+                    // TODO: we don't need a query for everything, just whatever's new for the specific hashes we're querying
+                    fallbackQueries.Add(entry.Hash);
+                }
+            }
+
+            if (fallbackQueries.Count == 0)
+            {
+                return local;
+            }
+
+            fallbackRequest = GetLocationsRequest.Create(fallbackQueries, request.Recursive);
         }
+
+        var fallback = await _fallbackResolver.GetLocationsAsync(context, fallbackRequest);
+        if (!fallback.Succeeded)
+        {
+            // When the fallback fails but the local succeeds, we just obey the local.
+            return local;
+        }
+
+        var response = fallback.Value;
+        // TODO: we don't need an update with everything we already know, just the diff. This should probably happen
+        // upstream actually.
+        var update = UpdateLocationsRequest.FromAuthoritativeResponse(ref response, now);
+        _ = await _local.UpdateLocationsAsync(context, update);
+
+        return await _local.GetLocationsAsync(context, request);
     }
 }

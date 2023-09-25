@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -123,7 +124,35 @@ public class EphemeralContentSession : ContentSessionBase
             }
         }
 
-        return await _persistent.OpenStreamAsync(context, contentHash, context.Token, urgencyHint);
+        var session = _local as ITrustedContentSession;
+        Contract.AssertNotNull(session, "The local content session was expected to be a trusted session, but failed to cast.");
+
+        var tempLocation = AbsolutePath.CreateRandomFileName(_ephemeralHost.Configuration.Workspace);
+        var persistent = await _persistent.PlaceFileAsync(
+            context,
+            contentHash,
+            tempLocation,
+            FileAccessMode.ReadOnly,
+            FileReplacementMode.FailIfExists,
+            FileRealizationMode.Any,
+            context.Token,
+            urgencyHint).ThrowIfFailureAsync();
+
+        await session.PutTrustedFileAsync(
+            context,
+            new ContentHashWithSize(contentHash, persistent.FileSize),
+            tempLocation,
+            FileRealizationMode.Any,
+            context.Token,
+            urgencyHint).IgnoreFailure();
+
+        var stream = _ephemeralHost.FileSystem.TryOpen(
+            tempLocation,
+            FileAccess.Read,
+            FileMode.Open,
+            FileShare.Delete);
+
+        return new OpenStreamResult(stream);
     }
 
     protected override async Task<PlaceFileResult> PlaceFileCoreAsync(

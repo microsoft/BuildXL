@@ -85,7 +85,12 @@ public record GetLocationsRequest
         return $"{nameof(GetLocationsRequest)} (R={Recursive}) {{ {entries} }}";
     }
 
-    public static GetLocationsRequest SingleHash(ShortHash shortHash, bool recursive = false)
+    public static GetLocationsRequest Create(IReadOnlyList<ShortHash> hashes, bool recursive)
+    {
+        return new GetLocationsRequest { Hashes = hashes, Recursive = recursive };
+    }
+
+    public static GetLocationsRequest SingleHash(ShortHash shortHash, bool recursive)
     {
         return new GetLocationsRequest { Hashes = new List<ShortHash>(capacity: 1) { shortHash }, Recursive = recursive };
     }
@@ -103,6 +108,11 @@ public record GetLocationsResponse
         return $"{nameof(GetLocationsResponse)} {{ {entries} }}";
     }
 
+    public static GetLocationsResponse Create(IReadOnlyList<ContentEntry> results)
+    {
+        return new GetLocationsResponse() { Results = results };
+    }
+
     /// <summary>
     /// Creates a response having the same structure as the given request, but with all entries unknown. This is the way
     /// we're meant to fail.
@@ -115,7 +125,7 @@ public record GetLocationsResponse
             results.Add(ContentEntry.Unknown(hash));
         }
 
-        return new GetLocationsResponse { Results = results };
+        return Create(results);
     }
 
     /// <summary>
@@ -150,7 +160,7 @@ public record GetLocationsResponse
             }
         }
 
-        return new GetLocationsResponse { Results = results, };
+        return Create(results);
     }
 }
 
@@ -196,8 +206,20 @@ public record UpdateLocationsRequest
         };
     }
 
-    public static UpdateLocationsRequest FromGetLocationsResponse(GetLocationsResponse response)
+    /// <summary>
+    /// Creates an update request from an authoritative response.
+    /// </summary>
+    /// <remarks>
+    /// This method will modify the input. This is done on purpose to avoid allocation. We use a ref parameter to
+    /// signal this to the caller, though the appropriate semantics would be to move <paramref name="response"/>.
+    /// </remarks>
+    public static UpdateLocationsRequest FromAuthoritativeResponse(ref GetLocationsResponse response, DateTime now)
     {
+        foreach (var entry in response.Results)
+        {
+            entry.LastAuthoritativeUpdate = now;
+        }
+
         return new UpdateLocationsRequest
         {
             Entries = response.Results
@@ -225,12 +247,30 @@ public record ContentEntry
     public long Size { get; init; } = -1;
 
     [ProtoMember(3)]
-    public IReadOnlyList<Stamped<MachineId>> Operations { get; init; } = new List<Stamped<MachineId>>(capacity: 0);
+    public IReadOnlyList<Stamped<MachineId>> Operations { get; set; } = new List<Stamped<MachineId>>(capacity: 0);
+
+    /// <summary>
+    /// The last time this entry was last updated from an authoritative source.
+    /// </summary>
+    /// <remarks>
+    /// This information is local to the process, so it mustn't be transferred via gRPC.
+    /// </remarks> 
+    public DateTime LastAuthoritativeUpdate { get; set; } = DateTime.MinValue;
 
     public override string ToString()
     {
         var operations = string.Join(", ", Operations.Select(o => $"{o.Value}({o.ChangeStamp})"));
+        if (LastAuthoritativeUpdate > DateTime.MinValue)
+        {
+            return $"{Hash}:{Size}/{LastAuthoritativeUpdate}[{operations}]";
+        }
+
         return $"{Hash}:{Size}[{operations}]";
+    }
+
+    public bool Empty()
+    {
+        return Size == -1 || Operations.Count == 0 || !Existing().Any();
     }
 
     public IEnumerable<MachineId> Existing()
@@ -265,12 +305,23 @@ public record ContentEntry
 
     public static ContentEntry Unknown(ShortHash shortHash)
     {
-        return new ContentEntry { Hash = shortHash, Size = -1, Operations = new List<Stamped<MachineId>>(capacity: 0) };
+        return new ContentEntry
+        {
+            Hash = shortHash,
+            Size = -1,
+            Operations = new List<Stamped<MachineId>>(capacity: 0)
+        };
     }
 
     public static ContentEntry FromLastWriterWins(ShortHash shortHash, LastWriterWinsContentEntry entry)
     {
-        return new ContentEntry { Hash = shortHash, Size = entry.Size, Operations = entry.Operations.Operations, };
+        return new ContentEntry
+        {
+            Hash = shortHash,
+            Size = entry.Size,
+            Operations = entry.Operations.Operations,
+            LastAuthoritativeUpdate = entry.LastAuthoritativeUpdate
+        };
     }
 
     public static ContentEntry Merge(IReadOnlyList<ContentEntry> entries)

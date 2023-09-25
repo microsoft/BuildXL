@@ -27,6 +27,8 @@ public class LastWriterWinsContentEntry
 {
     public required long Size { get; set; }
 
+    public required DateTime LastAuthoritativeUpdate { get; set; }
+
     /// <summary>
     /// The least upper bound of operations that have been applied to this entry. Can be used to determine the set of
     /// MachineId that currently have the piece of content. Since it contains timestamp information, it can also be
@@ -37,6 +39,7 @@ public class LastWriterWinsContentEntry
     public void Merge(ContentEntry other)
     {
         Size = Math.Max(Size, other.Size);
+        LastAuthoritativeUpdate = LastAuthoritativeUpdate.Max(other.LastAuthoritativeUpdate);
         Operations.MergePreSorted(other.Operations);
     }
 
@@ -44,8 +47,10 @@ public class LastWriterWinsContentEntry
     {
         var output = new LastWriterWinsContentEntry()
         {
-            Size = entry.Size
+            Size = entry.Size,
+            LastAuthoritativeUpdate = entry.LastAuthoritativeUpdate,
         };
+
         output.Merge(entry);
         return output;
     }
@@ -143,6 +148,6 @@ public class LocalContentTracker : StartupShutdownComponentBase, ILocalContentTr
         }
 
         Contract.Assert(request.Hashes.Count == entries.Count, "The number of output responses must be equal and in the same order as the input requests");
-        return Task.FromResult(Result.Success(new GetLocationsResponse { Results = entries, }));
+        return Task.FromResult(Result.Success(GetLocationsResponse.Create(entries)));
     }
 }

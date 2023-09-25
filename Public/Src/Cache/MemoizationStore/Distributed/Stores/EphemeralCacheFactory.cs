@@ -103,6 +103,16 @@ public static class EphemeralCacheFactory
         public TimeSpan UpdateLocationsTimeout { get; init; } = TimeSpan.FromMilliseconds(100);
 
         /// <summary>
+        /// The maximum staleness we're willing to tolerate to elide a remote locations query when acting as a worker.
+        /// </summary>
+        public TimeSpan MaximumWorkerStaleness { get; init; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// The maximum staleness we're willing to tolerate to elide a remote locations query when acting as a leader.
+        /// </summary>
+        public TimeSpan MaximumLeaderStaleness { get; init; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
         /// Inline change processing.
         /// 
         /// WARNING: TESTING ONLY.
@@ -118,9 +128,24 @@ public static class EphemeralCacheFactory
     public sealed record DatacenterWideCacheConfiguration : Configuration
     {
         /// <summary>
+        /// The default universe
+        /// </summary>
+        public static readonly string DefaultUniverse = "default";
+
+        /// <summary>
+        /// The universe allows caches with shared resources to split up into different logical caches.
+        /// </summary>
+        public required string Universe { get; init; } = DefaultUniverse;
+
+        /// <summary>
         /// Credentials for the storage account we use to store metadata about the cluster.
         /// </summary>
         public required IAzureStorageCredentials StorageCredentials { get; init; }
+
+        /// <summary>
+        /// Maximum timeout for storage operations
+        /// </summary>
+        public TimeSpan StorageInteractionTimeout { get; set; }
     };
 
     /// <summary>
@@ -154,6 +179,18 @@ public static class EphemeralCacheFactory
         };
     }
 
+    /// <summary>
+    /// This version can be used to split up the cache into different logical caches after release. This is useful to
+    /// allow backwards-incompatible changes. Essentially, all nodes in a different <see cref="DatacenterCacheVersion"/>
+    /// will only see nodes with the same <see cref="DatacenterCacheVersion"/> as reachable.
+    ///
+    /// Deployment of features that cause backwards-incompatible changes should be done as follows:
+    ///  1. Perform feature changes.
+    ///  2. Modify <see cref="DatacenterCacheVersion"/> to a never-seen-before value (ex: increment it!)
+    ///  3. Deploy new version as usual.
+    /// </summary>
+    private static readonly string DatacenterCacheVersion = "20230919";
+
     private static Task<CreateResult> CreateDatacenterWideCacheAsync(
         OperationContext context,
         DatacenterWideCacheConfiguration configuration,
@@ -162,11 +199,19 @@ public static class EphemeralCacheFactory
     {
         clock ??= SystemClock.Instance;
 
+        if (string.IsNullOrEmpty(configuration.Universe))
+        {
+            configuration = configuration with { Universe = DatacenterWideCacheConfiguration.DefaultUniverse };
+        }
+
         var blobClusterStateStorageConfiguration = new BlobClusterStateStorageConfiguration()
         {
             Storage = new BlobClusterStateStorageConfiguration.StorageSettings(configuration.StorageCredentials, ContainerName: "ephemeral", FolderName: "clusterState"),
-            BlobFolderStorageConfiguration = new(),
-            FileName = "clusterState.json",
+            BlobFolderStorageConfiguration = new()
+            {
+                StorageInteractionTimeout = configuration.StorageInteractionTimeout,
+            },
+            FileName = $"clusterState-{DatacenterCacheVersion}-{configuration.Universe}.json",
             RecomputeConfiguration = new ClusterStateRecomputeConfiguration(),
         };
         var clusterStateStorage = new BlobClusterStateStorage(blobClusterStateStorageConfiguration, clock);
@@ -392,8 +437,18 @@ public static class EphemeralCacheFactory
             }
             else
             {
-                sessionContentResolver = new FallbackContentResolver(localContentTracker, masterContentResolver);
-                changeProcessorUpdater = new MulticastContentUpdater(new IContentUpdater[] { localContentTracker, masterContentUpdater });
+                sessionContentResolver = new FallbackContentResolver(
+                    localContentTracker,
+                    masterContentResolver,
+                    clock,
+                    staleness: configuration.MaximumWorkerStaleness);
+
+                changeProcessorUpdater = new MulticastContentUpdater(
+                    new List<MulticastContentUpdater.Destination> {
+                        new(localContentTracker, Blocking: true),
+                        new(masterContentUpdater, Blocking: false)
+                    },
+                    inline: configuration.TestInlineChangeProcessing);
             }
         }
         else if (configuration is DatacenterWideCacheConfiguration)
@@ -406,8 +461,19 @@ public static class EphemeralCacheFactory
             {
                 // TODO: send updates back to workers
                 // TODO: the first responsible shard should send to the others, maybe?
-                var updater = new MulticastContentUpdater(new IContentUpdater[] { localContentTracker, shardedContentUpdater });
-                var resolver = new FallbackContentResolver(localContentTracker, shardedContentResolver);
+                var updater = new MulticastContentUpdater(
+                    new List<MulticastContentUpdater.Destination> {
+                        new(localContentTracker, Blocking: true),
+                        new(shardedContentUpdater, Blocking: false)
+                    },
+                    inline: configuration.TestInlineChangeProcessing);
+
+                var resolver = new FallbackContentResolver(
+                    localContentTracker,
+                    shardedContentResolver,
+                    clock,
+                    staleness: configuration.MaximumLeaderStaleness);
+
                 grpcServiceContentResolver = resolver;
                 grpcServiceContentUpdater = updater;
                 sessionContentResolver = resolver;
@@ -417,9 +483,19 @@ public static class EphemeralCacheFactory
             {
                 grpcServiceContentResolver = localContentTracker;
                 grpcServiceContentUpdater = localContentTracker;
-                // TODO: fallback structure
-                sessionContentResolver = new FallbackContentResolver(localContentTracker, masterContentResolver);
-                changeProcessorUpdater = new MulticastContentUpdater(new IContentUpdater[] { localContentTracker, masterContentUpdater });
+
+                sessionContentResolver = new FallbackContentResolver(
+                    localContentTracker,
+                    masterContentResolver,
+                    clock,
+                    staleness: configuration.MaximumWorkerStaleness);
+
+                changeProcessorUpdater = new MulticastContentUpdater(
+                    new List<MulticastContentUpdater.Destination> {
+                        new(localContentTracker, Blocking: true),
+                        new(masterContentUpdater, Blocking: false)
+                    },
+                    inline: configuration.TestInlineChangeProcessing);
             }
         }
         else

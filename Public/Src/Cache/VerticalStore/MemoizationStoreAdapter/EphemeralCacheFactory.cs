@@ -174,6 +174,7 @@ public class EphemeralCacheFactory : ICacheFactory
                 RootPath = rootPath,
                 StorageCredentials = credentials,
                 MaxCacheSizeMb = configuration.CacheSizeMb,
+                Universe = configuration.Universe,
             };
         }
         else

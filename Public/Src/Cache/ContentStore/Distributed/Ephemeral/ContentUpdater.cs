@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -78,15 +79,37 @@ public class MulticastContentUpdater : StartupShutdownComponentBase, IContentUpd
 {
     protected override Tracer Tracer { get; } = new(nameof(MulticastContentUpdater));
 
-    private readonly IContentUpdater[] _updaters;
+    private readonly IReadOnlyList<Destination> _destinations;
 
-    public MulticastContentUpdater(IContentUpdater[] updaters)
+    private readonly int _blocking;
+
+    public readonly record struct Destination(
+        IContentUpdater Updater,
+        bool Blocking);
+
+    public MulticastContentUpdater(IReadOnlyList<Destination> destinations, bool inline)
     {
-        _updaters = updaters;
-        foreach (var updater in _updaters)
+        if (inline)
         {
-            LinkLifetime(updater);
+            _destinations = destinations.Select(cast => cast with { Blocking = true }).ToList();
         }
+        else
+        {
+            _destinations = destinations;
+        }
+
+        var blocking = 0;
+        foreach (var destination in _destinations)
+        {
+            LinkLifetime(destination.Updater);
+
+            if (destination.Blocking)
+            {
+                blocking++;
+            }
+        }
+
+        _blocking = blocking;
     }
 
     public async Task<BoolResult> UpdateLocationsAsync(OperationContext context, UpdateLocationsRequest request)
@@ -97,7 +120,21 @@ public class MulticastContentUpdater : StartupShutdownComponentBase, IContentUpd
         }
 
         request = request.Hop();
-        var tasks = _updaters.Select(updater => updater.UpdateLocationsAsync(context, request));
+
+        var tasks = new List<Task<BoolResult>>(capacity: _blocking);
+        foreach (var updater in _destinations)
+        {
+            var pending = updater.Updater.UpdateLocationsAsync(context, request);
+            if (updater.Blocking)
+            {
+                tasks.Add(pending);
+            }
+            else
+            {
+                _ = pending.FireAndForgetErrorsAsync(context);
+            }
+        }
+
         var responses = await TaskUtilities.SafeWhenAll(tasks);
         return responses.And();
     }

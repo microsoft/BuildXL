@@ -107,7 +107,41 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             }, instancesPerRing: 3);
     }
 
-    protected async Task RunTestAsync(Func<OperationContext, OperationContext, TestInstance, Task> runTest, int numRings = 1, int instancesPerRing = 2)
+    [Fact]
+    public Task QueryElisionPreventsTraffic()
+    {
+        return RunTestAsync(
+            async (context, silentContext, host) =>
+            {
+                var r1 = host.Ring(0);
+                var r1l = host.Instance(r1.Leader);
+                var r1w1 = host.Instance(r1.Builders[1]);
+                var r1w2 = host.Instance(r1.Builders[2]);
+
+                var putResult = await r1w1.Session!.PutRandomAsync(context, HashType.Vso0, provideHash: true, size: 100, context.Token)
+                    .ThrowIfFailureAsync();
+                putResult.ShouldBeSuccess();
+
+                var e1 = await r1w2.ContentResolver.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
+                e1.LastAuthoritativeUpdate.Should().BeAfter(DateTime.MinValue);
+
+                // The last authoritative update shouldn't be updated, because we should have elided the query
+                var e2 = await r1w2.ContentResolver.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
+                e1.LastAuthoritativeUpdate.Should().Be(e2.LastAuthoritativeUpdate);
+            },
+            numRings: 1,
+            instancesPerRing: 3,
+            modifier: configuration =>
+                      {
+                          return configuration with
+                          {
+                              MaximumLeaderStaleness = TimeSpan.FromSeconds(5),
+                              MaximumWorkerStaleness = TimeSpan.FromSeconds(5),
+                          };
+                      });
+    }
+
+    protected async Task RunTestAsync(Func<OperationContext, OperationContext, TestInstance, Task> runTest, int numRings = 1, int instancesPerRing = 2, TestInstance.ConfigurationModifier? modifier = null)
     {
         Contract.Requires(numRings > 0);
         Contract.Requires(instancesPerRing > 0);
@@ -129,7 +163,8 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
         var host = new TestInstance(
             blobCacheConfiguration,
             secretsProvider,
-            ephemeralManagementStorageCredentials);
+            ephemeralManagementStorageCredentials,
+            universe: RunId);
 
         var silentTracingContext = new Context(NullLogger.Instance);
         var silentContext = new OperationContext(silentTracingContext, context.Token);
@@ -138,7 +173,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
         foreach (var ringNum in Enumerable.Range(0, numRings))
         {
             // TODO: parallelize
-            await host.AddRingAsync(setupContext, ringNum.ToString(), instancesPerRing).ThrowIfFailureAsync();
+            await host.AddRingAsync(setupContext, ringNum.ToString(), instancesPerRing, modifier).ThrowIfFailureAsync();
         }
 
         try
@@ -229,7 +264,9 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
         private readonly IBlobCacheSecretsProvider _secretsProvider;
         private readonly IAzureStorageCredentials? _ephemeralManagementStorageCredentials;
 
-        public TestInstance(AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration, IBlobCacheSecretsProvider secretsProvider, IAzureStorageCredentials? ephemeralManagementStorageCredentials)
+        private readonly string _universe;
+
+        public TestInstance(AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration, IBlobCacheSecretsProvider secretsProvider, IAzureStorageCredentials? ephemeralManagementStorageCredentials, string universe)
         {
             GrpcEnvironment.Initialize();
             var fileSystem = PassThroughFileSystem.Default;
@@ -238,6 +275,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             _blobCacheConfiguration = blobCacheConfiguration;
             _secretsProvider = secretsProvider;
             _ephemeralManagementStorageCredentials = ephemeralManagementStorageCredentials;
+            _universe = universe;
         }
 
         protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
@@ -279,10 +317,10 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             return results.And();
         }
 
-        public async Task<Result<BuildRing>> AddRingAsync(OperationContext context, string id, int numInstances)
+        public async Task<Result<BuildRing>> AddRingAsync(OperationContext context, string id, int numInstances, ConfigurationModifier? modifier = null)
         {
             // TODO: operation and cleanup
-            var instances = await CreateTestRingAsync(context, numInstances);
+            var instances = await CreateTestRingAsync(context, numInstances, modifier);
             var ring = new BuildRing(id, instances.Select(instance => instance.Location).ToList());
 
             var tasks = instances.Select(instance => instance.StartupAsync(context));
@@ -360,7 +398,8 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         private async Task<List<TestNode>> CreateTestRingAsync(
             OperationContext context,
-            int numInstances)
+            int numInstances,
+            ConfigurationModifier? modifier)
         {
             var leader = MachineLocation.Invalid;
             var instances = new List<TestNode>(numInstances);
@@ -374,14 +413,20 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                 }
 
                 // TODO: parallelize
-                var (host, cache) = await CreateSingleInstanceAsync(context, location, leader);
+                var (host, cache) = await CreateSingleInstanceAsync(context, location, leader, modifier);
                 instances.Add(new TestNode(location, port, host, cache));
             }
 
             return instances;
         }
 
-        private async Task<(EphemeralHost Host, IFullCache Cache)> CreateSingleInstanceAsync(OperationContext context, MachineLocation location, MachineLocation leader)
+        public delegate EphemeralCacheFactory.Configuration ConfigurationModifier(EphemeralCacheFactory.Configuration configuration);
+
+        private async Task<(EphemeralHost Host, IFullCache Cache)> CreateSingleInstanceAsync(
+            OperationContext context,
+            MachineLocation location,
+            MachineLocation leader,
+            ConfigurationModifier? modifier)
         {
             var persistentCache = AzureBlobStorageCacheFactory.Create(_blobCacheConfiguration, _secretsProvider) as IFullCache;
             Contract.Assert(persistentCache != null);
@@ -396,6 +441,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                     Leader = leader,
                     StorageCredentials = _ephemeralManagementStorageCredentials,
                     MaxCacheSizeMb = 1024,
+                    Universe = _universe,
                 };
             }
             else
@@ -417,9 +463,21 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                 ConnectionTimeout = TimeSpan.FromSeconds(30),
                 GetLocationsTimeout = TimeSpan.FromSeconds(1),
                 UpdateLocationsTimeout = TimeSpan.FromSeconds(1),
+                // These features are used in production but not in tests (by default). The reason is that we want to
+                // ensure consistency in tests, and these features allow query elision and therefore allow stale data
+                // to be returned in a given window of time.
+                MaximumLeaderStaleness = TimeSpan.Zero,
+                MaximumWorkerStaleness = TimeSpan.Zero,
                 // Inline change processing to ensure that all changes are processed before we return from methods.
                 TestInlineChangeProcessing = true,
             };
+
+            var modified = modifier?.Invoke(factoryConfiguration);
+            Contract.Assert(modified != null || modifier == null);
+            if (modified is not null)
+            {
+                factoryConfiguration = modified;
+            }
 
             var (host, cache) = await EphemeralCacheFactory.CreateInternalAsync(
                 context,

@@ -75,7 +75,7 @@ public class ContentTrackerTests
                 var sequenceNumber1 = contentTracker.GetSequenceNumber(r1.Entries[0].Hash, m1);
                 Assert.Equal<uint>(1, sequenceNumber1);
 
-                var locations = (await contentTracker.GetLocationsAsync(context, GetLocationsRequest.SingleHash(r1.Entries[0].Hash)).ThrowIfFailureAsync()).Results.First();
+                var locations = (await contentTracker.GetLocationsAsync(context, GetLocationsRequest.SingleHash(r1.Entries[0].Hash, recursive: false)).ThrowIfFailureAsync()).Results.First();
                 Assert.True(locations.Contains(m1) && !locations.Tombstone(m1));
                 Assert.True(locations.Contains(m2) && !locations.Tombstone(m2));
                 Assert.True(!locations.Contains(m3) && !locations.Tombstone(m3));
@@ -85,7 +85,7 @@ public class ContentTrackerTests
                 var sequenceNumber2 = contentTracker.GetSequenceNumber(r2.Entries[0].Hash, m1);
                 Assert.Equal<uint>(2, sequenceNumber2);
 
-                locations = (await contentTracker.GetLocationsAsync(context, GetLocationsRequest.SingleHash(r1.Entries[0].Hash)).ThrowIfFailureAsync()).Results.First();
+                locations = (await contentTracker.GetLocationsAsync(context, GetLocationsRequest.SingleHash(r1.Entries[0].Hash, recursive: false)).ThrowIfFailureAsync()).Results.First();
                 Assert.True(!locations.Contains(m1) && locations.Tombstone(m1));
                 Assert.True(locations.Contains(m2) && !locations.Tombstone(m2));
                 Assert.True(locations.Contains(m3) && !locations.Tombstone(m3));

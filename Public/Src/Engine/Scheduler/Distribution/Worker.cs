@@ -311,6 +311,11 @@ namespace BuildXL.Scheduler.Distribution
         public virtual bool EverAvailable => true;
 
         /// <summary>
+        /// Whether the worker is connected at any time
+        /// </summary>
+        public virtual bool EverConnected => true;
+
+        /// <summary>
         /// The number of the build requests waiting to be sent
         /// </summary>
         public virtual int WaitingBuildRequestsCount => 0;

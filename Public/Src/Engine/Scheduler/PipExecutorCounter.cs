@@ -778,9 +778,19 @@ namespace BuildXL.Scheduler
         AvailableWorkerCountAtEnd,
 
         /// <summary>
-        /// Counts the number of workers who become available at any time
+        /// Counts the number of workers who become available to accept jobs at any time
         /// </summary>
         EverAvailableWorkerCount,
+
+        /// <summary>
+        /// Counts the number of workers who successfully connected to the orchestrator
+        /// </summary>
+        /// <remarks>
+        /// This is different than EverAvailableWorkerCount because some workers can connect 
+        /// to the orchestrator but scheduler can early release them before they have a chance to
+        /// be at the state of running. 
+        /// </remarks>
+        EverConnectedWorkerCount,
 
         /// <summary>
         /// Average duration for worker to be available (containing the following states: started, starting, attached)

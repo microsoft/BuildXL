@@ -106,9 +106,13 @@ namespace BuildXL.Engine.Distribution
         public override WorkerNodeStatus Status => (WorkerNodeStatus)Volatile.Read(ref m_status);
 
         private bool m_everAvailable;
+        private bool m_everConnected;
 
         /// <inheritdoc/>
         public override bool EverAvailable => Volatile.Read(ref m_everAvailable);
+
+        /// <inheritdoc/>
+        public override bool EverConnected => Volatile.Read(ref m_everConnected);
 
         /// <inheritdoc/>
         public override int WaitingBuildRequestsCount => m_buildRequests.Count;
@@ -1335,6 +1339,10 @@ namespace BuildXL.Engine.Distribution
             {
                 Volatile.Write(ref m_everAvailable, true);
                 m_setupCompletion.TrySetResult(true);
+            }
+            else if (toStatus == WorkerNodeStatus.Started)
+            {
+                Volatile.Write(ref m_everConnected, true);
             }
 
             Logger.Log.DistributionWorkerChangedState(

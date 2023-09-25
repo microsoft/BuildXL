@@ -1793,6 +1793,7 @@ namespace BuildXL.Scheduler
 
             int everAvailableWorkerCount = Workers.Count(a => a.EverAvailable);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.EverAvailableWorkerCount, everAvailableWorkerCount);
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.EverConnectedWorkerCount, Workers.Count(a => a.EverConnected));
 
             var workerOpKinds = Worker.WorkerStatusOperationKinds;
 

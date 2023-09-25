@@ -32,7 +32,7 @@ jobs:
     name: BuildXL-DevOpsAgents-PME
   steps:
   - checkout: self
-    fetchDepth: 1
+    fetchDepth: 3
 
   - template: ../common/set-artifacts-pat.yml
     parameters:

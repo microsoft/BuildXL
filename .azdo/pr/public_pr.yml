@@ -43,7 +43,7 @@ jobs:
     displayName: Download BuildXL drop
     inputs:
       dropServiceURI: https://cloudbuild.artifacts.visualstudio.com/DefaultCollection
-      buildNumber: buildxl.candidate.20377570
+      buildNumber: buildxl.dogfood.0.1.0-20230921.3
       destinationPath: $(BuildXL.DropPath)
       rootPaths: release/win-x64
       usePat: false

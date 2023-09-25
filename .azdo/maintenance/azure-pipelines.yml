@@ -8,6 +8,9 @@ resources:
     - repository: DominoReleaseManagement
       type: git
       name: Domino.ReleaseManagement
+    - repository: CloudBuild
+      type: git
+      name: CloudBuild
 
 stages:
 - stage:
@@ -20,6 +23,7 @@ stages:
       - checkout: self
         persistCredentials: true
       - checkout: DominoReleaseManagement
+      - checkout: CloudBuild
       - task: UseDotNet@2
         inputs:
           packageType: 'sdk'
@@ -36,7 +40,7 @@ stages:
       - task: PowerShell@2
         inputs:
           targetType: 'inline'
-          script: .\BuildXLReleaseManagement.exe updatePackages --Packages Microsoft.SBOMCore@latest Microsoft.Parsers.ManifestGenerator@latest Microsoft.Parsers.SPDX22SBOMParser@latest Microsoft.SBOM.Adapters@latest Microsoft.ManifestInterface@latest Microsoft.Sbom.Contracts@latest Microsoft.ComponentDetection.Contracts@latest --PackagingFeedOrganization 1essharedassets --PackagingFeedName Packaging --PackagingFeedPat $(PAT-TseBuild-AzureDevOps-1EsSharedAssets) --OneEsPat $(PAT-TseBuild-AzureDevOps-1EsSharedAssets) --CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild) --MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng) --SourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal"
+          script: .\BuildXLReleaseManagement.exe updatePackages --Packages Microsoft.SBOMCore@latest Microsoft.Parsers.ManifestGenerator@latest Microsoft.Parsers.SPDX22SBOMParser@latest Microsoft.SBOM.Adapters@latest Microsoft.ManifestInterface@latest Microsoft.Sbom.Contracts@latest Microsoft.ComponentDetection.Contracts@latest --PackagingFeedOrganization 1essharedassets --PackagingFeedName Packaging --PackagingFeedPat $(PAT-TseBuild-AzureDevOps-1EsSharedAssets) --OneEsPat $(PAT-TseBuild-AzureDevOps-1EsSharedAssets) --CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild) --MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng) --BuildXLSourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal" --CloudbuildSourceRoot "$(Build.SourcesDirectory)/CloudBuild"
           showWarnings: true
           pwsh: false
           workingDirectory: '$(Build.ArtifactStagingDirectory)/BuildXLReleaseManagement'

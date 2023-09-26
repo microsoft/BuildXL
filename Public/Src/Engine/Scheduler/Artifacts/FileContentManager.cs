@@ -3957,6 +3957,11 @@ namespace BuildXL.Scheduler.Artifacts
                 additionalInfo = string.Join(" ", additionalInfo, reparseInfo);
             }
 
+            if (info.IsExecutable)
+            {
+                additionalInfo = string.Join(" ", additionalInfo, "IsExecutable:true");
+            }
+
             switch (origin)
             {
                 case PipOutputOrigin.Produced:

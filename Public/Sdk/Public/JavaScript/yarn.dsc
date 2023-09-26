@@ -46,6 +46,7 @@ namespace Yarn {
         ignoreOptionalDependencies?: boolean,
         networkConcurrency?: number,
         networkTimeout?: number,
+        unsafe?: Transformer.UnsafeExecuteArguments,
     }
 
     /**
@@ -125,6 +126,23 @@ namespace Yarn {
 
         let setCacheResult = Transformer.execute(Object.merge(defaults, setCacheArgs));
 
+        let unsafeArgs : Transformer.UnsafeExecuteArguments = {
+            untrackedScopes: [
+                cacheFolder,
+                // Many times there are some accesses under .git folder that are sensitive to file content that introduce
+                // unwanted cache misses
+                d`${arguments.repoRoot}/.git`,
+            ],
+            untrackedPaths: [
+                npmrc,
+                globalNpmrc
+            ],
+            passThroughEnvironmentVariables: defaultPassthroughVariables,
+            disableSandboxing: arguments.disableSandboxing,
+        };
+
+        unsafeArgs = Object.merge<Transformer.UnsafeExecuteArguments>(unsafeArgs, arguments.unsafe);
+
         // Run yarn install
         let yarnInstallArgs : Transformer.ExecuteArguments = {
             tool: arguments.yarnTool,
@@ -142,22 +160,10 @@ namespace Yarn {
                 {kind: "shared", directory: d`${arguments.repoRoot}`},
             ],
             dependencies: [
+                f`${arguments.repoRoot}/yarn.lock`,
                 ...setCacheResult.getOutputFiles(), 
                 ...additionalDependencies],
-            unsafe: {
-                untrackedScopes: [
-                    cacheFolder,
-                    // Many times there are some accesses under .git folder that are sensitive to file content that introduce
-                    // unwanted cache misses
-                    d`${arguments.repoRoot}/.git`,
-                ],
-                untrackedPaths: [
-                    npmrc,
-                    globalNpmrc
-                ],
-                passThroughEnvironmentVariables: defaultPassthroughVariables,
-                disableSandboxing: arguments.disableSandboxing,
-            },
+            unsafe: unsafeArgs,
             // Yarn install fails with exit code 1, which usually means some flaky network error that can be retried
             retryExitCodes: [1],
         };

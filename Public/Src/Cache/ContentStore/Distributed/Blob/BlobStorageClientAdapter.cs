@@ -46,12 +46,6 @@ public class BlobStorageClientAdapter
 
     private const string ETagAll = "*";
 
-    // Some commonly used options just to avoid unnecesary allocations for every request
-    private static readonly BlobRequestConditions RequestConditionsWithEtagAll = new() { IfMatch = ETag.All, };
-    private static readonly BlobRequestConditions RequestConditionsWithNoneMatchEtagAll = new() { IfNoneMatch = ETag.All, };
-    private static readonly BlobDownloadOptions BlobDownloadOptionsWithETagAll = new() { Conditions = RequestConditionsWithEtagAll };
-    private static readonly BlobDownloadOptions BlobDownloadOptionsWithETagAllAndRange01 = new() { Conditions = RequestConditionsWithEtagAll, Range = new HttpRange(0, 1) };
-
     public BlobStorageClientAdapter(
         Tracer tracer,
         BlobFolderStorageConfiguration configuration)
@@ -332,7 +326,7 @@ public class BlobStorageClientAdapter
                 if (etag is null)
                 {
                     // Perform the operation only if the the blob doesn't exist
-                    accessCondition = RequestConditionsWithNoneMatchEtagAll;
+                    accessCondition = new BlobRequestConditions() { IfNoneMatch = ETag.All };
                 }
                 else if (etag == ETagAll)
                 {
@@ -413,23 +407,26 @@ public class BlobStorageClientAdapter
                 // This updates the last access time in blob storage when last access time tracking is enabled. Please note,
                 // we're not downloading anything here because we're doing a 0-length download.
                 // See: https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview?tabs=azure-portal#move-data-based-on-last-accessed-time
-                // For the choice about using DownloadStreamingAsync, please check https://github.com/Azure/azure-sdk-for-net/issues/22022
                 try
                 {
-                    using BlobDownloadStreamingResult response = await blob.DownloadStreamingAsync(
-                        BlobDownloadOptionsWithETagAllAndRange01,
+                    var response = await blob.DownloadContentAsync(
+                        new BlobDownloadOptions()
+                        {
+                            Range = new HttpRange(0, 1),
+                            Conditions = new BlobRequestConditions() { IfMatch = ETag.All, }
+                        },
                         cancellationToken: context.Token);
-                    
-                    return Result.Success<(DateTimeOffset?, long?)>((response.Details.LastAccessed, response.Details.ContentLength), isNullAllowed: true);
+
+                    return Result.Success<(DateTimeOffset?, long?)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength), isNullAllowed: true);
                 }
                 catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.InvalidRange)
                 {
                     // We are dealing with a zero-size piece of content. Use unbounded download API to touch the file.
-                    using BlobDownloadStreamingResult response = await blob.DownloadStreamingAsync(
-                        BlobDownloadOptionsWithETagAll,
+                    var response = await blob.DownloadContentAsync(
+                        conditions: new BlobRequestConditions() { IfMatch = ETag.All, },
                         cancellationToken: context.Token);
 
-                    return Result.Success<(DateTimeOffset?, long?)>((response.Details.LastAccessed, response.Details.ContentLength), isNullAllowed: true);
+                    return Result.Success<(DateTimeOffset?, long?)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength), isNullAllowed: true);
                 }
             },
             traceOperationStarted: false,
@@ -448,7 +445,7 @@ public class BlobStorageClientAdapter
             {
                 var response = await blob.SetMetadataAsync(
                     metadata,
-                    conditions: RequestConditionsWithEtagAll,
+                    conditions: new BlobRequestConditions() { IfMatch = ETag.All, },
                     cancellationToken: context.Token);
 
                 return Result.Success<bool>(true);

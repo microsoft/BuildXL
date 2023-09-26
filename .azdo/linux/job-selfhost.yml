@@ -1,7 +1,7 @@
 parameters:
 - name: BxlCommonArgs
   type: string
-  default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
+  default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
 - name: BxlExtraArgs
   type: string
 - name: ValidationName
@@ -64,6 +64,41 @@ jobs:
     displayName: Cleaning up source directory
 
   - bash: |
+      set -euo pipefail
+      readonly isNotMain="${{ ne(variables['Build.SourceBranchName'], 'main') }}"
+      mkdir -p Out
+      tee Out/CacheConfig.json << EOF
+      {
+      "RemoteIsReadOnly": ${isNotMain,,},
+      "SkipDeterminismRecovery":  true,
+      "RemoteConstructionTimeoutMilliseconds":  10000,
+      "Assembly":  "BuildXL.Cache.VerticalAggregator",
+      "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
+      "RemoteCache":  {
+                        "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
+                        "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
+                        "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
+                        "CacheId": "L3Cache",
+                        "Universe": "blob3bxlselfhost",
+                        "RetentionPolicyInDays": 1,
+                        "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
+                        "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
+                      },
+      "LocalCache":  {
+                        "MaxCacheSizeInMB":  20240,
+                        "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+                        "UseStreamCAS":  true,
+                        "Type":  "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
+                        "CacheLogPath":  "[BuildXLSelectedLogPath]",
+                        "CacheRootPath":  "[BuildXLSelectedRootPath]",
+                        "CacheId":  "SelfhostCS2L1",
+                        "UseRocksDbMemoizationStore":  true
+                    }
+      }
+      EOF
+    displayName: Write cache config file
+
+  - bash: |
       sudo mkdir /home/subst
       sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
     displayName: Bind /home/subst to sources directory  
@@ -87,6 +122,27 @@ jobs:
     continueOnError: true
     condition: always()
     displayName: Free up disk space
+
+  - bash: |
+      set -euo pipefail
+      rm -f Out/CacheConfig.json
+      tee Out/CacheConfig.json << EOF
+      {
+          "RetentionPolicyInDays":  1,
+          "CacheSizeMb":  20240,
+          "Type":  "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory",
+          "DatacenterWide":  false,
+          "LeaderMachineName":  "[BuildXLSelectedLeader]",
+          "CacheRootPath":  "[BuildXLSelectedRootPath]",
+          "CacheId":  "L1L2L3Cache",
+          "Universe":  "bxlselfhost",
+          "CacheLogPath":  "[BuildXLSelectedLogPath]",
+          "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+          "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
+          "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
+      }
+      EOF
+    displayName: Write cache config file for distributed build
 
   - bash: |
       set -eu

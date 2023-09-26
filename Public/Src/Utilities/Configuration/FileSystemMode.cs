@@ -45,5 +45,11 @@ namespace BuildXL.Utilities.Configuration
         /// The main use case is avoiding underbuilds when a directory change wrt undeclared source reads.
         /// </summary>
         AlwaysMinimalWithAlienFilesGraph,
+
+        /// <summary>
+        /// Always use the empty fingerprint for enumerating directories. This mode essentially means that directory enumerations are ignored for computing
+        /// a pip fingerprint.
+        /// </summary>
+        AlwaysEmpty,
     }
 }

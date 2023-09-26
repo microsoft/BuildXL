@@ -1877,7 +1877,7 @@ namespace BuildXL.Scheduler.Fingerprints
             // Note: If a path isn't within a mount, it gets the DefaultFingerprint as well. This was the existing
             // behavior at the time of the time of the refactoring but is something that might need to change.
             SemanticPathInfo mountInfo = PathExpander.GetSemanticPathInfo(directoryPath);
-            if (!mountInfo.AllowHashing || (!mountInfo.IsReadable && !mountInfo.IsWritable))
+            if (!mountInfo.AllowHashing || (!mountInfo.IsReadable && !mountInfo.IsWritable) || m_env.Configuration.Sandbox.FileSystemMode == FileSystemMode.AlwaysEmpty)
             {
                 rule = null;
                 // Even if undeclared sources are allowed, out of mount directories get the default fingerprint.

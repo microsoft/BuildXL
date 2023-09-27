@@ -2,6 +2,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20230921.3.1 (Release [330519](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=330519&_a=release-pipeline-progress))
+
+- Keep traversing candidates when hitting an evicted content hash list
+- Support dotnet msbuild in VBCSCompilerLogger
+- Collect Git repo information for dev builds
+- Add strong fingerprint info in cache hit log messages
+- Log plugin process stderr if plugin start fails
+
 # 0.1.0-20230915.6 (Release [327814](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=327814&_a=release-pipeline-progress))
 
 - Make LocalDiskContentStore automatically creates the path casing cache when the honoring flag is enabled

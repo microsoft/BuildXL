@@ -76,7 +76,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.AzureAd.Icm.WebService.Client.amd64", version: "2.2.1363.11" },
 
     // Cpp Sdk
-    { id: "VisualCppTools.Internal.VS2017Layout", version: "14.16.27034", osSkip: [ "macOS", "unix" ] },
+    { id: "VisualCppTools.Internal.VS2017Layout", version: "14.28.29916", osSkip: [ "macOS", "unix" ] },
 
     // SBOM Generation
     { id: "Microsoft.SBOMCore", version: "3.8.0" },

@@ -34,13 +34,23 @@ export function test(args: TestArgs): TransformerExecuteResult {
 
     // Compile the test
     const compiled = build(Object.merge<Arguments>(boostCompileArgs, args));
-    
+
+    let runtimeDeps = args.runtimeContent;
+    if (Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && qualifier.configuration === "debug")
+    {
+        const layout = importFrom("VisualCppTools.Internal.VS2017Layout").Contents.all;
+        runtimeDeps = [
+            ...runtimeDeps,
+            layout.ensureContents({subFolder: r`lib/native/redist/debug_nonredist/${qualifier.platform}/Microsoft.VC141.DebugCRT`})
+        ];
+    }
+
     // Build the deployment
     const deployment : Deployment.Definition = {
         contents: [
             compiled.binaryFile,
             compiled.debugFile,
-            ...args.runtimeContent
+            ...runtimeDeps
         ]
     };
 

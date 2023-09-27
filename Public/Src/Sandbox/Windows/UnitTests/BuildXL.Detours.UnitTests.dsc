@@ -32,6 +32,7 @@ namespace UnitTests {
             importFrom("BuildXL.Sandbox.Windows").Core.testDll.importLibrary,
         ],
         runtimeContent: [
-            importFrom("BuildXL.Sandbox.Windows").Core.testDll.binaryFile]
-        });
+            importFrom("BuildXL.Sandbox.Windows").Core.testDll.binaryFile
+        ]
+    });
 }

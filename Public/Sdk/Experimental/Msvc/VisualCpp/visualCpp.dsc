@@ -40,7 +40,7 @@ export namespace AtlMfc {
 export const include = pkgContents.ensureContents({subFolder: r`${rootFolder}/include`});
 
 @@public
-export const lib = pkgContents.ensureContents({subFolder: r`${rootFolder}/lib/${qualifier.platform}`});
+export const lib = pkgContents.ensureContents({subFolder: r`${rootFolder}/lib/spectre/${qualifier.platform}`});
 
 /**
  * Gets a list of surviving child processes that cl.exe may create. NOTE: Do not add any

@@ -52,8 +52,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
     { id: "Microsoft.Azure.Storage.Common", version:"11.2.2" },
 
-    { id: "GVFS.Installers", version: "0.3.20147.1" },
-
     // DropDaemon Artifact dependencies.
     // Here, even though the packages depend on Cache bits other than Hashing, we make sure that the codepaths that actually depend on them are never activated. This is to ensure that there is no cyclic dependency between BXL and AzureDevOps.
     // This is further enforced by not including Cache bits in DropDaemon, other than BuildXL.Cache.Hashing.
@@ -67,9 +65,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Symbol.App.Core", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.Libraries", "Microsoft.BuildXL.Utilities", "DotNetFxRefAssemblies.Corext"] },
     { id: "Symbol.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "DotNetFxRefAssemblies.Corext"] },
     { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
-
-    // CloudTest internal dependencies
-    { id: "GvfsTestHelpersForBuildXL", version: "0.1.0"},
 
     // IcM and dependencies
     { id: "Microsoft.AzureAd.Icm.Types.amd64", version: "2.2.1363.11" },

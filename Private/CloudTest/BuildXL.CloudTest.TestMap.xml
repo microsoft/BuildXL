@@ -1,7 +1,0 @@
-<TestMap>
-    <TestJobGroup 
-        IsActive="true" 
-        ConfigPath="[BuildRoot]\CloudTest\[BuildType]\Gvfs\BuildXL.CloudTest.Gvfs.JobGroup.xml" 
-        TestSystem="Default"
-        Name="TestGroup"/>
-</TestMap>

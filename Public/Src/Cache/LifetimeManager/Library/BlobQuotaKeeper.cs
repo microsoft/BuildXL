@@ -4,15 +4,20 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Stores;
@@ -24,7 +29,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
     /// <summary>
     /// This class takes in a <see cref="RocksDbLifetimeDatabase"/> and starts freeing up space based on the LRU enumeration
     /// of fingerprints provided by the DB. When performing deletions, this class will make sure that both the database and the remote cache
-    /// reflect the changes necessary
+    /// reflect the changes necessary.
     /// </summary>
     public class BlobQuotaKeeper
     {
@@ -53,13 +58,17 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         ///
         /// For content that already has a reference count of zero, we only perform deletions when a certain amount of time has passed since
         /// it was last accessed.
+        ///
+        /// While this is going on, periodically creates checkpoints to make sure that, if something goes wrong, we don't have to start over.
         /// </summary>
         public Task<Result<long>> EnsureUnderQuota(
             OperationContext context,
             long maxSize,
             bool dryRun,
             int contentDegreeOfParallelism,
-            int fingerprintDegreeOfParallelism)
+            int fingerprintDegreeOfParallelism,
+            CheckpointManager checkpointManager,
+            TimeSpan checkpointCreationInterval)
         {
             Contract.Requires(contentDegreeOfParallelism > 0);
             Contract.Requires(fingerprintDegreeOfParallelism > 0);
@@ -79,127 +88,229 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         return currentSize;
                     }
 
-                    Tracer.Info(context, "Starting enumeration of zero-reference content for garbage collection.");
-                    using var underQuotaCts = new CancellationTokenSource();
-                    await ParallelAlgorithms.EnumerateAsync<(ContentHash hash, long length)>(
-                        enumerationResult.ZeroReferenceBlobs,
-                        contentDegreeOfParallelism,
-                        async hashAndLength =>
-                        {
-                            var deleted = await TryDeleteContentAsync(context, hashAndLength.hash, dryRun, hashAndLength.length);
-                            if (deleted)
-                            {
-                                Interlocked.Add(ref currentSize, -hashAndLength.length);
-                            }
+                    // Delete zero-reference content first, while periodically creating checkpoints in case we have a large backlog.
+                    using (var contentSemaphore = new SemaphoreSlim(initialCount: contentDegreeOfParallelism))
+                    using (var timer = new IntervalTimer(
+                        () => BlockNewOperationsAndCreateCheckpointAsync(context, checkpointManager, contentSemaphore, contentDegreeOfParallelism),
+                        checkpointCreationInterval,
+                        dueTime: checkpointCreationInterval))
+                    {
+                        currentSize = await DeleteZeroReferenceContentAndReturnSizeAsync(
+                            context,
+                            enumerationResult,
+                            degreeOfParallelism: contentDegreeOfParallelism,
+                            contentSemaphore,
+                            currentSize: currentSize,
+                            maxSize: maxSize,
+                            dryRun: dryRun);
+                    }
 
-                            if (currentSize <= maxSize)
-                            {
-                                underQuotaCts.Cancel();
-                            }
-                        },
-                        underQuotaCts.Token);
-
-                    if (underQuotaCts.IsCancellationRequested)
+                    if (currentSize <= maxSize)
                     {
                         return currentSize;
                     }
 
-                var tryDeleteContentHashActionBlock = ActionBlockSlim.CreateWithAsyncAction<(ContentHash hash, TaskCompletionSource<object?> tcs, OperationContext context)>(
-                    configuration: new ActionBlockSlimConfiguration(contentDegreeOfParallelism),
-                    async (tpl) =>
+                    // Now that all zero-ref content is gone, we can start deleting old fingerprints in an LRU manner. Againg, while
+                    // performing periodic checkpoints.
+                    using (var fingerprintSemaphore = new SemaphoreSlim(initialCount: fingerprintDegreeOfParallelism))
+                    using (var timer = new IntervalTimer(
+                        () => BlockNewOperationsAndCreateCheckpointAsync(context, checkpointManager, fingerprintSemaphore, fingerprintDegreeOfParallelism),
+                        checkpointCreationInterval,
+                        dueTime: checkpointCreationInterval))
                     {
-                        var (contentHash, tcs, opContext) = tpl;
-
-                        try
-                        {
-                            await Task.Yield();
-
-                            var contentEntry = _database.GetContentEntry(contentHash);
-                            if (contentEntry is null || contentEntry.ReferenceCount > 0)
-                            {
-                                return;
-                            }
-
-                            var refCount = contentEntry.ReferenceCount;
-                            if (refCount < 0)
-                            {
-                                Tracer.Error(opContext, $"Found new reference count to be {refCount}. Negative values should never happen, which points towards " +
-                                    $"premature deletion of the piece of content.");
-                                return;
-                            }
-
-                            var deleted = await TryDeleteContentAsync(opContext, contentHash, dryRun, contentEntry.BlobSize);
-                            if (deleted)
-                            {
-                                Interlocked.Add(ref currentSize, -contentEntry.BlobSize);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Tracer.Debug(opContext, ex, $"Error when decrementing reference count for hash {contentHash.ToShortHash()}");
-                        }
-                        finally
-                        {
-                            tcs.SetResult(null);
-                        }
-                    },
-                    context.Token);
-
-                    Tracer.Info(context, "Starting LRU enumeration for fingerprint garbage collection.");
-                    await ParallelAlgorithms.EnumerateAsync(
-                        enumerationResult.LruOrderedContentHashLists,
-                        fingerprintDegreeOfParallelism,
-                        async chl =>
-                        {
-                            var opContext = context.CreateNested(nameof(BlobQuotaKeeper), caller: "TryDeleteContentHashList");
-
-                            try
-                            {
-                                // Here is where we attempt to delete a fingerprint, and decrease the reference count for all its contents.
-                                // If the new reference count for a blob is 0, we also attempt to delete the content.
-
-                                var fingerprint = AzureBlobStorageMetadataStore.ExtractStrongFingerprintFromPath(chl.BlobName);
-                                var container = await _topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(fingerprint.WeakFingerprint));
-                                var client = container.GetBlobClient(chl.BlobName);
-
-                                if (!await TryDeleteContentHashListAsync(opContext, client, chl, dryRun))
-                                {
-                                    return;
-                                }
-
-                                Interlocked.Add(ref currentSize, -chl.BlobSize);
-
-                                _database.DeleteContentHashList(chl.BlobName, chl.Hashes);
-
-                                // At this point the CHL is deleted and ref count for all content is decremented. Check which content is safe to delete.
-                                var tasks = new List<Task>();
-                                foreach (var contentHash in chl.Hashes)
-                                {
-                                    // We don't care about the result of the operation. We just want something we can await.
-                                    var tcs = new TaskCompletionSource<object?>();
-                                    tryDeleteContentHashActionBlock.Post((contentHash, tcs, opContext));
-                                    tasks.Add(tcs.Task);
-                                }
-
-                                await TaskUtilities.SafeWhenAll(tasks);
-
-                                Tracer.Debug(opContext, $"Current size: {currentSize}, max size: {maxSize}");
-
-                                if (currentSize <= maxSize)
-                                {
-                                    underQuotaCts.Cancel();
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Tracer.Error(opContext, ex, $"Error when processing fingerprint blob {chl.BlobName}.");
-                            }
-                        },
-                        underQuotaCts.Token);
+                        currentSize = await DeleteContentHashListsAndReturnSizeAsync(
+                            context,
+                            maxSize,
+                            dryRun,
+                            contentDegreeOfParallelism,
+                            fingerprintDegreeOfParallelism,
+                            enumerationResult,
+                            currentSize,
+                            fingerprintSemaphore);
+                    }
 
                     return currentSize;
                 },
                 extraEndMessage: result => $"MaxSize=[{maxSize}], CurrentSize=[{(result.Succeeded ? result.Value : null)}]");
+        }
+
+        private async Task<long> DeleteContentHashListsAndReturnSizeAsync(
+            OperationContext context,
+            long maxSize,
+            bool dryRun,
+            int contentDegreeOfParallelism,
+            int fingerprintDegreeOfParallelism,
+            EnumerationResult enumerationResult,
+            long currentSize,
+            SemaphoreSlim semaphore)
+        {
+            var tryDeleteContentHashActionBlock = ActionBlockSlim.CreateWithAsyncAction<(ContentHash hash, TaskCompletionSource<object?> tcs, OperationContext context)>(
+                configuration: new ActionBlockSlimConfiguration(contentDegreeOfParallelism),
+                async (tpl) =>
+                {
+                    var (contentHash, tcs, opContext) = tpl;
+
+                    try
+                    {
+                        await Task.Yield();
+
+                        var contentEntry = _database.GetContentEntry(contentHash);
+                        if (contentEntry is null || contentEntry.ReferenceCount > 0)
+                        {
+                            return;
+                        }
+
+                        var refCount = contentEntry.ReferenceCount;
+                        if (refCount < 0)
+                        {
+                            Tracer.Error(opContext, $"Found new reference count to be {refCount}. Negative values should never happen, which points towards " +
+                                $"premature deletion of the piece of content.");
+                            return;
+                        }
+
+                        var deleted = await TryDeleteContentAsync(opContext, contentHash, dryRun, contentEntry.BlobSize);
+                        if (deleted)
+                        {
+                            Interlocked.Add(ref currentSize, -contentEntry.BlobSize);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Tracer.Debug(opContext, ex, $"Error when decrementing reference count for hash {contentHash.ToShortHash()}");
+                    }
+                    finally
+                    {
+                        tcs.SetResult(null);
+                    }
+                },
+                context.Token);
+
+            using var underQuotaCts = new CancellationTokenSource();
+
+            Tracer.Info(context, "Starting LRU enumeration for fingerprint garbage collection.");
+            await ParallelAlgorithms.EnumerateAsync(
+                enumerationResult.LruOrderedContentHashLists,
+                fingerprintDegreeOfParallelism,
+                async chl =>
+                {
+                    using var semaphoreToken = await SemaphoreSlimToken.WaitAsync(semaphore);
+
+                    var opContext = context.CreateNested(nameof(BlobQuotaKeeper), caller: "TryDeleteContentHashList");
+
+                    try
+                    {
+                        // Here is where we attempt to delete a fingerprint, and decrease the reference count for all its contents.
+                        // If the new reference count for a blob is 0, we also attempt to delete the content.
+
+                        var fingerprint = AzureBlobStorageMetadataStore.ExtractStrongFingerprintFromPath(chl.BlobName);
+                        var container = await _topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(fingerprint.WeakFingerprint));
+                        var client = container.GetBlobClient(chl.BlobName);
+
+                        if (!await TryDeleteContentHashListAsync(opContext, client, chl, dryRun))
+                        {
+                            return;
+                        }
+
+                        Interlocked.Add(ref currentSize, -chl.BlobSize);
+
+                        _database.DeleteContentHashList(chl.BlobName, chl.Hashes);
+
+                        // At this point the CHL is deleted and ref count for all content is decremented. Check which content is safe to delete.
+                        var tasks = new List<Task>();
+                        foreach (var contentHash in chl.Hashes)
+                        {
+                            // We don't care about the result of the operation. We just want something we can await.
+                            var tcs = new TaskCompletionSource<object?>();
+                            tryDeleteContentHashActionBlock.Post((contentHash, tcs, opContext));
+                            tasks.Add(tcs.Task);
+                        }
+
+                        await TaskUtilities.SafeWhenAll(tasks);
+
+                        Tracer.Debug(opContext, $"Current size: {currentSize}, max size: {maxSize}");
+
+                        if (currentSize <= maxSize)
+                        {
+                            underQuotaCts.Cancel();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Tracer.Error(opContext, ex, $"Error when processing fingerprint blob {chl.BlobName}.");
+                    }
+                },
+                underQuotaCts.Token);
+
+            return currentSize;
+        }
+
+        private Task BlockNewOperationsAndCreateCheckpointAsync(
+            OperationContext context,
+            CheckpointManager checkpointManager,
+            SemaphoreSlim semaphore,
+            int acquireCount)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    var tokens = new List<SemaphoreSlimToken>(capacity: acquireCount);
+                    try
+                    {
+                        // Make sure no operation is going on.
+                        // For simplicity, acquiring one lock at a time. Performance shouldn't be an issue and this results
+                        // in a simpler state in the case of failure.
+                        foreach (var i in Enumerable.Range(0, acquireCount))
+                        {
+                            tokens.Add(await semaphore.WaitTokenAsync());
+                        }
+
+                        return await checkpointManager.CreateCheckpointAsync(
+                                    context,
+                                    new EventSequencePoint(_clock.UtcNow),
+                                    maxEventProcessingDelay: null);
+                    }
+                    finally
+                    {
+                        foreach (var token in tokens)
+                        {
+                            token.Dispose();
+                        }
+                    }
+                });
+        }
+
+        private async Task<long> DeleteZeroReferenceContentAndReturnSizeAsync(
+            OperationContext context,
+            EnumerationResult enumerationResult,
+            int degreeOfParallelism,
+            SemaphoreSlim semaphore,
+            long currentSize,
+            long maxSize,
+            bool dryRun)
+        {
+            Tracer.Info(context, "Starting enumeration of zero-reference content for garbage collection.");
+            using var underQuotaCts = new CancellationTokenSource();
+            await ParallelAlgorithms.EnumerateAsync<(ContentHash hash, long length)>(
+                enumerationResult.ZeroReferenceBlobs,
+                degreeOfParallelism,
+                async hashAndLength =>
+                {
+                    using var token = await SemaphoreSlimToken.WaitAsync(semaphore);
+                    var deleted = await TryDeleteContentAsync(context, hashAndLength.hash, dryRun, hashAndLength.length);
+                    if (deleted)
+                    {
+                        Interlocked.Add(ref currentSize, -hashAndLength.length);
+                    }
+
+                    if (currentSize <= maxSize)
+                    {
+                        underQuotaCts.Cancel();
+                    }
+                },
+                underQuotaCts.Token);
+
+            return currentSize;
         }
 
         private async Task<bool> TryDeleteContentAsync(OperationContext context, ContentHash contentHash, bool dryRun, long contentSize)

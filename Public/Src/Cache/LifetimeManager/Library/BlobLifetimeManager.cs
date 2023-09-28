@@ -171,7 +171,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                                 var accessor = accessors[namespaceId];
                                 var quotaKeeper = new BlobQuotaKeeper(accessor, topologies[namespaceId], config.LastAccessTimeDeletionThreshold, clock);
-                                _ = await quotaKeeper.EnsureUnderQuota(context, maxSizes[namespaceId], dryRun, contentDegreeOfParallelism, fingerprintDegreeOfParallelism);
+                                _ = await quotaKeeper.EnsureUnderQuota(
+                                    context,
+                                    maxSizes[namespaceId],
+                                    dryRun,
+                                    contentDegreeOfParallelism,
+                                    fingerprintDegreeOfParallelism,
+                                    checkpointManager,
+                                    config.CheckpointCreationInterval);
                             }
 
                             if (!dryRun)

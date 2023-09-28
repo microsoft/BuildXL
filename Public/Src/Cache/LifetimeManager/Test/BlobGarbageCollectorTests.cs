@@ -71,7 +71,18 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         n => topology).ThrowIfFailureAsync();
 
                     var manager = new BlobQuotaKeeper(db.GetAccessor(namespaceId), topology, lastAccessTimeDeletionThreshold: TimeSpan.Zero, SystemClock.Instance);
-                    await manager.EnsureUnderQuota(context, maxSize: 0, dryRun: false, contentDegreeOfParallelism: 1, fingerprintDegreeOfParallelism: 1).ThrowIfFailure();
+
+                    // It is much, much simpler to pass in null here, since this test really shouldn't use the checkpoint manager.
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+                    await manager.EnsureUnderQuota(
+                        context,
+                        maxSize: 0,
+                        dryRun: false,
+                        contentDegreeOfParallelism: 1,
+                        fingerprintDegreeOfParallelism: 1,
+                        checkpointManager: null,
+                        checkpointCreationInterval: TimeSpan.FromDays(1)).ThrowIfFailure();
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 
                     (await session.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None)).Code.Should().Be(OpenStreamResult.ResultCode.ContentNotFound);
                     (await session.OpenStreamAsync(context, putResult2.ContentHash, CancellationToken.None)).Code.Should().Be(OpenStreamResult.ResultCode.ContentNotFound);
@@ -168,7 +179,18 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     var maxSize = contentSizeToKeep + fingerprintSizeToKeep;
 
                     var manager = new Library.BlobQuotaKeeper(accessor, topology, lastAccessTimeDeletionThreshold: TimeSpan.Zero, clock);
-                    await manager.EnsureUnderQuota(context, maxSize: maxSize, dryRun: false, contentDegreeOfParallelism: 1, fingerprintDegreeOfParallelism: 1).ThrowIfFailure();
+
+                    // It is much, much simpler to pass in null here, since this test really shouldn't use the checkpoint manager.
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+                    await manager.EnsureUnderQuota(
+                        context,
+                        maxSize: maxSize,
+                        dryRun: false,
+                        contentDegreeOfParallelism: 1,
+                        fingerprintDegreeOfParallelism: 1,
+                        checkpointManager: null,
+                        checkpointCreationInterval: TimeSpan.FromDays(1)).ThrowIfFailure();
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 
                     for (var i = 0; i < (totalContent - contentToKeep); i++)
                     {

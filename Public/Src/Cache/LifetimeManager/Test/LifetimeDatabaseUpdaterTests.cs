@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.BlobLifetimeManager.Library;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
@@ -55,7 +56,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     var accessors = new Dictionary<BlobNamespaceId, RocksDbLifetimeDatabase.IAccessor> { { namespaceId, accessor } };
                     var updater = new LifetimeDatabaseUpdater(topologies, accessors, SystemClock.Instance, fingerprintsDegreeOfParallelism: 1);
 
-                    var strongFingerprint = StrongFingerprint.Random();
+                    var selectorPut = (await session.PutRandomAsync(context, HashType.Vso0, provideHash: true, size: 16, CancellationToken.None)).ThrowIfFailure();
+                    var strongFingerprint = new StrongFingerprint(Fingerprint.Random(), new Selector(selectorPut.ContentHash));
 
                     var hashes1 = await session.PutRandomAsync(context, HashType.Vso0, provideHash: true, fileCount: 5, fileSize: 10, useExactSize: true);
                     var chl1 = new ContentHashListWithDeterminism(new ContentHashList(hashes1.ToArray()), CacheDeterminism.SinglePhaseNonDeterministic);
@@ -66,7 +68,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
 
                     await updater.ContentHashListCreatedAsync(context, namespaceId, AzureBlobStorageMetadataStore.GetBlobPath(strongFingerprint), blobLength: 100).ThrowIfFailureAsync();
 
-                    accessor.GetContentHashList(strongFingerprint, out _)!.Hashes.Should().BeEquivalentTo(hashes1);
+                    accessor.GetContentHashList(strongFingerprint, out _)!.Hashes.Should().BeEquivalentTo(hashes1.Append(selectorPut.ContentHash));
 
                     foreach (var hash in hashes1)
                     {
@@ -84,7 +86,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
 
                     await updater.ContentHashListCreatedAsync(context, namespaceId, AzureBlobStorageMetadataStore.GetBlobPath(strongFingerprint), blobLength: 100).ThrowIfFailureAsync();
 
-                    accessor.GetContentHashList(strongFingerprint, out _)!.Hashes.Should().BeEquivalentTo(hashes2);
+                    accessor.GetContentHashList(strongFingerprint, out _)!.Hashes.Should().BeEquivalentTo(hashes2.Append(selectorPut.ContentHash));
 
                     foreach (var hash in hashes1)
                     {
@@ -95,6 +97,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     {
                         accessor.GetContentEntry(hash)!.ReferenceCount.Should().Be(1);
                     }
+
+                    accessor.GetContentEntry(selectorPut.ContentHash)!.ReferenceCount.Should().Be(1);
                 });
         }
     }

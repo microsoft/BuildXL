@@ -126,7 +126,16 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     var fingerprints = new List<StrongFingerprint>();
                     for (var i = 0; i < totalFingerprints; i++)
                     {
-                        var sf = StrongFingerprint.Random();
+                        var selector = await session.PutRandomAsync(
+                            context,
+                            HashType.Vso0,
+                            provideHash: false,
+                            size: contentSize,
+                            CancellationToken.None)
+                            .ThrowIfFailure();
+
+                        var sf = new StrongFingerprint(Fingerprint.Random(), new Selector(selector.ContentHash));
+
                         var chl = new ContentHashListWithDeterminism(
                             new MemoizationStore.Interfaces.Sessions.ContentHashList(
                                 hashes.Skip(i * contentPerFingerprint).Take(contentPerFingerprint).Append(hashes[^1]).ToArray()),
@@ -174,7 +183,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
 
                     var fingerprintsToKeep = 2;
                     var contentToKeep = fingerprintsToKeep * contentPerFingerprint + 1;
-                    var contentSizeToKeep = contentToKeep * contentSize;
+                    var totalContentToKeep = contentToKeep + fingerprintsToKeep; // This is to account for the selector of each FP.
+                    var contentSizeToKeep = totalContentToKeep * contentSize;
                     var fingerprintSizeToKeep = fingerprintsToKeep * metadataSize;
                     var maxSize = contentSizeToKeep + fingerprintSizeToKeep;
 

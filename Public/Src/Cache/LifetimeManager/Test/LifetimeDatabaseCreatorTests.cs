@@ -40,7 +40,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     // Add content/fingerprints to the L3
 
                     var contentResults = new List<ContentHash>();
-                    foreach (var _ in Enumerable.Range(0, 3))
+                    foreach (var _ in Enumerable.Range(0, 5))
                     {
                         var result = await session.PutRandomAsync(context, HashType.Vso0, provideHash: false, size: 16, CancellationToken.None)
                             .ThrowIfFailure();
@@ -48,13 +48,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         contentResults.Add(result.ContentHash);
                     }
 
-                    var sf1 = StrongFingerprint.Random();
+                    var sf1 = new StrongFingerprint(Fingerprint.Random(), new Selector(contentResults[3]));
                     var contentHashList1 = new ContentHashListWithDeterminism(
                         new MemoizationStore.Interfaces.Sessions.ContentHashList(
                             new ContentHash[] { contentResults[0], contentResults[1] }),
                         CacheDeterminism.SinglePhaseNonDeterministic);
 
-                    var sf2 = StrongFingerprint.Random();
+                    var sf2 = new StrongFingerprint(Fingerprint.Random(), new Selector(contentResults[4]));
                     var contentHashList2 = new ContentHashListWithDeterminism(
                         new MemoizationStore.Interfaces.Sessions.ContentHashList(
                             new ContentHash[] { contentResults[1], contentResults[2] }),
@@ -95,12 +95,20 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     contentEntry!.BlobSize.Should().Be(16);
                     contentEntry!.ReferenceCount.Should().Be(1);
 
+                    contentEntry = accessor.GetContentEntry(contentResults[3]);
+                    contentEntry!.BlobSize.Should().Be(16);
+                    contentEntry!.ReferenceCount.Should().Be(1);
+
+                    contentEntry = accessor.GetContentEntry(contentResults[3]);
+                    contentEntry!.BlobSize.Should().Be(16);
+                    contentEntry!.ReferenceCount.Should().Be(1);
+
                     var fpEntry = accessor.GetContentHashList(sf1, out _);
-                    fpEntry!.Hashes.Should().ContainInOrder(contentHashList1.ContentHashList!.Hashes);
+                    fpEntry!.Hashes.Should().ContainInOrder(contentHashList1.ContentHashList!.Hashes.Append(contentResults[3]));
                     fpEntry.LastAccessTime.Should().BeAfter(DateTime.UtcNow.AddMinutes(-1));
 
                     fpEntry = accessor.GetContentHashList(sf2, out _);
-                    fpEntry!.Hashes.Should().BeEquivalentTo(contentHashList2.ContentHashList!.Hashes);
+                    fpEntry!.Hashes.Should().BeEquivalentTo(contentHashList2.ContentHashList!.Hashes.Append(contentResults[4]));
                     fpEntry.LastAccessTime.Should().BeAfter(DateTime.UtcNow.AddMinutes(-1));
                 });
         }

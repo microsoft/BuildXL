@@ -19,7 +19,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
 
@@ -342,7 +344,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             IBlobCacheTopology topology)
         {
             var hashes = new List<(ContentHash hash, long size)>();
-            foreach (var contentHash in contentHashList.ContentHashList!.Hashes)
+
+            var strongFingerprint = AzureBlobStorageMetadataStore.ExtractStrongFingerprintFromPath(blobName);
+
+            // The selector of a fingerprint is implicitly a piece of content that should be kept alive by the cache
+            // as long as the content hash list exists. Treating it as if it was part of the CHL.
+            var selectorHash = strongFingerprint.Selector.ContentHash;
+
+            foreach (var contentHash in contentHashList.ContentHashList!.Hashes.Append(selectorHash))
             {
                 try
                 {
@@ -382,7 +391,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 new ContentHashList(
                     blobName,
                     lastAccessTime,
-                    contentHashList.ContentHashList!.Hashes.ToArray(),
+                    hashes.SelectList(hashWithSize => hashWithSize.hash).ToArray(),
                     blobLength),
                 hashes);
 

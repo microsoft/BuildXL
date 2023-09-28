@@ -355,7 +355,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             {
                 try
                 {
-                    if (contentHash.IsEmptyHash())
+                    if (contentHash.IsEmptyHash() || contentHash.IsZero())
                     {
                         hashes.Add((contentHash, 0));
                         continue;

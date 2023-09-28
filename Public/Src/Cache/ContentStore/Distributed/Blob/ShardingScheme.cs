@@ -45,27 +45,32 @@ public record ShardingScheme(ShardingAlgorithm Scheme, IReadOnlyList<BlobCacheSt
                 Contract.Assert(Accounts.Count == 1, $"Requested using {nameof(ShardingAlgorithm.SingleShard)} sharding with more than 1 account");
                 return new SingleShardingScheme<int, BlobCacheStorageAccountName>(Accounts[0]);
             case ShardingAlgorithm.JumpHash:
-                var accounts = new List<BlobCacheStorageAccountName>();
-
-                // Non-sharding accounts go first, sorted by name. Sharding accounts go after.
-                foreach (var group in Accounts.GroupBy(account => account is BlobCacheStorageShardingAccountName))
-                {
-                    if (group.Key)
-                    {
-                        accounts.AddRange(SortShardingAccounts(group.Cast<BlobCacheStorageShardingAccountName>().ToList()));
-                    }
-                    else
-                    {
-                        var temporary = SortUnshardedAccounts(group);
-                        temporary.AddRange(accounts);
-                        accounts = temporary;
-                    }
-                }
-
-                return new JumpConsistentHash<BlobCacheStorageAccountName>(accounts);
+                return new JumpConsistentHash<BlobCacheStorageAccountName>(SortAccounts(Accounts));
             default:
                 throw new ArgumentOutOfRangeException(paramName: nameof(Scheme), message: $"Unknown sharding scheme `{Scheme}`");
         }
+    }
+
+    public static IReadOnlyList<BlobCacheStorageAccountName> SortAccounts(IReadOnlyList<BlobCacheStorageAccountName> accounts)
+    {
+        var sorted = new List<BlobCacheStorageAccountName>();
+
+        // Non-sharding accounts go first, sorted by name. Sharding accounts go after.
+        foreach (var group in accounts.GroupBy(account => account is BlobCacheStorageShardingAccountName))
+        {
+            if (group.Key)
+            {
+                sorted.AddRange(SortShardingAccounts(group.Cast<BlobCacheStorageShardingAccountName>().ToList()));
+            }
+            else
+            {
+                var temporary = SortUnshardedAccounts(group);
+                temporary.AddRange(sorted);
+                sorted = temporary;
+            }
+        }
+
+        return sorted;
     }
 
     private static List<BlobCacheStorageAccountName> SortUnshardedAccounts(IEnumerable<BlobCacheStorageAccountName> shards)

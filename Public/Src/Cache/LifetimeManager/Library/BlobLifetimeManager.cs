@@ -63,7 +63,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             // Using the 0th shard of the cache, so that checkpoint data is preserved between re-sharding.
             // However, the container needs to be differentiated between reshardings.
             var checkpointContainerName = $"checkpoints-{metadataMatrix}";
-            var checkpointManagerStorageAccount = accountNames.MinBy(account => ((BlobCacheStorageShardingAccountName)account).ShardId);
+            var checkpointManagerStorageAccount = ShardingScheme.SortAccounts(accountNames).First();
             Contract.Assert(checkpointManagerStorageAccount is not null);
 
             var checkpointManagerStorageCreds = await secretsProvider.RetrieveBlobCredentialsAsync(context, checkpointManagerStorageAccount);

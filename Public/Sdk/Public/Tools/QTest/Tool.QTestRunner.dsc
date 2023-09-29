@@ -382,7 +382,6 @@ export function runQTest(args: QTestArguments): Result {
         hasUntrackedChildProcesses: args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotTrackDependencies,
         untrackedPaths: [
             ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile),
-            ...addIf(args.additionalQTestArgumentsFile !== undefined, args.additionalQTestArgumentsFile),
             ...addIf(flakyFile !== undefined, flakyFile),
             ...addIfLazy(args.qTestUntrackedPaths !== undefined, () => args.qTestUntrackedPaths),
             // QTest is probing the (symlinked on Windows) build engine directory

@@ -21,8 +21,6 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
-using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
@@ -124,7 +122,6 @@ namespace BuildXL.FrontEnd.Utilities
                     pathToTool,
                     fileAccessManifest,
                     disableConHostSharing: false,
-                    ContainerConfiguration.DisabledIsolation,
                     loggingContext: context.LoggingContext)
                 {
                     Arguments = arguments,
@@ -158,7 +155,7 @@ namespace BuildXL.FrontEnd.Utilities
                             {
                                 ReportQueueSizeMB = 1024,
 #if PLATFORM_OSX
-                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport
 #endif
                             }
                         });

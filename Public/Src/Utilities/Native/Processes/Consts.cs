@@ -68,14 +68,9 @@ namespace BuildXL.Native.Processes
         PayloadCopyFailed = 6,
 
         /// <summary>
-        /// The process should be launched in a silo, but the creation process failed
-        /// </summary>
-        AddProcessToSiloFailed = 7,
-
-        /// <summary>
         /// Creation of the process attribute list failed
         /// </summary>
-        CreateProcessAttributeListFailed = 8
+        CreateProcessAttributeListFailed = 7,
     }
 
     /// <summary>

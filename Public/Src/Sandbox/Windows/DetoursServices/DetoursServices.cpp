@@ -720,12 +720,11 @@ struct ProcessCreationAttributes {
     vector<HANDLE> handles;
 };
 
-/** Initializes the list of attributes based on whether the process needs to be added to a silo
+/** Initializes the list of attributes.
 */
-static bool InitializeAttributeList(ProcessCreationAttributes& attr, bool addProcessToSilo) {
-    // There is always at least one attribute for the explicit handle inheritance. There are two
-    // if the process needs to be created inside a silo
-    DWORD attributeCount = addProcessToSilo ? 2ul : 1ul;
+static bool InitializeAttributeList(ProcessCreationAttributes& attr) {
+    // There is always at least one attribute for the explicit handle inheritance.
+    DWORD attributeCount = 1ul;
 
     // First we establish the required allocation size.
     SIZE_T requiredSize = 0;
@@ -792,23 +791,8 @@ static bool CreateProcAttributesForExplicitHandleInheritance(
 
 #pragma warning( pop )
 
-static bool CreateProcAttributeForAddingProcessToSilo(
-    /*in out*/ ProcessCreationAttributes& attr) {
-
-    if (!UpdateProcThreadAttribute(attr.attrList.get(), /*flags*/ 0,
-        PROC_THREAD_ATTRIBUTE_JOB_LIST,
-        &attr.hJob, sizeof(HANDLE),
-        /*prev value*/ NULL, /*return size*/ NULL)) {
-
-        return false;
-    }
-
-    return true;
-}
-
 /** Creates a ProcessCreationAttributes to handle:
 - Explicit handle inheritance
-- Optionally, adding process to silo
 */
 static CreateDetouredProcessStatus CreateProcessAttributes(
     /*in opt */ HANDLE hStdInput,
@@ -816,10 +800,9 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
     /*in opt */ HANDLE hStdError,
     /*in     */ LPCWSTR lpcwCommandLine,
     /*in     */ DWORD dwCreationFlags,
-    /*in     */ bool addProcessToSilo,
     /*out    */ ProcessCreationAttributes& processCreationAttributes) {
 
-    if (!InitializeAttributeList(processCreationAttributes, addProcessToSilo))
+    if (!InitializeAttributeList(processCreationAttributes))
     {
         std::wstring errorMsg = DebugStringFormat(
             L"CreateProcessAttributes: Failed to initialize attribute list (CreateDetouredProcessStatus: %d, error code: 0x%08X)",
@@ -885,40 +868,6 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
         return CreateDetouredProcessStatus::HandleInheritanceFailed;
     }
 
-    if (addProcessToSilo)
-    {
-        if (!CreateProcAttributeForAddingProcessToSilo(/*in out*/ processCreationAttributes)) 
-        {
-            std::wstring errorMsg = DebugStringFormat(
-                L"CreateProcessAttributes: Failed to add process to a silo (CreateDetouredProcessStatus: %d, error code: 0x%08X)",
-                (int)CreateDetouredProcessStatus::AddProcessToSiloFailed,
-                (int)GetLastError());
-            Dbg(errorMsg.c_str());
-            HandleDetoursInjectionAndCommunicationErrors(DETOURS_ADD_TO_SILO_ERROR_20, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_20);
-
-            if (LogProcessDetouringStatus())
-            {
-                ReportProcessDetouringStatus(
-                    ProcessDetouringStatus::ProcessDetouringStatus_Done,
-                    L"",
-                    (LPWSTR)lpcwCommandLine,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    INVALID_HANDLE_VALUE,
-                    0,
-                    dwCreationFlags,
-                    false,
-                    GetLastError(),
-                    CreateDetouredProcessStatus::AddProcessToSiloFailed);
-            }
-
-            return CreateDetouredProcessStatus::AddProcessToSiloFailed;
-        }
-    }
-    
     return CreateDetouredProcessStatus::Succeeded;
 }
 
@@ -932,7 +881,6 @@ CreateDetouredProcess(
     HANDLE hStdInput, HANDLE hStdOutput, HANDLE hStdError,
     HANDLE hJob,
     DetouredProcessInjector *injector,
-    bool addProcessToSilo,
     HANDLE* phProcess, HANDLE* phThread, DWORD* pdwProcessId
 )
 {
@@ -967,7 +915,6 @@ CreateDetouredProcess(
         hStdError,
         lpcwCommandLine,
         dwCreationFlags,
-        addProcessToSilo,
         /*in out*/ processCreationAttributes);
 
     if (createAttributesStatus != CreateDetouredProcessStatus::Succeeded)

@@ -113,17 +113,6 @@ namespace BuildXL.Pips.Operations
         public AbsolutePath UniqueOutputDirectory { get; }
 
         /// <summary>
-        /// Directory unique to this pip under which redirected directories can be created. Used to virtualize
-        /// inputs and outputs when the process runs in a container.
-        /// </summary>
-        /// <remarks>
-        /// This property does not participate in cache fingerprinting,
-        /// This is set when <see cref="Options.NeedsToRunInContainer"/> is specified, otherwise is invalid
-        /// </remarks>
-        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public AbsolutePath UniqueRedirectedDirectoryRoot { get; }
-
-        /// <summary>
         /// File path of which the source shange affected inputs are written into.
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
@@ -425,7 +414,6 @@ namespace BuildXL.Pips.Operations
             RegexDescriptor errorRegex = default,
             bool enableMultiLineErrorScanning = false,
             AbsolutePath uniqueOutputDirectory = default,
-            AbsolutePath uniqueRedirectedDirectoryRoot = default,
             AbsolutePath tempDirectory = default,
             Options options = default,
             bool testRetries = false,
@@ -436,7 +424,6 @@ namespace BuildXL.Pips.Operations
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             RewritePolicy rewritePolicy = RewritePolicy.DefaultStrict,
-            ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputAllowlist = null,
@@ -475,8 +462,6 @@ namespace BuildXL.Pips.Operations
             Contract.RequiresForAll(additionalTempDirectories, path => path.IsValid);
             Contract.Requires(tags.IsValid);
             Contract.Requires(rewritePolicy.IsValid());
-            // If the process needs to run in a container, the redirected directory has to be set
-            Contract.Requires((options & Options.NeedsToRunInContainer) == Options.None || uniqueRedirectedDirectoryRoot.IsValid);
 
 #if DEBUG   // a little too expensive for release builds
             Contract.Requires(Contract.Exists(dependencies, d => d == executable), "The executable must be declared as a dependency");
@@ -538,7 +523,6 @@ namespace BuildXL.Pips.Operations
             ErrorRegex = errorRegex;
             EnableMultiLineErrorScanning = enableMultiLineErrorScanning;
             UniqueOutputDirectory = uniqueOutputDirectory;
-            UniqueRedirectedDirectoryRoot = uniqueRedirectedDirectoryRoot;
             Semaphores = semaphores;
             TempDirectory = tempDirectory;
             TestRetries = testRetries;
@@ -548,7 +532,6 @@ namespace BuildXL.Pips.Operations
             NestedProcessTerminationTimeout = nestedProcessTerminationTimeout;
             ProcessAbsentPathProbeInUndeclaredOpaquesMode = absentPathProbeMode;
             RewritePolicy = rewritePolicy.StrictDefaultsIfAbsent();
-            ContainerIsolationLevel = containerIsolationLevel;
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
             PreserveOutputAllowlist = preserveOutputAllowlist ?? ReadOnlyArray<AbsolutePath>.Empty;
@@ -612,7 +595,6 @@ namespace BuildXL.Pips.Operations
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             RewritePolicy rewritePolicy = RewritePolicy.DefaultStrict,
-            ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputAllowlist = null,
@@ -650,7 +632,6 @@ namespace BuildXL.Pips.Operations
                 errorRegex ?? ErrorRegex,
                 enableMultiLineErrorScanning ?? EnableMultiLineErrorScanning,
                 uniqueOutputDirectory ?? UniqueOutputDirectory,
-                redirectedDirectoryRoot ?? UniqueRedirectedDirectoryRoot,
                 tempDirectory ?? TempDirectory,
                 options ?? ProcessOptions,
                 testRetries ?? TestRetries,
@@ -661,7 +642,6 @@ namespace BuildXL.Pips.Operations
                 nestedProcessTerminationTimeout,
                 absentPathProbeMode,
                 rewritePolicy,
-                containerIsolationLevel,
                 weight,
                 priority,
                 preserveOutputAllowlist ?? PreserveOutputAllowlist,
@@ -742,12 +722,6 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public bool TrustStaticallyDeclaredAccesses => (ProcessOptions & Options.TrustStaticallyDeclaredAccesses) != 0;
-
-        /// <summary>
-        /// <see cref="Options.NeedsToRunInContainer"/>
-        /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
-        public bool NeedsToRunInContainer => (ProcessOptions & Options.NeedsToRunInContainer) != 0;
 
         /// <summary>
         /// <see cref="Options.PreservePathSetCasing"/>
@@ -863,15 +837,6 @@ namespace BuildXL.Pips.Operations
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public RewritePolicy RewritePolicy { get; }
 
-        /// <summary>
-        /// How much of this process (in terms of inputs and outputs) should be isolated in the container
-        /// </summary>
-        /// <remarks>
-        /// Only makes sense when <see cref="NeedsToRunInContainer"/> is true
-        /// </remarks>
-        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
-        public ContainerIsolationLevel ContainerIsolationLevel { get; }
-
         internal void UnsafeUpdateDirectoryDependencies(ReadOnlyArray<DirectoryArtifact> newDirectoryDependencies)
         {
             DirectoryDependencies = newDirectoryDependencies;
@@ -979,7 +944,6 @@ namespace BuildXL.Pips.Operations
                 errorRegex: reader.ReadRegexDescriptor(),
                 enableMultiLineErrorScanning: reader.ReadBoolean(),
                 uniqueOutputDirectory: reader.ReadAbsolutePath(),
-                uniqueRedirectedDirectoryRoot: reader.ReadAbsolutePath(),
                 tempDirectory: reader.ReadAbsolutePath(),
                 options: (Options)reader.ReadInt32(),
                 serviceInfo: reader.ReadNullable(reader1 => ServiceInfo.InternalDeserialize(reader1)),
@@ -988,7 +952,6 @@ namespace BuildXL.Pips.Operations
                 nestedProcessTerminationTimeout: reader.ReadNullableStruct(reader1 => reader1.ReadTimeSpan()),
                 absentPathProbeMode: (AbsentPathProbeInUndeclaredOpaquesMode)reader.ReadByte(),
                 rewritePolicy: (RewritePolicy)reader.ReadByte(),
-                containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
                 preserveOutputAllowlist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
@@ -1034,7 +997,6 @@ namespace BuildXL.Pips.Operations
             writer.Write(ErrorRegex);
             writer.Write(EnableMultiLineErrorScanning);
             writer.Write(UniqueOutputDirectory);
-            writer.Write(UniqueRedirectedDirectoryRoot);
             writer.Write(TempDirectory);
             writer.Write((int)ProcessOptions);
             writer.Write(ServiceInfo, ServiceInfo.InternalSerialize);
@@ -1043,7 +1005,6 @@ namespace BuildXL.Pips.Operations
             writer.Write(NestedProcessTerminationTimeout, (w, t) => w.Write(t));
             writer.Write((byte)ProcessAbsentPathProbeInUndeclaredOpaquesMode);
             writer.Write((byte)RewritePolicy);
-            writer.Write((byte)ContainerIsolationLevel);
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);
             writer.Write(PreserveOutputAllowlist, (w, v) => w.Write(v));

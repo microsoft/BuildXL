@@ -243,13 +243,6 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Does nothing for a plain job object since there is no associated container <see cref="Containers.Container"/>
-        /// </summary>
-        public virtual void StartContainerIfPresent()
-        {
-        }
-
-        /// <summary>
         /// Terminates all processes in this job object.
         /// </summary>
         public bool Terminate(int exitCode)

@@ -2188,8 +2188,8 @@ namespace BuildXL.Scheduler
             if (violator.PipType == PipType.Process && violationType == DependencyViolationType.DoubleWrite)
             {
                 var violatorProcess = (Process)violator;
-                // In case of a double write, if the the violation path got redirected, then the pip is still cacheable. It is not otherwise.
-                violationMakesPipUncacheable = !IsOutputPathRedirected(violatorProcess, path);
+                // In case of a double write, not cacheable.
+                violationMakesPipUncacheable = true;
                 // If the double write policy doesn't make the double write an error (on both pips), then the overall reported violation is not an error
                 if (violatorProcess.RewritePolicy.ImpliesDoubleWriteIsWarning() && (!(related.PipType == PipType.Process) || ((Process) related).RewritePolicy.ImpliesDoubleWriteIsWarning()))
                 {
@@ -2208,34 +2208,6 @@ namespace BuildXL.Scheduler
             }
 
             return new ReportedViolation(isError, violationType, path, violator.PipId, related?.PipId, processPath, violationMakesPipUncacheable);
-        }
-
-        private bool IsOutputPathRedirected(Process violator, AbsolutePath outputPath)
-        {
-            // If the process didn't run in a container, the path is not redirected
-            if (!violator.NeedsToRunInContainer)
-            {
-                return false;
-            }
-
-            // If all outputs are isolated, and since we know outputPath is an output, then the provided path is redirected and
-            // we don't need to inspect the value of the path
-            if (violator.ContainerIsolationLevel.IsolateAllOutputs())
-            {
-                return true;
-            }
-
-            // At this point we need to check if outputPath is a declared file or part of an output directory and compare that with the isolation level
-            if (m_fileContentManager.TryGetContainingOutputDirectory(outputPath, out DirectoryArtifact containingOutputDirectory))
-            {
-                // The path is part of an opaque directory
-                return containingOutputDirectory.IsSharedOpaque ? 
-                    violator.ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories() :
-                    violator.ContainerIsolationLevel.IsolateExclusiveOpaqueOutputDirectories();
-            }
-
-            // The path is a declared output file, so the path is redirected if output files were redirected
-            return violator.ContainerIsolationLevel.IsolateOutputFiles();
         }
 
         /// <summary> Returns the path that a pip is writing to for pip types that perform write operations (Process, WriteFile, and CopyFile). </summary>

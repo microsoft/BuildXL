@@ -509,7 +509,8 @@ namespace Test.BuildXL.Processes.Detours
                 executable,
                 disableConHostSharing: false,
                 loggingContext: CreateLoggingContext(),
-                fileAccessManifest: fileAccessManifest)
+                fileAccessManifest: fileAccessManifest,
+                sidebandWriter: null)
             {
                 PipDescription = executable,
                 Arguments = arguments,

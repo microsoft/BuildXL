@@ -4,8 +4,6 @@
 using System.Collections.Generic;
 using System.IO;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
-using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -51,7 +49,6 @@ namespace BuildXL.Demo
                 pathToProcess,
                 CreateManifestToLogProcessData(m_pathTable),
                 disableConHostSharing: false,
-                containerConfiguration: ContainerConfiguration.DisabledIsolation,
                 loggingContext: m_loggingContext)
             {
                 Arguments = arguments,

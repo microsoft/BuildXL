@@ -202,11 +202,6 @@ namespace BuildXL.Utilities.Configuration
         uint KextThrottleMinAvailableRamMB { get; }
 
         /// <summary>
-        /// Container-related configuration
-        /// </summary>
-        ISandboxContainerConfiguration ContainerConfiguration { get; }
-
-        /// <summary>
         /// Execution mode for processes that require admin privilege.
         /// </summary>
         AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; }

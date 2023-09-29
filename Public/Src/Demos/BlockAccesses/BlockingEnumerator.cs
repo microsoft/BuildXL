@@ -6,8 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
-using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -55,7 +53,6 @@ namespace BuildXL.Demo
                 pathToProcess,
                 CreateManifest(AbsolutePath.Create(m_pathTable, pathToProcess), directoriesToBlock),
                 disableConHostSharing: false,
-                containerConfiguration: ContainerConfiguration.DisabledIsolation,
                 loggingContext: m_loggingContext)
             {
                 Arguments = arguments,

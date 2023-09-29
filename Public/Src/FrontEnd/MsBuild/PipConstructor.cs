@@ -543,13 +543,6 @@ namespace BuildXL.FrontEnd.MsBuild
             // We allow undeclared inputs to be read
             processBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
 
-            // Run in a container if specified
-            if (m_resolverSettings.RunInContainer)
-            {
-                processBuilder.Options |= Process.Options.NeedsToRunInContainer;
-                processBuilder.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
-            }
-
             // We want to enforce the use of weak fingerprint augmentation since input predictions could be not complete/sufficient
             // to avoid a large number of path sets
             processBuilder.Options |= Process.Options.EnforceWeakFingerprintAugmentation;

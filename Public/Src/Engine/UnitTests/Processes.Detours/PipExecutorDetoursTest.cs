@@ -16,7 +16,6 @@ using BuildXL.Pips;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
@@ -148,7 +147,6 @@ namespace Test.BuildXL.Processes.Detours
                 pip,
                 configuration,
                 new Dictionary<string, string>(),
-                new ProcessInContainerManager(loggingContext, context.PathTable),
                 null,
                 null,
                 null,

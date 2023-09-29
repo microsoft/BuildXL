@@ -1395,7 +1395,6 @@ namespace BuildXL
                        "UseGraphPatching",
                        "ConstructAndSaveBindingFingerprint",
                        "UseSpecPublicFacadeAndAstWhenAvailable",
-                       "RunInContainerAndAllowDoubleWrites"
                    };
         }
     }

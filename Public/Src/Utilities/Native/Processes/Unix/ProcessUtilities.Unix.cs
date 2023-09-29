@@ -8,8 +8,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
-using BuildXL.Native.Processes.Windows;
-using BuildXL.Utilities.Core;
 using Microsoft.Win32.SafeHandles;
 
 #if FEATURE_SAFE_PROCESS_HANDLE
@@ -125,7 +123,7 @@ namespace BuildXL.Native.Processes.Unix
             => Array.Empty<byte>(); // TODO: this is only used for communication between BuildXL and external sandboxed process, which we don't do yet on Unix systems.
 
         /// <inheritdoc />
-        public CreateDetouredProcessStatus CreateDetouredProcess(string lpcwCommandLine, int dwCreationFlags, IntPtr lpEnvironment, string lpcwWorkingDirectory, SafeHandle hStdInput, SafeHandle hStdOutput, SafeHandle hStdError, SafeHandle hJob, IProcessInjector injector, bool addProcessToSilo, out SafeProcessHandle phProcess, out SafeThreadHandle phThread, out int pdwProcessId, out int errorCode)
+        public CreateDetouredProcessStatus CreateDetouredProcess(string lpcwCommandLine, int dwCreationFlags, IntPtr lpEnvironment, string lpcwWorkingDirectory, SafeHandle hStdInput, SafeHandle hStdOutput, SafeHandle hStdError, SafeHandle hJob, IProcessInjector injector, out SafeProcessHandle phProcess, out SafeThreadHandle phThread, out int pdwProcessId, out int errorCode)
             => throw new NotImplementedException();
 
         /// <inheritdoc />
@@ -158,23 +156,6 @@ namespace BuildXL.Native.Processes.Unix
         /// <inheritdoc />
         public bool TerminateJobObject(IntPtr hJob, int exitCode)
             => throw new NotImplementedException();
-
-        /// <inheritdoc />
-        public void AttachContainerToJobObject(
-            IntPtr hJob,
-            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
-            bool enableWciFilter,
-            IEnumerable<string> bindFltExclusions,
-            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
-            Action<IntPtr, ICollection<string>>? customJobObjectCustomization,
-            out IEnumerable<string> warnings)
-            => throw new NotImplementedException();
-
-        /// <inheritdoc />
-        public bool TryCleanUpContainer(IntPtr hJob, Action<IntPtr, ICollection<string>>? customJobObjectCleanup, out IEnumerable<string> errors) => throw new NotImplementedException();
-
-        /// <inheritdoc />
-        public bool IsWciAndBindFiltersAvailable() => false;
 
         /// <inheritdoc />
         public bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory, out string error)

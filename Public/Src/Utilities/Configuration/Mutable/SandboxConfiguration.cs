@@ -42,7 +42,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KextThrottleCpuUsageBlockThresholdPercent = 0;  // no throttling by default
             KextThrottleCpuUsageWakeupThresholdPercent = 0; // no throttling by default
             KextThrottleMinAvailableRamMB = 0;              // no throttling by default
-            ContainerConfiguration = new SandboxContainerConfiguration();
             AdminRequiredProcessExecutionMode = AdminRequiredProcessExecutionMode.Internal;
             RedirectedTempFolderRootForVmExecution = AbsolutePath.Invalid;
             RetryOnAzureWatsonExitCode = false;
@@ -99,7 +98,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KextThrottleCpuUsageBlockThresholdPercent = template.KextThrottleCpuUsageBlockThresholdPercent;
             KextThrottleCpuUsageWakeupThresholdPercent = template.KextThrottleCpuUsageWakeupThresholdPercent;
             KextThrottleMinAvailableRamMB = template.KextThrottleMinAvailableRamMB;
-            ContainerConfiguration = new SandboxContainerConfiguration(template.ContainerConfiguration);
             AdminRequiredProcessExecutionMode = template.AdminRequiredProcessExecutionMode;
             RedirectedTempFolderRootForVmExecution = pathRemapper.Remap(template.RedirectedTempFolderRootForVmExecution);
             RetryOnAzureWatsonExitCode = template.RetryOnAzureWatsonExitCode;
@@ -247,12 +245,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public uint KextThrottleMinAvailableRamMB { get; set; }
-
-        /// <inheritdoc />
-        public SandboxContainerConfiguration ContainerConfiguration { get; set; }
-
-        /// <inheritdoc/>
-        ISandboxContainerConfiguration ISandboxConfiguration.ContainerConfiguration => ContainerConfiguration;
 
         /// <inheritdoc />
         public AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; set; }

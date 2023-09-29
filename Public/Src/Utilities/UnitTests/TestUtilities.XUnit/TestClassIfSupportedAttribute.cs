@@ -48,7 +48,6 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresSymlinkPermission = false,
             bool requiresWindowsBasedOperatingSystem = false,
             bool requiresUnixBasedOperatingSystem = false,
-            bool requiresHeliumDriversAvailable = false,
             bool requiresMacOperatingSystem = false,
             bool requiresWindowsOrLinuxOperatingSystem = false,
             bool requiresLinuxBasedOperatingSystem = false,
@@ -62,7 +61,6 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 requiresWindowsBasedOperatingSystem: requiresWindowsBasedOperatingSystem,
                 requiresUnixBasedOperatingSystem: requiresUnixBasedOperatingSystem,
                 requiresMacOperatingSystem: requiresMacOperatingSystem,
-                requiresHeliumDriversAvailable: requiresHeliumDriversAvailable,
                 requiresWindowsOrLinuxOperatingSystem: requiresWindowsOrLinuxOperatingSystem,
                 requiresLinuxBasedOperatingSystem: requiresLinuxBasedOperatingSystem,
                 additionalRequirements: additionalRequirements

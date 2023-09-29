@@ -52,8 +52,6 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresSymlinkPermission = false,
             bool requiresWindowsBasedOperatingSystem = false,
             bool requiresUnixBasedOperatingSystem = false,
-            bool requiresHeliumDriversAvailable = false,
-            bool requiresHeliumDriversNotAvailable = false,
             bool requiresMacOperatingSystem = false,
             bool requiresWindowsOrMacOperatingSystem = false,
             bool requiresWindowsOrLinuxOperatingSystem = false,
@@ -66,8 +64,6 @@ namespace Test.BuildXL.TestUtilities.Xunit
             AddRequirement(ref requirements, requiresSymlinkPermission, TestRequirements.SymlinkPermission);
             AddRequirement(ref requirements, requiresWindowsBasedOperatingSystem, TestRequirements.WindowsOs);
             AddRequirement(ref requirements, requiresUnixBasedOperatingSystem, TestRequirements.UnixBasedOs);
-            AddRequirement(ref requirements, requiresHeliumDriversAvailable, TestRequirements.HeliumDriversAvailable);
-            AddRequirement(ref requirements, requiresHeliumDriversNotAvailable, TestRequirements.HeliumDriversNotAvailable);
             AddRequirement(ref requirements, requiresMacOperatingSystem, TestRequirements.MacOs);
             AddRequirement(ref requirements, requiresWindowsOrMacOperatingSystem, TestRequirements.WindowsOrMacOs);
             AddRequirement(ref requirements, requiresWindowsOrLinuxOperatingSystem, TestRequirements.WindowsOrLinuxOs);
@@ -157,30 +153,6 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     if (!OperatingSystemHelper.IsMacOS)
                     {
                         return "Test must be run on macOS";
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(
-                TestRequirements.HeliumDriversAvailable,
-                () =>
-                {
-                    if (!ProcessUtilities.IsWciAndBindFiltersAvailable())
-                    {
-                        return "Test must be run elevated on a machine with WCI and Bind filters available.";
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(
-                TestRequirements.HeliumDriversNotAvailable,
-                () =>
-                {
-                    if (ProcessUtilities.IsWciAndBindFiltersAvailable())
-                    {
-                        return "Test must be run on a machine where WCI and Bind filters are NOT available.";
                     }
 
                     return null;

@@ -78,7 +78,7 @@ namespace BuildXL.Native.Processes
         byte[]? SerializeEnvironmentBlock(IReadOnlyDictionary<string, string>? environmentVariables);
 
         /// <summary><see cref="ProcessUtilities.CreateDetouredProcess"/></summary>
-        CreateDetouredProcessStatus CreateDetouredProcess(string lpcwCommandLine, int dwCreationFlags, IntPtr lpEnvironment, string lpcwWorkingDirectory, SafeHandle hStdInput, SafeHandle hStdOutput, SafeHandle hStdError, SafeHandle hJob, IProcessInjector injector, bool addProcessToContainer, out SafeProcessHandle phProcess, out SafeThreadHandle phThread, out int pdwProcessId, out int errorCode);
+        CreateDetouredProcessStatus CreateDetouredProcess(string lpcwCommandLine, int dwCreationFlags, IntPtr lpEnvironment, string lpcwWorkingDirectory, SafeHandle hStdInput, SafeHandle hStdOutput, SafeHandle hStdError, SafeHandle hJob, IProcessInjector injector, out SafeProcessHandle phProcess, out SafeThreadHandle phThread, out int pdwProcessId, out int errorCode);
 
         /// <summary><see cref="ProcessUtilities.CreateDetachedProcess"/></summary>
         CreateDetachedProcessStatus CreateDetachedProcess(string commandLine, IReadOnlyDictionary<string, string> environmentVariables, string workingDirectory, out int newProcessId, out int errorCode);
@@ -103,22 +103,6 @@ namespace BuildXL.Native.Processes
 
         /// <summary><see cref="ProcessUtilities.TerminateJobObject"/></summary>
         bool TerminateJobObject(IntPtr hJob, int exitCode);
-
-        /// <summary><see cref="ProcessUtilities.AttachContainerToJobObject"/></summary>
-        void AttachContainerToJobObject(
-            IntPtr hJob,
-            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
-            bool enableWciFilter,
-            IEnumerable<string> bindFltExclusions,
-            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
-            Action<IntPtr, ICollection<string>>? customJobObjectCustomization,
-            out IEnumerable<string> warnings);
-
-        /// <summary><see cref="ProcessUtilities.TryCleanUpContainer"/></summary>
-        bool TryCleanUpContainer(IntPtr hJob, Action<IntPtr, ICollection<string>>? customJobObjectCleanup, out IEnumerable<string> errors);
-
-        /// <summary><see cref="ProcessUtilities.IsWciAndBindFiltersAvailable()"/></summary>
-        bool IsWciAndBindFiltersAvailable();
 
         /// <summary><see cref="ProcessUtilities.SetupProcessDumps(string, out string, out string)"/></summary>
         bool SetupProcessDumps(string logsDirectory, out string coreDumpDirectory, out string error);

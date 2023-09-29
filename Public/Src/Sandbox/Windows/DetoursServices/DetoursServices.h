@@ -47,8 +47,7 @@ enum class CreateDetouredProcessStatus : int {
     HandleInheritanceFailed = 4,
     ProcessResumeFailed = 5,
     PayloadCopyFailed = 6,
-    AddProcessToSiloFailed = 7,
-	CreateProcessAttributeListFailed = 8
+	CreateProcessAttributeListFailed = 7,
 };
 
 CreateDetouredProcessStatus
@@ -79,7 +78,6 @@ CreateDetouredProcess(
 	HANDLE hStdInput, HANDLE hStdOutput, HANDLE hStdError,
 	HANDLE hJob,
 	DetouredProcessInjector *injector,
-	bool addProcessToSilo, 
 	HANDLE* phProcess, HANDLE* phThread, DWORD* pdwProcessId
 );
 

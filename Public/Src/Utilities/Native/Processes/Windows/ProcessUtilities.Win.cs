@@ -179,7 +179,6 @@ namespace BuildXL.Native.Processes.Windows
            SafeHandle hStdError,
            SafeHandle hJob,
            IProcessInjector injector,
-           bool addProcessToSilo,
            out SafeProcessHandle phProcess,
            out SafeThreadHandle phThread,
            out int pdwProcessId,
@@ -197,7 +196,6 @@ namespace BuildXL.Native.Processes.Windows
                 hStdError,
                 hJob,
                 injector == null ? IntPtr.Zero : injector.Injector(),
-                addProcessToSilo,
                 out phProcess,
                 out phThread,
                 out pdwProcessId);
@@ -361,7 +359,6 @@ namespace BuildXL.Native.Processes.Windows
             SafeHandle hStdError,
             SafeHandle hJob,
             IntPtr injector,
-            bool addProcessToSilo,
             out SafeProcessHandle phProcess,
             out SafeThreadHandle phThread,
             out int pdwProcessId);

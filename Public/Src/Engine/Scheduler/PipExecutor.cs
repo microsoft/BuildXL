@@ -28,7 +28,6 @@ using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
@@ -45,7 +44,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using System.Collections.Concurrent;
@@ -1707,8 +1705,7 @@ namespace BuildXL.Scheduler
                             executionResult.NumberOfWarnings,
                             processExecutionResult,
                             enableCaching: !skipCaching,
-                            fingerprintComputation: fingerprintComputation,
-                            executionResult.ContainerConfiguration);
+                            fingerprintComputation: fingerprintComputation);
 
                         var pushOutputsToCache = DateTime.UtcNow.Subtract(start);
                         SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringCacheContent, pushOutputsToCache);
@@ -1998,7 +1995,6 @@ namespace BuildXL.Scheduler
                         pip,
                         configuration,
                         environment.RootMappings,
-                        environment.ProcessInContainerManager,
                         state.FileAccessAllowlist,
                         makeInputPrivate,
                         makeOutputPrivate,
@@ -3760,7 +3756,6 @@ namespace BuildXL.Scheduler
                 pip,
                 configuration,
                 environment.RootMappings,
-                environment.ProcessInContainerManager,
                 pipEnvironment: environment.State.PipEnvironment,
                 sidebandState: environment.State.SidebandState,
                 directoryArtifactContext: new DirectoryArtifactContext(environment),
@@ -4616,7 +4611,6 @@ namespace BuildXL.Scheduler
         /// <param name="processExecutionResult">The process execution result for recording process execution information</param>
         /// <param name="enableCaching">If set, the pip's descriptor and content will be stored to the cache. Otherwise, its outputs will be hashed but not stored or referenced by a new descriptor.</param>
         /// <param name="fingerprintComputation">Stores fingerprint computation information</param>
-        /// <param name="containerConfiguration">The configuration used to run the process in a container, if that option was specified</param>
         private static async Task<bool> StoreContentForProcessAndCreateCacheEntryAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
@@ -4629,8 +4623,7 @@ namespace BuildXL.Scheduler
             int numberOfWarnings,
             ExecutionResult processExecutionResult,
             bool enableCaching,
-            BoxRef<ProcessFingerprintComputationEventData> fingerprintComputation,
-            ContainerConfiguration containerConfiguration)
+            BoxRef<ProcessFingerprintComputationEventData> fingerprintComputation)
         {
             Contract.Requires(environment != null);
             Contract.Requires(process != null);
@@ -4660,19 +4653,7 @@ namespace BuildXL.Scheduler
                 var allOutputs = poolFileArtifactWithAttributesList.Instance;
                 var allOutputData = poolAbsolutePathFileOutputDataMap.Instance;
 
-                // If container isolation is enabled, this will represent a map between original outputs and its redirected output
-                // This is used to achieve output isolation: we keep the original paths, but use the content of redirected outputs
-                Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs = null;
-                if (containerConfiguration.IsIsolationEnabled)
-                {
-                    allRedirectedOutputs = poolAbsolutePathFileArtifactWithAttributes.Instance;
-                }
-
                 // Let's compute what got actually redirected
-                bool outputFilesAreRedirected = containerConfiguration.IsIsolationEnabled && process.ContainerIsolationLevel.IsolateOutputFiles();
-                bool exclusiveOutputDirectoriesAreRedirected = containerConfiguration.IsIsolationEnabled && process.ContainerIsolationLevel.IsolateExclusiveOpaqueOutputDirectories();
-                bool sharedOutputDirectoriesAreRedirected = containerConfiguration.IsIsolationEnabled && process.ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories();
-
                 foreach (var output in process.FileOutputs)
                 {
                     FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
@@ -4681,13 +4662,6 @@ namespace BuildXL.Scheduler
                     {
                         enableCaching = false;
                         continue;
-                    }
-
-                    // If the directory containing the output file was redirected, then we want to cache the content of the redirected output instead.
-                    if (outputFilesAreRedirected && environment.ProcessInContainerManager.TryGetRedirectedDeclaredOutputFile(output.Path, containerConfiguration, out AbsolutePath redirectedOutputPath))
-                    {
-                        var redirectedOutput = new FileArtifactWithAttributes(redirectedOutputPath, output.RewriteCount, output.FileExistence);
-                        allRedirectedOutputs.Add(output.Path, redirectedOutput);
                     }
 
                     allOutputs.Add(output);
@@ -4738,12 +4712,6 @@ namespace BuildXL.Scheduler
                                     FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);
                                     var fileArtifactWithAttributes = fileArtifact.WithAttributes(FileExistence.Required);
                                     allOutputs.Add(fileArtifactWithAttributes);
-
-                                    if (exclusiveOutputDirectoriesAreRedirected)
-                                    {
-                                        PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
-                                    }
-
                                     existenceAssertions.Remove(fileArtifact);
                                 },
 
@@ -4804,13 +4772,7 @@ namespace BuildXL.Scheduler
                                     }
 
                                     FileOutputData.UpdateFileData(allOutputData, access.Path, OutputFlags.DynamicFile, index);
-
                                     allOutputs.Add(access);
-
-                                    if (sharedOutputDirectoriesAreRedirected)
-                                    {
-                                        PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, access, allRedirectedOutputs);
-                                    }
                                 }
                             }
                         }
@@ -4892,12 +4854,6 @@ namespace BuildXL.Scheduler
                             if (fileArtifactStoreToCacheSet.Add(output.ToFileArtifact()))
                             {
                                 var contentToStore = output;
-                                // If there is a redirected output for this path, use that one, so we always cache redirected outputs instead of the original ones
-                                if (containerConfiguration.IsIsolationEnabled && allRedirectedOutputs.TryGetValue(output.Path, out var redirectedOutput))
-                                {
-                                    contentToStore = redirectedOutput;
-                                }
-
                                 storeOutputsQueue.Post((outputIndex, contentToStore, outputData));
                             }
                         }
@@ -5092,15 +5048,6 @@ namespace BuildXL.Scheduler
         private static void RecordCreatedDirectoriesOnMetadata(PipCacheDescriptorV2Metadata metadata, PathTable pathTable, IReadOnlySet<AbsolutePath> createdDirectories)
         {
             metadata.CreatedDirectories.AddRange(createdDirectories.Select(directory => directory.ToString(pathTable)));
-        }
-
-        private static void PopulateRedirectedOutputsForFileInOpaque(PathTable pathTable, IPipExecutionEnvironment environment, ContainerConfiguration containerConfiguration, AbsolutePath opaqueDirectory, FileArtifactWithAttributes fileArtifactInOpaque, Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs)
-        {
-            if (environment.ProcessInContainerManager.TryGetRedirectedOpaqueFile(fileArtifactInOpaque.Path, opaqueDirectory, containerConfiguration, out AbsolutePath redirectedPath))
-            {
-                var redirectedOutput = new FileArtifactWithAttributes(redirectedPath, fileArtifactInOpaque.RewriteCount, fileArtifactInOpaque.FileExistence);
-                allRedirectedOutputs.Add(fileArtifactInOpaque.Path, redirectedOutput);
-            }
         }
 
         private static async Task<Possible<FileMaterializationInfo>> StoreCacheableProcessOutputAsync(

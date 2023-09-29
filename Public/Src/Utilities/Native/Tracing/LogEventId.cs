@@ -50,9 +50,5 @@ namespace BuildXL.Native.Tracing
         RetryOnFailureException = 744,
 
         MoreBytesWrittenThanBufferSize = 2930,
-
-        //// Container related errors
-        FailedToCleanUpContainer = 12203,
-        WarningSettingUpContainer = 12204,
     }
 }

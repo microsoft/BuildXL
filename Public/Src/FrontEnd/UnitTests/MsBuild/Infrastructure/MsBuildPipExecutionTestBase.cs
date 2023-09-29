@@ -17,8 +17,6 @@ using Test.BuildXL.FrontEnd.Core;
 using Xunit.Abstractions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
-using System;
-using System.Diagnostics;
 using BuildXL.Processes;
 using BuildXL.FrontEnd.Utilities;
 
@@ -84,11 +82,10 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         /// </summary>
         protected SpecEvaluationBuilder BuildWithEnvironment(Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment)
         {
-            return base.Build().Configuration(DefaultMsBuildPrelude(runInContainer: false, environment));
+            return base.Build().Configuration(DefaultMsBuildPrelude(environment));
         }
 
         protected SpecEvaluationBuilder Build(
-            bool runInContainer = false, 
             Dictionary<string, string> environment = null, 
             Dictionary<string, string> globalProperties = null, 
             string filenameEntryPoint = null,
@@ -96,8 +93,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             string dotnetSearchLocations = null,
             bool useSharedCompilation = false)
         {
-            return Build(runInContainer, 
-                environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null, 
+            return Build(
+                environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null,
                 globalProperties,
                 filenameEntryPoint,
                 msBuildRuntime,
@@ -107,7 +104,6 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
         /// <inheritdoc/>
         protected SpecEvaluationBuilder Build(
-            bool runInContainer, 
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment, 
             Dictionary<string, string> globalProperties, 
             string filenameEntryPoint, 
@@ -118,7 +114,6 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // Let's explicitly pass an empty environment, so the process environment won't affect tests by default
             return base.Build().Configuration(
                 DefaultMsBuildPrelude(
-                    runInContainer, 
                     environment: environment ?? new Dictionary<string, DiscriminatingUnion<string, UnitValue>>(), 
                     globalProperties, 
                     filenameEntryPoint: filenameEntryPoint, 
@@ -288,7 +283,6 @@ $@"<?xml version='1.0' encoding='utf-8'?>
         }
 
         private string DefaultMsBuildPrelude(
-            bool runInContainer = false, 
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null, 
             Dictionary<string, string> globalProperties = null,
             bool enableBinLogTracing = false,
@@ -307,7 +301,6 @@ config({{
             msBuildSearchLocations: [d`{TestDeploymentDir}/{(msBuildRuntime == "DotNetCore" ? RelativePathToDotnetCoreMSBuild : RelativePathToFullframeworkMSBuild)}`],
             root: d`.`,
             allowProjectsToNotSpecifyTargetProtocol: {(allowProjectsToNotSpecifyTargetProtocol ? "true" : "false")},
-            runInContainer: {(runInContainer ? "true" : "false")},
             {DictionaryToExpression("environment", environment)}
             {DictionaryToExpression("globalProperties", globalProperties)}
             enableBinLogTracing: {(enableBinLogTracing ? "true" : "false")},

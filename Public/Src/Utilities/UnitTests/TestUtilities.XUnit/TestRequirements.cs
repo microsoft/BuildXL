@@ -48,16 +48,6 @@ namespace Test.BuildXL.TestUtilities.Xunit
         MacOs = 1 << 5,
 
         /// <summary>
-        /// Requires Helium drivers present
-        /// </summary>
-        HeliumDriversAvailable = 1 << 6,
-
-        /// <summary>
-        /// Requires Helium drivers not present
-        /// </summary>
-        HeliumDriversNotAvailable = 1 << 7,
-
-        /// <summary>
         /// Requires ability to use Windows Projected Filesystem
         /// (also includes symlink permission as this is required by current VFS implementation)
         /// </summary>

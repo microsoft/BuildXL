@@ -13,7 +13,6 @@ using BuildXL.Pips;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
@@ -2386,7 +2385,6 @@ namespace Test.BuildXL.Processes.Detours
                 process,
                 configuration,
                 rootMap,
-                new ProcessInContainerManager(loggingContext, context.PathTable),
                 fileAccessAllowlist,
                 null,
                 process.AllowPreserveOutputs ? dummyMakeOutputPrivate : null,

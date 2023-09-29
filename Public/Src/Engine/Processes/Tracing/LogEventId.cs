@@ -144,15 +144,6 @@ namespace BuildXL.Processes.Tracing
         PTraceSandboxLaunchedForPip = 10106,
         ReportArgsMismatch = 10107,
 
-        //// Container related errors
-        FailedToMergeOutputsToOriginalLocation = 12202,
-        // Moved to BuildXL.Native
-        // FailedToCleanUpContainer = 12203,
-        // WarningSettingUpContainer = 12204,
-
-        PipInContainerStarted = 12206,
-        PipInContainerStarting = 12207,
-        PipSpecifiedToRunInContainerButIsolationIsNotSupported = 12208,
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,
         DisallowedDoubleWriteOnMerge = 12211,

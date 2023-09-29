@@ -36,7 +36,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UntrackedFiles = resolverSettings.UntrackedFiles;
             UntrackedDirectories = resolverSettings.UntrackedDirectories;
             UntrackedGlobalDirectoryScopes = resolverSettings.UntrackedGlobalDirectoryScopes;
-            RunInContainer = resolverSettings.RunInContainer;
             MsBuildSearchLocations = resolverSettings.MsBuildSearchLocations;
             FileNameEntryPoints = resolverSettings.FileNameEntryPoints;
             InitialTargets = resolverSettings.InitialTargets;
@@ -82,9 +81,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectories { get; set; }
-
-        /// <inheritdoc/>
-        public bool RunInContainer { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyList<DirectoryArtifact> MsBuildSearchLocations { get; set; }

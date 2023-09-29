@@ -16,7 +16,6 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Tracing;
-using BuildXL.Processes.Containers;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Diagnostics;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -76,7 +75,6 @@ namespace BuildXL.Processes.Internal
         private readonly string m_timeoutDumpDirectory;
         [SuppressMessage("Microsoft.Reliability", "CA2006:UseSafeHandleToEncapsulateNativeResources")]
         private static readonly IntPtr s_consoleWindow = Native.Processes.Windows.ProcessUtilitiesWin.GetConsoleWindow();
-        private readonly ContainerConfiguration m_containerConfiguration;
         private readonly bool m_setJobBreakawayOk;
         private readonly bool m_createJobObjectForCurrentProcess;
         private readonly int m_numRetriesPipeReadOnCancel;
@@ -347,7 +345,6 @@ namespace BuildXL.Processes.Internal
             bool disableConHostSharing,
             LoggingContext loggingContext,
             string timeoutDumpDirectory,
-            ContainerConfiguration containerConfiguration,
             bool setJobBreakawayOk,
             bool createJobObjectForCurrentProcess,
             bool diagnosticsEnabled,
@@ -375,7 +372,6 @@ namespace BuildXL.Processes.Internal
             m_processExited = processExited;
             m_timeout = timeout;
             m_disableConHostSharing = disableConHostSharing;
-            m_containerConfiguration = containerConfiguration;
             m_setJobBreakawayOk = setJobBreakawayOk;
             m_createJobObjectForCurrentProcess = createJobObjectForCurrentProcess;
             if (m_workingDirectory != null && m_workingDirectory.Length == 0)
@@ -551,19 +547,7 @@ namespace BuildXL.Processes.Internal
 
                         if (!m_jobObjectCreatedExternally)
                         {
-                            if (m_containerConfiguration.IsIsolationEnabled)
-                            {
-                                // If path remapping is enabled then we wrap the job object in a container, so the filter drivers get
-                                // configured (and they get cleaned up when the container is disposed)
-                                m_job = new Container(
-                                    name: null,
-                                    containerConfiguration: m_containerConfiguration,
-                                    loggingContext: m_loggingContext);
-                            }
-                            else
-                            {
-                                m_job = new JobObject(null);
-                            }
+                            m_job = new JobObject(null);
 
                             // We want the effects of SEM_NOGPFAULTERRORBOX on all children (but can't set that with CreateProcess).
                             // That's not set otherwise (even if set in this process) due to CREATE_DEFAULT_ERROR_MODE above.
@@ -571,13 +555,6 @@ namespace BuildXL.Processes.Internal
                         }
 
                         m_processInjector.Listen();
-
-                        if (!m_jobObjectCreatedExternally && m_containerConfiguration.IsIsolationEnabled)
-                        {
-                            // After calling SetLimitInformation, start up the container if present
-                            // This will throw if the container is not set up properly
-                            m_job.StartContainerIfPresent();
-                        }
 
                         // The call to the CreateDetouredProcess below will add a newly created process to the job.
                         System.Diagnostics.Stopwatch m_startUpTimeWatch = System.Diagnostics.Stopwatch.StartNew();
@@ -592,7 +569,6 @@ namespace BuildXL.Processes.Internal
                                 hStdError,
                                 m_job,
                                 m_processInjector.Injector,
-                                m_containerConfiguration.IsIsolationEnabled,
                                 out m_processHandle,
                                 out threadHandle,
                                 out m_processId,

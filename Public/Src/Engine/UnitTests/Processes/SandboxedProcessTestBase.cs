@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -77,7 +76,8 @@ namespace Test.BuildXL.Processes
                 sandboxConnection: sandboxConnection ?? GetSandboxConnection(),
                 disableConHostSharing: disableConHostSharing,
                 fileAccessManifest: fileAccessManifest,
-                loggingContext: LoggingContext)
+                loggingContext: LoggingContext,
+                sidebandWriter: null)
             {
                 PipSemiStableHash = 0x1234,
                 PipDescription = pipDescription,

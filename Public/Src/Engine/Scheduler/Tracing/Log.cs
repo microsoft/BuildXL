@@ -3510,17 +3510,6 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void HitLowMemorySmell(LoggingContext context);
 
         [GeneratedEvent(
-            (int)LogEventId.VirtualizationFilterDetachError,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
-            EventTask = (int)Tasks.Scheduler,
-            Message = "Error detaching virtualization filter. {errorDetail}")]
-        public abstract void VirtualizationFilterDetachError(
-            LoggingContext context,
-            string errorDetail);
-
-        [GeneratedEvent(
             (ushort)SharedLogEventId.CacheMissAnalysis,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,

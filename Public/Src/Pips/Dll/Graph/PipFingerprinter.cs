@@ -315,8 +315,9 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(nameof(Process.RequiresAdmin), 1);
             }
 
-            fingerprinter.Add(nameof(Process.NeedsToRunInContainer), process.NeedsToRunInContainer ? 1 : 0);
-            fingerprinter.Add(nameof(Process.ContainerIsolationLevel), (byte)process.ContainerIsolationLevel);
+            // TODO: Remove on next bump of version number in PipFingerprintingVersion.
+            fingerprinter.Add("NeedsToRunInContainer", 0);
+            fingerprinter.Add("ContainerIsolationLevel", 0);
 
             AddPipData(fingerprinter, nameof(Process.Arguments), process.Arguments);
             if (process.ResponseFileData.IsValid)

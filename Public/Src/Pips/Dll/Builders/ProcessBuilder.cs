@@ -8,7 +8,6 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -145,17 +144,10 @@ namespace BuildXL.Pips.Builders
         /// <nodoc />
         public ReadOnlyArray<AbsolutePath> PreserveOutputAllowlist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
 
-        // Container related
-
         /// <summary>
         /// <see cref="RewritePolicy"/>. 
         /// </summary>
         public RewritePolicy RewritePolicy { get; set; }
-
-        /// <summary>
-        /// <see cref="ContainerIsolationLevel"/>. Only in effect if <see cref="Options.NeedsToRunInContainer"/> is true.
-        /// </summary>
-        public ContainerIsolationLevel ContainerIsolationLevel { get; set; }
 
         /// <nodoc />
         public AbsentPathProbeInUndeclaredOpaquesMode AbsentPathProbeUnderOpaquesMode {get; set; }
@@ -608,13 +600,6 @@ namespace BuildXL.Pips.Builders
             PathAtom folderName = Executable.Path.GetName(m_pathTable).Concat(m_pathTable.StringTable, PathAtom.Create(m_pathTable.StringTable, ".std"));
             var defaultDirectory = pipConstructionHelper.GetUniqueObjectDirectory(folderName);
 
-            // If the process is configured to run in a container, let's get a unique redirected root for it
-            var redirectedDirectoryRoot = DirectoryArtifact.Invalid;
-            if ((Options & Options.NeedsToRunInContainer) != Options.None)
-            {
-                redirectedDirectoryRoot = pipConstructionHelper.GetUniqueRedirectedDirectory(folderName);
-            }
-
             // arguments
             var arguments = FinishArgumentsAndCreateResponseFileIfNeeded(defaultDirectory);
 
@@ -759,13 +744,11 @@ namespace BuildXL.Pips.Builders
                 enableMultiLineErrorScanning: EnableMultiLineErrorScanning,
 
                 uniqueOutputDirectory: defaultDirectory,
-                uniqueRedirectedDirectoryRoot: redirectedDirectoryRoot,
                 options: Options,
                 serviceInfo: serviceInfo,
                 allowedSurvivingChildProcessNames: AllowedSurvivingChildProcessNames,
                 nestedProcessTerminationTimeout: NestedProcessTerminationTimeout,
                 rewritePolicy: RewritePolicy,
-                containerIsolationLevel: ContainerIsolationLevel,
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
                 weight: Weight,
                 priority: Priority,

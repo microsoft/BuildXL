@@ -98,8 +98,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeTempDirectory;
         private SymbolAtom m_executeUnsafe;
         private SymbolAtom m_executeIsLight;
-        private SymbolAtom m_executeRunInContainer;
-        private SymbolAtom m_executeContainerIsolationLevel;
         private SymbolAtom m_executeDoubleWritePolicy;
         private SymbolAtom m_executeSourceRewritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
@@ -245,8 +243,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeTempDirectory = Symbol("tempDirectory");
             m_executeUnsafe = Symbol("unsafe");
             m_executeIsLight = Symbol("isLight");
-            m_executeRunInContainer = Symbol("runInContainer");
-            m_executeContainerIsolationLevel = Symbol("containerIsolationLevel");
             m_executeDoubleWritePolicy = Symbol("doubleWritePolicy");
             m_executeSourceRewritePolicy = Symbol("sourceRewritePolicy");
             m_executeAllowUndeclaredSourceReads = Symbol("allowUndeclaredSourceReads");
@@ -644,26 +640,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             {
                 processBuilder.Options |= Process.Options.IsLight;
             }
-
-            // Run in container flag.
-            // The value is set based on the default but overridden if the field is explicitly defined for the pip
-            var runInContainer = Converter.ExtractOptionalBoolean(obj, m_executeRunInContainer);
-            if (!runInContainer.HasValue)
-            {
-                runInContainer = context.FrontEndHost.Configuration.Sandbox.ContainerConfiguration.RunInContainer();
-            }
-
-            if (runInContainer.Value)
-            {
-                processBuilder.Options |= Process.Options.NeedsToRunInContainer;
-            }
-
-            // Container isolation level
-            // The value is set based on the default but overridden if the field is explicitly defined for the pip
-            var containerIsolationLevel = Converter.ExtractEnumValue<ContainerIsolationLevel>(obj, m_executeContainerIsolationLevel, allowUndefined: true);
-            processBuilder.ContainerIsolationLevel = containerIsolationLevel.HasValue ?
-                    containerIsolationLevel.Value :
-                    context.FrontEndHost.Configuration.Sandbox.ContainerConfiguration.ContainerIsolationLevel();
 
             // Double write policy
             // The value is set based on the default but overridden if the field is explicitly defined for the pip

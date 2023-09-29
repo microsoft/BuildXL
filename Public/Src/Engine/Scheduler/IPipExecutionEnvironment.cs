@@ -14,7 +14,6 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.ProcessPipExecutor;
-using BuildXL.Processes.Containers;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.VmCommandProxy;
 using BuildXL.Utilities.Core;
@@ -202,12 +201,6 @@ namespace BuildXL.Scheduler
         /// Checks if a handle for the specified file should be created with sequential scan.
         /// </summary>
         bool ShouldCreateHandleWithSequentialScan(FileArtifact file);
-
-        /// <summary>
-        /// Responsible for managing processes running in containers
-        /// </summary>
-        [NotNull]
-        ProcessInContainerManager ProcessInContainerManager { get; }
 
         /// <summary>
         /// VM initializer.

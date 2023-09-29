@@ -292,22 +292,6 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Assert.Equal("1", testEnvironmentVariable.Value.ToString(PathTable));
         }
 
-        [FactIfSupported(requiresHeliumDriversAvailable: true)]
-        public void RunInContainerFlagSetsTheRightProcessFlag()
-        {
-            var project = CreateProjectWithPredictions("A.proj");
-            var testProj = Start(new MsBuildResolverSettings { RunInContainer = true} )
-                .Add(project)
-                .ScheduleAll()
-                .AssertSuccess().
-                RetrieveSuccessfulProcess(project);
-
-            // The process should have the corresponding Process.Options.NeedsToRunInContainer flag and the right
-            // isolation level
-            Assert.True((testProj.ProcessOptions & Process.Options.NeedsToRunInContainer) != Process.Options.None);
-            Assert.True(testProj.ContainerIsolationLevel.IsolateAllOutputs());
-        }
-
         [Fact]
         public void ProjectIsBuiltInIsolationByDefault()
         {

@@ -24,11 +24,6 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath RootTraversal { get; }
 
         /// <summary>
-        /// Whether pips scheduled by this resolver should run in an isolated container.
-        /// </summary>
-        bool RunInContainer { get; }
-
-        /// <summary>
         /// Collection of directories to search for the required MsBuild assemblies and MsBuild.exe.
         /// </summary>
         /// <remarks>

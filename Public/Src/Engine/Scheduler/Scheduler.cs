@@ -38,7 +38,6 @@ using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Processes.Sideband;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.VmCommandProxy;
@@ -1475,7 +1474,6 @@ namespace BuildXL.Scheduler
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
             m_pipRetryCountersDueToNetworkFailures = new int[(configuration.Distribution.NumRetryFailedPipsOnAnotherWorker ?? 0) + 1];
 
-            ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;
             RemoteProcessManager = RemoteProcessManagerFactory.Create(loggingContext, Context, configuration, new RemoteFilePredictor(this, this, loggingContext), Counters);
             m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(configuration.Logging.MaxNumPipTelemetryBatches, configuration.Logging.AriaIndividualMessageSizeLimitBytes);
@@ -7849,9 +7847,6 @@ namespace BuildXL.Scheduler
         /// Maximum number of external processes run concurrently so far.
         /// </summary>
         public long MaxExternalProcessesRan => Volatile.Read(ref m_maxExternalProcessesRan);
-
-        /// <inheritdoc/>
-        public ProcessInContainerManager ProcessInContainerManager { get; }
 
         /// <inheritdoc/>
         public VmInitializer VmInitializer { get; }

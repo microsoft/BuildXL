@@ -435,14 +435,6 @@ namespace BuildXL.Scheduler.Tracing
         // Copy file cont'd.
         // Elsewhere = 12201,
 
-        // Container related errors
-        // Elsewhere  = 12202,
-        // Elsewhere  = 12203,
-        // Elsewhere  = 12204,
-        VirtualizationFilterDetachError = 12205,
-        PipInContainerStarted = 12206,
-        PipInContainerStarting = 12207,
-
         PipCopyFileSourceFileDoesNotExist = 12201,
         AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs = 12212,
         SafeSourceRewriteNotAvailableForStaticallyDeclaredSources = 12215,

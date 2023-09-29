@@ -172,7 +172,6 @@ namespace BuildXL.Native.Processes
             SafeHandle hStdError,
             SafeHandle hJob,
             IProcessInjector injector,
-            bool addProcessToContainer,
             out SafeProcessHandle phProcess,
             out SafeThreadHandle phThread,
             out int pdwProcessId,
@@ -188,7 +187,6 @@ namespace BuildXL.Native.Processes
                 hStdError,
                 hJob,
                 injector,
-                addProcessToContainer,
                 out phProcess,
                 out phThread,
                 out pdwProcessId,
@@ -272,61 +270,6 @@ namespace BuildXL.Native.Processes
         /// <returns>If the function succeeds, the return value is nonzero.</returns>
         public static bool TerminateJobObject(IntPtr hJob, int exitCode)
             => s_nativeMethods.TerminateJobObject(hJob, exitCode);
-
-        #region Helium containers
-
-        /// <summary>
-        /// Creates a Helium container, attaches it to the job object and configures it
-        /// </summary>
-        /// <remarks>
-        /// The Helium container is configured using the provided path mapping. The mapping is expected to 
-        /// contain destination -> [source]. For each entry in the dictionary, two file 
-        /// drivers are setup, Wci and Bind:
-        ///
-        /// - WCI filter is able to virtualize source folders into destination folders via reparse points: processes
-        /// running in a container will see the content of the destination folder as containing the files of the source
-        /// folder. Plus, it provides full isolation from the source folder (copy-on-write semantics, tombstone files for deletion)
-        /// - Bind filter is able to map a source folder into a target folder, so any process running in a container will get every access
-        /// to the source path translated into an access to the target path
-        ///
-        /// Working together, these filters can provide full virtualization: a process accessing a source path will be redirected under the hood
-        /// to the target path, and the content that it will see there is fully controlled.
-        /// </remarks>
-        /// <param name="hJob">A pointer to a job object where a specific filter configuration will be associated with. 
-        /// This is the result of calling CreateJobObject <see href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms682409(v=vs.85).aspx"/></param>
-        /// <param name="redirectedDirectories">The collection of source paths to be virtualize to destination paths</param>
-        /// <param name="enableWciFilter">Enables WCI filter for input virtualization</param>
-        /// <param name="bindFltExclusions">Paths to not apply the bindflt path transformation to.</param>
-        /// <param name="bindFltFlags">Flags used to configure the Windows BindFlt driver.</param>
-        /// <param name="customJobObjectCustomization">When non-null, overrides default job object configuration.</param>
-        /// <param name="warnings">Any warnings that happened during the creation of the container. The container was created successfully regardless of these.</param>
-        /// <exception cref="BuildXLException">If any unrecoverable error occurs when setting up the container</exception>
-        public static void AttachContainerToJobObject(
-            IntPtr hJob,
-            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
-            bool enableWciFilter,
-            IEnumerable<string> bindFltExclusions,
-            NativeContainerUtilities.BfSetupFilterFlags bindFltFlags,
-            Action<IntPtr, ICollection<string>>? customJobObjectCustomization,
-            out IEnumerable<string> warnings)
-            => s_nativeMethods.AttachContainerToJobObject(hJob, redirectedDirectories, enableWciFilter, bindFltExclusions, bindFltFlags, customJobObjectCustomization, out warnings);
-
-        /// <summary>
-        /// Tries to cleans up the already attached Helium container to the given job object for all the volumes
-        /// where the container was configured
-        /// </summary>
-        /// <remarks>
-        /// This method does not throw. If any of the clean-up operations fail, error details are returns.
-        /// </remarks>
-        public static bool TryCleanUpContainer(IntPtr hJob, Action<IntPtr, ICollection<string>>? customJobObjectCleanup, out IEnumerable<string> errors)
-            => s_nativeMethods.TryCleanUpContainer(hJob, customJobObjectCleanup, out errors);
-
-        /// <summary>
-        /// Checks whether WCI and Bind filters are available in the system (and if the current process has enough priviledges to use them)
-        /// </summary>
-        public static bool IsWciAndBindFiltersAvailable() => s_nativeMethods.IsWciAndBindFiltersAvailable();
-
-        #endregion
 
         /// <summary>
         /// Setup all the required facilities to enable core dump creation.

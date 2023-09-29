@@ -67,17 +67,12 @@ namespace BuildXL.Pips.Operations
             IsLight = 1 << 4,
 
             /// <summary>
-            /// Whether this process should run in an isolated container
-            /// </summary>
-            NeedsToRunInContainer = 1 << 5,
-
-            /// <summary>
             /// Whether this process is allowed to read an undeclared source file.
             /// </summary>
             /// <remarks>
             /// A source file is considered to be a file that is not written during a build
             /// </remarks>
-            AllowUndeclaredSourceReads = 1 << 6,
+            AllowUndeclaredSourceReads = 1 << 5,
 
             /// <summary>
             /// Whether this process is configured to always be a cache miss.
@@ -85,7 +80,7 @@ namespace BuildXL.Pips.Operations
             /// <remarks>
             /// When specified, no cache lookup will be performed for the pip.
             /// </remarks>
-            DisableCacheLookup = 1 << 7,
+            DisableCacheLookup = 1 << 6,
 
             /// <summary>
             /// Whether this process is dependent on common OS binaries.
@@ -93,7 +88,7 @@ namespace BuildXL.Pips.Operations
             /// <remarks>
             /// When specified, no cache lookup will be performed for the pip.
             /// </remarks>
-            DependsOnCurrentOs = 1 << 8,
+            DependsOnCurrentOs = 1 << 7,
 
             /// <summary>
             /// Whether this process is dependent on windows' AppData folders
@@ -101,7 +96,7 @@ namespace BuildXL.Pips.Operations
             /// <remarks>
             /// Windows only, has no effect on other operating systems.
             /// </remarks>
-            DependsOnWindowsAppData = 1 << 9,
+            DependsOnWindowsAppData = 1 << 8,
 
             /// <summary>
             /// Whether this process is dependent on windows' ProgramData location.
@@ -109,27 +104,27 @@ namespace BuildXL.Pips.Operations
             /// <remarks>
             /// Windows only, has no effect on other operating systems.
             /// </remarks>
-            DependsOnWindowsProgramData = 1 << 10,
+            DependsOnWindowsProgramData = 1 << 9,
 
             /// <summary>
             /// Whether this process requires admin privilege.
             /// </summary>
-            RequiresAdmin = 1 << 11,
+            RequiresAdmin = 1 << 10,
 
             /// <summary>
             /// Whether this process using non-empty <see cref="Process.PreserveOutputAllowlist"/>
             /// </summary>
-            HasPreserveOutputAllowlist = 1 << 12,
+            HasPreserveOutputAllowlist = 1 << 11,
 
             /// <summary>
             /// Incremental tool is superset of <see cref="AllowPreserveOutputs"/> and is only active when preserve output is active.
             /// </summary>
-            IncrementalTool = (1 << 13) | AllowPreserveOutputs,
+            IncrementalTool = (1 << 12) | AllowPreserveOutputs,
 
             /// <summary>
             /// Whether this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes
             /// </summary>
-            RequireGlobalDependencies = 1 << 14,
+            RequireGlobalDependencies = 1 << 13,
 
             /// <summary>
             /// If the global <see cref="ICacheConfiguration.AugmentWeakFingerprintPathSetThreshold"/> is not 
@@ -137,7 +132,7 @@ namespace BuildXL.Pips.Operations
             /// for this particular process using defaults specified by <see cref="DefaultAugmentWeakFingerprintPathSetThreshold"/> 
             /// and <see cref="DefaultAugmentWeakFingerprintRequiredPathCommonalityFactor"/>
             /// </summary>
-            EnforceWeakFingerprintAugmentation = 1 << 15,
+            EnforceWeakFingerprintAugmentation = 1 << 14,
 
             /// <summary>
             /// This option makes all statically declared artifacts on this process (inputs and outputs) to be automatically
@@ -151,12 +146,12 @@ namespace BuildXL.Pips.Operations
             /// Note that when using this, the observed set of inputs can be larger than usual since observations cannot be used to determine what actually was read, and all
             /// statically specified inputs are used instead.
             /// </remarks>
-            TrustStaticallyDeclaredAccesses = 1 << 16,
+            TrustStaticallyDeclaredAccesses = 1 << 15,
 
             /// <summary>
             /// When this option is set, the scheduler will not be able to cancel the specified pip for perforance purposes.
             /// </summary>
-            Uncancellable = 1 << 17,
+            Uncancellable = 1 << 16,
 
             /// <summary>
             /// When set, the serialized path set of this process is not normalized wrt casing
@@ -166,27 +161,27 @@ namespace BuildXL.Pips.Operations
             /// Setting this option increases the chance BuildXL will preserve path casing on Windows, at the cost of less efficient
             /// caching, where the same weak fingerprint may have different path sets that only differ in casing.
             /// </remarks>
-            PreservePathSetCasing = 1 << 18,
+            PreservePathSetCasing = 1 << 17,
 
             /// <summary>
             /// When set, the pip is considered to have failed executing if it writes to standard error, regardless of the pip exit code.
             /// </summary>
-            WritingToStandardErrorFailsExecution = 1 << 19,
+            WritingToStandardErrorFailsExecution = 1 << 18,
 
             /// <summary>
             /// Whether full reparse point resolving is disabled
             /// </summary>
-            DisableFullReparsePointResolving = 1 << 20,
+            DisableFullReparsePointResolving = 1 << 19,
 
             /// <summary>
             /// Whether to disable sandboxing for this process
             /// </summary>
-            DisableSandboxing = 1 << 21,
+            DisableSandboxing = 1 << 20,
 
             /// <summary>
             /// When set, the pip fingerprint is not sensitive to fingerprint salts. This excludes both <see cref="EngineEnvironmentSettings.DebugFingerprintSalt"/> and PipFingerprintingVersion.TwoPhaseV2
             /// </summary>
-            BypassFingerprintSalt = 1 << 22,
+            BypassFingerprintSalt = 1 << 21,
         }
     }
 }

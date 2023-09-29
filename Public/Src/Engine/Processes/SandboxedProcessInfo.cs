@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using BuildXL.Native.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Processes.Sideband;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -115,11 +114,6 @@ namespace BuildXL.Processes
         public SandboxedProcessResourceMonitoringConfig? MonitoringConfig { get; set; }
 
         /// <summary>
-        /// Holds the path remapping information for a process that needs to run in a container
-        /// </summary>
-        public ContainerConfiguration ContainerConfiguration { get; }
-
-        /// <summary>
         /// Enable diagnostics for this process. 
         /// This will add additional information to the SandboxedProcessResult
         /// </summary>
@@ -162,7 +156,6 @@ namespace BuildXL.Processes
             string fileName,
             FileAccessManifest? fileAccessManifest,
             bool disableConHostSharing,
-            ContainerConfiguration containerConfiguration,
             LoggingContext loggingContext,
             bool testRetries = false,
             IDetoursEventListener? detoursEventListener = null,
@@ -185,7 +178,6 @@ namespace BuildXL.Processes
             LoggingContext = loggingContext;
             DetoursEventListener = detoursEventListener;
             SandboxConnection = sandboxConnection;
-            ContainerConfiguration = containerConfiguration;
             SidebandWriter = sidebandWriter;
             CreateJobObjectForCurrentProcess = createJobObjectForCurrentProcess;
             FileSystemView = fileSystemView;
@@ -204,7 +196,6 @@ namespace BuildXL.Processes
             bool testRetries = false,
             IDetoursEventListener? detoursEventListener = null,
             ISandboxConnection? sandboxConnection = null,
-            ContainerConfiguration? containerConfiguration = null,
             FileAccessManifest? fileAccessManifest = null,
             bool createJobObjectForCurrentProcess = true,
             SandboxedProcessResourceMonitoringConfig? monitoringConfig = null
@@ -215,7 +206,6 @@ namespace BuildXL.Processes
                   fileName,
                   fileAccessManifest,
                   disableConHostSharing,
-                  containerConfiguration ?? ContainerConfiguration.DisabledIsolation,
                   loggingContext,
                   testRetries,
                   detoursEventListener,
@@ -662,8 +652,6 @@ namespace BuildXL.Processes
                     fileName,
                     fam,
                     disableConHostSharing,
-                    // TODO: serialize/deserialize container configuration.
-                    containerConfiguration: ContainerConfiguration.DisabledIsolation,
                     loggingContext: loggingContext,
                     sidebandWriter: sidebandWritter,
                     detoursEventListener: detoursEventListener,

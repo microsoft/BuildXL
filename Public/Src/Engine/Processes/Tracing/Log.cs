@@ -1023,15 +1023,6 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (ushort)LogEventId.FailedToMergeOutputsToOriginalLocation,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Storage,
-            Message = EventConstants.PipPrefix + "Pip completed successfully, but it ran in a container and its outputs could not be merged back to their original locations. {details}")]
-        internal abstract void FailedToMergeOutputsToOriginalLocation(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string details);
-
-        [GeneratedEvent(
             (ushort)LogEventId.FailedToCreateHardlinkOnMerge,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -1057,34 +1048,6 @@ namespace BuildXL.Processes.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = EventConstants.PipPrefix + "Detected double write in '{destinationFile}' when merging outputs to their original location. The double write is allowed due to configured policy.")]
         internal abstract void DoubleWriteAllowedDueToPolicy(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string destinationFile);
-
-        [GeneratedEvent(
-            (int)LogEventId.PipInContainerStarted,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Process started to run in a container succesfully.")]
-        public abstract void PipInContainerStarted(LoggingContext context, long pipSemiStableHash, string pipDescription);
-
-        [GeneratedEvent(
-            (int)LogEventId.PipInContainerStarting,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Process is about to run in a container. Remapping information: \n {remappingInfo}")]
-        public abstract void PipInContainerStarting(LoggingContext context, long pipSemiStableHash, string pipDescription, string remappingInfo);
-
-        [GeneratedEvent(
-            (int)SharedLogEventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Process was specified to run in a container, but this capability is not available on this machine.")]
-        public abstract void PipSpecifiedToRunInContainerButIsolationIsNotSupported(LoggingContext context, long pipSemiStableHash, string pipDescription);
-
         [GeneratedEvent(
             (int)LogEventId.PipProcessStartExternalTool,
             EventGenerators = EventGenerators.LocalOnly,
@@ -1154,7 +1117,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Process needs to be executed externally because (require admin privilege: {requiredAdminPrivilege} | execution mode: {executionMode}), but instead it executes internally because (Win OS: {isWinOS} | container enabled: {isContainerEnabled} | listener existence: {existsListener})")]
+            Message = EventConstants.PipPrefix + "Process needs to be executed externally because (require admin privilege: {requiredAdminPrivilege} | execution mode: {executionMode}), but instead it executes internally because (Win OS: {isWinOS} | listener existence: {existsListener})")]
         public abstract void PipProcessNeedsExecuteExternalButExecuteInternal(
             LoggingContext context,
             long pipSemiStableHash,
@@ -1162,7 +1125,6 @@ namespace BuildXL.Processes.Tracing
             bool requiredAdminPrivilege,
             string executionMode,
             bool isWinOS,
-            bool isContainerEnabled,
             bool existsListener);
 
         [GeneratedEvent(

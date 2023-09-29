@@ -143,23 +143,5 @@ namespace BuildXL.Native.Tracing
             long bufferSizeInBytes,
             long numAssignedProcesses,
             long numProcessIdsInList);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.FailedToCleanUpContainer,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Storage,
-            Message = "Cleaning up container for job object {jobObject} failed. {details}")]
-        internal abstract void FailedToCleanUpContainer(LoggingContext loggingContext, string jobObject, string details);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.WarningSettingUpContainer,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Storage,
-            Message = "A warning occurred when setting up a container for job object {jobObject}: {warning}")]
-        internal abstract void WarningSettingUpContainer(LoggingContext loggingContext, string jobObject, string warning);
     }
 }

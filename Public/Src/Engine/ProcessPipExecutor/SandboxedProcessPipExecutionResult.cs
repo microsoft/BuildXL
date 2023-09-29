@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Text;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 
@@ -89,7 +88,6 @@ namespace BuildXL.ProcessPipExecutor
                 allReportedFileAccesses: null,
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: ContainerConfiguration.DisabledIsolation,
                 pipProperties: pipProperties,
                 timedOut: false,
                 hasAzureWatsonDeadProcess: false,
@@ -119,7 +117,6 @@ namespace BuildXL.ProcessPipExecutor
                 allReportedFileAccesses: null,
                 detouringStatuses: null,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: ContainerConfiguration.DisabledIsolation,
                 pipProperties: null,
                 timedOut: false,
                 hasAzureWatsonDeadProcess: false,
@@ -146,7 +143,6 @@ namespace BuildXL.ProcessPipExecutor
                 allReportedFileAccesses: result.AllReportedFileAccesses,
                 detouringStatuses: result.DetouringStatuses,
                 maxDetoursHeapSize: result.MaxDetoursHeapSizeInBytes,
-                containerConfiguration: result.ContainerConfiguration,
                 pipProperties: result.PipProperties,
                 timedOut: result.TimedOut,
                 hasAzureWatsonDeadProcess: result.HasAzureWatsonDeadProcess,
@@ -162,7 +158,6 @@ namespace BuildXL.ProcessPipExecutor
             long processSandboxedProcessResultMs,
             long processStartTime,
             long maxDetoursHeapSize,
-            ContainerConfiguration containerConfiguration,
             Tuple<AbsolutePath, Encoding> encodedStandardError,
             Tuple<AbsolutePath, Encoding> encodedStandardOutput,
             Dictionary<string, int> pipProperties,
@@ -187,7 +182,6 @@ namespace BuildXL.ProcessPipExecutor
                 allReportedFileAccesses: null,
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: containerConfiguration,
                 pipProperties: pipProperties,
                 timedOut: false,
                 hasAzureWatsonDeadProcess: false,
@@ -213,7 +207,6 @@ namespace BuildXL.ProcessPipExecutor
                    result.AllReportedFileAccesses,
                    result.DetouringStatuses,
                    result.MaxDetoursHeapSizeInBytes,
-                   result.ContainerConfiguration,
                    result.PipProperties,
                    result.TimedOut,
                    result.HasAzureWatsonDeadProcess,
@@ -292,11 +285,6 @@ namespace BuildXL.ProcessPipExecutor
         public IReadOnlyList<ProcessDetouringStatusData> DetouringStatuses { get; internal set; }
 
         /// <summary>
-        /// How the process was configured to run in a container, or a <see cref="ContainerConfiguration.DisabledIsolation"/> if no container was specified
-        /// </summary>
-        public ContainerConfiguration ContainerConfiguration { get; }
-
-        /// <summary>
         /// Extract a pip property and the count of that property, if a value matching the PipProperty regex was defined in the process output
         /// </summary>
         public Dictionary<string, int> PipProperties { get; set; }
@@ -357,7 +345,6 @@ namespace BuildXL.ProcessPipExecutor
             IReadOnlyList<ReportedFileAccess> allReportedFileAccesses,
             IReadOnlyList<ProcessDetouringStatusData> detouringStatuses,
             long maxDetoursHeapSize,
-            ContainerConfiguration containerConfiguration,
             Dictionary<string, int> pipProperties,
             bool timedOut,
             bool hasAzureWatsonDeadProcess,
@@ -370,7 +357,6 @@ namespace BuildXL.ProcessPipExecutor
             Contract.Requires(encodedStandardOutput == null || (encodedStandardOutput.Item1.IsValid && encodedStandardOutput.Item2 != null));
             Contract.Requires(encodedStandardError == null || (encodedStandardError.Item1.IsValid && encodedStandardError.Item2 != null));
             Contract.Requires(numberOfWarnings >= 0);
-            Contract.Requires(containerConfiguration != null);
             Contract.Requires(retryInfo == null || status != SandboxedProcessPipExecutionStatus.Succeeded);
 
             // Protect against invalid combinations of RetryLocation and RetryReason
@@ -395,7 +381,6 @@ namespace BuildXL.ProcessPipExecutor
             DetouringStatuses = detouringStatuses;
             MaxDetoursHeapSizeInBytes = maxDetoursHeapSize;
             SharedDynamicDirectoryWriteAccesses = sharedDynamicDirectoryWriteAccesses;
-            ContainerConfiguration = containerConfiguration;
             PipProperties = pipProperties;
             TimedOut = timedOut;
             HasAzureWatsonDeadProcess = hasAzureWatsonDeadProcess;

@@ -31,7 +31,6 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Deployment;
 using BuildXL.Launcher.Server;
-using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using ContentStoreTest.Distributed.Redis;

@@ -201,7 +201,6 @@ This page lists flags that can be used to configure BuildXL.
 | ReuseEngineState | Reuse engine state between client sessions if /server and /cacheGraph are enabled. Defaults to on. |
 | ReuseOutputsOnDisk | Reuse outputs on disk for checking up-to-dateness during cache look-up and for file materialization |
 | RootMap | Specifies a drive mapping applied during this build. Paths under specified letters will be mapped to the corresponding paths at the system level for the build process and the tools launched as a part of the build. (short form: /rm) |
-| RunInContainerAndAllowDoubleWrites | Configures the default for all scheduled pips to run in a container with output isolation, allowing double writes to occur. Individual pips can override this setting. This is an unsafe option. |
 | RunInSubst | Improves path stability across potentially heterogeneous machines by internally mapping a source path (typically the source of the repo to build) into a drive letter. If the source path is not explicitly provided with /substSource, the location of the main config file is used. Only effective on Windows, in other platforms the option is ignored. Useful for dev cache. |
 | SandboxKind | Specifies the sandbox kind. Allowed values are 'None' (no sandboxing), 'Default' (default sandboxing), 'WinDetours', 'MacOsKext'. Default is 'Default'. |
 | ScanChangeJournal | Scans volume change journals to determine spec file changes for graph reuse check. Defaults to on. |

@@ -24,7 +24,6 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Processes.External;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.Sideband;
@@ -78,9 +77,6 @@ namespace BuildXL.ProcessPipExecutor
 
         private static readonly string s_possibleRedirectedUserProfilePath =
             SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify);
-
-        // Compute if WCI and Bind are available on this machine
-        private static readonly bool s_isIsolationSupported = ProcessUtilities.IsWciAndBindFiltersAvailable();
 
         /// <summary>
         /// The maximum number that this executor will try to launch the given process pip.
@@ -178,9 +174,6 @@ namespace BuildXL.ProcessPipExecutor
 
         private readonly IReadOnlyDictionary<AbsolutePath, DirectoryArtifact> m_sharedOpaqueDirectoryRoots;
 
-        private readonly ProcessInContainerManager m_processInContainerManager;
-        private readonly ContainerConfiguration m_containerConfiguration;
-
         private readonly VmInitializer m_vmInitializer;
         private readonly IRemoteProcessManager m_remoteProcessManager;
 
@@ -251,7 +244,6 @@ namespace BuildXL.ProcessPipExecutor
             Process pip,
             IConfiguration configuration,
             IReadOnlyDictionary<string, string> rootMappings,
-            ProcessInContainerManager processInContainerManager,
             FileAccessAllowlist allowlist,
             Func<FileArtifact, Task<bool>> makeInputPrivate,
             Func<string, Task<bool>> makeOutputPrivate,
@@ -286,7 +278,6 @@ namespace BuildXL.ProcessPipExecutor
             Contract.Requires(rootMappings != null);
             Contract.Requires(pipEnvironment != null);
             Contract.Requires(directoryArtifactContext != null);
-            Contract.Requires(processInContainerManager != null);
             // The tempDirectoryCleaner must not be null since it is relied upon for robust file deletion
             Contract.Requires(tempDirectoryCleaner != null);
 
@@ -399,17 +390,6 @@ namespace BuildXL.ProcessPipExecutor
                 .Where(directory => directory.IsSharedOpaque)
                 .ToDictionary(directory => directory.Path, directory => directory);
 
-            m_processInContainerManager = processInContainerManager;
-
-            if ((m_pip.ProcessOptions & Process.Options.NeedsToRunInContainer) != 0)
-            {
-                m_containerConfiguration = m_processInContainerManager.CreateContainerConfigurationForProcess(m_pip);
-            }
-            else
-            {
-                m_containerConfiguration = ContainerConfiguration.DisabledIsolation;
-            }
-
             m_vmInitializer = vmInitializer;
             m_remoteProcessManager = remoteProcessManager;
 
@@ -448,22 +428,7 @@ namespace BuildXL.ProcessPipExecutor
             string filename;
             if (fileArtifact.IsValid)
             {
-                // If the file is valid, that means it also got included as a declared output file
-                // so if isolation is enabled for files, it must be redirected as well
-                if (m_containerConfiguration.IsIsolationEnabled && m_pip.ContainerIsolationLevel.IsolateOutputFiles())
-                {
-                    var success = m_containerConfiguration.OriginalDirectories.TryGetValue(fileArtifact.Path.GetParent(m_pathTable), out var redirectedDirectories);
-                    Contract.Assert(success, $"File artifact '{fileArtifact.Path.ToString(m_pathTable)}' of type ${file} should be part of the pip outputs, and therefore it should be a redirected file");
-
-                    // An output file has a single redirected directory
-                    var redirectedDirectory = redirectedDirectories.Single();
-
-                    filename = Path.Combine(redirectedDirectory.ExpandedPath, fileArtifact.Path.GetName(m_pathTable).ToString(m_pathTable.StringTable));
-                }
-                else
-                {
-                    filename = fileArtifact.Path.ToString(m_pathTable);
-                }
+                filename = fileArtifact.Path.ToString(m_pathTable);
             }
             else
             {
@@ -867,7 +832,6 @@ namespace BuildXL.ProcessPipExecutor
                         executable,
                         m_fileAccessManifest,
                         m_disableConHostSharing,
-                        m_containerConfiguration,
                         m_loggingContext,
                         m_pip.TestRetries,
                         sandboxConnection: sandboxConnection,
@@ -906,7 +870,7 @@ namespace BuildXL.ProcessPipExecutor
                         TranslateHostSharedUncDrive(info);
                     }
 
-                    var result = ShouldSandboxedProcessExecuteExternal
+                    var result = SandboxedProcessNeedsExecuteExternal
                         ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken)
                         : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
                     if (result.Status == SandboxedProcessPipExecutionStatus.PreparationFailed)
@@ -918,7 +882,7 @@ namespace BuildXL.ProcessPipExecutor
                     // Without doing this explicitly, if no writes into its SODs were recorded for the pip,
                     // the sideband file will not be automatically saved to disk.  When running externally, the external
                     // executor process will do this and if we do it here again we'll end up overwriting the sideband file.
-                    if (!ShouldSandboxedProcessExecuteExternal)
+                    if (!SandboxedProcessNeedsExecuteExternal)
                     {
                         info.SidebandWriter?.EnsureHeaderWritten();
                     }
@@ -943,10 +907,8 @@ namespace BuildXL.ProcessPipExecutor
                 // Only pip that requires admin privilege.
                 && m_pip.RequiresAdmin);
 
-        private bool ShouldSandboxedProcessExecuteExternal => SandboxedProcessNeedsExecuteExternal && !m_containerConfiguration.IsIsolationEnabled;
-
         private bool ShouldSandboxedProcessExecuteInVm =>
-            ShouldSandboxedProcessExecuteExternal
+            SandboxedProcessNeedsExecuteExternal
             && m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm()
             // Windows only.
             && !OperatingSystemHelper.IsUnixOS;
@@ -969,7 +931,6 @@ namespace BuildXL.ProcessPipExecutor
                     m_pip.RequiresAdmin,
                     m_sandboxConfig.AdminRequiredProcessExecutionMode.ToString(),
                     !OperatingSystemHelper.IsUnixOS,
-                    m_containerConfiguration.IsIsolationEnabled,
                     m_processIdListener != null);
             }
 
@@ -1017,28 +978,7 @@ namespace BuildXL.ProcessPipExecutor
                         try
                         {
                             shouldRelaunchProcess = false;
-
-                            // If the process should be run in a container, we (verbose) log the remapping information
-                            if (m_containerConfiguration.IsIsolationEnabled)
-                            {
-                                // If the process was specified to run in a container but isolation is not supported, then we bail out
-                                // before even trying to run the process
-                                if (!s_isIsolationSupported)
-                                {
-                                    Logger.Log.PipSpecifiedToRunInContainerButIsolationIsNotSupported(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
-                                    return SandboxedProcessPipExecutionResult.PreparationFailure((int)SharedLogEventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported, maxDetoursHeapSize: maxDetoursHeapSize);
-                                }
-
-                                Logger.Log.PipInContainerStarting(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, m_containerConfiguration.ToDisplayString());
-                            }
-
                             process = await StartAsync(info, forceSandboxing: false);
-
-                            // If the process started in a container, the setup of it is ready at this point, so we (verbose) log it
-                            if (m_containerConfiguration.IsIsolationEnabled)
-                            {
-                                Logger.Log.PipInContainerStarted(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
-                            }
                         }
                         catch (BuildXLException ex)
                         {
@@ -1808,7 +1748,6 @@ namespace BuildXL.ProcessPipExecutor
                                         sw.ElapsedMilliseconds,
                                         result.ProcessStartTime,
                                         maxDetoursHeapSize,
-                                        m_containerConfiguration,
                                         encodedStandardError,
                                         encodedStandardOutput,
                                         pipProperties,
@@ -1885,8 +1824,7 @@ namespace BuildXL.ProcessPipExecutor
             //      1. The process being killed (built into mainProcessExitedCleanly)
             //      2. The process not exiting with the appropriate exit code (mainProcessExitedCleanly)
             //      3. The process not creating all outputs (allOutputsPresent)
-            //      4. The process running in a container, and even though succeeding, its outputs couldn't be moved to their expected locations
-            //      5. The process wrote to standard error, and even though it may have exited with a succesfull exit code, WritingToStandardErrorFailsPip
+            //      4. The process wrote to standard error, and even though it may have exited with a succesfull exit code, WritingToStandardErrorFailsPip
             //         is set (failedDueToWritingToStdErr)
             bool mainProcessSuccess = mainProcessExitedCleanly && allOutputsPresent && !failedDueToWritingToStdErr;
 
@@ -1914,15 +1852,6 @@ namespace BuildXL.ProcessPipExecutor
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingStandardOutputs, stopwatch.Elapsed);
 
             stopwatch.Restart();
-
-            // After standard output and error may been saved, and shared dynamic write accesses were identified, we can merge
-            // outputs back to their original locations
-            if (!await m_processInContainerManager.MergeOutputsIfNeededAsync(m_pip, m_containerConfiguration, m_context, sharedDynamicDirectoryWriteAccesses))
-            {
-                // If the merge failed, update the status flags
-                mainProcessSuccess = false;
-                errorOrWarnings = true;
-            }
 
             bool errorWasTruncated = false;
             // if some outputs are missing or the process wrote to stderr, we are logging this process as a failed one (even if it finished with a success exit code).
@@ -2107,7 +2036,6 @@ namespace BuildXL.ProcessPipExecutor
                 allReportedFileAccesses: allFileAccesses,
                 detouringStatuses: result.DetouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: m_containerConfiguration,
                 pipProperties: pipProperties,
                 timedOut: result.TimedOut,
                 hasAzureWatsonDeadProcess: azWatsonDeadProcess != null,
@@ -2650,7 +2578,7 @@ namespace BuildXL.ProcessPipExecutor
         {
             Contract.Requires(OperatingSystemHelper.IsUnixOS);
 
-            if (ShouldSandboxedProcessExecuteExternal)
+            if (SandboxedProcessNeedsExecuteExternal)
             {
                 // When executing the pip using external tool, the file access manifest tree is sealed by
                 // serializing it as bytes. Thus, after the external tool deserializes the manifest tree,
@@ -3239,13 +3167,7 @@ namespace BuildXL.ProcessPipExecutor
                     return false;
                 }
 
-                if (!PrepareInContainerPaths())
-                {
-                    return false;
-                }
-
                 var dependencies = dependenciesWrapper.Instance;
-
                 foreach (FileArtifact dependency in m_pip.Dependencies)
                 {
                     dependencies.Add(dependency.Path);
@@ -3392,27 +3314,6 @@ namespace BuildXL.ProcessPipExecutor
                 Logger.Log.CannotReadSidebandFileError(m_loggingContext, sidebandFile, e.Message);
                 return false;
             }
-        }
-
-        /// <summary>
-        /// Makes sure all redirected directories exist and are empty
-        /// </summary>
-        private bool PrepareInContainerPaths()
-        {
-            foreach(ExpandedAbsolutePath outputDir in m_containerConfiguration.RedirectedDirectories.Keys)
-            {
-                try
-                {
-                    PreparePathForDirectory(outputDir.ExpandedPath, createIfNonExistent: true);
-                }
-                catch (BuildXLException ex)
-                {
-                    LogOutputPreparationFailed(outputDir.ExpandedPath, ex);
-                    return false;
-                }
-            }
-
-            return true;
         }
 
         private async Task<bool> PrepareDirectoryOutputsAsync(HashSet<AbsolutePath> preserveOutputAllowlist)
@@ -3966,8 +3867,6 @@ namespace BuildXL.ProcessPipExecutor
                 return true;
             }
 
-            bool sharedOutputDirectoriesAreRedirected = m_pip.NeedsToRunInContainer && m_pip.ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories();
-
             // Note that we are enumerating an unordered set to produce the array of observed paths.
             // As noted in SandboxedProcessPipExecutionResult, the caller must assume no particular order.
             // Since observed accesses contribute to a descriptor value (rather than a hashed key), this is fine; no normalization needed.
@@ -4269,16 +4168,7 @@ namespace BuildXL.ProcessPipExecutor
                             mutableWriteAccesses[kvp.Key] = fileWrites;
                             foreach (AbsolutePath writeAccess in kvp.Value)
                             {
-                                string outputPath;
-                                if (sharedOutputDirectoriesAreRedirected)
-                                {
-                                    outputPath = m_processInContainerManager.GetRedirectedOpaqueFile(writeAccess, kvp.Key, m_containerConfiguration).ToString(m_pathTable);
-                                }
-                                else
-                                {
-                                    outputPath = writeAccess.ToString(m_pathTable);
-                                }
-
+                                string outputPath = writeAccess.ToString(m_pathTable);
                                 var maybeResult = FileUtilities.TryProbePathExistence(outputPath, followSymlink: false, out var isReparsePoint);
                                 reparsePointProduced |= isReparsePoint;
 
@@ -4302,20 +4192,16 @@ namespace BuildXL.ProcessPipExecutor
                                         // Directories are not reported as explicit content, since we don't have the functionality today to persist them in the cache.
                                         continue;
                                     case PathExistence.ExistsAsFile:
-                                        // If outputs are redirected, we don't want to store a tombstone file
-                                        if (!sharedOutputDirectoriesAreRedirected || !FileUtilities.IsWciTombstoneFile(outputPath))
-                                        {
-                                            // If the written file was a denied write based on file existence, that means an undeclared file was overriden.
-                                            // This file could be an allowed undeclared source or a file completely alien to the build, not mentioned at all.
-                                            var artifact = FileArtifact.CreateOutputFile(writeAccess);
-                                            fileWrites.Add(FileArtifactWithAttributes.Create(
-                                                artifact,
-                                                FileExistence.Required,
-                                                isUndeclaredFileRewrite: fileExistenceDenials.Contains(writeAccess)));
+                                        // If the written file was a denied write based on file existence, that means an undeclared file was overriden.
+                                        // This file could be an allowed undeclared source or a file completely alien to the build, not mentioned at all.
+                                        var artifact = FileArtifact.CreateOutputFile(writeAccess);
+                                        fileWrites.Add(FileArtifactWithAttributes.Create(
+                                            artifact,
+                                            FileExistence.Required,
+                                            isUndeclaredFileRewrite: fileExistenceDenials.Contains(writeAccess)));
 
-                                            // We found an output, remove it from the set of assertions to verify
-                                            existenceToAssert.Remove(artifact);
-                                        }
+                                        // We found an output, remove it from the set of assertions to verify
+                                        existenceToAssert.Remove(artifact);
                                         break;
                                     case PathExistence.Nonexistent:
                                         fileWrites.Add(FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(writeAccess), FileExistence.Temporary));
@@ -4822,8 +4708,6 @@ namespace BuildXL.ProcessPipExecutor
             {
                 var expectedMissingOutputs = stringPool1.Instance;
 
-                bool fileOutputsAreRedirected = m_pip.NeedsToRunInContainer && m_pip.ContainerIsolationLevel.IsolateOutputFiles();
-
                 foreach (FileArtifactWithAttributes output in m_pip.FileOutputs)
                 {
                     if (!output.MustExist())
@@ -4832,19 +4716,9 @@ namespace BuildXL.ProcessPipExecutor
                     }
 
                     var expectedOutput = output.ToFileArtifact();
-                    string expectedOutputPath;
+                    string expectedOutputPath = expectedOutput.Path.ToString(m_pathTable);
 
-                    // If outputs were redirected, they are not in their expected location but it their redirected one
-                    if (fileOutputsAreRedirected)
-                    {
-                        expectedOutputPath = m_processInContainerManager.GetRedirectedDeclaredOutputFile(expectedOutput.Path, m_containerConfiguration).ToString(m_pathTable);
-                    }
-                    else
-                    {
-                        expectedOutputPath = expectedOutput.Path.ToString(m_pathTable);
-                    }
-
-                    if (!FileExistsNoFollow(expectedOutputPath, fileOutputsAreRedirected) &&
+                    if (!FileExistsNoFollow(expectedOutputPath) &&
                         expectedOutput != m_pip.StandardOutput &&
                         expectedOutput != m_pip.StandardError &&
                         expectedOutput != m_pip.TraceFile)
@@ -4880,14 +4754,11 @@ namespace BuildXL.ProcessPipExecutor
             return allOutputsPresent;
         }
 
-        private bool FileExistsNoFollow(string path, bool fileOutputsAreRedirected)
+        private static bool FileExistsNoFollow(string path)
         {
             var maybeResult = FileUtilities.TryProbePathExistence(path, followSymlink: false);
             var existsAsFile = maybeResult.Succeeded && maybeResult.Result == PathExistence.ExistsAsFile;
-
-            // If file outputs are not redirected, this is simply file existence. Otherwise, we have
-            // to check that the file is not a WCI tombstone, since this means the file is not really there.
-            return existsAsFile && !(fileOutputsAreRedirected && FileUtilities.IsWciTombstoneFile(path));
+            return existsAsFile;
         }
 
         // (lubol): TODO: Add handling of the translate paths strings. Add code here to address VSO Task# 989041.

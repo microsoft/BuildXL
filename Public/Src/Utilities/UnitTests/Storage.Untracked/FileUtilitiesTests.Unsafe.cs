@@ -284,9 +284,15 @@ namespace Test.BuildXL.Storage
         /// If a file or directory is on the Windows pending deletion queue,
         /// no process will report having an open handle
         /// </summary>
-        [FactIfSupported(requiresHeliumDriversNotAvailable: true)]
+        [Fact]
         public void FailToFindAllOpenHandlesPendingDeletion()
         {
+            if (WindowsContainerDriverUtilities.IsBindFltWCIAvailable())
+            {
+                // Test does not work in the presence of the Container feature (WCI, bindflt drivers).
+                return;
+            }
+
             string dir = Path.Combine(TemporaryDirectory, "dir");
             Directory.CreateDirectory(dir);
 
@@ -1060,6 +1066,143 @@ namespace Test.BuildXL.Storage
         private string NormalizeDirectoryPath(string path)
         {
             return new global::BuildXL.Native.IO.Windows.FileUtilitiesWin(LoggingContext).NormalizeDirectoryPath(path);
+        }
+
+        private static class WindowsContainerDriverUtilities
+        {
+            private const int ERROR_ALREADY_EXISTS = 0x000000B7;
+            private const int ERROR_SERVICE_ALREADY_RUNNING = 0x00000420;
+
+            /// <summary>
+            /// Name of the WCI filter driver as it is registered in the OS
+            /// </summary>
+            private const string WciDriverName = "wcifs";
+
+            /// <summary>
+            /// Name of the Bind filter driver as it is registered in the OS
+            /// </summary>
+            private const string BindDriverName = "bindflt";
+
+            public static bool IsBindFltWCIAvailable()
+            {
+                // Check if the required drivers can actually be loaded. This will also check that the required elevation is present.
+                var result = LoadFilterWithPrivilege(WciDriverName);
+                if (!LoadFilterSuccessful(result))
+                {
+                    return false;
+                }
+
+                result = LoadFilterWithPrivilege(BindDriverName);
+                return LoadFilterSuccessful(result);
+            }
+
+            private static int LoadFilterWithPrivilege(string filterName)
+            {
+                try
+                {
+                    RtlImpersonateSelf(SecurityImpersonationLevel.SecurityImpersonation, 0, out _);
+                    RtlAdjustPrivilege(Privilege.SE_LOAD_DRIVER_PRIVILEGE, true, true, out _);
+
+                    var result = FilterLoad(filterName);
+                    return result;
+                }
+                finally
+                {
+                    RevertToSelf();
+                }
+            }
+
+            private static bool LoadFilterSuccessful(int win32Error)
+            {
+                // The result of trying to load the filter should be either S_OK or the filter should be there/already running
+                return win32Error == 0 || win32Error == ExceptionUtilities.HResultFromWin32(ERROR_ALREADY_EXISTS) || win32Error == ExceptionUtilities.HResultFromWin32(ERROR_SERVICE_ALREADY_RUNNING);
+            }
+
+            /// <summary>
+            /// Makes an impersonation token that represents the process user and assigns to the current thread. 
+            /// </summary>
+            /// <remarks>
+            /// See https://docs.microsoft.com/en-us/windows/desktop/api/securitybaseapi/nf-securitybaseapi-impersonateself
+            /// </remarks>
+            [DllImport("ntdll.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+            [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+            private static extern int RtlImpersonateSelf([In] SecurityImpersonationLevel securityImpersonationLevel, [In] uint accessMask, [Out] out IntPtr threadToken);
+
+            /// <summary>
+            /// Enables or disables a privilege from the calling thread or process. 
+            /// </summary>
+            [DllImport("ntdll.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+            [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+            private static extern int RtlAdjustPrivilege([In] Privilege privilege, [In] bool bEnablePrivilege, [In] bool isThreadPrivilege, [Out] out bool previousValue);
+
+            /// <summary>
+            /// Tries to load a given filter driver
+            /// </summary>
+            /// <param name="strDriverName"></param>
+            [DllImport("FltLib.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+            [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+            private static extern int FilterLoad([In][MarshalAs(UnmanagedType.LPWStr)] string strDriverName);
+
+            /// <summary>
+            /// Terminates the impersonation of a client application.
+            /// </summary>
+            [DllImport("Advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+            [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+            private static extern bool RevertToSelf();
+
+            /// <summary>
+            /// Impersonation level
+            /// </summary>
+            private enum SecurityImpersonationLevel : uint
+            {
+                SecurityAnonymous,
+                SecurityIdentification,
+                SecurityImpersonation,
+                SecurityDelegation
+            }
+
+            /// <summary>
+            /// Requested priviledge
+            /// </summary>
+            private enum Privilege : uint
+            {
+                SE_MIN_WELL_KNOWN_PRIVILEGE = SE_CREATE_TOKEN_PRIVILEGE,
+                SE_CREATE_TOKEN_PRIVILEGE = 2,
+                SE_ASSIGNPRIMARYTOKEN_PRIVILEGE = 3,
+                SE_LOCK_MEMORY_PRIVILEGE = 4,
+                SE_INCREASE_QUOTA_PRIVILEGE = 5,
+                SE_MACHINE_ACCOUNT_PRIVILEGE = 6,
+                SE_TCB_PRIVILEGE = 7,
+                SE_SECURITY_PRIVILEGE = 8,
+                SE_TAKE_OWNERSHIP_PRIVILEGE = 9,
+                SE_LOAD_DRIVER_PRIVILEGE = 10,
+                SE_SYSTEM_PROFILE_PRIVILEGE = 11,
+                SE_SYSTEMTIME_PRIVILEGE = 12,
+                SE_PROF_SINGLE_PROCESS_PRIVILEGE = 13,
+                SE_INC_BASE_PRIORITY_PRIVILEGE = 14,
+                SE_CREATE_PAGEFILE_PRIVILEGE = 15,
+                SE_CREATE_PERMANENT_PRIVILEGE = 16,
+                SE_BACKUP_PRIVILEGE = 17,
+                SE_RESTORE_PRIVILEGE = 18,
+                SE_SHUTDOWN_PRIVILEGE = 19,
+                SE_DEBUG_PRIVILEGE = 20,
+                SE_AUDIT_PRIVILEGE = 21,
+                SE_SYSTEM_ENVIRONMENT_PRIVILEGE = 22,
+                SE_CHANGE_NOTIFY_PRIVILEGE = 23,
+                SE_REMOTE_SHUTDOWN_PRIVILEGE = 24,
+                SE_UNDOCK_PRIVILEGE = 25,
+                SE_SYNC_AGENT_PRIVILEGE = 26,
+                SE_ENABLE_DELEGATION_PRIVILEGE = 27,
+                SE_MANAGE_VOLUME_PRIVILEGE = 28,
+                SE_IMPERSONATE_PRIVILEGE = 29,
+                SE_CREATE_GLOBAL_PRIVILEGE = 30,
+                SE_TRUSTED_CREDMAN_ACCESS_PRIVILEGE = 31,
+                SE_RELABEL_PRIVILEGE = 32,
+                SE_INC_WORKING_SET_PRIVILEGE = 33,
+                SE_TIME_ZONE_PRIVILEGE = 34,
+                SE_CREATE_SYMBOLIC_LINK_PRIVILEGE = 35,
+                SE_MAX_WELL_KNOWN_PRIVILEGE = SE_CREATE_SYMBOLIC_LINK_PRIVILEGE
+            }
         }
     }
 }

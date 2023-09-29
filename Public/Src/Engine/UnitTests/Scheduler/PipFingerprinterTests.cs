@@ -883,11 +883,8 @@ namespace Test.BuildXL.Scheduler
             bool producesPathIndepenentOutputs = source.Vary(p => p.ProducesPathIndependentOutputs);
             bool outputsMustBeWritable = source.Vary(p => p.OutputsMustRemainWritable);
             bool allowUndeclaredSourceReads = source.Vary(p => p.AllowUndeclaredSourceReads);
-            bool needsToRunInContainer = source.Vary(p => p.NeedsToRunInContainer);
             bool requiresAdmin = source.Vary(p => p.RequiresAdmin);
             RewritePolicy doubleWritePolicy = source.Vary(p => p.RewritePolicy);
-            ContainerIsolationLevel containerIsolationLevel = source.Vary(p => p.ContainerIsolationLevel);
-            var uniqueRedirectedDirectoryRoot = source.Vary(p => p.UniqueRedirectedDirectoryRoot);
             var preserveOutputAllowlist = source.Vary(p => p.PreserveOutputAllowlist);
             bool trustStaticallyDeclaredAccesses = source.Vary(p => p.TrustStaticallyDeclaredAccesses);
             bool preservePathSetCasing = source.Vary(p => p.PreservePathSetCasing);
@@ -914,17 +911,6 @@ namespace Test.BuildXL.Scheduler
             if (allowUndeclaredSourceReads)
             {
                 options |= Process.Options.AllowUndeclaredSourceReads;
-            }
-
-            if (needsToRunInContainer)
-            {
-                options |= Process.Options.NeedsToRunInContainer;
-                
-                // if the process needs to run in a container, then the redirected root must be set
-                if (!uniqueRedirectedDirectoryRoot.IsValid)
-                {
-                    uniqueRedirectedDirectoryRoot = AbsolutePath.Create(source.PathTable, X("/Z/DefaultRedirectedDirectory"));
-                }
             }
 
             if (trustStaticallyDeclaredAccesses)
@@ -986,13 +972,11 @@ namespace Test.BuildXL.Scheduler
                 responseFile: FileArtifact.Invalid,
                 responseFileData: PipData.Invalid,
                 uniqueOutputDirectory: source.Vary(p => p.UniqueOutputDirectory),
-                uniqueRedirectedDirectoryRoot: uniqueRedirectedDirectoryRoot,
                 provenance: PipProvenance.CreateDummy(m_context),
                 toolDescription: StringId.Invalid,
                 additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
                 options: options,
                 rewritePolicy: doubleWritePolicy,
-                containerIsolationLevel: containerIsolationLevel,
                 preserveOutputAllowlist: preserveOutputAllowlist,
                 changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile,
                 outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.OutputDirectoryExclusions)),
@@ -1267,11 +1251,6 @@ namespace Test.BuildXL.Scheduler
                                     role, 
                                     fingerprinterTestKind)).ToArray()).Select(ec => ec.Cast<ReadOnlyArray<DirectoryArtifact>>())),
                        new FingerprintingTypeDescriptor<RewritePolicy>(RewritePolicy.DoubleWritesAreErrors, RewritePolicy.UnsafeFirstDoubleWriteWins),
-                       new FingerprintingTypeDescriptor<ContainerIsolationLevel>(
-                           ContainerIsolationLevel.None, 
-                           ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories, 
-                           ContainerIsolationLevel.IsolateExclusiveOpaqueOutputDirectories, 
-                           ContainerIsolationLevel.IsolateOutputFiles),
 
                        new FingerprintingTypeDescriptor<SealDirectoryContentFilter?>(
                            null,

@@ -21,7 +21,6 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.VmCommandProxy;
 using BuildXL.ProcessPipExecutor;
@@ -176,8 +175,6 @@ namespace Test.BuildXL.Scheduler.Utils
 
             m_sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
             
-            ProcessInContainerManager = new ProcessInContainerManager(LoggingContext, context.PathTable);
-
             DirectoryTranslator = new DirectoryTranslator();
             foreach (var directoryToTranslate in config.Engine.DirectoriesToTranslate)
             {
@@ -637,8 +634,6 @@ namespace Test.BuildXL.Scheduler.Utils
         SemanticPathExpander IFileContentManagerHost.SemanticPathExpander => PathExpander;
 
         public ISandboxConnection SandboxConnection => m_sandboxConnectionKext;
-
-        public ProcessInContainerManager ProcessInContainerManager { get; }
 
         public VmInitializer VmInitializer { get; }
 

@@ -72,7 +72,6 @@ namespace Test.BuildXL.Processes.Detours
                 A("C", "tool", "tool.exe"),
                 fam,
                 true,
-                null,
                 LoggingContext,
                 sidebandWriter: sharedOpaqueOutputLogger)
             {
@@ -153,8 +152,6 @@ namespace Test.BuildXL.Processes.Detours
                     XAssert.AreEqual(standardFiles.StandardError, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardError));
                 }
 
-                XAssert.IsFalse(readInfo.ContainerConfiguration.IsIsolationEnabled);
-
                 XAssert.AreEqual(sidebandLogFile, readInfo.SidebandWriter.SidebandLogFile);
                 XAssert.ArrayEqual(loggerRootDirs, readInfo.SidebandWriter.RootDirectories.ToArray());
 
@@ -168,7 +165,7 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        private DirectoryTranslator CreateDirectoryTranslator()
+        private static DirectoryTranslator CreateDirectoryTranslator()
         {
             var translator = new DirectoryTranslator();
             translator.AddTranslation(@"E:\", @"C:\");

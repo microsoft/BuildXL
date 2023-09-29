@@ -936,7 +936,8 @@ namespace Test.BuildXL.Processes
                 CmdHelper.CmdX64,
                 loggingContext: LoggingContext,
                 disableConHostSharing: false,
-                fileAccessManifest: new FileAccessManifest(pt) { ProbeDirectorySymlinkAsDirectory = true })
+                fileAccessManifest: new FileAccessManifest(pt) { ProbeDirectorySymlinkAsDirectory = true },
+                sidebandWriter: null)
             {
                 PipSemiStableHash = 0,
                 PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),

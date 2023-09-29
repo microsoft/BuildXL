@@ -56,7 +56,6 @@ namespace BuildXL.FrontEnd.Script.Ambients
         private readonly AmbientValueCache m_ambientValueCacheHelper;
         private readonly AmbientJson m_ambientJsonHelper;
         private readonly AmbientXml m_ambientXmlHelper;
-        private readonly AmbientContainerIsolationLevel m_ambientContainerIsolationLevel;
         private readonly AmbientUnsafe m_ambientUnsafe;
 
         /// <summary>Returns all ambient definitions keyed by <see cref="Type"/>.</summary>
@@ -110,7 +109,6 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 [typeof(Dummy)] = m_ambientValueCacheHelper = new AmbientValueCache(knownTypes),
                 [typeof(Dummy)] = m_ambientJsonHelper = new AmbientJson(knownTypes),
                 [typeof(Dummy)] = m_ambientXmlHelper = new AmbientXml(knownTypes),
-                [typeof(Dummy)] = m_ambientContainerIsolationLevel = new AmbientContainerIsolationLevel(knownTypes),
                 [typeof(Dummy)] = m_ambientUnsafe = new AmbientUnsafe(knownTypes),
             };
         }
@@ -168,7 +166,6 @@ namespace BuildXL.FrontEnd.Script.Ambients
             m_ambientValueCacheHelper.Initialize(global);
             m_ambientJsonHelper.Initialize(global);
             m_ambientXmlHelper.Initialize(global);
-            m_ambientContainerIsolationLevel.Initialize(global);
             m_ambientUnsafe.Initialize(global);
         }
 

@@ -8,13 +8,11 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Native.IO;
-using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Processes.Internal;
 using BuildXL.Utilities.Core;
@@ -51,7 +49,7 @@ namespace BuildXL.Processes
 
         private readonly PooledObjectWrapper<MemoryStream> m_fileAccessManifestStreamWrapper;
         private MemoryStream FileAccessManifestStream => m_fileAccessManifestStreamWrapper.Instance;
-        private FileAccessManifest m_fileAccessManifest;
+        private readonly FileAccessManifest m_fileAccessManifest;
 
         private readonly TaskSourceSlim<SandboxedProcessResult> m_resultTaskCompletionSource =
             TaskSourceSlim.Create<SandboxedProcessResult>();
@@ -61,10 +59,10 @@ namespace BuildXL.Processes
         private readonly LoggingContext m_loggingContext;
         private DetouredProcess? m_detouredProcess;
         private bool m_processStarted;
-        private SandboxedProcessOutputBuilder m_error;
-        private SandboxedProcessOutputBuilder m_output;
+        private readonly SandboxedProcessOutputBuilder m_error;
+        private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessTraceBuilder? m_traceBuilder;
-        private SandboxedProcessReports m_reports;
+        private readonly SandboxedProcessReports m_reports;
         private IAsyncPipeReader? m_reportReader;
         private readonly SemaphoreSlim m_reportReaderSemaphore = TaskUtilities.CreateMutex();
         private Dictionary<uint, ReportedProcess>? m_survivingChildProcesses;
@@ -162,7 +160,6 @@ namespace BuildXL.Processes
                     info.DisableConHostSharing,
                     info.LoggingContext,
                     info.TimeoutDumpDirectory,
-                    info.ContainerConfiguration,
                     // If there is any process configured to breakway from the sandbox, then we need to allow
                     // this to happen at the job object level
                     setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway,

@@ -26,8 +26,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return bytes;
         }
 
+        /// <nodoc /> // Using separate overload instead of using default parameters to avoid binary incompatibility issues
+        public ByteArrayPool(int bufferSize) : this(bufferSize, -1) { }
+
         /// <nodoc />
-        public ByteArrayPool(int bufferSize, int maxReserveInstances = -1)
+        public ByteArrayPool(int bufferSize, int maxReserveInstances)
             : base(() => CreateNew(bufferSize), Reset, maxReserveInstances)
         {
             ArraySize = bufferSize;

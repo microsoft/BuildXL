@@ -954,7 +954,8 @@ namespace BuildXL.Scheduler
                         cacheableProcess,
                         environment,
                         state,
-                        processExecutionResult.TwoPhaseCachingInfo);
+                        processExecutionResult.TwoPhaseCachingInfo,
+                        processExecutionResult.PipCacheDescriptorV2Metadata.Id);
 
                     if (storeCacheEntryResult.Converged && !IsProcessPreservingOutputs(environment, process))
                     {
@@ -5406,7 +5407,8 @@ namespace BuildXL.Scheduler
             CacheablePip pip,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
-            TwoPhaseCachingInfo cachingInfo)
+            TwoPhaseCachingInfo cachingInfo,
+            ulong descriptorUniqueId)
         {
             Contract.Requires(cachingInfo != null);
 
@@ -5443,7 +5445,8 @@ namespace BuildXL.Scheduler
                     pip.Description,
                     cachingInfo.WeakFingerprint.ToString(),
                     cachingInfo.PathSetHash.ToHex(),
-                    cachingInfo.StrongFingerprint.ToString());
+                    cachingInfo.StrongFingerprint.ToString(),
+                    descriptorUniqueId);
             }
             else
             {

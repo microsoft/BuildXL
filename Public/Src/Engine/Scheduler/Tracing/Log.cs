@@ -1068,8 +1068,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Stored a new cache entry for strong fingerprint {strongFingerprint} (reachable via weak fingerprint {weakFingerprint} and path-set {pathSetHash}).")]
-        internal abstract void TwoPhaseCacheEntryPublished(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, string strongFingerprint);
+            Message = "[{pipDescription}] Stored a new cache entry for strong fingerprint {strongFingerprint} (reachable via weak fingerprint {weakFingerprint} and path-set {pathSetHash}) uniqueId {uniqueId:X}")]
+        internal abstract void TwoPhaseCacheEntryPublished(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, string strongFingerprint, ulong uniqueId);
 
         [GeneratedEvent(
             (ushort)LogEventId.CacheFingerprintHitSources,

@@ -97,7 +97,14 @@ namespace BuildXL.ProcessPipExecutor
             ProcessStream outputContent = await GetProcessStreamFromOutput(result.StandardOutput);
             ProcessStream errorContent = await GetProcessStreamFromOutput(result.StandardError);
 
-            var processedResult = await m_pluginManager.ProcessResultAsync(ProcessInfo.FileName, ProcessInfo.Arguments, inputContent, outputContent, errorContent, result.ExitCode);
+            var processedResult = await m_pluginManager.ProcessResultAsync(ProcessInfo.FileName, 
+                                                                           ProcessInfo.Arguments,
+                                                                           inputContent,
+                                                                           outputContent,
+                                                                           errorContent,
+                                                                           result.ExitCode,
+                                                                           m_pip.FormattedSemiStableHash);
+
             if (!processedResult.Succeeded)
             {
                 return result;

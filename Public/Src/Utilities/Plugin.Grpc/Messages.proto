@@ -46,6 +46,7 @@ message ProcessResultMessage
     ProcessStream standardOut = 4;
     ProcessStream standardErr = 5;
     int32 exitCode = 6;
+    string pipSemiStableHash = 7;
 }
 
 message ProcessStream

@@ -285,6 +285,9 @@
   <data name="PluginLoadedFailureCounts" xml:space="preserve">
     <value>PluginLoadedFailureCounts</value>
   </data>
+  <data name="PluginUnregisteredCounts" xml:space="preserve">
+    <value>PluginUnregisteredCounts</value>
+  </data>
   <data name="PluginLoadedSuccessfulCounts" xml:space="preserve">
     <value>PluginLoadedSuccessfulCounts</value>
   </data>

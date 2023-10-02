@@ -34,7 +34,7 @@ namespace BuildXL.Plugin
 
             Stopwatch sw = Stopwatch.StartNew();
             var result = await continuation(request, context);
-            Logger.Debug($"Sent response for requestId:{requestId} method: {context.Method}, process takes {sw.ElapsedMilliseconds} ms");
+            Logger.Debug($"Sent response for requestId:{requestId} method: {context.Method}, process took {sw.ElapsedMilliseconds} ms");
             return result;
         }
 

@@ -29,6 +29,7 @@ namespace BuildXL.Plugin
                                                                                     ProcessStream input,
                                                                                     ProcessStream output,
                                                                                     ProcessStream error,
-                                                                                    int exitCode);
+                                                                                    int exitCode,
+                                                                                    string pipSemiStableHash);
     }
 }

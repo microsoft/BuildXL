@@ -210,7 +210,8 @@ namespace BuildXL.Plugin
                                                                                                          ProcessStream input,
                                                                                                          ProcessStream ouptut,
                                                                                                          ProcessStream error,
-                                                                                                         int exitCode)
+                                                                                                         int exitCode,
+                                                                                                         string pipSemiStableHash)
         {
             ProcessResultMessage message = new ProcessResultMessage
             {
@@ -219,6 +220,7 @@ namespace BuildXL.Plugin
                 ExitCode = exitCode,
                 StandardOut = ouptut,
                 StandardErr = error,
+                PipSemiStableHash = pipSemiStableHash,
             };
 
             if (input != null)

@@ -31,7 +31,6 @@ namespace BuildXL.Plugin
         private readonly LoggingContext m_loggingContext;
         private readonly IReadOnlyList<string> m_pluginPaths;
         private readonly string m_logDirectory;
-        private const string ResponseReceivedLogMessageFormat = "Received response for requestId:{0} for {1} in {2} ms after retry:{3}";
 
         private readonly List<PluginMessageType> m_defaultSupportedOperationResponse = new List<PluginMessageType> { PluginMessageType.Unknown };
 
@@ -67,6 +66,10 @@ namespace BuildXL.Plugin
         private int m_pluginProcessedRequestCounts = 0;
         /// <nodoc />
         public int PluginProcessedRequestCounts => m_pluginProcessedRequestCounts;
+
+        private int m_pluginUnregisteredCounts = 0;
+        /// <nodoc />
+        public int PluginUnregisteredCounts => m_pluginUnregisteredCounts;
         #endregion statistics
 
         /// <nodoc />
@@ -152,7 +155,7 @@ namespace BuildXL.Plugin
                 Interlocked.Increment(ref m_pluginProcessedRequestCounts);
                 Interlocked.Add(ref m_pluginTotalProcessTime, sw.ElapsedMilliseconds);
 
-                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, string.Format(CultureInfo.InvariantCulture, ResponseReceivedLogMessageFormat, response.RequestId, messageType, sw.ElapsedMilliseconds, response.Attempts));
+                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Received response for requestId:{response.RequestId} for {messageType} in {sw.ElapsedMilliseconds} ms after {response.Attempts} retries");
 
                 if (!response.Succeeded)
                 {
@@ -163,7 +166,7 @@ namespace BuildXL.Plugin
             }
             catch(Exception e)
             {
-                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Grpc call with type {messageType.ToString()} failed with {e}");
+                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Grpc call with type {messageType} failed with {e}");
                 return new Failure<T>(defaultReturnValue);
             }
         }
@@ -235,7 +238,8 @@ namespace BuildXL.Plugin
                                                                                      ProcessStream input,
                                                                                      ProcessStream output,
                                                                                      ProcessStream error,
-                                                                                     int exitCode)
+                                                                                     int exitCode,
+                                                                                     string pipSemiStableHash)
         {
             IPlugin plugin = null;
             var messageType = PluginMessageType.ProcessResult;
@@ -246,7 +250,7 @@ namespace BuildXL.Plugin
 
             return await CallWithEnsurePluginCreatedWrapperAsync(
                 messageType, plugin,
-                () => { return plugin.ProcessResultAsync(executable, arguments, input, output, error, exitCode); },
+                () => { return plugin.ProcessResultAsync(executable, arguments, input, output, error, exitCode, pipSemiStableHash); },
                 new ProcessResultMessageResponse());
         }
 
@@ -331,6 +335,11 @@ namespace BuildXL.Plugin
                     if (!success)
                     {
                         Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Unable to remove plugin handler for {messageType}");
+                    }
+                    else
+                    {
+                        Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Removed plugin handler for {messageType}");
+                        Interlocked.Increment(ref m_pluginUnregisteredCounts);
                     }
                 }
             }

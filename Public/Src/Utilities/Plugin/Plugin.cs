@@ -173,9 +173,10 @@ namespace BuildXL.Plugin
                                                                                            ProcessStream input,
                                                                                            ProcessStream output,
                                                                                            ProcessStream error,
-                                                                                           int exitCode)
+                                                                                           int exitCode,
+                                                                                           string pipSemiStableHash)
         {
-            return PluginClient.ProcessResultAsync(executable, arguments, input, output, error, exitCode);
+            return PluginClient.ProcessResultAsync(executable, arguments, input, output, error, exitCode, pipSemiStableHash);
         }
     }
 }

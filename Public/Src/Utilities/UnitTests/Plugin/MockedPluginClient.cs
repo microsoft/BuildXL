@@ -46,7 +46,8 @@ namespace Test.BuildXL.Plugin
                                                                                            ProcessStream input,
                                                                                            ProcessStream output,
                                                                                            ProcessStream error,
-                                                                                           int exitCode)
+                                                                                           int exitCode,
+                                                                                           string pipSemiStableHash)
         {
             return MockedProcessResultFunc.Invoke();
         }

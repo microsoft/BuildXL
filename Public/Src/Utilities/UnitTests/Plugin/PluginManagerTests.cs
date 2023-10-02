@@ -324,7 +324,7 @@ namespace Test.BuildXL.Plugin
 
             var args = GetMockPluginCreationArguments((options) => m_mockedPluginClient);
             var res  = await m_pluginManager.GetOrCreateAsync(args);
-            var processResultMessageResponse = await m_pluginManager.ProcessResultAsync("", "", null, null, null, 0);
+            var processResultMessageResponse = await m_pluginManager.ProcessResultAsync("", "", null, null, null, 0, "");
 
             Assert.False(processResultMessageResponse.Succeeded);
         }
@@ -336,7 +336,7 @@ namespace Test.BuildXL.Plugin
 
             var args = GetMockPluginCreationArguments((options) => m_mockedPluginClient);
             var res = await m_pluginManager.GetOrCreateAsync(args);
-            var processResultMessageResponse = await m_pluginManager.ProcessResultAsync("", "", null, null, null, 0);
+            var processResultMessageResponse = await m_pluginManager.ProcessResultAsync("", "", null, null, null, 0, "");
 
             Assert.False(processResultMessageResponse.Succeeded);
         }
@@ -362,7 +362,7 @@ namespace Test.BuildXL.Plugin
                 Content = "RETRY",
             };
 
-            var processResultMessageResponse = await m_pluginManager.ProcessResultAsync("", "", null, processOutput, null, processExitCode);
+            var processResultMessageResponse = await m_pluginManager.ProcessResultAsync("", "", null, processOutput, null, processExitCode, "");
             Assert.True(processResultMessageResponse.Succeeded);
             Assert.Equal(retryExitCode, processResultMessageResponse.Result.ExitCode);
         }
@@ -387,7 +387,7 @@ namespace Test.BuildXL.Plugin
                 Content = "Don't retry",
             };
 
-            var processResultMessageResponse = await m_pluginManager.ProcessResultAsync("", "", null, processOutput, null, processExitCode);
+            var processResultMessageResponse = await m_pluginManager.ProcessResultAsync("", "", null, processOutput, null, processExitCode, "");
             Assert.True(processResultMessageResponse.Succeeded);
             Assert.Equal(processExitCode, processResultMessageResponse.Result.ExitCode);
         }

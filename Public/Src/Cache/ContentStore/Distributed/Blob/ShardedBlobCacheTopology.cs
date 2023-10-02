@@ -43,15 +43,6 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
     private readonly BlobCacheContainerName[] _containers;
     private readonly IShardingScheme<int, BlobCacheStorageAccountName> _scheme;
 
-    /// <remarks>
-    /// We will reuse an HttpClient for the transport backing the blob clients. HttpClient is meant to be reused anyway
-    /// (https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpclient?view=net-7.0#instancing)
-    /// but crucially we have the need to configure the amount of open connections: when using the defaults,
-    /// the number of connections is unbounded, and we have observed builds where there end up being tens of thousands
-    /// of open sockets, which can (and did) hit the per-process limit of open files, crashing the engine.
-    /// </summary>
-    private readonly HttpClient _httpClient;
-
     private readonly record struct Location(BlobCacheStorageAccountName Account, BlobCacheContainerName Container);
 
     /// <summary>
@@ -75,19 +66,6 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
 
         _scheme = _configuration.ShardingScheme.Create();
         _containers = GenerateContainerNames(_configuration.Universe, _configuration.Namespace, _configuration.ShardingScheme);
-
-        _httpClient = new HttpClient(
-            new HttpClientHandler()
-            {
-                // If left unbounded, we have observed spikes of >65k open sockets (at which point we hit
-                // the OS limit of open files for the process - on Linux, where sockets count as files).
-                // Running builds where we limit this value all the way down to 100 didn't see
-                // any noticeable performance impact, so 30k shouldn't pose a problem.
-                // The configurable limit is per-client and per-server, but because we will reuse this HttpClient
-                // for all BlobClients and the 'server' (blob storage endpoint) is also always the same,
-                // we are effectively limiting the number of open connections in general.
-                MaxConnectionsPerServer = 30_000
-            });
     }
 
     internal static BlobCacheContainerName[] GenerateContainerNames(string universe, string @namespace, ShardingScheme scheme)
@@ -207,13 +185,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             async context =>
             {
                 var credentials = await _configuration.SecretsProvider.RetrieveBlobCredentialsAsync(context, account);
-
-                BlobClientOptions blobClientOptions = new(BlobClientOptions.ServiceVersion.V2021_02_12)
-                {
-                    Transport = new HttpClientTransport(_httpClient)
-                };
-
-                var containerClient = credentials.CreateContainerClient(container.ContainerName, blobClientOptions);
+                var containerClient = credentials.CreateContainerClient(container.ContainerName);
 
                 try
                 {

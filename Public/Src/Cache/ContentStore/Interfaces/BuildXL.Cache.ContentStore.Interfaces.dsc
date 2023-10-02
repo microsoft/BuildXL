@@ -20,6 +20,7 @@ namespace Interfaces {
                 NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Linq.dll,
                 NetFx.System.Xml.dll,
+                NetFx.System.Net.Http.dll,
             ]),
             ...addIf(qualifier.targetFramework === "netstandard2.0",
                 importFrom("System.Threading.Tasks.Dataflow").pkg

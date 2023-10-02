@@ -264,7 +264,7 @@ namespace ContentStoreTest.Distributed.Redis
                 _fileSystem.CreateDirectory(storageServerWorkspacePath);
                 _portNumber = PortExtensions.GetNextAvailablePort();
 
-                var args = $"--blobPort {_portNumber} --location {storageServerWorkspacePath} --skipApiVersionCheck";
+                var args = $"--blobPort {_portNumber} --location {storageServerWorkspacePath} --skipApiVersionCheck --silent --loose";
                 _logger.Debug($"Running cmd=[{storageServerPath} {args}]");
 
                 _process = new ProcessUtility(storageServerPath, args, createNoWindow: true, workingDirectory: Path.GetDirectoryName(storageServerPath), environment: CreateEnvironment(accounts));

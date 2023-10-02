@@ -6,16 +6,22 @@
       "value": [
         "northcentralus",
         "southcentralus",
+        "centralus",
+        "westus",
+        "westus2"
       ]
     },
     "shards": {
       "value": 100
     },
     "purpose": {
-      "value": "juguzman"
+      "value": "cbrmprod"
     },
     "gcStrategy": {
       "value": "service"
+    },
+    "dns": {
+      "value": "AzureDnsZone"
     }
   }
 }

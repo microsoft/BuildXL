@@ -26,6 +26,12 @@ param purpose string
 ])
 param gcStrategy string
 
+@allowed([
+  'Standard'
+  'AzureDnsZone'
+])
+param dns string = 'Standard'
+
 // See: https://docs.microsoft.com/en-us/azure/storage/blobs/storage-feature-support-in-storage-accounts
 // SKU:
 //   'Premium_LRS'
@@ -44,7 +50,7 @@ param gcStrategy string
 //   'StorageV2'
 
 // Please note, the unique portion takes into consideration all variables in order to ensure we can always provision
-var unique = uniqueString(resourceGroup().id, purpose, location, string(shard), sku, kind)
+var unique = uniqueString(resourceGroup().id, location, sku, kind, string(shard), purpose, gcStrategy)
 // Must be between 3 and 24 characters, numbers and lowercase letters only
 // Azure storage collocates storage accounts based on their names, so it matters that each storage account in the system
 // gets a unique prefix, as it ensures that they wind up in different servers.
@@ -70,6 +76,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   properties: {
     allowBlobPublicAccess: false
     allowCrossTenantReplication: false
+    dnsEndpointType: dns
   }
 
   resource blobService 'blobServices@2021-09-01' = {

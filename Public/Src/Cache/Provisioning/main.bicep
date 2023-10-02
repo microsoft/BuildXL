@@ -33,10 +33,22 @@ param purpose string
 ])
 param gcStrategy string = 'service'
 
+@allowed([
+  'Standard'
+  'AzureDnsZone'
+])
+param dns string = 'Standard'
+
+// This has to be done this way because we need to scope the deployment of the `BlobL3Module` below to the resource
+// group `resourceGroup`, which we also have to create. Therefore, the deployment consists of creating all the resource
+// groups and then creating the resources for each resource group separately.
 targetScope = 'subscription'
 
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = [for locidx in range(0, length(locations)): {
-  name: 'blobl3-${purpose}-${locations[locidx]}'
+  // REMARK: the number of shards isn't part of the unique name that we generate because we might want to reshard 
+  // later, and then it'd be a hassle for it to be part of the name because all accounts would wind up with a different
+  // name.
+  name: 'blobl3-${purpose}-${locations[locidx]}-${uniqueString(locations[locidx], sku, kind, purpose, gcStrategy)}'
   location: locations[locidx]
 }]
 
@@ -50,5 +62,6 @@ module BlobL3Module 'location.bicep' = [for locidx in range(0, length(locations)
     shards: shards
     purpose: purpose
     gcStrategy: gcStrategy
+    dns: dns
   }
 }]

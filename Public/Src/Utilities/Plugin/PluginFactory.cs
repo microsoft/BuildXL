@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Plugin
 {
@@ -15,43 +14,31 @@ namespace BuildXL.Plugin
     public class PluginFactory: IPluginFactory
     {
         /// <nodoc />
-        private readonly LoggingContext m_loggingContext;
-
-        /// <nodoc />
-        public PluginFactory(LoggingContext loggingContext)
-        {
-            m_loggingContext = loggingContext;
-        }
+        public static PluginFactory Instance = new PluginFactory();
 
         private const string StartPluginProcessArgumentsForamt = "--ipcmoniker {0} --logdir {1} --logVerbose {2}";
 
-        private IPlugin PluginCreation_RunInProcess(PluginCreationArgument argument)
+        private readonly Func<PluginCreationArgument, IPlugin> m_pluginRunInProcessCreationFunc = argument =>
         {
-            Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"PluginFactory starting plugin {argument.PluginPath} with args " +
-                $"{string.Format(StartPluginProcessArgumentsForamt, argument.ConnectionOption.IpcMoniker, argument.ConnectionOption.LogDir, argument.ConnectionOption.LogVerbose)}");
-
             var processStartInfo = new ProcessStartInfo(argument.PluginPath)
             {
                 Arguments = string.Format(StartPluginProcessArgumentsForamt, argument.ConnectionOption.IpcMoniker, argument.ConnectionOption.LogDir, argument.ConnectionOption.LogVerbose),
                 UseShellExecute = false,
                 RedirectStandardOutput = false,
-                RedirectStandardError = true,
             };
 
             string id = argument.PluginId;
 
             var process = new Process();
             process.StartInfo = processStartInfo;
-            bool success = process.Start();
-
-            Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"PluginFactory start result for plugin {argument.PluginPath}: {success}");
+            process.Start();
 
             var client = argument.CreatePluginClientFunc.Invoke(argument.ConnectionOption);
             var plugin = new Plugin(id, argument.PluginPath, process, client);
             return plugin;
-        }
+        };
 
-        private IPlugin PluginCreation_RunInThread(PluginCreationArgument argument)
+        private readonly Func<PluginCreationArgument, IPlugin> m_pluginRunInThreadCreationFunc = argument =>
         {
             Contract.RequiresNotNull(argument, "argument can't be null");
             Contract.RequiresNotNull(argument.RunInPluginThreadAction, "runInpluginThead can't be null");
@@ -65,14 +52,14 @@ namespace BuildXL.Plugin
             var client = argument.CreatePluginClientFunc.Invoke(argument.ConnectionOption);
             var plugin = new Plugin(argument.PluginId, argument.PluginPath, pluginTask, cancellationTokenSource, client);
             return plugin;
-        }
+        };
 
         /// <nodoc />
         public IPlugin CreatePlugin(PluginCreationArgument pluginCreationArgument)
         {
             return pluginCreationArgument.RunInSeparateProcess ?
-                    PluginCreation_RunInProcess(pluginCreationArgument) :
-                    PluginCreation_RunInThread(pluginCreationArgument);
+                    m_pluginRunInProcessCreationFunc.Invoke(pluginCreationArgument) :
+                    m_pluginRunInThreadCreationFunc.Invoke(pluginCreationArgument);
         }
 
         /// <nodoc />
@@ -91,8 +78,6 @@ namespace BuildXL.Plugin
                 }
                 else
                 {
-                    string stderr = await plugin.PluginProcess.StandardError.ReadToEndAsync();
-                    Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Plugin process stderr:\n{stderr}");
                     plugin.PluginProcess.Kill();
                     return pluginCreationResult.Failure;
                 }
@@ -107,6 +92,19 @@ namespace BuildXL.Plugin
         public string CreatePluginId()
         {
             return Guid.NewGuid().ToString();
+        }
+
+        /// <nodoc />
+        public static void SetGrpcPluginClientBasedOnMessageType(IPlugin plugin, PluginMessageType messageType)
+        {
+            //switch(messageType)
+            //{
+            //    case PluginMessageType.ParseLogMessage:
+            //        plugin.SetLogParsePluginClient();
+            //        break;
+            //    default:
+            //        break;
+            //}
         }
     }
 }

@@ -80,7 +80,7 @@ jobs:
                         "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
                         "CacheId": "L3Cache",
                         "Universe": "blob3bxlselfhost",
-                        "RetentionPolicyInDays": 1,
+                        "RetentionPolicyInDays": 6,
                         "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
                         "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
                       },
@@ -128,7 +128,7 @@ jobs:
       rm -f Out/CacheConfig.json
       tee Out/CacheConfig.json << EOF
       {
-          "RetentionPolicyInDays":  1,
+          "RetentionPolicyInDays":  6,
           "CacheSizeMb":  20240,
           "Type":  "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory",
           "DatacenterWide":  false,

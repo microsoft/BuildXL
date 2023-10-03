@@ -32,11 +32,6 @@ namespace BuildXL.Scheduler.Distribution
         public static readonly WorkerResource AvailableCacheLookupSlots = new WorkerResource(nameof(AvailableCacheLookupSlots), Precedence.AvailableCacheLookupSlots);
 
         /// <summary>
-        /// See <see cref="Worker.AcquiredIpcSlots"/>
-        /// </summary>
-        public static readonly WorkerResource AvailableIpcSlots = new WorkerResource(nameof(AvailableIpcSlots), Precedence.AvailableIpcSlots);
-
-        /// <summary>
         /// See <see cref="Worker.AcquiredMaterializeInputSlots"/>
         /// </summary>
         public static readonly WorkerResource AvailableMaterializeInputSlots = new WorkerResource(nameof(AvailableMaterializeInputSlots), Precedence.AvailableMaterializeInputSlots);
@@ -128,7 +123,6 @@ namespace BuildXL.Scheduler.Distribution
             Status,
             TotalCacheLookupSlots,
             TotalProcessSlots,
-            AvailableIpcSlots,
             AvailableCacheLookupSlots,
             AvailableProcessSlots,
             AvailableMemoryMb,

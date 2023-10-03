@@ -80,7 +80,6 @@ namespace BuildXL.Scheduler
                 if (lastConcurrencyLimiter.Value == WorkerResource.AvailableProcessSlots ||
                     lastConcurrencyLimiter.Value == WorkerResource.AvailableMaterializeInputSlots ||
                     lastConcurrencyLimiter.Value == WorkerResource.AvailableCacheLookupSlots ||
-                    lastConcurrencyLimiter.Value == WorkerResource.AvailableIpcSlots ||
                     lastConcurrencyLimiter.Value == WorkerResource.ModuleAffinity)
                 {
                     return LimitingResource.ConcurrencyLimit;

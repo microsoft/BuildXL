@@ -2846,6 +2846,12 @@ namespace BuildXL.Scheduler
                 return;
             }
 
+            if (m_chooseWorkerCpu.LastConcurrencyLimiter != null)
+            {
+                // If there is a resource limiting the scheduler, we should not release any worker.
+                return;
+            }
+
             long numProcessPipsWaiting = numProcessPipsPending - numProcessPipsAllocatedSlots;
 
             // Try releasing the remote worker which has the lowest acquired slots for process execution.

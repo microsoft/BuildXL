@@ -158,6 +158,9 @@ namespace BuildXL.AdoBuildRunner.Build
                 // so temporarily disable them. This can be removed once the features are fixed (TODO #2106086)
                 "/useHistoricalRamUsageInfo-",
                 "/earlyWorkerRelease-",
+                // This flag could make sense to enable as default across the board (not only for ADO), but for now
+                // let's keep dev builds out of it until we can validate it doesn't introduce a regression.
+                "/useHistoricalCpuUsageInfo+"
             };
 
             // Enable gRPC encryption

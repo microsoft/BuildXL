@@ -350,9 +350,9 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bo
     const int PrefixLength = sizeof(uint);
     char buffer[PIPE_BUF] = {0};
     int maxMessageLength = PIPE_BUF - PrefixLength;
-    int numWritten = BuildReport(&buffer[PrefixLength], maxMessageLength, report, report.path);
+    int reportSize = BuildReport(&buffer[PrefixLength], maxMessageLength, report, report.path);
 
-    if (numWritten >= maxMessageLength)
+    if (reportSize >= maxMessageLength)
     {
         // For debug messages it is fine to truncate the message, otherwise, this is a problem and we must fail
         if (!isDebugMessage)
@@ -362,22 +362,22 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bo
         }
         else
         {
-            // The report couldn't be fully built for a debug message. Let's crop the message so it fits.
+            // The report couldn't be fully built for a debug message. Let's crop the message (report.path) so it fits.
             // We calculate the maximum size allowed, considering that 'path' is the last component of the
             // message (plus the \n that ends any report, hence the -1), so it's the last thing 
             // we tried to write when hitting the size limit.
-            int truncatedSize = PATH_MAX - (numWritten - maxMessageLength) - 1;
+            int truncatedSize = strlen(report.path) - (reportSize - maxMessageLength) - 1;
             char truncatedMessage[truncatedSize] = {0};
 
             // Let's leave an ending \0
             strncpy(truncatedMessage, report.path, truncatedSize - 1);
 
-            numWritten = BuildReport(&buffer[PrefixLength], maxMessageLength, report, truncatedMessage);
+            reportSize = BuildReport(&buffer[PrefixLength], maxMessageLength, report, truncatedMessage);
         }
     }
 
-    *(uint*)(buffer) = numWritten;
-    return Send(buffer, std::min(numWritten + PrefixLength, PIPE_BUF), useSecondaryPipe);
+    *(uint*)(buffer) = reportSize;
+    return Send(buffer, std::min(reportSize + PrefixLength, PIPE_BUF), useSecondaryPipe);
 }
 
 void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode, pid_t associatedPid)

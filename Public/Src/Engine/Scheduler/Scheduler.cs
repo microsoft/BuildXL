@@ -2552,6 +2552,9 @@ namespace BuildXL.Scheduler
                 PipStateCountersSnapshot writeFileStats = new PipStateCountersSnapshot();
                 writeFileStats.AggregateByPipTypes(m_pipStateCountersSnapshots, new PipType[] { PipType.WriteFile });
 
+                // The number of processes executing on the orchestrator and the remote workers in a distributed build.
+                var processesExecutingOnWorkers = Workers.Where(a => a.IsAvailable).Sum(a => a.AcquiredProcessSlots);
+
                 if (isLoggingEnabled)
                 {
                     // Log pip statistics to Console
@@ -2567,7 +2570,7 @@ namespace BuildXL.Scheduler
                         servicePipsRunning: m_serviceManager.RunningServicesCount,
                         perfInfoForConsole: m_perfInfo.ConsoleResourceSummary,
                         pipsWaitingOnResources: pipsWaitingOnResources,
-                        procsExecuting: LocalWorker.RunningPipExecutorProcesses.Count,
+                        procsExecuting: processesExecutingOnWorkers,
                         procsSucceeded: m_processStateCountersSnapshot[PipState.Done],
                         procsFailed: m_processStateCountersSnapshot[PipState.Failed],
                         procsSkippedDueToFailedDependencies: m_processStateCountersSnapshot[PipState.Skipped],

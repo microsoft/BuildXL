@@ -213,8 +213,11 @@ namespace BuildXL.Processes
                 DegreeOfParallelism: 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
                 SingleProducerConstrained: useSingleProducer);
 
-            m_pendingReports = ActionBlockSlim.Create<AccessReport>(configuration: executionOptions, HandleAccessReport);
-
+            m_pendingReports = ActionBlockSlim.Create<AccessReport>(configuration: executionOptions,
+                (accessReport) =>
+                {
+                    HandleAccessReport(accessReport, info.ForceAddExecutionPermission);
+                });
             // install 'ProcessReady' and 'ProcessStarted' handlers to inform the sandbox
             ProcessReady += () => SandboxConnection.NotifyPipReady(info.LoggingContext, info.FileAccessManifest, this, m_pendingReports.Completion);
             ProcessStarted += (pid) => OnProcessStartedAsync(info).GetAwaiter().GetResult();
@@ -280,7 +283,10 @@ namespace BuildXL.Processes
                 {
                     // This is a workaround for an issue that appears on Linux where some executables in the BuildXL
                     // nuget/npm package may not have the execute bit set causing a permission denied error
-                    _ = FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName);
+                    if (info.ForceAddExecutionPermission)
+                    {
+                        _ = FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName);
+                    }
 
                     process.StartInfo.Arguments = $"{process.StartInfo.FileName} {process.StartInfo.Arguments}";
                     process.StartInfo.FileName = EnvExecutable;
@@ -602,7 +608,7 @@ namespace BuildXL.Processes
 #endif
         }
 
-        private async Task FeedStdInAsync(SandboxedProcessInfo info, string? processStdinFileName)
+        private async Task FeedStdInAsync(SandboxedProcessInfo info, string? processStdinFileName, bool forceAddExecutionPermission = true)
         {
             Contract.Requires(info.RootJailInfo == null || !NeedsShellWrapping(), "Cannot run root jail on this OS");
 
@@ -651,7 +657,10 @@ namespace BuildXL.Processes
 
             lines.Add($"exec {cmdLine}");
 
-            SetExecutePermissionIfNeeded(info.FileName, throwIfNotFound: false);
+            if (info.ForceAddExecutionPermission)
+            {
+                SetExecutePermissionIfNeeded(info.FileName, throwIfNotFound: false);
+            }
             foreach (string line in lines)
             {
                 await Process.StandardInput.WriteLineAsync(line);
@@ -836,7 +845,7 @@ namespace BuildXL.Processes
             m_sumOfReportQueueTimesUs += (stats.DequeueTime - stats.EnqueueTime) / 1000;
         }
 
-        private void HandleAccessReport(AccessReport report)
+        private void HandleAccessReport(AccessReport report, bool forceAddExecutionPermission)
         {
             if (ShouldReportFileAccesses && report.Operation != FileOperation.OpDebugMessage)
             {
@@ -869,7 +878,7 @@ namespace BuildXL.Processes
                 // The process is statically linked, a ptrace runner needs to be started up
                 if (report.Operation == FileOperation.OpStaticallyLinkedProcess)
                 {
-                    StartPTraceRunner(report.Pid, reportPath);
+                    StartPTraceRunner(report.Pid, reportPath, forceAddExecutionPermission);
                 }
 
                 var pathExists = true;
@@ -1067,7 +1076,7 @@ namespace BuildXL.Processes
                 I($"{operation}:{pid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{path}|{isDirectory}|e:{report.Statistics.EnqueueTime}|h:{processTime}us|q:{queueTime}us");
         }
 
-        private void StartPTraceRunner(int pid, string path)
+        private void StartPTraceRunner(int pid, string path, bool forceAddExecutionPermission)
         {
             var paths = SandboxConnectionLinuxDetours.GetPaths(RootJailInfo, UniqueName);
             var args = $"-c {pid} -x {path}";
@@ -1094,8 +1103,9 @@ namespace BuildXL.Processes
                 // We will kill these manually if the pip is exiting
                 Timeout.InfiniteTimeSpan,
                 // The runner will only log to stderr if there's a problem, other logs go to the main log using the fifo
-                errorBuilder: line => { if (line != null) { Logger.Log.PTraceRunnerError(m_loggingContext, line); } }
-            );
+                errorBuilder: line => { if (line != null) { Logger.Log.PTraceRunnerError(m_loggingContext, line); } },
+                forceAddExecutionPermission: forceAddExecutionPermission
+           );
 
             ptraceRunner.Start();
             m_ptraceRunners.Add(runnerTask(ptraceRunner));

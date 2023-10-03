@@ -96,7 +96,7 @@ jobs:
   # This step currently only builds selfhost with the --minimal flag, but will be extended in the future to run more unit tests with ptrace
   - bash: |
       set -eu
-      bash bxl.sh /ado /cacheMiss:"[Bxl.Selfhost.Linux.PTrace]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- /logsDirectory:"Out/Logs/Build" --minimal --internal --use-dev "/p:BUILDXL_FINGERPRINT_SALT='Bxl.Selfhost.Linux.PTrace.CasingPR'" /forceEnableLinuxPTraceSandbox+ /injectCacheMisses:0.3
+      bash bxl.sh /ado /cacheMiss:"[Bxl.Selfhost.Linux.PTrace]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- /logsDirectory:"Out/Logs/Build" --minimal --internal --use-dev /forceEnableLinuxPTraceSandbox+ /injectCacheMisses:0.3
     displayName: Build BXL with LKG and PTrace
     workingDirectory: /home/subst
     env:

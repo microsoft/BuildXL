@@ -837,7 +837,8 @@ namespace BuildXL.ProcessPipExecutor
                         sandboxConnection: sandboxConnection,
                         sidebandWriter: sidebandWriter,
                         detoursEventListener: m_detoursListener,
-                        fileSystemView: fileSystemView)
+                        fileSystemView: fileSystemView,
+                        forceAddExecutionPermission: m_sandboxConfig.ForceAddExecutionPermission)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,

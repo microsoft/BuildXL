@@ -80,11 +80,6 @@ namespace Test.BuildXL.FrontEnd.Rush
             // Make sure the user profile and temp folders exist
             Directory.CreateDirectory(RushUserProfile);
             Directory.CreateDirectory(RushTempFolder);
-
-            // TODO Bug 2073919- this is a temporary workaround to tests that are flakey due to the execute permission
-            // not correctly transiting through cache
-            AssertTrue(FileUtilities.TrySetExecutePermissionIfNeeded(PathToRush).Succeeded);
-            AssertTrue(FileUtilities.TrySetExecutePermissionIfNeeded(PathToNode).Succeeded);
         }
 
         protected SpecEvaluationBuilder Build(

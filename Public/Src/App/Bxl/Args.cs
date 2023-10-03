@@ -381,6 +381,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "disableIsObsoleteCheckDuringConversion",
                             sign => frontEndConfiguration.DisableIsObsoleteCheckDuringConversion = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "forceAddExecutionPermission",
+                            sign => sandboxConfiguration.ForceAddExecutionPermission = sign),
                         OptionHandlerFactory.CreateOption2(
                             "distributedBuildRole",
                             "dbr",

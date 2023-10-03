@@ -80,6 +80,11 @@ namespace BuildXL.Utilities.Core
         private readonly Action<string> m_outputBuilder;
         private readonly Action<string> m_errorBuilder;
 
+        /// <summary>
+        /// Force set the execute permission bit for the root process of process pips in Linux builds.
+        /// </summary>
+        private readonly bool m_forceAddExecutionPermission;
+
         private int m_processId = -1;
 
         private int GetProcessIdSafe()
@@ -136,7 +141,8 @@ namespace BuildXL.Utilities.Core
             Action<string> errorBuilder = null,
             string provenance = null,
             Action<string> logger = null,
-            Action dumpProcessTree = null)
+            Action dumpProcessTree = null,
+            bool forceAddExecutionPermission = true)
         {
             Contract.RequiresNotNull(process);
 
@@ -160,6 +166,7 @@ namespace BuildXL.Utilities.Core
             m_timeout = timeout;
             m_provenance = provenance;
             m_dumpProcessTree = dumpProcessTree;
+            m_forceAddExecutionPermission = forceAddExecutionPermission;
         }
 
         /// <summary>
@@ -217,7 +224,11 @@ namespace BuildXL.Utilities.Core
 
             try
             {
-                SetExecutePermissionIfNeeded(Process.StartInfo.FileName);
+                if (m_forceAddExecutionPermission)
+                {
+                    SetExecutePermissionIfNeeded(Process.StartInfo.FileName);
+                }
+
                 Process.Start();
             }
             catch (Win32Exception e)

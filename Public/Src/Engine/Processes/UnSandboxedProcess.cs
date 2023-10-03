@@ -182,7 +182,8 @@ namespace BuildXL.Processes
                     {
                         LogProcessState($"Unable to generate core dump: {m_dumpCreationException.GetLogEventMessage()}");
                     }
-                });
+                },
+                forceAddExecutionPermission: info.ForceAddExecutionPermission);
         }
 
         /// <summary>

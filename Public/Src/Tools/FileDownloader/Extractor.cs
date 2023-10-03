@@ -25,7 +25,7 @@ namespace Tool.Download
         private static readonly Dictionary<string, string> packagesToBeChecked = new Dictionary<string, string>
         {
             {"NodeJs.linux-x64",  "node-v18.6.0-linux-x64/bin/node"},
-            {"YarnTool", "yarn-v1.22.19/bin/yarn"}
+            {"DotNet-Runtime.linux", "dotnet"}
         };
 
         private Extractor() : base("Extractor")
@@ -141,7 +141,7 @@ namespace Tool.Download
                                 {
                                     if (target.Contains(packageName))
                                     {
-                                        if (!CheckForNodePermissions(target, packagesToBeChecked[packageName]))
+                                        if (!SetExecutePermissionsForExtractedFiles(target, packagesToBeChecked[packageName]))
                                         {
                                             return false;
                                         }
@@ -197,34 +197,21 @@ namespace Tool.Download
         }
 
         /// <summary>
-        /// This method is used to check if the execute permission bit has been set or not.
+        /// This method is used to set the execute permissions bit for the extracted files.
         /// </summary>
         /// <remarks>
-        /// In the method below we are checking this specifically for Node package in linux, as that was causing the issue.
+        /// In the method below we are adding the bit specifically for Node and Dotnet package in linux, as they are causing the issue.
+        /// This is only set for the BuildXL.Internal repo build and is not expected to kick in for end user builds.
+        /// It is expected to be shortlived and probably generalized to setting the execute permission for all extractor output.
         /// TODO: Need to remove this hack once the bug is fixed. Refer bug https://dev.azure.com/mseng/1ES/_workitems/edit/2073919 for further information.
         /// </remarks>
-        private bool CheckForNodePermissions(string target, string relativePath)
+        private bool SetExecutePermissionsForExtractedFiles(string target, string relativePath)
         {
             string fullPathForExecutableFile = Path.Combine(target, relativePath);
 
             if (File.Exists(fullPathForExecutableFile))
             {
-                var mode = GetFilePermissionsForFilePath(fullPathForExecutableFile, false);
-                if (mode < 0)
-                {
-                    Console.Error.WriteLine($"Failed to retrieve file permissions for : {fullPathForExecutableFile}");
-                    return false;
-                }
-                else
-                {
-                    // Check if the execute file permission bit has been set or not.
-                    var filePermissions = checked((FilePermissions)mode);
-                    if ((filePermissions & FilePermissions.S_IXUSR) == FilePermissions.S_IXUSR)
-                    {
-                        Console.Error.WriteLine($"File : {fullPathForExecutableFile} does not have the execute bit set for the user account");
-                        return false;
-                    }
-                }
+                _ = FileUtilities.TrySetExecutePermissionIfNeeded(fullPathForExecutableFile);
             }
             else
             {

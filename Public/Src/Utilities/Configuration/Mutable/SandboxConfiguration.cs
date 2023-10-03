@@ -58,6 +58,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnconditionallyEnableLinuxPTraceSandbox = false;
             // TODO: flip the default once we have verified this is not a breaking change
             IgnoreDeviceIoControlGetReparsePoint = true;
+            ForceAddExecutionPermission = true;
         }
 
         /// <nodoc />
@@ -114,6 +115,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AlwaysRemoteInjectDetoursFrom32BitProcess = template.AlwaysRemoteInjectDetoursFrom32BitProcess;
             UnconditionallyEnableLinuxPTraceSandbox = template.UnconditionallyEnableLinuxPTraceSandbox;
             IgnoreDeviceIoControlGetReparsePoint = template.IgnoreDeviceIoControlGetReparsePoint;
+            ForceAddExecutionPermission = template.ForceAddExecutionPermission;
         }
 
         /// <inheritdoc />
@@ -299,5 +301,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool IgnoreDeviceIoControlGetReparsePoint { get; set; }
+
+        /// <inheritdoc/>
+        public bool ForceAddExecutionPermission {  get; set; }
     }
 }

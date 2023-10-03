@@ -922,6 +922,12 @@ namespace BuildXL
                 HelpLevel.Verbose
                 );
 
+            hw.WriteOption(
+                "/forceAddExecutionPermission[+|-]",
+                Strings.HelpText_DisplayHelp_ForceAddExecutionPermission,
+                HelpLevel.Verbose
+                );
+
             #endregion
 
             hw.WriteBanner(

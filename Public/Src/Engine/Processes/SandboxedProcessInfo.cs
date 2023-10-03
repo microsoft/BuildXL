@@ -132,7 +132,8 @@ namespace BuildXL.Processes
              IDetoursEventListener? detoursEventListener = null,
              ISandboxConnection? sandboxConnection = null,
              bool createJobObjectForCurrentProcess = true,
-             SandboxedProcessResourceMonitoringConfig? monitoringConfig = null)
+             SandboxedProcessResourceMonitoringConfig? monitoringConfig = null,
+             bool forceAddExecutionPermission = true)
              : this(
                    new PathTable(),
                    fileStorage,
@@ -143,7 +144,8 @@ namespace BuildXL.Processes
                    detoursEventListener,
                    sandboxConnection,
                    createJobObjectForCurrentProcess: createJobObjectForCurrentProcess,
-                   monitoringConfig: monitoringConfig)
+                   monitoringConfig: monitoringConfig,
+                   forceAddExecutionPermission: forceAddExecutionPermission)
         {
         }
 
@@ -163,7 +165,8 @@ namespace BuildXL.Processes
             SidebandWriter? sidebandWriter = null,
             bool createJobObjectForCurrentProcess = true,
             ISandboxFileSystemView? fileSystemView = null,
-            SandboxedProcessResourceMonitoringConfig? monitoringConfig = null)
+            SandboxedProcessResourceMonitoringConfig? monitoringConfig = null,
+            bool forceAddExecutionPermission = true)
         {
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest ?? new FileAccessManifest(pathTable);
@@ -182,6 +185,7 @@ namespace BuildXL.Processes
             CreateJobObjectForCurrentProcess = createJobObjectForCurrentProcess;
             FileSystemView = fileSystemView;
             MonitoringConfig = monitoringConfig;
+            ForceAddExecutionPermission = forceAddExecutionPermission;
         }
 
         /// <summary>
@@ -198,7 +202,8 @@ namespace BuildXL.Processes
             ISandboxConnection? sandboxConnection = null,
             FileAccessManifest? fileAccessManifest = null,
             bool createJobObjectForCurrentProcess = true,
-            SandboxedProcessResourceMonitoringConfig? monitoringConfig = null
+            SandboxedProcessResourceMonitoringConfig? monitoringConfig = null,
+            bool forceAddExecutionPermission = true
             )
             : this(
                   pathTable,
@@ -211,7 +216,8 @@ namespace BuildXL.Processes
                   detoursEventListener,
                   sandboxConnection,
                   createJobObjectForCurrentProcess: createJobObjectForCurrentProcess,
-                  monitoringConfig: monitoringConfig)
+                  monitoringConfig: monitoringConfig,
+                  forceAddExecutionPermission: forceAddExecutionPermission)
         {
         }
 
@@ -290,6 +296,11 @@ namespace BuildXL.Processes
         /// When set to value &lt; 0, the pipe reading retries are unlimited.
         /// </remarks>
         public int NumRetriesPipeReadOnCancel { get; set; } = DefaultPipeReadRetryOnCancellationCount;
+
+        /// <summary>
+        /// Force set the execute permission bit for the root process of process pips in Linux builds.
+        /// </summary>
+        public bool ForceAddExecutionPermission { get; }
 
         /// <summary>
         /// Encoded command line arguments
@@ -595,6 +606,7 @@ namespace BuildXL.Processes
                 writer.WriteNullableString(DetoursFailureFile);
                 writer.WriteNullableReadOnlyList(ExternalVmSandboxStaleFilesToClean, (w, s) => w.Write(s));
                 writer.Write(CreateSandboxTraceFile);
+                writer.Write(ForceAddExecutionPermission);
 
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
@@ -643,9 +655,9 @@ namespace BuildXL.Processes
                 var detoursFailureFile = reader.ReadNullableString();
                 var externalVmSandboxStaleFilesToClean = reader.ReadNullableReadOnlyList(r => r.ReadString());
                 var createSandboxTraceFile = reader.ReadBoolean();
+                bool forceAddExecutionPermission = reader.ReadBoolean();
 
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
-
                 return new SandboxedProcessInfo(
                     new PathTable(),
                     sandboxedProcessStandardFiles != null ? new StandardFileStorage(sandboxedProcessStandardFiles) : null,
@@ -655,7 +667,8 @@ namespace BuildXL.Processes
                     loggingContext: loggingContext,
                     sidebandWriter: sidebandWritter,
                     detoursEventListener: detoursEventListener,
-                    createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
+                    createJobObjectForCurrentProcess: createJobObjectForCurrentProcess,
+                    forceAddExecutionPermission: forceAddExecutionPermission)
                 {
                     m_arguments = arguments,
                     m_commandLine = commandLine,

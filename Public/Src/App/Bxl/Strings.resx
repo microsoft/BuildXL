@@ -1168,4 +1168,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_EnableVerboseProcessLogging" xml:space="preserve">
     <value>Enables verbose sandbox logging for specific pips based on their formatted semistable hashes. This is tantamount to switching /logObservedFileAccesses and /logProcesses for these pips, and also enabling verbose debug logging in the sandbox. A list of semistable hashes might be specified, separated by semicolons. If the special value "*" is given, sandbox logging will be enabled for every pip. Example: /debug_enableVerboseProcessLogging:Pip3855A4C7E1E820D0;PipE9638AD7DDD6AF67</value>
   </data>
+    <data name="HelpText_DisplayHelp_ForceAddExecutionPermission" xml:space="preserve">
+    <value>When set to true, it enables the execution permission for the root process of process pips in Linux builds. Defaults to true.</value>
+  </data>    
 </root>

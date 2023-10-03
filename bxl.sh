@@ -326,9 +326,10 @@ elif [[ -z "$BUILDXL_BIN" ]]; then
     getLkg
 fi
 
-# A casing related PR polluted the cache, so let's force a salt. This could be removed after the poisoned content gets evicted.
+# Forcing a salt here to avoid problems faced in Linux validation pipeline related to cache.
+# This is related to Bug 2104538 where the cache may or may not be setting the execute bit for some executables.
 if [[ $arg_UserProvidedBxlArguments != *"/p:BUILDXL_FINGERPRINT_SALT"* ]]; then
-    arg_Positional+=("/p:BUILDXL_FINGERPRINT_SALT=casingPR")
+    arg_Positional+=("/p:BUILDXL_FINGERPRINT_SALT=forceSaltForLinuxBugFixPR")
 fi
 
 compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}

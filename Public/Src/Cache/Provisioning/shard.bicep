@@ -13,7 +13,7 @@ param sku string
 param kind string
 
 @minValue(0)
-@maxValue(99999)
+@maxValue(99998)
 param shard int
 
 @minLength(1)

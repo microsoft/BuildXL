@@ -172,7 +172,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogToKusto = template.LogToKusto;
             LogToKustoBlobUri = template.LogToKustoBlobUri;
             LogToKustoIdentityId = template.LogToKustoIdentityId;
-            LogToKustoTenantId = template.LogToKustoTenantId;
             LogEventsToConsole = new List<int>(template.LogEventsToConsole);
         }
 
@@ -439,9 +438,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public string LogToKustoBlobUri { get; set; }
-
-        /// <inheritdoc/>
-        public string LogToKustoTenantId { get; set; }
 
         /// <inheritdoc/>
         public string LogToKustoIdentityId { get; set; }

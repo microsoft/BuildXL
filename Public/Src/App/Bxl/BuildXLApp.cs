@@ -1933,12 +1933,6 @@ namespace BuildXL
                     return false;
                 }
 
-                if (string.IsNullOrEmpty(m_configuration.LogToKustoTenantId))
-                {
-                    failure = "The tenant id (option /logToKustoTenantId) was not provided.";
-                    return false;
-                }
-
                 failure = string.Empty;
                 return true;
             }

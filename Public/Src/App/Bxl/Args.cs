@@ -780,7 +780,7 @@ namespace BuildXL
                             opt => loggingConfiguration.LogToKustoIdentityId = opt.Value),
                         OptionHandlerFactory.CreateOption(
                             "logToKustoTenantId",
-                            opt => loggingConfiguration.LogToKustoTenantId = opt.Value),
+                            opt => {/* Do nothing. 1JS still passes this flag even though it is not needed. */}),
                         OptionHandlerFactory.CreateOption(
                             "logsToRetain",
                             opt => loggingConfiguration.LogsToRetain = CommandLineUtilities.ParseInt32Option(opt, 1, 1000)),

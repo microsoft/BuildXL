@@ -456,14 +456,6 @@ namespace BuildXL.Utilities.Configuration
         public string LogToKustoBlobUri { get; }
 
         /// <summary>
-        /// The tenant ID to use when sending log events to Kusto.
-        /// </summary>
-        /// <remarks>
-        /// Default value points to the Bxl-owned tenant 975f013f-7f24-47e8-a7d3-abc4752bf346
-        /// </remarks>
-        public string LogToKustoTenantId{ get; }
-
-        /// <summary>
         /// The identity ID to use when sending log events to Kusto.
         /// </summary>
         /// <remarks>

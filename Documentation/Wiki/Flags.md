@@ -87,6 +87,7 @@ This page lists flags that can be used to configure BuildXL.
 | Filter | Specifies a filter expression (short form: /f). See verbose help (/help:verbose) for details about constructing filter expressions. |
 | FilteringInfo | You can choose to build only a subset of available pips by using filtering. |
 | FlushPageCacheToFileSystemOnStoringOutputsToCache | Flush page cache to file system on storing outputs to cache. Defaults to off. |
+| ForceAddExecutionPermission | When set to true, it enables the execution permission for the root process of process pips in Linux builds. Defaults to true. |
 | ForcedCacheMiss | Forces a pips to be a cache miss in the build, independently of the artificial cache miss options (see /injectCacheMisses). A list of pips might be specified, separated by semicolons. Example: /forcedCacheMiss:Pip3855A4C7E1E820D0;PipE9638AD7DDD6AF67 |
 | ForceSkipDependencies | Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present. |
 | ForwardWorkerLog | Configure additional verbose event IDs that workers will forward to the orchestrator, in addition to warnings and errors (which are always forwarded).  |
@@ -137,7 +138,7 @@ This page lists flags that can be used to configure BuildXL.
 | LogStatus | Logs build status information to a CSV file in the same folder as the main log file. Defaults to on. |
 | LogsToRetain | The number of previous logs to retain. |
 | LogToConsole | Displays the specified messages in the console. |
-| LogToKusto | Whether to send log events to Kusto. If enabled, a valid authentication mechanism should be available with enough permissions to write into the blob storage account where logs are piped to Kusto. Use /logToKustoBlobUri:https://{storage-account-name}/{container-name} /logToKustoIdentityId:{Identity guid} and /logToKustoTenantId:{Tenant guid} to specify the destination of the log messages. |
+| LogToKusto | Whether to send log events to Kusto. If enabled, a valid authentication mechanism should be available with enough permissions to write into the blob storage account where logs are piped to Kusto. Use /logToKustoBlobUri:https://{storage-account-name}/{container-name} and /logToKustoIdentityId:{Identity guid} to specify the destination of the log messages. |
 | LowPriority | Runs the build engine and all tools at a lower priority in order to provide better responsiveness to interactive processes on the current machine. |
 | ManageMemoryMode | Specifies the mode to manage memory under pressure. Defaults to CancellationRam where {ShortProductName} attemps to cancel processes. EmptyWorkingSet mode will empty working set of processes instead of cancellation. Suspend mode will suspend processes to free memory. |
 | MaskUntrackedAccesses | When enabled, {ShortProductName} does not consider any access under untracked paths or scopes for sake of cache lookup. Defaults to on. |

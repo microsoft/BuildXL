@@ -43,7 +43,7 @@ extends:
         parameters:
           Distributed: true
           ValidationName: InternalRelease
-          BxlExtraArgs: --internal /q:ReleaseLinux /forceAddExecutionPermission-    
+          BxlExtraArgs: --internal /q:ReleaseLinux        
 
     - stage: Verify_PTrace
       displayName: PTrace validation

@@ -20,6 +20,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Utilities.Threading;
 using static BuildXL.Interop.Unix.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -41,6 +42,7 @@ namespace BuildXL.Processes
 
         private readonly CancellableTimedAction? m_perfCollector;
 
+        private readonly ReadWriteLock m_snapshotRwl = ReadWriteLock.Create();
         private readonly Dictionary<string, Process.ProcessResourceUsage>? m_processResourceUsage;
 
         private IEnumerable<ReportedProcess>? m_survivingChildProcesses;
@@ -232,19 +234,22 @@ namespace BuildXL.Processes
             }
 
             var snapshots = Interop.Unix.Process.GetResourceUsageForProcessTree(ProcessId);
-            foreach (var snapshot in snapshots)
+            using (m_snapshotRwl.AcquireWriteLock())
             {
-                if (snapshot.HasValue)
+                foreach (var snapshot in snapshots)
                 {
-                    // We use a combination of pid and process name as lookup key, this allows to have resource tracking
-                    // working when a process image gets substituted (exec) or when pids get reused (unlikely). If reuse
-                    // should happen, the only loophole would be if the process would have the same name as the intially
-                    // tracked one, in which case the code below would overwrite the resource usage data.
-                    var update = snapshot.Value;
-                    var key = $"{update.ProcessId}-{update.Name}";
+                    if (snapshot.HasValue)
+                    {
+                        // We use a combination of pid and process name as lookup key, this allows to have resource tracking
+                        // working when a process image gets substituted (exec) or when pids get reused (unlikely). If reuse
+                        // should happen, the only loophole would be if the process would have the same name as the intially
+                        // tracked one, in which case the code below would overwrite the resource usage data.
+                        var update = snapshot.Value;
+                        var key = $"{update.ProcessId}-{update.Name}";
 
-                    // Remove and replace the snapshot value to reflect changes of processes that are potentially being snapshotted several times
-                    m_processResourceUsage![key] = update;
+                        // Remove and replace the snapshot value to reflect changes of processes that are potentially being snapshotted several times
+                        m_processResourceUsage![key] = update;
+                    }
                 }
             }
         }
@@ -688,11 +693,17 @@ namespace BuildXL.Processes
         [return: NotNull]
         internal override CpuTimes GetCpuTimes()
         {
-            return m_processResourceUsage is null
-                ? base.GetCpuTimes()
-                : new CpuTimes(
-                    user: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.UserTimeMs)),
-                    system: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.SystemTimeMs)));
+            if (m_processResourceUsage is null)
+            {
+                return base.GetCpuTimes();
+            }
+            else
+            {
+                using var _ = m_snapshotRwl.AcquireReadLock();
+                return new CpuTimes(
+                        user: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.UserTimeMs)),
+                        system: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.SystemTimeMs)));
+            }
         }
 
         // <inheritdoc />
@@ -704,6 +715,8 @@ namespace BuildXL.Processes
             }
             else
             {
+                using var _ = m_snapshotRwl.AcquireReadLock();
+
                 IOCounters ioCounters;
                 ProcessMemoryCounters memoryCounters;
                 uint childProcesses = 0;

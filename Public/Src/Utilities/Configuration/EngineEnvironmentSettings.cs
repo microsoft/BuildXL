@@ -483,11 +483,6 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> MergeCacheLookupMaterializeDispatcher = CreateSetting("BuildXLMergeCacheLookupMaterializeDispatcher", value => value == "1");
 
         /// <summary>
-        /// Enables batch processing 
-        /// </summary>
-        public static readonly Setting<bool> CredScanBatchEnabled = CreateSetting("BuildXLCredScanBatchEnabled", value => value == "1");
-
-        /// <summary>
         /// The Ninja resolver suppresses the /MP and /FS compiler switches to avoid spawning MSPDBSRV.EXE.
         /// If this setting is true, we avoid this behavior and not intervene the command line. 
         /// TODO: this flag is temporary, until we make the changes to correctly handle the MSPDBSRV.EXE concurrency issues. 

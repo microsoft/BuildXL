@@ -1005,6 +1005,13 @@ namespace BuildXL.FrontEnd.Core
             PhaseLogicHandler<TStatistics> phaseLogicHandler)
             where TStatistics : IHasEndTime
         {
+            // Noop the phase if cancellation has been requested. This helps prevent crashes in various downstream
+            // precondition checks
+            if (FrontEndContext.CancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
             try
             {
                 var loggingContext = new LoggingContext(FrontEndContext.LoggingContext, phase.ToString());

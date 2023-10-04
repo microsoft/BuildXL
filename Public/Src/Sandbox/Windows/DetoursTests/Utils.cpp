@@ -228,7 +228,7 @@ NTSTATUS OpenFileWithNtCreateFile(
     InitializeObjectAttributes(&objAttribs, &unicodeString, OBJ_CASE_INSENSITIVE, rootDirectory, NULL);
 
     const int allocSize = 2048;
-    LARGE_INTEGER largeInteger = { 0 };
+    LARGE_INTEGER largeInteger = { { 0 } };
     largeInteger.QuadPart = allocSize;
 
     IO_STATUS_BLOCK ioStatusBlock = { 0 };

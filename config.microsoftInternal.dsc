@@ -34,9 +34,6 @@ export const pkgs = isMicrosoftInternal ? [
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 
-    // Windows Sdk so microsoft dev's don't have to install it.
-    { id: "WindowsSdk.Corext", version: "10.0.16299.1", alias: "Windows.Sdk", osSkip: [ "macOS", "unix" ] },
-
     // Artifact packages and dependencies
     { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: [
         "Microsoft.BuildXL.Cache.Hashing",
@@ -121,7 +118,6 @@ export const resolver = {
         f`Private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
         f`Private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,
-            f`Private/InternalSdk/Windows.Sdk/module.config.dsc`,
             f`Private/InternalSdk/InstrumentationFramework/module.config.dsc`
         ),
 

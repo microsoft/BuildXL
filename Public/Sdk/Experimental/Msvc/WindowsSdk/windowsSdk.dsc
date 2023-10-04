@@ -6,17 +6,22 @@ import * as Managed from "Sdk.Managed";
 
 export declare const qualifier: { platform: "x86" | "x64"};
 
-const version = "10.0.16299.0";
+// CODESYNC: This version should be updated together with the version number of the Windows SDK nuget packages in config.dsc
+// NOTE: this version is not strictly the same as the version number for the package. The first three numbers should be the same,
+// but the final number maybe different.
+const version = "10.0.22621.0";
 
 const isWin = Context.getCurrentHost().os === "win";
-const sdk = isWin ? getHeadersAndLibs() : undefined;
+const sdkHeaders = importFrom("Microsoft.Windows.SDK.cpp").Contents.all;
+const sdkLibsX86 = importFrom("Microsoft.Windows.SDK.CPP.x86").Contents.all;
+const sdkLibsX64 = importFrom("Microsoft.Windows.SDK.CPP.x64").Contents.all;
 
 namespace UM {
     @@public
-    export const include: StaticDirectory = Transformer.reSealPartialDirectory(sdk, r`include/${version}/um`, "win");
+    export const include: StaticDirectory = Transformer.reSealPartialDirectory(sdkHeaders, r`c/Include/${version}/um`, "win");
 
     @@public
-    export const lib: StaticDirectory = Transformer.reSealPartialDirectory(sdk, r`lib/${version}/um/${qualifier.platform}`, "win");
+    export const lib: StaticDirectory = Transformer.reSealPartialDirectory(getArchitectureSpecificLibraries(), r`c/um/${qualifier.platform}`, "win");
 
     @@public
     export const standardLibs: File[] = [
@@ -32,30 +37,28 @@ namespace UM {
 
 namespace Shared {
     @@public
-    export const include: StaticDirectory = Transformer.reSealPartialDirectory(sdk, r`include/${version}/shared`, "win");
+    export const include: StaticDirectory = Transformer.reSealPartialDirectory(sdkHeaders, r`c/Include/${version}/shared`, "win");
 }
 
 namespace Ucrt {
     @@public
-    export const include: StaticDirectory = Transformer.reSealPartialDirectory(sdk, r`include/${version}/ucrt`, "win");
+    export const include: StaticDirectory = Transformer.reSealPartialDirectory(sdkHeaders, r`c/Include/${version}/ucrt`, "win");
 
     @@public
-    export const lib: StaticDirectory = Transformer.reSealPartialDirectory(sdk, r`lib/${version}/ucrt/${qualifier.platform}`, "win");
+    export const lib: StaticDirectory = Transformer.reSealPartialDirectory(getArchitectureSpecificLibraries(), r`c/ucrt/${qualifier.platform}`, "win");
 }
 
-
-function getHeadersAndLibs() : StaticDirectory {
-    if (Environment.getFlag("[Sdk.BuildXL]microsoftInternal")) {
-        // Internally in Microsoft we use a nuget package that contains the windows Sdk.
-        return importFrom("Windows.Sdk").Contents.all;
+function getArchitectureSpecificLibraries() : StaticDirectory {
+    if (!isWin) {
+        return undefined;
     }
 
-    const installedSdkLocation = d`${Context.getMount("ProgramFilesX86").path}/Windows Kits/10`;
-    const windowsH = f`${installedSdkLocation}/Include/${version}/um/Windows.h`;
-    if (!File.exists(windowsH))
-    {
-        Contract.fail(`Could not find the installed windows Sdk headers for version ${version}. File '${windowsH.toDiagnosticString()}' does not exist. Please install version ${version} from https://developer.microsoft.com/en-us/windows/downloads/sdk-archive. You don't need the full Sdk just the following features: 'Windows SDK for Desktop C++ x86 Apps', 'Windows SDK for Desktop C++ amd64 Apps' and its dependencies.`);
+    switch (qualifier.platform) {
+        case "x86":
+            return sdkLibsX86;
+        case "x64":
+            return sdkLibsX64;
+        default:
+            Contract.fail(`Unknown platform for Windows SDK ${qualifier.platform}`);
     }
-
-    return Transformer.sealPartialDirectory(installedSdkLocation, globR(installedSdkLocation, "*.*"));
-};
+}

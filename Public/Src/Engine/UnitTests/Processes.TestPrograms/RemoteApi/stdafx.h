@@ -19,9 +19,9 @@
 // This spectre mitigation has been applied to detours, however this warning will continue to show up with /Wall enabled
 #pragma warning( disable : 5045)
 
-// BuildXL should run on Win7+.
+// BuildXL should run on Win10+.
 #include <WinSDKVer.h>
-#define _WIN32_WINNT _WIN32_WINNT_WIN7
+#define _WIN32_WINNT _WIN32_WINNT_WIN10
 #include <SDKDDKVer.h>
 
 // In order to compile with /Wall (mega pedantic warnings), we need to turn off a few that the Windows SDK violates.

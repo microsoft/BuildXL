@@ -6,7 +6,6 @@ If you are a Microsoft internal developer, the Internal variant is automatically
 # Prerequesites
 ## Windows
 * Windows 10 is the minimum requirement for BuildXL. You do not need to install [Visual Studio](https://visualstudio.microsoft.com/vs/) to get a working build, but it can be very helpful and is recommended for Windows development.
-* You will also need to install the Windows development kit. When you build the repo, the build script will determine if you have a compatible version installed and provide an error message with a link if one needs to be installed
 * (For the Public build) [Visual Studio 2019 Build Tools](https://visualstudio.microsoft.com/vs/older-downloads/#visual-studio-2019-and-other-products) build tools must be installed. Scroll down to the "Build Tools for Visual Studio" section, download and run the installer. Within the Visual Studio installer under "Individual Components", search for and install "MSVC (v142) - VS 2019 C++ x64/x86 Spectre-mitigated libs  (v14.28-16.8)". If you get an error about the build tools not being found after this installation, try setting the MSVC_VERSION environment variable to the exact version that was installed under "%Programfiles(x86)%\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC". See [visualCpp.dsc](../../Public/Sdk/Experimental/Msvc/VisualCpp/visualCpp.dsc) for more details about how this path is resolved
 
 ## Linux

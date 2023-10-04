@@ -2453,6 +2453,33 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Windows.SDK.CPP.x64",
+          "Version": "10.0.22621.755"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Windows.SDK.CPP.x86",
+          "Version": "10.0.22621.755"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Windows.SDK.cpp",
+          "Version": "10.0.22621.755"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.WindowsAzure.ConfigurationManager",
           "Version": "1.8.0.0"
         }
@@ -4264,15 +4291,6 @@
         "NuGet": {
           "Name": "WindowsAzure.Storage",
           "Version": "9.3.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "WindowsSdk.Corext",
-          "Version": "10.0.16299.1"
         }
       }
     },

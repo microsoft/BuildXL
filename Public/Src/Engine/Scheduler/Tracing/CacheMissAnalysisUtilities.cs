@@ -114,6 +114,10 @@ namespace BuildXL.Scheduler.Tracing
                     cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.NoMiss, "Pip was a cache hit.");
                     break;
 
+                case PipCacheMissType.MissForProcessConfiguredUncacheable:
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.UncacheablePip, "Pip is configured uncacheable");
+                    break;
+
                 case PipCacheMissType.Invalid:
                     cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.Invalid, "No valid changes or cache issues were detected to cause process execution, but a process still executed.");
                     break;
@@ -146,7 +150,7 @@ namespace BuildXL.Scheduler.Tracing
             public CacheMissAnalysisDetailAndResult(string cacheMissType, CacheMissAnalysisResult cacheMissAnalysisResult = CacheMissAnalysisResult.Invalid, string cacheMissReason = "Unhandled cache miss type.", JObject cacheMissInfo = null)
             {
                 Result = cacheMissAnalysisResult;
-                Detail = new CacheMissAnalysisDetail(cacheMissType, cacheMissReason, cacheMissInfo);                  
+                Detail = new CacheMissAnalysisDetail(cacheMissType, cacheMissReason, cacheMissInfo);
             }
 
         }

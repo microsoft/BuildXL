@@ -41,7 +41,6 @@ namespace Test.BuildXL.FingerprintStore
 
             // Forces unique, time-stamped logs directory between different scheduler runs within the same test
             Configuration.Logging.LogsToRetain = int.MaxValue;
-            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
         }
 
         private void EnableFingerprintStore()
@@ -203,6 +202,54 @@ namespace Test.BuildXL.FingerprintStore
 
             // Process2's cache miss is not analyzed as it is not a frontier pip.
             XAssert.IsFalse(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process2.PipId, out var _));
+        }
+
+        [Fact]
+        public void CacheMissAnalysisIsPerformedOnNonFrontierPipsIfThereIsUncacheableParent()
+        {
+            var sourceFile1 = CreateSourceFile();
+            var outputFile1 = CreateOutputFileArtifact();
+            var builder1 = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile1),
+                Operation.WriteFile(outputFile1)
+            });
+            builder1.Options |= Process.Options.DisableCacheLookup;
+            var process1 = SchedulePipBuilder(builder1).Process;
+
+            var sourceFile2 = CreateSourceFile();
+            var outputFile2 = CreateOutputFileArtifact();
+
+            var process2 = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile2),
+                Operation.ReadFile(outputFile1),
+                Operation.WriteFile(outputFile2)
+            }).Process;
+
+            var sourceFile3 = CreateSourceFile();
+
+            var process3 = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile3),
+                Operation.ReadFile(outputFile2),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            }).Process;
+
+            RunScheduler().AssertCacheMiss(process1.PipId, process2.PipId, process3.PipId);
+            File.WriteAllText(ArtifactToString(sourceFile2), "modified");
+
+            RunScheduler(m_testHooks).AssertCacheMiss(process1.PipId, process2.PipId, process3.PipId);
+
+            XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process1.PipId, out CacheMissData cacheMiss));
+            XAssert.AreEqual(CacheMissAnalysisResult.UncacheablePip, cacheMiss.DetailAndResult.Result);
+
+            // Cache miss analysis is performed on process2 although it's not a frontier pip (but it has an uncacheable parent).
+            XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process2.PipId, out cacheMiss));
+            XAssert.AreEqual(CacheMissAnalysisResult.WeakFingerprintMismatch, cacheMiss.DetailAndResult.Result);
+
+            // Cache miss analysis is not performed on process3 because it's not a frontier pip and its parent, process2, is not an uncacheable process.
+            XAssert.IsFalse(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process3.PipId, out var _));
         }
 
         [Fact]
@@ -589,7 +636,6 @@ namespace Test.BuildXL.FingerprintStore
             var timer = new Timer(o => { XAssert.IsTrue(false, "Process Timeout."); }, null, 10000, 10000);
 
             // 1 batch per process
-            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + result2Len + result3Len + result4Len + result5Len + result6Len + result7Len + 1;
             RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 1, "Should have 1 batch logging.");
@@ -597,7 +643,6 @@ namespace Test.BuildXL.FingerprintStore
             m_cacheMissAnalysisBatchList.Clear();
 
             // 2 batch per process 
-            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + result2Len + result3Len + result4Len + 1;
             RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 2, "Should have 2 batch logging.");
@@ -606,7 +651,6 @@ namespace Test.BuildXL.FingerprintStore
             m_cacheMissAnalysisBatchList.Clear();
 
             // batch - single - batch in a process
-            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + result2Len + result3Len + 20;
             RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 3, "Should have 3 batch logging.");
@@ -617,7 +661,6 @@ namespace Test.BuildXL.FingerprintStore
             m_cacheMissAnalysisBatchList.Clear();
 
             // batch - single - single - single - batch in a process
-            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + result2Len + 1;
             RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 5, "Should have 5 batch logging.");
@@ -631,7 +674,6 @@ namespace Test.BuildXL.FingerprintStore
             m_cacheMissAnalysisBatchList.Clear();
 
             // all single in a process
-            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result1Len + 1;
             RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 7, "Should have 7 batch logging.");
@@ -655,7 +697,6 @@ namespace Test.BuildXL.FingerprintStore
             m_cacheMissAnalysisBatchList.Clear();
 
             // all single in a process, test a result's len == maxLogLen
-            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = result3Len;
             RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 7, "Should have 7 batch logging.");
@@ -690,51 +731,50 @@ namespace Test.BuildXL.FingerprintStore
 
             var results = new List<JProperty>();
             string resultJson = @"{
-		""Description"": ""PipC1907BAC23BB4039, test"",
-		""FromCacheLookup"": false,
-		""Detail"": {
-			""ActualMissType"": ""MissForDescriptorsDueToStrongFingerprints"",
-			""ReasonFromAnalysis"": ""WeakFingerprints of the builds are different."",
-			""Info"": {
-				""WeakFingerprintMismatchResult"": {
-					""WeakFingerprint"": {
-						""Old"": ""126B618310A6F95C4B00E9A576CFE5EAF3B5D950"",
-						""New"": ""311C6E5835CEA28399F62FACCA5380C8C18347E5""
-					},
-					""ExecutionAndFingerprintOptions"": {
-						""Changed"": {
-							""FingerprintVersion"": {
-								""Old"": ""80"",
-								""New"": ""81""
-							}
-						}
-					},
-					""Executable"": {
-						""Old"": ""path1"",
-						""New"": ""path2""
-					},
-					""UntrackedPaths"": {
-						""Added"": [
-							""path3""
-						],
-						""Removed"": [
-							""Path4""
-						]
-					},
-					""OldProvenance:"": {
-						""SessionId"": ""fa485571-0100-ffff-0f37-d21e6b002ba0"",
-						""RelatedSessionId"": ""5c4a3e30-dd7e-4cc1-864a-d21e6b002ba0""
-					}
-				}
-			}
-		}
-	}";
+        ""Description"": ""PipC1907BAC23BB4039, test"",
+        ""FromCacheLookup"": false,
+        ""Detail"": {
+            ""ActualMissType"": ""MissForDescriptorsDueToStrongFingerprints"",
+            ""ReasonFromAnalysis"": ""WeakFingerprints of the builds are different."",
+            ""Info"": {
+                ""WeakFingerprintMismatchResult"": {
+                    ""WeakFingerprint"": {
+                        ""Old"": ""126B618310A6F95C4B00E9A576CFE5EAF3B5D950"",
+                        ""New"": ""311C6E5835CEA28399F62FACCA5380C8C18347E5""
+                    },
+                    ""ExecutionAndFingerprintOptions"": {
+                        ""Changed"": {
+                            ""FingerprintVersion"": {
+                                ""Old"": ""80"",
+                                ""New"": ""81""
+                            }
+                        }
+                    },
+                    ""Executable"": {
+                        ""Old"": ""path1"",
+                        ""New"": ""path2""
+                    },
+                    ""UntrackedPaths"": {
+                        ""Added"": [
+                            ""path3""
+                        ],
+                        ""Removed"": [
+                            ""Path4""
+                        ]
+                    },
+                    ""OldProvenance:"": {
+                        ""SessionId"": ""fa485571-0100-ffff-0f37-d21e6b002ba0"",
+                        ""RelatedSessionId"": ""5c4a3e30-dd7e-4cc1-864a-d21e6b002ba0""
+                    }
+                }
+            }
+        }
+    }";
 
             m_cacheMissAnalysisBatchList = new List<string>();
             var pipHash = "PipC1907BAC23BB4039";
-            JProperty result = new JProperty(pipHash, JObject.Parse(resultJson));
+            var result = new JProperty(pipHash, JObject.Parse(resultJson));
             results.Add(result);
-            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
             Configuration.Logging.AriaIndividualMessageSizeLimitBytes = 600;
             RuntimeCacheMissAnalyzer.ProcessResults(results.ToList(), Configuration, LoggingContext);
             XAssert.AreEqual(m_cacheMissAnalysisBatchList.Count, 1, "Should have 1 batch logging.");

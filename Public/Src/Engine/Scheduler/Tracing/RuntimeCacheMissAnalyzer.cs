@@ -8,24 +8,19 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Engine.Cache;
-using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
@@ -67,7 +62,7 @@ namespace BuildXL.Scheduler.Tracing
                 PathTable newPathTable = new PathTable();
                 if (option.Mode == CacheMissMode.Local)
                 {
-                    possibleStore = FingerprintStore.CreateSnapshot(logTarget.ExecutionFingerprintStore, loggingContext);
+                    possibleStore = CreateSnapshot(logTarget.ExecutionFingerprintStore, loggingContext);
                 }
                 else
                 {
@@ -101,7 +96,7 @@ namespace BuildXL.Scheduler.Tracing
                         }
                     }
 
-                    possibleStore = FingerprintStore.Open(path, readOnly: true);
+                    possibleStore = Open(path, readOnly: true);
                 }
 
                 if (possibleStore.Succeeded)
@@ -119,7 +114,7 @@ namespace BuildXL.Scheduler.Tracing
                         testHooks: testHooks);
                 }
 
-                Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Failed to read the fingerprint store to compare. Mode: {option.Mode.ToString()} Failure: {possibleStore.Failure.DescribeIncludingInnerFailures()}"));
+                Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Failed to read the fingerprint store to compare. Mode: {option.Mode} Failure: {possibleStore.Failure.DescribeIncludingInnerFailures()}"));
                 return null;
             }
         }
@@ -132,7 +127,7 @@ namespace BuildXL.Scheduler.Tracing
         private readonly IDictionary<PipId, RunnablePipPerformanceInfo> m_runnablePipPerformance;
         private readonly PipExecutionContext m_context;
 
-        private int MaxCacheMissCanPerform => EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value;
+        private static int MaxCacheMissCanPerform => EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value;
         private int m_numCacheMissPerformed = 0;
 
         private readonly string m_downLoadedPreviousFingerprintStoreSavedPath = null;
@@ -145,11 +140,6 @@ namespace BuildXL.Scheduler.Tracing
         private readonly NagleQueue<JProperty> m_batchLoggingQueue;
 
         private readonly IConfiguration m_configuration;
-
-        /// <summary>
-        /// Number of batch messages already sent to telemetry.
-        /// </summary>
-        public static int s_numberOfBatchesLogged = 0;
 
         /// <summary>
         /// A previous build's <see cref="FingerprintStore"/> that can be used for cache miss comparison.
@@ -223,7 +213,7 @@ namespace BuildXL.Scheduler.Tracing
             // Use JsonTextWritter for 2 reasons:
             // 1. easily control when to start a new log event and when to end it.
             // 2. according to some research, manually serialization with JsonTextWritter can improve performance.
-            using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissBatchLoggingTime))                
+            using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissBatchLoggingTime))
             {
                 ProcessResults(results, m_configuration, m_loggingContext);
                 Counters.AddToCounter(FingerprintStoreCounters.CacheMissBatchingDequeueCount, results.Count);
@@ -234,108 +224,109 @@ namespace BuildXL.Scheduler.Tracing
         internal static void ProcessResults(List<JProperty> results, IConfiguration configuration, LoggingContext loggingContext)
         {
             int maxLogSize = configuration.Logging.AriaIndividualMessageSizeLimitBytes;
-            using (var sbPool = Pools.GetStringBuilder())
-            {
-                var sb = sbPool.Instance;
-                using var sw = new StringWriter(sb);
-                using var writer = new JsonTextWriter(sw);
-                var logStarted = false;
-                var hasProperty = false;
-                var lenSum = 0;
-                for (int i = 0; i < results.Count; i++)
-                {
-                    startLoggingIfNot();
 
-                    var name = results[i].Name.ToString();
-                    var value = results[i].Value.ToString();
-                    lenSum += name.Length + value.Length;
-                    if (lenSum < maxLogSize)
+            using var sbPool = Pools.GetStringBuilder();
+            var sb = sbPool.Instance;
+            using var sw = new StringWriter(sb);
+            using var writer = new JsonTextWriter(sw);
+
+            var logStarted = false;
+            var hasProperty = false;
+            var lenSum = 0;
+            for (int i = 0; i < results.Count; i++)
+            {
+                startLoggingIfNot();
+
+                var name = results[i].Name.ToString();
+                var value = results[i].Value.ToString();
+                lenSum += name.Length + value.Length;
+                if (lenSum < maxLogSize)
+                {
+                    writeProperty(name, value);
+                }
+                else
+                {
+                    // End the current batch before start a new one.
+                    endLoggingIfStarted();
+
+                    // Log a single event, if this single result itself is too big.
+                    if ((name.Length + value.Length) >= maxLogSize)
                     {
-                        writeProperty(name, value);
+                        // Have to shorten the result to fit the telemetry.
+                        var marker = "[...]";
+                        var prefix = value.Substring(0, maxLogSize / 2);
+                        var suffix = value.Substring(value.Length - maxLogSize / 2);
+                        logAsSingle(name, prefix + marker + suffix);
                     }
                     else
                     {
-                        // End the current batch before start a new one.
-                        endLoggingIfStarted();
-
-                        // Log a single event, if this single result itself is too big.
-                        if ((name.Length + value.Length) >= maxLogSize)
-                        {
-                            // Have to shorten the result to fit the telemetry.
-                            var marker = "[...]";
-                            var prefix = value.Substring(0, maxLogSize / 2);
-                            var suffix = value.Substring(value.Length - maxLogSize / 2);
-                            logAsSingle(name, prefix + marker + suffix);
-                        }
-                        else
-                        {
-                            // Start a new batch.
-                            startLoggingIfNot();
-                            writeProperty(name, value);
-                            lenSum = name.Length + value.Length;
-                        }
+                        // Start a new batch.
+                        startLoggingIfNot();
+                        writeProperty(name, value);
+                        lenSum = name.Length + value.Length;
                     }
                 }
+            }
 
-                endLoggingIfStarted();
+            endLoggingIfStarted();
 
-                void writeProperty(string name, string value)
+            void writeProperty(string name, string value)
+            {
+                writer.WritePropertyName(name);
+                writer.WriteRawValue(value);
+                hasProperty = true;
+            }
+
+            void endLogging()
+            {
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+                // Only log when has result in it.
+                if (hasProperty)
                 {
-                    writer.WritePropertyName(name);
-                    writer.WriteRawValue(value);
-                    hasProperty = true;
+                    Logger.Log.CacheMissAnalysisBatchResults(loggingContext, sw.ToString());
                 }
 
-                void endLogging()
-                {
-                    writer.WriteEndObject();
-                    writer.WriteEndObject();
-                    // Only log when has result in it.
-                    if (hasProperty)
-                    {
-                        Logger.Log.CacheMissAnalysisBatchResults(loggingContext, sw.ToString());
-                    }
-                    logStarted = false;
-                    hasProperty = false;
-                    lenSum = 0;
-                    writer.Flush();
-                    sb.Clear();
-                }
+                logStarted = false;
+                hasProperty = false;
+                lenSum = 0;
+                writer.Flush();
+                sb.Clear();
+            }
 
-                void endLoggingIfStarted()
+            void endLoggingIfStarted()
+            {
+                // Only log when at least one result has been written to the Json string
+                if (logStarted)
                 {
-                    // Only log when at least one result has been written to the Json string
-                    if (logStarted)
-                    {
-                        endLogging();
-                    }
-                }
-
-                void startLogging()
-                {
-                    writer.Flush();
-                    sb.Clear();
-                    writer.WriteStartObject();
-                    writer.WritePropertyName("CacheMissAnalysisResults");
-                    writer.WriteStartObject();
-                    logStarted = true;
-                }
-
-                void startLoggingIfNot()
-                {
-                    // Only log when at least one result has been written to the Json string
-                    if (!logStarted)
-                    {
-                        startLogging();
-                    }
-                }
-
-                void logAsSingle(string name, string value)
-                {
-                    startLogging();
-                    writeProperty(name, value);
                     endLogging();
                 }
+            }
+
+            void startLogging()
+            {
+                writer.Flush();
+                sb.Clear();
+                writer.WriteStartObject();
+                writer.WritePropertyName("CacheMissAnalysisResults");
+                writer.WriteStartObject();
+                logStarted = true;
+            }
+
+            void startLoggingIfNot()
+            {
+                // Only log when at least one result has been written to the Json string
+                if (!logStarted)
+                {
+                    startLogging();
+                }
+            }
+
+            void logAsSingle(string name, string value)
+            {
+                startLogging();
+                writeProperty(name, value);
+                endLogging();
             }
         }
 
@@ -352,16 +343,15 @@ namespace BuildXL.Scheduler.Tracing
         {
             Contract.Requires(pip != null);
 
-            using (var watch = new CacheMissTimer(pip.PipId, this))
-            {
-                if (!IsCacheMissEligible(pip.PipId))
-                {
-                    return;
-                }
+            using var watch = new CacheMissTimer(pip.PipId, this);
 
-                TryGetFingerprintStoreEntry(pip, out FingerprintStoreEntry oldEntry);
-                PerformCacheMissAnalysis(pip, oldEntry, newEntry, fromCacheLookup);
+            if (!IsCacheMissEligible(pip.PipId))
+            {
+                return;
             }
+
+            TryGetFingerprintStoreEntry(pip, out FingerprintStoreEntry oldEntry);
+            PerformCacheMissAnalysis(pip, oldEntry, newEntry, fromCacheLookup);
         }
 
         private void PerformCacheMissAnalysis(Process pip, FingerprintStoreEntry oldEntry, FingerprintStoreEntry newEntry, bool fromCacheLookup)
@@ -371,12 +361,20 @@ namespace BuildXL.Scheduler.Tracing
 
             try
             {
-                if (!m_pipCacheMissesDict.TryRemove(pip.PipId, out var missInfo))
+                if (!m_pipCacheMissesDict.TryRemove(pip.PipId, out PipCacheMissInfo missInfo))
                 {
                     return;
                 }
 
-                MarkPipAsChanged(pip.PipId);
+                if (missInfo.CacheMissType != PipCacheMissType.MissForProcessConfiguredUncacheable)
+                {
+                    // If the pip is configured uncacheable, we want to show that the pip has a cache miss
+                    // due to being configured uncacheable. Additionally, we still want to see the cache miss reason
+                    // for its downstream pips as well. In other words, we want to expand the frontier pips that are
+                    // eligible for cache miss analysis when there are uncacheable parent pips. To that end,
+                    // we will not mark the pip as changed if it is configured uncacheable.
+                    MarkPipAsChanged(pip.PipId);
+                }
 
                 if (fromCacheLookup)
                 {
@@ -410,7 +408,7 @@ namespace BuildXL.Scheduler.Tracing
                             new JProperty(nameof(resultAndDetail.Detail.ReasonFromAnalysis), resultAndDetail.Detail.ReasonFromAnalysis), 
                             new JProperty(nameof(resultAndDetail.Detail.Info), resultAndDetail.Detail.Info)).ToString();
                         Logger.Log.CacheMissAnalysis(m_loggingContext, pipDescription, detail, fromCacheLookup);
-                    }                  
+                    }
 
                     m_testHooks?.AddCacheMiss(
                         pip.PipId,
@@ -487,7 +485,7 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
-        private struct CacheMissTimer : IDisposable
+        private readonly struct CacheMissTimer : IDisposable
         {
             private readonly RuntimeCacheMissAnalyzer m_analyzer;
             private readonly PipId m_pipId;
@@ -502,8 +500,7 @@ namespace BuildXL.Scheduler.Tracing
 
             public void Dispose()
             {
-                RunnablePipPerformanceInfo performance = null;
-                if (m_analyzer.m_runnablePipPerformance?.TryGetValue(m_pipId, out performance) == true)
+                if (m_analyzer.m_runnablePipPerformance?.TryGetValue(m_pipId, out RunnablePipPerformanceInfo performance) == true)
                 {
                     performance.PerformedCacheMissAnalysis(m_watch.Elapsed);
                 }

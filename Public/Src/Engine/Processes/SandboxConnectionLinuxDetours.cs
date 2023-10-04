@@ -381,7 +381,8 @@ namespace BuildXL.Processes
                 using (item.wrapper)
                 {
 
-                    var message = s_encoding.GetString(item.wrapper.Instance, index: 0, count: item.length).AsSpan().TrimEnd('\n');
+                    var messageStr = s_encoding.GetString(item.wrapper.Instance, index: 0, count: item.length);
+                    var message = messageStr.AsSpan().TrimEnd('\n');
 
                     // parse the message, consuming the span field by field. The format is:
                     //  "%s|%d|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, isDirectory, reportPath
@@ -425,17 +426,31 @@ namespace BuildXL.Processes
                     {
                         RemovePid(report.Pid);
                     }
-                    // We don't want to check the path cache for statically linked processes
-                    // because we rely on this report to start the ptrace sandbox.
-                    // OpProcessCommandLine can also be skipped because its not a path, and shouldn't be cached.
-                    else if (report.Operation != FileOperation.OpStaticallyLinkedProcess && report.Operation != FileOperation.OpProcessCommandLine)
+                    else
                     {
-                        var pathStr = path.ToString();
-                        // check the path cache (only when the message is not about process tree)                        
-                        if (GetOrCreateCacheRecord(pathStr).CheckCacheHitAndUpdate(access))
+                        if (report.Operation != FileOperation.OpDebugMessage)
                         {
-                            LogDebug($"Cache hit for access report: ({pathStr}, {access})");
-                            return;
+                            // Let's check if we received a report from a process that we haven't observed starting
+                            // This is unexpected, as we should be reporting process spawns after any fork. 
+                            // Let's log the occurence, and make sure the pid is now tracked, to avoid losing children when shutting down
+                            if (m_activeProcesses.TryAdd(report.Pid, 1))
+                            {
+                                LogDebug($"[WARNING] Received report from unknown PID {report.Pid}: {messageStr}");
+                            }
+                        }
+
+                        // We don't want to check the path cache for statically linked processes
+                        // because we rely on this report to start the ptrace sandbox.
+                        // OpProcessCommandLine can also be skipped because its not a path, and shouldn't be cached.
+                        if (report.Operation != FileOperation.OpStaticallyLinkedProcess && report.Operation != FileOperation.OpProcessCommandLine)
+                        {
+                            var pathStr = path.ToString();
+                            // check the path cache (only when the message is not about process tree)                        
+                            if (GetOrCreateCacheRecord(pathStr).CheckCacheHitAndUpdate(access))
+                            {
+                                LogDebug($"Cache hit for access report: ({pathStr}, {access})");
+                                return;
+                            }
                         }
                     }
 

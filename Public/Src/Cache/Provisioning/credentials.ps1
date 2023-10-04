@@ -24,6 +24,10 @@ $environmentVaultMapping = @{
     "name"         = "CBProdVault";
     "subscription" = "41cf5fb3-558b-467d-b6cd-dd7e6c18945d"
   };
+  "ci"   = @{
+    "name"         = "CentralSecretsCIVault";
+    "subscription" = "30c83465-21e5-4a97-9df2-d8dd19881d24";
+  };
 };
 
 foreach ($group in $groups) {

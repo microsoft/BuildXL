@@ -116,7 +116,7 @@ namespace BuildXL.Cache.BlobLifetimeManager
 
             if (enableFileLogging)
             {
-                logger.AddLog(new FileLog(Path.Join(Environment.CurrentDirectory, "BlobLifetimeManager.log")));
+                logger.AddLog(new FileLog(Path.Join(Environment.CurrentDirectory, "BlobLifetimeManager.log"), logSeverity));
             }
 
             using var cts = new ConsoleCancellationSource();

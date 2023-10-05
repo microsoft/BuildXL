@@ -59,7 +59,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         {
             if (!_accessors.TryGetValue(namespaceId, out var db))
             {
-                Tracer.Debug(context, $"Ignoring creation of content with name={blobName} because Namespace={namespaceId} isn't being tracked.");
+                Tracer.Diagnostic(context, $"Ignoring creation of content with name={blobName} because Namespace={namespaceId} isn't being tracked.");
                 return;
             }
 
@@ -87,7 +87,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             if (!_accessors.TryGetValue(namespaceId, out var db) ||
                 !_topologies.TryGetValue(namespaceId, out var topology))
             {
-                Tracer.Debug(context, $"Ignoring creation of content hash list with path {blobName} because Namespace={namespaceId} isn't being tracked.");
+                Tracer.Diagnostic(context, $"Ignoring creation of content hash list with path {blobName} because Namespace={namespaceId} isn't being tracked.");
                 return LifetimeDatabaseCreator.ProcessContentHashListResult.Success;
             }
 

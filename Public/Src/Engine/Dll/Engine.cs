@@ -323,7 +323,8 @@ namespace BuildXL.Engine
 
             var distributedInvocationId = new DistributedInvocationId(
                 Configuration.Logging.RelatedActivityId ?? "00000000-0000-0000-0000-000000000000",  // Can be null in non-distributed builds or if left unspecified
-                Configuration.Logging.Environment.ToString());
+                Configuration.Logging.Environment.ToString(),
+                buildVersion ?? "DevBuild");
 
             if (IsDistributedOrchestrator)
             {

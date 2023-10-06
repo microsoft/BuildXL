@@ -22,6 +22,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public const string TraceIdKey = "traceid";
         public const string RelatedActivityIdKey = "relatedactivityid";
         public const string EnvironmentKey = "environment";
+        public const string EngineVersionKey = "engineversion";
         public const string SenderKey = "sender";
         public const string AuthKey = "authorization";
 
@@ -115,6 +116,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 { GrpcMetadata.TraceIdKey, traceId },
                 { GrpcMetadata.RelatedActivityIdKey, invocationId.RelatedActivityId },
                 { GrpcMetadata.EnvironmentKey, invocationId.Environment },
+                { GrpcMetadata.EngineVersionKey, invocationId.EngineVersion },
                 { GrpcMetadata.SenderKey, DistributionHelpers.MachineName }
             };
 

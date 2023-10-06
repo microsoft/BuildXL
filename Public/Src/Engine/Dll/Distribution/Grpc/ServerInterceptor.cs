@@ -76,7 +76,7 @@ namespace BuildXL.Engine.Distribution
         private bool IsUnrecoverableMismatch(DistributedInvocationId senderInvocationId)
         {
             // If the build ids match, we don't want to signal an unrecoverable state
-            return senderInvocationId.RelatedActivityId != m_invocationId.RelatedActivityId;
+            return senderInvocationId.RelatedActivityId != m_invocationId.RelatedActivityId || senderInvocationId.EngineVersion != m_invocationId.EngineVersion;
         }
 
         public override Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)

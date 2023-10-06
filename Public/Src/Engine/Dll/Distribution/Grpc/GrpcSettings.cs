@@ -70,6 +70,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             sender = string.Empty;
             string relatedActivityId = string.Empty;
             string environment = string.Empty;
+            string engineVersion = string.Empty;
            
             traceId = string.Empty;
             token = string.Empty;
@@ -88,6 +89,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     environment = kvp.Value;
                 }
+                else if (kvp.Key == GrpcMetadata.EngineVersionKey)
+                {
+                    engineVersion = kvp.Value;
+                }
                 else if (kvp.Key == GrpcMetadata.SenderKey)
                 {
                     sender = kvp.Value;
@@ -98,7 +103,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
             }
 
-            senderInvocationId = new DistributedInvocationId(relatedActivityId, environment);
+            senderInvocationId = new DistributedInvocationId(relatedActivityId, environment, engineVersion);
         }
     }
 }

@@ -17,7 +17,7 @@ namespace Test.BuildXL.Distribution
     public class GrpcTests : GrpcTestsBase
     {
         private const string DefaultActivityId = "81f86bbd-3555-4fff-ad4d-24ce033882a2";
-        private static readonly DistributedInvocationId s_defaultDistributedInvocationId = new(DefaultActivityId, "Test");
+        private static readonly DistributedInvocationId s_defaultDistributedInvocationId = new(DefaultActivityId, "Test", "0.1.0-19951026.1");
 
         public GrpcTests(ITestOutputHelper output) : base(output)
         {
@@ -46,7 +46,6 @@ namespace Test.BuildXL.Distribution
             Assert.False(workerHarness.ClientConnectionFailure.HasValue);
             Assert.False(remoteWorker.ClientConnectionFailure.HasValue);
         }
-
 
         [Fact]
         public async Task ConnectionDoesntTimeoutBeforeAttachment()
@@ -139,14 +138,18 @@ namespace Test.BuildXL.Distribution
             await StopServicesAsync(orchestratorHarness, workerHarness);
         }
 
-        [Fact]
-        public async Task InvocationIdUnrecoverableMismatch()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task InvocationIdUnrecoverableMismatch(bool engineVersionMismatch)
         {
             EngineEnvironmentSettings.GrpcHeartbeatEnabled.Value = false;
 
             var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
 
-            var mismatchedId = new DistributedInvocationId(Guid.NewGuid().ToString(), "Test");
+            // Test engine version and related id mismatches as different cases
+            DistributedInvocationId mismatchedId = engineVersionMismatch ? new (s_defaultDistributedInvocationId.RelatedActivityId, s_defaultDistributedInvocationId.Environment, "0.1.0-19970220.1")
+                : new (Guid.NewGuid().ToString(), s_defaultDistributedInvocationId.Environment, s_defaultDistributedInvocationId.EngineVersion);
 
             var workerHarness = new WorkerHarness(LoggingContext, mismatchedId);
             var workerServicePort = workerHarness.StartServer();
@@ -175,7 +178,7 @@ namespace Test.BuildXL.Distribution
             var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
 
             // Use an invocation id that only differs in the environment 
-            var mismatchedId = new DistributedInvocationId(s_defaultDistributedInvocationId.RelatedActivityId, s_defaultDistributedInvocationId.Environment + "Junk");
+            var mismatchedId = new DistributedInvocationId(s_defaultDistributedInvocationId.RelatedActivityId, s_defaultDistributedInvocationId.Environment + "Junk", s_defaultDistributedInvocationId.EngineVersion);
 
             var workerHarness = new WorkerHarness(LoggingContext, mismatchedId);
             var workerServicePort = workerHarness.StartServer();
@@ -199,5 +202,4 @@ namespace Test.BuildXL.Distribution
             Assert.False(remoteWorkerHarness.ClientConnectionFailure.HasValue);
         }
     }
-
 }

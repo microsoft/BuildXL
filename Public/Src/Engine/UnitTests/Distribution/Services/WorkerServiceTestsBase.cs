@@ -33,6 +33,7 @@ namespace Test.BuildXL.Distribution
         internal class WorkerServiceTestRun
         {
             private const string BuildId = "01010101-cafe-1995-beef-1ee7c0ffee42";
+            private const string EngineVersion = "0.1.0-19951026.1";
             public IConfiguration Configuration;
             public WorkerService WorkerService;
             public WorkerPipExecutionServiceMock PipExecutionService;
@@ -59,7 +60,7 @@ namespace Test.BuildXL.Distribution
                 WorkerServer = new WorkerServerMock();
                 OrchestratorClient = new OrchestratorClientMock();
                 NotificationManager = new WorkerNotificationManagerMock();
-                WorkerService = WorkerService.CreateForTesting(loggingContext, Configuration, new(BuildId, "Test"), PipExecutionService, WorkerServer, NotificationManager, OrchestratorClient);
+                WorkerService = WorkerService.CreateForTesting(loggingContext, Configuration, new(BuildId, "Test", EngineVersion), PipExecutionService, WorkerServer, NotificationManager, OrchestratorClient);
                 WorkerServer.WorkerService = WorkerService;
                 PipExecutionService.WorkerService = WorkerService;
             }

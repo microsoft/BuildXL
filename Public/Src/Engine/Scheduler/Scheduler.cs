@@ -7229,9 +7229,29 @@ namespace BuildXL.Scheduler
                         flags,
                         (handle, length) => m_fileContentTable.RecordContentHash(handle, pathAsString, fileMaterializationInfo.FileContentInfo.Hash, fileMaterializationInfo.FileContentInfo.Length));
                 }
-                catch (BuildXLException e)
+                catch (Exception e)
                 {
-                    return new NativeFailure(e.GetLogEventErrorCode()).Annotate($"An error occurred updating the file content table for modified file '{pathAsString}'. Details: {e.Message}");
+                    // We sporadically get a file not found error when trying to open a handle to the path (on Linux, with the ephemeral cache on). Let's list the content of the directory to try to spot what's going on. One theory
+                    // is that the cache has some sort of casing issue. This is a best-effort attempt to get more information about the issue. We can remove the enumeration once we understand the problem.
+                    IEnumerable<string> containingEntries = CollectionUtilities.EmptyArray<string>();
+
+                    try
+                    {
+                        var directory = Directory.GetParent(pathAsString);
+                        if (directory != null)
+                        {
+                            containingEntries = Directory.EnumerateFileSystemEntries(directory.FullName);
+                        }
+                    }
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                    catch
+                    {
+                        // Ignore any exceptions that may occur while enumerating the directory, this is done on a best-effort basis for debugging purposes.
+                    }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+
+                    return new NativeFailure(e.GetLogEventErrorCode()).Annotate($"An error occurred updating the file content table for modified file '{pathAsString}'. " +
+                        $"Content of the directory is: [{string.Join(",", containingEntries)}]. Details: {e}");
                 }
             }
 

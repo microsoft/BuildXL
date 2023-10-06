@@ -379,6 +379,10 @@ static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInpu
     DWORD reparsePointType = 0;
     vector<char> buffer;
     bool status = false;
+    DWORD bufferSize = INITIAL_REPARSE_DATA_BUILDXL_DETOURS_BUFFER_SIZE_FOR_FILE_NAMES;
+    DWORD errorCode = ERROR_INSUFFICIENT_BUFFER;
+    DWORD bufferReturnedSize = 0;
+    PREPARSE_DATA_BUFFER pReparseDataBuffer;
 
     auto io_result = PathCache_GetResolvedPathAndType(path, policyResult);
     if (io_result.Found)
@@ -413,10 +417,6 @@ static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInpu
         goto Error;
     }
 
-    DWORD bufferSize = INITIAL_REPARSE_DATA_BUILDXL_DETOURS_BUFFER_SIZE_FOR_FILE_NAMES;
-    DWORD errorCode = ERROR_INSUFFICIENT_BUFFER;
-    DWORD bufferReturnedSize = 0;
-
     while (errorCode == ERROR_MORE_DATA || errorCode == ERROR_INSUFFICIENT_BUFFER)
     {
         buffer.clear();
@@ -448,7 +448,7 @@ static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInpu
         goto Error;
     }
 
-    PREPARSE_DATA_BUFFER pReparseDataBuffer = (PREPARSE_DATA_BUFFER)buffer.data();
+    pReparseDataBuffer = (PREPARSE_DATA_BUFFER)buffer.data();
     reparsePointType = pReparseDataBuffer->ReparseTag;
 
     if (!IsActionableReparsePointType(reparsePointType))
@@ -1767,7 +1767,7 @@ static bool ValidateMoveDirectory(
     PolicyResult policyResult;
     policyResult.Initialize(lpExistingFileName);
 
-    for each(auto entry in filesAndDirectories)
+    for (auto entry : filesAndDirectories)
     {
         const std::pair<wstring, DWORD>& elem = entry;
         wstring file = elem.first;
@@ -2197,7 +2197,7 @@ NTSTATUS HandleFileRenameInformation(
 
     if (renameDirectory)
     {
-        for each(auto entry in filesAndDirectoriesToReport)
+        for (auto entry : filesAndDirectoriesToReport)
         {
             ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), ntError);
         }
@@ -2666,7 +2666,7 @@ NTSTATUS HandleFileNameInformation(
 
     if (renameDirectory)
     {
-        for each(auto entry in filesAndDirectoriesToReport)
+        for (auto entry : filesAndDirectoriesToReport)
         {
             ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), ntError);
         }
@@ -4073,7 +4073,7 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
 
     if (moveDirectory)
     {
-        for each(auto entry in filesAndDirectoriesToReport)
+        for (auto entry : filesAndDirectoriesToReport)
         {
             ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), error);
         }
@@ -5201,7 +5201,7 @@ static BOOL RenameUsingSetFileInformationByHandle(
 
     if (renameDirectory)
     {
-        for each(auto entry in filesAndDirectoriesToReport)
+        for (auto entry : filesAndDirectoriesToReport)
         {
             ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), error);
         }
@@ -5676,7 +5676,7 @@ BOOL WINAPI Detoured_RemoveDirectoryW(_In_ LPCWSTR lpPathName)
 
     ReportIfNeeded(accessCheck, opContext, policyResult, error);
 
-    for each (auto entry in filesAndDirectoriesToReport)
+    for (auto entry : filesAndDirectoriesToReport)
     {
         ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), error);
     }

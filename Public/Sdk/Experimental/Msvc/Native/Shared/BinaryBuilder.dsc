@@ -49,6 +49,9 @@ namespace Binary {
         /** Additional libraries to link to */
         libraries?: (File | StaticDirectory)[];
 
+        /** Additional dependencies to be read by compiler or linker such as pdb files. */
+        additionalDependencies?: File[];
+
         /**
          * Specifies value enabling link time code generation of objects compiled with /GL (Whole Program Optimization).
          * This value decides whether ProfileGuidedOptimizationData or OutputProfileGuidedInstrumentationName are used.
@@ -232,7 +235,8 @@ namespace Binary {
                 libraries: libraries,
                 linkTimeCodeGeneration: args.linkTimeCodeGeneration || Link.LinkTimeCodeGenerationOption.use,
                 outputProfileGuidedInstrumentationName: args.outputProfileGuidedInstrumentationName,
-                profileGuidedOptimizationData: args.profileGuidedOptimizationData
+                profileGuidedOptimizationData: args.profileGuidedOptimizationData,
+                additionalDependencies: args.additionalDependencies
             })
             .merge<Link.Arguments>(specificLinkArgs || {});
 

@@ -103,9 +103,9 @@ public:
     // TODO: This is a poorly exercised and very exceptional path; for simplicity consider throwing (failfast exception?)
     void ReportIndeterminatePolicyAndSetLastError(FileOperationContext const& fileOperationContext) const;
 
-    PCPathChar const GetTranslatedPath() const { return m_translatedPath.c_str(); }
+    PCPathChar GetTranslatedPath() const { return m_translatedPath.c_str(); }
 
-    PCPathChar const GetTranslatedPathWithoutTypePrefix() const {
+    PCPathChar GetTranslatedPathWithoutTypePrefix() const {
         switch (m_canonicalizedPath.Type) {
             case PathType::Null:
                 return nullptr;

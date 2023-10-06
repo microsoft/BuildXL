@@ -70,6 +70,7 @@ namespace Templates {
             return undefined;
         })(),
         sources: undefined,
+        languageVersion: ClQ.LanguageVersion.cpp20,
     };
 
     @@public

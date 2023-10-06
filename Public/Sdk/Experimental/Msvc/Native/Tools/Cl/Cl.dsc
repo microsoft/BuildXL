@@ -533,6 +533,7 @@ function languageVersionToCmdLineFlagSuffix(v: LanguageVersion): string {
     switch (v) {
         case LanguageVersion.cpp14: return "c++14";
         case LanguageVersion.cpp17: return "c++17";
+        case LanguageVersion.cpp20: return "c++20";
         case LanguageVersion.cppLatest: return "c++latest";
     }
 }
@@ -1547,6 +1548,9 @@ export const enum LanguageVersion {
     /** C++17 (ISO/IEC 14882:2017). */
     @@Tool.option("/std:c++17")
     cpp17,
+    /** C++20 (ISO/IEC 14882:2020). */
+    @@Tool.option("/std:c++20")
+    cpp20,
     /** latest C++ draft standard (feature set subject to change). */
     @@Tool.option("/std:c++latest")
     cppLatest,

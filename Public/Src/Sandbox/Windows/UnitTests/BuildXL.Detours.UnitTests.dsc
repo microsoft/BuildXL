@@ -31,6 +31,9 @@ namespace UnitTests {
             importFrom("WindowsSdk").Ucrt.lib,
             importFrom("BuildXL.Sandbox.Windows").Core.testDll.importLibrary,
         ],
+        additionalDependencies: [
+            importFrom("BuildXL.Sandbox.Windows").Core.testDll.debugFile,
+        ],
         runtimeContent: [
             importFrom("BuildXL.Sandbox.Windows").Core.testDll.binaryFile
         ]

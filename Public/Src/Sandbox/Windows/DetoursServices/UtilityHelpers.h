@@ -9,7 +9,7 @@
 #include "DataTypes.h"
 
 // Case-insensitive equality for wstrings
-struct CaseInsensitiveStringComparer : public std::binary_function<std::wstring, std::wstring, bool> {
+struct CaseInsensitiveStringComparer {
     bool operator()(const std::wstring& lhs, const std::wstring& rhs) const {
         if (lhs.length() == rhs.length()) {
             
@@ -39,7 +39,7 @@ struct CaseInsensitiveStringComparer : public std::binary_function<std::wstring,
 // Case-insensitive 'less than' for wstrings. Uses a lexicographical comparison on lowercased characters
 // for same-size strings and uses length to order the rest. Observe we just need a total order among strings
 // such that is case-insensitive, so using length for different-size strings makes the comparison faster
-struct CaseInsensitiveStringLessThan : public std::binary_function<std::wstring, std::wstring, bool> {
+struct CaseInsensitiveStringLessThan {
     bool operator()(const std::wstring& lhs, const std::wstring& rhs) const {
         if (lhs.length() == rhs.length())
         {

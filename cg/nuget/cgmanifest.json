@@ -4281,7 +4281,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "VisualCppTools.Internal.VS2017Layout",
-          "Version": "14.28.29916"
+          "Version": "14.37.32822"
         }
       }
     },

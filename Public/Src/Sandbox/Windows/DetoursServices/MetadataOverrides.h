@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include "FileAccessHelpers.h"
+
 // Functions for overriding file metadata based on policy.
 // For example, timestamps may be forced to a known (deterministic) value for input (read-only) files.
 

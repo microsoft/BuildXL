@@ -91,7 +91,7 @@ function getMsvcPackage() : StaticDirectory {
     }
     else {
         let msvcVersions = [
-            "14.28.29333"
+            "14.37.32822"
         ];
 
         // ADO will set this variable if the version above is not installed
@@ -103,6 +103,11 @@ function getMsvcPackage() : StaticDirectory {
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019/Enterprise/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC`,
+            d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019/Preview/VC/Tools/MSVC`,
+            d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC`,
+            d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC`,
+            d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC`,
+            d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2022/Preview/VC/Tools/MSVC`,
         ];
 
         for (let buildToolsDirectory of buildToolsDirectories)
@@ -117,6 +122,6 @@ function getMsvcPackage() : StaticDirectory {
             }
         }
 
-        Contract.fail(`Prerequisite Visual Studio 2019 build tools not found at any of the following locations: '${buildToolsDirectories}'. Please see BuildXL/Documentation/Wiki/DeveloperGuide.md on how to acquire these tools for building externally.`);
+        Contract.fail(`Prerequisite Visual Studio 2022 build tools not found at any of the following locations: '${buildToolsDirectories}'. Please see BuildXL/Documentation/Wiki/DeveloperGuide.md on how to acquire these tools for building externally.`);
     }
 }

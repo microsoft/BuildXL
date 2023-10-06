@@ -35,7 +35,7 @@ static CaseInsensitiveStringLessThan caseInsensitiveLessThan = CaseInsensitiveSt
 
 // Case insensitive comparer for the target cache to handle pairs (wstring, bool). Delegates the wstrings to
 // the CaseInsensitiveStringLessThan class.
-struct CaseInsensitiveTargetCacheLessThan : public std::binary_function<std::pair<std::wstring, bool>, std::pair<std::wstring, bool>, bool> {
+struct CaseInsensitiveTargetCacheLessThan {
     bool operator()(const std::pair<std::wstring, bool>& lhs, const std::pair<std::wstring, bool>& rhs) const {
         if (lhs.second != rhs.second)
         {

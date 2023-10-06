@@ -604,7 +604,7 @@ int CallDetouredNtCreateFileOnSymlink(bool withReparsePointFlag)
     InitializeObjectAttributes(&objAttribs, &unicodeString, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
     const int allocSize = 2048;
-    LARGE_INTEGER largeInteger = { 0 };
+    LARGE_INTEGER largeInteger = { { 0 } };
     largeInteger.QuadPart = allocSize;
 
     IO_STATUS_BLOCK ioStatusBlock = { 0 };

@@ -144,7 +144,7 @@ int CallDetouredZwCreateFile()
     RtlInitUnicodeString(&unicodeString, fullPath.c_str());
 
     InitializeObjectAttributes(&objAttribs, &unicodeString, OBJ_CASE_INSENSITIVE, NULL, NULL);
-    LARGE_INTEGER largeInteger = { 0 };
+    LARGE_INTEGER largeInteger = { { 0 } };
     IO_STATUS_BLOCK ioStatusBlock = { 0 };
     HANDLE handle = INVALID_HANDLE_VALUE;
 
@@ -448,7 +448,7 @@ int CallProbeForDirectory()
     RtlInitUnicodeString(&unicodeString, fullPath.c_str());
 
     InitializeObjectAttributes(&objAttribs, &unicodeString, OBJ_CASE_INSENSITIVE, NULL, NULL);
-    LARGE_INTEGER largeInteger = { 0 };
+    LARGE_INTEGER largeInteger = { { 0 } };
     IO_STATUS_BLOCK ioStatusBlock = { 0 };
     NTSTATUS status = NtCreateFile(
         &hFile, 

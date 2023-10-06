@@ -69,10 +69,10 @@ extern _locale_t g_invariantLocale;
 /// Thus, there is no way to accurately model the case insensitive behavior of the file system.
 /// However, what we do here, should be good enough in practice.
 
-inline PathChar NormalizePathChar(PathChar c)
+inline PathChar NormalizePathChar(PathChar c) noexcept
 {
 #if _WIN32
-    return (PathChar)towupper(c);
+    return static_cast<PathChar>(towupper(c));
 #elif __linux__
     return c;
 #elif __APPLE__
@@ -89,7 +89,7 @@ inline PathChar NormalizePathChar(PathChar c)
 /// IsPathCharEqual
 ///
 /// Doing an ordinal comparison is appropriate for path characters.
-inline bool IsPathCharEqual(PathChar c1, PathChar c2)
+inline bool IsPathCharEqual(PathChar c1, PathChar c2) noexcept
 {
     return
         c1 == c2 ||
@@ -100,17 +100,17 @@ inline bool IsPathCharEqual(PathChar c1, PathChar c2)
 ///
 /// Checks whether the given character is a directory separator (checking against all platforms).
 /// Both platforms' directory separators are invalid characters in the other system's paths.
-inline bool IsDirectorySeparator(PathChar c)
+constexpr bool IsDirectorySeparator(PathChar c) noexcept
 {
     return c == NT_DIRECTORY_SEPARATOR || c == UNIX_DIRECTORY_SEPARATOR;
 }
 
-inline bool IsDriveLetter(PathChar c)
+constexpr inline bool IsDriveLetter(PathChar c) noexcept
 {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-inline bool IsDriveBasedAbsolutePath(PCPathChar path)
+inline bool IsDriveBasedAbsolutePath(PCPathChar path) noexcept
 {
     if (path[0] != 0 && IsDriveLetter(path[0]) && path[1] == NT_VOLUME_SEPARATOR && IsDirectorySeparator(path[2]))
     {

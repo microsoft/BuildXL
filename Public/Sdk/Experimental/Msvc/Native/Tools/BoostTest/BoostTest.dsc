@@ -41,7 +41,7 @@ export function test(args: TestArgs): TransformerExecuteResult {
         const layout = importFrom("VisualCppTools.Internal.VS2017Layout").Contents.all;
         runtimeDeps = [
             ...runtimeDeps,
-            layout.ensureContents({subFolder: r`lib/native/redist/debug_nonredist/${qualifier.platform}/Microsoft.VC141.DebugCRT`})
+            layout.ensureContents({subFolder: r`lib/native/redist/debug_nonredist/${qualifier.platform}/Microsoft.VC143.DebugCRT`})
         ];
     }
 

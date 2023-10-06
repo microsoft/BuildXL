@@ -269,7 +269,7 @@ void ReportProcessDetouringStatus(
     }
 
     DWORD len = MAX_PATH;
-    static wchar_t* errorString = L"Error getting process name: GetModuleFileNameW failed";
+    const static wchar_t* errorString = L"Error getting process name: GetModuleFileNameW failed";
 
     unique_ptr<wchar_t[]> processName(new wchar_t[len]);
     wcscpy_s(processName.get(), len, errorString);
@@ -313,7 +313,7 @@ void ReportProcessDetouringStatus(
         (lpCommandLine != nullptr ? wcslen(lpCommandLine) : 10) /*lpCommandLine*/ +
         3; /*\r\n null*/
 
-    wchar_t* nullStringPtr = L"null";
+    const wchar_t* nullStringPtr = L"null";
 
     std::wstring commandLine(lpCommandLine != nullptr ? lpCommandLine : nullStringPtr);
     std::replace(commandLine.begin(), commandLine.end(), L'\r', L' ');

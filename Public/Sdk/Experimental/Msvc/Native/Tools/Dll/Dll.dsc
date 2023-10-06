@@ -141,6 +141,7 @@ export function build(args: Arguments): NativeDllImage {
         importLibrary: undefined,
         moduleDefinitionFile: defFile,
         exports: args.exports,
+        additionalDependencies: args.additionalDependencies
     };
 
     let linkOutputs = Binary.runLink(

@@ -3,7 +3,6 @@
 
 #include "stdafx.h"
 #include "MetadataOverrides.h"
-#include "FileAccessHelpers.h"
 
 // UTC FILETIME for February 2, 2002 2:02:02 AM
 // Why this date? It has a lot of 2s in it, and is in the past.
@@ -21,32 +20,32 @@ static LARGE_INTEGER GetNewInputTimestampAsLargeInteger() {
 void OverrideTimestampsForInputFile(FILE_BASIC_INFO* result) {
     LARGE_INTEGER newTimestamp = GetNewInputTimestampAsLargeInteger();
 
-	if (NormalizeReadTimestamps())
-	{
-		result->CreationTime = newTimestamp;
-		result->LastAccessTime = newTimestamp;
-		result->LastWriteTime = newTimestamp;
-		result->ChangeTime = newTimestamp;
-	}
-	else
-	{
-		if (result->CreationTime.QuadPart < newTimestamp.QuadPart)
-		{
-			result->CreationTime = newTimestamp;
-		}
-		if (result->LastAccessTime.QuadPart < newTimestamp.QuadPart)
-		{
-			result->LastAccessTime = newTimestamp;
-		}
-		if (result->LastWriteTime.QuadPart < newTimestamp.QuadPart)
-		{
-			result->LastWriteTime = newTimestamp;
-		}
-		if (result->ChangeTime.QuadPart < newTimestamp.QuadPart)
-		{
-			result->ChangeTime = newTimestamp;
-		}
-	}
+    if (NormalizeReadTimestamps())
+    {
+        result->CreationTime = newTimestamp;
+        result->LastAccessTime = newTimestamp;
+        result->LastWriteTime = newTimestamp;
+        result->ChangeTime = newTimestamp;
+    }
+    else
+    {
+        if (result->CreationTime.QuadPart < newTimestamp.QuadPart)
+        {
+            result->CreationTime = newTimestamp;
+        }
+        if (result->LastAccessTime.QuadPart < newTimestamp.QuadPart)
+        {
+            result->LastAccessTime = newTimestamp;
+        }
+        if (result->LastWriteTime.QuadPart < newTimestamp.QuadPart)
+        {
+            result->LastWriteTime = newTimestamp;
+        }
+        if (result->ChangeTime.QuadPart < newTimestamp.QuadPart)
+        {
+            result->ChangeTime = newTimestamp;
+        }
+    }
 }
 
 void ScrubShortFileName(WIN32_FIND_DATAW* result) {

@@ -140,7 +140,7 @@ bool DetouredProcessInjector::Init(LPCBYTE payloadWrapper, std::wstring& errorMe
         }
         else
         {
-            _payload = make_unique<byte[]>(size);
+            _payload = make_unique<unsigned char[]>(size);
             memcpy_s(_payload.get(), size, handles, size);
         }
 
@@ -184,7 +184,7 @@ void DetouredProcessInjector::Init(
         _payload = nullptr;
     }
     else {
-        _payload = make_unique<byte[]>(payloadSize);
+        _payload = make_unique<unsigned char[]>(payloadSize);
         memcpy_s(_payload.get(), payloadSize, payload, payloadSize);
     }
 
@@ -217,7 +217,7 @@ void DetouredProcessInjector::SetPayload(LPCBYTE payload, uint32_t payloadSize)
     }
     else
     {
-        _payload = make_unique<byte[]>(payloadSize);
+        _payload = make_unique<unsigned char[]>(payloadSize);
         memcpy_s(_payload.get(), payloadSize, payload, payloadSize);
     }
 }
@@ -260,7 +260,7 @@ DWORD DetouredProcessInjector::LocalInjectProcess(HANDLE processHandle, bool inh
 
     // Allocate space for the payload wrapper.
     uint32_t size = WrapperSize();
-    std::unique_ptr<byte[]> payloadWrapper = make_unique<byte[]>(size);
+    std::unique_ptr<unsigned char[]> payloadWrapper = make_unique<unsigned char[]>(size);
 
     // Write sizes
     uint32_t *sizes = reinterpret_cast<uint32_t *>(payloadWrapper.get());
@@ -316,7 +316,7 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
         return ERROR_INVALID_FUNCTION;
     }
 
-    LARGE_INTEGER counter = { 0 };
+    LARGE_INTEGER counter = { { 0 } };
     long long unsigned timeValue = QueryPerformanceCounter(&counter) ? counter.QuadPart : GetTickCount64();
 
     // The event name is 'Global\xxxxxxxx-yyyyyyyyyyyyyyyy-z', where:
@@ -423,7 +423,7 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
 DetouredProcessInjector *WINAPI DetouredProcessInjector_Create(const GUID &payloadGuid,
     HANDLE remoteInterjectorPipe, HANDLE reportPipe,
     LPCSTR dllX86, LPCSTR dllX64,
-    uint32_t payloadSize, const byte *payload)
+    uint32_t payloadSize, const unsigned char *payload)
 {
     DetouredProcessInjector *injector = new DetouredProcessInjector(payloadGuid);
     injector->Init(remoteInterjectorPipe, reportPipe, payloadSize, payload, 0, nullptr);

@@ -153,7 +153,10 @@ export function evaluate(args: Arguments): Result {
             ...(args.tags || [])
         ],
         arguments: cmdArgs,
-        dependencies: libSearchPaths,
+        dependencies: [
+            ...libSearchPaths,
+            ...addIfLazy(args.additionalDependencies !== undefined, () => args.additionalDependencies)
+        ],
         implicitOutputs: compact([
             manifestOutFile,
             iff(idlOutFile && !tlbOutFile, outFile.changeExtension(".tlb")),
@@ -1220,6 +1223,9 @@ export interface Arguments extends Transformer.RunnerArguments {
     /** Guarantee deterministic output. */
     @@Tool.option("/Brepro")
     linkDeterminism?: boolean;
+
+    /** Additional dependencies to be read by compiler or linker such as pdb files. */
+    additionalDependencies?: File[];
 }
 
 /**

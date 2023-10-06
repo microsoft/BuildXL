@@ -38,7 +38,7 @@ private:
     unique_handle<INVALID_HANDLE_VALUE> _mapDirectory;
     unique_handle<INVALID_HANDLE_VALUE> _remoteInjectorPipe;
     unique_handle<INVALID_HANDLE_VALUE> _reportPipe;
-    unique_ptr<byte[]> _payload = nullptr;
+    unique_ptr<unsigned char[]> _payload = nullptr;
     uint32_t _payloadSize = 0;
     vector<HANDLE> _otherHandles;
     string _dllX86;

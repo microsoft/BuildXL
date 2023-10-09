@@ -2,7 +2,7 @@ jobs:
 - job: Selfhost_InternalPTrace
   displayName: Build and Validate Selfhost with PTrace
   pool:
-    name: BuildXL-DevOpsAgents-Linux-PME
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
     os: linux
 
   templateContext:

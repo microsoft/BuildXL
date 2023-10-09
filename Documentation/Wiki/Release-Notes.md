@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20230929.3.1 (Release [331981](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=331981))
+
+- Add a new FileSystemMode that ignores dir enumerations during pip fingerprint computation 
+- Expose unsafe arguments to the yarn install sdk
+- Add EverConnectedWorkerCount metric
+- Add BuildXLCancelLargestRamUseFirst option that makes engine cancel processes with largest mem usage instead of the most recently launched ones
+- Add wasted duration due to the retries for the critical path
+- Various fixes and improvements
+
 # 0.1.0-20230921.3.1 (Release [330519](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=330519&_a=release-pipeline-progress))
 
 - Keep traversing candidates when hitting an evicted content hash list

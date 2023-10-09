@@ -74,7 +74,7 @@ namespace Transformer {
                 },
                 workingDirectory: arguments.targetDir,
                 arguments: [
-                    Cmd.argument(arguments.recursive === false ? "-avh --no-r" : "-avh"),
+                    Cmd.argument(arguments.recursive === false ? "-lpgoDvhI" : "-rlpgoDvhI"),
                     Cmd.option("--include ", arguments.pattern),
                     Cmd.option("--exclude ", arguments.excludePattern),
                     Cmd.argument(Cmd.join("", [ Artifact.none(arguments.sourceDir), '/' ])),

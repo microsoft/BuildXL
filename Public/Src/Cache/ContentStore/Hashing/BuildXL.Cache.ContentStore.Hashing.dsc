@@ -37,7 +37,6 @@ namespace Hashing {
                 ]
             },
         ],
-        sourceGenerators: [importFrom("StructRecordGenerator").pkg],
         nullable: true,
         allowUnsafeBlocks: true,
         // We reference 'ActionBlockSlim' here as sources to avoid runtime dependency to BuildXL.Utilities.

@@ -102,6 +102,5 @@ namespace Distributed {
             "BuildXL.Cache.Host.Service",
         ],
         skipDocumentationGeneration: true,
-        sourceGenerators: [importFrom("StructRecordGenerator").pkg],
     });
 }

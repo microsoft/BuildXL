@@ -102,8 +102,11 @@ namespace Tool.ServicePipDaemon
         /// </summary>
         public override void RequestStop()
         {
-            base.RequestStop(); // Stop listening for connections 
-
+            // Ideally, we should stop the server right away, and then do 'finalize' call if one needed. However, stopping
+            // the server triggers daemon's completion, daemon is GC'ed, and the main process exits (due to design decisions,
+            // this method, RequestStop, runs as a fire-and-forget method, i.e., the main thread is not actually waiting for
+            // the Finalize call to finish). Having said that, by design, there should be no other calls once 'stop' command
+            // is issued, so it's safe not to stop the server immediately.
             if (m_wasCreator && Interlocked.Increment(ref m_finalizeRequestCounter) == 1)
             {
                 m_logger.Log(LogLevel.Info, $"{LogPrefix}Issuing the 'Finalize' command before shutting down: this means the command wasn't explicitly issued before.");
@@ -117,6 +120,8 @@ namespace Tool.ServicePipDaemon
                     m_logger.Log(LogLevel.Error, $"{LogPrefix}An exception was thrown while attempting to Finalize before shutting down: {e.ToStringDemystified()}");
                 }
             }
+
+            base.RequestStop(); // Stop listening for connections 
         }
     }
 }

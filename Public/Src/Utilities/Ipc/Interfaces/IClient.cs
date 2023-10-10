@@ -32,7 +32,7 @@ namespace BuildXL.Ipc.Interfaces
         /// <summary>
         /// Executes given <paramref name="operation"/> on the server side.  If the operation is
         /// synchronous (<see cref="IIpcOperation.ShouldWaitForServerAck"/>), waits until it receives an
-        /// <see cref="IIpcResult"/> from the server, which it then returns; otherwise, immediatelly
+        /// <see cref="IIpcResult"/> from the server, which it then returns; otherwise, immediately
         /// returns success.
         /// </summary>
         /// <remarks>
@@ -41,7 +41,7 @@ namespace BuildXL.Ipc.Interfaces
         /// In case of an error, the error kind should be indicated by <see cref="IIpcResult.ExitCode"/>,
         /// and the error message by <see cref="IIpcResult.Payload"/>.
         ///
-        /// In case of a success, the <see cref="IIpcResult.ExitCode"/> of the result shoud be
+        /// In case of a success, the <see cref="IIpcResult.ExitCode"/> of the result should be
         /// <see cref="IpcResultStatus.Success"/>, and any return value should be encoded in
         /// <see cref="IIpcResult.Payload"/>.
         /// </remarks>

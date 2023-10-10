@@ -355,6 +355,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             {
                 try
                 {
+                    if (!contentHash.IsValid)
+                    {
+                        Tracer.Warning(context, $"Found invalid hash. Hash=[{contentHash.ToShortHash()}] CHL=[{blobName}]");
+                        return false;
+                    }
+
                     if (contentHash.IsEmptyHash() || contentHash.IsZero())
                     {
                         hashes.Add((contentHash, 0));

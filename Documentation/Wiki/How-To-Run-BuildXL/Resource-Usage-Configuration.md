@@ -48,16 +48,12 @@ Historic perf information is used to speculatively limit the RAM utilization. If
 
     /maxRamUtilizationPercentage:<number>
                                 Specifies the maximum machine wide RAM utilization allowed before the scheduler will
-                                stop scheduling more work to allow resources to be freed. Default is 85%.
-    /minAvailableRamMb:<number> 
-                                Specifies the minimum available machine wide RAM (in megabytes) allowed before the
-                                scheduler will stop scheduling more work to allow resources to be freed. Default is 500
-                                mb.
+                                stop scheduling more work to allow resources to be freed. Default is 90%.
     /enableLessAggresiveMemoryProjection
                                 Specifies that average job object memory counters from historical data should be used 
                                 for memory forecasting instead of peak values.
 
-Despite throttling the scheduler based on the historical data, builds can still experience high RAM usage. BuildXL has three ways to manage memory when (i) the maximum memory utilization is exceeded and (ii) there is less available memory than the specified minimum available machine RAM. 
+Despite throttling the scheduler based on the historical data, builds can still experience high RAM usage. BuildXL has three ways to manage memory when (i) the maximum memory utilization is exceeded. 
 
     /manageMemoryMode:CancellationRam
                                 This is the default mode. BuildXL cancels the processes (shortest running time first) when the limits are exceeded. This mode will be deactivated if /disableProcessRetryOnResourceExhaustion is passed. Retrying certain pips is sometimes unsafe due to several reasons. In those cases, developers might disable retrying temporarily to figure out the issue. 

@@ -14,19 +14,12 @@ namespace BuildXL.Utilities.Configuration
     {
         /// <summary>
         /// Specifies the maximum amount of RAM which can be utilized before scheduling is paused to allow freeing resources.
-        /// NOTE: In order for scheduling to be paused, both this limit and <see cref="MinimumTotalAvailableRamMb"/> must be met.
         /// </summary>
         int MaximumRamUtilizationPercentage { get; }
 
         /// <summary>
-        /// Specifies the minimum amount of available RAM before scheduling is paused to allow freeing resources.
-        /// NOTE: In order for scheduling to be paused, both this limit and <see cref="MaximumRamUtilizationPercentage"/> must be met.
-        /// </summary>
-        int? MinimumTotalAvailableRamMb { get; }
-
-        /// <summary>
         /// Indicates that processes should not be cancelled and retried when machine RAM is low as specified by
-        /// <see cref="MaximumRamUtilizationPercentage"/> and <see cref="MinimumTotalAvailableRamMb"/>
+        /// <see cref="MaximumRamUtilizationPercentage"/>.
         /// </summary>
         bool DisableProcessRetryOnResourceExhaustion { get; }
 

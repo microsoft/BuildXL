@@ -1263,12 +1263,11 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "Failed to get the current memory pressure level - resource cancelation will only take /minimumAvailableRam and /maximumRamUtilization into account! Available RAM MB: {availableRam} < {minimumAvailableRam})" +
+            Message = "Failed to get the current memory pressure level - resource cancellation will only take /maximumRamUtilization into account! Available RAM MB: {availableRam}" +
             " && (used RAM percentage: {ramUtilization} > {maximumRamUtilization}) ")]
         internal abstract void UnableToGetMemoryPressureLevel(
             LoggingContext loggingContext,
             long availableRam,
-            long minimumAvailableRam,
             long ramUtilization,
             long maximumRamUtilization);
 
@@ -1279,14 +1278,13 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "Stopping further process execution due to {reason}:" +
-            " (available RAM MB: {availableRam} < {minimumAvailableRam})" +
+            " (available RAM MB: {availableRam})" +
             " (used RAM percentage: {ramUtilization} > {maximumRamUtilization})" +
             " (used Commit percentage: {commitUtilization} > {maximumCommitUtilization})")]
         internal abstract void StoppingProcessExecutionDueToMemory(
             LoggingContext loggingContext,
             string reason,
             long availableRam,
-            long minimumAvailableRam,
             long ramUtilization,
             long maximumRamUtilization,
             long commitUtilization,
@@ -1382,8 +1380,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "Will try to resume process execution because effective available RAM is above required limit. [effective available RAM MB: {effectiveAvailableRam} > {minimumAvailableRam}] or [effective used RAM percentage: {effectiveRamUtilization} < {maximumRamUtilization})]. Actual RAM availability: {availableRam} MB ({ramUtilization}% used)")]
-        internal abstract void ResumingProcessExecutionAfterSufficientResources(LoggingContext loggingContext, int effectiveAvailableRam, int availableRam, int minimumAvailableRam, int ramUtilization, int effectiveRamUtilization, int maximumRamUtilization);
+            Message = "Will try to resume process execution because effective available RAM is above required limit. [effective available RAM MB: {effectiveAvailableRam}], [effective used RAM percentage: {effectiveRamUtilization} < {maximumRamUtilization})]. Actual RAM availability: {availableRam} MB ({ramUtilization}% used)")]
+        internal abstract void ResumingProcessExecutionAfterSufficientResources(LoggingContext loggingContext, int effectiveAvailableRam, int availableRam, int ramUtilization, int effectiveRamUtilization, int maximumRamUtilization);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessStatus,
@@ -3505,7 +3503,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.HostApplication,
-            Message = "Machine ran out of physical ram and had to fall back to the page file. This can dramatically impact build performance. Either too much concurrency was used during the build or the memory throttling options were not effective. Try adjusting the following options: /maxproc, /maxRamUtilizationPercentage, /minAvailableRamMb. See verbose help text for details: {MainExecutableName} /help:verbose",
+            Message = "Machine ran out of physical ram and had to fall back to the page file. This can dramatically impact build performance. Either too much concurrency was used during the build or the memory throttling options were not effective. Try adjusting the following options: /maxproc, /maxRamUtilizationPercentage. See verbose help text for details: {MainExecutableName} /help:verbose",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void HitLowMemorySmell(LoggingContext context);
 

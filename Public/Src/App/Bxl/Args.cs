@@ -870,7 +870,7 @@ namespace BuildXL
                             opt => schedulingConfiguration.MaxWorkersPerModule = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "minAvailableRamMb",
-                            opt => schedulingConfiguration.MinimumTotalAvailableRamMb = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                            opt => { /* DO NOTHING - Flag is deprecated */ }),
                         OptionHandlerFactory.CreateOption(
                             "minCacheContentReplica",
                             opt => cacheConfiguration.MinimumReplicaCountForStrongGuarantee = (byte)CommandLineUtilities.ParseInt32Option(opt, 0, 32)),

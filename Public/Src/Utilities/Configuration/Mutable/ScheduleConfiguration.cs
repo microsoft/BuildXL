@@ -139,7 +139,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RequiredOutputMaterialization = template.RequiredOutputMaterialization;
             TreatDirectoryAsAbsentFileOnHashingInputContent = template.TreatDirectoryAsAbsentFileOnHashingInputContent;
             MaximumRamUtilizationPercentage = template.MaximumRamUtilizationPercentage;
-            MinimumTotalAvailableRamMb = template.MinimumTotalAvailableRamMb;
             MinimumDiskSpaceForPipsGb = template.MinimumDiskSpaceForPipsGb;
             MaximumAllowedMemoryPressureLevel = template.MaximumAllowedMemoryPressureLevel;
             AllowCopySymlink = template.AllowCopySymlink;
@@ -313,9 +312,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int MaximumRamUtilizationPercentage { get; set; }
-
-        /// <inheritdoc />
-        public int? MinimumTotalAvailableRamMb { get; set; }
 
         /// <inheritdoc />
         public Memory.PressureLevel MaximumAllowedMemoryPressureLevel { get; set; }

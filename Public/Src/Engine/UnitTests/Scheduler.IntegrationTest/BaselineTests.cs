@@ -128,7 +128,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void StopSchedulerDueToLowPhysicalMemory()
         {
-            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
 
             var output = CreateOutputFileArtifact();
@@ -153,7 +152,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void StopSchedulerDueToLowCommitMemory()
         {
-            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
 
             var output = CreateOutputFileArtifact();
@@ -2044,7 +2042,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(false)]
         public void RetryPipOnHighMemoryUsage(bool allowLowMemoryRetry)
         {
-            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker = 5;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.CancellationRam;
@@ -2110,7 +2107,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // suspend/resume is not available on macOS
         public void SuspendResumePipOnHighMemoryUsage()
         {
-            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.Suspend;
 
@@ -2164,7 +2160,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void SingleSuspendedPipIsCancelledUnderContinuousMemoryPressure()
         {
-            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.Suspend;
 

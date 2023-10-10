@@ -2961,9 +2961,7 @@ namespace BuildXL.Scheduler
                 }
 
                 bool exceededMaxRamUtilizationPercentage = perfInfo.EffectiveRamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
-                bool underMinimumAvailableRam = perfInfo.EffectiveAvailableRamMb.Value < m_configuration.Schedule.MinimumTotalAvailableRamMb();
-
-                if (exceededMaxRamUtilizationPercentage && underMinimumAvailableRam)
+                if (exceededMaxRamUtilizationPercentage)
                 {
                     memoryResource |= MemoryResource.LowRam;
                 }
@@ -3071,7 +3069,6 @@ namespace BuildXL.Scheduler
                     Logger.Log.UnableToGetMemoryPressureLevel(
                             m_executePhaseLoggingContext,
                             availableRam: perfInfo.AvailableRamMb.Value,
-                            minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb(),
                             ramUtilization: perfInfo.RamUsagePercentage.Value,
                             maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
                 }
@@ -3156,7 +3153,6 @@ namespace BuildXL.Scheduler
                 Logger.Log.ResumingProcessExecutionAfterSufficientResources(m_executePhaseLoggingContext,
                     availableRam: perfInfo.AvailableRamMb ?? 0,
                     effectiveAvailableRam: perfInfo.EffectiveAvailableRamMb ?? 0,
-                    minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb(),
                     ramUtilization: perfInfo.RamUsagePercentage ?? 0,
                     effectiveRamUtilization: perfInfo.EffectiveRamUsagePercentage ?? 0,
                     maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
@@ -3171,7 +3167,6 @@ namespace BuildXL.Scheduler
                     m_executePhaseLoggingContext,
                     reason: memoryResource.ToString(),
                     availableRam: perfInfo.AvailableRamMb ?? 0,
-                    minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb(),
                     ramUtilization: perfInfo.RamUsagePercentage ?? 0,
                     maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage,
                     commitUtilization: perfInfo.CommitUsagePercentage ?? 0,

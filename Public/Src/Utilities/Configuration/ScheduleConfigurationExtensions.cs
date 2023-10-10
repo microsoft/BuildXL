@@ -17,14 +17,6 @@ namespace BuildXL.Utilities.Configuration
         public static bool UseHistoricalCpuUsageInfo(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.UseHistoricalCpuUsageInfo ?? false;
 
         /// <summary>
-        /// <see cref="IScheduleConfiguration.MinimumTotalAvailableRamMb"/>
-        /// </summary>
-        /// <remarks>
-        /// Defaults to 500
-        /// </remarks>
-        public static int MinimumTotalAvailableRamMb(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.MinimumTotalAvailableRamMb ?? 500;
-
-        /// <summary>
         /// <see cref="IScheduleConfiguration.DelayedCacheLookupMinMultiplier"/>
         /// </summary>
         public static bool DelayedCacheLookupEnabled(this IScheduleConfiguration scheduleConfiguration) => scheduleConfiguration.DelayedCacheLookupMinMultiplier.HasValue && !EngineEnvironmentSettings.DisableDelayedCacheLookup;

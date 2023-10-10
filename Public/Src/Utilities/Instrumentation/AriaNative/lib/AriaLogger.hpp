@@ -29,7 +29,7 @@ public:
 
     ~AriaLogger();
 
-    ILogger *GetLogger() const;
+    ILogger *GetLogger() const noexcept;
 };
 
 struct AriaEventProperty
@@ -40,7 +40,7 @@ struct AriaEventProperty
 };
 
 AriaLogger* WINAPI CreateAriaLogger(const char *token, const char *dbPath, int teardownTimeoutInSeconds);
-void WINAPI DisposeAriaLogger(const AriaLogger *);
+void WINAPI DisposeAriaLogger(const AriaLogger *) noexcept;
 
 void WINAPI LogEvent(const AriaLogger *logger, const char *eventName, int eventPropertiesLength, const AriaEventProperty *eventProperties);
 

@@ -206,12 +206,13 @@ int CopyFileALogging(void)
 
 int CopyFileExWLogging(void)
 {
+    BOOL bCancel = false;
     CopyFileExW(
         L"CopyFileExWLoggingTest1.txt",
         L"CopyFileExWLoggingTest2.txt",
         NULL,
         NULL,
-        false,
+        &bCancel,
         0
         );
 
@@ -220,12 +221,13 @@ int CopyFileExWLogging(void)
 
 int CopyFileExALogging(void)
 {
+    BOOL bCancel = false;
     CopyFileExA(
         "CopyFileExALoggingTest1.txt",
         "CopyFileExALoggingTest2.txt",
         NULL,
         NULL,
-        false,
+        &bCancel,
         0
         );
 

@@ -152,6 +152,7 @@ namespace Binary {
             {name: "_STL_WARNING_LEVEL", value: "3" }
         ],
         enableSpectreVariantOneMitigation: true,
+        languageVersion: Cl.LanguageVersion.cpp20
     };
 
     /** Computes all the include search paths from the NativeBinaryArguments */

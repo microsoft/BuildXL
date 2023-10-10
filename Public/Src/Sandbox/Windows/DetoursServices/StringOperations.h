@@ -72,7 +72,8 @@ extern _locale_t g_invariantLocale;
 inline PathChar NormalizePathChar(PathChar c) noexcept
 {
 #if _WIN32
-    return static_cast<PathChar>(towupper(c));
+    const PathChar pc{ towupper(c) };
+    return pc;
 #elif __linux__
     return c;
 #elif __APPLE__

@@ -23,7 +23,7 @@ private:
     static __declspec(thread) size_t gt_DetouredCount;
 
 public:
-    DetouredScope()
+    DetouredScope() noexcept
     {
         ++gt_DetouredCount;
     }

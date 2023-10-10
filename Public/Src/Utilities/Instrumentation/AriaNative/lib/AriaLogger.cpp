@@ -22,24 +22,38 @@ AriaLogger::AriaLogger(const char* token, const char *dbPath, int teardownTimeou
     LogManager::SetTransmitProfile(TransmitProfile_NearRealTime);
 }
 
+#pragma warning( push )
+// If you define or delete any default operation in the type 'class AriaLogger', define or delete them all
+// Complaining about not declaring copy/move constructors/destructors, should be fine to ignore for this class.
+#pragma warning( disable : 26432 )
 AriaLogger::~AriaLogger()
 {
+#pragma warning( push )
+// The function is declared 'noexcept' but calls function 'FlushAndTeardown()' which may throw exceptions
+// This destructor is not declared as noexcept, not sure why we get warning, but we can ignore it.
+#pragma warning( disable : 26447 )
     LogManager::FlushAndTeardown();
+#pragma warning( pop )
 }
+#pragma warning( pop )
 
-ILogger *AriaLogger::GetLogger() const
+ILogger *AriaLogger::GetLogger() const noexcept
 {
     return logger_;
 };
 
 //// External Interface
-
+#pragma warning( push )
+// Avoid calling new and delete explicitly, use std::make_unique<T> instead
+// This interface is only called by the managed side, so we can ignore this warning
+#pragma warning( disable : 26409 )
 AriaLogger* WINAPI CreateAriaLogger(const char *token, const char *dbPath, int teardownTimeoutInSeconds)
 {
     return new AriaLogger(token, dbPath, teardownTimeoutInSeconds);
 }
+#pragma warning( pop )
 
-void WINAPI DisposeAriaLogger(const AriaLogger *logger)
+void WINAPI DisposeAriaLogger(const AriaLogger *logger) noexcept
 {
     if (logger != nullptr)
     {
@@ -49,15 +63,20 @@ void WINAPI DisposeAriaLogger(const AriaLogger *logger)
 
 void WINAPI LogEvent(const AriaLogger *logger, const char *eventName, int eventPropertiesLength, const AriaEventProperty *eventProperties)
 {
-    if (logger != nullptr)
+    if (logger != nullptr && eventProperties != nullptr)
     {
         EventProperties props;
         props.SetName(eventName);
         for (int i = 0; i < eventPropertiesLength; i++)
         {
+#pragma warning( push )
+// Don't use pointer arithmetic. Use span instead
+// No need to use spans for these since they are just being passed into props
+#pragma warning( disable : 26481 )
             const char *propName = eventProperties[i].name;
             const char *propValue = eventProperties[i].value;
-            int64_t piiOrValue = eventProperties[i].piiOrLongValue;
+            const int64_t piiOrValue = eventProperties[i].piiOrLongValue;
+#pragma warning( pop )
 
             if (propValue == nullptr)
             {
@@ -74,7 +93,10 @@ void WINAPI LogEvent(const AriaLogger *logger, const char *eventName, int eventP
         }
 
         ILogger *log = logger->GetLogger();
-        log->LogEvent(props);
+        if (log != nullptr)
+        {
+            log->LogEvent(props);
+        }
     }
 }
 

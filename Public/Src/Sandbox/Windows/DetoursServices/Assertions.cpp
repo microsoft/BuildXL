@@ -3,7 +3,7 @@
 
 #include "stdafx.h"
 
-_declspec(noinline) void _fail_assert()
+_declspec(noinline) void _fail_assert() noexcept
 {
     RaiseFailFastException(nullptr, nullptr, FAIL_FAST_GENERATE_EXCEPTION_ADDRESS);
     __assume(0); // Unreachable

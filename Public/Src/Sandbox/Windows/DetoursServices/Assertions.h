@@ -7,5 +7,5 @@
 #define assert(e) ((void)0)
 #else
 #define assert(e) do { if (!(e)) { _fail_assert(); } } while(false)
-void _fail_assert();
+void _fail_assert() noexcept;
 #endif

@@ -18,6 +18,8 @@ namespace Detours.Lib {
         disableSpecificWarnings: [4505, 4702, 4722],
         runtimeTypeInfo: false,
         compilerDeterminism: true,
+        /** Prefast is explicitly disabled for the Detours library because this code was a fork of the Detours library. */
+        enablePreFast: false,
     });
 
     export const libRunnerDefaultValue = Native.Templates.nativeBuildersLibRunnerTemplate.merge({ libDeterminism: true });

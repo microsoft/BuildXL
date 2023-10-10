@@ -54,7 +54,7 @@ private:
     private:
         CRITICAL_SECTION &_lock;
     public:
-        LockGuard(CRITICAL_SECTION &lock) : _lock(lock) { EnterCriticalSection(&_lock); }
+        LockGuard(CRITICAL_SECTION &lock) noexcept : _lock(lock) { EnterCriticalSection(&_lock); }
         ~LockGuard() { LeaveCriticalSection(&_lock); }
         LockGuard() = delete;
         LockGuard(const LockGuard&) = delete;

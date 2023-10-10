@@ -160,7 +160,6 @@ namespace Yarn {
                 {kind: "shared", directory: d`${arguments.repoRoot}`},
             ],
             dependencies: [
-                f`${arguments.repoRoot}/yarn.lock`,
                 ...setCacheResult.getOutputFiles(), 
                 ...additionalDependencies],
             unsafe: unsafeArgs,

@@ -74,7 +74,7 @@ Transformer.execute({
         ],
     },
     workingDirectory: d`./Out/src`,
-    dependencies: [f`./path/to/yarn`, f`./Out/src/yarn.lock`, f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile/.yarnrc`],
+    dependencies: [f`./path/to/yarn`, f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile/.yarnrc`],
     implicitOutputs: [d`./Out/src`],
     environmentVariables: [
         {name: "APPDATA", isPassThrough: true},

@@ -338,7 +338,7 @@ namespace TypeScript.Net.Reformatter
         private static int FitsOnOneLine(IParameterDeclaration expression, int remainingSpace)
         {
             var space = remainingSpace;
-            space -= expression.Name.GetText().Length;
+            space -= expression.Name.GetUnescapedText().Length;
             if (space >= 0 && expression.Type != null)
             {
                 space -= 2;

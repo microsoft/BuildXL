@@ -328,7 +328,7 @@ namespace TypeScript.Net.Incrementality
             {
                 foreach (var declaration in source.Declarations.AsStructEnumerable())
                 {
-                    AddOrCreateReferencedSymbol(SymbolKind.VariableDeclaration, declaration.Name.GetText());
+                    AddOrCreateReferencedSymbol(SymbolKind.VariableDeclaration, declaration.Name.GetUnescapedText());
                     AnalyzeExpression(declaration.Initializer, idx);
                 }
             }
@@ -727,11 +727,11 @@ namespace TypeScript.Net.Incrementality
             {
                 if (modifiers == DeclarationFlags.None)
                 {
-                    AddOrCreateReferencedSymbol(SymbolKind.VariableDeclaration, declaration.Name.GetText(), modifiers);
+                    AddOrCreateReferencedSymbol(SymbolKind.VariableDeclaration, declaration.Name.GetUnescapedText(), modifiers);
                 }
                 else
                 {
-                    AddOrCreateDeclarationSymbol(SymbolKind.VariableDeclaration, declaration.Name.GetText(), modifiers);
+                    AddOrCreateDeclarationSymbol(SymbolKind.VariableDeclaration, declaration.Name.GetUnescapedText(), modifiers);
                 }
 
                 if (declaration.Initializer != null)

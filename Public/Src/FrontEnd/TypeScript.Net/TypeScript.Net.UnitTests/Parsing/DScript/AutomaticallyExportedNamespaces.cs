@@ -16,8 +16,7 @@ namespace TypeScript.Net.UnitTests.Parsing
             generateWithQualifierFunctionForEveryNamespace: false,
             preserveTrivia: false,
             allowBackslashesInPathInterpolation: true,
-            useSpecPublicFacadeAndAstWhenAvailable: false,
-            escapeIdentifiers: true);
+            useSpecPublicFacadeAndAstWhenAvailable: false);
 
         private static void ParseModuleAndAssertFlag(string code, Visibility visibility)
         {

@@ -66,7 +66,6 @@ namespace Test.Tool.DScript.Analyzer
                     preserveTrivia: true,
                     allowBackslashesInPathInterpolation: true,
                     useSpecPublicFacadeAndAstWhenAvailable: false,
-                    escapeIdentifiers: true,
                     convertPathLikeLiteralsAtParseTime: false));
 
             Assert.Equal(0, sourceFile.ParseDiagnostics.Count);

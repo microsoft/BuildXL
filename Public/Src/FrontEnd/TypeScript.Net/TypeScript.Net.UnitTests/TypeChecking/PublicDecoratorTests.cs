@@ -17,8 +17,7 @@ namespace Test.DScript.TypeChecking
             generateWithQualifierFunctionForEveryNamespace: false,
             preserveTrivia: false,
             allowBackslashesInPathInterpolation: true,
-            useSpecPublicFacadeAndAstWhenAvailable: false,
-            escapeIdentifiers: true);
+            useSpecPublicFacadeAndAstWhenAvailable: false);
 
         private readonly ITestOutputHelper m_output;
 

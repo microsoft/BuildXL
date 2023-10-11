@@ -15,7 +15,6 @@ namespace TypeScript.Net.BuildXLScript
             bool preserveTrivia,
             bool allowBackslashesInPathInterpolation,
             bool useSpecPublicFacadeAndAstWhenAvailable,
-            bool escapeIdentifiers,
             bool failOnMissingSemicolons = false,
             bool collectImportFile = false,
             bool convertPathLikeLiteralsAtParseTime = true)
@@ -25,7 +24,6 @@ namespace TypeScript.Net.BuildXLScript
                 preserveTrivia,
                 allowBackslashesInPathInterpolation,
                 useSpecPublicFacadeAndAstWhenAvailable,
-                escapeIdentifiers,
                 failOnMissingSemicolons,
                 collectImportFile,
                 convertPathLikeLiteralsAtParseTime)
@@ -48,7 +46,6 @@ namespace TypeScript.Net.DScript
             bool preserveTrivia,
             bool allowBackslashesInPathInterpolation,
             bool useSpecPublicFacadeAndAstWhenAvailable,
-            bool escapeIdentifiers,
             bool failOnMissingSemicolons = false,
             bool collectImportFile = false,
             bool convertPathLikeLiteralsAtParseTime = true)
@@ -58,7 +55,6 @@ namespace TypeScript.Net.DScript
             PreserveTrivia = preserveTrivia;
             AllowBackslashesInPathInterpolation = allowBackslashesInPathInterpolation;
             UseSpecPublicFacadeAndAstWhenAvailable = useSpecPublicFacadeAndAstWhenAvailable;
-            EscapeIdentifiers = escapeIdentifiers;
             FailOnMissingSemicolons = failOnMissingSemicolons;
             CollectImportFile = collectImportFile;
             ConvertPathLikeLiteralsAtParseTime = convertPathLikeLiteralsAtParseTime;
@@ -68,14 +64,6 @@ namespace TypeScript.Net.DScript
         /// If true, then such literals like p``, d``, f`` etc would be converted to internal BuildXL representation at parse time.
         /// </summary>
         public bool ConvertPathLikeLiteralsAtParseTime { get; }
-
-        /// <summary>
-        /// Temporary flag that controls whether double underscore identifiers are escaped (e.g. __test).
-        /// </summary>
-        /// <remarks>
-        /// Escaping is the TypeScript behavior, but due to a bug we need to incrementally fix this, and therefore we need this flag.
-        /// </remarks>
-        public bool EscapeIdentifiers { get; }
 
         /// <summary>
         /// Whether public surface and serialized AST of specs should be used when available
@@ -131,7 +119,6 @@ namespace TypeScript.Net.DScript
                 preserveTrivia: PreserveTrivia,
                 allowBackslashesInPathInterpolation: AllowBackslashesInPathInterpolation,
                 useSpecPublicFacadeAndAstWhenAvailable: UseSpecPublicFacadeAndAstWhenAvailable,
-                escapeIdentifiers: EscapeIdentifiers,
                 failOnMissingSemicolons: FailOnMissingSemicolons,
                 collectImportFile: CollectImportFile,
                 convertPathLikeLiteralsAtParseTime: ConvertPathLikeLiteralsAtParseTime);
@@ -146,23 +133,7 @@ namespace TypeScript.Net.DScript
                 preserveTrivia: PreserveTrivia,
                 allowBackslashesInPathInterpolation: AllowBackslashesInPathInterpolation,
                 useSpecPublicFacadeAndAstWhenAvailable: UseSpecPublicFacadeAndAstWhenAvailable,
-                escapeIdentifiers: EscapeIdentifiers,
                 failOnMissingSemicolons: failOnMissingSemicolons,
-                collectImportFile: CollectImportFile,
-                convertPathLikeLiteralsAtParseTime: ConvertPathLikeLiteralsAtParseTime);
-        }
-
-        /// <nodoc />
-        public ParsingOptions WithEscapeIdentifiers(bool escapeIdentifiers)
-        {
-            return new ParsingOptions(
-                namespacesAreAutomaticallyExported: NamespacesAreAutomaticallyExported,
-                generateWithQualifierFunctionForEveryNamespace: GenerateWithQualifierFunctionForEveryNamespace,
-                preserveTrivia: PreserveTrivia,
-                allowBackslashesInPathInterpolation: AllowBackslashesInPathInterpolation,
-                useSpecPublicFacadeAndAstWhenAvailable: UseSpecPublicFacadeAndAstWhenAvailable,
-                escapeIdentifiers: escapeIdentifiers,
-                failOnMissingSemicolons: FailOnMissingSemicolons,
                 collectImportFile: CollectImportFile,
                 convertPathLikeLiteralsAtParseTime: ConvertPathLikeLiteralsAtParseTime);
         }
@@ -176,7 +147,6 @@ namespace TypeScript.Net.DScript
                 preserveTrivia: PreserveTrivia,
                 allowBackslashesInPathInterpolation: allowBackslashesInPathInterpolation,
                 useSpecPublicFacadeAndAstWhenAvailable: UseSpecPublicFacadeAndAstWhenAvailable,
-                escapeIdentifiers: EscapeIdentifiers,
                 failOnMissingSemicolons: FailOnMissingSemicolons,
                 collectImportFile: CollectImportFile,
                 convertPathLikeLiteralsAtParseTime: ConvertPathLikeLiteralsAtParseTime);
@@ -191,7 +161,6 @@ namespace TypeScript.Net.DScript
                 preserveTrivia: PreserveTrivia,
                 allowBackslashesInPathInterpolation: AllowBackslashesInPathInterpolation,
                 useSpecPublicFacadeAndAstWhenAvailable: UseSpecPublicFacadeAndAstWhenAvailable,
-                escapeIdentifiers: EscapeIdentifiers,
                 failOnMissingSemicolons: FailOnMissingSemicolons,
                 collectImportFile: collectImportFile,
                 convertPathLikeLiteralsAtParseTime: ConvertPathLikeLiteralsAtParseTime);
@@ -206,7 +175,6 @@ namespace TypeScript.Net.DScript
                 preserveTrivia: preserveTrivia,
                 allowBackslashesInPathInterpolation: AllowBackslashesInPathInterpolation,
                 useSpecPublicFacadeAndAstWhenAvailable: UseSpecPublicFacadeAndAstWhenAvailable,
-                escapeIdentifiers: EscapeIdentifiers,
                 failOnMissingSemicolons: FailOnMissingSemicolons,
                 collectImportFile: CollectImportFile,
                 convertPathLikeLiteralsAtParseTime: ConvertPathLikeLiteralsAtParseTime);
@@ -218,7 +186,7 @@ namespace TypeScript.Net.DScript
         /// <remarks>
         /// Observe that the prelude module is always assumed to be a V1 module, qualifier wise.
         /// </remarks>
-        public static ParsingOptions GetPreludeParsingOptions(bool escapeIdentifiers)
+        public static ParsingOptions GetPreludeParsingOptions()
         {
             return new ParsingOptions(
                 namespacesAreAutomaticallyExported: false,
@@ -226,7 +194,6 @@ namespace TypeScript.Net.DScript
                 preserveTrivia: false,
                 allowBackslashesInPathInterpolation: true,
                 useSpecPublicFacadeAndAstWhenAvailable: false,
-                escapeIdentifiers: escapeIdentifiers,
                 failOnMissingSemicolons: true,
                 collectImportFile: false,
                 convertPathLikeLiteralsAtParseTime: false);
@@ -242,7 +209,6 @@ namespace TypeScript.Net.DScript
                 preserveTrivia: false,
                 allowBackslashesInPathInterpolation: true,
                 useSpecPublicFacadeAndAstWhenAvailable: false,
-                escapeIdentifiers: true,
                 failOnMissingSemicolons: false,
                 collectImportFile: false,
                 convertPathLikeLiteralsAtParseTime: false);
@@ -257,18 +223,9 @@ namespace TypeScript.Net.DScript
                 preserveTrivia: false,
                 allowBackslashesInPathInterpolation: false,
                 useSpecPublicFacadeAndAstWhenAvailable: false,
-                escapeIdentifiers: true,
                 failOnMissingSemicolons: false,
                 collectImportFile: false,
                 convertPathLikeLiteralsAtParseTime: false);
-
-        /// <summary>
-        /// Returns default parsing options + escape identifiers configuration.
-        /// </summary>
-        public static ParsingOptions GetDefaultParsingOptionsWithEscapeIdentifiers(bool escapeIdentifiers)
-        {
-            return DefaultParsingOptions.WithEscapeIdentifiers(escapeIdentifiers);
-        }
 
         /// <summary>
         /// Returns default parsing options + backslash configuration.

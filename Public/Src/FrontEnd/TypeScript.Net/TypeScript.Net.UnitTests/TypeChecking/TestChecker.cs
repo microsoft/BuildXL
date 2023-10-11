@@ -67,8 +67,7 @@ namespace Test.DScript.TypeChecking
                     generateWithQualifierFunctionForEveryNamespace: false,
                     preserveTrivia: false,
                     allowBackslashesInPathInterpolation: false,
-                    useSpecPublicFacadeAndAstWhenAvailable: false,
-                    escapeIdentifiers: true));
+                    useSpecPublicFacadeAndAstWhenAvailable: false));
 
             return AddSourceFile(moduleName, sourceFile);
         }

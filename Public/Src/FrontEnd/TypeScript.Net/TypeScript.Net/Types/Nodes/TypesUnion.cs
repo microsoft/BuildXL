@@ -729,6 +729,17 @@ namespace TypeScript.Net.Types
             return Identifier?.Text ?? BindingPattern.GetFormattedText();
         }
 
+        /// <summary>
+        /// Equivalent to <see cref="GetText"/>, but makes sure the text is escaped by removing a potential extra underscore
+        /// </summary>
+        /// <remarks>
+        /// This function should be used over <see cref="GetText"/> whenever the identifier is used in a customer facing context.
+        /// </remarks>
+        public string GetUnescapedText()
+        {
+            return Utils.UnescapeIdentifier(GetText());
+        }
+
         /// <nodoc/>
         public IIdentifier AsIdentifier() => Identifier;
 
@@ -1170,6 +1181,17 @@ namespace TypeScript.Net.Types
         public string Text
         {
             get { return Identifier?.Text ?? LiteralExpression.Text; }
+        }
+
+        /// <summary>
+        /// Equivalent to <see cref="Text"/>, but makes sure the text is escaped by removing a potential extra underscore
+        /// </summary>
+        /// <remarks>
+        /// This function should be used over <see cref="Text"/> whenever the identifier is used in a customer facing context.
+        /// </remarks>
+        public string GetUnescapedText()
+        {
+            return Utils.UnescapeIdentifier(Text);
         }
 
         /// <inheritdoc/>

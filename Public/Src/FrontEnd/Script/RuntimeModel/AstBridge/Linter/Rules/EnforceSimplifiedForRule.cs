@@ -62,7 +62,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
 
             if (declaration.Initializer == null)
             {
-                context.Logger.ReportVariableMustBeInitialized(context.LoggingContext, declaration.LocationForLogging(context.SourceFile), declaration.Name.GetText());
+                context.Logger.ReportVariableMustBeInitialized(context.LoggingContext, declaration.LocationForLogging(context.SourceFile), declaration.Name.GetUnescapedText());
             }
         }
 

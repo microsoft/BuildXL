@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
                     context.Logger.ReportMissingTypeAnnotationOnTopLevelDeclaration(
                         context.LoggingContext,
                         declaration.LocationForLogging(context.SourceFile),
-                        declaration.Name.GetText(),
+                        declaration.Name.GetUnescapedText(),
                         Name);
                 }
                 else if (declaration.Type.Kind == TypeScript.Net.Types.SyntaxKind.AnyKeyword)
@@ -51,7 +51,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
                     context.Logger.ReportNotAllowedTypeAnyOnTopLevelDeclaration(
                         context.LoggingContext,
                         declaration.LocationForLogging(context.SourceFile),
-                        declaration.Name.GetText(),
+                        declaration.Name.GetUnescapedText(),
                         Name);
                 }
             }

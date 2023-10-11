@@ -80,7 +80,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Documentation
         /// <inheritdoc />
         public override void VisitVariableStatement(IVariableStatement node)
         {
-            Register(node, node.Flags, DocNodeType.Value, node.DeclarationList.Declarations[0].Name.GetText(), base.VisitVariableStatement);
+            Register(node, node.Flags, DocNodeType.Value, node.DeclarationList.Declarations[0].Name.GetUnescapedText(), base.VisitVariableStatement);
         }
 
         /// <inheritdoc />

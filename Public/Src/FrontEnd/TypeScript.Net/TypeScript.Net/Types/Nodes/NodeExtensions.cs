@@ -516,7 +516,7 @@ namespace TypeScript.Net.Types
         /// </remarks>
         public static IEnumerable<string> GetFullName(this IModuleDeclaration moduleDeclaration)
         {
-            return CompoundName(moduleDeclaration).Select(m => m.Text);
+            return CompoundName(moduleDeclaration).Select(m => m.GetUnescapedText());
         }
 
         /// <summary>

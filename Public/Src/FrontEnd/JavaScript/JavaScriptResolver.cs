@@ -687,7 +687,7 @@ namespace BuildXL.FrontEnd.JavaScript
                     // Otherwise the entry should be a thunk
                     Contract.AssertNotNull(lazyEvalEntry.Thunk);
 
-                    var lazyName = FullSymbol.Create(Context.SymbolTable, SymbolAtom.Create(Context.StringTable, lazyVariableStatement.DeclarationList.Declarations[0].Name.GetText()));
+                    var lazyName = FullSymbol.Create(Context.SymbolTable, SymbolAtom.Create(Context.StringTable, lazyVariableStatement.DeclarationList.Declarations[0].Name.GetUnescapedText()));
 
                     var lineAndColumn = LineInfoExtensions.GetLineAndColumnBy(entryPosition, lazyVariableStatement.GetSourceFile(), skipTrivia: false);
 
@@ -760,7 +760,7 @@ namespace BuildXL.FrontEnd.JavaScript
             // in a member of the object literal that AmbientTransformer advertises
             var processOutputsKey = SymbolAtom.Create(Context.StringTable, AmbientTransformerBase.ProcessOutputsSymbolName);
 
-            var schedulingCallbackName = FullSymbol.Create(Context.SymbolTable, SymbolAtom.Create(Context.StringTable, m_javaScriptWorkspaceResolver.CustomSchedulingCallback.Name.GetText()));
+            var schedulingCallbackName = FullSymbol.Create(Context.SymbolTable, SymbolAtom.Create(Context.StringTable, m_javaScriptWorkspaceResolver.CustomSchedulingCallback.Name.GetUnescapedText()));
 
             var factory = new MutableContextFactory(
                         schedulingCallbackEntry.Thunk,

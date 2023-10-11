@@ -620,7 +620,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             // TODO: consider splitting the parsing options into UserConfigurableParsingOptions and ParsingOptions
             // The first one is the one that should be exposed beyond this class
             var parsingOptions = specWithOwningModule.OwningModule.Descriptor == m_designatedPrelude?.Descriptor
-                ? ParsingOptions.GetPreludeParsingOptions(m_parsingOptions.EscapeIdentifiers)
+                ? ParsingOptions.GetPreludeParsingOptions()
                 : m_parsingOptions
                     .WithFailOnMissingSemicolons(true)
                     .WithGenerateWithQualifierFunctionForEveryNamespace(specWithOwningModule.OwningModule.ResolutionSemantics == NameResolutionSemantics.ImplicitProjectReferences);

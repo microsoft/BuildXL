@@ -368,8 +368,7 @@ let outs = sources.reduce(
                 generateWithQualifierFunctionForEveryNamespace: false,
                 preserveTrivia: preserveTrivia,
                 allowBackslashesInPathInterpolation: true,
-                useSpecPublicFacadeAndAstWhenAvailable: false,
-                escapeIdentifiers: true));
+                useSpecPublicFacadeAndAstWhenAvailable: false));
             Binder.Bind(sourceFile, new CompilerOptions());
 
             return sourceFile;

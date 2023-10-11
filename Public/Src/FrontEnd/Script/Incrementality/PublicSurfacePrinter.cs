@@ -375,7 +375,7 @@ namespace BuildXL.FrontEnd.Script.Incrementality
         {
             AppendDecorators(node);
             AppendModuleFlags(node);
-            Writer.AppendToken(node.Name.Text);
+            Writer.AppendToken(node.Name.GetUnescapedText());
             Writer.Whitespace();
 
             var body = node.Body;

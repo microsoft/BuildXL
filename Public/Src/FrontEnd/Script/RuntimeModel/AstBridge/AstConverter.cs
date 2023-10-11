@@ -1122,7 +1122,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             var result = new List<Statement>(variableDeclarationList.Declarations.Count);
             foreach (var declaration in variableDeclarationList.Declarations)
             {
-                SymbolAtom name = SymbolAtom.Create(StringTable, declaration.Name.GetText());
+                SymbolAtom name = SymbolAtom.Create(StringTable, declaration.Name.GetUnescapedText());
 
                 // Local table should already have a variable with this name
                 if (!context.Scope.TryResolveFromCurrentFunctionScope(name, out VariableDefinition local))
@@ -1365,7 +1365,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 // Variable declarations (that are not ambient declarations) must always have an initializer. There is a lint rule that checks for this.
                 Contract.Assert((NodeUtilities.GetCombinedNodeFlags(declaration) & NodeFlags.Ambient) != 0 || declaration.Initializer != null);
 
-                var nameStr = declaration.Name.GetText();
+                var nameStr = declaration.Name.GetUnescapedText();
                 var name = SymbolAtom.Create(StringTable, nameStr);
 
                 // It is ok if type is null here
@@ -1623,7 +1623,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private ModuleDeclaration ConvertNamespaceDeclarationWithV2(IModuleDeclaration source, ModuleLiteral moduleLiteral, NamespaceScope namespaces)
         {
-            var names = new List<SymbolAtom> { SymbolAtom.Create(StringTable, source.Name.Text) };
+            var names = new List<SymbolAtom> { SymbolAtom.Create(StringTable, source.Name.GetUnescapedText()) };
 
             var flags = ConvertModifiers(source);
 

@@ -5216,8 +5216,7 @@ namespace TypeScript.Net.Parsing
         private string InternIdentifier(string text)
         {
             // Currently, interning is no op, because an actual intening is happening in TextSource class.
-            text = m_parsingOptions?.EscapeIdentifiers == true ? Utils.EscapeIdentifier(text) : text;
-            return text;
+            return Utils.EscapeIdentifier(text);
         }
 
         private IExpression ParseNonParameterInitializer()

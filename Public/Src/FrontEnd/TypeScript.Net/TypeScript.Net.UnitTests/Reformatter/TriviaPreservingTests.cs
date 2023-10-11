@@ -15,8 +15,7 @@ namespace Test.DScript.Reformatter
             generateWithQualifierFunctionForEveryNamespace: false,
             preserveTrivia: true,
             allowBackslashesInPathInterpolation: true,
-            useSpecPublicFacadeAndAstWhenAvailable: false,
-            escapeIdentifiers: true);
+            useSpecPublicFacadeAndAstWhenAvailable: false);
 
         [Fact]
         public void TopLevelStatementsPreserveNewLine()

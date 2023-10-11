@@ -850,7 +850,6 @@ namespace BuildXL.FrontEnd.Core
                     preserveTrivia: configuration.FrontEnd.PreserveTrivia(),
                     allowBackslashesInPathInterpolation: !configuration.FrontEnd.UseLegacyOfficeLogic(),
                     useSpecPublicFacadeAndAstWhenAvailable: CanUseSpecPublicFacadeAndAst(),
-                    escapeIdentifiers: true,
                     failOnMissingSemicolons: true,
                     convertPathLikeLiteralsAtParseTime: true),
                 cancelOnFirstFailure: configuration.FrontEnd.CancelParsingOnFirstFailure(),

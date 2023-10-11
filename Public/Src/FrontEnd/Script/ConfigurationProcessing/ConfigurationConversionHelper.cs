@@ -89,7 +89,7 @@ namespace BuildXL.FrontEnd.Script
             Linter = Lazy.Create(() => CreateLinter(ConversionConfiguration));
         }
 
-        private static ParsingOptions ParsingOptions { get; } = ParsingOptions.GetPreludeParsingOptions(escapeIdentifiers: true);
+        private static ParsingOptions ParsingOptions { get; } = ParsingOptions.GetPreludeParsingOptions();
 
         private static WorkspaceConfiguration WorkspaceConfiguration { get; } = new WorkspaceConfiguration(
             resolverSettings: new List<IResolverSettings>(0),

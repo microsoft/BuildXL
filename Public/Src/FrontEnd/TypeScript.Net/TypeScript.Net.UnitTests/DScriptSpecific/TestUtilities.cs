@@ -19,8 +19,7 @@ namespace Test.DScript.DScriptSpecific
             generateWithQualifierFunctionForEveryNamespace: true,
             preserveTrivia: false,
             allowBackslashesInPathInterpolation: true,
-            useSpecPublicFacadeAndAstWhenAvailable: false,
-            escapeIdentifiers: true);
+            useSpecPublicFacadeAndAstWhenAvailable: false);
 
         /// <summary>
         /// Type checks all <param name="codes"/> as part of the same module with default parsing options and asserts no errors are present

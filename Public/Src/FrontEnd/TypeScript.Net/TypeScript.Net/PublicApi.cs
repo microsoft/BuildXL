@@ -25,7 +25,6 @@ namespace TypeScript.Net.Api
             preserveTrivia: false,
             allowBackslashesInPathInterpolation: true,
             useSpecPublicFacadeAndAstWhenAvailable: false,
-            escapeIdentifiers: true,
             failOnMissingSemicolons: true);
 
         /// <summary>

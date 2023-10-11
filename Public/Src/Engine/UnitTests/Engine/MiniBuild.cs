@@ -6,11 +6,12 @@ using System.IO;
 using System.Linq;
 using BuildXL.Engine.Tracing;
 using BuildXL.Native.IO;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Engine;
 using Test.BuildXL.EngineTestUtilities;
+using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -954,6 +955,53 @@ namespace Test.BuildXL.EngineTests
                     AssertInformationalEventLogged(LogEventId.FetchedSerializedGraphFromCache);
                 }
             }
+        }
+
+        [Fact]
+        public void TestEscapedIndentifiersProvenanceInLog()
+        {
+            // Just write a file, what the pip does is not really important.
+            // We want to check how double underscore identifiers are rendered in the main log file (double underscore identifiers are interned by the DScript parser with an additional underscore), and
+            // make sure they are not printed in the same way they are interned
+            var spec = $@"
+import {{Cmd, Transformer}} from 'Sdk.Transformers';
+
+module A.__B.C.__D {{
+
+    export const __identifier = Transformer.execute({{
+            tool: {{
+                exe: f`{CmdHelper.OsShellExe}`,
+                dependsOnCurrentHostOSDirectories: true
+            }},
+            workingDirectory: d`.`,
+            arguments: [ 
+                Cmd.argument({(OperatingSystemHelper.IsWindowsOS? "\"/c\"" : "\"-c\"")}),
+                Cmd.rawArgument('""'),
+                Cmd.args([""echo"", ""hi"", "">"", ""output.txt""]),
+                Cmd.rawArgument('""')
+            ],
+            outputs: [f`output.txt`],
+        }}); 
+}}
+";
+
+            AddModule("MiniBuild",new[] {("spec.dsc", spec)}, placeInRoot: true, new Mount[] { 
+                new Mount() 
+                { 
+                    Name = PathAtom.Create(Context.StringTable, "out"), 
+                    Path = Configuration.Layout.SourceDirectory,
+                    IsReadable = true,
+                    IsWritable = true
+                },
+            });
+            
+            RunEngine();
+            
+            // Let's retrieve the (single) line that represents that the process is about to be executed. This line includes the pip provenance, which contains namespace and top level identifier
+            var processWillBeExecutedLogLine = EventListener.GetLogMessagesForEventId((int)global::BuildXL.Scheduler.Tracing.LogEventId.ProcessPipCacheMiss).Single();
+
+            // The pip provenance should contain double underscores (as declared) and not three
+            XAssert.Contains(processWillBeExecutedLogLine, "A.__B.C.__D.__identifier");
         }
 
         private void DeleteEngineCache()

@@ -25,20 +25,10 @@ const two: Two = one;";
         public void IdentifiersAreEscaped()
         {
             var diagnostics = TypeCheckingHelper.GetSemanticDiagnostics(
-                parsingOptions: ParsingOptions.GetDefaultParsingOptionsWithEscapeIdentifiers(true),
+                parsingOptions: ParsingOptions.DefaultParsingOptions,
                 implicitReferenceModule: true,
                 codes: BrandingAssignment);
             Assert.Single(diagnostics);
-        }
-
-        [Fact]
-        public void IdentifiersAreNotEscapedIfEscapingIsTurnedOff()
-        {
-            var diagnostics = TypeCheckingHelper.GetSemanticDiagnostics(
-                parsingOptions: ParsingOptions.GetDefaultParsingOptionsWithEscapeIdentifiers(false),
-                implicitReferenceModule: true,
-                codes: BrandingAssignment);
-            Assert.Empty(diagnostics);
         }
     }
 }

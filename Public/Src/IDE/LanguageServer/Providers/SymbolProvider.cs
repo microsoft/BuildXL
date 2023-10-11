@@ -122,7 +122,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
 
             if (asVariableStatement != null)
             {
-                return asVariableStatement.DeclarationList.Declarations[0].Name.GetText();
+                return asVariableStatement.DeclarationList.Declarations[0].Name.GetUnescapedText();
             }
 
             return FormattableStringEx.I($"Unknown({node.Kind})");

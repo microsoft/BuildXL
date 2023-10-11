@@ -38,7 +38,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
 
             if (declaration.Name.As<IBindingPattern>() != null)
             {
-                context.Logger.ReportBindingPatternInVariableDeclarationIsNowAllowed(context.LoggingContext, node.LocationForLogging(context.SourceFile), declaration.Name.GetText());
+                context.Logger.ReportBindingPatternInVariableDeclarationIsNowAllowed(context.LoggingContext, node.LocationForLogging(context.SourceFile), declaration.Name.GetUnescapedText());
             }
         }
     }

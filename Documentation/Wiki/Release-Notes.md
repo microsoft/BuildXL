@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20231006.2.1 (Release [333923](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=333923))
+-	Migrated Windows detours to C++ 2.0
+-	Enforce the same engine version when doing distributed builds
+-	Expand frontiers of runtime cache miss analysis
+-	Display executing processes from all workers in the build status
+-	Improve early worker release logic by not releasing workers when there is a scheduler limiting resource
+
 # 0.1.0-20230929.3.1 (Release [331981](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=331981))
 
 - Add a new FileSystemMode that ignores dir enumerations during pip fingerprint computation 

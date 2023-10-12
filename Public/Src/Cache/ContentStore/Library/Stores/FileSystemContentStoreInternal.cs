@@ -1754,7 +1754,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions = null)
         {
-            var evictResult = await EvictCoreAsync(context, new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, DateTime.MinValue, safeToEvict: true), force: true, onlyUnlinked: false, (l) => { }, acquireLock: true);
+            var evictResult = await EvictCoreAsync(context, new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, DateTime.MinValue, safeToEvict: true), force: true, onlyUnlinked: false,
+                (l) =>
+                {
+                    QuotaKeeper?.OnContentEvicted(l);
+                },
+                acquireLock: true);
             return evictResult.ToDeleteResult(contentHash);
         }
 

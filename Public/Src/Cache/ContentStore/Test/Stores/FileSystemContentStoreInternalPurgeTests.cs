@@ -248,9 +248,13 @@ namespace ContentStoreTest.Stores
                 PutResult putResult = await store.PutRandomAsync(Context, contentSize);
                 putResult.ShouldBeSuccess();
 
+                store.QuotaKeeperSize().Should().Be(10);
+
                 DeleteResult deleteResult = await store.DeleteAsync(Context, putResult.ContentHash);
                 deleteResult.ShouldBeSuccess();
                 deleteResult.ContentSize.Should().Be(contentSize);
+
+                store.QuotaKeeperSize().Should().Be(0);
 
                 store.IsPinned(putResult.ContentHash).Should().BeFalse();
             });

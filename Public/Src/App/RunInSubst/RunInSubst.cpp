@@ -6,11 +6,11 @@
 // The command line interface is:
 // RunInSubst <Drive>=<path-tosubst>* <process-to-execute> <command-parameters>
 // The locking is done in always the same order, so deadlocks are avoided - see pOrderedSubstList.
-// The way it works is the process gets a lock on a file in the drive to subse - the process opens a predefined
-// file (where diagnostings are logged as well) with exclusive write and shared read access. If aniother process
+// The way it works is the process gets a lock on a file in the drive to subst - the process opens a predefined
+// file (where diagnostics are logged as well) with exclusive write and shared read access. If another process
 // tries to open the same file, it fails with sharing validation. The second process will wait for the first 
 // process to close the file and will get the lock once that happens.
-// 
+//
 
 #pragma warning( disable: 4820 ) // Shut-off padding warnings.
 #include "stdafx.h"
@@ -27,21 +27,24 @@
 #define MAPPED_PATH_STRING L"\\??\\"
 #define SUBST_FILE_NAME L".SubstLock"
 
+#pragma warning( push )
+// warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
+#pragma warning( disable : 26409 )
 // Subst target and source node.
 typedef struct _tagSubstNode
 {
-    _tagSubstNode()
+    _tagSubstNode() noexcept
     {
         szDriveLetter = L'\0';
-        szSourceDirectory = nullptr;
         szMappedPath = nullptr;
+        szSourceDirectory = nullptr;
         hLockFile = INVALID_HANDLE_VALUE;
     }
 
-    _tagSubstNode(TCHAR drive, TCHAR* srcDir)
+    _tagSubstNode(TCHAR drive, const TCHAR* srcDir)
     {
         szDriveLetter = drive;
-        size_t srcLen = wcslen(srcDir) + 1;
+        const auto srcLen = wcslen(srcDir) + 1;
         szSourceDirectory = new TCHAR[srcLen];
         wcscpy_s(szSourceDirectory, srcLen, srcDir);
         szMappedPath = nullptr;
@@ -52,14 +55,16 @@ typedef struct _tagSubstNode
     TCHAR* szSourceDirectory;
     TCHAR* szMappedPath;
     HANDLE hLockFile;
-} SUBST_NODE, *PSUBST_NODE; 
+} SUBST_NODE, * PSUBST_NODE;
+#pragma warning( pop )
 
 // List of parsed subst target and source.
 typedef struct _tagSubstListNode
 {
-    _tagSubstListNode()
+    _tagSubstListNode() noexcept
     {
         pNext = nullptr;
+        pData = nullptr;
     }
 
     PSUBST_NODE pData;
@@ -68,21 +73,17 @@ typedef struct _tagSubstListNode
 
 static bool g_isVerbose = false;
 
-static void printVerbose(PCWSTR format, ...)
+template <typename... Args>
+static void printVerbose(PCWSTR format, Args&&... args)
 {
     if (g_isVerbose)
     {
-        WCHAR bufferForArgs[0x1000];
-        va_list args;
-        va_start(args, format);
-        vswprintf_s(bufferForArgs, format, args);
-        va_end(args);
-
-        wprintf(L"Verbose: %s\r\n", bufferForArgs);
+        std::wstring formatted = std::vformat(format, std::make_wformat_args(args...));
+        wprintf(L"Verbose: %s\r\n", formatted.c_str());
     }
 }
 
-static void printUsage()
+static void printUsage() noexcept
 {
     wprintf(L"%s %s\r\n", L"Microsoft(R) RunInSubst Build Tool.Version: ", RUN_IN_SUBST_VERSION);
     wprintf(L"Copyright(C) Microsoft Corporation.All rights reserved.\r\n\r\n");
@@ -91,9 +92,18 @@ static void printUsage()
     wprintf(L"RunInSubst [<target drive>=<source location> ...] <executable-to-start> <arguments-for-the-executable-to-start>\r\n");
 }
 
+#pragma warning( push )
+// warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
+// warning C6011: Dereferencing NULL pointer 'ppSubstList'. : Lines: 99, 100, 101, 103
+// warning C6011: Dereferencing NULL pointer 'ppOrderedSubstList'. : Lines: 99, 100, 101, 103, 106
+#pragma warning( disable : 26409 6011 )
 // Initializes the state of the application.
 static void InitializeState(PSUBST_LIST_NODE* ppSubstList, PSUBST_NODE** ppOrderedSubstList, int* pExecutableToRunIndex)
 {
+    assert(ppSubstList != nullptr);
+    assert(ppOrderedSubstList != nullptr);
+    assert(pExecutableToRunIndex != nullptr);
+
     *ppSubstList = nullptr;
 
     // Array of ordered subst target and lists.
@@ -102,9 +112,31 @@ static void InitializeState(PSUBST_LIST_NODE* ppSubstList, PSUBST_NODE** ppOrder
 
     *pExecutableToRunIndex = -1;
 }
+#pragma warning( pop )
 
+#pragma warning( push )
+// warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+#pragma warning( disable : 26446 26472 )
+std::string ToUtf8(const std::wstring& s)
+{
+    std::string utf8;
+    const int len = WideCharToMultiByte(CP_UTF8, 0, s.c_str(), static_cast<int>(s.length()), NULL, 0, NULL, NULL);
+    if (len > 0)
+    {
+        utf8.resize(static_cast<size_t>(len));
+        WideCharToMultiByte(CP_UTF8, 0, s.c_str(), static_cast<int>(s.length()), &utf8[0], len, NULL, NULL);
+    }
+    return utf8;
+}
+#pragma warning( pop )
+
+#pragma warning( push )
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+#pragma warning( disable : 26472 )
 // Logs string to a file.
-static void LogToFile(PSUBST_NODE pSubstNode, PCWSTR format, ...)
+template <typename... Args>
+static void LogToFile(PSUBST_NODE pSubstNode, PCWSTR format, Args&&... args)
 {
     if (pSubstNode != nullptr && pSubstNode->hLockFile != INVALID_HANDLE_VALUE)
     {
@@ -117,41 +149,43 @@ static void LogToFile(PSUBST_NODE pSubstNode, PCWSTR format, ...)
 
         strftime(timeDateString, 1024, "%Y-%m-%d %H:%M:%S - ", &tm_info);
 
-        wchar_t* bufferForArgs = new wchar_t[SUBST_SOURCE_LENGTH];
-        va_list args;
-        va_start(args, format);
-        vswprintf_s(bufferForArgs, SUBST_SOURCE_LENGTH, format, args);
-        va_end(args);
-        wcscat_s(bufferForArgs, SUBST_SOURCE_LENGTH, L"\r\n");
-
-        size_t bufferForArgsLen = wcslen(bufferForArgs);
-        char* asciiBufferForArgsLock = new char[bufferForArgsLen + 1];
-        memset(asciiBufferForArgsLock, 0, bufferForArgsLen + 1);
-        for (size_t j = 0; j < bufferForArgsLen; j++)
-        {
-            asciiBufferForArgsLock[j] = static_cast<char>(bufferForArgs[j]);
-        }
+        std::wstring bufferForArgs = std::vformat(format, std::make_wformat_args(args...));
+        bufferForArgs.append(L"\r\n");
+        std::string asciiBuffer = ToUtf8(bufferForArgs);
 
         if (pSubstNode->hLockFile != INVALID_HANDLE_VALUE)
         {
             WriteFile(pSubstNode->hLockFile, timeDateString, strlen(timeDateString) * sizeof(char), nullptr, nullptr);
-            WriteFile(pSubstNode->hLockFile, asciiBufferForArgsLock, strlen(asciiBufferForArgsLock) * sizeof(char), nullptr, nullptr);
+            WriteFile(pSubstNode->hLockFile, asciiBuffer.c_str(), asciiBuffer.length(), nullptr, nullptr);
         }
-        
-        delete[] asciiBufferForArgsLock;
-        delete[] bufferForArgs;
     }
 }
+#pragma warning( pop )
+
+#pragma warning( push )
+// warning C26485: Expression 'argv': No array to pointer decay (bounds.3).
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+// warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
+// warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
+// warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
+// warning C26400: Do not assign the result of an allocation or a function call with an owner<T> return value to a raw pointer, use owner<T> instead (i.11).
+// warning C6011: Dereferencing NULL pointer 'ppSubstList'
+// warning C26401: Do not delete a raw pointer that is not an owner<T> (i.11).
+#pragma warning( disable : 26485 26472 26446 26481 26409 26400 6011 26401 )
 
 // Finds and sets the state for subst targets and sources.
 // Returns whether the app should exit. True is the app should exit right away. False, the app should continue;
 static bool ParseSubstSourcesAndTargets(int argc, _TCHAR* argv[], PSUBST_LIST_NODE* ppSubstList, PSUBST_NODE* pOrderedSubstList, int* pExecutableToRunIndex)
 {
+    assert(argv != nullptr);
+    assert(ppSubstList != nullptr);
+    assert(pOrderedSubstList != nullptr);
+    assert(pExecutableToRunIndex != nullptr);
+
     PSUBST_LIST_NODE currentNode = nullptr;
     for (int i = 1; i < argc; i++)
     {
-        // Check to see if this is a mapping. (Second character a '='
-        // and first a letter.)
+        // Check to see if this is a mapping. (Second character a '=' and first a letter.)
         // Also, the length of the subst string should be longer than MIN_SUBST_LENGTH.
         if (wcsstr(argv[i], L"=") != (argv[i] + 1) ||
             !isalpha(argv[i][0]) ||
@@ -161,24 +195,22 @@ static bool ParseSubstSourcesAndTargets(int argc, _TCHAR* argv[], PSUBST_LIST_NO
             return false;
         }
 
-        TCHAR substTarget = (TCHAR)::toupper(argv[i][0]); // Make it uppercase.
-        size_t srcLen = wcslen(argv[i]);
-        TCHAR* substSource = new TCHAR[srcLen + 1];
-        ZeroMemory(substSource, sizeof(TCHAR) * (srcLen + 1));
+        const TCHAR substTarget = static_cast<TCHAR>(::_totupper(argv[i][0])); // Make it uppercase.
+        std::basic_string<TCHAR> substSource(&argv[i][SUBST_START_OFFSET]);
 
-        // Convert the substSource to lower case.
-        for (size_t j = SUBST_START_OFFSET; j < srcLen; j++)
-        {
-            substSource[j - SUBST_START_OFFSET] = (TCHAR)::tolower(argv[i][j]);
-        }
+        std::transform(substSource.begin(), substSource.end(), substSource.begin(),
+            [](TCHAR c) noexcept
+            {
+                return static_cast<TCHAR>(::_totlower(c));
+            });
 
         // make sure there is a trailing '\\'.
-        if (substSource[srcLen - SUBST_START_OFFSET - 1] != L'\\')
+        if (substSource.back() != L'\\')
         {
-            substSource[srcLen - SUBST_START_OFFSET] = L'\\';
+            substSource.push_back(L'\\');
         }
 
-        int substTargetValue = (int)substTarget;
+        int substTargetValue = static_cast<int>(substTarget);
         // The drive letter can be A-Z only.
         if (substTargetValue < 65 || substTargetValue > 90)
         {
@@ -192,24 +224,27 @@ static bool ParseSubstSourcesAndTargets(int argc, _TCHAR* argv[], PSUBST_LIST_NO
         // If there was a map entry for this drive, just update it.
         if (pOrderedSubstList[substTargetValue - 65] != nullptr)
         {
-            pOrderedSubstList[substTargetValue - 65]->szSourceDirectory = substSource;
+            delete[] pOrderedSubstList[substTargetValue - 65]->szSourceDirectory;
+            pOrderedSubstList[substTargetValue - 65]->szSourceDirectory = new TCHAR[substSource.length() + 1];
+
+            wcscpy_s(pOrderedSubstList[substTargetValue - 65]->szSourceDirectory, substSource.length(), substSource.c_str());
             continue;
         }
 
-        DWORD srcAttr = GetFileAttributes(substSource);
+        const DWORD srcAttr = GetFileAttributes(substSource.c_str());
         if (srcAttr == INVALID_FILE_ATTRIBUTES)
         {
-            wprintf(L"Warning: The local location %s is invalid.\r\n", substSource);
+            wprintf(L"Warning: The local location %s is invalid.\r\n", substSource.c_str());
             return true;;
         }
 
         if ((srcAttr & FILE_ATTRIBUTE_DIRECTORY) == 0)
         {
-            wprintf(L"Warning: The local location %s is invalid. It should be a directory.\r\n", substSource);
+            wprintf(L"Warning: The local location %s is invalid. It should be a directory.\r\n", substSource.c_str());
             return true;;
         }
 
-        PSUBST_NODE pSubstNode = new SUBST_NODE(substTarget, substSource);
+        PSUBST_NODE pSubstNode = new SUBST_NODE(substTarget, substSource.c_str());
         PSUBST_LIST_NODE pSubstListNode = new SUBST_LIST_NODE();
         pSubstListNode->pData = pSubstNode;
 
@@ -226,15 +261,29 @@ static bool ParseSubstSourcesAndTargets(int argc, _TCHAR* argv[], PSUBST_LIST_NO
 
         pOrderedSubstList[substTargetValue - 65] = pSubstNode;
     }
-    
+
     return false;
 }
+#pragma warning( pop )
+
+#pragma warning( push )
+// warning C6386: Buffer overrun while writing to 'chBuf'.
+// warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
+// warning C26401: Do not delete a raw pointer that is not an owner<T> (i.11).
+// warning C26414: Move, copy, reassign or reset a local smart pointer 'chBuf' / 'mappedPath' (r.5).
+// warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
+// warning C26485: Expression 'dl': No array to pointer decay (bounds.3).
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+// warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
+#pragma warning( disable : 6386 26446 26401 26414 26481 26485 26472 26409 )
 
 // Gets the mapped path for each mapped drive.
 // Returns 0 if successful and non-zero if failed.
 static int GetMappedPaths(PSUBST_NODE* pOrderedSubstList)
 {
-    SECURITY_ATTRIBUTES saAttr;
+    assert(pOrderedSubstList != nullptr);
+
+    SECURITY_ATTRIBUTES saAttr{};
     HANDLE g_hChildStd_IN_Rd = NULL;
     HANDLE g_hChildStd_OUT_Rd = NULL;
     HANDLE g_hChildStd_OUT_Wr = NULL;
@@ -290,16 +339,16 @@ static int GetMappedPaths(PSUBST_NODE* pOrderedSubstList)
         &siStartInfo, // STARTUPINFO pointer 
         &piProcInfo); // receives PROCESS_INFORMATION
 
-                      // If an error occurs...
+    // If an error occurs...
     if (!bSuccess)
     {
         wprintf(L"Error: Could not get MappedDrives: CreateProcess.\r\n");
         return 1;
     }
 
-    printVerbose(L"%s", L"Start waiting for subst process in GetMappedPath to complete.");
+    printVerbose(L"{}", L"Start waiting for subst process in GetMappedPath to complete.");
     WaitForSingleObject(piProcInfo.hProcess, INFINITE);
-    printVerbose(L"%s", L"Done waiting for subst process in GetMappedPath to complete.");
+    printVerbose(L"{}", L"Done waiting for subst process in GetMappedPath to complete.");
 
     // Close handles to the child process and its primary thread
     CloseHandle(piProcInfo.hProcess);
@@ -319,13 +368,13 @@ static int GetMappedPaths(PSUBST_NODE* pOrderedSubstList)
         return 1;
     }
 
-    DWORD dwRead;
-    char* chBuf = new char[SUBST_SOURCE_LENGTH];
-    wchar_t* mappedPath = new TCHAR[SUBST_SOURCE_LENGTH];
+    DWORD dwRead = 0;
+    auto chBuf = std::vector<char>(SUBST_SOURCE_LENGTH, 0);
+    std::basic_string<TCHAR> mappedPath;
 
     while (true)
     {
-        bSuccess = ReadFile(g_hChildStd_OUT_Rd, chBuf, SUBST_SOURCE_LENGTH, &dwRead, NULL);
+        bSuccess = ReadFile(g_hChildStd_OUT_Rd, chBuf.data(), SUBST_SOURCE_LENGTH, &dwRead, NULL);
 
         // When using CreateProcess everything is fine here
         // When using CreateProcessWithLogonW bSuccess is FALSE and the pipe seems to be closed
@@ -351,26 +400,25 @@ static int GetMappedPaths(PSUBST_NODE* pOrderedSubstList)
             TCHAR driveLetter = (TCHAR)chBuf[i];
 
             i += GET_PATH_TARGET_OFFSET;
-            unsigned index = 0;
-            ZeroMemory(mappedPath, sizeof(TCHAR) * SUBST_SOURCE_LENGTH);
+            mappedPath.clear();
+
             while (chBuf[i] != L'\r' && chBuf[i] != L'\0')
             {
-                mappedPath[index] = (TCHAR)::tolower(chBuf[i]);
+                mappedPath.push_back(static_cast<TCHAR>(::tolower(chBuf[i])));
                 i++;
-                index++;
             }
 
-            wchar_t* ptr = wcsstr(mappedPath, MAPPED_PATH_STRING);
+            const wchar_t* ptr = wcsstr(mappedPath.c_str(), MAPPED_PATH_STRING);
             unsigned mappedPathOffset = 0;
-            if (ptr == mappedPath)
+            if (ptr == mappedPath.c_str())
             {
                 mappedPathOffset = 4;
             }
 
             // Make drive letter uppercase.
-            driveLetter = (TCHAR)::toupper(driveLetter);
+            driveLetter = static_cast<TCHAR>(::_totupper(driveLetter));
+            int substTargetValue = static_cast<int>(driveLetter);
 
-            int substTargetValue = (int)driveLetter;
             // The drive letter can be A-Z only.
             if (substTargetValue < 65 || substTargetValue > 90)
             {
@@ -378,15 +426,14 @@ static int GetMappedPaths(PSUBST_NODE* pOrderedSubstList)
                 dl[0] = driveLetter;
                 dl[1] = L'\0';
                 wprintf(L"Error: Invalid target drive letter - %s. Allowed drive letters A-Z.\r\n", dl);
-                delete[] mappedPath;
                 return 1;
             }
 
             // make sure there is a trailing '\\'.
-            size_t srcLen = wcslen(mappedPath);
-            if (mappedPath[srcLen - 1] != L'\\')
+            const size_t srcLen = wcslen(mappedPath.c_str());
+            if (mappedPath.back() != L'\\')
             {
-                mappedPath[srcLen] = L'\\';
+                mappedPath.push_back(L'\\');
             }
 
             if (pOrderedSubstList[substTargetValue - 65] != nullptr)
@@ -397,7 +444,7 @@ static int GetMappedPaths(PSUBST_NODE* pOrderedSubstList)
                 }
 
                 pOrderedSubstList[substTargetValue - 65]->szMappedPath = new TCHAR[srcLen + 2];
-                wcscpy_s(pOrderedSubstList[substTargetValue - 65]->szMappedPath, srcLen + 2, mappedPath + mappedPathOffset); // Skip leading "\\??\\".
+                wcscpy_s(pOrderedSubstList[substTargetValue - 65]->szMappedPath, srcLen + 2, mappedPath.c_str() + mappedPathOffset); // Skip leading "\\??\\".
             }
 
             if (chBuf[i] == L'\0')
@@ -419,35 +466,47 @@ static int GetMappedPaths(PSUBST_NODE* pOrderedSubstList)
         }
     }
 
-    delete[] chBuf;
-
     CloseHandle(g_hChildStd_OUT_Rd);
-
-    delete[] mappedPath;
 
     return 0;
 }
+#pragma warning( pop )
+
+#pragma warning( push )
+// warning C6386: Buffer overrun while writing to 'chBuf'.
+// warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
+// warning C26401: Do not delete a raw pointer that is not an owner<T> (i.11).
+// warning C26414: Move, copy, reassign or reset a local smart pointer 'chBuf' / 'mappedPath' (r.5).
+// warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
+// warning C26485: Expression 'dl': No array to pointer decay (bounds.3).
+// warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+#pragma warning( disable : 6386 26446 26401 26414 26481 26485 26409 26472 )
 
 // Start a process and returns if it had error (1) or not (0).
-static int MapUnmapSubstExecute(LPWSTR substCommand)
+static int MapUnmapSubstExecute(std::wstring substCommand)
 {
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
+    STARTUPINFO si{};
+    PROCESS_INFORMATION pi{};
 
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
+    // CreateProcessW may modify the command line
+    auto mutableCommandLine = std::make_unique<TCHAR[]>(substCommand.size() + 1);
+    ZeroMemory(mutableCommandLine.get(), sizeof(TCHAR) * (substCommand.size() + 1));
+    _tcscpy_s(mutableCommandLine.get(), substCommand.size() + 1, substCommand.c_str());
 
-    if (!CreateProcess(nullptr, substCommand, nullptr, nullptr, false, NORMAL_PRIORITY_CLASS, nullptr, nullptr, &si, &pi))
+    if (!CreateProcess(nullptr, mutableCommandLine.get(), nullptr, nullptr, false, NORMAL_PRIORITY_CLASS, nullptr, nullptr, &si, &pi))
     {
         // Release the mutex
         return 1;
     }
 
-    printVerbose(L"%s", L"Start waiting for process Map/Unmap to complete.");
+    printVerbose(L"{}", L"Start waiting for process Map/Unmap to complete.");
     WaitForSingleObject(pi.hProcess, INFINITE);
-    printVerbose(L"%s", L"Done waiting for process Map/Unmap to complete.");
+    printVerbose(L"{}", L"Done waiting for process Map/Unmap to complete.");
 
     DWORD exitCode = 0;
     if (!GetExitCodeProcess(pi.hProcess, &exitCode))
@@ -468,20 +527,21 @@ static int MapUnmapSubstExecute(LPWSTR substCommand)
 
     return 0;
 }
+#pragma warning( pop )
 
+#pragma warning( push )
+// warning C26461: The pointer argument 'pSubstNode' for function 'UnmapDrive' can be marked as a pointer to const (con.3).
+#pragma warning( disable : 26461 )
 static int UnmapDrive(PSUBST_NODE pSubstNode)
 {
     int ret = 0;
 
     std::wstring substCommand(L"subst /D \"");
-    TCHAR driveString[3];
-    driveString[0] = pSubstNode->szDriveLetter;
-    driveString[1] = L':';
-    driveString[2] = L'\0';
-    substCommand.append(driveString);
+    substCommand.push_back(pSubstNode->szDriveLetter);
+    substCommand.push_back(L':');
     substCommand.append(L"\"");
 
-    ret = MapUnmapSubstExecute((LPWSTR)substCommand.c_str());
+    ret = MapUnmapSubstExecute(substCommand.c_str());
 
     return ret;
 }
@@ -491,40 +551,47 @@ static int MapDrive(PSUBST_NODE pSubstNode)
     int ret = 0;
 
     std::wstring substCommand(L"subst \"");
-    TCHAR driveString[3];
-    driveString[0] = pSubstNode->szDriveLetter;
-    driveString[1] = L':';
-    driveString[2] = L'\0';
-    substCommand.append(driveString);
+    substCommand.push_back(pSubstNode->szDriveLetter);
+    substCommand.push_back(L':');
     substCommand.append(L"\" \"");
     substCommand.append(pSubstNode->szSourceDirectory, wcslen(pSubstNode->szSourceDirectory) - 1); // Skip the trailing '\\'.
     substCommand.append(L"\"");
 
-    ret = MapUnmapSubstExecute((LPWSTR)substCommand.c_str());
+    ret = MapUnmapSubstExecute(substCommand);
 
     return 0;
 }
+#pragma warning( pop )
 
 // Handle the CTRL-C signal. RunInSubst.exe process should continue as long as it's child is alive to keep the
 // console looking reasonable. If it were to exit, standard input control would return to the console which
 // gets confusing when RunInSubst.exe's child process is still running.
 //
 // Only CTRL-C is handled so more a aggressive CTRL-BREAK still terminates everything immediately.
-BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
+BOOL WINAPI CtrlHandler(DWORD fdwCtrlType) noexcept
 {
     switch (fdwCtrlType)
     {
         case CTRL_C_EVENT:
-        return true;
+            return true;
+        default:
+            return false;
     }
-
-    return false;
 }
 
+#pragma warning( push )
+// warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
+// warning C26485: Expression 'argv': No array to pointer decay (bounds.3).
+// warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+#pragma warning( disable : 26446 26485 26481 26472 )
 // Executes the command that was specified on in the arguments.
 // Returns the exit code of the process that was started.
 int ExecuteProcess(int argc, _TCHAR* argv[], int executableToRunIndex, PSUBST_NODE* pOrderedSubstList)
 {
+    assert(argv != nullptr);
+    assert(pOrderedSubstList != nullptr);
+
     std::wstring commandToExecute(L"");
     bool hasSpaceInArg = false;
 
@@ -572,33 +639,29 @@ int ExecuteProcess(int argc, _TCHAR* argv[], int executableToRunIndex, PSUBST_NO
         commandToExecute.append(L" ");
     }
 
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
+    STARTUPINFO si{};
+    PROCESS_INFORMATION pi{};
 
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
-    wchar_t* currentDir = new wchar_t[SUBST_SOURCE_LENGTH];
-    wchar_t* newCurrentDir = new wchar_t[SUBST_SOURCE_LENGTH];
-    ZeroMemory(currentDir, sizeof(wchar_t) * SUBST_SOURCE_LENGTH);
-    ZeroMemory(newCurrentDir, sizeof(wchar_t) * SUBST_SOURCE_LENGTH);
+    auto currentDir = std::vector<wchar_t>(SUBST_SOURCE_LENGTH, 0);
+    auto newCurrentDir = std::vector<wchar_t>(SUBST_SOURCE_LENGTH, 0);
 
-    if (GetCurrentDirectory(SUBST_SOURCE_LENGTH, currentDir) == 0)
+    if (GetCurrentDirectory(SUBST_SOURCE_LENGTH, currentDir.data()) == 0)
     {
-        delete[] newCurrentDir;
-        delete[] currentDir;
         wprintf(L"Error: Could not get current directory.");
         return 1;
     }
-    
+
     // make sure there is a trailing '\\'.
-    size_t srcLen = wcslen(currentDir);
+    const size_t srcLen = wcslen(currentDir.data());
 
     // Convert the currentDir to lower case.
     for (size_t i = 0; i < srcLen; i++)
     {
-        currentDir[i] = (TCHAR)::tolower(currentDir[i]);
+        currentDir[i] = static_cast<TCHAR>(::tolower(currentDir[i]));
     }
 
     if (currentDir[srcLen - 1] != L'\\')
@@ -618,10 +681,10 @@ int ExecuteProcess(int argc, _TCHAR* argv[], int executableToRunIndex, PSUBST_NO
         };
 
         // Always get the drive that closest maps to the current directory - the longest path.
-        if (wcsstr(currentDir, pListNode->szSourceDirectory) == currentDir)
+        if (wcsstr(currentDir.data(), pListNode->szSourceDirectory) == currentDir.data())
         {
             // Found a match.
-            size_t len = wcslen(pListNode->szSourceDirectory);
+            const size_t len = wcslen(pListNode->szSourceDirectory);
             // Find the longest match.
             if (len > longestDirMatch)
             {
@@ -630,16 +693,16 @@ int ExecuteProcess(int argc, _TCHAR* argv[], int executableToRunIndex, PSUBST_NO
                 newCurrentDir[1] = L':';
                 newCurrentDir[2] = L'\\';
                 newCurrentDir[3] = L'\0';
-                wcscat_s(newCurrentDir, SUBST_SOURCE_LENGTH, currentDir + wcslen(pListNode->szSourceDirectory));
+                wcscat_s(newCurrentDir.data(), SUBST_SOURCE_LENGTH, currentDir.data() + len);
             }
         }
     }
 
     // If newCurrentDirectory not set, use the currentDirectory instead.
-    if (wcslen(newCurrentDir) == 0)
+    if (wcslen(newCurrentDir.data()) == 0)
     {
         // Not found.
-        wcscpy_s(newCurrentDir, SUBST_SOURCE_LENGTH, currentDir);
+        wcscpy_s(newCurrentDir.data(), SUBST_SOURCE_LENGTH, currentDir.data());
     }
 
     if (!CreateProcess(
@@ -650,22 +713,17 @@ int ExecuteProcess(int argc, _TCHAR* argv[], int executableToRunIndex, PSUBST_NO
         false,
         NORMAL_PRIORITY_CLASS,
         nullptr,
-        newCurrentDir,
+        newCurrentDir.data(),
         &si,
         &pi))
     {
-        delete[] newCurrentDir;
-        delete[] currentDir;
         wprintf(L"Error: Failed creating process %s.\r\n", procToRun);
         return 1;
     }
 
-    delete[] newCurrentDir;
-    delete[] currentDir;
-
-    printVerbose(L"%s", L"Start waiting for started process complete.");
+    printVerbose(L"{}", L"Start waiting for started process complete.");
     WaitForSingleObject(pi.hProcess, INFINITE);
-    printVerbose(L"%s", L"Done waiting for started process complete.");
+    printVerbose(L"{}", L"Done waiting for started process complete.");
 
     DWORD exitCode = 0;
     if (!GetExitCodeProcess(pi.hProcess, &exitCode))
@@ -681,11 +739,23 @@ int ExecuteProcess(int argc, _TCHAR* argv[], int executableToRunIndex, PSUBST_NO
 
     return (int)exitCode;
 }
+#pragma warning( pop )
 
+#pragma warning( push )
+// warning C26485: Expression 'argv': No array to pointer decay (bounds.3).
+// warning C26485: Expression 'mappedDriveLocation': No array to pointer decay (bounds.3).
+// warning C26461: The pointer argument 'pSubstList' for function 'SubstDrivesAndExecute' can be marked as a pointer to const (con.3).
+// warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
+// warning C6387: 'pListNode->szSourceDirectory' could be '0'.
+#pragma warning( disable : 26485 26461 26481 6387 )
 // Tries to substitute a drive.
 // Returns 0 on success and non-zero on failure.
 static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSubstList, PSUBST_NODE* pOrderedSubstList, int executableToRunIndex)
 {
+    assert(argv != nullptr);
+    assert(pSubstList != nullptr);
+    assert(pOrderedSubstList != nullptr);
+
     // Get a lock to the lock file(s) and try to subst.
     // Make sure that there were any subst executed first.
 
@@ -710,7 +780,7 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
                 return 1;
             }
 
-            DWORD srcAttr = GetFileAttributes(pListNode->szSourceDirectory);
+            const DWORD srcAttr = GetFileAttributes(pListNode->szSourceDirectory);
             if (srcAttr == INVALID_FILE_ATTRIBUTES)
             {
                 wprintf(L"Error: Invalid source location for a subst drive %C:. The source location %s doesn't exist.\r\n",
@@ -729,18 +799,16 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
                 return 1;
             }
 
-            size_t substFileLockLen = wcslen(pListNode->szSourceDirectory) + 100;
-            TCHAR* substFileLock = new TCHAR[substFileLockLen];
-            wcscpy_s(substFileLock, substFileLockLen, pListNode->szSourceDirectory);
-            wcscat_s(substFileLock, substFileLockLen, SUBST_FILE_NAME);
+            std::basic_string<TCHAR> substFileLock(pListNode->szSourceDirectory);
+            substFileLock.append(SUBST_FILE_NAME);
 
             HANDLE substFileLockHandle = INVALID_HANDLE_VALUE;
             while (true)
             {
-                substFileLockHandle = CreateFile(substFileLock, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+                substFileLockHandle = CreateFile(substFileLock.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
                 if (substFileLockHandle == INVALID_HANDLE_VALUE)
                 {
-                    DWORD lastError = GetLastError();
+                    const DWORD lastError = GetLastError();
                     if (lastError == ERROR_SHARING_VIOLATION)
                     {
                         wprintf(L"Warning: Lock file for local lock file in %s is in use by another process. Waiting for %d secs...\r\n",
@@ -764,10 +832,8 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
                 break;
             }
 
-            delete[] substFileLock;
+            LogToFile(pListNode, L"Substituting drive {} for path {}.", static_cast<char>(pListNode->szDriveLetter), pListNode->szSourceDirectory);
 
-            LogToFile(pListNode, L"Substituting drive %C for path %s.", static_cast<char>(pListNode->szDriveLetter), pListNode->szSourceDirectory);
-            
             i++;
         }
 
@@ -794,24 +860,21 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
             }
 
             // Get a hold of the file lock.
-            size_t substFileLockLen = wcslen(pListNode->szSourceDirectory) + 100;
-            TCHAR* substFileLock = new TCHAR[substFileLockLen];
-            substFileLock[0] = pListNode->szDriveLetter;
-            substFileLock[1] = L':';
-            substFileLock[2] = L'\\';
-            substFileLock[3] = L'\0';
-            wcscat_s(substFileLock, substFileLockLen, SUBST_FILE_NAME);
+            std::basic_string<TCHAR> substFileLock;
+            substFileLock.push_back(pListNode->szDriveLetter);
+            substFileLock += L':' + L'\\' + L'\0';
+            substFileLock.append(SUBST_FILE_NAME);
 
             HANDLE substFileLockHandle = INVALID_HANDLE_VALUE;
-            substFileLockHandle = CreateFile(substFileLock, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+            substFileLockHandle = CreateFile(substFileLock.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
             if (substFileLockHandle == INVALID_HANDLE_VALUE)
             {
-                DWORD lastError = GetLastError();
+                const DWORD lastError = GetLastError();
                 if (lastError == ERROR_SHARING_VIOLATION)
                 {
                     wprintf(L"Warning: Lock file for drive %C file %s is in use by another process. Waiting for %d secs...\r\n",
                         pListNode->szDriveLetter,
-                        substFileLock,
+                        substFileLock.c_str(),
                         RUN_IN_SUBST_TIMEOUT / 1000);
 
                     Sleep(RUN_IN_SUBST_TIMEOUT);
@@ -824,7 +887,7 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
                     mappedDriveLocation[1] = L':';
                     mappedDriveLocation[2] = L'\\';
                     mappedDriveLocation[3] = L'\0';
-                    DWORD srcAttr = GetFileAttributes(mappedDriveLocation);
+                    const DWORD srcAttr = GetFileAttributes(mappedDriveLocation);
                     if (srcAttr == INVALID_FILE_ATTRIBUTES)
                     {
                         wprintf(L"Warning: The subst drive %C: does not seem to be using the sharing protocol. Forcing a manual release of the drive.\r\n",
@@ -842,7 +905,7 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
                     }
 
                     wprintf(L"Error: Could not get exclusive write lock for the substituted drive lock file %s. Error: %d\r\n",
-                        substFileLock,
+                        substFileLock.c_str(),
                         (int)lastError);
                     // Process exits. All handles closed by the OS.
                     return 1;
@@ -861,7 +924,7 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
         }
     }
 
-    int errorCode = ExecuteProcess(argc, argv, executableToRunIndex, pOrderedSubstList);
+    const int errorCode = ExecuteProcess(argc, argv, executableToRunIndex, pOrderedSubstList);
 
     // Clean up whatever is needed to clean up.
     for (int i = 0; i < NUMBER_DEFINABLE_SUBST; i++)
@@ -872,15 +935,15 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
             continue;
         };
 
-        LogToFile(pListNode, L"Done! Unsubst drive %C: - %s.",
+        LogToFile(pListNode, L"Done! Unsubst drive {}: - {}.",
             static_cast<char>(pListNode->szDriveLetter), pListNode->szSourceDirectory);
 
         UnmapDrive(pListNode);
-        assert(pListNode->hLockFile != INVALID_HANDLE_VALUE && "Invalide state. Lock file handle should not be invalid.");
+        assert(pListNode->hLockFile != INVALID_HANDLE_VALUE && "Invalid state. Lock file handle should not be invalid.");
 
         if (pListNode->hLockFile == INVALID_HANDLE_VALUE)
         {
-            LogToFile(pListNode, L"Invalid state. Lock file handle should not be invalid for local file %s.", pListNode->szSourceDirectory);
+            LogToFile(pListNode, L"Invalid state. Lock file handle should not be invalid for local file {}.", pListNode->szSourceDirectory);
             return 1;
         }
 
@@ -889,17 +952,19 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
 
     return errorCode;
 }
+#pragma warning( pop )
 
+#pragma warning( push )
+// warning C26401: Do not delete a raw pointer that is not an owner<T> (i.11).
+// warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
+#pragma warning( disable : 26401 26409 )
 // main - app entry point.
 int _tmain(int argc, _TCHAR* argv[])
 {
     PSUBST_LIST_NODE pSubstList = nullptr;
-
     // Array of ordered subst target and lists.
     PSUBST_NODE* pOrderedSubstList = nullptr;
-
     int executableToRunIndex = -1;
-
 
     InitializeState(&pSubstList, &pOrderedSubstList, &executableToRunIndex);
 
@@ -910,7 +975,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
     SetConsoleCtrlHandler(CtrlHandler, true);
 
-    int ret = SubstDrivesAndExecute(argc, argv, pSubstList, pOrderedSubstList, executableToRunIndex);
+    const int ret = SubstDrivesAndExecute(argc, argv, pSubstList, pOrderedSubstList, executableToRunIndex);
 
     if (pOrderedSubstList != nullptr)
     {
@@ -931,3 +996,4 @@ int _tmain(int argc, _TCHAR* argv[])
 
     return ret;
 }
+#pragma warning( pop )

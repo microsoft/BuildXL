@@ -19,9 +19,17 @@
 #include <tchar.h>
 #include <time.h>
 
-#include <Windows.h>
-#include <string>
+#pragma warning( push )
+// warning C4738: storing 32-bit float result in memory, possible loss of performance
+#pragma warning( disable : 4738)
+#include <algorithm>
 #include <assert.h>
+#include <cstdlib>
+#include <format>
 #include <memory>
+#include <ranges>
+#include <string>
 #include <vector>
-
+#include <wchar.h>
+#include <Windows.h>
+#pragma warning( pop )

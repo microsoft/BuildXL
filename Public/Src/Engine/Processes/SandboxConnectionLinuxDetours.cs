@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -92,6 +91,149 @@ namespace BuildXL.Processes
 
         internal sealed class Info : IDisposable
         {
+            /// <summary>
+            /// Encapsulates both a background thread that is processing incoming messages, and an action block that is processing said messages.
+            /// The intention is for report processors use the same backing <see cref="Info"/> to ultimately process the incoming messages 
+            /// (using <see cref="Info.ProcessBytes(ValueTuple{PooledObjectWrapper{byte[]}, int})"/>), because all the messages are associated to the same sandbox,
+            /// but use different FIFOs (and thus consuming threads and processing action blocks). 
+            /// We expose a JoinReceivingThread method to join the receiving thread, and the Completion property of the message-processing action block.
+            /// </summary>
+            private class ReportProcessor
+            {
+                private readonly Info m_info;
+                private readonly Thread m_workerThread;
+                private readonly ActionBlockSlim<(PooledObjectWrapper<byte[]> wrapper, int length)> m_processingBlock;
+                private int m_completeAccessReportProcessingCounter;
+
+                public ReportProcessor(Info info, string fifoName, Lazy<SafeFileHandle> fifoHandle)
+                {
+                    m_info = info;
+                    m_workerThread = new Thread(() => StartReceivingAccessReports(fifoName, fifoHandle))
+                    {
+                        IsBackground = true,
+                        Priority = ThreadPriority.Highest
+                    };
+
+                    m_processingBlock = ActionBlockSlim.Create<(PooledObjectWrapper<byte[]> wrapper, int length)>(degreeOfParallelism: 1,
+                        m_info.ProcessBytes,
+                        singleProducedConstrained: true // Only m_workerThread posts to the action block
+                    );
+
+                }
+
+                internal void Start() => m_workerThread.Start();
+
+                internal void CompleteAccessReportProcessing()
+                {
+                    var cnt = Interlocked.Increment(ref m_completeAccessReportProcessingCounter);
+                    if (cnt > 1)
+                    {
+                        return; // already completed
+                    }
+
+                    m_processingBlock.Complete();
+                }
+
+                /// <nodoc />
+                internal Task Completion => m_processingBlock.Completion;
+
+                /// <nodoc />
+                internal void JoinReceivingThread() => m_workerThread.Join();
+
+                private static int Read(SafeFileHandle handle, byte[] buffer, int offset, int length)
+                {
+                    Contract.Requires(buffer.Length >= offset + length);
+                    int totalRead = 0;
+                    while (totalRead < length)
+                    {
+                        var numRead = IO.Read(handle, buffer, offset + totalRead, length - totalRead);
+                        if (numRead <= 0)
+                        {
+                            return numRead;
+                        }
+                        totalRead += numRead;
+                    }
+
+                    return totalRead;
+                }
+
+                private void LogDebug(string s) => m_info.LogDebug(s);
+                private void LogError(string s) => m_info.LogError(s);
+
+                /// <summary>
+                /// The method backing the <see cref="m_workerThread"/> thread.
+                /// </summary>
+                private void StartReceivingAccessReports(string fifoName, Lazy<SafeFileHandle> fifoHandle)
+                {
+                    // opening FIFO for reading (blocks until there is at least one writer connected)
+                    LogDebug($"Opening FIFO '{fifoName}' for reading");
+                    using var readHandle = IO.Open(fifoName, IO.OpenFlags.O_RDONLY, 0);
+                    if (readHandle.IsInvalid)
+                    {
+                        LogError($"Opening FIFO {fifoName} for reading failed.");
+                        return;
+                    }
+
+                    // make sure that m_lazyWriteHandle has been created
+                    Analysis.IgnoreResult(fifoHandle.Value);
+
+                    byte[] messageLengthBytes = new byte[sizeof(int)];
+                    while (true)
+                    {
+                        // read length
+                        var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
+                        if (numRead == 0) // EOF
+                        {
+                            // We don't expect EOF before reading the EndOfReportsSentinel (see below)
+                            LogError("Exiting 'receive reports' loop on EOF without observing the end of reports sentinel value.");
+                            break;
+                        }
+
+                        if (numRead < 0) // error
+                        {
+                            LogError($"Read from FIFO {fifoName} failed with return value {numRead}.");
+                            break;
+                        }
+
+                        // decode length
+                        int messageLength = BitConverter.ToInt32(messageLengthBytes, startIndex: 0);
+
+                        // if 'length' corresponds to this special (negative) value that is pumped 
+                        // to the FIFO after the process tree has completed, then we have drained all reports
+                        // (see 'RequestStop' for more details).
+                        if (messageLength == EndOfReportsSentinel)
+                        {
+                            LogDebug("Exiting 'receive reports' loop.");
+                            break;
+                        }
+
+                        // read a message of that length
+                        PooledObjectWrapper<byte[]> messageBytes = ByteArrayPool.GetInstance(messageLength);
+                        numRead = Read(readHandle, messageBytes.Instance, 0, messageLength);
+                        if (numRead < messageLength)
+                        {
+                            LogError($"Read from FIFO {fifoName} failed: read only {numRead} out of {messageLength} bytes.");
+                            messageBytes.Dispose();
+                            break;
+                        }
+
+                        // Add message to processing queue
+                        try
+                        {
+                            m_processingBlock.Post((messageBytes, messageLength), throwOnFullOrComplete: true);
+                        }
+                        catch (Exception e)
+                        {
+                            Analysis.IgnoreException("Will error and exit on LogError");
+                            LogError($"Could not post message to the processing block. Exception details: {e}");
+                            break;
+                        }
+                    }
+
+                    CompleteAccessReportProcessing();
+                }
+            }
+
             internal SandboxedProcessUnix Process { get; }
             internal string ReportsFifoPath { get; }
             /// <summary>
@@ -106,7 +248,7 @@ namespace BuildXL.Processes
             private readonly bool m_isInTestMode;
 
             /// <remarks>
-            /// This dictionary is accessed both from the <see cref="m_workerThread"/> thread as well as the thread
+            /// This dictionary is accessed both from the report processor threads as well as the thread
             /// backing <see cref="m_activeProcessesChecker"/>, hence it must be thread-safe.
             ///
             /// Implementation detail: ConcurrentDictionary is used to implement a thread-safe set (because no
@@ -118,14 +260,11 @@ namespace BuildXL.Processes
             private readonly CancellableTimedAction m_activeProcessesChecker;
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
             private readonly Lazy<SafeFileHandle> m_lazySecondaryFifoWriteHandle;
-            private readonly Thread m_workerThread;
-            private readonly Thread m_secondaryWorkerThread;
-            private readonly ActionBlockSlim<(PooledObjectWrapper<byte[]> wrapper, int length)> m_accessReportProcessingBlock;
 
             private int m_stopRequestCounter;
-            private int m_completeAccessReportProcessingCounter;
-
-            private static readonly TimeSpan ActiveProcessesCheckerInterval = TimeSpan.FromSeconds(1);
+            private readonly ReportProcessor m_reportProcessor;
+            private readonly ReportProcessor m_secondaryReportProcessor;
+            private static readonly TimeSpan s_activeProcessesCheckerInterval = TimeSpan.FromSeconds(1);
 
             private static ArrayPool<byte> ByteArrayPool { get; } = new ArrayPool<byte>(4096);
 
@@ -133,7 +272,6 @@ namespace BuildXL.Processes
             {
                 m_isInTestMode = isInTestMode;
                 m_stopRequestCounter = 0;
-                m_completeAccessReportProcessingCounter = 0;
                 m_failureCallback = failureCallback;
                 Process = process;
                 ReportsFifoPath = reportsFifoPath;
@@ -144,35 +282,36 @@ namespace BuildXL.Processes
                 m_activeProcesses = new ConcurrentDictionary<int, byte>();
                 m_activeProcessesChecker = new CancellableTimedAction(
                     CheckActiveProcesses,
-                    intervalMs: Math.Min((int)process.ChildProcessTimeout.TotalMilliseconds, (int)ActiveProcessesCheckerInterval.TotalMilliseconds));
+                    intervalMs: Math.Min((int)process.ChildProcessTimeout.TotalMilliseconds, (int)s_activeProcessesCheckerInterval.TotalMilliseconds));
 
                 // create a write handle (used to keep the fifo open, i.e.,
                 // the 'read' syscall won't receive EOF until we close this writer
                 m_lazyWriteHandle = GetLazyWriteHandle(ReportsFifoPath);
 
-                // action block where parsing and processing of received ActionReport bytes is done
-                m_accessReportProcessingBlock = ActionBlockSlim.Create<(PooledObjectWrapper<byte[]> wrapper, int length)>(
-                    degreeOfParallelism: 1,
-                    ProcessBytes,
-                    singleProducedConstrained: true // Only m_workerThread posts to the action block
-                    );
-
-                // start a background thread for reading from the FIFO
-                m_workerThread = new Thread(() => StartReceivingAccessReports(ReportsFifoPath, m_lazyWriteHandle));
-                m_workerThread.IsBackground = true;
-                m_workerThread.Priority = ThreadPriority.Highest;
+                // will start a background thread for reading from the FIFO
+                m_reportProcessor = new ReportProcessor(this, ReportsFifoPath, m_lazyWriteHandle);
 
                 // Second thread for reading the secondary FIFO
                 // The secondary pipe is used here to allow for messages that are higher priority (such as ptrace notifcations)
                 // to be delivered back to the managed layer faster if the fifo used for file access reports is congested.
+                Task secondaryCompletion = Task.CompletedTask;
                 if (!string.IsNullOrEmpty(SecondaryFifoPath))
                 {
                     m_lazySecondaryFifoWriteHandle = GetLazyWriteHandle(SecondaryFifoPath);
-
-                    m_secondaryWorkerThread = new Thread(() => StartReceivingAccessReports(SecondaryFifoPath, m_lazySecondaryFifoWriteHandle));
-                    m_secondaryWorkerThread.IsBackground = true;
-                    m_secondaryWorkerThread.Priority = ThreadPriority.Highest;
+                    m_secondaryReportProcessor = new ReportProcessor(this, SecondaryFifoPath, m_lazySecondaryFifoWriteHandle);
+                    secondaryCompletion = m_secondaryReportProcessor.Completion;
                 }
+
+                // Post the process tree completion after we process all reports
+                Task.WhenAll(m_reportProcessor.Completion, secondaryCompletion).ContinueWith(t =>
+                {
+                    Process.LogDebug("Posting OpProcessTreeCompleted message");
+                    Process.PostAccessReport(new AccessReport
+                    {
+                        Operation = FileOperation.OpProcessTreeCompleted,
+                        PathOrPipStats = AccessReport.EncodePath("")
+                    });
+                });
             }
 
             private Lazy<SafeFileHandle> GetLazyWriteHandle(string path)
@@ -189,11 +328,8 @@ namespace BuildXL.Processes
             /// </summary>
             internal void Start()
             {
-                m_workerThread.Start();
-                if (!string.IsNullOrEmpty(SecondaryFifoPath))
-                {
-                    m_secondaryWorkerThread.Start();
-                }
+                m_reportProcessor.Start();
+                m_secondaryReportProcessor?.Start();
             }
 
             private void CheckActiveProcesses()
@@ -206,26 +342,6 @@ namespace BuildXL.Processes
                         RemovePid(pid);
                     }
                 }
-            }
-
-            private void CompleteAccessReportProcessing()
-            {
-                var cnt = Interlocked.Increment(ref m_completeAccessReportProcessingCounter);
-                if (cnt > 1)
-                {
-                    return; // already completed
-                }
-
-                m_accessReportProcessingBlock.Complete();
-                m_accessReportProcessingBlock.Completion.ContinueWith(t =>
-                {
-                    Process.LogDebug("Posting OpProcessTreeCompleted message");
-                    Process.PostAccessReport(new AccessReport
-                    {
-                        Operation = FileOperation.OpProcessTreeCompleted,
-                        PathOrPipStats = AccessReport.EncodePath("")
-                    });
-                });
             }
 
             /// <summary>
@@ -249,10 +365,10 @@ namespace BuildXL.Processes
                 // was preferred.
                 try
                 {
-                    writeEndOfReportSentinal(m_lazyWriteHandle);   
+                    writeEndOfReportSentinel(m_lazyWriteHandle);   
                     if (!string.IsNullOrEmpty(SecondaryFifoPath))
                     {
-                        writeEndOfReportSentinal(m_lazySecondaryFifoWriteHandle);
+                        writeEndOfReportSentinel(m_lazySecondaryFifoWriteHandle);
                     }
                 }
                 catch (Exception e)
@@ -270,7 +386,7 @@ namespace BuildXL.Processes
                     m_activeProcessesChecker.Cancel();
                 }
 
-                void writeEndOfReportSentinal(Lazy<SafeFileHandle> handle)
+                void writeEndOfReportSentinel(Lazy<SafeFileHandle> handle)
                 {
                     using var fileStream = new FileStream(handle.Value, FileAccess.Write);
                     using var binaryWriter = new BinaryWriter(fileStream);
@@ -365,16 +481,13 @@ namespace BuildXL.Processes
                     // happens, some write handled to the created FIFO may remain open, so the 'read' call in
                     // 'StartReceivingAccessReports' may remain stuck forever.
                     LogDebug("Waiting for the worker thread to complete");
-                    m_workerThread.Join();
-                    if (!string.IsNullOrEmpty(SecondaryFifoPath))
-                    {
-                        m_secondaryWorkerThread.Join();
-                    }
+                    m_reportProcessor.JoinReceivingThread();
+                    m_secondaryReportProcessor?.JoinReceivingThread();
                 }
             }
 
             /// <summary>
-            /// This method is backing <see cref="m_accessReportProcessingBlock"/>.
+            /// This method is backing the message processors action block.
             /// </summary>
             private void ProcessBytes((PooledObjectWrapper<byte[]> wrapper, int length) item)
             {
@@ -490,87 +603,6 @@ namespace BuildXL.Processes
                     LogError($"Could not parse int from '{str.ToString()}'");
                     return 0;
                 }
-            }
-
-            private static int Read(SafeFileHandle handle, byte[] buffer, int offset, int length)
-            {
-                Contract.Requires(buffer.Length >= offset + length);
-                int totalRead = 0;
-                while (totalRead < length)
-                {
-                    var numRead = IO.Read(handle, buffer, offset + totalRead, length - totalRead);
-                    if (numRead <= 0)
-                    {
-                        return numRead;
-                    }
-                    totalRead += numRead;
-                }
-
-                return totalRead;
-            }
-
-            /// <summary>
-            /// The method backing the <see cref="m_workerThread"/> thread.
-            /// </summary>
-            private void StartReceivingAccessReports(string fifoName, Lazy<SafeFileHandle> fifoHandle)
-            {
-                // opening FIFO for reading (blocks until there is at least one writer connected)
-                LogDebug($"Opening FIFO '{fifoName}' for reading");
-                using var readHandle = IO.Open(fifoName, IO.OpenFlags.O_RDONLY, 0);
-                if (readHandle.IsInvalid)
-                {
-                    LogError($"Opening FIFO {fifoName} for reading failed.");
-                    return;
-                }
-
-                // make sure that m_lazyWriteHandle has been created
-                Analysis.IgnoreResult(fifoHandle.Value);
-
-                byte[] messageLengthBytes = new byte[sizeof(int)];
-                while (true)
-                {
-                    // read length
-                    var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
-                    if (numRead == 0) // EOF
-                    {
-                        // We don't expect EOF before reading the EndOfReportsSentinel (see below)
-                        LogError("Exiting 'receive reports' loop on EOF without observing the end of reports sentinel value.");
-                        break;
-                    }
-
-                    if (numRead < 0) // error
-                    {
-                        LogError($"Read from FIFO {fifoName} failed with return value {numRead}.");
-                        break;
-                    }
-
-                    // decode length
-                    int messageLength = BitConverter.ToInt32(messageLengthBytes, startIndex: 0);
-
-                    // if 'length' corresponds to this special (negative) value that is pumped 
-                    // to the FIFO after the process tree has completed, then we have drained all reports
-                    // (see 'RequestStop' for more details).
-                    if (messageLength == EndOfReportsSentinel)
-                    {
-                        Process.LogDebug("Exiting 'receive reports' loop.");
-                        break;
-                    }
-
-                    // read a message of that length
-                    PooledObjectWrapper<byte[]> messageBytes = ByteArrayPool.GetInstance(messageLength);
-                    numRead = Read(readHandle, messageBytes.Instance, 0, messageLength);
-                    if (numRead < messageLength)
-                    {
-                        LogError($"Read from FIFO {fifoName} failed: read only {numRead} out of {messageLength} bytes.");
-                        messageBytes.Dispose();
-                        break;
-                    }
-
-                    // Add message to processing queue
-                    m_accessReportProcessingBlock.Post((messageBytes, messageLength));
-                }
-
-                CompleteAccessReportProcessing();
             }
         }
 

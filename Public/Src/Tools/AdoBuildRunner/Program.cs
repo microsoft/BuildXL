@@ -66,7 +66,7 @@ namespace BuildXL.AdoBuildRunner
                     logger.Info("Performing connectivity test");
                     executor = new PingExecutor(logger, api);
                     var buildManager = new BuildManager(api, executor, buildContext, args, logger);
-                    return await buildManager.BuildAsync();
+                    return await buildManager.BuildAsync(isOrchestrator: true);
                 }
                 else if (args[0] == "launchworkers")
                 {
@@ -92,45 +92,46 @@ namespace BuildXL.AdoBuildRunner
                     
                     executor = new BuildExecutor(logger);
 
+                    bool isOrchestrator;
                     if (string.IsNullOrEmpty(role))
                     {
-                        var buildContext = await api.GetBuildContextAsync("ParallelBuild");
-                        var buildManager = new BuildManager(api, executor, buildContext, args, logger);
-                        return await buildManager.BuildAsync();
+                        // When the build role is not specified, we assume this build is being run with the parallel strategy
+                        // where the role is inferred from the ordinal position in the phase: the first agent is the orchestrator
+                        isOrchestrator = api.JobPositionInPhase == 1;                        
                     }
                     else 
                     {
                         bool isWorker = string.Equals(role, "Worker", StringComparison.OrdinalIgnoreCase);
-                        bool isOrchestrator = string.Equals(role, "Orchestrator", StringComparison.OrdinalIgnoreCase);
+                        isOrchestrator = string.Equals(role, "Orchestrator", StringComparison.OrdinalIgnoreCase);
                         if (!isWorker && !isOrchestrator)
                         {                        
                             throw new CoordinationException($"{Constants.AdoBuildRunnerPipelineRole} must be 'Worker' or 'Orchestrator'");
                         }
-
-                        // A build key has to be specified to disambiguate between multiple builds
-                        // running as part of the same pipeline. This value is used to communicate
-                        // the build information (orchestrator location, session id) to the workers. 
-                        var invocationKey = Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerInvocationKey);
-
-                        if (string.IsNullOrEmpty(invocationKey))
-                        {
-                            throw new CoordinationException($"The environment variable {Constants.AdoBuildRunnerInvocationKey} must be set (to a value that is unique within a particular pipeline run): " +
-                                $"it is used to disambiguate between multiple builds running as part of the same pipeline (e.g.: debug, ship, test...) " +
-                                $"and to communicate the build information to the worker pipeline");
-                        }
-
-                        var attemptNumber = Environment.GetEnvironmentVariable(Constants.JobAttemptVariableName) ?? "1";
-                        if (int.TryParse(attemptNumber, out var jobAttempt) && jobAttempt > 1)
-                        {
-                            // The job was rerun. Let's change the invocation key to reflect that
-                            // so we don't conflict with the first run.
-                            invocationKey += $"__jobretry_{jobAttempt}";
-                        }
-
-                        var buildContext = await api.GetBuildContextAsync(invocationKey);
-                        var buildManager = new WorkerPipelineBuildManager(api, executor, buildContext, args, logger);
-                        return await buildManager.BuildAsync(isOrchestrator);
                     }
+
+                    // A build key has to be specified to disambiguate between multiple builds
+                    // running as part of the same pipeline. This value is used to communicate
+                    // the build information (orchestrator location, session id) to the workers. 
+                    var invocationKey = Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerInvocationKey);
+
+                    if (string.IsNullOrEmpty(invocationKey))
+                    {
+                        throw new CoordinationException($"The environment variable {Constants.AdoBuildRunnerInvocationKey} must be set (to a value that is unique within a particular pipeline run): " +
+                            $"it is used to disambiguate between multiple builds running as part of the same pipeline (e.g.: debug, ship, test...) " +
+                            $"and to communicate the build information to the worker pipeline");
+                    }
+
+                    var attemptNumber = Environment.GetEnvironmentVariable(Constants.JobAttemptVariableName) ?? "1";
+                    if (int.TryParse(attemptNumber, out var jobAttempt) && jobAttempt > 1)
+                    {
+                        // The job was rerun. Let's change the invocation key to reflect that
+                        // so we don't conflict with the first run.
+                        invocationKey += $"__jobretry_{jobAttempt}";
+                    }
+
+                    var buildContext = await api.GetBuildContextAsync(invocationKey);
+                    var buildManager = new BuildManager(api, executor, buildContext, args, logger);
+                    return await buildManager.BuildAsync(isOrchestrator);
                 }
             }
             catch (CoordinationException e)

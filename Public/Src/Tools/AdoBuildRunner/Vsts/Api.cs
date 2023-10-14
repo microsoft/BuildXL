@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Threading.Tasks;
 using AdoBuildRunner.Vsts;
@@ -291,9 +292,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
             }
 
             // (2) One-to-one correspondence between a jobs in a worker pipeline, and an orchestrator
-            if (JobPositionInPhase != 1)
+            if (JobPositionInPhase != TotalJobsInPhase)
             {
-                // Only do this once per 'parallel group', i.e., only for the first agent in a parallel strategy context
+                // Only do this once per 'parallel group', i.e., only for the last agent in a parallel strategy context
                 // (this means only one worker per distributed build). This is because there is no value that we can
                 // reliably use that is unique to a job but shared amongst the parallel agents of the same 'job'.
                 // But because parallel agents running the same job are exact replicas of each other (modulo 'JobPositionInPhase')
@@ -425,15 +426,12 @@ namespace BuildXL.AdoBuildRunner.Vsts
         public async Task<BuildInfo> WaitForBuildInfo(BuildContext buildContext)
         {
             var triggerInfo = await m_http.GetBuildTriggerInfoAsync();
-            if (triggerInfo == null)
+            if (triggerInfo == null 
+                || !triggerInfo.TryGetValue(Constants.TriggeringAdoBuildIdParameter, out string? triggeringBuildIdString) 
+                || !int.TryParse(triggeringBuildIdString, out int triggeringBuildId))
             {
-                LogAndThrow("TriggerInfo is required to query the BuildInfo");
-            }
-
-            int triggeringBuildId = 0;
-            if (!triggerInfo.TryGetValue(Constants.TriggeringAdoBuildIdParameter, out string? triggeringBuildIdString) || !int.TryParse(triggeringBuildIdString, out triggeringBuildId))
-            {
-                LogAndThrow($"A worker build needs the value {Constants.TriggeringAdoBuildIdParameter} in the trigger info to be set to the orchestrator's ADO build id to connect to the build. Found this value for: {triggeringBuildIdString}");
+                m_logger.Info("Couldn't find trigger info for this build. Assuming it is being ran on the same pipeline as the orchestrator and using the current build id as the orchestrator's build id");
+                triggeringBuildId = int.Parse(BuildId);
             }
 
             var elapsedTime = 0;

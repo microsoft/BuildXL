@@ -158,6 +158,7 @@ jobs:
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AdoBuildRunnerWaitForOrchestratorExit: true
+      AdoBuildRunnerInvocationKey: LinuxSelfhostValidation_${{ parameters.validationName }}
 
   - task: PublishTestResults@2
     displayName: Publish Test Results

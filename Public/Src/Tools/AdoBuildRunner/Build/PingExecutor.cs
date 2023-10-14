@@ -52,7 +52,7 @@ namespace BuildXL.AdoBuildRunner.Build
             Logger.Info($@"Launching ping test as orchestrator");
 
             var usingV6 = buildArguments.Any(opt => opt == "ipv6");
-            var ip = BuildManager.GetAgentIPAddress(usingV6);
+            var ip = GetAgentIPAddress(usingV6);
 
             var tasks = new Task<bool>[machines.Count];
             for (int i = 0; i < tasks.Length; i++)
@@ -228,6 +228,47 @@ namespace BuildXL.AdoBuildRunner.Build
             m_server = TcpListener.Create(ListeningPort);
             m_server.Start();
             Logger.Info($"Started server on port {ListeningPort}");
+        }
+
+        private static string GetAgentIPAddress(bool ipv6)
+        {
+            var firstUpInterface = NetworkInterface.GetAllNetworkInterfaces()
+                .OrderByDescending(c => c.Speed)
+                .FirstOrDefault(c => c.NetworkInterfaceType != NetworkInterfaceType.Loopback && c.OperationalStatus == OperationalStatus.Up);
+
+            if (firstUpInterface != null)
+            {
+                var props = firstUpInterface.GetIPProperties();
+
+                if (!ipv6)
+                {
+                    // get first IPV4 address assigned to this interface
+                    var ipV4Address = props.UnicastAddresses
+                    .Where(c => c.Address.AddressFamily == AddressFamily.InterNetwork)
+                    .Select(c => c.Address.ToString())
+                    .FirstOrDefault();
+
+                    if (ipV4Address != null)
+                    {
+                        return ipV4Address;
+                    }
+                }
+                else
+                {
+                    var ipV6Address = props.UnicastAddresses
+                    .Where(c => c.Address.AddressFamily == AddressFamily.InterNetworkV6)
+                    .Select(c => c.Address.ToString())
+                    .Select(a => a.Split('%').FirstOrDefault() ?? a)
+                    .FirstOrDefault();
+
+                    if (ipV6Address != null)
+                    {
+                        return ipV6Address;
+                    }
+                }
+            }
+
+            throw new ApplicationException($"Unable to determine IP address, aborting!");
         }
     }
 }

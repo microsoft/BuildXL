@@ -329,7 +329,7 @@ fi
 # Forcing a salt here to avoid problems faced in Linux validation pipeline related to cache.
 # This is related to Bug 2104538 where the cache may or may not be setting the execute bit for some executables.
 if [[ $arg_UserProvidedBxlArguments != *"/p:BUILDXL_FINGERPRINT_SALT"* ]]; then
-    arg_Positional+=("/p:BUILDXL_FINGERPRINT_SALT=forceSaltForLinuxBugFixPR")
+    arg_Positional+=("/p:BUILDXL_FINGERPRINT_SALT=fixForCopyFilePipBugInLinux")
 fi
 
 compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}

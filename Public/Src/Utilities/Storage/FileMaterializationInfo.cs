@@ -98,18 +98,18 @@ namespace BuildXL.Storage
         /// Creates a <see cref="FileMaterializationInfo"/> with a hash but no file name and length.
         /// This is intended for abstract hashes that don't correspond to real files on disk.
         /// </summary>
-        public static FileMaterializationInfo CreateWithUnknownLength(ContentHash hash)
+        public static FileMaterializationInfo CreateWithUnknownLength(ContentHash hash, bool isExecutable = false)
         {
-            return new FileMaterializationInfo(FileContentInfo.CreateWithUnknownLength(hash), PathAtom.Invalid, AbsolutePath.Invalid, RelativePath.Invalid);
+            return new FileMaterializationInfo(FileContentInfo.CreateWithUnknownLength(hash), PathAtom.Invalid, AbsolutePath.Invalid, RelativePath.Invalid, isExecutable: isExecutable);
         }
 
         /// <summary>
         /// Creates a <see cref="FileMaterializationInfo"/> with a hash but no file name.
         /// This is intended for abstract hashes that don't correspond to real files on disk.
         /// </summary>
-        public static FileMaterializationInfo CreateWithUnknownName(in FileContentInfo contentInfo)
+        public static FileMaterializationInfo CreateWithUnknownName(in FileContentInfo contentInfo, bool isExecutable = false)
         {
-            return new FileMaterializationInfo(contentInfo, PathAtom.Invalid, AbsolutePath.Invalid, RelativePath.Invalid);
+            return new FileMaterializationInfo(contentInfo, PathAtom.Invalid, AbsolutePath.Invalid, RelativePath.Invalid, isExecutable: isExecutable);
         }
 
         /// <summary>

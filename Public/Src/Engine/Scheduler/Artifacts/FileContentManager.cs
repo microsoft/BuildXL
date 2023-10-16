@@ -695,7 +695,7 @@ namespace BuildXL.Scheduler.Artifacts
         public async Task<bool> TryLoadAvailableOutputContentAsync(
             PipInfo pipInfo,
             OperationContext operationContext,
-            IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, AbsolutePath outputDirectoryRoot)> filesAndContentHashes,
+            IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, AbsolutePath outputDirectoryRoot, bool isExecutable)> filesAndContentHashes,
             Action onFailure = null,
             Action<int, string, string, Failure> onContentUnavailable = null,
             bool materialize = false)
@@ -711,7 +711,7 @@ namespace BuildXL.Scheduler.Artifacts
                     materializingOutputs: true,
                     // Only failures matter since we are checking a cache entry and not actually materializing
                     onlyLogUnavailableContent: true,
-                    filesAndContentHashes: filesAndContentHashes.SelectList((tuple, index) => (tuple.fileArtifact, tuple.contentHash, index, tuple.outputDirectoryRoot)),
+                    filesAndContentHashes: filesAndContentHashes.SelectList((tuple, index) => (tuple.fileArtifact, tuple.contentHash, index, tuple.outputDirectoryRoot, tuple.isExecutable)),
                     onFailure: failure => { onFailure?.Invoke(); },
                     onContentUnavailable: onContentUnavailable ?? ((index, expectedHash, hashOnDiskIfAvailableOrNull, failure) => { /* Do nothing. Callee already logs the failure */ }));
 
@@ -731,7 +731,7 @@ namespace BuildXL.Scheduler.Artifacts
                         state.AddMaterializationFile(
                             fileToMaterialize: file,
                             allowReadOnly: true,
-                            materializationInfo: FileMaterializationInfo.CreateWithUnknownLength(hash),
+                            materializationInfo: FileMaterializationInfo.CreateWithUnknownLength(hash, fileAndContentHash.isExecutable),
                             materializationCompletion: TaskSourceSlim.Create<PipOutputOrigin>());
                     }
 
@@ -2678,7 +2678,7 @@ namespace BuildXL.Scheduler.Artifacts
                 operationContext,
                 pipInfo,
                 state.MaterializingOutputs,
-                state.GetCacheMaterializationFiles().SelectList(i => (i.materializationFile.Artifact, i.materializationFile.MaterializationInfo.Hash, i.index, i.materializationFile.MaterializationInfo.OpaqueDirectoryRoot)),
+                state.GetCacheMaterializationFiles().SelectList(i => (i.materializationFile.Artifact, i.materializationFile.MaterializationInfo.Hash, i.index, i.materializationFile.MaterializationInfo.OpaqueDirectoryRoot, i.materializationFile.MaterializationInfo.IsExecutable)),
                 onFailure: failure =>
                 {
                     for (int index = 0; index < state.MaterializationFiles.Count; index++)
@@ -2779,7 +2779,7 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             PipInfo pipInfo,
             bool materializingOutputs,
-            IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, int fileIndex, AbsolutePath outputDirectoryRoot)> filesAndContentHashes,
+            IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, int fileIndex, AbsolutePath outputDirectoryRoot, bool isExecutable)> filesAndContentHashes,
             Action<Failure> onFailure,
             Action<int, string, string, Failure> onContentUnavailable,
             bool onlyLogUnavailableContent = false,
@@ -2854,7 +2854,7 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializingOutputs,
             Action<int, string, string, Failure> onContentUnavailable,
             ContentAvailabilityResult result,
-            (FileArtifact fileArtifact, ContentHash contentHash, int fileIndex, AbsolutePath outputDirectoryRoot) filesAndContentHashesEntry,
+            (FileArtifact fileArtifact, ContentHash contentHash, int fileIndex, AbsolutePath outputDirectoryRoot, bool isExecutable) filesAndContentHashesEntry,
             bool onlyLogUnavailableContent = false,
             PipArtifactsState state = null)
         {
@@ -2871,6 +2871,7 @@ namespace BuildXL.Scheduler.Artifacts
             var contentHash = filesAndContentHashesEntry.contentHash;
             var currentFileIndex = filesAndContentHashesEntry.fileIndex;
             var outputDirectoryRoot = filesAndContentHashesEntry.outputDirectoryRoot;
+            var isExecutable = filesAndContentHashesEntry.isExecutable;
 
             Contract.Assume(contentHash == result.Hash);
             var outerContext = operationContext.StartAsyncOperation(OperationCounter.FileContentManagerHandleContentAvailabilityOuter, fileArtifact);
@@ -2926,7 +2927,8 @@ namespace BuildXL.Scheduler.Artifacts
                                     fileArtifact,
                                     contentHash,
                                     fileArtifact,
-                                    outputDirectoryRoot);
+                                    outputDirectoryRoot,
+                                    isExecutable: isExecutable);
 
                             // Try to be conservative here due to distributed builds (e.g., the files may not exist on other machines).
                             isAvailable = possiblyStored.Succeeded;
@@ -2987,7 +2989,8 @@ namespace BuildXL.Scheduler.Artifacts
                                         otherFile,
                                         contentHash,
                                         fileArtifact,
-                                        otherFileOutputDirectoryRoot);
+                                        otherFileOutputDirectoryRoot,
+                                        isExecutable: isExecutable);
 
                                 isAvailable = possiblyStored.Succeeded;
                             }
@@ -3181,7 +3184,8 @@ namespace BuildXL.Scheduler.Artifacts
             FileArtifact fileArtifact,
             ContentHash hash,
             FileArtifact targetFile,
-            AbsolutePath fileArtifactOutputDirectoryRoot)
+            AbsolutePath fileArtifactOutputDirectoryRoot,
+            bool isExecutable)
         {
             if (!Configuration.Schedule.StoreOutputsToCache && !m_host.IsFileRewritten(targetFile))
             {
@@ -3200,7 +3204,8 @@ namespace BuildXL.Scheduler.Artifacts
                     tryFlushPageCacheToFileSystem: shouldReTrack,
                     knownContentHash: hash,
                     trackPath: shouldReTrack,
-                    outputDirectoryRoot: fileArtifactOutputDirectoryRoot);
+                    outputDirectoryRoot: fileArtifactOutputDirectoryRoot,
+                    isExecutable: isExecutable);
 
                 return possiblyStored;
             }
@@ -3507,9 +3512,12 @@ namespace BuildXL.Scheduler.Artifacts
                     var outputDirectoryRoot = declaredArtifact.IsDirectory && m_host.GetSealDirectoryKind(declaredArtifact.DirectoryArtifact).IsDynamicKind() 
                         ? declaredArtifact.Path 
                         : AbsolutePath.Invalid;
-
+                    // Need to pass the executable bit for the fileArtifact.
+                    // This code path can be invoked when we try to hash the dependencies of the source files during the start step of the pip.
+                    // In such cases we are yet to hash the source files. Hence it is not possible to get the right results using the TryGetInputContent method.
+                    var isExecutable = FileUtilities.TryGetIsExecutableIfNeeded(fileArtifact.Path.ToString(Context.PathTable));
                     Possible<ContentDiscoveryResult> possiblyDiscovered =
-                        await LocalDiskContentStore.TryDiscoverAsync(fileArtifact, artifactExpandedPath, outputDirectoryRoot: outputDirectoryRoot);
+                        await LocalDiskContentStore.TryDiscoverAsync(fileArtifact, artifactExpandedPath, outputDirectoryRoot: outputDirectoryRoot, isExecutable: isExecutable.Result);
 
                     DiscoveredContentHashOrigin origin;
                     if (possiblyDiscovered.Succeeded)

@@ -301,12 +301,13 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(possiblyStored.Succeeded);
 
             harness.DeleteFileIfExists(outputFile.Path);
-            var filesAndContentHashes = new List<(FileArtifact, ContentHash, AbsolutePath)>
+            var filesAndContentHashes = new List<(FileArtifact, ContentHash, AbsolutePath, bool)>
                                         {
                                             (
                                                 outputFile,
                                                 possiblyStored.Result.Hash,
-                                                AbsolutePath.Invalid)
+                                                AbsolutePath.Invalid,
+                                                false)
                                         };
 
             var loadAvailableOutput = await harness.FileContentManager.TryLoadAvailableOutputContentAsync(
@@ -354,12 +355,13 @@ namespace Test.BuildXL.Scheduler
 
             harness.Environment.InMemoryContentCache.DiscardContentIfPresent(possiblyStored.Result.Hash, CacheSites.LocalAndRemote);
 
-            var filesAndContentHashes = new List<(FileArtifact fileArtifact, ContentHash contentHash, AbsolutePath outputDirectoryRoot)>
+            var filesAndContentHashes = new List<(FileArtifact fileArtifact, ContentHash contentHash, AbsolutePath outputDirectoryRoot, bool isExecutable)>
                                         {
                                             (
                                                 outputFile,
                                                 possiblyStored.Result.Hash,
-                                                AbsolutePath.Invalid)
+                                                AbsolutePath.Invalid,
+                                                false)
                                         };
 
             var loadAvailableOutput = await harness.FileContentManager.TryLoadAvailableOutputContentAsync(

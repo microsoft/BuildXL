@@ -197,7 +197,8 @@ namespace BuildXL.Scheduler
                 {
                     FileMaterializationInfo sourceMaterializationInfo = environment.State.FileContentManager.GetInputContent(pip.Source);
                     FileContentInfo sourceContentInfo = sourceMaterializationInfo.FileContentInfo;
-
+                    // Determine whether the destination file of the CopyFile pip is an executable or not.
+                    bool isDestinationExecutable;
                     ReadOnlyArray<AbsolutePath> symlinkChain;
                     var symlinkTarget = AbsolutePath.Invalid;
                     bool isSymLink = false;
@@ -250,6 +251,8 @@ namespace BuildXL.Scheduler
                     {
                         // We assume that source files cannot be made read-only so we use copy file materialization
                         // rather than hardlinking
+                        // If the source of the CopyFile pip is a symlink then we check if the symlink target file is an executable or not.
+                        isDestinationExecutable = FileUtilities.TryGetIsExecutableIfNeeded(symlinkTarget.ToString(pathTable)).Result;
                         var maybeStored = await environment.LocalDiskContentStore.TryStoreAsync(
                             environment.Cache.ArtifactContentCache,
                             fileRealizationModes: FileRealizationMode.Copy,
@@ -262,7 +265,8 @@ namespace BuildXL.Scheduler
                             // Source should have been tracked by hash-source file pip or by CheckValidSymlinkChainAsync, no need to retrack.
                             trackPath: false,
                             // A copy file is never a dynamic output
-                            outputDirectoryRoot: AbsolutePath.Invalid);
+                            outputDirectoryRoot: AbsolutePath.Invalid,
+                            isExecutable: isDestinationExecutable);
 
                         if (!maybeStored.Succeeded)
                         {
@@ -278,14 +282,18 @@ namespace BuildXL.Scheduler
                             possiblyTracked.Failure.Throw();
                         }
                     }
+                    else
+                    {
+                        // If the source of the copy file pip is not symlink, then we use the isExecutable property from sourceMaterializationInfo to determine whether it’s an executable or not.
+                        isDestinationExecutable = sourceMaterializationInfo.IsExecutable;
+                    }
 
                     // Just pass through the hash
                     environment.State.FileContentManager.ReportOutputContent(
                         operationContext,
                         pip.SemiStableHash,
                         pip.Destination,
-                        // TODO: Should we maintain the case of the source file?
-                        FileMaterializationInfo.CreateWithUnknownName(sourceContentInfo),
+                        FileMaterializationInfo.CreateWithUnknownName(sourceContentInfo, isExecutable: isDestinationExecutable),
                         PipOutputOrigin.NotMaterialized);
 
                     var result = PipResultStatus.NotMaterialized;
@@ -305,8 +313,7 @@ namespace BuildXL.Scheduler
                                     operationContext,
                                     pip.SemiStableHash,
                                     pip.Destination,
-                                    // TODO: Should we maintain the case of the source file?
-                                    FileMaterializationInfo.CreateWithUnknownName(sourceContentInfo),
+                                    FileMaterializationInfo.CreateWithUnknownName(sourceContentInfo, isExecutable: isDestinationExecutable),
                                     PipOutputOrigin.Produced);
 
                                 var possiblyTracked = await TrackSymlinkChain(symlinkChain);
@@ -4396,7 +4403,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(cachedArtifactContentHashes != null);
 
             var allHashes =
-                new List<(FileArtifact fileArtifact, ContentHash contentHash, AbsolutePath outputDirectoryRoot)>(
+                new List<(FileArtifact fileArtifact, ContentHash contentHash, AbsolutePath outputDirectoryRoot, bool isExecutable)>(
                     cachedArtifactContentHashes.Count + (standardError == null ? 0 : 1) + (standardOutput == null ? 0 : 1));
 
             // only check/load "real" files - reparse points are not stored in CAS, they are stored in metadata that we have already obtained
@@ -4405,16 +4412,16 @@ namespace BuildXL.Scheduler
             // Also, do not load zero-hash files (there is nothing in CAS with this hash)
             allHashes.AddRange(cachedArtifactContentHashes
                 .Where(pair => pair.fileMaterializationInfo.IsCacheable)
-                .Select(a => (a.fileArtifact, a.fileMaterializationInfo.Hash, a.fileMaterializationInfo.OpaqueDirectoryRoot)));
+                .Select(a => (a.fileArtifact, a.fileMaterializationInfo.Hash, a.fileMaterializationInfo.OpaqueDirectoryRoot, a.fileMaterializationInfo.IsExecutable)));
 
             if (standardOutput != null)
             {
-                allHashes.Add((FileArtifact.CreateOutputFile(standardOutput.Item1), standardOutput.Item2, AbsolutePath.Invalid));
+                allHashes.Add((FileArtifact.CreateOutputFile(standardOutput.Item1), standardOutput.Item2, AbsolutePath.Invalid, false));
             }
 
             if (standardError != null)
             {
-                allHashes.Add((FileArtifact.CreateOutputFile(standardError.Item1), standardError.Item2, AbsolutePath.Invalid));
+                allHashes.Add((FileArtifact.CreateOutputFile(standardError.Item1), standardError.Item2, AbsolutePath.Invalid, false));
             }
 
             // Check whether the cache provides a strong guarantee that content will be available for a successful pin

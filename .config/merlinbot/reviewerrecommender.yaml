@@ -1,4 +1,4 @@
-# Merlinbot config schema at https://1esdocs.azurewebsites.net/datainsights/merlinbot/extensions/reviewerrec.html
+# Merlinbot config schema at https://eng.ms/docs/products/1es-merlinbot/extensions/reviewerrec
 # Enable/Disable recommender
 enabled: true
 # How many reviewers to add?

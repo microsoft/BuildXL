@@ -32,7 +32,7 @@ extends:
         - template: /.azdo/linux/job-selfhost.yml@self
           parameters:
             ValidationName: PublicRelease
-            BxlExtraArgs: /q:ReleaseLinux /forceAddExecutionPermission-
+            BxlExtraArgs: /q:ReleaseLinux
 
     - stage: Build_Internal
       displayName: Build (internal) 
@@ -43,7 +43,7 @@ extends:
         parameters:
           Distributed: true
           ValidationName: InternalRelease
-          BxlExtraArgs: --internal /q:ReleaseLinux /forceAddExecutionPermission-
+          BxlExtraArgs: --internal /q:ReleaseLinux
 
     - stage: Verify_PTrace
       displayName: PTrace validation

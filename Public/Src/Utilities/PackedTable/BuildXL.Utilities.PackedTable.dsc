@@ -20,5 +20,8 @@ namespace PackedTable {
             Native.dll,
             Utilities.Core.dll,
         ],
+        internalsVisibleTo: [
+            "Test.BuildXL.PackedExecution",
+        ],
     });
 }

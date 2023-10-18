@@ -1262,5 +1262,13 @@ namespace BuildXL.Processes.Tracing
             Message = "[{pipDescription}] Received ProcessCommandLine report without a matching ProcessStart report for pid '{pid}'.")]
         internal abstract void ReportArgsMismatch(LoggingContext loggingContext, string pipDescription, string pid);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.ReceivedReportFromUnknownPid,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] [Warning] received report from unknown pid: {pid} - {reportDetail}")]
+        internal abstract void ReceivedReportFromUnknownPid(LoggingContext loggingContext, string pipDescription, string pid, string reportDetail);
     }
 }

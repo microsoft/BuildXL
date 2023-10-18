@@ -128,6 +128,30 @@ static void report_child_process(const char *syscall, BxlObserver *bxl, pid_t ch
     bxl->report_access(syscall, event);
 }
 
+static void HandleForkOrCloneReporting(const char *syscall, BxlObserver *bxl, pid_t forkOrCloneChildPidResult)
+{
+    // We report process creation for both parent and child cases. These generates two reports, but we actually need both to avoid some race conditions:
+    // - Process creation is reported on the child to guarantee that we see the process creation arriving as a report line before
+    //   any other access report coming from the child (the process creation reported from the parent may non deterministically arrive later than reports from the child).
+    //   If reports from the child arrive before the process start report, we won't know which executable to assign those reports to, and for example, allow list entries 
+    //   that operate on the exec name won't kick in.
+    // - Process creation is reported on the parent to avoid the case where the parent process is terminated, the active process count on managed side reaches 0, and we haven't
+    //   seen the child process creation report yet. In this case we'll send an EOM sentinel to the FIFO that we want to arrive *after* the process creation report, so we can actually be
+    //   sure whether we can tear down the FIFO (if we reported on the child only, we could detect that the parent process is not alive anymore and send the sentinel only to get the process
+    //   start report - reported by the child - after we decided that no more messages should arrive).
+    if (forkOrCloneChildPidResult == 0)
+    {
+        // Clear the file descriptor table when we are in the child process
+        // File descriptors are unique to a process, so this cache needs to be invalidated on the child
+        bxl->reset_fd_table();
+        report_child_process(syscall, bxl, getpid(), getppid());
+    }
+    else
+    {
+        report_child_process(syscall, bxl, forkOrCloneChildPidResult, getpid());
+    }
+}
+
 static int ret_fd(int fd, BxlObserver *bxl) 
 {
     // when returning a new file descriptor we remove it from our cache, 
@@ -139,15 +163,7 @@ static int ret_fd(int fd, BxlObserver *bxl)
 INTERPOSE(pid_t, fork, void)({
     result_t<pid_t> childPid = bxl->fwd_fork();
 
-    if (childPid.get() == 0)
-    {
-        // Clear the file descriptor table when we are in the child process
-        // File descriptors are unique to a process, so this cache needs to be invalidated on the child
-        bxl->reset_fd_table();
-        // Process creation is reported on the child to guarantee that we see the process creation arriving as a report line before
-        // any other access report coming from the child
-        report_child_process(__func__, bxl, getpid(), getppid());
-    }
+    HandleForkOrCloneReporting(__func__, bxl, childPid.get());
 
     return childPid.restore();
 })
@@ -162,14 +178,10 @@ INTERPOSE(int, clone, int (*fn)(void *), void *child_stack, int flags, void *arg
 
     result_t<int> result = bxl->fwd_clone(fn, child_stack, flags, arg, ptid, newtls, ctid);
     
-    if (result.get() == 0)
+    // We don't want to report any process creation if clone was asked to create a new thread (and not a new process)
+    if (!(flags & CLONE_THREAD))
     {
-        // Clear the file descriptor table when we are in the child process
-        // File descriptors are unique to a process, so this cache needs to be invalidated on the child
-        bxl->reset_fd_table();
-        // Process creation is reported on the child to guarantee that we see the process creation arriving as a report line before
-        // any other access report coming from the child
-        report_child_process(__func__, bxl, getpid(), getppid());
+        HandleForkOrCloneReporting(__func__, bxl, result.get());
     }
 
     return result.restore();

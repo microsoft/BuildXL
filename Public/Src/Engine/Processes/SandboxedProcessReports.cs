@@ -831,6 +831,9 @@ namespace BuildXL.Processes
             // try to see the latest exiting process with the same process id. Otherwise, it's ok to just create an unnamed one since ReportedProcess is used for descriptive purposes only
             if (process == null && (!m_processesExits.TryGetValue(processId, out process) || process == null))
             {
+                // This is just an info message for debugging purposes. We are interested in spotting reports without an associated process
+                // because it means that the process creation message was not received.
+                Tracing.Logger.Log.ReceivedReportFromUnknownPid(m_loggingContext, PipDescription, processId.ToString(), $"[{operation}-{requestedAccess}]{path}");
                 process = new ReportedProcess(processId, string.Empty, string.Empty);
             }
 

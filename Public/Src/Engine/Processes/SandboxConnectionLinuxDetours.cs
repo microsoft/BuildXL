@@ -4,6 +4,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -14,6 +16,7 @@ using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -31,10 +34,16 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class SandboxConnectionLinuxDetours : ISandboxConnection
     {
-        // Used to signal the end of reports through the FIFO. The value -21 is arbitrary,
+        // Used to signal that no active processes were seen through the FIFO. The value -21 is arbitrary,
         // it could be any negative value, as it will be read in place of a value representing
         // a length, which could take any positive value.
-        private const int EndOfReportsSentinel = -21;
+        // This value means that we *may* have reached the end of reports since no active processes are around. We may
+        // still have reports to be processed containing start process reports.
+        private const int NoActiveProcessesSentinel = -21;
+        
+        // This value means that we actually reached the end of the reports: no reports need to be processed and we got to
+        // 0 active processes
+        private const int EndOfReportsSentinel = -22;
 
         private static readonly string s_detoursLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libDetours.so");
         private static readonly string s_auditLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libBxlAudit.so");
@@ -93,35 +102,66 @@ namespace BuildXL.Processes
         {
             /// <summary>
             /// Encapsulates both a background thread that is processing incoming messages, and an action block that is processing said messages.
-            /// The intention is for report processors use the same backing <see cref="Info"/> to ultimately process the incoming messages 
-            /// (using <see cref="Info.ProcessBytes(ValueTuple{PooledObjectWrapper{byte[]}, int})"/>), because all the messages are associated to the same sandbox,
-            /// but use different FIFOs (and thus consuming threads and processing action blocks). 
-            /// We expose a JoinReceivingThread method to join the receiving thread, and the Completion property of the message-processing action block.
             /// </summary>
+            /// <remarks>
+            /// The intention is for report processors use the same backing <see cref="Info"/> to ultimately process the incoming messages 
+            /// (using <see cref="Info.ProcessBytes(ValueTuple{ReportProcessor, PooledObjectWrapper{byte[]}, int})"/>), because all the messages are associated to the same sandbox,
+            /// but use different FIFOs (and thus consuming threads and processing action blocks). 
+            /// We expose a <see cref="JoinReceivingThread"/> method to join the receiving thread, the <see cref="Completion"/> property of the message-processing action block and 
+            /// a <see cref="Complete"/> to stop receiving access reports.
+            /// </remarks>
             private class ReportProcessor
             {
                 private readonly Info m_info;
                 private readonly Thread m_workerThread;
-                private readonly ActionBlockSlim<(PooledObjectWrapper<byte[]> wrapper, int length)> m_processingBlock;
+                private readonly ActionBlockSlim<(ReportProcessor reportProcessor, PooledObjectWrapper<byte[]> wrapper, int length)> m_processingBlock;
                 private int m_completeAccessReportProcessingCounter;
+                private readonly string m_fifoName;
+                private readonly Lazy<SafeFileHandle> m_fifoWriteHandle;
+                
+                // We use these two to synchronize sending a sentinel via the write handle and disposing the read handle. Trying to write to a FIFO with no read handles open
+                // produces an error (a broken pipe)
+                private bool m_readHandleDisposed = false;
+                internal object ReadHandleLock { get; } = new();
+                
+                /// <summary>
+                /// Whether the read handle has been disposed
+                /// </summary>
+                internal bool IsReadHandleDisposed() => m_readHandleDisposed;
 
                 public ReportProcessor(Info info, string fifoName, Lazy<SafeFileHandle> fifoHandle)
                 {
                     m_info = info;
-                    m_workerThread = new Thread(() => StartReceivingAccessReports(fifoName, fifoHandle))
+                    m_fifoName = fifoName;
+                    m_fifoWriteHandle = fifoHandle;
+
+                    m_workerThread = new Thread(() => StartReceivingAccessReports(m_fifoName, fifoHandle))
                     {
                         IsBackground = true,
                         Priority = ThreadPriority.Highest
                     };
 
-                    m_processingBlock = ActionBlockSlim.Create<(PooledObjectWrapper<byte[]> wrapper, int length)>(degreeOfParallelism: 1,
+                    m_processingBlock = ActionBlockSlim.Create<(ReportProcessor reportProcessor, PooledObjectWrapper<byte[]> wrapper, int length)>(degreeOfParallelism: 1,
                         m_info.ProcessBytes,
                         singleProducedConstrained: true // Only m_workerThread posts to the action block
                     );
 
+                    IsPrimaryFifoProcessor = m_fifoWriteHandle == info.m_lazyWriteHandle;
                 }
 
                 internal void Start() => m_workerThread.Start();
+
+                internal void Complete()
+                {
+                    LogDebug($"Complete action requested for {GetFifoName()}");
+
+                    // Send the end of report sentinel, so we can exit the report loop
+                    m_info.WriteSentinel(m_fifoWriteHandle, s_endOfReportsSentinelAsBytes);
+                }
+
+                internal string GetFifoName() => m_fifoName;
+
+                internal bool IsPrimaryFifoProcessor { get; }
 
                 internal void CompleteAccessReportProcessing()
                 {
@@ -163,70 +203,124 @@ namespace BuildXL.Processes
                 /// <summary>
                 /// The method backing the <see cref="m_workerThread"/> thread.
                 /// </summary>
+                /// <remarks>
+                /// The way we deal with the decision about when to stop reading messages from the FIFO deserves some details:
+                /// * Messages are read from the FIFO and posted to an action block <see cref="m_processingBlock"/>, which processes them async.
+                /// * A write handle <see cref="m_lazyWriteHandle"/> is kept open to avoid reaching EOF if other writers (running tools) happen to close the FIFO
+                /// * The potential end of the receive loop is triggered by removing the last active process from <see cref="m_activeProcesses"/>. This
+                ///   can happen because the <see cref="m_activeProcessesChecker"/> detected than an active process is no longer alive or because 
+                ///   a process exited report is seen. When this case is reached a special message <see cref="NoActiveProcessesSentinel"/> is sent from this
+                ///   same loop. Sentinels are just special messages used for synchronization purposes.
+                /// * Sending <see cref="NoActiveProcessesSentinel"/> *may* result in ending this processing loop: when <see cref="NoActiveProcessesSentinel"/> is sent, 
+                ///   other messages may still be on the processing pipe of <see cref="m_processingBlock"/> (e.g. observe that the active process checker runs in a separate 
+                ///   thread, and the point in time when the sentinel is sent is not synchronized with the point in time when we processed all reports). When we get to 
+                ///   processing the sentinel and if 'start process' reports had arrived, we just ignore the sentinel and keep processing messages. We will eventually
+                ///   reach again 0 processes and the sentinel will be sent another time.
+                /// * If <see cref="NoActiveProcessesSentinel"/> arrives and we see 0 active processes, we can safely exit the loop. In this case we send another
+                ///   sentinel <see cref="EndOfReportsSentinel"/>. Instead of this we could just close <see cref="m_lazyWriteHandle"/> and let the receiving loop reach an EOF,
+                ///   but this proved to be slow in some cases (since it is likely depending on some GC process). So instead we send a sentinel. The loop can safely exit when we
+                ///   see this since no pending messages can be left to be processed (we saw the <see cref="NoActiveProcessesSentinel"/> on the other end of the pipe at the 
+                ///   same pipe there were 0 active processes).
+                /// * A note on the secondary FIFO: the processing loop for the secondary FIFO (used to communicate ptrace specific messages) goes through the same flow, with the 
+                ///   caveat that we only initiate the tear down process of the seconday FIFO once the decide to exit the primary FIFO via <see cref="EndOfReportsSentinel"/>. The reason
+                ///   is that we want the secondary FIFO to be alive throughout the lifetime of the first FIFO. 
+                /// </remarks>
                 private void StartReceivingAccessReports(string fifoName, Lazy<SafeFileHandle> fifoHandle)
                 {
                     // opening FIFO for reading (blocks until there is at least one writer connected)
                     LogDebug($"Opening FIFO '{fifoName}' for reading");
-                    using var readHandle = IO.Open(fifoName, IO.OpenFlags.O_RDONLY, 0);
-                    if (readHandle.IsInvalid)
+
+                    var readHandle = IO.Open(fifoName, IO.OpenFlags.O_RDONLY, 0);
+                    try
                     {
-                        LogError($"Opening FIFO {fifoName} for reading failed.");
-                        return;
+                        if (readHandle.IsInvalid)
+                        {
+                            LogError($"Opening FIFO {fifoName} for reading failed.");
+                            return;
+                        }
+
+                        // make sure that m_lazyWriteHandle has been created
+                        Analysis.IgnoreResult(fifoHandle.Value);
+
+                        byte[] messageLengthBytes = new byte[sizeof(int)];
+                        while (true)
+                        {
+                            // read length
+                            var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
+                            if (numRead == 0) // EOF
+                            {
+                                // We don't expect EOF before reading the EndOfReportsSentinel (see below)
+                                LogError("Exiting 'receive reports' loop on EOF without observing the end of reports sentinel value.");
+                                break;
+                            }
+
+                            if (numRead < 0) // error
+                            {
+                                LogError($"Read from FIFO {fifoName} failed with return value {numRead}.");
+                                break;
+                            }
+
+                            // decode length
+                            int messageLength = BitConverter.ToInt32(messageLengthBytes, startIndex: 0);
+
+                            // The process tree we know about so far has completed. We might still
+                            // have 'process start' reports to be processed, so we just send this sentinel and let the processing block decide.
+                            if (messageLength == NoActiveProcessesSentinel)
+                            {
+                                m_processingBlock.Post((this, ByteArrayPool.GetInstance(0), NoActiveProcessesSentinel), throwOnFullOrComplete: true);
+                                continue;
+                            }
+
+                            // We processed all pending messages in the processing block and didn't see any active processes, we can exit the loop
+                            if (messageLength == EndOfReportsSentinel)
+                            {
+                                LogDebug($"End of reports sentinel arrived on FIFO {fifoName}. Exiting 'receive reports' loop.");
+
+                                // The primary FIFO has no more reports. Terminate the secondary FIFO.
+                                if (IsPrimaryFifoProcessor && !string.IsNullOrEmpty(m_info.SecondaryFifoPath))
+                                {
+                                    m_info.WriteSentinel(m_info.m_lazySecondaryFifoWriteHandle, s_noActiveProcessesSentinelAsBytes);
+
+                                    LogDebug($"NoProcessesSentinel sent to secondary FIFO");
+                                }
+
+                                break;
+                            }
+
+                            // read a message of that length
+                            PooledObjectWrapper<byte[]> messageBytes = ByteArrayPool.GetInstance(messageLength);
+                            numRead = Read(readHandle, messageBytes.Instance, 0, messageLength);
+                            if (numRead < messageLength)
+                            {
+                                LogError($"Read from FIFO {fifoName} failed: read only {numRead} out of {messageLength} bytes.");
+                                messageBytes.Dispose();
+                                break;
+                            }
+
+                            // Add message to processing queue
+                            try
+                            {
+                                m_processingBlock.Post((this, messageBytes, messageLength), throwOnFullOrComplete: true);
+                            }
+                            catch (Exception e)
+                            {
+                                Analysis.IgnoreException("Will error and exit on LogError");
+                                LogError($"Could not post message to the processing block for {fifoName}. Exception details: {e}");
+                                break;
+                            }
+                        }
+
+                        LogDebug($"Completed receiving access reports for fifo '{fifoName}'");
                     }
-
-                    // make sure that m_lazyWriteHandle has been created
-                    Analysis.IgnoreResult(fifoHandle.Value);
-
-                    byte[] messageLengthBytes = new byte[sizeof(int)];
-                    while (true)
+                    finally
                     {
-                        // read length
-                        var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
-                        if (numRead == 0) // EOF
+                        // Synchronize the disposal to make sure we don't try to send a sentinel (e.g. the active process checker seeing 0 processes)
+                        // while disposing the read handle
+                        lock (ReadHandleLock)
                         {
-                            // We don't expect EOF before reading the EndOfReportsSentinel (see below)
-                            LogError("Exiting 'receive reports' loop on EOF without observing the end of reports sentinel value.");
-                            break;
-                        }
-
-                        if (numRead < 0) // error
-                        {
-                            LogError($"Read from FIFO {fifoName} failed with return value {numRead}.");
-                            break;
-                        }
-
-                        // decode length
-                        int messageLength = BitConverter.ToInt32(messageLengthBytes, startIndex: 0);
-
-                        // if 'length' corresponds to this special (negative) value that is pumped 
-                        // to the FIFO after the process tree has completed, then we have drained all reports
-                        // (see 'RequestStop' for more details).
-                        if (messageLength == EndOfReportsSentinel)
-                        {
-                            LogDebug("Exiting 'receive reports' loop.");
-                            break;
-                        }
-
-                        // read a message of that length
-                        PooledObjectWrapper<byte[]> messageBytes = ByteArrayPool.GetInstance(messageLength);
-                        numRead = Read(readHandle, messageBytes.Instance, 0, messageLength);
-                        if (numRead < messageLength)
-                        {
-                            LogError($"Read from FIFO {fifoName} failed: read only {numRead} out of {messageLength} bytes.");
-                            messageBytes.Dispose();
-                            break;
-                        }
-
-                        // Add message to processing queue
-                        try
-                        {
-                            m_processingBlock.Post((messageBytes, messageLength), throwOnFullOrComplete: true);
-                        }
-                        catch (Exception e)
-                        {
-                            Analysis.IgnoreException("Will error and exit on LogError");
-                            LogError($"Could not post message to the processing block. Exception details: {e}");
-                            break;
+                            LogDebug($"Disposing read handle for fifo '{fifoName}'");
+                            m_readHandleDisposed = true;
+                            readHandle.Dispose();
                         }
                     }
 
@@ -261,17 +355,21 @@ namespace BuildXL.Processes
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
             private readonly Lazy<SafeFileHandle> m_lazySecondaryFifoWriteHandle;
 
-            private int m_stopRequestCounter;
             private readonly ReportProcessor m_reportProcessor;
             private readonly ReportProcessor m_secondaryReportProcessor;
             private static readonly TimeSpan s_activeProcessesCheckerInterval = TimeSpan.FromSeconds(1);
 
+            // These are just the byte representations of the sentinel values, so we don't need to compute them over and over
+            private static readonly byte[] s_noActiveProcessesSentinelAsBytes = BitConverter.GetBytes(NoActiveProcessesSentinel);
+            private static readonly byte[] s_endOfReportsSentinelAsBytes = BitConverter.GetBytes(EndOfReportsSentinel);
+
             private static ArrayPool<byte> ByteArrayPool { get; } = new ArrayPool<byte>(4096);
 
-            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string secondaryFifoPath, string famPath,  bool isInTestMode)
+            private ReportProcessor GetReportProcessorFor(Lazy<SafeFileHandle> lazyWriteHandle) => lazyWriteHandle == m_lazyWriteHandle ? m_reportProcessor : m_secondaryReportProcessor;
+
+            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string secondaryFifoPath, string famPath, bool isInTestMode)
             {
                 m_isInTestMode = isInTestMode;
-                m_stopRequestCounter = 0;
                 m_failureCallback = failureCallback;
                 Process = process;
                 ReportsFifoPath = reportsFifoPath;
@@ -292,7 +390,7 @@ namespace BuildXL.Processes
                 m_reportProcessor = new ReportProcessor(this, ReportsFifoPath, m_lazyWriteHandle);
 
                 // Second thread for reading the secondary FIFO
-                // The secondary pipe is used here to allow for messages that are higher priority (such as ptrace notifcations)
+                // The secondary pipe is used here to allow for messages that are higher priority (such as ptrace notifications)
                 // to be delivered back to the managed layer faster if the fifo used for file access reports is congested.
                 Task secondaryCompletion = Task.CompletedTask;
                 if (!string.IsNullOrEmpty(SecondaryFifoPath))
@@ -338,7 +436,7 @@ namespace BuildXL.Processes
                 {
                     if (!Dispatch.IsProcessAlive(pid))
                     {
-                        Process.LogDebug("CheckActiveProcesses");
+                        Process.LogDebug($"CheckActiveProcesses. Removing {pid}.");
                         RemovePid(pid);
                     }
                 }
@@ -350,48 +448,70 @@ namespace BuildXL.Processes
             /// </summary>
             internal void RequestStop()
             {
-                if (Interlocked.Increment(ref m_stopRequestCounter) > 1)
+                Process.LogDebug($"RequestStop: closing the write handle for FIFO '{ReportsFifoPath}'");
+
+                m_lazyWriteHandle.Value.Close();
+                m_lazyWriteHandle.Value.Dispose();
+
+                if (!string.IsNullOrEmpty(SecondaryFifoPath))
                 {
-                    return; // already stopped
+                    m_lazySecondaryFifoWriteHandle.Value.Close();
+                    m_lazySecondaryFifoWriteHandle.Value.Dispose();
                 }
 
-                // If RequestStop was called, it means there are no more active processes, so all the sandbox reports  
-                // should have been already writen to the FIFO. However, the thread consuming the FIFO might still be
-                // running, as it reads the FIFO message-by-message, and the pipe might still hold some reports at this point.
-                // To signal to that thread that the reports have finished, we push a sentinel value through the pipe. 
-                // Just closing the write handle would be enough to produce an EOF on the FIFO, which we could use as
-                // the termination signal: in practice, the reception of EOF was observed to happen with a considerable
-                // delay after calling Dispose on the handle, and communicating the sentinel was immediate, so this approach
-                // was preferred.
-                try
+                m_activeProcessesChecker.Cancel();
+            }
+
+            private void WriteSentinel(Lazy<SafeFileHandle> writeHandle, byte[] sentinelBytes)
+            {
+                var reportProcessor = GetReportProcessorFor(writeHandle);
+
+                // If the read or write handles are already closed, no need to send a sentinel
+                if (reportProcessor.IsReadHandleDisposed() || writeHandle.Value.IsClosed || writeHandle.Value.IsInvalid)
                 {
-                    writeEndOfReportSentinel(m_lazyWriteHandle);   
-                    if (!string.IsNullOrEmpty(SecondaryFifoPath))
+                    return;
+                }
+                
+                // Synchronize sending the sentinel so we don't dispose the read handle without coordination
+                // Without any read handle open, writing to the FIFO causes an broken pipe error
+                lock (reportProcessor.ReadHandleLock)
+                {
+                    if (reportProcessor.IsReadHandleDisposed())
                     {
-                        writeEndOfReportSentinel(m_lazySecondaryFifoWriteHandle);
+                        return;
+                    }
+
+                    // Observe this will be atomic because the length of an int is less than PIPE_BUF
+                    var bytesWritten = Write(writeHandle.Value, sentinelBytes, 0, sentinelBytes.Length);
+                    if (bytesWritten < 0) // error
+                    {
+                        string win32Message = new Win32Exception(Marshal.GetLastWin32Error()).Message;
+
+                        StackTrace stackTrace = new StackTrace();
+
+                        LogError($"Cannot write sentinel {BitConverter.ToInt32(sentinelBytes, 0)} to {reportProcessor.GetFifoName()}. Error: {win32Message}. {stackTrace}");
+
+                        // Dispose the handle so we avoid a potential hang in the process reports loop
+                        writeHandle.Value.Dispose();
                     }
                 }
-                catch (Exception e)
+            }
+
+            private static int Write(SafeFileHandle handle, byte[] buffer, int offset, int length)
+            {
+                Contract.Requires(buffer.Length >= offset + length);
+                int totalWrite = 0;
+                while (totalWrite < length)
                 {
-                    LogError($"An exception ocurred while writing EndOfReportsSentinel to the FIFO. Details: {e}");
-                }
-                finally 
-                { 
-                    Process.LogDebug($"Closing the write handle for FIFO '{ReportsFifoPath}'");
-                    m_lazyWriteHandle.Value.Dispose();
-                    if (!string.IsNullOrEmpty(SecondaryFifoPath))
+                    var numWrite = IO.Write(handle, buffer, offset + totalWrite, length - totalWrite);
+                    if (numWrite <= 0)
                     {
-                        m_lazySecondaryFifoWriteHandle.Value.Dispose();
+                        return numWrite;
                     }
-                    m_activeProcessesChecker.Cancel();
+                    totalWrite += numWrite;
                 }
 
-                void writeEndOfReportSentinel(Lazy<SafeFileHandle> handle)
-                {
-                    using var fileStream = new FileStream(handle.Value, FileAccess.Write);
-                    using var binaryWriter = new BinaryWriter(fileStream);
-                    binaryWriter.Write(EndOfReportsSentinel);
-                }
+                return totalWrite;
             }
 
             /// <summary>Adds <paramref name="pid" /> to the set of active processes</summary>
@@ -403,18 +523,25 @@ namespace BuildXL.Processes
 
             /// <summary>
             /// Removes <paramref name="pid" /> from the set of active processes.
-            /// If no active processes are left thereafter, calls <see cref="RequestStop"/>.
             /// </summary>
             internal void RemovePid(int pid)
             {
                 bool removed = m_activeProcesses.TryRemove(pid, out var _);
                 LogDebug($"RemovePid({pid}) :: removed: {removed}; size: {m_activeProcesses.Count()}");
-                if (m_activeProcesses.Count == 0)
+                if (removed && m_activeProcesses.IsEmpty)
                 {
-                    RequestStop();
+                    LogDebug($"Removed {pid} and the active count is 0. Sending sentinel on primary FIFO");
+                    // We just reached 0 active processes. Notify this through the FIFO so we can check on the other end
+                    // whether this means we are done processing reports. There might be reports still to be processed, including start process reports,
+                    // so pushing this sentinel makes sure we process all pending reports before reaching a decision
+                    
+                    // We only send the sentinel on the primary FIFO. The secondary one will be terminated once we decide the primary can terminate.
+                    WriteSentinel(m_lazyWriteHandle, s_noActiveProcessesSentinelAsBytes);
                 }
                 else if (removed && pid == Process.ProcessId)
                 {
+                    LogDebug($"Root process {pid} was removed. Starting the active process checker.");
+
                     // We just removed the root process and there are still active processes left
                     //   => start periodically checking if they are still alive, because we don't
                     //      have a reliable mechanism for receiving those events straight from the
@@ -458,12 +585,12 @@ namespace BuildXL.Processes
             public void Dispose()
             {
                 RequestStop();
-                
+
                 try
                 {
                     m_activeProcessesChecker.Join();
                 }
-                catch(ThreadStateException)
+                catch (ThreadStateException)
                 {
                     // The active process checker is only started once the main thread exits and child processes are still active. So we can start disposing the connection
                     // without that being the case
@@ -489,10 +616,31 @@ namespace BuildXL.Processes
             /// <summary>
             /// This method is backing the message processors action block.
             /// </summary>
-            private void ProcessBytes((PooledObjectWrapper<byte[]> wrapper, int length) item)
+            private void ProcessBytes((ReportProcessor processor, PooledObjectWrapper<byte[]> wrapper, int length) item)
             {
                 using (item.wrapper)
                 {
+                    // This means the active process checker detected that no processes were running. But we need to make sure we still have no active processes. There is a race between
+                    // that count reaching 0 and a potential new create process report being processed. Since the create report is reported on the parent process (and as well on the child), if this race
+                    // happened the create process report should have bumped the active process count.
+                    if (item.length == NoActiveProcessesSentinel)
+                    {
+                        if (m_activeProcesses.IsEmpty)
+                        {
+                            LogDebug($"NoActiveProcessesSentinel received for fifo {item.processor.GetFifoName()} and 0 active processes found. Requesting completion to the report processor.");
+                            item.processor.Complete();
+                        }
+                        else
+                        {
+                            // In this case we just ignore the message. The sentinel will be sent again once we reach 0
+                            // active processes
+                            LogDebug($"NoActiveProcessesSentinel received for fifo {item.processor.GetFifoName()} but {m_activeProcesses.Count} processes were detected. This means new start process reports arrived afterwards. The sentinel is ignored.");
+                        }
+
+                        return;
+                    }
+
+                    Contract.Assert(item.length > 0, "No other sentinel but the one above should be posted");
 
                     var messageStr = s_encoding.GetString(item.wrapper.Instance, index: 0, count: item.length);
                     var message = messageStr.AsSpan().TrimEnd('\n');
@@ -510,7 +658,7 @@ namespace BuildXL.Processes
                     var isDirectory = AssertInt(nextField(restOfMessage, out restOfMessage));
                     var path = nextField(restOfMessage, out restOfMessage);
                     Contract.Assert(restOfMessage.IsEmpty);  // We should have reached the end of the message
-                                                             
+
                     // ignore accesses to libDetours.so, because we injected that library
                     if (path.SequenceEqual(s_detoursLibFile.AsSpan()))
                     {
@@ -533,25 +681,20 @@ namespace BuildXL.Processes
                     // update active processes
                     if (report.Operation == FileOperation.OpProcessStart)
                     {
+                        // We should never get process start messages in the secondary FIFO. We run the risk of having exited the primary FIFO already,
+                        // and never sending the sentinel to the secondary one.
+                        Contract.Assert(item.processor.IsPrimaryFifoProcessor, "Process start messages can only arrive to the primary FIFO");
+
+                        LogDebug($"Received FileOperation.OpProcessStart for pid {report.Pid})");
                         AddPid(report.Pid);
                     }
                     else if (report.Operation == FileOperation.OpProcessExit)
                     {
+                        LogDebug($"Received FileOperation.OpProcessExit for pid {report.Pid})");
                         RemovePid(report.Pid);
                     }
                     else
                     {
-                        if (report.Operation != FileOperation.OpDebugMessage)
-                        {
-                            // Let's check if we received a report from a process that we haven't observed starting
-                            // This is unexpected, as we should be reporting process spawns after any fork. 
-                            // Let's log the occurence, and make sure the pid is now tracked, to avoid losing children when shutting down
-                            if (m_activeProcesses.TryAdd(report.Pid, 1))
-                            {
-                                LogDebug($"[WARNING] Received report from unknown PID {report.Pid}: {messageStr}");
-                            }
-                        }
-
                         // We don't want to check the path cache for statically linked processes
                         // because we rely on this report to start the ptrace sandbox.
                         // OpProcessCommandLine can also be skipped because its not a path, and shouldn't be cached.
@@ -699,16 +842,8 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
-        {
-            if (!m_pipProcesses.TryGetValue(process.PipId, out var info))
-            {
-                throw new BuildXLException($"No info found for pip id {process.PipId}");
-            }
+        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) => true;
 
-            info.AddPid(process.ProcessId);
-            return true;
-        }
 
         /// <inheritdoc />
         public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion)
@@ -782,6 +917,7 @@ namespace BuildXL.Processes
         {
             if (m_pipProcesses.TryGetValue(pipId, out var info))
             {
+                info.LogDebug($"NotifyPipProcessTerminated. Removing pid {processId}");
                 info.RemovePid(processId);
             }
         }
@@ -791,6 +927,7 @@ namespace BuildXL.Processes
         {
             if (m_pipProcesses.TryGetValue(pipId, out var info))
             {
+                info.LogDebug($"NotifyRootProcessExited. Removing pid {process.ProcessId}");
                 info.RemovePid(process.ProcessId);
             }
         }

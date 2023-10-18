@@ -143,6 +143,7 @@ namespace BuildXL.Processes.Tracing
         PTraceRunnerError = 10105,
         PTraceSandboxLaunchedForPip = 10106,
         ReportArgsMismatch = 10107,
+        ReceivedReportFromUnknownPid = 10108,
 
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,

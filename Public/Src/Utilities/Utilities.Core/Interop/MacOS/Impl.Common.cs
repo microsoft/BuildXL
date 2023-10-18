@@ -23,6 +23,9 @@ namespace BuildXL.Interop.Unix
         unsafe internal static extern int read(int fd, byte* buf, int bufsiz);
 
         [DllImport(LibC, SetLastError = true)]
+        unsafe internal static extern int write(int fd, byte* buf, int bufsiz);
+
+        [DllImport(LibC, SetLastError = true)]
         internal static extern int read(int fd, byte[] buf, int bufsiz);
 
         [DllImport(LibC, SetLastError = true)]

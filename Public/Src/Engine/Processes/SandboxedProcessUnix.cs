@@ -580,7 +580,7 @@ namespace BuildXL.Processes
         /// </summary>
         internal void PostAccessReport(AccessReport report)
         {
-            m_pendingReports.Post(report);
+            m_pendingReports.Post(report, throwOnFullOrComplete: true);
         }
 
         private static string? EnsureQuoted(string? cmdLineArgs)

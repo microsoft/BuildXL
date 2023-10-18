@@ -319,6 +319,33 @@ namespace BuildXL.Interop.Unix
         }
 
         /// <summary>
+        /// Invokes the 'write' syscall, retrying on <see cref="Errno.EINTR"/>.
+        /// </summary>
+        /// <param name="handle">File descriptor</param>
+        /// <param name="bytes">Buffer to which to write</param>
+        /// <param name="offset">Index in <paramref name="bytes"/> at which to save written bytes</param>
+        /// <param name="length">Max number of bytes to write</param>
+        /// <returns>
+        /// The number of bytes written on success, -1 on error.
+        /// Returning a positive number that is less than <paramref name="length"/> does not indicate error.
+        /// </returns>
+        public unsafe static int Write(SafeFileHandle handle, byte[] bytes, int offset, int length)
+        {
+            Contract.Requires(bytes.Length >= offset + length);
+
+            fixed (byte* buf = &bytes[offset])
+            {
+                int result;
+                do
+                {
+                    result = Impl_Common.write(ToInt(handle), buf, length);
+                }
+                while (result < 0 && Marshal.GetLastWin32Error() == (int)Errno.EINTR);
+                return result;
+            }
+        }
+
+        /// <summary>
         /// Creates a FIFO special file (a.k.a. named pipe).
         /// </summary>
         /// <returns>0 on success, -1 on error</returns>

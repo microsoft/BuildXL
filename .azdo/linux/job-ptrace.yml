@@ -6,8 +6,6 @@ jobs:
     os: linux
 
   templateContext:
-    breakGlass:
-      justification: 'Because BuildXL downloads NuGet packages from the internet during the build (and there is no way to run "nuget restore" before the build because NuGet packages are specified in a BuildXL-specific way)'
     inputs:
     - input: checkout
       repository: self

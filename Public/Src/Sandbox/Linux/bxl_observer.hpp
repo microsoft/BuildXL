@@ -323,7 +323,7 @@ private:
     }
 
     void relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullPath);
-    void resolve_path(char *fullpath, bool followFinalSymlink);
+    void resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid);
     
     // Builds the report to be sent over the FIFO in the given buffer
     inline int BuildReport(char* buffer, int maxMessageLength, const AccessReport &report, const char *path)
@@ -366,7 +366,7 @@ public:
         report_access("la_objopen", event, /* checkCache */ true);
     }
 
-    void report_intermediate_symlinks(const char *pathname);
+    void report_intermediate_symlinks(const char *pathname, pid_t associatedPid);
 
     // Removes detours path from LD_PRELOAD from the given environment and returns the modified environment
     inline char** RemoveLDPreloadFromEnv(char *const envp[])

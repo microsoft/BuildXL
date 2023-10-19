@@ -949,7 +949,7 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
         // realpath returned an error, but the original path is not null
         // Let's try to report the intermediate symlinks anyway ourselves, because
         // technically they could have been probed before any failure.
-        bxl->report_intermediate_symlinks(path);
+        bxl->report_intermediate_symlinks(path, getpid());
         return result;
     }
 
@@ -958,7 +958,7 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
     if (strcmp(path, result) != 0)
     {
         BXL_LOG_DEBUG(bxl, "[realpath] Resolving intermediate symlinks for '%s'", path);
-        bxl->report_intermediate_symlinks(path);
+        bxl->report_intermediate_symlinks(path, getpid());
 
         // Report a probe on the returned path, as the success of this function
         // indicates to the caller that the path exists. 

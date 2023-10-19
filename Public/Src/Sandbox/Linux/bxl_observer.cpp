@@ -579,7 +579,7 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_t
         return sNotChecked;
     }
 
-    auto normalized = normalize_path(pathname, flags);
+    auto normalized = normalize_path(pathname, flags, associatedPid);
     if (normalized.length() == 0)
     {
         return sNotChecked;
@@ -984,7 +984,7 @@ std::string BxlObserver::fd_to_path(int fd, pid_t associatedPid)
     return path;
 }
 
-void BxlObserver::report_intermediate_symlinks(const char *pathname)
+void BxlObserver::report_intermediate_symlinks(const char *pathname, pid_t associatedPid)
 {
     if (pathname == nullptr)
     {
@@ -995,10 +995,10 @@ void BxlObserver::report_intermediate_symlinks(const char *pathname)
     // Make it into an absolute path
     char fullPath[PATH_MAX] = {0};
     // associatedPid is irrelevant as we're using AT_FDCWD
-    relative_to_absolute(pathname, AT_FDCWD, /* associatedPid */ 0, fullPath);    
+    relative_to_absolute(pathname, AT_FDCWD, /* associatedPid */ 0, fullPath); 
 
     // This will report all intermediate symlinks in the path
-    resolve_path(fullPath, /* followFinalSymlink */ true);
+    resolve_path(fullPath, /* followFinalSymlink */ true, associatedPid);
 }
 
 std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags, pid_t associatedPid)
@@ -1018,7 +1018,7 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
     relative_to_absolute(pathname, dirfd, associatedPid, fullPath);    
 
     bool followFinalSymlink = (oflags & O_NOFOLLOW) == 0;
-    resolve_path(fullPath, followFinalSymlink);
+    resolve_path(fullPath, followFinalSymlink, associatedPid);
 
     return fullPath;
 }
@@ -1074,7 +1074,7 @@ static char* find_prev_slash(char *pStr)
 }
 
 // resolve any intermediate directory symlinks
-void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
+void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid)
 {
     if (fullpath == nullptr || fullpath[0] != '/')
     {
@@ -1149,7 +1149,7 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
         *pFullpath = '\0';
         // break if the same symlink has already been visited (breaks symlink loops)
         if (!visited.insert(fullpath).second) break;
-        report_access_internal("_readlink", ES_EVENT_TYPE_NOTIFY_READLINK, fullpath);
+        report_access_internal("_readlink", ES_EVENT_TYPE_NOTIFY_READLINK, fullpath, /* secondPath */ (const char *)nullptr, /* mode */ 0, /* error */ 0, /* checkCache */ true, associatedPid);
         *pFullpath = ch;
 
         // append the rest of the original path to the readlink target

@@ -16,8 +16,8 @@ using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -626,6 +626,7 @@ public static class EphemeralCacheFactory
                 }),
                 Workspace = configuration.RootPath / "workspace",
             },
+            clock,
             PassThroughFileSystem.Default,
             localContentTracker,
             changeProcessor,
@@ -635,8 +636,7 @@ public static class EphemeralCacheFactory
             contentCopier,
             grpcClusterStateEndpoint,
             masterElectionMechanism,
-            sessionContentResolver
-        );
+            sessionContentResolver);
 
         var ephemeralContentStore = new EphemeralContentStore(
             contentStore,

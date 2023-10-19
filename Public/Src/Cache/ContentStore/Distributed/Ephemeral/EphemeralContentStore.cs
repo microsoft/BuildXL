@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -21,7 +20,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces;
-using Microsoft.Azure.Amqp.Serialization;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 #nullable enable
@@ -35,6 +33,10 @@ public class EphemeralCacheConfiguration
     public required AbsolutePath Workspace { get; init; }
 
     public TimeSpan PutCacheTimeToLive { get; init; } = TimeSpan.FromDays(1);
+
+    public TimeSpan PutElisionRaceTimeout { get; init; } = TimeSpan.FromMinutes(1);
+
+    public int PutElisionMinimumReplication { get; init; } = 1;
 }
 
 public class EphemeralHost : StartupShutdownComponentBase
@@ -44,6 +46,8 @@ public class EphemeralHost : StartupShutdownComponentBase
     public EphemeralCacheConfiguration Configuration { get; }
 
     public IAbsFileSystem FileSystem { get; }
+
+    public IClock Clock { get; }
 
     public ILocalContentTracker LocalContentTracker { get; }
 
@@ -71,6 +75,7 @@ public class EphemeralHost : StartupShutdownComponentBase
 
     public EphemeralHost(
         EphemeralCacheConfiguration configuration,
+        IClock clock,
         IAbsFileSystem fileSystem,
         ILocalContentTracker localContentTracker,
         ChangeProcessor changeProcessor,
@@ -93,6 +98,7 @@ public class EphemeralHost : StartupShutdownComponentBase
         GrpcClusterStateEndpoint = grpcClusterStateEndpoint;
         MasterElectionMechanism = masterElectionMechanism;
         ContentResolver = contentResolver;
+        Clock = clock;
 
         LinkLifetime(MasterElectionMechanism);
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -361,8 +362,8 @@ public class EphemeralContentSession : ContentSessionBase
             return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
         }
 
-        var locations = await ExistsElsewhereAsync(context, local.ContentHash);
-        if (locations.Succeeded && locations.Value)
+        var allowPutElision = await AllowPutElisionAsync(context, local.ContentHash);
+        if (allowPutElision.Succeeded && allowPutElision.Value)
         {
             _ephemeralHost.PutElisionCache.TryAdd(local.ContentHash, local.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
 
@@ -414,8 +415,8 @@ public class EphemeralContentSession : ContentSessionBase
             return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
         }
 
-        var exists = await ExistsElsewhereAsync(context, local.ContentHash);
-        if (exists.Succeeded && exists.Value)
+        var allowPutElisionAsync = await AllowPutElisionAsync(context, local.ContentHash);
+        if (allowPutElisionAsync.Succeeded && allowPutElisionAsync.Value)
         {
             _ephemeralHost.PutElisionCache.TryAdd(local.ContentHash, local.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
 
@@ -461,8 +462,8 @@ public class EphemeralContentSession : ContentSessionBase
             return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
         }
 
-        var exists = await ExistsElsewhereAsync(context, local.ContentHash);
-        if (exists.Succeeded && exists.Value)
+        var allowPutElisionAsync = await AllowPutElisionAsync(context, local.ContentHash);
+        if (allowPutElisionAsync.Succeeded && allowPutElisionAsync.Value)
         {
             _ephemeralHost.PutElisionCache.TryAdd(local.ContentHash, local.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
 
@@ -506,8 +507,8 @@ public class EphemeralContentSession : ContentSessionBase
             return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
         }
 
-        var exists = await ExistsElsewhereAsync(context, local.ContentHash);
-        if (exists.Succeeded && exists.Value)
+        var allowPutElisionAsync = await AllowPutElisionAsync(context, local.ContentHash);
+        if (allowPutElisionAsync.Succeeded && allowPutElisionAsync.Value)
         {
             _ephemeralHost.PutElisionCache.TryAdd(local.ContentHash, local.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
 
@@ -526,24 +527,26 @@ public class EphemeralContentSession : ContentSessionBase
         return persistent;
     }
 
-    public Task<Result<bool>> ExistsElsewhereAsync(OperationContext context, ShortHash contentHash)
+    public Task<Result<bool>> AllowPutElisionAsync(OperationContext context, ShortHash contentHash)
     {
         // This checks for file existence elsewhere in the cluster. The reason for this is that this can and does race
         // with all local PutFile for whether the event about the existence of the content gets processed before we
         // query or not.
+
         // TODO: add timeout here.
         return context.PerformOperationAsync(
             Tracer,
             async () =>
             {
+                var now = _ephemeralHost.Clock.UtcNow;
                 var local = await _ephemeralHost.LocalContentTracker.GetSingleLocationAsync(context, contentHash).ThrowIfFailureAsync();
-                if (local.Existing().Any(machineId => machineId != _ephemeralHost.ClusterStateManager.ClusterState.PrimaryMachineId && !_ephemeralHost.ClusterStateManager.ClusterState.IsMachineMarkedInactive(machineId)))
+                if (shouldElide(local, now))
                 {
                     return Result.Success(true);
                 }
 
                 var remote = await _ephemeralHost.ContentResolver.GetSingleLocationAsync(context, contentHash).ThrowIfFailureAsync();
-                if (remote.Existing().Any(machineId => machineId != _ephemeralHost.ClusterStateManager.ClusterState.PrimaryMachineId && !_ephemeralHost.ClusterStateManager.ClusterState.IsMachineMarkedInactive(machineId)))
+                if (shouldElide(remote, now))
                 {
                     return Result.Success(true);
                 }
@@ -551,6 +554,31 @@ public class EphemeralContentSession : ContentSessionBase
                 return Result.Success(false);
             },
             traceOperationStarted: false);
+
+        bool shouldElide(ContentEntry contentEntry, DateTime nowUtc)
+        {
+            // TODO: we should track whether content is in Azure Storage or not instead of doing this. The reason is
+            // that machines can and will race with each other on this check, so we have to have the
+            // "PutElisionRaceTimeout" to prevent those races from causing a CTMIS scenario where:
+            //  - Machines A and B both try to put the same content at roughly the same time
+            //  - They add it locally, asynchronously notify the content tracker, and then query the content tracker
+            //  - They both call this function, and both see that each other has the content
+            //  - Because they both truly do have the content, neither would upload the content to the persistent.
+            //  - If both machines then go away (which they can), then the content is lost forever, and whenever someone
+            //    tries to place it, they'll get a CTMIS error.
+            var satisfying = contentEntry.Operations
+                .Count(operation =>
+                      // The content has been added and never deleted
+                      operation.ChangeStamp.Operation == ChangeStampOperation.Add &&
+                      // The machine that added it isn't the current one
+                      operation.Value != _ephemeralHost.ClusterStateManager.ClusterState.PrimaryMachineId &&
+                      // The call to add the content isn't racing with the current one
+                      (operation.ChangeStamp.TimestampUtc - nowUtc).Duration() >= _ephemeralHost.Configuration.PutElisionRaceTimeout &&
+                      // The machine that added the content is still active (i.e., we can presumably reach it later)
+                      !_ephemeralHost.ClusterStateManager.ClusterState.IsMachineMarkedInactive(operation.Value));
+
+            return satisfying >= _ephemeralHost.Configuration.PutElisionMinimumReplication;
+        }
     }
 
 }

@@ -103,24 +103,15 @@ jobs:
 
   - bash: |
       set -eu
-      bash bxl.sh ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev --release
+      # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
+      timeout --signal 9 60m bash bxl.sh ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev --release
     displayName: Build
     workingDirectory: /home/subst
     env:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
-      
-  - bash: |
-      echo "== Deleting Out/frontend/Nuget/tmp, Out/bin, Out/Bootstrap folders to reduce the size of the NuGet cache dir"
-      rm -rf Out/frontend/Nuget/tmp Out/Objects Out/bin Out/BootStrap
-      rm -rf Out/Bin
-      echo "== Disk usage of folders in Out"
-      du -sh Out/*
-    continueOnError: true
-    condition: always()
-    displayName: Free up disk space
-
+  
   - bash: |
       set -euo pipefail
       rm -f Out/CacheConfig.json
@@ -147,7 +138,8 @@ jobs:
       # - the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
       # - we also disable early worker release to avoid releasing a worker before attachment, which tends to happen
       #   when the build is highly cached: the intention is to have as much of a distributed build as possible for validation purposes
-      ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=10 /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache- /forceAddExecutionPermission+
+      # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
+      timeout --signal 9 60m ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=10 /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache- /forceAddExecutionPermission+
     displayName: Test (${{ parameters.validationName }})
     workingDirectory: /home/subst
     env:

@@ -15,6 +15,13 @@ namespace Test.BuildXL.Storage.Admin
 {
     public sealed class UsnJournalDirectAccessUnitTests : TemporaryStorageTestBase
     {
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void TestUsnRecordStructure()
+        {
+            (int max, int min) = FileSystemWin.GetUsnRecordV3Sizes();
+            XAssert.AreEqual(592, max);
+            XAssert.AreEqual(80, min);
+        }
 
         [FactIfSupported(requiresAdmin:true, requiresWindowsBasedOperatingSystem: true)]
         public void QueryJournal()

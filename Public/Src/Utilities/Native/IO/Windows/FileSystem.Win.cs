@@ -239,7 +239,7 @@ namespace BuildXL.Native.IO.Windows
             /// See http://msdn.microsoft.com/en-us/library/windows/desktop/hh802708(v=vs.85).aspx
             /// Due to padding this is perhaps an overestimate.
             /// </remarks>
-            public static readonly int MaximumSize = MinimumSize + (254 * 2);
+            public static readonly int MaximumSize = (int)QuadAlign((ulong)(MinimumSize + (254 * 2)));
 
             public readonly NativeUsnRecordHeader Header;
             public readonly FileId FileReferenceNumber;
@@ -321,7 +321,7 @@ namespace BuildXL.Native.IO.Windows
             /// See http://msdn.microsoft.com/en-us/library/windows/desktop/aa365722(v=vs.85).aspx
             /// Due to padding this is perhaps an overestimate.
             /// </remarks>
-            public static readonly int MaximumSize = MinimumSize + (254 * 2);
+            public static readonly int MaximumSize = (int)QuadAlign((ulong)(MinimumSize + (254 * 2)));
 
             public readonly NativeUsnRecordHeader Header;
             public readonly ulong FileReferenceNumber;
@@ -983,6 +983,21 @@ namespace BuildXL.Native.IO.Windows
         {
             return StaticIsOSVersionGreaterOrEqual(version.Major, version.Minor);
         }
+
+        /// <summary>
+        /// Calculates quad aligned size.
+        /// </summary>
+        public static ulong QuadAlign(ulong size) => (size + 7) & 0xfffffff8;
+
+        /// <summary>
+        /// Gets the max and min sizes of a <see cref="NativeUsnRecordV3"/> structure.
+        /// </summary>
+        public static (int max, int min) GetUsnRecordV3Sizes() => (NativeUsnRecordV3.MaximumSize, NativeUsnRecordV3.MinimumSize);
+
+        /// <summary>
+        /// Gets the max and min sizes of a <see cref="NativeUsnRecordV2"/> structure.
+        /// </summary>
+        public static (int max, int min) GetUsnRecordV2Sizes() => (NativeUsnRecordV2.MaximumSize, NativeUsnRecordV2.MinimumSize);
 
         /// <summary>
         /// Calls VerifyVersionInfo to determine if the running OS's version meets or exceeded the given major.minor version.

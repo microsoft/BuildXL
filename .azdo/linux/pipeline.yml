@@ -41,7 +41,7 @@ extends:
       # Build and test selfhost with BuildXL
       - template: /.azdo/linux/job-selfhost.yml@self
         parameters:
-          Distributed: true
+          Distributed: false
           ValidationName: InternalRelease
           BxlExtraArgs: --internal /q:ReleaseLinux
 

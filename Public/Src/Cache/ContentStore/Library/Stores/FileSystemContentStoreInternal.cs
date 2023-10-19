@@ -449,6 +449,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested(nameof(FileSystemContentStoreInternal)));
 
+            // Updating count in case the previous value was obtained before ContentDirectory initialization
+            contentDirectoryCount = await ContentDirectory.GetCountAsync();
             _tracer.StartStats(context, size, contentDirectoryCount);
 
             if (_settings.SelfCheckSettings?.StartSelfCheckInStartup == true)

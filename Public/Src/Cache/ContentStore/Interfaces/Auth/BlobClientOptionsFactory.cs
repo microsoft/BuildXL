@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Net.Http;
 using Azure.Core.Pipeline;
 using Azure.Storage.Blobs;
@@ -12,26 +13,45 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth;
 /// </summary>
 internal static class BlobClientOptionsFactory
 {
-    /// <summary>
-    /// We will reuse an HttpClient for the transport backing the blob clients. HttpClient is meant to be reused anyway
-    /// (https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpclient?view=net-7.0#instancing)
-    /// but crucially we have the need to configure the amount of open connections: when using the defaults,
-    /// the number of connections is unbounded, and we have observed builds where there end up being tens of thousands
-    /// of open sockets, which can (and did) hit the per-process limit of open files, crashing the engine.
-    /// </summary>
-    private static readonly HttpClient HttpClient = new(
-        new HttpClientHandler
-        {
-            // If left unbounded, we have observed spikes of >65k open sockets (at which point we hit
-            // the OS limit of open files for the process - on Linux, where sockets count as files).
-            // Running builds where we limit this value all the way down to 100 didn't see
-            // any noticeable performance impact, so 30k shouldn't pose a problem.
-            // The configurable limit is per-client and per-server, but because we will reuse this HttpClient
-            // for all BlobClients, we are effectively limiting the number of open connections in general.
-            MaxConnectionsPerServer = 30_000
-        });
+    private static readonly HttpClientTransport Transport = CreateTransport();
 
-    private static readonly HttpClientTransport Transport = new(HttpClient);
+    private static HttpClientTransport CreateTransport()
+    {
+        // HttpClient is meant to be reused, so we need to make sure that all clients created by the application
+        // utilize the same instance. This class is the entry point to guarantee that.
+        // See: https://learn.microsoft.com/en-us/dotnet/fundamentals/networking/http/httpclient-guidelines#recommended-use
+
+        // We have the need to configure the amount of open connections: when using the defaults, the number of
+        // connections is unbounded, and we have observed builds where there end up being tens of thousands of open
+        // sockets, which can (and did) hit the per-process limit of open files, crashing the engine.
+        //
+        // Performance testing has been done with the below value and we have determined it basically doesn't matter
+        // what this value is. The intent behind setting it low is to avoid 
+        var maxConnectionsPerServer = 100;
+#if NETCOREAPP2_1_OR_GREATER
+        // See: https://learn.microsoft.com/en-us/dotnet/api/system.net.http.socketshttphandler?view=net-7.0
+        var handler = new SocketsHttpHandler()
+        {
+            MaxConnectionsPerServer = maxConnectionsPerServer,
+            // The Azure Storage IP addresses are expected to be static, so we don't need to re-create a
+            // pooled connection often to work around IP addresses changing.
+            PooledConnectionLifetime = TimeSpan.FromHours(1),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5)
+        };
+#else
+        // .NET Standard 2.0 does not have SocketsHttpHandler, so we need to use HttpClientHandler instead.
+        // See: https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpclienthandler?view=net-7.0
+        var handler = 
+            new HttpClientHandler
+            {
+                MaxConnectionsPerServer = maxConnectionsPerServer
+            };
+#endif
+
+        var httpClient = new HttpClient(handler);
+
+        return new HttpClientTransport(httpClient);
+    }
 
     /// <summary>
     /// Centralized point to override options for all blob clients created by the application.

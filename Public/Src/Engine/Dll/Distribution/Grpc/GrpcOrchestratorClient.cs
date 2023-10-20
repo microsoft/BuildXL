@@ -14,6 +14,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -36,13 +37,29 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_counters = counters;
         }
 
-        public Task<RpcCallResult<Unit>> SayHelloAsync(ServiceLocation myLocation, CancellationToken cancellationToken = default)
+        public async Task<Possible<bool>> SayHelloAsync(ServiceLocation myLocation, CancellationToken cancellationToken = default)
         {
-            return m_connectionManager.CallAsync(
-               async (callOptions) => await m_client.HelloAsync(myLocation, options: callOptions),
+            bool result = false;
+            var callResult = await m_connectionManager.CallAsync(
+               async (callOptions) =>
+               {
+                   result = (await m_client.HelloAsync(myLocation, options: callOptions)).Result;
+               },
                "Hello",
                cancellationToken: cancellationToken,
                waitForConnection: true);
+
+            if (!callResult.Succeeded)
+            {
+                return new Failure<string>("Communication error: Hello call could not be sent to the orchestrator.");
+            }
+
+            if (!result)
+            {
+                return new Failure<string>("Either the dynamic worker slot is full or the orchestrator released this worker due to the lack of work.");
+            }
+
+            return true;
         }
 
         public void Initialize(string ipAddress, 

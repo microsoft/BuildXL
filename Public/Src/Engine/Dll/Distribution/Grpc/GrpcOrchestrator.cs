@@ -7,6 +7,7 @@ using Grpc.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Configuration;
 using System;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -22,10 +23,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         /// <inheritdoc/>
-        public override Task<RpcResponse> Hello(ServiceLocation workerLocation, ServerCallContext context)
+        public override Task<BoolResponse> Hello(ServiceLocation workerLocation, ServerCallContext context)
         {
-            m_orchestratorService.Hello(workerLocation);
-            return GrpcUtils.EmptyResponseTask;
+            var result = m_orchestratorService.Hello(workerLocation);
+            return Task.FromResult(new BoolResponse { Result = result });
         }
 
         /// <inheritdoc/>

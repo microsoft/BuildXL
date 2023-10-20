@@ -30,7 +30,7 @@ namespace BuildXL.Engine.Distribution
     /// <remarks>This interface is marked internal to reduce visibility to the distribution layer only</remarks>
     internal interface IOrchestratorService
     {
-        void Hello(ServiceLocation workerLocation);
+        bool Hello(ServiceLocation workerLocation);
         void AttachCompleted(AttachCompletionInfo attachCompletionInfo);
         Task ReceivedPipResults(PipResultsInfo pipResults);
         Task ReceivedExecutionLog(ExecutionLogInfo executionLog);
@@ -377,15 +377,15 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// A worker advertises its location during the build
         /// </summary>
-        public void Hello(ServiceLocation workerLocation)
+        public bool Hello(ServiceLocation workerLocation)
         {
             lock (m_remoteWorkers)
             {
-                if (m_remoteWorkers.Any(rw => rw.Location == workerLocation))
+                if (m_remoteWorkers.Any(rw => rw.Location.IpAddress == workerLocation.IpAddress && rw.Location.Port == workerLocation.Port))
                 {
                     // We already know this worker (presumably, from the command line).
                     // Just acknowledge the RPC.
-                    return;
+                    return true;
                 }
 
                 // Choose a "dynamic" slot (with unknown location), if any, and set its service location
@@ -395,12 +395,14 @@ namespace BuildXL.Engine.Distribution
                     availableWorkerSlot.Location = workerLocation;
 
                     Logger.Log.DistributionHelloReceived(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, availableWorkerSlot.WorkerId);
+                    return !availableWorkerSlot.IsEarlyReleaseInitiated; // If it is already released by the scheduler, return false so the worker does not wait for the attachment.
                 }
                 else
                 {
                     // If we receive a worker location and don't have a slot, it means that /dynamicWorkerCount had a wrong value:
                     // this is a configuration error.
                     Logger.Log.DistributionHelloNoSlot(m_loggingContext, workerLocation.IpAddress, workerLocation.Port);
+                    return false;
                 }
             }
         }

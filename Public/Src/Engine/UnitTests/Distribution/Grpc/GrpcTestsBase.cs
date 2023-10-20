@@ -250,9 +250,9 @@ namespace Test.BuildXL.Distribution
                 return Task.CompletedTask;
             }
 
-            public void Hello(ServiceLocation workerLocation)
+            public bool Hello(ServiceLocation workerLocation)
             {
-                
+                return true;
             }
 
             #endregion

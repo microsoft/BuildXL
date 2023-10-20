@@ -20,6 +20,7 @@ using System.Linq;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using BuildXL.Engine.Cache.Fingerprints;
 using Google.Protobuf;
+using BuildXL.Utilities.Core;
 
 namespace Test.BuildXL.Distribution
 {
@@ -185,9 +186,9 @@ namespace Test.BuildXL.Distribution
             m_fail = true;
         }
 
-        public Task<RpcCallResult<Unit>> SayHelloAsync(ServiceLocation serviceLocation, CancellationToken cancellationToken = default)
+        public Task<Possible<bool>> SayHelloAsync(ServiceLocation serviceLocation, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(SuccessResult);
+            return Task.FromResult(new Possible<bool>(true));
         }
 
         public bool TryFinalizeStreaming()

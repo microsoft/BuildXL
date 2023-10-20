@@ -438,24 +438,20 @@ namespace BuildXL.Scheduler
             int targetProcessSlots = m_scheduleConfiguration.EffectiveMaxProcesses;
             int newProcessSlots;
 
-            if (availableRemoteWorkersCount == 0)
+            if (availableRemoteWorkersCount < 3)
             {
-                // If there are no available remote workers, treat the build as a single-machine build.
-                // It means that OrchestratorCpuMultiplier and OrchestratorCacheLookupMultiplier will have no effect.
+                // If there are less than 3 remote workers, the process slots for the orchestrator is not affected. 
+                // The distribution overhead is negligible in those builds. 
                 newProcessSlots = targetProcessSlots;
             }
             else
             {
                 // In the distributed builds, the burden on the orchestrator machine increases with the number of available
-                // remote workers. That's why, we reduce the max concurrency limits for both Cpu and CacheLookup dispatchers
-                // based on the number of available remote workers.
-                // If there is one available remote worker, the multiplier would be 0.9
-                // 2 -> 0.8, 3 -> 0.7, 4 -> 0.6, >10 -> 0.1
-                // This gives us the best perf based on the 3-worker and 5-worker Cosine builds.
+                // remote workers, especially after 5. 
+
                 double defaultMultiplier = Math.Max(0.1, 1 - (availableRemoteWorkersCount / 10.0));
 
-                // If the user does not pass orchestratorCpuMultiplier or CacheLookupMultiplier, then the local worker slots are configured
-                // based on the calculation above.
+                // If the user does not pass orchestratorCpuMultiplier, then the local worker slots are configured based on the calculation above.
                 newProcessSlots = (int)(targetProcessSlots * (m_scheduleConfiguration.OrchestratorCpuMultiplier ?? defaultMultiplier));
             }
 

@@ -192,6 +192,7 @@ namespace BuildXL.Scheduler
 
             m_hasAnyChange = new ManualResetEventSlim(initialState: true /* signaled */);
 
+            BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, m_queuesByKind.ToDictionary(kvp => $"DispatcherKind.{kvp.Key}.Max", kvp => (long)kvp.Value.MaxParallelDegree));
             Tracing.Logger.Log.PipQueueConcurrency(
                 loggingContext,
                 ioLimit,

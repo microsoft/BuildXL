@@ -226,13 +226,7 @@ namespace BuildXL.Scheduler
         {
             try
             {
-                // An asymmetric merge that goes up fast but decreases slowly.
-                if (newData > oldData)
-                {
-                    return (uint)((((ulong)newData) / 2) + (((ulong)oldData) / 2));
-                }
-
-                return (uint)((((ulong)oldData) * 9 / 10) + (((ulong)newData) / 10));
+                return (uint)((((ulong)newData) / 2) + (((ulong)oldData) / 2));
             }
             catch (System.OverflowException ex)
             {

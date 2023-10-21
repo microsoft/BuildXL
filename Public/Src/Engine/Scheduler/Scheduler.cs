@@ -3898,6 +3898,14 @@ namespace BuildXL.Scheduler
                 ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents
                 : (ushort)0;
 
+            // TODO(seokur): cpuUsageInPercent sometimes becomes way higher than the number of physical threads of the machine. 
+            // There is an issue about getting user and kernel time for processes in some cases. It is under investigation.
+            // For now, we cap the cpuUsageInPercent to 1000 (weight:10). 
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                cpuUsageInPercent = Math.Min(cpuUsageInPercent, (ushort)1000); // TEMPORARY. Work item #2116515
+            }
+
             var runnablePip = RunnablePip.Create(
                 m_executePhaseLoggingContext,
                 this,

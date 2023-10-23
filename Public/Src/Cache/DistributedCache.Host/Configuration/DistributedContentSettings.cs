@@ -896,9 +896,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseUniversalLocations { get; set; }
 
-        [DataMember]
-        public bool UseHostInMachineLocationEquals { get; set; } = false;
-
         /// <summary>
         /// Include domain name in machine location.
         /// </summary>

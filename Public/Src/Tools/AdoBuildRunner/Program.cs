@@ -57,7 +57,6 @@ namespace BuildXL.AdoBuildRunner
             {
                 var api = new Api(logger);
 
-
                 IBuildExecutor executor;
                 if (args[0] == "ping")
                 {
@@ -66,7 +65,7 @@ namespace BuildXL.AdoBuildRunner
                     logger.Info("Performing connectivity test");
                     executor = new PingExecutor(logger, api);
                     var buildManager = new BuildManager(api, executor, buildContext, args, logger);
-                    return await buildManager.BuildAsync(isOrchestrator: true);
+                    return await buildManager.BuildAsync(isOrchestrator: Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerPipelineRole) == "Orchestrator");
                 }
                 else if (args[0] == "launchworkers")
                 {

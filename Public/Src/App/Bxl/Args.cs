@@ -791,6 +791,9 @@ namespace BuildXL
                             "lowPriority",
                             sign => schedulingConfiguration.LowPriority = sign),
                         OptionHandlerFactory.CreateOption(
+                            "machineHostName",
+                            opt => distributionConfiguration.MachineHostName = opt.Value),
+                        OptionHandlerFactory.CreateOption(
                             "manageMemoryMode",
                             opt => schedulingConfiguration.ManageMemoryMode = CommandLineUtilities.ParseEnumOption<ManageMemoryMode>(opt)),
                         OptionHandlerFactory.CreateBoolOption(

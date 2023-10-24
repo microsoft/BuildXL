@@ -957,6 +957,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/machineHostName:<host name>",
+                Strings.HelpText_DisplayHelp_MachineHostName,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/enableWorkerSourceFileMaterialization[+|-]",
                 Strings.HelpText_DisplayHelp_DistributedBuildWorkerSourceMaterialization,
                 HelpLevel.Verbose);

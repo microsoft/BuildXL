@@ -27,6 +27,9 @@ namespace BuildXL.AdoBuildRunner.Build
         public required string AgentMachineName { get; init; }
 
         /// <nodoc />
+        public required string AgentHostName { get; init; }
+
+        /// <nodoc />
         public required string SourcesDirectory { get; init; }
 
         /// <nodoc />

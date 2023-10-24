@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Net;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -15,6 +16,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public DistributionConfiguration()
         {
             BuildWorkers = new List<IDistributionServiceLocation>();
+            MachineHostName = Dns.GetHostName();
 
             // Local worker is always connected.
             MinimumWorkers = 1;
@@ -35,6 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             BuildWorkers = new List<IDistributionServiceLocation>(template.BuildWorkers.Select(location => new DistributionServiceLocation(location)));
             DynamicBuildWorkerSlots = template.DynamicBuildWorkerSlots;
             OrchestratorLocation = template.OrchestratorLocation;
+            MachineHostName = template.MachineHostName;
             MinimumWorkers = template.MinimumWorkers;
             LowWorkersWarningThreshold = template.LowWorkersWarningThreshold;
             EarlyWorkerRelease = template.EarlyWorkerRelease;
@@ -56,10 +59,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public List<IDistributionServiceLocation> BuildWorkers { get; set; }
-        
+
         /// <nodoc />
-        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public IDistributionServiceLocation OrchestratorLocation { get; set; }
+
+        /// <nodoc />
+        public string MachineHostName { get; set; }
 
         /// <inheritdoc />
         public int DynamicBuildWorkerSlots { get; set; }

@@ -74,11 +74,6 @@ namespace BuildXL.Engine.Distribution
             return new ArraySegment<byte>(byteString.ToByteArray());
         }
 
-        internal static string GetServiceName(int port)
-        {
-            return GetServiceName(System.Net.Dns.GetHostName(), port);
-        }
-
         internal static string GetServiceName(string ipAddress, int port)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}::{1}", ipAddress, port);

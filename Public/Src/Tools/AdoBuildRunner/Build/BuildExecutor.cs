@@ -29,9 +29,9 @@ namespace BuildXL.AdoBuildRunner.Build
             m_bxlExeLocation = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, exeName);
         }
 
-        private int ExecuteBuild(IEnumerable<string> arguments, string buildSourcesDirectory)
+        private int ExecuteBuild(BuildContext buildContext, IEnumerable<string> arguments, string buildSourcesDirectory)
         {
-            var fullArguments = SetDefaultArguments(arguments);
+            var fullArguments = SetDefaultArguments(buildContext, arguments);
 
             var process = new Process()
             {
@@ -94,7 +94,7 @@ namespace BuildXL.AdoBuildRunner.Build
         public int ExecuteSingleMachineBuild(BuildContext buildContext, string[] buildArguments)
         {
             Logger.Info($@"Launching single machine build");
-            return ExecuteBuild(buildArguments, buildContext.SourcesDirectory);
+            return ExecuteBuild(buildContext,buildArguments, buildContext.SourcesDirectory);
         }
 
         /// <inherit />
@@ -102,6 +102,7 @@ namespace BuildXL.AdoBuildRunner.Build
         {
             Logger.Info($@"Launching distributed build as orchestrator");
             return ExecuteBuild(
+                buildContext,
                 buildArguments.Concat(new[]
                 {
                     $"/distributedBuildRole:orchestrator",
@@ -118,6 +119,7 @@ namespace BuildXL.AdoBuildRunner.Build
             Logger.Info($@"Launching distributed build as worker");
 
             return ExecuteBuild(
+                buildContext,
                 // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
                 // (defaults are placed in front of user-provided arguments).
                 new[]
@@ -142,7 +144,7 @@ namespace BuildXL.AdoBuildRunner.Build
             // No prep work to do
         }
 
-        private static IEnumerable<string> SetDefaultArguments(IEnumerable<string> arguments)
+        private static IEnumerable<string> SetDefaultArguments(BuildContext buildContext, IEnumerable<string> arguments)
         {
             // The default values are added to the start of command line string.
             // This way, user-provided arguments will be able to override the defaults.
@@ -160,7 +162,8 @@ namespace BuildXL.AdoBuildRunner.Build
                 "/earlyWorkerRelease-",
                 // This flag could make sense to enable as default across the board (not only for ADO), but for now
                 // let's keep dev builds out of it until we can validate it doesn't introduce a regression.
-                "/useHistoricalCpuUsageInfo+"
+                "/useHistoricalCpuUsageInfo+",
+                $"/machineHostName:{buildContext.AgentHostName}"
             };
 
             // Enable gRPC encryption

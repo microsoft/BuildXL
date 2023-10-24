@@ -37,6 +37,19 @@ namespace BuildXL.Utilities.Configuration
         IDistributionServiceLocation OrchestratorLocation { get; }
 
         /// <summary>
+        /// Specifies the host name where the machine running the build can be reached.
+        /// By default, this is the value returned by <see cref="System.Net.Dns.GetHostName"/>
+        /// but it can be overridden via the command line if needed.
+        /// </summary>
+        /// <remarks>
+        /// This value should only be overriden by build runners, never by a user. 
+        /// In particular, we need it to be overriddable because on ADO networks the machines are not reachable
+        /// in the hostname that GetHostName returns, and we need a special suffix that is appended by the AdoBuildRunner.
+        /// (see https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-name-resolution-for-vms-and-role-instances) 
+        /// </remarks>
+        string MachineHostName { get; }
+
+        /// <summary>
         /// The number of workers that may potentially join the build dynamically 
         /// (this should be the precise amount that we expect, but technically we only require that it is an upper bound).
         /// </summary>
@@ -88,7 +101,6 @@ namespace BuildXL.Utilities.Configuration
         /// To disable feature, set EnableRetryFailedPipsOnAnotherWorker to 0.
         /// </summary>
         int? NumRetryFailedPipsOnAnotherWorker { get; }
-
 
         /// <summary>
         /// Verify that source files that are statically declared pip inputs match between an orchestrator and a worker.

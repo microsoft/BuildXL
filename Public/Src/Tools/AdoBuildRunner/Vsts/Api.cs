@@ -529,6 +529,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 StartTime = await GetBuildStartTimeAsync(),
                 BuildId = BuildId,
                 AgentMachineName = AgentMachineName,
+                AgentHostName = $"{AgentMachineName}.internal.cloudapp.net",  // see https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-name-resolution-for-vms-and-role-instances
                 SourcesDirectory = SourcesDirectory,
                 RepositoryUrl = RepositoryUrl,
                 ServerUrl = ServerUri,

@@ -43,27 +43,22 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string relatedSessionId, string[] buildArguments)
+        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, BuildInfo bi, string[] buildArguments)
         {
             // The ping executor does need the informations of all the workers
-            m_vstsApi.WaitForOtherWorkersToBeReady().GetAwaiter().GetResult();
-            var machines = m_vstsApi.GetWorkerAddressInformationAsync().GetAwaiter().GetResult().ToList();
+            Logger.Info($@"Launching ping test: gettign build info");
 
-            Logger.Info($@"Launching ping test as orchestrator");
+            var buildInfo = m_vstsApi.WaitForBuildInfo(buildContext).GetAwaiter().GetResult();
 
+            Logger.Info($@"Launching ping test: will send a ping to orchestrator");
+
+            var ip = buildArguments.Any(opt => opt == "ip");
             var usingV6 = buildArguments.Any(opt => opt == "ipv6");
-            var ip = GetAgentIPAddress(usingV6);
+            var origin = ip ? GetAgentIPAddress(usingV6) : buildContext.AgentMachineName;
 
-            var tasks = new Task<bool>[machines.Count];
-            for (int i = 0; i < tasks.Length; i++)
-            {
-                var workerIp = machines[i][usingV6 ? Constants.MachineIpV6Address : Constants.MachineIpV4Address];
-                tasks[i] = SendMessageToWorker(ip, machines[0][Constants.MachineHostName], workerIp, usingV6);
-            }
+            var task = SendMessage(origin, buildInfo.OrchestratorLocation, usingV6);
 
-            Task.WhenAll(tasks).GetAwaiter().GetResult();
-
-            if (!tasks.All(t => t.GetAwaiter().GetResult()))
+            if (!task.GetAwaiter().GetResult())
             {
                 // Some task failed
                 return 1;
@@ -73,14 +68,18 @@ namespace BuildXL.AdoBuildRunner.Build
         }
 
         /// <inherit />
-        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments)
+        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string rid, string[] buildArguments)
         {
-            Logger.Info($@"Launching ping & connectivity test as worker");
-            WaitMessageFromOrchestrator().GetAwaiter().GetResult();
+            m_server = TcpListener.Create(ListeningPort);
+            m_server.Start();
+            Logger.Info($"Started server on port {ListeningPort}");
+
+            Logger.Info($@"Launching ping & connectivity test (will wait for connections)");
+            WaitMessage().GetAwaiter().GetResult();
             return 0;
         }
 
-        private async Task WaitMessageFromOrchestrator()
+        private async Task WaitMessage()
         {
             try
             {
@@ -132,7 +131,7 @@ namespace BuildXL.AdoBuildRunner.Build
             }
         }
 
-        private Task<bool> SendMessageToWorker(string myIp, string workerHostname, string workerIp, bool ipv6)
+        private Task<bool> SendMessage(string myIp, string otherIp, bool ipv6)
         {
             // Ping
             try
@@ -140,11 +139,8 @@ namespace BuildXL.AdoBuildRunner.Build
                 for (var i = 0; i < 2; i++)
                 {
                     using var pinger = new Ping();
-                    PingReply reply = pinger.Send(workerIp, timeout: i*1000);
-                    Logger.Info($"Ping to IP {workerIp} response: {reply.Status} - {reply.RoundtripTime}ms");
-
-                    reply = pinger.Send(workerHostname, timeout: i*1000);
-                    Logger.Info($"Ping to hostname {workerHostname} response: {reply.Status} - {reply.RoundtripTime}ms");
+                    PingReply reply = pinger.Send(otherIp, timeout: i*1000);
+                    Logger.Info($"Ping to {otherIp} response: {reply.Status} - {reply.RoundtripTime}ms");
                 }
             }
             catch (PingException e)
@@ -153,8 +149,8 @@ namespace BuildXL.AdoBuildRunner.Build
             }
 
             // TCP message
-            Logger.Info($"Sending a message from {myIp} to {workerIp}:{ListeningPort}");
-            return SendTcpMessageToWorker(workerIp, ListeningPort, ipv6 ? AddressFamily.InterNetworkV6 : AddressFamily.InterNetwork);
+            Logger.Info($"Sending a message from {myIp} to {otherIp}:{ListeningPort}");
+            return SendTcpMessageToWorker(otherIp, ListeningPort, ipv6 ? AddressFamily.InterNetworkV6 : AddressFamily.InterNetwork);
         }
 
         private async Task<bool> SendTcpMessageToWorker(string workerIp, int port, AddressFamily addressFamily)
@@ -168,7 +164,15 @@ namespace BuildXL.AdoBuildRunner.Build
                 try
                 {
                     client = new TcpClient(addressFamily);
-                    await client.ConnectAsync(IPAddress.Parse(workerIp), port);
+                    if (IPAddress.TryParse(workerIp, out var ip))
+                    {
+                        Logger.Info($"Connecting using IP");
+                        await client.ConnectAsync(ip, port);
+                    }
+                    else
+                    {
+                        await client.ConnectAsync(workerIp, port);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -225,9 +229,6 @@ namespace BuildXL.AdoBuildRunner.Build
         public void InitializeAsWorker(BuildContext buildContext, string[] buildArguments)
         {
             // Start listening for client requests.
-            m_server = TcpListener.Create(ListeningPort);
-            m_server.Start();
-            Logger.Info($"Started server on port {ListeningPort}");
         }
 
         private static string GetAgentIPAddress(bool ipv6)

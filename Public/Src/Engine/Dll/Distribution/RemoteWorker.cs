@@ -442,7 +442,7 @@ namespace BuildXL.Engine.Distribution
                 FingerprintSalt = m_orchestratorService.Environment.ContentFingerprinter.FingerprintSalt,
                 OrchestratorLocation = new ServiceLocation
                 {
-                    IpAddress = Dns.GetHostName(),
+                    IpAddress = m_orchestratorService.Hostname,
                     Port = m_orchestratorService.Port,
                 },
             };

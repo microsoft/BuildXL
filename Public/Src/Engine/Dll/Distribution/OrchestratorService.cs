@@ -59,6 +59,8 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
+        internal readonly string Hostname;
+
         private readonly RemoteWorker[] m_remoteWorkers;
         private readonly LoggingContext m_loggingContext;
 
@@ -75,6 +77,8 @@ namespace BuildXL.Engine.Distribution
         public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, DistributedInvocationId invocationId, PipExecutionContext context) : base(invocationId)
         {
             Contract.Requires(config != null && config.BuildRole.IsOrchestrator());
+
+            Hostname = config.MachineHostName;
 
             // Create all remote workers
             m_buildServicePort = config.BuildServicePort;
@@ -381,7 +385,7 @@ namespace BuildXL.Engine.Distribution
         {
             lock (m_remoteWorkers)
             {
-                if (m_remoteWorkers.Any(rw => rw.Location.IpAddress == workerLocation.IpAddress && rw.Location.Port == workerLocation.Port))
+                if (m_remoteWorkers.Any(rw => rw.Location?.IpAddress == workerLocation.IpAddress && rw.Location?.Port == workerLocation.Port))
                 {
                     // We already know this worker (presumably, from the command line).
                     // Just acknowledge the RPC.

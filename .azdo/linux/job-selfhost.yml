@@ -139,7 +139,7 @@ jobs:
       # - we also disable early worker release to avoid releasing a worker before attachment, which tends to happen
       #   when the build is highly cached: the intention is to have as much of a distributed build as possible for validation purposes
       # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
-      timeout --signal 9 60m ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=10 /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache-
+      timeout --signal 9 60m ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=5 /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache- /p:BuildXLGrpcVerbosityEnabled=1 /p:BuildXLGrpcVerbosityLevel=1 /dynamicBuildWorkerSlots:1
     displayName: Test (${{ parameters.validationName }})
     workingDirectory: /home/subst
     env:
@@ -147,7 +147,6 @@ jobs:
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-      AdoBuildRunnerWaitForOrchestratorExit: true
       AdoBuildRunnerInvocationKey: LinuxSelfhostValidation_${{ parameters.validationName }}
 
   - task: PublishTestResults@2

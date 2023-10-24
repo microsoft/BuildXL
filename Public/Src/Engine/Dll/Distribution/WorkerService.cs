@@ -303,7 +303,7 @@ namespace BuildXL.Engine.Distribution
             m_orchestratorInitialized = true;
             m_orchestratorClient.Initialize(orchestratorLocation.IpAddress, orchestratorLocation.BuildServicePort, OnConnectionFailureAsync);
 
-            var helloResult = await m_orchestratorClient.SayHelloAsync(new ServiceLocation() { IpAddress = Dns.GetHostName(), Port = m_port });
+            var helloResult = await m_orchestratorClient.SayHelloAsync(new ServiceLocation() { IpAddress = m_config.Distribution.MachineHostName, Port = m_port });
             if (!helloResult.Succeeded)
             {
                 // If we can't say hello there is no hope for attachment

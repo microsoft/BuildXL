@@ -13,6 +13,9 @@
 #include <strsafe.h>
 #include <cstdio>
 
+// warning C26485: Expression 'buffer': No array to pointer decay (bounds.3).
+#pragma warning( disable : 26485 )
+
 // ----------------------------------------------------------------------------
 // FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -29,9 +32,9 @@
 // Note: adapted from http://msdn.microsoft.com/en-us/library/ms900134.aspx
 int ReadExclusive()
 {
-    HANDLE hFile, hAppend, hTemp;
-    DWORD dwBytesRead, dwBytesWritten, dwPos;
-    char buff[4096];
+    HANDLE hFile = INVALID_HANDLE_VALUE, hAppend = INVALID_HANDLE_VALUE, hTemp = INVALID_HANDLE_VALUE;
+    DWORD dwBytesRead = 0, dwBytesWritten = 0, dwPos = 0;
+    char buff[4096] = { 0 };
 
     // Open the existing file.
 

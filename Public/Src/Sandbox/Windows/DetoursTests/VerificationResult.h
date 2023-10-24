@@ -4,10 +4,10 @@
 struct VerificationResult {
     bool Succeeded;
 
-    VerificationResult() : Succeeded(true) { }
-    VerificationResult(bool value) : Succeeded(value) { }
+    VerificationResult() noexcept : Succeeded(true) { }
+    VerificationResult(bool value) noexcept : Succeeded(value) { }
 
-    void Combine(VerificationResult const& other) {
+    void Combine(VerificationResult const& other) noexcept {
         Succeeded &= other.Succeeded;
     }
 };

@@ -43,7 +43,7 @@ namespace Templates {
 
     @@public
     export const nativeBuildersClRunnerTemplate: Cl.Arguments = {
-        enablePreFast: false,
+        enablePreFast: true,
         treatWarningAsError: true,
         warningLevel: ClQ.ClWarningLevel.enableAllWarnings,
         bufferSecurityCheck: true,
@@ -71,6 +71,7 @@ namespace Templates {
         })(),
         sources: undefined,
         languageVersion: ClQ.LanguageVersion.cpp20,
+        externalHeaderDiagnostics: [ "anglebrackets", "W0" ], // Disables warnings from headers included with angle brackets
     };
 
     @@public

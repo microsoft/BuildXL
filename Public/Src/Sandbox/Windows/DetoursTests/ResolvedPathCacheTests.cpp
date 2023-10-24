@@ -19,6 +19,10 @@
 
 #include "ResolvedPathCacheTests.h"
 
+// warning C26485: Expression 'buffer': No array to pointer decay (bounds.3).
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+#pragma warning( disable : 26485 26472 )
+
 // Used to test the in process ResolvedPathCache 
 // Path casing is intentionally changed throughout the test to make sure the cache deals with casing properly
 int CallDetoursResolvedPathCacheTests()
@@ -37,13 +41,13 @@ int CallDetoursResolvedPathCacheTests()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     DWORD bytes_written;
-    if (!WriteFile(hFile, content.c_str(), (DWORD)content.size(), &bytes_written, nullptr))
+    if (!WriteFile(hFile, content.c_str(), static_cast<DWORD>(content.size()), &bytes_written, nullptr))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -60,7 +64,7 @@ int CallDetoursResolvedPathCacheTests()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     DWORD bytes_read = 0;
@@ -68,7 +72,7 @@ int CallDetoursResolvedPathCacheTests()
 
     if (!ReadFile(hFile, buffer, 1024, &bytes_read, nullptr))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -76,13 +80,13 @@ int CallDetoursResolvedPathCacheTests()
     // Invalidate the resolved path cache
     if (!RemoveDirectoryW(L"SECOND_DirectorySymlink"))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Recreate the symbolic link chain
     if (!TestCreateSymbolicLinkW(L"Second_DirectorySymlink", L"SourceDirectory", SYMBOLIC_LINK_FLAG_DIRECTORY))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Read the created file through a symlink again
@@ -97,12 +101,12 @@ int CallDetoursResolvedPathCacheTests()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     if (!ReadFile(hFile, buffer, 1024, &bytes_read, nullptr))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -128,7 +132,7 @@ int CallDetoursResolvedPathPreservingLastSegmentCacheTests()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -146,7 +150,7 @@ int CallDetoursResolvedPathPreservingLastSegmentCacheTests()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -170,13 +174,13 @@ int CallDetoursResolvedPathCacheDealsWithUnicode()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     DWORD bytes_written;
-    if (!WriteFile(hFile, content.c_str(), (DWORD)content.size(), &bytes_written, nullptr))
+    if (!WriteFile(hFile, content.c_str(), static_cast<DWORD>(content.size()), &bytes_written, nullptr))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -193,7 +197,7 @@ int CallDetoursResolvedPathCacheDealsWithUnicode()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     DWORD bytes_read = 0;
@@ -201,7 +205,7 @@ int CallDetoursResolvedPathCacheDealsWithUnicode()
 
     if (!ReadFile(hFile, buffer, 1024, &bytes_read, nullptr))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -209,13 +213,13 @@ int CallDetoursResolvedPathCacheDealsWithUnicode()
     // Invalidate the resolved path cache
     if (!RemoveDirectoryW(L"FIRST_DirectorySymlinkﬂ"))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Recreate the symbolic link chain
     if (!TestCreateSymbolicLinkW(L"First_DirectorySymlinkﬂ", L"SourceDirectoryﬂ", SYMBOLIC_LINK_FLAG_DIRECTORY))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Read the created file through a symlink again
@@ -230,12 +234,12 @@ int CallDetoursResolvedPathCacheDealsWithUnicode()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     if (!ReadFile(hFile, buffer, 1024, &bytes_read, nullptr))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -256,7 +260,7 @@ int CallDeleteDirectorySymlinkThroughDifferentPath()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -264,13 +268,13 @@ int CallDeleteDirectorySymlinkThroughDifferentPath()
     // Invalidate the resolved path cache
     if (!RemoveDirectoryW(L"D2.lnk\\E.lnk"))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Recreate the symbolic link chain
     if (!TestCreateSymbolicLinkW(L"D\\E.lnk", L"X", SYMBOLIC_LINK_FLAG_DIRECTORY))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Read the created file through a symlink again
@@ -285,7 +289,7 @@ int CallDeleteDirectorySymlinkThroughDifferentPath()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);

@@ -13,6 +13,13 @@
 #include "SymLinkTests.h"
 #include "Utils.h"
 
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+// warning C26485: Expression 'buff': No array to pointer decay (bounds.3).
+// warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
+// warning C26482: Only index into arrays using constant expressions (bounds.2).
+// warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
+#pragma warning( disable : 26472 26485 26446 26482 26481 )
+
 int CallAccessSymLinkOnDirectories()
 {
     HANDLE hFile = CreateFileW(
@@ -26,12 +33,12 @@ int CallAccessSymLinkOnDirectories()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return  (int)GetLastError();
+        return  static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallAccessSymLinkOnFiles()
@@ -47,18 +54,20 @@ int CallAccessSymLinkOnFiles()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    wchar_t buff[10];
+    wchar_t buff[10] = { 0 };
     DWORD read = 0;
 
-    BOOL ret1 = ReadFile(hFile, (void*)buff, 3, &read, nullptr);
+    const BOOL ret1 = ReadFile(hFile, (void*)buff, 3, &read, nullptr);
     if (!ret1)
     {
         CloseHandle(hFile);
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
+
+    buff[read] = L'\0';
 
     if (!wcsncmp(buff, L"aaa", 3))
     {
@@ -68,7 +77,7 @@ int CallAccessSymLinkOnFiles()
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallCreateSymLinkOnFiles()
@@ -78,7 +87,7 @@ int CallCreateSymLinkOnFiles()
         L"input\\CreateSymLinkOnFiles2.txt",
         0);
     
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredAccessesCreateSymlinkForQBuild()
@@ -88,7 +97,7 @@ int CallDetouredAccessesCreateSymlinkForQBuild()
         L"input\\CreateSymbolicLinkTest2.txt",
         0);
 
-    return (int)GetLastError();;
+    return static_cast<int>(GetLastError());;
 }
 
 int CallCreateAndDeleteSymLinkOnFiles()
@@ -108,7 +117,7 @@ int CallCreateAndDeleteSymLinkOnFiles()
         L"input\\IrrelevantExistingFile.txt",
         0);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallMoveSymLinkOnFilesNotEnforceChainSymLinkAccesses()
@@ -116,7 +125,7 @@ int CallMoveSymLinkOnFilesNotEnforceChainSymLinkAccesses()
     // Implicitly MoveFileW => MoveFileWithProgress(a, b, NULL, NULL, MOVEFILE_COPY_ALLOWED)
     MoveFileW(L"OldSymlinkToIrrelevantExistingFile.lnk", L"NewSymlinkToIrrelevantExistingFile.lnk");
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallAccessOnChainOfJunctions()
@@ -133,7 +142,7 @@ int CallAccessOnChainOfJunctions()
 
     if (hJunction == INVALID_HANDLE_VALUE)
     {
-        return  (int)GetLastError();
+        return  static_cast<int>(GetLastError());
     }
 
     CloseHandle(hJunction);
@@ -149,12 +158,12 @@ int CallAccessOnChainOfJunctions()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return  (int)GetLastError();
+        return  static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallCreateSymLinkOnDirectories()
@@ -164,7 +173,7 @@ int CallCreateSymLinkOnDirectories()
         L"input\\CreateSymLinkOnDirectories2.dir",
         SYMBOLIC_LINK_FLAG_DIRECTORY);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredFileCreateWithSymlink()
@@ -180,19 +189,19 @@ int CallDetouredFileCreateWithSymlink()
 
     if (hFile == INVALID_HANDLE_VALUE) 
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    BOOLEAN retCreateSymLink = TestCreateSymbolicLinkW(
+    const BOOLEAN retCreateSymLink = TestCreateSymbolicLinkW(
         L"input\\CreateSymbolicLinkTest1.txt",
         L"input\\CreateSymbolicLinkTest2.txt",
         0);
 
     if (retCreateSymLink == FALSE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     hFile = CreateFileW(
@@ -206,41 +215,41 @@ int CallDetouredFileCreateWithSymlink()
 
     if (hFile == INVALID_HANDLE_VALUE) 
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredProcessCreateWithDirectorySymlink()
 {
     HMODULE hModule = GetModuleHandleW(NULL);
     WCHAR path[MAX_PATH];
-    DWORD nFileName = GetModuleFileNameW(hModule, path, MAX_PATH);
+    const DWORD nFileName = GetModuleFileNameW(hModule, path, MAX_PATH);
 
     if (nFileName == 0 || nFileName == MAX_PATH) {
         return ERROR_PATH_NOT_FOUND;
     }
 
-    wstring dirSymlinkPath = L"CreateSymLinkOnDirectories1.dir";
-    wstring wpath = wstring(path);
-    auto lastSlash = wpath.find_last_of(L"/\\");
-    wstring parent = wpath.substr(0, lastSlash);
-    wstring fileName = wpath.substr(lastSlash);
-    wstring dirSymlinkExePath = dirSymlinkPath + fileName;
+    const wstring dirSymlinkPath = L"CreateSymLinkOnDirectories1.dir";
+    const wstring wpath = wstring(path);
+    const auto lastSlash = wpath.find_last_of(L"/\\");
+    const wstring parent = wpath.substr(0, lastSlash);
+    const wstring fileName = wpath.substr(lastSlash);
+    const wstring dirSymlinkExePath = dirSymlinkPath + fileName;
 
-    BOOLEAN retCreateSymLink = TestCreateSymbolicLinkW(
+    const BOOLEAN retCreateSymLink = TestCreateSymbolicLinkW(
         dirSymlinkPath.c_str(),
         parent.c_str(),
         SYMBOLIC_LINK_FLAG_DIRECTORY);
 
     if (retCreateSymLink == FALSE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
+    STARTUPINFO si{};
+    PROCESS_INFORMATION pi{};
 
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
@@ -263,27 +272,27 @@ int CallDetouredProcessCreateWithDirectorySymlink()
         &si,
         &pi))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Wait until child process exits.
     WaitForSingleObject(pi.hProcess, INFINITE);
 
-    DWORD childExitCode;
+    DWORD childExitCode = 0;
     if (!GetExitCodeProcess(pi.hProcess, &childExitCode))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     if (childExitCode != ERROR_SUCCESS)
     {
-        return (int)childExitCode;
+        return static_cast<int>(childExitCode);
     }
 
     // Close process and thread handles. 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 
@@ -291,24 +300,24 @@ int CallDetouredProcessCreateWithSymlink()
 {
     HMODULE hModule = GetModuleHandleW(NULL);
     WCHAR path[MAX_PATH];
-    DWORD nFileName = GetModuleFileNameW(hModule, path, MAX_PATH);
+    const DWORD nFileName = GetModuleFileNameW(hModule, path, MAX_PATH);
 
     if (nFileName == 0 || nFileName == MAX_PATH) {
         return ERROR_PATH_NOT_FOUND;
     }
  
-    BOOLEAN retCreateSymLink = TestCreateSymbolicLinkW(
+    const BOOLEAN retCreateSymLink = TestCreateSymbolicLinkW(
         L"CreateSymbolicLinkTest2.exe",
         path,
         0);
 
     if (retCreateSymLink == FALSE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
+    STARTUPINFO si{};
+    PROCESS_INFORMATION pi{};
 
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
@@ -331,27 +340,27 @@ int CallDetouredProcessCreateWithSymlink()
         &si,
         &pi))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Wait until child process exits.
     WaitForSingleObject(pi.hProcess, INFINITE);
 
-    DWORD childExitCode;
+    DWORD childExitCode = 0;
     if (!GetExitCodeProcess(pi.hProcess, &childExitCode))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     if (childExitCode != ERROR_SUCCESS)
     {
-        return (int)childExitCode;
+        return static_cast<int>(childExitCode);
     }
 
     // Close process and thread handles. 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredFileCreateWithNoSymlink()
@@ -367,7 +376,7 @@ int CallDetouredFileCreateWithNoSymlink()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -383,12 +392,12 @@ int CallDetouredFileCreateWithNoSymlink()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredFileCreateOnSymlink(bool openWithReparsePoint)
@@ -404,12 +413,12 @@ int CallDetouredFileCreateOnSymlink(bool openWithReparsePoint)
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredFileCreateThatAccessesChainOfSymlinks()
@@ -429,7 +438,7 @@ int CallDetouredCopyFileFollowingChainOfSymlinks()
         L"CopiedFile.txt",
         FALSE);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredCopyFileNotFollowingChainOfSymlinks()
@@ -442,14 +451,14 @@ int CallDetouredCopyFileNotFollowingChainOfSymlinks()
         (LPBOOL)NULL,
         COPY_FILE_COPY_SYMLINK);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredCopyFileToExistingSymlink(bool copySymlink)
 {
     if (!TestCreateSymbolicLinkW(L"LinkToDestination.link", L"Destination.txt", 0))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CopyFileExW(
@@ -460,7 +469,7 @@ int CallDetouredCopyFileToExistingSymlink(bool copySymlink)
         (LPBOOL)NULL,
         copySymlink ? COPY_FILE_COPY_SYMLINK : (DWORD)0x0);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 int CallDetouredCopyFileToExistingSymlinkFollowChainOfSymlinks()
 {
@@ -485,18 +494,20 @@ int CallAccessNestedSiblingSymLinkOnFiles()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    wchar_t buff[10];
+    wchar_t buff[10] = { 0 };
     DWORD read = 0;
 
-    BOOL ret1 = ReadFile(hFile, (void*)buff, 3, &read, nullptr);
+    const BOOL ret1 = ReadFile(hFile, (void*)buff, 3, &read, nullptr);
     if (!ret1)
     {
         CloseHandle(hFile);
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
+
+    buff[read] = L'\0';
 
     if (!wcsncmp(buff, L"aaa", 3))
     {
@@ -506,7 +517,7 @@ int CallAccessNestedSiblingSymLinkOnFiles()
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallAccessJunctionSymlink_Real()
@@ -522,18 +533,20 @@ int CallAccessJunctionSymlink_Real()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    wchar_t buff[10];
+    wchar_t buff[10] = { 0 };
     DWORD read = 0;
 
-    BOOL ret1 = ReadFile(hFile, (void*)buff, 4, &read, nullptr);
+    const BOOL ret1 = ReadFile(hFile, (void*)buff, 4, &read, nullptr);
     if (!ret1)
     {
         CloseHandle(hFile);
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
+
+    buff[read] = L'\0';
 
     if (!wcsncmp(buff, L"real", 4))
     {
@@ -543,7 +556,7 @@ int CallAccessJunctionSymlink_Real()
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallAccessJunctionSymlink_Junction()
@@ -559,18 +572,20 @@ int CallAccessJunctionSymlink_Junction()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    wchar_t buff[10];
+    wchar_t buff[10] = { 0 };
     DWORD read = 0;
 
-    BOOL ret1 = ReadFile(hFile, (void*)buff, 8, &read, nullptr);
+    const BOOL ret1 = ReadFile(hFile, (void*)buff, 8, &read, nullptr);
     if (!ret1)
     {
         CloseHandle(hFile);
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
+
+    buff[read] = L'\0';
 
     if (!wcsncmp(buff, L"junction", 8))
     {
@@ -580,7 +595,7 @@ int CallAccessJunctionSymlink_Junction()
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredNtCreateFileOnSymlink(bool withReparsePointFlag)
@@ -589,26 +604,30 @@ int CallDetouredNtCreateFileOnSymlink(bool withReparsePointFlag)
     _NtClose NtClose = GetNtClose();
     _RtlInitUnicodeString RtlInitUnicodeString = GetRtlInitUnicodeString();
 
-    HANDLE hFile;
+    assert(NtCreateFile != nullptr);
+    assert(NtClose  != nullptr);
+    assert(RtlInitUnicodeString != nullptr);
+
+    HANDLE hFile = INVALID_HANDLE_VALUE;
     OBJECT_ATTRIBUTES objAttribs = { 0 };
 
     wstring fullPath;
     if (!TryGetNtFullPath(L"SourceOfSymLink.link", fullPath))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    UNICODE_STRING unicodeString;
+    UNICODE_STRING unicodeString{};
     RtlInitUnicodeString(&unicodeString, fullPath.c_str());
 
     InitializeObjectAttributes(&objAttribs, &unicodeString, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
-    const int allocSize = 2048;
+    constexpr int allocSize = 2048;
     LARGE_INTEGER largeInteger = { { 0 } };
     largeInteger.QuadPart = allocSize;
 
     IO_STATUS_BLOCK ioStatusBlock = { 0 };
-    NTSTATUS status = NtCreateFile(
+    const NTSTATUS status = NtCreateFile(
         &hFile,
         FILE_GENERIC_READ,
         &objAttribs,
@@ -626,7 +645,7 @@ int CallDetouredNtCreateFileOnSymlink(bool withReparsePointFlag)
         NtClose(hFile);
     }
 
-    return (int)RtlNtStatusToDosError(status);
+    return static_cast<int>(RtlNtStatusToDosError(status));
 }
 
 int CallDetouredNtCreateFileThatAccessesChainOfSymlinks()
@@ -657,7 +676,7 @@ int CallDetouredCreateFileWForSymlinkProbeOnly(bool withReparsePointFlag)
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -673,12 +692,12 @@ int CallDetouredCreateFileWForSymlinkProbeOnly(bool withReparsePointFlag)
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag()
@@ -693,13 +712,13 @@ int CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag()
 
 int CallProbeDirectorySymlink()
 {
-    DWORD attributes = GetFileAttributesW(L"directory.lnk");
+    const DWORD attributes = GetFileAttributesW(L"directory.lnk");
     if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
     {
         return -1;
     }
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallProbeDirectorySymlinkTarget(bool withReparsePointFlag)
@@ -720,11 +739,11 @@ int CallProbeDirectorySymlinkTarget(bool withReparsePointFlag)
 
     if (hFile == INVALID_HANDLE_VALUE) 
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallProbeDirectorySymlinkTargetWithReparsePointFlag()
@@ -750,17 +769,17 @@ int CallValidateFileSymlinkAccesses()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    std::string content = "Some content to write";
+    const std::string content = "Some content to write";
     DWORD bytes_written;
 
     // Write content throught the symbolic file link
-    WriteFile(hFile, content.c_str(), (DWORD)content.size(), &bytes_written, nullptr);
+    WriteFile(hFile, content.c_str(), static_cast<DWORD>(content.size()), &bytes_written, nullptr);
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallOpenFileThroughMultipleDirectorySymlinks()
@@ -776,12 +795,12 @@ int CallOpenFileThroughMultipleDirectorySymlinks()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallOpenFileThroughDirectorySymlinksSelectivelyEnforce()
@@ -797,12 +816,12 @@ int CallOpenFileThroughDirectorySymlinksSelectivelyEnforce()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve()
@@ -818,7 +837,7 @@ int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -826,13 +845,13 @@ int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve()
     // Invalidate directory symlink
     if (!RemoveDirectoryW(L"D.lnk"))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Recreate the symbolic link chain
     if (!TestCreateSymbolicLinkW(L"D.lnk", L"D2", SYMBOLIC_LINK_FLAG_DIRECTORY))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     hFile = CreateFileW(
@@ -846,7 +865,7 @@ int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -866,7 +885,7 @@ int CallDeleteSymlinkUnderDirectorySymlinkWithFullSymlinkResolution()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
@@ -886,26 +905,25 @@ int CallOpenNonExistentFileThroughDirectorySymlink()
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }
 
 int CallNtOpenNonExistentFileThroughDirectorySymlink()
 {
     HANDLE hFile = INVALID_HANDLE_VALUE;
-    OBJECT_ATTRIBUTES objAttribs = { 0 };
 
     wstring fullPath;
     if (!TryGetNtFullPath(L"A.lnk\\B\\absent.txt", fullPath))
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    NTSTATUS status = OpenFileWithNtCreateFile(
+    const NTSTATUS status = OpenFileWithNtCreateFile(
         &hFile,
         fullPath.c_str(),
         NULL,
@@ -917,22 +935,22 @@ int CallNtOpenNonExistentFileThroughDirectorySymlink()
 
     if (!NT_SUCCESS(status))
     {
-        return (int)RtlNtStatusToDosError(status);
+        return static_cast<int>(RtlNtStatusToDosError(status));
     }
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     CloseHandle(hFile);
 
-    return (int)RtlNtStatusToDosError(status);
+    return static_cast<int>(RtlNtStatusToDosError(status));
 }
 
 int CallDirectoryEnumerationThroughDirectorySymlink()
 {
-    WIN32_FIND_DATA ffd;
+    WIN32_FIND_DATA ffd{};
     HANDLE hFind = INVALID_HANDLE_VALUE;
     DWORD dwError = 0;
 
@@ -953,7 +971,7 @@ int CallDirectoryEnumerationThroughDirectorySymlink()
     }
 
     FindClose(hFind);
-    return (int)dwError;
+    return static_cast<int>(dwError);
 }
 
 int CallDeviceIOControlGetReparsePoint()
@@ -970,19 +988,19 @@ int CallDeviceIOControlGetReparsePoint()
     
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
     // Allocate MAX_PATH to be safe
-    const DWORD neededBufSize =
+    constexpr DWORD neededBufSize =
       FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer) +
       2 * MAX_PATH * sizeof(WCHAR);
 
-    BYTE buffer[neededBufSize];
+    BYTE buffer[neededBufSize] = { 0 };
 
     // Call DeviceIoControl to retrieve the target of the symlink
-    DWORD lpBytesReturned;
-    bool result = DeviceIoControl(
+    DWORD lpBytesReturned = 0;
+    const bool result = DeviceIoControl(
         hFile, 
         FSCTL_GET_REPARSE_POINT, 
         NULL, 
@@ -996,22 +1014,23 @@ int CallDeviceIOControlGetReparsePoint()
     
     if (!result)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    REPARSE_DATA_BUFFER* reparseData = (REPARSE_DATA_BUFFER*)buffer;
+    const REPARSE_DATA_BUFFER* reparseData = (REPARSE_DATA_BUFFER*)buffer;
 
     // Retrieve the target of the symlink and write it to disk so we can verify on managed side that the target was 
     // actually translated
     std::wstring target;
     target.assign(
             reparseData->SymbolicLinkReparseBuffer.PathBuffer + reparseData->SymbolicLinkReparseBuffer.PrintNameOffset / sizeof(WCHAR),
-            (size_t)reparseData->SymbolicLinkReparseBuffer.PrintNameLength / sizeof(WCHAR));
+            static_cast<size_t>(reparseData->SymbolicLinkReparseBuffer.PrintNameLength) / sizeof(WCHAR));
 
     FILE* output;
     fopen_s(&output, "out.txt","w");
+    assert(output != nullptr);
     fprintf(output, "%ws", target.c_str());
     fclose(output);
 
-    return (int)GetLastError();
+    return static_cast<int>(GetLastError());
 }

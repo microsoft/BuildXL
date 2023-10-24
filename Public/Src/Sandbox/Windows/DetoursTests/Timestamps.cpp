@@ -36,10 +36,12 @@
 #include <string>
 #pragma warning( pop )
 
-#pragma warning( disable : 4711) // ... selected for inline expansion
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+// warning C26485: Expression 'message': No array to pointer decay (bounds.3).
+#pragma warning( disable : 4711 26472 26485 ) // ... selected for inline expansion
 
 static bool ExpectExistent(wchar_t const* filename) {
-    DWORD attributes = GetFileAttributesW(filename);
+    const DWORD attributes = GetFileAttributesW(filename);
     if (attributes == INVALID_FILE_ATTRIBUTES) {
         wprintf(L"Expected the input file to exist: %s\n", filename);
         return false;
@@ -49,7 +51,7 @@ static bool ExpectExistent(wchar_t const* filename) {
 }
 
 FILETIME ConvertSystemTimeToFileTime(SYSTEMTIME const& time) {
-    FILETIME fileTime;
+    FILETIME fileTime{};
     if (!SystemTimeToFileTime(&time, &fileTime)) {
         throw std::exception("Failed to convert a SYSTEMTIME to FILETIME");
     }
@@ -113,7 +115,7 @@ VerificationResult VerifyTimestamp(FILETIME expectedTimestamp, FILETIME actualTi
 VerificationResult VerifyTimestamp(FILETIME expectedTimestamp, LARGE_INTEGER actualTimestamp, wchar_t const* description, wchar_t const* filename, bool allowGreaterThan) {
     FILETIME actualTimestampAsFiletime{};
     actualTimestampAsFiletime.dwLowDateTime = actualTimestamp.LowPart;
-    actualTimestampAsFiletime.dwHighDateTime = (DWORD)actualTimestamp.HighPart;
+    actualTimestampAsFiletime.dwHighDateTime = static_cast<DWORD>(actualTimestamp.HighPart);
     return VerifyTimestamp(expectedTimestamp, actualTimestampAsFiletime, description, filename, allowGreaterThan);
 }
 
@@ -198,7 +200,7 @@ VerificationResult VerifyExpectedTimestampViaFindFirstFileSingle(wchar_t const *
 
 // FindFirstFileEx with a wildcard and possibly multiple expectations.
 VerificationResult VerifyExpectedTimestampViaFindFirstFileEnumeration(wchar_t const * filename, std::map<std::wstring, FILETIME> expectations, bool allowGreaterThan) {
-    VerificationResult result;
+    VerificationResult result{};
     
     WIN32_FIND_DATAW findData{};
     HANDLE findHandle = FindFirstFileExW(filename, FindExInfoBasic, &findData, FindExSearchNameMatch, NULL, 0);
@@ -212,14 +214,14 @@ VerificationResult VerifyExpectedTimestampViaFindFirstFileEnumeration(wchar_t co
             _wcslwr_s(findData.cFileName);
             std::wstring foundNameLower(&findData.cFileName[0]);
             
-            auto findIter = expectations.find(foundNameLower);
+            const auto findIter = expectations.find(foundNameLower);
             if (findIter == expectations.cend()) {
                 wprintf(L"Enumeration of %s found %s for which there was no timestamp expectation set.\n", filename, &findData.cFileName[0]);
                 result.Combine(false);
                 continue;
             }
 
-            FILETIME expectedTimestamp = findIter->second;
+            const FILETIME expectedTimestamp = findIter->second;
             expectations.erase(findIter);
 
             result.Combine(VerifyTimestamp(expectedTimestamp, findData.ftCreationTime, L"FindFirstFile enumeration -> ftCreationTime", filename, allowGreaterThan));
@@ -231,7 +233,7 @@ VerificationResult VerifyExpectedTimestampViaFindFirstFileEnumeration(wchar_t co
     }
 
     if (!expectations.empty()) {
-        unsigned long long remaining = expectations.size();
+        const unsigned long long remaining = expectations.size();
         wprintf(L"Enumeration of %s left %llu expectations remaining (files not found).\n", filename, remaining);
         result.Combine(false);
     }
@@ -265,8 +267,8 @@ int Timestamps(bool normalize)
     wchar_t const * const DynamicOutputInSharedOpaque = L"sharedOpaque\\yetanothersubdir\\dynamicOutputInSharedOpaque"; // does not exist, this process creates it
     wchar_t const * const AnotherDynamicOutputInSharedOpaque = L"sharedOpaque\\subdir\\dynamicOutputInSharedOpaque"; // does not exist, this process creates it
 
-    FILETIME expectedInputTime = GetExpectedInputTime();
-    FILETIME expectedOutputTime = GetExpectedOutputTime();
+    const FILETIME expectedInputTime = GetExpectedInputTime();
+    const FILETIME expectedOutputTime = GetExpectedOutputTime();
 
     if (!ExpectExistent(InputFile) || 
         !ExpectExistent(RewrittenOutputFile) ||
@@ -285,10 +287,10 @@ int Timestamps(bool normalize)
     
     // Create two dynamic outputs under the shared opaque, we want to verify timestamp faking does not happen for outputs
     // The first dynamic output is created in a directory that does not contain any inputs
-    BOOL success = CreateDirectory(L"sharedOpaque\\yetanothersubdir", nullptr);
+    const BOOL success = CreateDirectory(L"sharedOpaque\\yetanothersubdir", nullptr);
     if (!success)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
     HANDLE hFile = CreateFile(
         DynamicOutputInSharedOpaque,
@@ -302,10 +304,10 @@ int Timestamps(bool normalize)
         
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
 
-    char message[100] = "Hello, world.";
+    const char message[100] = "Hello, world.";
     DWORD bytesWritten;
     WriteFile(hFile, message, 20, &bytesWritten, NULL);
     CloseHandle(hFile);
@@ -323,12 +325,12 @@ int Timestamps(bool normalize)
 
     if (anotherHFile == INVALID_HANDLE_VALUE)
     {
-        return (int)GetLastError();
+        return static_cast<int>(GetLastError());
     }
     WriteFile(anotherHFile, message, 20, &bytesWritten, NULL);
     CloseHandle(anotherHFile);
 
-    bool allowGreaterThan = !normalize;
+    const bool allowGreaterThan = !normalize;
 
     VerificationResult result;
     VerifyExpectedTimestampForAllKnownFunctions(result, InputFile, expectedInputTime, allowGreaterThan);

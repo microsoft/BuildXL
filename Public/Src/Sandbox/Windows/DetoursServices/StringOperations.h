@@ -49,6 +49,10 @@ extern _locale_t g_invariantLocale;
 #include <wctype.h>
 #endif // !MAC_OS_LIBRARY
 
+// warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
+// warning C6011: Dereferencing NULL pointer 'path'.
+#pragma warning( disable : 26481 6011 )
+
 /// NormalizePathChar
 ///
 /// Path character normalization maps upper/lower case characters to a normalized representation.
@@ -113,7 +117,7 @@ constexpr inline bool IsDriveLetter(PathChar c) noexcept
 
 inline bool IsDriveBasedAbsolutePath(PCPathChar path) noexcept
 {
-    if (path[0] != 0 && IsDriveLetter(path[0]) && path[1] == NT_VOLUME_SEPARATOR && IsDirectorySeparator(path[2]))
+    if (path != nullptr && path[0] != 0 && IsDriveLetter(path[0]) && path[1] == NT_VOLUME_SEPARATOR && IsDirectorySeparator(path[2]))
     {
         return true;
     }
@@ -121,8 +125,9 @@ inline bool IsDriveBasedAbsolutePath(PCPathChar path) noexcept
 }
 
 // Indicates if the path is prefixed with \??\ or \\?\, both of which escape Win32 -> NT path canonicalization (including applying current working directory).
-inline bool IsWin32NtPathName(PCPathChar path) {
-    assert(path);
+inline bool IsWin32NtPathName(PCPathChar path) noexcept
+{
+    assert(path != nullptr);
 
     return
             (path[0] == L'\\') &&
@@ -132,7 +137,10 @@ inline bool IsWin32NtPathName(PCPathChar path) {
 }
 
 // Indicates if the given path is of the 'local device' type (prefix \\.\).
-inline bool IsLocalDevicePathName(PCPathChar path) {
+inline bool IsLocalDevicePathName(PCPathChar path) noexcept
+{
+    assert(path != nullptr);
+
     return
             (path[0] == L'\\') &&
             (path[1] == L'\\') &&
@@ -141,7 +149,10 @@ inline bool IsLocalDevicePathName(PCPathChar path) {
 }
 
 // Indicates if the path is an NT object path (prefix \??\)
-inline bool IsNtObjectPath(PCPathChar path) {
+inline bool IsNtObjectPath(PCPathChar path) noexcept
+{
+    assert(path != nullptr);
+
     return
             (path[0] == L'\\') &&
             (path[1] == L'?') &&
@@ -150,9 +161,9 @@ inline bool IsNtObjectPath(PCPathChar path) {
 }
 
 // Indicates if this is a pipe device.
-inline bool IsPipeDevice(PCPathChar path)
+inline bool IsPipeDevice(PCPathChar path) noexcept
 {
-    assert(path);
+    assert(path != nullptr);
 
     return (IsLocalDevicePathName(path) || IsNtObjectPath(path)) &&
         (path[4] == L'p') &&
@@ -163,17 +174,19 @@ inline bool IsPipeDevice(PCPathChar path)
 }
 
 // Indicates if this is name of a special device.
-inline bool IsSpecialDeviceName(PCPathChar path)
+inline bool IsSpecialDeviceName(PCPathChar path) noexcept
 {
-    assert(path);
+    assert(path != nullptr);
+
     return
         IsPipeDevice(path);
     // To add more device names add more name checking functions and OR their result here.
 }
 
 // Indicates if this is a long UNC path.
-inline bool IsUncPathName(PCPathChar path)
+inline bool IsUncPathName(PCPathChar path) noexcept
 {
+    assert(path != nullptr);
     return
         (path[0] == L'\\') &&
         (path[1] == L'\\') &&
@@ -191,29 +204,29 @@ inline bool IsUncPathName(PCPathChar path)
 // HashPath computes a hash code of a string after applying NormalizePathChar to all characters
 DWORD WINAPI HashPath(
     __in_ecount(nLength)        PCPathChar pPath,
-    __in                        size_t nLength);
+    __in                        size_t nLength) noexcept;
 
 // NormalizeAndHashPath applies NormalizePathChar to all characters, storing the result in a buffer, and computes a hash code of the path in the same way as HashPath
 DWORD WINAPI NormalizeAndHashPath(
     __in                            PCPathChar pPath,
     __out_ecount(nBufferLength)     PBYTE pBuffer,
-    __in                            DWORD nBufferLength);
+    __in                            DWORD nBufferLength) noexcept;
 
 // Fast check if two buffers are equal (for use by managed code where memcmp isn't directly available)
 BOOL WINAPI AreBuffersEqual(
     __in_ecount(nBufferLength)    PBYTE pBuffer1,
     __in_ecount(nBufferLength)    PBYTE pBuffer2,
-    __in                          DWORD nBufferLength);
+    __in                          DWORD nBufferLength) noexcept;
 
 // Check if a path is equal to a normalized path, after applying NormalizePathChar to all characters of the un-normalized path
 BOOL WINAPI ArePathsEqual(
     __in_ecount(nLength)        PCPathChar pPath,
     __in_ecount(nLength + 1)    PCPathChar pNormalizedPath,
-    __in                        size_t nLength);
+    __in                        size_t nLength) noexcept;
 
 // HasPrefix and HasSuffix compare using IsPathCharEqual
-bool HasPrefix(PCPathChar text, PCPathChar prefix);
-bool HasSuffix(PCPathChar str, size_t str_length, PCPathChar suffix);
+bool HasPrefix(PCPathChar text, PCPathChar prefix) noexcept;
+bool HasSuffix(PCPathChar str, size_t str_length, PCPathChar suffix) noexcept;
 
 // Returns true if 'path' is exactly equal to 'tree' (ignoring case),
 // or if 'path' identifies a path within (under) 'tree'.  For example,
@@ -223,16 +236,16 @@ bool HasSuffix(PCPathChar str, size_t str_length, PCPathChar suffix);
 //
 // Both values are required to be absolute paths, except 'tree' may be an empty string
 // (in which case any path is considered to be under it).
-bool IsPathWithinTree(PCPathChar tree, PCPathChar path);
+bool IsPathWithinTree(PCPathChar tree, PCPathChar path) noexcept;
 
-bool StringLooksLikeRCTempFile(PCPathChar str, size_t str_length);
+bool StringLooksLikeRCTempFile(PCPathChar str, size_t str_length) noexcept;
 
-bool StringLooksLikeBuildExeTraceLog(PCPathChar str, size_t str_length);
+bool StringLooksLikeBuildExeTraceLog(PCPathChar str, size_t str_length) noexcept;
 
-bool StringLooksLikeMtTempFile(PCPathChar str, size_t str_length, PCPathChar expected_extension);
+bool StringLooksLikeMtTempFile(PCPathChar str, size_t str_length, PCPathChar expected_extension) noexcept;
 
 // Find the index of the final directory separator (possibly zero), or zero if none are found.
-size_t FindFinalPathSeparator(PCPathChar const original);
+size_t FindFinalPathSeparator(PCPathChar const original) noexcept;
 
 // Determines if the given path is to a named stream other than the default data stream. Expects an already-canonicalized path.
 //   C:\foo::$DATA (false)
@@ -242,17 +255,17 @@ size_t FindFinalPathSeparator(PCPathChar const original);
 // We split on colons calling each part a 'segment'. We require that the first segment (filename) and second segment (stream name)
 // are non-empty in order to specify a named stream (the default stream can be addressed with a double-colon / zero-length segment).
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/aa364404%28v=vs.85%29.aspx
-bool IsPathToNamedStream(PCPathChar const path, size_t pathLength);
+bool IsPathToNamedStream(PCPathChar const path, size_t pathLength) noexcept;
 
 // Gets root length of a path.
-size_t GetRootLength(PCPathChar path);
+size_t GetRootLength(PCPathChar path) noexcept;
 
 #if _WIN32
 // Returns a collection of all path atoms of the given path
 int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements);
 
 // Combines two path fragments into a single path separated by a directory separator.
-std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& fragment2);
+std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& fragment2) noexcept;
 
 // Normalizes path.
 // When the path is a relative path, then the path is returned as is.
@@ -263,5 +276,5 @@ std::wstring NormalizePath(const std::wstring& path);
 
 // Removes NT or local device prefix from path.
 __declspec(dllexport)
-PCPathChar GetPathWithoutPrefix(PCPathChar path);
+PCPathChar GetPathWithoutPrefix(PCPathChar path) noexcept;
 #endif

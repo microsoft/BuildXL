@@ -27,6 +27,10 @@
 #include "Logging.h"
 #include "Utils.h"
 
+// warning C26485: warning C6335: Leaking process information handle 'pi.hProcess'.
+// warning C26485: Expression 'args': No array to pointer decay (bounds.3).
+// warning C6387: '_Param_(3)' could be '0'.
+#pragma warning( disable : 6335 26485 6387 )
 
 // ----------------------------------------------------------------------------
 // FUNCTION DEFINITIONS
@@ -102,7 +106,7 @@ int CreateFileWLogging(void)
         return 1;
     }
 
-    char message[100] = "Hello, world.";
+    const char message[100] = "Hello, world.";
     DWORD bytesWritten;
     WriteFile(hFile, message, 20, &bytesWritten, NULL);
 
@@ -127,7 +131,7 @@ int CreateFileALogging(void)
         return 1;
     }
 
-    char message[100] = "Hello, world.";
+    const char message[100] = "Hello, world.";
     DWORD bytesWritten;
     WriteFile(hFile, message, 20, &bytesWritten, NULL);
 
@@ -138,8 +142,8 @@ int CreateFileALogging(void)
 
 int GetVolumePathNameWLogging(void)
 {
-    const unsigned int LENGTH = 200;
-    wchar_t pathName[LENGTH];
+    constexpr unsigned int LENGTH = 200;
+    wchar_t pathName[LENGTH] = { 0 };
 
     GetVolumePathNameW(
         L"GetVolumePathNameWLoggingTest.txt",
@@ -482,10 +486,10 @@ int OpenFileMappingALogging(void)
 
 int GetTempFileNameWLogging(void)
 {
-    wchar_t tempDir[MAX_PATH];
+    wchar_t tempDir[MAX_PATH] = { 0 };
     GetTempPathW(MAX_PATH, tempDir);
 
-    wchar_t tempFile[MAX_PATH];
+    wchar_t tempFile[MAX_PATH] = { 0 };
 
     GetTempFileNameW(
         tempDir,
@@ -499,10 +503,10 @@ int GetTempFileNameWLogging(void)
 
 int GetTempFileNameALogging(void)
 {
-    char tempDir[MAX_PATH];
+    char tempDir[MAX_PATH] = { 0 };
     GetTempPathA(MAX_PATH, tempDir);
 
-    char tempFile[MAX_PATH];
+    char tempFile[MAX_PATH] = { 0 };
 
     GetTempFileNameA(
         tempDir,
@@ -516,7 +520,7 @@ int GetTempFileNameALogging(void)
 
 int CreateDirectoryWLogging(void)
 {
-    BOOL success = CreateDirectoryW(
+    const BOOL success = CreateDirectoryW(
         L"CreateDirectoryWLoggingTest",
         0
         );
@@ -525,7 +529,7 @@ int CreateDirectoryWLogging(void)
 
 int CreateDirectoryALogging(void)
 {
-    BOOL success = CreateDirectoryA(
+    const BOOL success = CreateDirectoryA(
         "CreateDirectoryALoggingTest",
         0
         );

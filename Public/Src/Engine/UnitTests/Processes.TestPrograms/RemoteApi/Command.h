@@ -4,7 +4,12 @@
 // Support for wrapping functions as named Command objects.
 // This allows dispatching a string like "CommandName,a,b" to a call CommandName("a", "b").
 
-enum CommandInvocationResult {
+// warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
+// warning C26440: Function 'invokeList<...>' can be declared 'noexcept' (f.6).
+// warning C26432: If you define or delete any default operation in the type 'class CommandBase', define or delete them all (c.21).
+#pragma warning( disable : 26446 26440 26432 )
+
+enum class CommandInvocationResult {
     Success,
     Failure,
     CommandNameDoesNotMatch,
@@ -19,10 +24,12 @@ typedef bool(DualParam)(std::wstring const&, std::wstring const&);
 template<typename Fn> bool invokeList(Fn* fn, std::vector<std::wstring> const& parameters);
 
 template<> bool invokeList<SingleParam>(SingleParam* fn, std::vector<std::wstring> const& parameters) {
+    assert(fn != nullptr);
     return fn(parameters[1]);
 }
 
 template<> bool invokeList<DualParam>(DualParam* fn, std::vector<std::wstring> const& parameters) {
+    assert(fn != nullptr);
     return fn(parameters[1], parameters[2]);
 }
 
@@ -41,11 +48,11 @@ public:
 
         std::wstring const& nameToInvoke = parameters[0];
         if (nameToInvoke != commandName) {
-            return CommandNameDoesNotMatch;
+            return CommandInvocationResult::CommandNameDoesNotMatch;
         }
 
         if (requiredParameters + 1 != parameters.size()) {
-            return IncorrectParameterCount;
+            return CommandInvocationResult::IncorrectParameterCount;
         }
 
         return UnpackAndInvoke(parameters);
@@ -74,8 +81,8 @@ private:
     FnType fn;
 
 protected:
-    virtual CommandInvocationResult UnpackAndInvoke(std::vector<std::wstring> const& parameters) const {
-        bool succeeded = invokeList(fn, parameters);
-        return succeeded ? Success : Failure;
+    CommandInvocationResult UnpackAndInvoke(std::vector<std::wstring> const& parameters) const override {
+        const bool succeeded = invokeList(fn, parameters);
+        return succeeded ? CommandInvocationResult::Success : CommandInvocationResult::Failure;
     }
 };

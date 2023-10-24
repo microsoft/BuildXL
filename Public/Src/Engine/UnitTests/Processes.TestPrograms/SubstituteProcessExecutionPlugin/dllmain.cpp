@@ -11,6 +11,10 @@
 #include <iostream>
 #pragma warning( pop )
 
+// warning C26818: Switch statement does not cover all cases. Consider adding a 'default' label (es.79).
+// warning C26461: The pointer argument 'hModule' for function 'DllMain' can be marked as a pointer to const (con.3).
+#pragma warning( disable : 26818 26461 )
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     UNREFERENCED_PARAMETER(hModule);
@@ -91,7 +95,7 @@ extern "C" __declspec(dllexport) BOOL WINAPI CommandMatches(
     if (arguments != nullptr) 
     {
         std::wstring argumentsStr(arguments);
-        size_t pos = argumentsStr.find_last_of(L"@");
+        const size_t pos = argumentsStr.find_last_of(L"@");
 
         if (pos != std::wstring::npos)
         {

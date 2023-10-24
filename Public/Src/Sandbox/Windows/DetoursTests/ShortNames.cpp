@@ -17,7 +17,7 @@
 #pragma warning( disable : 4711) // ... selected for inline expansion
 
 static bool ExpectExistent(wchar_t const* filename) {
-    DWORD attributes = GetFileAttributesW(filename);
+    const DWORD attributes = GetFileAttributesW(filename);
     if (attributes == INVALID_FILE_ATTRIBUTES) {
         wprintf(L"Expected the input file to exist: %s\n", filename);
         return false;
@@ -27,7 +27,7 @@ static bool ExpectExistent(wchar_t const* filename) {
 }
 
 VerificationResult VerifyPathDoesNotContainShortPathMarker(wchar_t const* description, wchar_t const* longPath, wchar_t const* pathToCheck) {
-    bool hasShortPathMarker = wcschr(pathToCheck, '~') != nullptr;
+    const bool hasShortPathMarker = wcschr(pathToCheck, '~') != nullptr;
     
     if (hasShortPathMarker) {
         wprintf(L"Path or name contains sort path marker [%s on %s]: %s\n",
@@ -65,7 +65,7 @@ VerificationResult VerifyShortNamesAbsentViaFindFirstFile(wchar_t const * filena
 // Expansion of a path with GetShortPathName
 VerificationResult VerifyShortNamesAbsentViaGetShortPathName(wchar_t const * filename) {
     wchar_t buffer[MAX_PATH] {};
-    DWORD count = GetShortPathNameW(filename, &buffer[0], MAX_PATH);
+    const DWORD count = GetShortPathNameW(filename, &buffer[0], MAX_PATH);
     if (count >= MAX_PATH || count == 0) {
         wprintf(L"GetShortPathNameW failed: %lx\r\n", GetLastError());
         return false;
@@ -87,7 +87,7 @@ int ShortNames()
         return 1;
     }
 
-    VerificationResult result;
+    VerificationResult result{};
     result.Combine(VerifyShortNamesAbsentViaFindFirstFile(TestDirectory));
     result.Combine(VerifyShortNamesAbsentViaFindFirstFile(TestFile));
 

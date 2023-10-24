@@ -26,26 +26,35 @@
 
 #include "stdafx.h"
 #include "Command.h"
-#pragma warning( disable : 4711) // ... selected for inline expansion
+
+// warning C6387: 'buffer' could be '0'.
+// warning C26493: Don't use C-style casts (type.4).
+// warning C26426: Global initializer calls a non-constexpr function 'operator new' (i.22).
+// warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
+// warning C26429: Symbol 'c' is never tested for nullness, it can be marked as not_null (f.23).
+// warning C26461: The pointer argument 'argv' for function 'main' can be marked as a pointer to const (con.3).
+// warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
+// warning C26485: Expression 'Commands': No array to pointer decay (bounds.3).
+#pragma warning( disable : 4711 6387 26493 26426 26409 26429 26461 26481 26485 ) // ... selected for inline expansion
 
 bool EnumerateWithFindFirstFileEx(std::wstring const& path) {
     WIN32_FIND_DATAW findData{};
-    HANDLE findHandle = FindFirstFileExW(path.c_str(), FindExInfoBasic, &findData, FindExSearchNameMatch, NULL, 0);
+    const HANDLE findHandle = FindFirstFileExW(path.c_str(), FindExInfoBasic, &findData, FindExSearchNameMatch, NULL, 0);
     if (findHandle != INVALID_HANDLE_VALUE) {
         while (FindNextFileW(findHandle, &findData)) {}
 
-        DWORD error = GetLastError();
+        const DWORD error = GetLastError();
         FindClose(findHandle);
         return error == ERROR_NO_MORE_FILES;
     }
     else {
-        DWORD error = GetLastError();
+        const DWORD error = GetLastError();
         return error == ERROR_FILE_NOT_FOUND || error == ERROR_DIRECTORY;
     }
 }
 
 bool EnumerateFileOrDirectoryByHandle(std::wstring const& path) {
-    HANDLE handle = CreateFileW(
+    const HANDLE handle = CreateFileW(
         path.c_str(),
         FILE_LIST_DIRECTORY | SYNCHRONIZE,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -62,7 +71,7 @@ bool EnumerateFileOrDirectoryByHandle(std::wstring const& path) {
 
     for ( ; ; ) {
         IO_STATUS_BLOCK iosb{};
-        NTSTATUS status = NtQueryDirectoryFile(
+        const NTSTATUS status = NtQueryDirectoryFile(
             handle,
             NULL, // event
             NULL, // apc
@@ -87,17 +96,17 @@ bool EnumerateFileOrDirectoryByHandle(std::wstring const& path) {
 
 #undef CreateHardLink
 bool CreateHardLink(std::wstring const& existingFile, std::wstring const& newLink) {
-    BOOL success = CreateHardLinkW(newLink.c_str(), existingFile.c_str(), nullptr);
+    const BOOL success = CreateHardLinkW(newLink.c_str(), existingFile.c_str(), nullptr);
     return success == TRUE;
 }
 
 bool DeleteViaNtCreateFile(std::wstring const& path) {
     HANDLE handle{};
 
-    UNICODE_STRING usPath;
+    UNICODE_STRING usPath{};
     RtlInitUnicodeString(&usPath, path.c_str());
 
-    OBJECT_ATTRIBUTES attrib;
+    OBJECT_ATTRIBUTES attrib{};
     InitializeObjectAttributes(
         &attrib,
         &usPath,
@@ -145,7 +154,7 @@ static CommandBase const* Commands[] = {
 
 int main(int argc, char **argv)
 {
-    (void)argv; // Unused
+    std::ignore = argv; // Unused
 
     if (argc != 1) {
         std::wcerr << L"No arguments expected. API commands are expected over stdin." << std::endl;
@@ -175,7 +184,7 @@ int main(int argc, char **argv)
             wchar_t const* tokenEnd = tokenStart;
 
             for ( ; ; ) {
-                wchar_t c = *tokenEnd;
+                const wchar_t c = *tokenEnd;
                 if (c == L',' || c == L'\0') {
                     parameters.push_back(
                         std::wstring(tokenStart, tokenEnd));
@@ -204,22 +213,22 @@ int main(int argc, char **argv)
             } 
 
             bool handled = false;
-            CommandInvocationResult result = cmd->InvokeIfMatches(parameters);
+            const CommandInvocationResult result = cmd->InvokeIfMatches(parameters);
             switch (result) {
-            case Success:
+            case CommandInvocationResult::Success:
                 handled = true;
                 std::wcout << commandName << L"," << 0;
                 break;
-            case Failure:
+            case CommandInvocationResult::Failure:
                 handled = true;
                 std::wcout << commandName << L"," << 1;
                 break;
-            case IncorrectParameterCount:
+            case CommandInvocationResult::IncorrectParameterCount:
                 std::wcerr 
                     << L"Wrong number of parameters for " << commandName
                     << L". Expected: " << cmd->requiredParameters << " Actual: '" << (parameters.size() - 1) << "'" << std::endl;
                 return 4;
-            case CommandNameDoesNotMatch:
+            case CommandInvocationResult::CommandNameDoesNotMatch:
                 handled = false;
                 break;
             default:

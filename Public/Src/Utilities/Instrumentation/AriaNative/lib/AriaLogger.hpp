@@ -6,7 +6,7 @@
 
 #ifdef MICROSOFT_INTERNAL // Only needed for internal builds
 
-#include "LogManager.hpp"
+#include <LogManager.hpp>
 
 #include <Windows.h>
 

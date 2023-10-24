@@ -18,12 +18,12 @@ namespace UnitTests {
         sources: globR(d`.`, "*.cpp"),
         includes: [
             ...globR(d`.`, "*.h"),
+            importFrom("BuildXL.Sandbox.Windows").Core.includes,
+            importFrom("BuildXL.Sandbox.Windows").Detours.Include.includes,
             importFrom("WindowsSdk").UM.include,
             importFrom("WindowsSdk").Shared.include,
             importFrom("WindowsSdk").Ucrt.include,
             importFrom("VisualCpp").include,
-            importFrom("BuildXL.Sandbox.Windows").Core.includes,
-            importFrom("BuildXL.Sandbox.Windows").Detours.Include.includes,
         ],
         libraries: [
             ...importFrom("WindowsSdk").UM.standardLibs,

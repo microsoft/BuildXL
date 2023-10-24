@@ -21,6 +21,14 @@ struct TreeNode;
 // The threshold is defined based on profiling sessions
 #define TREE_NODE_CHILDREN_THRESHOLD 100U
 
+// warning C4625: 'TreeNodeChildren': copy constructor was implicitly defined as deleted
+// warning C4626: 'TreeNodeChildren': assignment operator was implicitly defined as deleted
+// warning C5026: 'TreeNode': move constructor was implicitly defined as deleted
+// warning C5027: 'TreeNode' : move assignment operator was implicitly defined as deleted
+// warning C26455: Default constructor should not throw. Declare it 'noexcept' (f.6).
+// warning C26432: If you define or delete any default operation in the type 'class TreeNodeChildren', define or delete them all (c.21).
+#pragma warning( disable : 4625 4626 5026 5027 26455 26432 )
+
 // The children of a TreeNode. Exposes a mutable associative collection of wstring to TreeNode*.
 // In most cases a TreeNode do not have too many children, so the class is optimized to deal with the case of a lower
 // number of children.
@@ -33,22 +41,11 @@ class TreeNodeChildren
 {
 public:
     EXPORT inline TreeNodeChildren() :
-        m_map(NULL),
-        m_vector(new std::vector<std::pair<std::wstring, TreeNode*>>())
+        m_vector(std::make_unique<std::vector<std::pair<std::wstring, TreeNode*>>>())
     { 
     }
 
-    EXPORT inline ~TreeNodeChildren()
-    {
-        if (m_vector != NULL)
-        {
-            delete m_vector;
-        }
-        else
-        {
-            delete m_map;
-        }
-    }
+    EXPORT inline ~TreeNodeChildren() { }
 
     TreeNodeChildren(const TreeNodeChildren& obj) = default;
     TreeNodeChildren& operator=(const TreeNodeChildren&) = default;
@@ -64,13 +61,13 @@ public:
     EXPORT void erase(const std::wstring& key);
 
     // The current size of the collection
-    EXPORT inline size_t size()
+    EXPORT inline size_t size() noexcept
     {
         return m_map != NULL ? (size_t)m_map->size() : (size_t)m_vector->size();
     }
 
     // Removes all elements from the collection
-    EXPORT inline void clear()
+    EXPORT inline void clear() noexcept
     {
         m_map != NULL ? m_map->clear() : m_vector->clear();
     }
@@ -79,8 +76,8 @@ public:
     EXPORT void forEach(std::function<void(std::pair<std::wstring, TreeNode*>*)> function);
 
 private:
-    std::unordered_map<std::wstring, TreeNode*, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>* m_map;
-    std::vector<std::pair<std::wstring, TreeNode*>>* m_vector;
+    std::unique_ptr<std::unordered_map<std::wstring, TreeNode*, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>> m_map;
+    std::unique_ptr<std::vector<std::pair<std::wstring, TreeNode*>>> m_vector;
     static CaseInsensitiveStringComparer s_comparer;
 };
 
@@ -89,5 +86,5 @@ struct TreeNode {
     // Edges to children, with the path atom that leads to it
     TreeNodeChildren children;
     // Whether the node is an intermediate node or it represents a path that was explicitly inserted
-    bool intermediate;
+    bool intermediate = false;
 };

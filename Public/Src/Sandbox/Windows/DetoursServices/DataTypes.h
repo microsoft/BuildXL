@@ -11,6 +11,16 @@
 #include "DebuggingHelpers.h"
 #endif // _WIN32 || MAC_OS_LIBRARY
 
+#if _WIN32
+// warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
+// warning C26485: Expression '...': No array to pointer decay (bounds.3).
+// warning C26482: Only index into arrays using constant expressions (bounds.2).
+// warning C26490: Don't use reinterpret_cast (type.1).
+// warning C26497: You can attempt to make 'Check<FAM_FLAG>' constexpr unless it contains any undefined behavior (f.4).
+// warning C26812: The enum type 'FileAccessPolicy' is unscoped. Prefer 'enum class' over 'enum' (Enum.3).
+#pragma warning( disable : 26446 26485 26482 26490 26497 26812 )
+#endif
+
 #define NoUsn -1
 
 // ----------------------------------------------------------------------------
@@ -77,10 +87,10 @@ DEFINE_ENUM_FLAG_OPERATORS(FileAccessManifestFlag)
 //   inline book CheckDisableDetours(FileAccessManifestFlag flags) { return (flags & FileAccessManifestFlag::DisableDetours) != FileAccessManifestFlag::None; }
 //
 #define GEN_FAM_FLAG_CHECKER(flag_name, flag_value) \
-  inline bool Check##flag_name(FileAccessManifestFlag flags) { return (flags & FileAccessManifestFlag::flag_name) != FileAccessManifestFlag::None; }
+  inline bool Check##flag_name(FileAccessManifestFlag flags) noexcept { return (flags & FileAccessManifestFlag::flag_name) != FileAccessManifestFlag::None; }
 FOR_ALL_FAM_FLAGS(GEN_FAM_FLAG_CHECKER)
 
-inline bool CheckReportAnyAccess(FileAccessManifestFlag flags, bool accessDenied)
+inline bool CheckReportAnyAccess(FileAccessManifestFlag flags, bool accessDenied) noexcept
 {
     return
         CheckReportAllFileAccesses(flags) ||
@@ -108,7 +118,7 @@ DEFINE_ENUM_FLAG_OPERATORS(FileAccessManifestExtraFlag)
 
 // Checker function for FileAccessManifestFlagExtra enum.
 #define GEN_FAM_EXTRA_FLAG_CHECKER(flag_name, flag_value) \
-  inline bool Check##flag_name(FileAccessManifestExtraFlag flags) { return (flags & FileAccessManifestExtraFlag::flag_name) != FileAccessManifestExtraFlag::NoneExtra; }
+  inline bool Check##flag_name(FileAccessManifestExtraFlag flags) noexcept { return (flags & FileAccessManifestExtraFlag::flag_name) != FileAccessManifestExtraFlag::NoneExtra; }
 FOR_ALL_FAM_EXTRA_FLAGS(GEN_FAM_EXTRA_FLAG_CHECKER)
 
 //
@@ -239,18 +249,18 @@ extern unsigned long g_injectionTimeoutInMinutes;
 #define GENERATE_TAG(type_name, tag_value)                          \
     typedef uint32_t TagType;                                       \
     TagType Tag;                                                    \
-    inline const char* CheckValid() const {                         \
+    inline const char* CheckValid() const noexcept {                \
         return (this->Tag != (uint32_t)tag_value)                   \
              ? "Wrong " #type_name " tag. Expected " #tag_value "." \
              : nullptr;                                             \
     }                                                               \
-    inline void AssertValid() const {                               \
+    inline void AssertValid() const noexcept {                      \
          assert(CheckValid() == nullptr);                           \
     }
 #else
 #define GENERATE_TAG(type_name, tag_value) \
-    inline const char* CheckValid() const { return nullptr; } \
-    inline void AssertValid() const { }
+    inline const char* CheckValid() const noexcept { return nullptr; } \
+    inline void AssertValid() const noexcept { }
 #endif
 
 // ==========================================================================
@@ -261,7 +271,7 @@ typedef struct ManifestDebugFlag_t
     typedef uint32_t    FlagType;
     FlagType            Flag;
 
-    inline const char* CheckValid() const
+    inline const char* CheckValid() const noexcept
     {
 #ifdef _DEBUG
         if (this->Flag != 0xDB600001)
@@ -311,7 +321,7 @@ typedef struct ManifestDebugFlag_t
     /// GetSize
     ///
     /// There are no variable-length members, so the length of this struct can be determined using sizeof.
-    size_t GetSize() const
+    size_t GetSize() const noexcept
     {
         return sizeof(ManifestDebugFlag_t);
     }
@@ -326,7 +336,7 @@ typedef struct ManifestInjectionTimeout_t
     typedef uint32_t    FlagType;
     FlagType            Flags;
 
-    inline const char* CheckValid() const
+    inline const char* CheckValid() const noexcept
     {
         if (this->Flags <= 0)
         {
@@ -344,8 +354,8 @@ typedef struct ManifestInjectionTimeout_t
 #ifdef _DEBUG
             assert(false); // For easy debugging/attaching.
 #endif // _DEBUG
-            Dbg(L"Error: The manifest blob timeout value (in minutes) is %d. It should be bigger than 0.", this->Flags);
-            wprintf(L"Error: The manifest blob timeout value (in minutes) is %d. It should be bigger than 0.", this->Flags);
+            Dbg(L"Error: The manifest blob timeout value (in minutes) is %u. It should be bigger than 0.", this->Flags);
+            wprintf(L"Error: The manifest blob timeout value (in minutes) is %u. It should be bigger than 0.", this->Flags);
             // If the manifest debug flag doesn't match, just return false, so we continue without detouring processes.
             // We already logged that there is a mismatch. Also the message is logged to the debug output console.
             // And just in case it is also printed to the console.
@@ -360,7 +370,7 @@ typedef struct ManifestInjectionTimeout_t
     /// GetSize
     ///
     /// There are no variable-length members, so the length of this struct can be determined using sizeof.
-    size_t GetSize() const
+    size_t GetSize() const noexcept
     {
         return sizeof(ManifestInjectionTimeout_t);
     }
@@ -378,7 +388,7 @@ typedef struct ManifestTranslatePathsStrings_t
     CountType           Count;
 
     /// There are no variable-length members, so the length of this struct can be determined using sizeof.
-    inline size_t GetSize() const
+    inline size_t GetSize() const noexcept
     {
         return sizeof(ManifestTranslatePathsStrings_t);
     }
@@ -396,7 +406,7 @@ typedef struct ManifestChildProcessesToBreakAwayFromJob_t
     CountType           Count;
 
     /// There are no variable-length members, so the length of this struct can be determined using sizeof.
-    size_t GetSize() const
+    size_t GetSize() const noexcept
     {
         return sizeof(ManifestChildProcessesToBreakAwayFromJob_t);
     }
@@ -410,7 +420,7 @@ typedef struct ManifestInternalDetoursErrorNotificationFileString_t
 {
     GENERATE_TAG("ManifestInternalDetoursErrorNotificationFileString", 0xABCDEF03)
 
-    inline size_t GetSize() const
+    inline size_t GetSize() const noexcept
     {
 #if !_WIN32 && !_DEBUG
         return 0;
@@ -434,7 +444,7 @@ typedef struct ManifestFlags_t
     /// GetSize
     ///
     /// There are no variable-length members, so the length of this struct can be determined using sizeof.
-    size_t GetSize() const
+    size_t GetSize() const noexcept
     {
         return sizeof(ManifestFlags_t);
     }
@@ -454,7 +464,7 @@ typedef struct ManifestExtraFlags_t
     /// GetSize
     ///
     /// There are no variable-length members, so the length of this struct can be determined using sizeof.
-    size_t GetSize() const
+    size_t GetSize() const noexcept
     {
         return sizeof(ManifestExtraFlags_t);
     }
@@ -478,7 +488,7 @@ typedef struct ManifestPipId_t
     /// GetSize
     ///
     /// There are no variable-length members, so the length of this struct can be determined using sizeof.
-    size_t GetSize() const
+    size_t GetSize() const noexcept
     {
         return sizeof(ManifestPipId_t);
     }
@@ -509,7 +519,7 @@ typedef struct ManifestReport_t
     /// If the bottom bit of the Size is 1, then the next field is an integer
     /// representing the handle to the report file.
     /// Otherwise, the next field is a path to a report file.
-    bool IsReportHandle() const
+    bool IsReportHandle() const noexcept
     {
         return (Size & 0x1) == 1;
     }
@@ -517,7 +527,7 @@ typedef struct ManifestReport_t
     /// IsReportPresent
     ///
     /// If the size is nonzero then the report is present, otherwise we have an empty report line.
-    bool IsReportPresent() const
+    bool IsReportPresent() const noexcept
     {
         return Size > 0;
     }
@@ -526,7 +536,7 @@ typedef struct ManifestReport_t
     ///
     /// Calculate the size of this structure by fields which exist for this struct (excluding the union),
     /// and if the report is present, mask out the lowest bit of the size to find out how large the union was.
-    size_t GetSize() const
+    size_t GetSize() const noexcept
     {
         size_t size = 0;
 
@@ -562,18 +572,22 @@ typedef struct ManifestDllBlock_t
     /// GetDllString
     ///
     /// Calculate the location of the dll string at index and return that string.
-    PCDllStringType GetDllString(size_t index) const
+    PCDllStringType GetDllString(size_t index) const noexcept
     {
         assert(index < StringCount);
         PCDllStringType stringBlock = reinterpret_cast<PCDllStringType>(DllOffsets + StringCount);
+        assert(stringBlock != nullptr);
         return &stringBlock[DllOffsets[index]];
     }
 
+#pragma warning( push )
+// warning C26451: Arithmetic overflow: Using operator '+' on a 4 byte value and then casting the result to a 8 byte value. Cast the value to the wider type before calling operator '+' to avoid overflow (io.2).
+#pragma warning( disable : 26451)
     /// GetSize
     ///
     /// Calculate the size of this structure by fields which exist for this struct, and the total
     /// size of the StringBlock (in StringBlockSize).
-    size_t GetSize() const
+    size_t GetSize() const noexcept
     {
         size_t size = 0;
 
@@ -581,11 +595,12 @@ typedef struct ManifestDllBlock_t
         size += sizeof(TagType);
 #endif
         // Two count values + variable number of offsets
-        size += sizeof(OffsetType) * (2 + StringCount);
+        size += sizeof(OffsetType) * (2U + StringCount);
         size += StringBlockSize;
 
         return size;
     }
+#pragma warning( pop )
 } ManifestDllBlock;
 typedef const ManifestDllBlock * PCManifestDllBlock;
 
@@ -609,7 +624,7 @@ typedef struct ManifestSubstituteProcessExecutionShim_t
     ///
     /// Calculate the size of this structure by fields which exist for this struct, and the total
     /// size of the StringBlock (in StringBlockSize).
-    size_t GetSize() const
+    size_t GetSize() const noexcept
     {
         return sizeof(ManifestSubstituteProcessExecutionShim_t);
     }
@@ -642,60 +657,65 @@ typedef struct ManifestRecord_t
     ChildOffsetType     Buckets[ANYSIZE_ARRAY];
     // PartialPathType PartialPath (after the end of the Buckets array)
 
-    inline USN GetExpectedUsn() const {
-        return (((USN)this->ExpectedUsnHi) << 32) | this->ExpectedUsnLo;
+#pragma warning( push )
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+#pragma warning( disable : 26472)
+    inline USN GetExpectedUsn() const noexcept {
+        return ((static_cast<USN>(this->ExpectedUsnHi)) << 32) | this->ExpectedUsnLo;
     }
 
-    inline DWORD GetPathId() const {
+    inline DWORD GetPathId() const noexcept {
         return static_cast<DWORD>(this->PathId);
     }
 
-    inline FileAccessPolicy GetConePolicy() const {
+    inline FileAccessPolicy GetConePolicy() const noexcept {
         return static_cast<FileAccessPolicy>(this->ConePolicy);
     }
 
     // If a specific policy was set for this node, leaving its underlying scope explicitly out, that one is returned. Otherwise, the regular scope
     // policy also applies for this node
-    inline FileAccessPolicy GetNodePolicy() const {
+    inline FileAccessPolicy GetNodePolicy() const noexcept {
         return static_cast<FileAccessPolicy>(this->NodePolicy);
     }
+#pragma warning( pop )
 
-    PCManifestRecord GetChildRecord(BucketCountType index) const
+    PCManifestRecord GetChildRecord(BucketCountType index) const noexcept
     {
         assert(index < this->BucketCount);
 
-        ChildOffsetType childOffset = this->Buckets[index];
+        const ChildOffsetType childOffset = this->Buckets[index];
         if (childOffset == 0)
         {
             return nullptr;
         }
 
         PCManifestRecord childRecord = reinterpret_cast<PCManifestRecord>(reinterpret_cast<const BYTE *>(this) + (childOffset & ~FileAccessBucketOffsetFlag::ChainMask));
+        assert(childRecord != nullptr);
         childRecord->AssertValid();
 
         return childRecord;
     }
 
-    bool IsCollisionChainStart(BucketCountType index) const
+    bool IsCollisionChainStart(BucketCountType index) const noexcept
     {
         assert(index < this->BucketCount);
 
-        ChildOffsetType childOffset = this->Buckets[index];
+        const ChildOffsetType childOffset = this->Buckets[index];
         return (childOffset & FileAccessBucketOffsetFlag::ChainStart) != 0;
     }
 
-    bool IsCollisionChainContinuation(BucketCountType index) const
+    bool IsCollisionChainContinuation(BucketCountType index) const noexcept
     {
         assert(index < this->BucketCount);
 
-        ChildOffsetType childOffset = this->Buckets[index];
+        const ChildOffsetType childOffset = this->Buckets[index];
         return (childOffset & FileAccessBucketOffsetFlag::ChainContinuation) != 0;
     }
 
-    PartialPathType GetPartialPath() const
+    PartialPathType GetPartialPath() const noexcept
     {
-        BucketCountType numBuckets = this->BucketCount;
-        PartialPathType path = reinterpret_cast<PartialPathType>(&(this->Buckets[numBuckets]));
+        const BucketCountType numBuckets = this->BucketCount;
+        const PartialPathType path = reinterpret_cast<PartialPathType>(&(this->Buckets[numBuckets]));
 
         return path;
     }

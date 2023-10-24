@@ -1,11 +1,17 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+// warning C26426: Global initializer calls a non-constexpr function 'boost::unit_test::decorator::collector_t::instance' (i.22).
+#pragma warning( disable : 26426 26440 )
+
 #include <PathTree.h>
 
 BOOST_AUTO_TEST_SUITE(PathTreeTests)
 
-bool contains(std::vector<std::wstring>& collection, const std::wstring& element);
+bool contains(std::vector<std::wstring>& collection, const std::wstring& element) noexcept;
+
+// warning C26496: The variable 'success' does not change after construction, mark it as const (con.4).
+#pragma warning( disable : 26496 )
 
 BOOST_AUTO_TEST_CASE( WellFormedPaths )
 {
@@ -128,7 +134,7 @@ BOOST_AUTO_TEST_CASE( CasePreservingPaths )
     BOOST_CHECK(contains(desc, L"C:\\a\\path\\to\\ELSE"));
 }
 
-bool contains(std::vector<std::wstring>& collection, const std::wstring& element)
+bool contains(std::vector<std::wstring>& collection, const std::wstring& element) noexcept
 {
     for (auto iter = collection.begin(); iter != collection.end(); iter++)
     {

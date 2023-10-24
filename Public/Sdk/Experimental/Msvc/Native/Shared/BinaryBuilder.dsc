@@ -43,6 +43,9 @@ namespace Binary {
         /** Both include paths and local include files not on the explicit  (e.g. headers relative to sources). */
         includes?: (File | StaticDirectory)[];
 
+        /** Declare include paths that can be considered as external includes to avoid generating warnings from external headers during compilation. */
+        externalIncludes?: StaticDirectory[];
+
         /** Inner templates. */
         innerTemplates?: NativeBinaryTemplates;
 
@@ -129,7 +132,7 @@ namespace Binary {
     /** The default BuildXL-specific CL arguments */
     const defaultClTemplate = <Cl.Arguments>{
         // from default template
-        enablePreFast: false,
+        enablePreFast: true,
         treatWarningAsError: true,
         warningLevel: Cl.ClWarningLevel.enableAllWarnings,
         bufferSecurityCheck: true,
@@ -152,7 +155,8 @@ namespace Binary {
             {name: "_STL_WARNING_LEVEL", value: "3" }
         ],
         enableSpectreVariantOneMitigation: true,
-        languageVersion: Cl.LanguageVersion.cpp20
+        languageVersion: Cl.LanguageVersion.cpp20,
+        externalHeaderDiagnostics: [ "anglebrackets", "W0" ], // Disables warnings from headers included with angle brackets
     };
 
     /** Computes all the include search paths from the NativeBinaryArguments */
@@ -160,7 +164,8 @@ namespace Binary {
     export function computeAllIncludeSearchPaths(args: NativeBinaryArguments): (File | StaticDirectory)[] {
         return [
             ...(args.includes || []),
-            ...(args.frameworks || []).mapMany(f => f.includeSearchPaths || [])
+            ...(args.frameworks || []).mapMany(f => f.includeSearchPaths || []),
+            ...(args.externalIncludes || [])
         ];
     }
 
@@ -199,6 +204,7 @@ namespace Binary {
                     ...(generatedSources || [])
                 ],
                 includes: includes,
+                externalIncludes: args.externalIncludes,
                 precompiledHeaderName: args.precompiledHeaderName,
                 injectPrecompiledHeaderReference: args.outputFileName.changeExtension("").toString(),
                 preprocessorSymbols: computeAllPreprocessorSymbols(args)

@@ -11,8 +11,16 @@
 
 // When compiled for tests Dbg is not defined, so let's provide a mock for it
 #ifdef TEST
+#pragma warning( push )
+// warning C26440: Function 'Dbg' can be declared 'noexcept' (f.6).
+#pragma warning( disable : 26440 )
 void Dbg(PCWSTR, ...) {}
+#pragma warning( pop )
 #endif
+
+// warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
+// warning C26400: Do not assign the result of an allocation or a function call with an owner<T> return value to a raw pointer, use owner<T> instead (i.11).
+#pragma warning( disable : 26409 26400 )
 
 PathTree::PathTree()
 {
@@ -21,16 +29,20 @@ PathTree::PathTree()
     m_root->intermediate = true;
 }
 
+#pragma warning( push )
+// warning C26447: The function is declared 'noexcept' but calls function 'RemoveAllDescendants()' which may throw exceptions (f.6).
+#pragma warning( disable : 26447 )
 PathTree::~PathTree()
 {
     RemoveAllDescendants(m_root);
     delete m_root;
 }
+#pragma warning( pop )
 
 bool PathTree::TryInsert(const std::wstring& path)
 {
     std::vector<std::wstring> elements;
-    int err = TryDecomposePath(path, elements);
+    const int err = TryDecomposePath(path, elements);
     if (err != 0)
     {
         Dbg(L"PathTree::TryInsert: TryDecomposePath failed, not resolving path: %d", err);
@@ -42,7 +54,7 @@ bool PathTree::TryInsert(const std::wstring& path)
     for (unsigned int i = 0; i < elements.size(); i++)
     {
         // Only the last element is a final node
-        bool isIntermediate = (i != (elements.size() - 1));
+        const bool isIntermediate = (i != (elements.size() - 1));
         currentNode = Append(elements[i], currentNode, isIntermediate);
     }
 
@@ -127,7 +139,7 @@ void PathTree::RetrieveAndRemoveAllDescendants(const std::wstring& path, TreeNod
 {
     std::vector<TreeNode*> nodesToDelete;
 
-    auto retrieve = [this, &path, node, &descendants, &nodesToDelete](std::pair<std::wstring, TreeNode*>* iter)
+    const auto retrieve = [this, &path, node, &descendants, &nodesToDelete](std::pair<std::wstring, TreeNode*>* iter)
     {
         // Add the path atom to the path.
         std::wstring descendant(path);
@@ -161,7 +173,7 @@ void PathTree::RetrieveAndRemoveAllDescendants(const std::wstring& path, TreeNod
 
 void PathTree::RemoveAllDescendants(TreeNode* node)
 {
-    auto remove = [this](std::pair<std::wstring, TreeNode*>* iter)
+    const auto remove = [this](std::pair<std::wstring, TreeNode*>* iter)
     {
         RemoveAllDescendants(iter->second);
 
@@ -176,7 +188,7 @@ void PathTree::RemoveAllDescendants(TreeNode* node)
 bool PathTree::TryFind(const std::wstring& path, std::vector<std::pair<std::wstring, TreeNode*>>& nodeTrace)
 {
     std::vector<std::wstring> elements;
-    int err = TryDecomposePath(path, elements);
+    const int err = TryDecomposePath(path, elements);
     if (err != 0)
     {
         Dbg(L"PathTree::TryFind: TryDecomposePath failed, not resolving path: %d", err);
@@ -216,7 +228,7 @@ std::wstring PathTree::ToDebugString(TreeNode* node, std::wstring indent)
         node = m_root;
     }
 
-    auto append = [&result, &indent, this](std::pair<std::wstring, TreeNode*>* iter)
+    const auto append = [&result, &indent, this](std::pair<std::wstring, TreeNode*>* iter)
     {
         result.append(indent + iter->first + (!iter->second->intermediate ? L"*" : L"") + L"\r\n");
         result.append(ToDebugString(iter->second, indent + L"\t"));

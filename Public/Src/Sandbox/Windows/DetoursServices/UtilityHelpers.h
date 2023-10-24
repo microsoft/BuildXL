@@ -51,7 +51,7 @@ struct CaseInsensitiveStringLessThan {
 
             // Paths in the same process tend to share a significant prefix in common. Starting backwards
             // has a better chance to hit a difference first
-            auto result = std::lexicographical_compare(rhs.rbegin(), rhs.rend(), lhs.rbegin(), lhs.rend(),
+            const auto result = std::lexicographical_compare(rhs.rbegin(), rhs.rend(), lhs.rbegin(), lhs.rend(),
                 [](const wchar_t a, const wchar_t b)
                 {
                     if (a == b)

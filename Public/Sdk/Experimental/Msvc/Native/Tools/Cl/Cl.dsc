@@ -246,7 +246,8 @@ function evaluateOneSourceFile(
         ...(analysisOutFile ? [
             Cmd.option("/analyze:plugin", Artifact.input(importFrom("VisualCpp").espXEngineDll)),
             Cmd.argument("/analyze"),
-            Cmd.option("/analyze:log", Artifact.output(analysisOutFile))
+            Cmd.option("/analyze:log", Artifact.output(analysisOutFile)),
+            Cmd.argument("/analyze:external-"), // Avoid generating prefast warnings for external headers
         ] : []),
 
         ...extraCmdArgs,
@@ -269,20 +270,16 @@ function evaluateOneSourceFile(
             childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").clToolBreakawayProcesses,
         },
         environmentVariables: [
-			...addIf(analysisOutFile !== undefined,
-				{
-					name: "caexcludepath",
-					value: "%include%",
-				},
-				{
-					name: "esp.annotationbuildlevel",
-					value: "ignore",
-				},
-				{
-					name: "esp.extensions",
-					value: "cppcorecheck.dll",
-				}
-			),
+            ...addIf(analysisOutFile !== undefined,
+                {
+                    name: "esp.annotationbuildlevel",
+                    value: "ignore",
+                },
+                {
+                    name: "esp.extensions",
+                    value: "cppcorecheck.dll",
+                }
+            ),
         ],
     });
 
@@ -324,6 +321,7 @@ function optionsToCmdLineArgs(opts: ClOptions, includeLocalDir: boolean, include
         Cmd.options("/FI",                Artifact.inputs(opts.forcedIncludeFiles)),
         Cmd.option("/I",                  Artifact.none(Context.getSpecFileDirectory()), includeLocalDir),
         Cmd.options("/I",                 Artifact.inputs(includeSearchDirs)),
+        Cmd.options("/I",                 Artifact.inputs(opts.externalIncludes)),
         Cmd.options("/AI",                Artifact.inputs(opts.additionalUsingDirectories)),
         Cmd.options("/FU",                Artifact.inputs(opts.forcedUsingFiles)),
         Cmd.flag("/d1import_no_registry", opts.useRegistryForImport === false),
@@ -446,28 +444,30 @@ function optionsToCmdLineArgs(opts: ClOptions, includeLocalDir: boolean, include
         Cmd.flag("/d2epilogunwind",              opts.emitEpilogUnwindCodes),
 
         // other
-        Cmd.flag("/homeparams", opts.copyRegisterParametersToStack),
-        Cmd.flag("/FC",         opts.useFullPaths),
-        Cmd.flag("/Gh",         opts.callPEnter),
-        Cmd.flag("/GH",         opts.callPExit),
-        Cmd.flag("/FR",         opts.browseInformation),
-        Cmd.option("/FA",       assemblerOutputToCmdLineFlagSuffix(opts.assemblerOutput)),
-        Cmd.flag("/FAu",        opts.useUnicodeForAssemblerListing),
-        Cmd.flag("/doc",        opts.generateXmlDocumentation),
-        Cmd.flag("/sdl",        opts.sdlCheck),
-        Cmd.flag("/WL",         opts.enableOneLineDiagnostics),
-        Cmd.flag("/await",      opts.enableCoroutines),
-        Cmd.flag("/bigobj",     opts.generateExtendedObjectFormat),
-        Cmd.flag("/hotpatch",   opts.createHotPatchableImage),
-        Cmd.flag("/kernel",     opts.kernelModeBinary),
-        Cmd.flag("/cbstring",   opts.forceCodeBaseStrings),
-        Cmd.option("/E",        preprocStdOutToCmdLineFlagSuffix(opts.preprocessorStandardOutputRouting)),
-        Cmd.flag("/P",          opts.preprocessorOutputToAFile),
-        Cmd.option("/Fi",       Artifact.none(opts.preprocessorOutputDirectory)),
-        Cmd.sign("/guard:cf",   opts.guardControlFlow, true),
-        Cmd.flag("/Brepro",     opts.compilerDeterminism),
-        Cmd.flag("/ZH:SHA_256", opts.useSha256ForChecksum),
-        Cmd.flag("/Qspectre",   opts.enableSpectreVariantOneMitigation),
+        Cmd.flag("/homeparams",     opts.copyRegisterParametersToStack),
+        Cmd.flag("/FC",             opts.useFullPaths),
+        Cmd.flag("/Gh",             opts.callPEnter),
+        Cmd.flag("/GH",             opts.callPExit),
+        Cmd.flag("/FR",             opts.browseInformation),
+        Cmd.option("/FA",           assemblerOutputToCmdLineFlagSuffix(opts.assemblerOutput)),
+        Cmd.flag("/FAu",            opts.useUnicodeForAssemblerListing),
+        Cmd.flag("/doc",            opts.generateXmlDocumentation),
+        Cmd.flag("/sdl",            opts.sdlCheck),
+        Cmd.flag("/WL",             opts.enableOneLineDiagnostics),
+        Cmd.flag("/await",          opts.enableCoroutines),
+        Cmd.flag("/bigobj",         opts.generateExtendedObjectFormat),
+        Cmd.flag("/hotpatch",       opts.createHotPatchableImage),
+        Cmd.flag("/kernel",         opts.kernelModeBinary),
+        Cmd.flag("/cbstring",       opts.forceCodeBaseStrings),
+        Cmd.option("/E",            preprocStdOutToCmdLineFlagSuffix(opts.preprocessorStandardOutputRouting)),
+        Cmd.flag("/P",              opts.preprocessorOutputToAFile),
+        Cmd.option("/Fi",           Artifact.none(opts.preprocessorOutputDirectory)),
+        Cmd.sign("/guard:cf",       opts.guardControlFlow, true),
+        Cmd.flag("/Brepro",         opts.compilerDeterminism),
+        Cmd.flag("/ZH:SHA_256",     opts.useSha256ForChecksum),
+        Cmd.flag("/Qspectre",       opts.enableSpectreVariantOneMitigation),
+        Cmd.options("/external:I",  Artifact.inputs(opts.externalIncludes)),
+        Cmd.options("/external:",   opts.externalHeaderDiagnostics),
     ];
 }
 
@@ -1020,6 +1020,11 @@ export interface ClOptions {
      */
     includes?: (File | StaticDirectory)[];
 
+    /**
+     * Declare specific include paths as an external include to the compiler using the '/external:I' flag.
+     */
+    externalIncludes?: (StaticDirectory)[];
+
     /** Creates a binary that can be executed in the Windows kernel. */
     @@Tool.option("/kernel")
     kernelModeBinary?: boolean;
@@ -1259,6 +1264,13 @@ export interface ClOptions {
         */
     @@Tool.option("/Qspectre")
     enableSpectreVariantOneMitigation?: boolean;
+
+    /**
+         * Specifies compiler diagnostic behaviour for certain header files.
+         * Use this option to disable compiler warnings for external header files.
+         */
+    @@Tool.option("/external")
+    externalHeaderDiagnostics?: string[];
 }
 
 /**

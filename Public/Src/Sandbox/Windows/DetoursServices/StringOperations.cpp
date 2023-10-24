@@ -10,24 +10,32 @@
 #endif
 
 #if _WIN32
-#include "pathcch.h"
+#include <pathcch.h>
 #endif
 
 #define _MAX_EXTENDED_DIR_LENGTH (_MAX_EXTENDED_PATH_LENGTH - _MAX_DRIVE - _MAX_FNAME - _MAX_EXT - 4)
 #define _MAX_EXTENDED_PATH_LENGTH 32768 // see https://docs.microsoft.com/en-us/cpp/c-runtime-library/path-field-limits?view=vs-2019
 
+// warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
+// warning C26493: Don't use C-style casts (type.4).
+// warning C26461: The pointer argument 'pBuffer1' for function 'AreBuffersEqual' can be marked as a pointer to const
+// warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
+// warning C26482: Only index into arrays using constant expressions (bounds.2).
+// 
+#pragma warning( disable : 26472 26493 26461 26446 26482 )
+
 // Magic numbers known to provide good hash distributions.
 // See here: http://www.isthe.com/chongo/tech/comp/fnv/
 
-const DWORD Fnv1Prime32 = 16777619;
-const DWORD Fnv1Basis32 = (const unsigned int)2166136261;
+constexpr DWORD Fnv1Prime32 = 16777619;
+constexpr DWORD Fnv1Basis32 = static_cast<const unsigned int>(2166136261);
 
-inline static DWORD _Fold(DWORD hash, BYTE value)
+constexpr inline static DWORD _Fold(DWORD hash, BYTE value) noexcept
 {
     return (hash * Fnv1Prime32) ^ (DWORD)value;
 }
 
-inline static DWORD Fold(DWORD hash, WORD value)
+constexpr inline static DWORD Fold(DWORD hash, WORD value) noexcept
 {
     return _Fold(_Fold(hash, (BYTE)value), (BYTE)(((WORD)value) >> 8));
 }
@@ -37,15 +45,17 @@ inline static DWORD Fold(DWORD hash, WORD value)
 DWORD WINAPI NormalizeAndHashPath(
     __in                            PCPathChar pPath,
     __out_ecount(nBufferLength)     PBYTE pBuffer,
-    __in                            DWORD nBufferLength)
+    __in                            DWORD nBufferLength) noexcept
 {
+    assert(pPath != nullptr);
+    assert(pBuffer != nullptr);
     assert((pathlen(pPath) + 1)*sizeof(PathChar) == nBufferLength);
 
     // not the fastest hashing implementation, but gives awesome distribution
     DWORD hash = Fnv1Basis32;
     size_t i;
     for (i = 0; pPath[i]; i++) {
-        PathChar c = NormalizePathChar(pPath[i]);
+        const PathChar c = NormalizePathChar(pPath[i]);
         ((PPathChar)pBuffer)[i] = c;
         hash = Fold(hash, c);
     }
@@ -59,13 +69,15 @@ DWORD WINAPI NormalizeAndHashPath(
 
 DWORD WINAPI HashPath(
     __in_ecount(nLength)        PCPathChar pPath,
-    __in                        size_t nLength)
+    __in                        size_t nLength) noexcept
 {
+    assert(pPath != nullptr);
+
     // not the fastest hashing implementation, but gives awesome distribution
     DWORD hash = Fnv1Basis32;
     size_t i;
     for (i = 0; i < nLength; i++) {
-        PathChar c = NormalizePathChar(pPath[i]);
+        const PathChar c = NormalizePathChar(pPath[i]);
         hash = Fold(hash, c);
     }
 
@@ -75,7 +87,7 @@ DWORD WINAPI HashPath(
 BOOL WINAPI AreBuffersEqual(
     __in_ecount(nBufferLength)    PBYTE pBuffer1,
     __in_ecount(nBufferLength)    PBYTE pBuffer2,
-    __in                          DWORD nBufferLength)
+    __in                          DWORD nBufferLength) noexcept
 {
     return memcmp(pBuffer1, pBuffer2, nBufferLength) == 0;
 }
@@ -83,11 +95,14 @@ BOOL WINAPI AreBuffersEqual(
 BOOL WINAPI ArePathsEqual(
     __in_ecount(nLength)        PCPathChar pPath,
     __in_ecount(nLength + 1)    PCPathChar pNormalizedPath,
-    __in                        size_t nLength)
+    __in                        size_t nLength) noexcept
 {
+    assert(pPath != nullptr);
+    assert(pNormalizedPath != nullptr);
+
     size_t i;
     for (i = 0; i < nLength; i++) {
-        PathChar c = NormalizePathChar(pPath[i]);
+        const PathChar c = NormalizePathChar(pPath[i]);
         if (c != pNormalizedPath[i]) {
             return false;
         }
@@ -96,8 +111,11 @@ BOOL WINAPI ArePathsEqual(
     return !pNormalizedPath[i];
 }
 
-bool HasPrefix(PCPathChar str, PCPathChar prefix)
+bool HasPrefix(PCPathChar str, PCPathChar prefix) noexcept
 {
+    assert(str != nullptr);
+    assert(prefix != nullptr);
+
     for (size_t i = 0;; i++) {
         if (str[i] == 0) {
             return prefix[i] == 0;
@@ -113,16 +131,22 @@ bool HasPrefix(PCPathChar str, PCPathChar prefix)
     }
 }
 
-bool HasSuffix(PCPathChar str, size_t str_length, PCPathChar suffix)
+#pragma warning(push)
+// warning C6387: 'suffix' could be '0'.
+#pragma warning( disable : 6387 )
+bool HasSuffix(PCPathChar str, size_t str_length, PCPathChar suffix) noexcept
 {
-    size_t suffix_length = pathlen(suffix);
+    assert(str != nullptr);
+    assert(suffix != nullptr);
+
+    const size_t suffix_length = pathlen(suffix);
     if (suffix_length > str_length) {
         return false;
     }
 
     for (size_t i = 0; i < suffix_length; i++) {
-        PathChar c1 = str[str_length - i - 1];
-        PathChar c2 = suffix[suffix_length - i - 1];
+        const PathChar c1 = str[str_length - i - 1];
+        const PathChar c2 = suffix[suffix_length - i - 1];
         if (!IsPathCharEqual(c1, c2)) {
             return false;
         }
@@ -130,10 +154,13 @@ bool HasSuffix(PCPathChar str, size_t str_length, PCPathChar suffix)
 
     return true;
 }
+#pragma warning(pop)
 
-
-bool IsPathWithinTree(PCPathChar tree, PCPathChar path)
+bool IsPathWithinTree(PCPathChar tree, PCPathChar path) noexcept
 {
+    assert(tree != nullptr);
+    assert(path != nullptr);
+
     if (tree[0] == L'\0') {
         return true;
     }
@@ -193,8 +220,8 @@ bool IsPathWithinTree(PCPathChar tree, PCPathChar path)
 
 
         // Find the end of the current path element in 'tree'.
-        size_t treeElementStart = treepos;
-        size_t treeElementLength;
+        const size_t treeElementStart = treepos;
+        size_t treeElementLength = 0;
         for (;;) {
             if (tree[treepos] == 0) {
                 treeElementLength = treepos - treeElementStart;
@@ -209,8 +236,8 @@ bool IsPathWithinTree(PCPathChar tree, PCPathChar path)
         }
 
         // Find the end of the current path element in 'path'.
-        size_t pathElementStart = pathpos;
-        size_t pathElementLength;
+        const size_t pathElementStart = pathpos;
+        size_t pathElementLength = 0;
         for (;;) {
             if (path[pathpos] == 0) {
                 pathElementLength = pathpos - pathElementStart;
@@ -230,8 +257,8 @@ bool IsPathWithinTree(PCPathChar tree, PCPathChar path)
         }
 
         for (size_t i = 0; i < treeElementLength; i++) {
-            PathChar ct = tree[treeElementStart + i];
-            PathChar cp = path[pathElementStart + i];
+            const PathChar ct = tree[treeElementStart + i];
+            const PathChar cp = path[pathElementStart + i];
             if (!IsPathCharEqual(ct, cp)) {
                 return false;
             }
@@ -242,24 +269,26 @@ bool IsPathWithinTree(PCPathChar tree, PCPathChar path)
     }
 }
 
-bool StringLooksLikeRCTempFile(PCPathChar str, size_t str_length)
+bool StringLooksLikeRCTempFile(PCPathChar str, size_t str_length) noexcept
 {
+    assert(str != nullptr);
+
     if (str_length < 9) {
         return false;
     }
-    PathChar c1 = str[str_length - 9];
+    const PathChar c1 = str[str_length - 9];
     if (!IsPathCharEqual(c1, '\\')) {
         return false;
     }
-    PathChar c2 = str[str_length - 8];
+    const PathChar c2 = str[str_length - 8];
     if (!IsPathCharEqual(c2, 'R')) {
         return false;
     }
-    PathChar c3 = str[str_length - 7];
+    const PathChar c3 = str[str_length - 7];
     if (!IsPathCharEqual(c3, 'C') && !IsPathCharEqual(c3, 'D') && !IsPathCharEqual(c3, 'F')) {
         return false;
     }
-    PathChar c4 = str[str_length - 4];
+    const PathChar c4 = str[str_length - 4];
     if (IsPathCharEqual(c4, '.')) {
         // RC's temp files have no extension.
         return false;
@@ -267,10 +296,12 @@ bool StringLooksLikeRCTempFile(PCPathChar str, size_t str_length)
     return true;
 }
 
-bool StringLooksLikeBuildExeTraceLog(PCPathChar str, size_t str_length)
+bool StringLooksLikeBuildExeTraceLog(PCPathChar str, size_t str_length) noexcept
 {
     // detect filenames of the following form 
     // _buildc_dep_out.pass<NUMBER>
+
+    assert(str != nullptr);
 
     int trailingDigits = 0;
     for (; str_length > 0 && str[str_length - 1] >= '0' && str[str_length - 1] <= '9'; str_length--) {
@@ -284,10 +315,13 @@ bool StringLooksLikeBuildExeTraceLog(PCPathChar str, size_t str_length)
     return HasSuffix(str, str_length, BUILD_EXE_TRACE_FILE);
 }
 
-bool StringLooksLikeMtTempFile(PCPathChar str, size_t str_length, PCPathChar expected_extension)
+bool StringLooksLikeMtTempFile(PCPathChar str, size_t str_length, PCPathChar expected_extension) noexcept
 {
     // The file has this format: <pre><uuuu>.TMP, where <pre> can be anything up to 3 characters.
     // The API call being used by the tool is https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-gettempfilenamew
+
+    assert(str != nullptr);
+    assert(expected_extension != nullptr);
 
     if (!HasSuffix(str, str_length, expected_extension)) {
         return false;
@@ -307,17 +341,17 @@ bool StringLooksLikeMtTempFile(PCPathChar str, size_t str_length, PCPathChar exp
         return false;
     }
 
-    PathChar c1 = str[beginCharIndex + 1];
+    const PathChar c1 = str[beginCharIndex + 1];
     if (!IsPathCharEqual(c1, 'R')) {
         return false;
     }
     
-    PathChar c2 = str[beginCharIndex + 2];
+    const PathChar c2 = str[beginCharIndex + 2];
     if (!IsPathCharEqual(c2, 'C')) {
         return false;
     }
 
-    PathChar c3 = str[beginCharIndex + 3];
+    const PathChar c3 = str[beginCharIndex + 3];
     if (!IsPathCharEqual(c3, 'X')) {
         return false;
     }
@@ -325,7 +359,10 @@ bool StringLooksLikeMtTempFile(PCPathChar str, size_t str_length, PCPathChar exp
     return true;
 }
 
-size_t FindFinalPathSeparator(PCPathChar const path) {
+size_t FindFinalPathSeparator(PCPathChar const path) noexcept
+{
+    assert(path != nullptr);
+
     size_t newTerminatorPosition = 0;
     size_t currentPosition = 0;
 
@@ -342,13 +379,15 @@ size_t FindFinalPathSeparator(PCPathChar const path) {
     return newTerminatorPosition;
 }
 
-bool IsPathToNamedStream(PCPathChar const path, size_t pathLength) {
+bool IsPathToNamedStream(PCPathChar const path, size_t pathLength) noexcept {
+    assert(path != nullptr);
+
     size_t segmentLength[3] = {};
     int segment = 0;
 
     // N.B. We offset i by 1 (loop when i > 0 rather than i >= 0) since size_t is unsigned.
     for (size_t i = pathLength; i > 0; i--) {
-        PathChar c = path[i - 1];
+        const PathChar c = path[i - 1];
         if (IsDirectorySeparator(c)) {
             break;
         } else if (c == L':') {
@@ -378,7 +417,7 @@ bool IsPathToNamedStream(PCPathChar const path, size_t pathLength) {
 
 #if _WIN32
 
-size_t GetRootLength(PCPathChar path)
+size_t GetRootLength(PCPathChar path) noexcept
 {
     if (path == nullptr)
     {
@@ -389,9 +428,9 @@ size_t GetRootLength(PCPathChar path)
     size_t volumeSeparatorLength = 2;  // Length to the colon "C:"
     size_t uncRootLength = 2;          // Length to the start of the server name "\\"
 
-    bool extendedSyntax = HasPrefix(path, NT_LONG_PATH_PREFIX) || HasPrefix(path, NT_PATH_PREFIX);
-    bool extendedUncSyntax = HasPrefix(path, LONG_UNC_PATH_PREFIX);
-    size_t pathLength = pathlen(path);
+    const bool extendedSyntax = HasPrefix(path, NT_LONG_PATH_PREFIX) || HasPrefix(path, NT_PATH_PREFIX);
+    const bool extendedUncSyntax = HasPrefix(path, LONG_UNC_PATH_PREFIX);
+    const size_t pathLength = pathlen(path);
 
     if (extendedSyntax)
     {
@@ -439,8 +478,10 @@ size_t GetRootLength(PCPathChar path)
     return i;
 }
 
-PCPathChar GetPathWithoutPrefix(PCPathChar path)
+PCPathChar GetPathWithoutPrefix(PCPathChar path) noexcept
 {
+    assert(path != nullptr);
+
     return HasPrefix(path, NT_LONG_PATH_PREFIX)
         || HasPrefix(path, NT_PATH_PREFIX)
         || HasPrefix(path, LONG_UNC_PATH_PREFIX)
@@ -449,6 +490,10 @@ PCPathChar GetPathWithoutPrefix(PCPathChar path)
         : path;
 }
 
+#pragma warning( push )
+// warning C26414: Move, copy, reassign or reset a local smart pointer 'drive' (r.5).
+// warning C26485: Expression 'buffer': No array to pointer decay (bounds.3).
+#pragma warning( disable : 26414 26485 )
 // Returns a collection of all path atoms of the given path
 int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements)
 {
@@ -457,7 +502,7 @@ int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elemen
     auto file_name = std::make_unique<wchar_t[]>(_MAX_FNAME);
     auto extension = std::make_unique<wchar_t[]>(_MAX_EXT);
 
-    errno_t err = _wsplitpath_s(
+    const errno_t err = _wsplitpath_s(
         path.c_str(),
         drive.get(), _MAX_DRIVE,
         directory.get(), _MAX_EXTENDED_DIR_LENGTH,
@@ -475,7 +520,7 @@ int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elemen
         elements.push_back(std::move(wdrive));
     }
 
-    wchar_t* context;
+    wchar_t* context = nullptr;
     wchar_t* next = wcstok_s(directory.get(), L"\\/", &context);
     while (next)
     {
@@ -528,8 +573,9 @@ std::wstring NormalizePath(const std::wstring& path)
 
     return normalizedPath;
 }
+#pragma warning( pop )
 
-std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& fragment2)
+std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& fragment2) noexcept
 {
     if (fragment2.size() == 0)
     {
@@ -546,7 +592,7 @@ std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& frag
         return fragment2;
     }
 
-    auto ch = fragment1.back();
+    const auto ch = fragment1.back();
 
     return ch != NT_DIRECTORY_SEPARATOR && ch != UNIX_DIRECTORY_SEPARATOR && ch != NT_VOLUME_SEPARATOR
         ? fragment1 + NT_DIRECTORY_SEPARATOR + fragment2

@@ -15,6 +15,9 @@
 #include <strsafe.h>
 #include <cstdio>
 
+// warning C26485: Expression 'fullPath': No array to pointer decay (bounds.3).
+#pragma warning( disable : 26485 )
+
 int ReadNtEscapedPath(void)
 {
     wchar_t fullPath[MAX_PATH] = {};
@@ -23,7 +26,7 @@ int ReadNtEscapedPath(void)
     fullPath[2] = L'?';
     fullPath[3] = L'\\';
 
-    DWORD len =  GetFullPathNameW(L"input", _countof(fullPath) - 4, &fullPath[4], nullptr);
+    const DWORD len =  GetFullPathNameW(L"input", _countof(fullPath) - 4, &fullPath[4], nullptr);
     if (len > _countof(fullPath) - 4) {
         wprintf(L"Failed to expand path'\n");
         return 1;

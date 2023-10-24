@@ -27,6 +27,9 @@
 #define MAPPED_PATH_STRING L"\\??\\"
 #define SUBST_FILE_NAME L".SubstLock"
 
+// warning C6001: Using uninitialized memory '*substFileLockHandle'.
+#pragma warning( disable : 6001 )
+
 #pragma warning( push )
 // warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
 #pragma warning( disable : 26409 )

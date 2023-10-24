@@ -26,7 +26,9 @@ export const linkTool = createMsvcTool(a`Link.exe`, "Microsoft Linker");
 export const libTool = createMsvcTool(a`Lib.exe`, "Microsoft Library Manager");
 
 @@public 
-export const espXEngineDll = pkgContents.getFile(r`lib/native/bin/${"Host" + qualifier.platform}/${qualifier.platform}/EspXEngine.dll`);
+export const espXEngineDll = isInternal
+    ? pkgContents.getFile(r`lib/native/bin/${"Host" + qualifier.platform}/${qualifier.platform}/EspXEngine.dll`)
+    : pkgContents.getFile(r`bin/${"Host" + qualifier.platform}/${qualifier.platform}/EspXEngine.dll`);
 
 export namespace AtlMfc {
     @@public
@@ -91,7 +93,7 @@ function getMsvcPackage() : StaticDirectory {
     }
     else {
         let msvcVersions = [
-            "14.37.32822"
+            "14.29.30133"
         ];
 
         // ADO will set this variable if the version above is not installed

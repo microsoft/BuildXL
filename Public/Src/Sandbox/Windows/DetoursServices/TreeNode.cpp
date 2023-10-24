@@ -62,7 +62,7 @@ void TreeNodeChildren::emplace(const std::wstring& key, TreeNode*& value)
     else
     {
         // Otherwise, we reached the threshold. Create the map, copy the vector content over to the map and delete the vector
-        m_map = new std::unordered_map<std::wstring, TreeNode*, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>();
+        m_map = std::make_unique<std::unordered_map<std::wstring, TreeNode*, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>>();
         for (auto it = m_vector->begin(); it != m_vector->end(); it++)
         {
             (*m_map)[it->first] = it->second;
@@ -70,7 +70,7 @@ void TreeNodeChildren::emplace(const std::wstring& key, TreeNode*& value)
 
         m_map->emplace(key, value);
 
-        delete m_vector;
+        m_vector.reset();
         m_vector = NULL;
     }
 }
@@ -90,7 +90,7 @@ bool TreeNodeChildren::find(const std::wstring& key, std::pair<std::wstring, Tre
     }
     else
     {
-        auto it = m_map->find(key);
+        const auto it = m_map->find(key);
         if (it != m_map->end())
         {
             value = std::make_pair(it->first, it->second);

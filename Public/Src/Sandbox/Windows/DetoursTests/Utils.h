@@ -171,7 +171,7 @@ _NtCreateFile GetNtCreateFile();
 _NtClose GetNtClose();
 _RtlInitUnicodeString GetRtlInitUnicodeString();
 
-bool TryGetFullPath(_In_ LPCWSTR path, _Out_ wstring& fullPath);
+bool TryGetFullPath(_In_ LPCWSTR path, _Inout_ wstring& fullPath);
 bool TryGetNtFullPath(_In_ LPCWSTR path, _Out_ wstring& fullPath);
 bool TryGetNtEscapedFullPath(_In_ LPCWSTR path, _Out_ wstring& fullPath);
 BOOLEAN TestCreateSymbolicLinkW(_In_ LPCWSTR lpSymlinkFileName, _In_ LPCWSTR lpTargetFileName, _In_ DWORD dwFlags);

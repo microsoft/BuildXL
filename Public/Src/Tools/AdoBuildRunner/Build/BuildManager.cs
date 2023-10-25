@@ -67,7 +67,9 @@ namespace BuildXL.AdoBuildRunner.Build
 
             LogExitCode(returnCode);
 
-            if (!isOrchestrator && Environment.GetEnvironmentVariable(Constants.WorkerAlwaysSucceeds) == "true")
+            if (!isOrchestrator 
+                && Environment.GetEnvironmentVariable(Constants.WorkerAlwaysSucceeds) == "true" 
+                && returnCode != 0)
             {
                 // If the orchestrator succeeds, then we don't want to make the pipeline fail
                 // just because of this worker's failure. Log the failure but make the task succeed

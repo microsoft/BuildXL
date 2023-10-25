@@ -469,8 +469,7 @@ export namespace DropDaemonRunner {
                     // Do this last to override previous options (which may come from args or from the config file).
                     Cmd.option("--generateBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestGeneration")),
                     Cmd.option("--signBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestSigning")),
-                    Cmd.option("--uploadBcdeFileToDrop ", "true", Environment.getFlag("BuildXLEnableUploadBcdeFileToDrop")),
-                    Cmd.flag("--disableCloudBuildManifest", Environment.getFlag("BuildXLDisableCloudBuildV1Manifest"))
+                    Cmd.option("--uploadBcdeFileToDrop ", "true", Environment.getFlag("BuildXLEnableUploadBcdeFileToDrop"))
                 ),
             ],
             consoleOutput: outDir.combine(`${nametag}-stdout.txt`),

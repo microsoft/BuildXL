@@ -82,10 +82,6 @@ namespace Tool.DropDaemon
         private BsiMetadataExtractor m_bsiMetadataExtractor;
         private readonly string m_sbomGenerationOutputDirectory;
 
-        // This field should be removed once this SBOM format is deprecated
-        // Related work item: #1895958.
-        private bool m_disableCloudBuildManifest;
-
         /// <summary>
         /// Cached content of sealed directories.
         /// </summary>
@@ -246,16 +242,6 @@ namespace Tool.DropDaemon
             HelpText = "Custom SBOM PackageVersion",
             IsRequired = false,
         });
-
-        // This option should be removed once this SBOM format is deprecated
-        // Related work item: #1895958.
-        internal static readonly BoolOption DisableCBV1Manifest = new BoolOption("disableCloudBuildManifest")
-        {
-            ShortName = "dcbm",
-            HelpText = "Disable generation of CloudBuildV1 Build Manifest",
-            IsRequired = false,
-            DefaultValue = false
-        };
 
         internal static readonly StrOption Repo = RegisterConfigOption(new StrOption("repo")
         {
@@ -481,7 +467,7 @@ namespace Tool.DropDaemon
         internal static readonly Command CreateDropCmd = RegisterCommand(
            name: "create",
            description: "[RPC] Invokes the 'create' operation.",
-           options: ConfigOptions.Union(new[] { DisableCBV1Manifest }),
+           options: ConfigOptions,
            clientAction: SyncRPCSend,
            serverAction: async (conf, dropDaemon) =>
            {
@@ -500,12 +486,6 @@ namespace Tool.DropDaemon
                {
                    logger.Error($"[CREATE]: Cannot create drop due to an invalid build manifest configuration: {errMessage}");
                    return new IpcResult(IpcResultStatus.InvalidInput, errMessage);
-               }
-
-               if (conf.Get(DisableCBV1Manifest))
-               {
-                   logger.Verbose("CloudBuildV1 Manifest is disabled");
-                   daemon.m_disableCloudBuildManifest = true;
                }
 
                daemon.EnsureVsoClientIsCreated(dropConfig);
@@ -913,13 +893,6 @@ namespace Tool.DropDaemon
                 sbomGenerationRootDirectory = Path.Combine(m_sbomGenerationOutputDirectory, dropConfig.Name);
                 FileUtilities.CreateDirectory(sbomGenerationRootDirectory);
 
-                // Always generate SPDX, but exclude CloudBuild manifest if configured to do so
-                var specs = new List<SbomSpecification>() { new("SPDX", "2.2") };
-                if (!m_disableCloudBuildManifest)
-                {
-                    specs.Add(new("CloudBuildManifest", "1.0.0"));
-                }
-
                 Possible<IEnumerable<SbomPackage>> maybePackages;
                 using (m_counters.StartStopwatch(DropDaemonCounter.BuildManifestComponentConversionDuration))
                 {
@@ -933,6 +906,7 @@ namespace Tool.DropDaemon
 
                 var packages = maybePackages.Result;
 				logger.Verbose("Starting SBOM Generation");
+                var specs = new List<SbomSpecification>() { new("SPDX", "2.2") };
                 var result = await m_sbomGenerator.GenerateSbomAsync(sbomGenerationRootDirectory, manifestFileList, packages, metadata, specs);
                 logger.Verbose("Finished SBOM Generation");
 
@@ -1002,11 +976,9 @@ namespace Tool.DropDaemon
 
 		private SbomFile ToSbomFile(BuildXL.Ipc.ExternalApi.Commands.BuildManifestFileInfo fileInfo)
         {
-            // Include artifacts hash only when computing CloudBuildV1 Manifest
-            var maybeArtifactsHash = m_disableCloudBuildManifest ? Array.Empty<ContentHash>() : new[] { fileInfo.AzureArtifactsHash };
             return new()
             {
-                Checksum = maybeArtifactsHash.Union(fileInfo.BuildManifestHashes).Select(h =>
+                Checksum = fileInfo.BuildManifestHashes.Select(h =>
                 {
                     return new Checksum()
                     {

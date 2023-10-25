@@ -67,20 +67,13 @@ namespace Test.Tool.DropDaemon
 
             var sbomGenerationRootDirectory = Path.Combine(Path.GetTempPath(), "sbom");
             
-            var specs = new List<SbomSpecification>() { new("SPDX", "2.2"), new("CloudBuildManifest", "1.0.0") };
-
-            // A file with VSO and SHA1 hashes to generate both SPDX and CBManifest
+            var specs = new List<SbomSpecification>() { new("SPDX", "2.2") };
             var myfile = new SbomFile()
             {
                 Id = "MyFileId",
                 Path = "Oh/What/A/Cool/Path.txt",
                 Checksum = new[] 
                 {
-                    new Checksum()
-                    {
-                        Algorithm = CBHashAlgorithmName.VSO,
-                        ChecksumValue = "PretendThisIsAHash"
-                    },
                     new Checksum()
                     {
                         Algorithm = AlgorithmName.SHA1,

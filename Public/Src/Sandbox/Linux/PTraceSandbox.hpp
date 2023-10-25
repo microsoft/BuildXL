@@ -74,6 +74,7 @@ private:
     void ReportOpen(std::string path, int oflag, std::string syscallName);
     void ReportCreate(std::string syscallName, int dirfd, const char *pathname, mode_t mode, long returnValue = 0, bool checkCache = true);
     int GetErrno();
+    void UpdateTraceeTableForExec(std::string exePath);
 
     // Handlers
     MAKE_HANDLER_FN_DEF(execveat);
@@ -124,6 +125,8 @@ private:
     MAKE_HANDLER_FN_DEF(copy_file_range);
     MAKE_HANDLER_FN_DEF(name_to_handle_at);
     MAKE_HANDLER_FN_DEF(exit);
+    MAKE_HANDLER_FN_DEF(fork);
+    MAKE_HANDLER_FN_DEF(clone);
     void HandleChildProcess(const char *syscall);
     void HandleRenameGeneric(const char *syscall, int olddirfd, const char *oldpath, int newdirfd, const char *newpath);
     void HandleReportAccessFd(const char *syscall, int fd, es_event_type_t event = ES_EVENT_TYPE_NOTIFY_WRITE);

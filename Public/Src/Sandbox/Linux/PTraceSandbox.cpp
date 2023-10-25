@@ -106,6 +106,9 @@ int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, char *const argv[]
         TRACE_SYSCALL(sendfile),
         TRACE_SYSCALL(copy_file_range),
         TRACE_SYSCALL(name_to_handle_at),
+        // NOTE: vfork is explicitly not traced here, see PTraceSandbox::UpdateTraceeTableForExec for more details
+        TRACE_SYSCALL(fork),
+        TRACE_SYSCALL(clone),
         // SECCOMP_RET_ALLOW tells seccomp to allow all of the calls that were being filtered above (as opposed to killing them)
         // This would happen if none of the syscall numbers above get matched, and therefore should not stop the tracee
         BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
@@ -247,18 +250,11 @@ void PTraceSandbox::AttachToProcess(pid_t traceePid, std::string exe, std::strin
             break;
         }
 
-        // Handle fork/clone/vfork/seccomp
-        if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE << 8)))
+        // Handle vfork/seccomp
+        if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK << 8)))
         {
-            HandleChildProcess("clone");
-        }
-        else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK << 8)))
-        {
-            HandleChildProcess("fork");
-        }
-        else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK << 8)))
-        {
-            HandleChildProcess("vfork");
+            // This case is explicitly skipped, and handled by PTraceSandbox::UpdateTraceeTableForExec
+            ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
         }
         else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXIT << 8)))
         {
@@ -451,6 +447,8 @@ void PTraceSandbox::HandleSysCallGeneric(int syscallNumber)
         CHECK_AND_CALL_HANDLER(sendfile);
         CHECK_AND_CALL_HANDLER(copy_file_range);
         CHECK_AND_CALL_HANDLER(name_to_handle_at);
+        CHECK_AND_CALL_HANDLER(fork);
+        CHECK_AND_CALL_HANDLER(clone);
         default:
             // This should not happen in theory with filtering enabled
             // However if it does occur, we can ignore this syscall and log a message for debugging if necessary
@@ -513,44 +511,37 @@ std::vector<std::tuple<pid_t, std::string>>::iterator PTraceSandbox::FindProcess
     );
 }
 
-// Syscall Handlers
-void PTraceSandbox::HandleChildProcess(const char *syscall)
+void PTraceSandbox::UpdateTraceeTableForExec(std::string exePath)
 {
-    pid_t newPid;
-    ptrace(PTRACE_GETEVENTMSG, m_traceePid, NULL, (long) &newPid);
-
-    // Find the parent pid for this tracee
-    auto maybeParent = FindProcess(m_traceePid);
-    std::string exePath;
-    
-    // Best effort to get the ppid/exe of the tracee here. There's no nice way to do this from outside the process
-    if (maybeParent != m_traceeTable.end())
+    auto maybeProcess = FindProcess(m_traceePid);
+    if (maybeProcess != m_traceeTable.end())
     {
-        exePath = std::get<1>(maybeParent[0]);
+        std::get<1>(maybeProcess[0]) = exePath;
     }
     else
     {
-        // This case isn't expected to happen as long as ptrace works properly, but in case it does, we will report 0 as the ppid.
-        exePath = m_bxl->GetProgramPath();
+        // Special case for vfork
+        // When vfork is called, the parent process is suspended until the child calls exec
+        // So if we see a process here that calls exec that wasn't in the table of traced processes
+        // then it is safe to assume that process was likely created by a vfork.
+        // We have special handling for clone and fork so that this does not happen with those.
+        // vfork is treated differently here because the handlers for clone/fork rely on the parent
+        // process continuing to execute after the child process is spawned.
+        // Since the parent is blocked, this will block the waitpid on the tracer which is explicitly waiting on the parent
+        // to avoid reporting accesses before a process creation report is sent.
+        // If this happens, the tracer will be blocked waiting for the parent process to be in SIGSTOP for the next ptrace event,
+        // the parent will be blocked on the child process to execve
+        // and the execve on the child will be blocked by a SIGSTOP from ptrace because the child is automatically traced by ptrace
+        // which ptrace can't handle because it's blocked on the waitpid for the parent.
+        IOEvent event(m_traceePid, m_traceePid, /* traceeppid */ 0, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, /* mode */ 0, false, /* error */ 0);
+        m_bxl->report_access("vfork", event, /* checkCache */ false);
+        m_traceeTable.push_back(std::make_tuple(m_traceePid, exePath));
+
+        BXL_LOG_DEBUG(m_bxl, "[PTrace] Added new tracee with PID '%d'", m_traceePid);
     }
-
-    // Parent PID = m_traceePid (the current process being traced)
-    // New child PID = newPid
-    IOEvent event(m_traceePid, newPid, /*traceeppid*/0, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, /* mode */ 0, false, /* error */ 0);
-    m_bxl->report_access(syscall, event, /* checkCache */ false);
-
-    // Record the new child tracee
-    // When PTRACE_O_TRACEFORK/CLONE/VFORK is set, the child process is automatically ptraced as well
-    m_traceeTable.push_back(std::make_tuple(newPid, exePath));
-
-    BXL_LOG_DEBUG(m_bxl, "[PTrace] Added new tracee with PID '%d'", newPid);
-
-    // Resume the tracee and the tracees child
-    // NOTE: We don't want to call PTRACE_CONT here because we want to receive future clone/fork/vfork notifications
-    ptrace(PTRACE_SYSCALL, newPid, NULL, NULL);
-    ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
 }
 
+// Syscall Handlers
 HANDLER_FUNCTION(execveat)
 {
     // TODO: Is this syscall obsolete?
@@ -564,11 +555,7 @@ HANDLER_FUNCTION(execveat)
 
     strcpy(mutableExePath, exePath.c_str());
 
-    auto maybeProcess = FindProcess(m_traceePid);
-    if (maybeProcess != m_traceeTable.end())
-    {
-        std::get<1>(maybeProcess[0]) = mutableExePath;
-    }
+    UpdateTraceeTableForExec(exePath);
 
     m_bxl->report_exec(SYSCALL_NAME_STRING(execveat), basename(mutableExePath), exePath.c_str(), /* error*/ 0, /* mode */ 0, m_traceePid);
 }
@@ -580,11 +567,7 @@ HANDLER_FUNCTION(execve)
 
     strcpy(mutableFilePath, file.c_str());
 
-    auto maybeProcess = FindProcess(m_traceePid);
-    if (maybeProcess != m_traceeTable.end())
-    {
-        std::get<1>(maybeProcess[0]) = mutableFilePath;
-    }
+    UpdateTraceeTableForExec(file);
 
     m_bxl->report_exec(SYSCALL_NAME_STRING(execve), basename(mutableFilePath), file.c_str(), /* error*/ 0, /* mode */ 0, m_traceePid);
 }
@@ -1047,6 +1030,56 @@ HANDLER_FUNCTION(name_to_handle_at)
     int oflags = (flags & AT_SYMLINK_FOLLOW) ? 0 : O_NOFOLLOW;
     string pathStr = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid);
     ReportOpen(pathStr, oflags, SYSCALL_NAME_STRING(name_to_handle_at));
+}
+
+void PTraceSandbox::HandleChildProcess(const char *syscall)
+{
+    int status = 0;
+    ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
+    waitpid(m_traceePid, &status, 0);
+
+    if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))
+        || status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK << 8)))
+    {
+        ptrace(PTRACE_SYSCALL, m_traceePid, NULL, NULL);
+        waitpid(m_traceePid, &status, 0);
+    }
+    
+    long childpid = ReadArgumentLong(0);
+
+    // Find the parent pid for this tracee
+    auto maybeParent = FindProcess(m_traceePid);
+    std::string exePath;
+    
+    // Best effort to get the ppid/exe of the tracee here. There's no nice way to do this from outside the process
+    if (maybeParent != m_traceeTable.end())
+    {
+        exePath = std::get<1>(maybeParent[0]);
+    }
+    else
+    {
+        // This case isn't expected to happen as long as ptrace works properly, but in case it does, we will report 0 as the ppid.
+        exePath = m_bxl->GetProgramPath();
+    }
+
+    IOEvent event(m_traceePid, childpid, /* traceeppid */ 0, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, /* mode */ 0, false, /* error */ 0);
+    m_bxl->report_access(syscall, event, /* checkCache */ false);
+
+    // Record the new child tracee
+    // When PTRACE_O_TRACEFORK/CLONE/VFORK is set, the child process is automatically ptraced as well
+    m_traceeTable.push_back(std::make_tuple(childpid, exePath));
+
+    BXL_LOG_DEBUG(m_bxl, "[PTrace] Added new tracee with PID '%d'", childpid);
+}
+
+HANDLER_FUNCTION(fork)
+{
+    HandleChildProcess(SYSCALL_NAME_STRING(fork));
+}
+
+HANDLER_FUNCTION(clone)
+{
+    HandleChildProcess(SYSCALL_NAME_STRING(clone));
 }
 
 HANDLER_FUNCTION(exit)

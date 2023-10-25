@@ -6,20 +6,18 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.Interfaces;
-using BuildXL.Cache.MemoizationStore.Distributed.Stores;
-using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Configuration;
-using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Grpc;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Logging;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.Interfaces;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter;
 
@@ -38,18 +36,6 @@ public class EphemeralCacheFactory : ICacheFactory
         /// </summary>
         [DefaultValue(typeof(CacheId))]
         public CacheId CacheId { get; set; }
-
-        /// <nodoc />
-        [DefaultValue("EphemeralCacheConnectionString")]
-        public string ManagementConnectionStringEnvironmentVariableName { get; set; }
-
-        /// <nodoc />
-        [DefaultValue("default")]
-        public string Universe { get; set; }
-
-        /// <nodoc />
-        [DefaultValue("default")]
-        public string Namespace { get; set; }
 
         /// <summary>
         /// Path to the log file for the cache.
@@ -160,12 +146,9 @@ public class EphemeralCacheFactory : ICacheFactory
 
         if (configuration.DatacenterWide)
         {
-            var connectionString = Environment.GetEnvironmentVariable(configuration.ManagementConnectionStringEnvironmentVariableName);
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                throw new InvalidOperationException($"Can't find a connection string in environment variable '{configuration.ManagementConnectionStringEnvironmentVariableName}'.");
-            }
-            var credentials = new SecretBasedAzureStorageCredentials(connectionString);
+            var accounts = BlobCacheFactory.LoadAzureCredentials(configuration);
+            var sorted = ShardingScheme.SortAccounts(accounts.Keys.ToList());
+            var credentials = accounts[sorted.First()];
 
             factoryConfiguration = new ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.DatacenterWideCacheConfiguration()
             {
@@ -188,22 +171,8 @@ public class EphemeralCacheFactory : ICacheFactory
             };
         }
 
-        var persistentCache = CreateBlobCache(configuration);
+        var persistentCache = BlobCacheFactory.CreateCache(configuration);
         return await Cache.ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.CreateAsync(context, factoryConfiguration, persistentCache);
-    }
-
-    private static MemoizationStore.Interfaces.Caches.IFullCache CreateBlobCache(FactoryConfiguration configuration)
-    {
-        var credentials = BlobCacheFactory.GetAzureCredentialsFromBlobFactoryConfig(configuration);
-        var accountName = BlobCacheStorageAccountName.Parse(credentials.GetAccountName());
-
-        var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
-            ShardingScheme: new ShardingScheme(ShardingAlgorithm.SingleShard, new List<BlobCacheStorageAccountName> { accountName }),
-            Universe: configuration.Universe,
-            Namespace: configuration.Namespace,
-            RetentionPolicyInDays: configuration.RetentionPolicyInDays);
-
-        return AzureBlobStorageCacheFactory.Create(factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
     }
 
     /// <inheritdoc />

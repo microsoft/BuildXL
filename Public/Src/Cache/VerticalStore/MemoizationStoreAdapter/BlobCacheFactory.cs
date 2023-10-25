@@ -6,15 +6,16 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
-using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
-using System.Security.Principal;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -28,7 +29,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
     /// Current limitations while we flesh things out:
     /// 1) APIs around tracking named sessions are not implemented
     /// </remarks>
-    public partial class BlobCacheFactory : ICacheFactory
+    public class BlobCacheFactory : ICacheFactory
     {
         /// <summary>
         /// Inheritable configuration settings for cache factories that wish to configure a connection to a blob cache
@@ -76,6 +77,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// </remarks>
             [DefaultValue(0)]
             public int RetentionPolicyInDays { get; set; }
+
+            /// <nodoc />
+            [DefaultValue("default")]
+            public string Universe { get; set; }
+
+            /// <nodoc />
+            [DefaultValue("default")]
+            public string Namespace { get; set; }
+
         }
 
         /// <summary>
@@ -88,14 +98,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// </summary>
             [DefaultValue(typeof(CacheId))]
             public CacheId CacheId { get; set; }
-
-            /// <nodoc />
-            [DefaultValue("default")]
-            public string Universe { get; set; }
-
-            /// <nodoc />
-            [DefaultValue("default")]
-            public string Namespace { get; set; }
 
             /// <summary>
             /// Path to the log file for the cache.
@@ -157,7 +159,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     logger: new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds),
                     statsFile: new AbsolutePath(logPath.Path + ".stats"),
                     precedingStateDegradationFailures: failures);
-                
+
                 var startupResult = await cache.StartupAsync();
                 if (!startupResult.Succeeded)
                 {
@@ -172,14 +174,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
         }
 
-        private static MemoizationStore.Interfaces.Caches.ICache CreateCache(Config configuration)
+        internal static MemoizationStore.Interfaces.Caches.IFullCache CreateCache(BlobCacheConfig configuration)
         {
-            IAzureStorageCredentials credentials = GetAzureCredentialsFromBlobFactoryConfig(configuration);
-
-            var accountName = BlobCacheStorageAccountName.Parse(credentials.GetAccountName());
+            var credentials = LoadAzureCredentials(configuration);
 
             var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
-                ShardingScheme: new ShardingScheme(ShardingAlgorithm.SingleShard, new List<BlobCacheStorageAccountName> { accountName }),
+                ShardingScheme: new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
                 Universe: configuration.Universe,
                 Namespace: configuration.Namespace,
                 RetentionPolicyInDays: configuration.RetentionPolicyInDays);
@@ -188,14 +188,22 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <nodoc />
-        internal static IAzureStorageCredentials GetAzureCredentialsFromBlobFactoryConfig(BlobCacheConfig configuration)
+        internal static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> LoadAzureCredentials(BlobCacheConfig configuration)
         {
-            IAzureStorageCredentials credentials;
+            var credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
             var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
 
             if (!string.IsNullOrEmpty(connectionString))
             {
-                credentials = new SecretBasedAzureStorageCredentials(connectionString);
+                credentials.AddRange(
+                    connectionString.Split(' ')
+                        .Select(
+                            secret =>
+                            {
+                                var credential = new SecretBasedAzureStorageCredentials(secret.Trim());
+                                var accountName = BlobCacheStorageAccountName.Parse(credential.GetAccountName());
+                                return new KeyValuePair<BlobCacheStorageAccountName, IAzureStorageCredentials>(accountName, credential);
+                            }));
             }
             else if (configuration.ManagedIdentityId is not null && configuration.StorageAccountEndpoint is not null)
             {
@@ -207,7 +215,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     throw new InvalidOperationException($"'{configuration.StorageAccountEndpoint}' does not represent a valid URI.");
                 }
 
-                credentials = new ManagedIdentityAzureStorageCredentials(configuration.ManagedIdentityId, uri);
+                var credential = new ManagedIdentityAzureStorageCredentials(configuration.ManagedIdentityId, uri);
+                credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
             }
             else
             {

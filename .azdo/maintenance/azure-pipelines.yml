@@ -37,6 +37,7 @@ stages:
           projects: '$(Build.SourcesDirectory)/Domino.ReleaseManagement/src/BuildXLReleaseManagement/BuildXLReleaseManagement/BuildXLReleaseManagement.csproj'
           arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
           zipAfterPublish: false
+      - template: ../common/journaling.yml # Enable journaling
       - task: PowerShell@2
         inputs:
           targetType: 'inline'
@@ -44,3 +45,14 @@ stages:
           showWarnings: true
           pwsh: false
           workingDirectory: '$(Build.ArtifactStagingDirectory)/BuildXLReleaseManagement'
+      # Copy and publish BuildXL log in case it failed during the schedule phase
+      - task: CopyFiles@2
+        inputs:
+          SourceFolder: '$(Build.SourcesDirectory)/BuildXL.Internal/Out/Logs'
+          Contents: '**/BuildXL.log'
+          TargetFolder: '$(Build.ArtifactStagingDirectory)/BuildXLLogs'
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: '$(Build.ArtifactStagingDirectory)/BuildXLLogs'
+          artifact: '$(Build.BuildId).Logs'
+          publishLocation: 'pipeline'

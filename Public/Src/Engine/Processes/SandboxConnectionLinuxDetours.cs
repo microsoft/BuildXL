@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -104,15 +105,15 @@ namespace BuildXL.Processes
             /// Encapsulates both a background thread that is processing incoming messages, and an action block that is processing said messages.
             /// </summary>
             /// <remarks>
-            /// The intention is for report processors use the same backing <see cref="Info"/> to ultimately process the incoming messages 
+            /// The intention is for report processors use the same backing <see cref="SandboxConnectionLinuxDetours.Info"/> to ultimately process the incoming messages 
             /// (using <see cref="Info.ProcessBytes(ValueTuple{ReportProcessor, PooledObjectWrapper{byte[]}, int})"/>), because all the messages are associated to the same sandbox,
             /// but use different FIFOs (and thus consuming threads and processing action blocks). 
             /// We expose a <see cref="JoinReceivingThread"/> method to join the receiving thread, the <see cref="Completion"/> property of the message-processing action block and 
             /// a <see cref="Complete"/> to stop receiving access reports.
             /// </remarks>
-            private class ReportProcessor
+            internal sealed class ReportProcessor
             {
-                private readonly Info m_info;
+                internal readonly Info Info;
                 private readonly Thread m_workerThread;
                 private readonly ActionBlockSlim<(ReportProcessor reportProcessor, PooledObjectWrapper<byte[]> wrapper, int length)> m_processingBlock;
                 private int m_completeAccessReportProcessingCounter;
@@ -131,7 +132,7 @@ namespace BuildXL.Processes
 
                 public ReportProcessor(Info info, string fifoName, Lazy<SafeFileHandle> fifoHandle)
                 {
-                    m_info = info;
+                    Info = info;
                     m_fifoName = fifoName;
                     m_fifoWriteHandle = fifoHandle;
 
@@ -142,7 +143,7 @@ namespace BuildXL.Processes
                     };
 
                     m_processingBlock = ActionBlockSlim.Create<(ReportProcessor reportProcessor, PooledObjectWrapper<byte[]> wrapper, int length)>(degreeOfParallelism: 1,
-                        m_info.ProcessBytes,
+                        Info.ProcessBytes,
                         singleProducedConstrained: true // Only m_workerThread posts to the action block
                     );
 
@@ -156,7 +157,7 @@ namespace BuildXL.Processes
                     LogDebug($"Complete action requested for {GetFifoName()}");
 
                     // Send the end of report sentinel, so we can exit the report loop
-                    m_info.WriteSentinel(m_fifoWriteHandle, s_endOfReportsSentinelAsBytes);
+                    Info.WriteSentinel(m_fifoWriteHandle, s_endOfReportsSentinelAsBytes);
                 }
 
                 internal string GetFifoName() => m_fifoName;
@@ -197,8 +198,12 @@ namespace BuildXL.Processes
                     return totalRead;
                 }
 
-                private void LogDebug(string s) => m_info.LogDebug(s);
-                private void LogError(string s) => m_info.LogError(s);
+                private void LogDebug(string s) => Info.Process.LogDebug(s);
+
+#if NETCOREAPP
+                private void LogDebug([InterpolatedStringHandlerArgument("")] DebugMessageInterpolatedStringHandler builder) => Info.Process.LogDebug(builder);
+#endif
+                private void LogError(string s) => Info.LogError(s);
 
                 /// <summary>
                 /// The method backing the <see cref="m_workerThread"/> thread.
@@ -277,11 +282,11 @@ namespace BuildXL.Processes
                                 LogDebug($"End of reports sentinel arrived on FIFO {fifoName}. Exiting 'receive reports' loop.");
 
                                 // The primary FIFO has no more reports. Terminate the secondary FIFO.
-                                if (IsPrimaryFifoProcessor && !string.IsNullOrEmpty(m_info.SecondaryFifoPath))
+                                if (IsPrimaryFifoProcessor && !string.IsNullOrEmpty(Info.SecondaryFifoPath))
                                 {
-                                    m_info.WriteSentinel(m_info.m_lazySecondaryFifoWriteHandle, s_noActiveProcessesSentinelAsBytes);
+                                    Info.WriteSentinel(Info.m_lazySecondaryFifoWriteHandle, s_noActiveProcessesSentinelAsBytes);
 
-                                    LogDebug($"NoProcessesSentinel sent to secondary FIFO");
+                                    LogDebug("NoProcessesSentinel sent to secondary FIFO");
                                 }
 
                                 break;
@@ -403,7 +408,7 @@ namespace BuildXL.Processes
                 // Post the process tree completion after we process all reports
                 Task.WhenAll(m_reportProcessor.Completion, secondaryCompletion).ContinueWith(t =>
                 {
-                    Process.LogDebug("Posting OpProcessTreeCompleted message");
+                    LogDebug("Posting OpProcessTreeCompleted message");
                     Process.PostAccessReport(new AccessReport
                     {
                         Operation = FileOperation.OpProcessTreeCompleted,
@@ -416,7 +421,7 @@ namespace BuildXL.Processes
             {
                 return new Lazy<SafeFileHandle>(() =>
                 {
-                    Process.LogDebug($"Opening FIFO '{path}' for writing");
+                    LogDebug($"Opening FIFO '{path}' for writing");
                     return IO.Open(path, IO.OpenFlags.O_WRONLY, 0);
                 });
             }
@@ -436,7 +441,7 @@ namespace BuildXL.Processes
                 {
                     if (!Dispatch.IsProcessAlive(pid))
                     {
-                        Process.LogDebug($"CheckActiveProcesses. Removing {pid}.");
+                        LogDebug($"CheckActiveProcesses. Removing {pid}.");
                         RemovePid(pid);
                     }
                 }
@@ -448,7 +453,7 @@ namespace BuildXL.Processes
             /// </summary>
             internal void RequestStop()
             {
-                Process.LogDebug($"RequestStop: closing the write handle for FIFO '{ReportsFifoPath}'");
+                LogDebug($"RequestStop: closing the write handle for FIFO '{ReportsFifoPath}'");
 
                 m_lazyWriteHandle.Value.Close();
                 m_lazyWriteHandle.Value.Dispose();
@@ -518,7 +523,7 @@ namespace BuildXL.Processes
             internal void AddPid(int pid)
             {
                 bool added = m_activeProcesses.TryAdd(pid, 1);
-                LogDebug($"AddPid({pid}) :: added: {added}; size: {m_activeProcesses.Count()}");
+                LogDebug($"AddPid({pid}) :: added: {added}; size: {m_activeProcesses.Count}");
             }
 
             /// <summary>
@@ -527,7 +532,7 @@ namespace BuildXL.Processes
             internal void RemovePid(int pid)
             {
                 bool removed = m_activeProcesses.TryRemove(pid, out var _);
-                LogDebug($"RemovePid({pid}) :: removed: {removed}; size: {m_activeProcesses.Count()}");
+                LogDebug($"RemovePid({pid}) :: removed: {removed}; size: {m_activeProcesses.Count}");
                 if (removed && m_activeProcesses.IsEmpty)
                 {
                     LogDebug($"Removed {pid} and the active count is 0. Sending sentinel on primary FIFO");
@@ -576,10 +581,11 @@ namespace BuildXL.Processes
                 m_failureCallback?.Invoke(1, message);
             }
 
-            internal void LogDebug(string message)
-            {
-                Process.LogDebug(message);
-            }
+            internal void LogDebug(string s) => Process.LogDebug(s);
+
+#if NETCOREAPP
+            private void LogDebug([InterpolatedStringHandlerArgument("")] DebugMessageInterpolatedStringHandler builder) => Process.LogDebug(builder);
+#endif
 
             /// <nodoc />
             public void Dispose()
@@ -917,7 +923,7 @@ namespace BuildXL.Processes
         {
             if (m_pipProcesses.TryGetValue(pipId, out var info))
             {
-                info.LogDebug($"NotifyPipProcessTerminated. Removing pid {processId}");
+                info.Process.LogDebug($"NotifyPipProcessTerminated. Removing pid {processId}");
                 info.RemovePid(processId);
             }
         }
@@ -927,7 +933,7 @@ namespace BuildXL.Processes
         {
             if (m_pipProcesses.TryGetValue(pipId, out var info))
             {
-                info.LogDebug($"NotifyRootProcessExited. Removing pid {process.ProcessId}");
+                info.Process.LogDebug($"NotifyRootProcessExited. Removing pid {process.ProcessId}");
                 info.RemovePid(process.ProcessId);
             }
         }

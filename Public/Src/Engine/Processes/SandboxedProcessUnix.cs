@@ -860,9 +860,9 @@ namespace BuildXL.Processes
 
         private void HandleAccessReport(AccessReport report, bool forceAddExecutionPermission)
         {
-            if (ShouldReportFileAccesses && report.Operation != FileOperation.OpDebugMessage)
+            if (report.Operation != FileOperation.OpDebugMessage)
             {
-                LogDebug("Access report received: " + AccessReportToString(report));
+                LogDebug($"Access report received: {AccessReportToString(report)}");
             }
 
             Counters.IncrementCounter(SandboxedProcessCounters.AccessReportCount);

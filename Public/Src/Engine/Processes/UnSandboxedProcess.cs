@@ -12,6 +12,7 @@ using BuildXL.Interop;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
 #else
@@ -219,6 +220,8 @@ namespace BuildXL.Processes
 
         /// <inheritdoc />
         public int ProcessId => m_processExecutor.ProcessId;
+
+        internal bool DebugLogEnabled => SandboxConnection.IsInDebugMode || ShouldReportFileAccesses;
 
         /// <inheritdoc />
         public virtual void Dispose()
@@ -475,11 +478,21 @@ namespace BuildXL.Processes
         /// </summary>
         internal void LogDebug(string message)
         {
-            if (SandboxConnection.IsInDebugMode || ShouldReportFileAccesses)
+            if (DebugLogEnabled)
             {
                 LogProcessState(message);
             }
         }
+
+#if NETCOREAPP
+        internal void LogDebug([InterpolatedStringHandlerArgument("")] DebugMessageInterpolatedStringHandler builder)
+        {
+            if (DebugLogEnabled)
+            {
+                LogProcessState(builder.GetFormattedString());
+            }
+        }
+#endif
 
         /// <nodoc/>
         [return: NotNull]

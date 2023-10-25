@@ -150,14 +150,30 @@ namespace BuildXL.Utilities.Collections
 
                 // Note: A global lock here gets a ton of contention (1.2% of all execution of BuildXL time is spent waiting here), so we use many locks
                 // The note was made when we used BuildXL.Utilities.Threading.ReadWriteLock. The switch to ReaderWriterLockSlim is unlikely to invalidate the note.
+                entry = default;
+                bool checkLockAcquired = false;
+
                 try
                 {
                     m_locks[lockIndex].EnterReadLock();
                     entry = m_slots[index];
                 }
+                catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                {
+                    // For some reason, an exception was thrown while trying to acquire the lock.
+                    // This is unexpected, but we don't want to crash the process.
+
+                    // Needs to check if lock is acquired or not before exiting read lock.
+                    checkLockAcquired = true;
+                }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
                 finally
                 {
-                    m_locks[lockIndex].ExitReadLock();
+                    if (!checkLockAcquired || m_locks[lockIndex].IsReadLockHeld)
+                    {
+                        m_locks[lockIndex].ExitReadLock();
+                    }
                 }
             }
         }

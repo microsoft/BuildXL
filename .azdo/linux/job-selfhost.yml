@@ -9,10 +9,24 @@ parameters:
 - name: Distributed
   type: boolean
   default: false
+- name: Role
+  type: string
+  default: Orchestrator
+  values:
+  - Orchestrator
+  - Worker
 
 jobs:
 - job: Selfhost_${{ parameters.validationName }}
   displayName: Build and Validate Selfhost (${{ parameters.validationName }})
+
+  variables:
+  - name: ScriptExtraArgs
+    ${{ if parameters.Distributed }}:
+      value: "--use-adobuildrunner"
+    ${{ else }}:
+      value: ""
+
   pool:
     name: BuildXL-DevOpsAgents-Linux-Stateless-PME
     os: linux
@@ -25,7 +39,10 @@ jobs:
     outputs:
     - output: pipelineArtifact
       targetPath: $(Build.SourcesDirectory)/Out/Logs
-      artifactName: BuildXL-Logs.${{ parameters.validationName }}.$(System.JobName).$(System.JobAttempt)
+      ${{ if parameters.Distributed }}:
+        artifactName: BuildXL-Logs.${{ parameters.validationName }}.$(System.JobName).${{ parameters.Role }}.$(System.JobAttempt)
+      ${{ else }}:
+        artifactName: BuildXL-Logs.${{ parameters.validationName }}.$(System.JobName).$(System.JobAttempt)
       condition: always()
       continueOnError: true
       displayName: Upload BuildXL Logs
@@ -38,10 +55,6 @@ jobs:
         enabled: false
 
   timeoutInMinutes: 90
-
-  ${{ if parameters.Distributed }}:
-    strategy:
-      parallel: 2
 
   steps:
   - task: UseDotNet@2
@@ -139,7 +152,7 @@ jobs:
       # - we also disable early worker release to avoid releasing a worker before attachment, which tends to happen
       #   when the build is highly cached: the intention is to have as much of a distributed build as possible for validation purposes
       # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
-      timeout --signal 9 60m ./bxl.sh --use-dev --use-adobuildrunner ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=5 /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache- /p:BuildXLGrpcVerbosityEnabled=1 /p:BuildXLGrpcVerbosityLevel=1 /dynamicBuildWorkerSlots:1
+      timeout --signal 9 60m ./bxl.sh --use-dev $(ScriptExtraArgs) ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=5 /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache- /p:BuildXLGrpcVerbosityEnabled=1 /p:BuildXLGrpcVerbosityLevel=1 /dynamicBuildWorkerSlots:1
     displayName: Test (${{ parameters.validationName }})
     workingDirectory: /home/subst
     env:
@@ -148,6 +161,8 @@ jobs:
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AdoBuildRunnerInvocationKey: LinuxSelfhostValidation_${{ parameters.validationName }}
+      AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
+      AdoBuildRunnerWorkerAlwaysSucceeds: true
 
   - task: PublishTestResults@2
     displayName: Publish Test Results

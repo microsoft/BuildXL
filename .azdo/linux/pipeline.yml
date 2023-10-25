@@ -44,6 +44,18 @@ extends:
           Distributed: true
           ValidationName: InternalRelease
           BxlExtraArgs: --internal /q:ReleaseLinux /forceAddExecutionPermission-
+    
+    - stage: Build_Internal_Workers
+      displayName: Build (internal) [Distributed workers]
+      dependsOn: []     # Run in parallel
+      jobs:
+      # Build and test selfhost with BuildXL
+      - template: /.azdo/linux/job-selfhost.yml@self
+        parameters:
+          Distributed: true
+          Role: Worker
+          ValidationName: InternalRelease
+          BxlExtraArgs: --internal /q:ReleaseLinux /forceAddExecutionPermission-
 
     - stage: Verify_PTrace
       displayName: PTrace validation

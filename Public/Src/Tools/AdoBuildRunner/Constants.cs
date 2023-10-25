@@ -194,9 +194,15 @@ namespace BuildXL.AdoBuildRunner
         public const string MaximumWaitForWorkerSecondsVariableName = "MaximumWaitForWorkerSeconds";
 
         /// <summary>
-        /// The maximum time an agent waits for the other agents to get ready before failing
+        /// When set to "true", makes worker always succeed.
         /// </summary>
-        public const string WaitForOrchestratorExitVariableName = "AdoBuildRunnerWaitForOrchestratorExit";
+        /// <remarks>
+        /// When workers run in the same pipeline as the orchestrator, we don't want to make the pipeline
+        /// fail just because of a worker's failure. Note that this will make workers unable to participate in retries,
+        /// but we still don't have a mechanism to trigger an automatic retry of a different job when the orchestrator
+        /// job is retried, especially if it happens on a separate stage.
+        /// </remarks>
+        public const string WorkerAlwaysSucceeds = "AdoBuildRunnerWorkerAlwaysSucceeds";
 
         /// <summary>
         /// If set to the value "1", gRPC encryption using 1ES HP certificates won't be enabled for the build

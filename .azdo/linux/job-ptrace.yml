@@ -45,33 +45,19 @@ jobs:
       set -euo pipefail
       mkdir -p Out
       tee Out/CacheConfig.json << EOF
-      {
-      "RemoteIsReadOnly": false,
-      "SkipDeterminismRecovery":  true,
-      "RemoteConstructionTimeoutMilliseconds":  10000,
-      "Assembly":  "BuildXL.Cache.VerticalAggregator",
-      "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
-      "RemoteCache":  {
-                          "CacheServiceFingerprintEndpoint":  "https://mseng.artifacts.visualstudio.com/DefaultCollection",
-                          "RequiredContentKeepUntilHours":  1,
-                          "Assembly":  "BuildXL.Cache.BuildCacheAdapter",
-                          "CacheServiceContentEndpoint":  "https://mseng.vsblob.visualstudio.com/DefaultCollection",
-                          "Type":  "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory",
-                          "CacheLogPath":  "[BuildXLSelectedLogPath].Remote.log",
-                          "CacheId":  "L3Cache",
-                          "CacheNamespace":  "BuildXLSelfhost.Linux",
-                          "UseBlobContentHashLists":  true
-                      },
-      "LocalCache":  {
-                        "MaxCacheSizeInMB":  20240,
-                        "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
-                        "UseStreamCAS":  true,
-                        "Type":  "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
-                        "CacheLogPath":  "[BuildXLSelectedLogPath]",
-                        "CacheRootPath":  "[BuildXLSelectedRootPath]",
-                        "CacheId":  "SelfhostCS2L1",
-                        "UseRocksDbMemoizationStore":  true
-                    }
+       {
+          "RetentionPolicyInDays":  6,
+          "CacheSizeMb":  20240,
+          "Type":  "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory",
+          "DatacenterWide":  true,
+          "LeaderMachineName":  "[BuildXLSelectedLeader]",
+          "CacheRootPath":  "[BuildXLSelectedRootPath]",
+          "CacheId":  "L1L2L3Cache",
+          "Universe":  "bxlselfhostptrace",
+          "CacheLogPath":  "[BuildXLSelectedLogPath]",
+          "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+          "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
+          "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
       }
       EOF
     displayName: Write cache config file

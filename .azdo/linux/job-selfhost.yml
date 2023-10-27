@@ -135,7 +135,7 @@ jobs:
           "RetentionPolicyInDays":  6,
           "CacheSizeMb":  20240,
           "Type":  "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory",
-          "DatacenterWide":  false,
+          "DatacenterWide":  true,
           "LeaderMachineName":  "[BuildXLSelectedLeader]",
           "CacheRootPath":  "[BuildXLSelectedRootPath]",
           "CacheId":  "L1L2L3Cache",

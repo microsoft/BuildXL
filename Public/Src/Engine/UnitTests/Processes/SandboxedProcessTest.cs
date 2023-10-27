@@ -1515,6 +1515,34 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(2, processReportsPids.Count());
         }
 
+        [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        public async Task VForkedProcessIsDetected()
+        {
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.FailUnexpectedFileAccesses = false;
+
+            var info = ToProcessInfo(
+                ToProcess(new Operation[]
+                    {
+                        Operation.SpawnWithVFork(Context.PathTable, waitToFinish: true, Operation.WriteFile(CreateOutputFileArtifact())),
+                        Operation.WriteFile(CreateOutputFileArtifact()),
+                    }),
+                fileAccessManifest: fam);
+
+            var result = await RunProcess(info);
+
+            // We should get a message about detecting vfork
+            m_eventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.LogDetoursDebugMessage).First(message => message.Contains("Intercepted vfork"));
+
+            // Retrieve the pids of the process reports
+            var processReportsPids = result.FileAccesses.Where(fa =>
+                fa.Operation == ReportedFileOperation.Process).Select(fa => fa.Process.ProcessId).Distinct();
+
+            // We should see three different pids: root - the test process -, vforkSpawn, and the test process again)
+            XAssert.AreEqual(3, processReportsPids.Count());
+        }
+
         private void AssertReportedAccessesIsEmpty(PathTable pathTable, IEnumerable<ReportedFileAccess> result)
         {
             if (result == null || !result.Any())

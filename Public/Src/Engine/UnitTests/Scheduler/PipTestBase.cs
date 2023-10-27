@@ -1270,6 +1270,7 @@ namespace Test.BuildXL.Scheduler
                                 break;
 
                             case Operation.Type.Spawn:
+                            case Operation.Type.SpawnWithVFork:
                                 if (op.Path.IsValid && op.Path.IsFile)
                                 {
                                     dao.Outputs.Add(op.Path.FileArtifact);

@@ -2,8 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
-
-// NOTE: should have the same effect as building with `make` using the Makefile from this dir.
+import * as Native from "Sdk.Linux.Native";
 
 namespace Sandbox {
     export declare const qualifier : {
@@ -11,10 +10,6 @@ namespace Sandbox {
         targetRuntime: "linux-x64"
     };
 
-    const isLinux = Context.getCurrentHost().os === "unix";
-
-    const gccTool = compilerTool("gcc");
-    const gxxTool = compilerTool("g++");
     const commonSrc = [
         ...glob(d`../MacOs/Interop/Sandbox/Data`, "*.cpp"),
         ...glob(d`../MacOs/Interop/Sandbox/Handlers`, "*.cpp"),
@@ -44,82 +39,61 @@ namespace Sandbox {
     ];
     const headers = incDirs.mapMany(d => ["*.h", "*.hpp"].mapMany(q => glob(d, q)));
 
+    function compile(sourceFile: SourceFile) {
+        return compileWithDefines(sourceFile, []);
+    }
+
+    function compileWithDefines(sourceFile: SourceFile, defines?: string[]): DerivedFile {
+        const compilerArgs : Native.Linux.Compilers.CompilerArguments =  {
+            defines: defines || [],
+            headers: headers,
+            includeDirectories: incDirs,
+            sourceFile: sourceFile
+        };
+
+        return Native.Linux.Compilers.compile(compilerArgs);
+    }
+
     export const commonObj  = commonSrc.map(compile);
     export const utilsObj   = utilsSrc.map(compile);
     export const bxlEnvObj  = bxlEnvSrc.map(compile);
     export const auditObj   = auditSrc.map(compile);
-    export const detoursObj = detoursSrc.map(f => _compile(f, [ "ENABLE_INTERPOSING" ]));
-    export const ptraceRunnerObj = ptraceRunnerSrc.map(f => _compile(f, [ "ENABLE_INTERPOSING" ]));
+    export const detoursObj = detoursSrc.map(f => compileWithDefines(f, [ "ENABLE_INTERPOSING" ]));
+    export const ptraceRunnerObj = ptraceRunnerSrc.map(f => compileWithDefines(f, [ "ENABLE_INTERPOSING" ]));
+
+    const gccTool = Native.Linux.Compilers.gccTool;
+    const gxxTool = Native.Linux.Compilers.gxxTool;
 
     @@public
-    export const libBxlUtils = link(a`libBxlUtils.so`, gccTool, utilsObj, []);
+    export const libBxlUtils = Native.Linux.Compilers.link({
+        outputName: a`libBxlUtils.so`, 
+        tool: gccTool, 
+        objectFiles: utilsObj});
+
     @@public
-    export const bxlEnv      = link(a`bxl-env`, gccTool, bxlEnvObj, []);
+    export const bxlEnv = Native.Linux.Compilers.link({
+        outputName: a`bxl-env`, 
+        tool: gccTool, 
+        objectFiles: bxlEnvObj});
+
     @@public
-    export const libBxlAudit = link(a`libBxlAudit.so`, gxxTool, [...commonObj, ...utilsObj, ...auditObj], [ "dl" ]);
+    export const libBxlAudit = Native.Linux.Compilers.link({
+        outputName: a`libBxlAudit.so`, 
+        tool: gxxTool, 
+        objectFiles: [...commonObj, ...utilsObj, ...auditObj], 
+        libraries: [ "dl" ]});
+
     @@public
-    export const libDetours  = link(a`libDetours.so`, gxxTool, [...commonObj, ...utilsObj, ...detoursObj], [ "dl", "pthread" ]);
+    export const libDetours = Native.Linux.Compilers.link({
+        outputName: a`libDetours.so`, 
+        tool: gxxTool, 
+        objectFiles: [...commonObj, ...utilsObj, ...detoursObj], 
+        libraries: [ "dl", "pthread" ]});
+
     @@public
-    export const ptraceRunner = link(a`ptracerunner`, gxxTool, [...commonObj, ...utilsObj, ...ptraceRunnerObj], [ "dl", "pthread" ]);
-
-    function compile(srcFile: File) { return _compile(srcFile, []); }
-    function _compile(srcFile: File, defines: string[]): DerivedFile {
-        if (!isLinux) return undefined;
-
-        const isDebug = qualifier.configuration === "debug";
-        const isCpp = srcFile.extension === a`.cpp`;
-        const compiler = isCpp ? gxxTool : gccTool;
-        const outDir = Context.getNewOutputDirectory(compiler.exe.name);
-        const objFile = p`${outDir}/${srcFile.name.changeExtension(".o")}`;
-        const result = Transformer.execute({
-            tool: compiler,
-            workingDirectory: outDir,
-            dependencies: headers,
-            arguments: [
-                Cmd.argument(Artifact.input(srcFile)),
-                Cmd.option("-o", Artifact.output(objFile)),
-                Cmd.argument("-c"),
-                Cmd.argument("-fPIC"),
-                Cmd.options("-I", incDirs.map(Artifact.none)),
-                Cmd.options("-D", defines),
-                Cmd.option("-D", isDebug ? "_DEBUG" : "_NDEBUG"),
-                Cmd.option("-O", isDebug ? "g" : "3"),
-                ...addIf(isDebug, Cmd.argument("-g")),
-                ...addIf(isCpp, Cmd.argument("--std=c++17"))
-            ]
-        });
-        return result.getOutputFile(objFile);
-    }
-
-    function link(name: PathAtom, compiler: Transformer.ToolDefinition, objs: DerivedFile[], libs: string[]): DerivedFile {
-        if (!isLinux) return undefined;
-
-        const isLib = name.extension === a`.so`;
-        const outDir = Context.getNewOutputDirectory(compiler.exe.name);
-        const outFile = p`${outDir}/${name}`;
-        const result = Transformer.execute({
-            tool: compiler,
-            workingDirectory: outDir,
-            arguments: [
-                ...addIf(isLib, Cmd.argument("-shared")),
-                Cmd.args(objs.map(Artifact.input)),
-                Cmd.option("-o", Artifact.output(outFile)),
-                Cmd.options("-l", libs)
-            ]
-        });
-        return result.getOutputFile(outFile);
-    }
-
-    function compilerTool(compilerName: string) : Transformer.ToolDefinition {
-        if (!isLinux) return undefined;
-
-        return {
-            exe: f`/usr/bin/${compilerName}`,
-            dependsOnCurrentHostOSDirectories: true,
-            prepareTempDirectory: true,
-            untrackedDirectoryScopes: [ d`/lib` ],
-            untrackedFiles: [],
-            runtimeDependencies: [f`/usr/lib64/ld-linux-x86-64.so.2`]
-        };
-    }
+    export const ptraceRunner = Native.Linux.Compilers.link({
+        outputName: a`ptracerunner`, 
+        tool: gxxTool, 
+        objectFiles: [...commonObj, ...utilsObj, ...ptraceRunnerObj], 
+        libraries: [ "dl", "pthread" ]});
 }

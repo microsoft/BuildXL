@@ -55,6 +55,11 @@ namespace TestProcess {
                             targetFramework: "net6.0",
                             targetRuntime: "linux-x64"
                         }).testProcessExe,
+                        // CODESYNC: Public\Src\Utilities\UnitTests\Executables\TestProcess\Operation.cs
+                        VFork.withQualifier({
+                            targetFramework: "net6.0",
+                            targetRuntime: "linux-x64"
+                        }).exe
                     ]
                 }
                 : Contract.fail("Unknown target runtime: " + qualifier.targetRuntime)

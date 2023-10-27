@@ -528,6 +528,7 @@ public:
     GEN_FN_DEF(int, dlclose, void *handle);
 
     GEN_FN_DEF(pid_t, fork, void);
+    GEN_FN_DEF(pid_t, vfork, void);
     GEN_FN_DEF(int, clone, int (*fn)(void *), void *child_stack, int flags, void *arg, ... /* pid_t *ptid, void *newtls, pid_t *ctid */ );
     GEN_FN_DEF_REAL(void, _exit, int);
     GEN_FN_DEF(int, fexecve, int, char *const[], char *const[]);

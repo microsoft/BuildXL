@@ -168,6 +168,20 @@ INTERPOSE(pid_t, fork, void)({
     return childPid.restore();
 })
 
+INTERPOSE(pid_t, vfork, void)({
+    // Observe that we explicitly call fork and not vfork.
+    // The reason is that vfork is only designed to call exec* or _exit in the child and was made available for perf reasons. 
+    // The stack of the parent is reused for the child in vfork, and therefore nothing else should happen beyond exec* or _exit,
+    // including returning from the interpose callback.
+    // On the other hand, vfork is almost obsolete at this point and has been removed from the POSIX.1-2008 already.
+    // Modern Linux distributions should be able to call fork directly with none or minimal perf differences. 
+    result_t<pid_t> childPid = bxl->fwd_fork();
+
+    HandleForkOrCloneReporting(__func__, bxl, childPid.get());
+
+    return childPid.restore();
+})
+
 INTERPOSE(int, clone, int (*fn)(void *), void *child_stack, int flags, void *arg, ... /* pid_t *ptid, void *newtls, pid_t *ctid */ )({
     va_list args;
     va_start(args, arg);

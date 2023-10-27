@@ -84,7 +84,7 @@ Notes:
 | (only needed on ia64)    | __clone2 (2)               | create a child process                                              |
 | :white_check_mark:       | clone (2)                  | create a child process                                              |
 | :white_check_mark:       | fork (2)                   | create a child process                                              |
-| :question:               | vfork (2)                  | create a child process and block parent                             |
+| :white_check_mark:       | vfork (2)                  | create a child process and block parent                             |
 | :white_check_mark:       | mkdir (2)                  | create a directory                                                  |
 | :white_check_mark:       | mkdirat (2)                | create a directory                                                  |
 |                          | signalfd (2)               | create a file descriptor for accepting signals                      |

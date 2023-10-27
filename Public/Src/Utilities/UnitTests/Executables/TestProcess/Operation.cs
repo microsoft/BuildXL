@@ -7,17 +7,14 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
-using BuildXL.Native.Tracing;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace Test.BuildXL.Executables.TestProcess
 {
@@ -206,6 +203,14 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Spawns a child process that supports a list of <see cref="Operation"></see>
             /// </summary>
             Spawn,
+
+            /// <summary>
+            /// Spawns a child process that supports a list of <see cref="Operation"></see>
+            /// </summary>
+            /// <remarks>
+            /// Uses vfork (https://www.man7.org/linux/man-pages/man2/vfork.2.html) for creating the new process. Only supported on Linux.
+            /// </remarks>
+            SpawnWithVFork,
 
             /// <summary>
             /// Spawns a given exe as a child process
@@ -525,6 +530,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.Spawn:
                         DoSpawn();
+                        return;
+                    case Type.SpawnWithVFork:
+                        DoSpawnWithVFork();
                         return;
                     case Type.SpawnExe:
                         DoSpawnExe();
@@ -915,6 +923,18 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation Spawn(PathTable pathTable, bool waitToFinish, params Operation[] childOperations)
         {
             return SpawnAndWritePidFile(pathTable, waitToFinish, pidFile: null, doNotInfer: false, childOperations);
+        }
+
+        /// <summary>
+        /// Like <see cref="SpawnAndWritePidFile"/> except it doesn't write out spawned process pid to file and the spawn operation happens via vfork.
+        /// </summary>
+        /// <remarks>
+        /// Only available on Linux
+        /// </remarks>
+        public static Operation SpawnWithVFork(PathTable pathTable, bool waitToFinish, params Operation[] childOperations)
+        {
+            var args = childOperations.Select(o => (o.ToCommandLine(pathTable, escapeResult: true))).ToArray();
+            return new Operation(Type.SpawnWithVFork, path: null, content: EncodeList(args), additionalArgs: waitToFinish ? WaitToFinishMoniker : null, doNotInfer: false, environmentVariablesToSet: null);
         }
 
         /// <summary>
@@ -1561,6 +1581,26 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoSpawn()
         {
             var cmdLine = string.Join(" ", DecodeList(Content));
+            DoSpawn(fileName: AssemblyHelper.GetAssemblyLocation(System.Reflection.Assembly.GetExecutingAssembly(), computeAssemblyLocation: true), arguments: cmdLine);
+        }
+
+        private void DoSpawnWithVFork()
+        {
+            Contract.Assert(OperatingSystemHelper.IsLinuxOS, "SpawnWithVFork is only available on Linux");
+
+            // The first expected argument for vforkSpawn is the executable to call after doing vfork
+            var testExecutor = AssemblyHelper.GetAssemblyLocation(System.Reflection.Assembly.GetExecutingAssembly(), computeAssemblyLocation: true);
+            var cmdLine = $"{testExecutor} {string.Join(" ", DecodeList(Content))}";
+
+            // CODESYNC: Public\Src\Utilities\UnitTests\Executables\TestProcess\Test.BuildXL.Executables.TestProcess.dsc
+            string vforkSpawn = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(testExecutor), "vforkSpawn");
+
+            DoSpawn(fileName: vforkSpawn, arguments: cmdLine);
+        }
+
+        private void DoSpawn(string fileName, string arguments)
+        {
+            var cmdLine = string.Join(" ", DecodeList(Content));
             var waitToFinish = AdditionalArgs == WaitToFinishMoniker;
 
             var feedStdoutDone = new ManualResetEventSlim();
@@ -1572,15 +1612,15 @@ namespace Test.BuildXL.Executables.TestProcess
             process.ErrorDataReceived += (sender, e) => FeedToOut(Console.Error, e.Data, feedStderrDone);
             process.StartInfo = new ProcessStartInfo
             {
-                FileName = AssemblyHelper.GetAssemblyLocation(System.Reflection.Assembly.GetExecutingAssembly(), computeAssemblyLocation: true),
-                Arguments = cmdLine,
+                FileName = fileName,
+                Arguments = arguments,
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
 
-            // Set environment varialbes for the child process
+            // Set environment variables for the child process
             if (EnvironmentVariablesToSet != null)
             {
                 foreach (var kvp in EnvironmentVariablesToSet.Split('\0'))

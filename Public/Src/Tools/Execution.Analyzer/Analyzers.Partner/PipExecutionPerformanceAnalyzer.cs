@@ -25,6 +25,7 @@ namespace BuildXL.Execution.Analyzer
             bool isSimplifiedCsv = false;
             bool includeProcessTree = false;
             bool useOriginalPaths = false;
+            PipExecutionLevel? resultFilter = null;
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputFile", StringComparison.OrdinalIgnoreCase) ||
@@ -42,6 +43,11 @@ namespace BuildXL.Execution.Analyzer
                 {
                     includeProcessTree = true;
                 }
+                else if (opt.Name.Equals("resultFilter", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("rf", StringComparison.OrdinalIgnoreCase))
+                {
+                    resultFilter = ParseEnumOption<PipExecutionLevel>(opt);
+                }
                 else if (opt.Name.Equals("useOriginalPaths", StringComparison.OrdinalIgnoreCase))
                 {
                     useOriginalPaths = true;
@@ -57,7 +63,7 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("outputFile parameter is required");
             }
 
-            return new PipExecutionPerformanceAnalyzer(GetAnalysisInput(), outputFilePath, isSimplifiedCsv, includeProcessTree, useOriginalPaths);
+            return new PipExecutionPerformanceAnalyzer(GetAnalysisInput(), outputFilePath, isSimplifiedCsv, includeProcessTree, useOriginalPaths, resultFilter);
         }
 
         private static void WritePipExecutionPerformanceAnalyzerHelp(HelpWriter writer)
@@ -81,6 +87,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly bool m_isCsvFormat;
         private readonly bool m_includeProcessTree;
         private readonly bool m_useOriginalPaths;
+        private readonly PipExecutionLevel? m_resultFilter;
 
         private readonly Dictionary<PipId, ProcessPipExecutionPerformance> m_processPerformance =
             new Dictionary<PipId, ProcessPipExecutionPerformance>();
@@ -94,7 +101,7 @@ namespace BuildXL.Execution.Analyzer
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public PipExecutionPerformanceAnalyzer(AnalysisInput input, string outputFilePath, bool isCsvFormat, bool includeProcessTree, bool useOriginalPaths)
+        public PipExecutionPerformanceAnalyzer(AnalysisInput input, string outputFilePath, bool isCsvFormat, bool includeProcessTree, bool useOriginalPaths, PipExecutionLevel? resultFilter)
             : base(input)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(outputFilePath));
@@ -103,6 +110,7 @@ namespace BuildXL.Execution.Analyzer
             m_isCsvFormat = isCsvFormat;
             m_includeProcessTree = includeProcessTree;
             m_useOriginalPaths = useOriginalPaths;
+            m_resultFilter = resultFilter;
         }
 
         public override int Analyze()
@@ -165,6 +173,11 @@ namespace BuildXL.Execution.Analyzer
                 Contract.Assert(process != null);
 
                 var performance = processIdAndExecutionPerformance.Value;
+
+                if (m_resultFilter.HasValue && m_resultFilter.Value != performance.ExecutionLevel)
+                {
+                    continue;
+                }
                 
                 WriteLineIndented("{");
                 IncrementIndent();

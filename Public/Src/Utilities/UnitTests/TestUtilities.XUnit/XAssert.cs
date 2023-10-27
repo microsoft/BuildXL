@@ -79,6 +79,21 @@ namespace Test.BuildXL.TestUtilities.Xunit
             Assert.Equal(expected, actual);
         }
 
+        /// <summary>
+        /// Compares values without using XUnit Equals method.
+        /// </summary>
+        /// <remarks>
+        /// When T implements IEnumerable, XUnit Equals method will try to do the equality checking by enumerating the entry first.
+        /// </remarks>
+        public static void SimpleEqual<T>(T expected, T actual)
+        {
+            bool areEqual = expected.Equals(actual);
+            if (!areEqual)
+            {
+                throw global::Xunit.Sdk.EqualException.ForMismatchedValues(expected, actual);
+            }
+        }
+
         /// <nodoc/>
         public static void AreEqual<T>(T expected, T actual, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object[] args)
         {
@@ -199,7 +214,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 var userMessage = format != null
                     ? GetMessage(format, args) + Environment.NewLine + equalityMessage
                     : equalityMessage;
-                throw new global::Xunit.Sdk.AssertActualExpectedException(
+                throw global::Xunit.Sdk.EqualException.ForMismatchedValues(
                     ArrayToString(expected),
                     ArrayToString(actual),
                     userMessage);
@@ -225,7 +240,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 var userMessage = format != null
                     ? GetMessage(format, args) + Environment.NewLine + equalityMessage
                     : equalityMessage;
-                throw new global::Xunit.Sdk.AssertActualExpectedException(
+                throw global::Xunit.Sdk.EqualException.ForMismatchedValues(
                     SetToString(expectedSet),
                     SetToString(actualSet),
                     userMessage);

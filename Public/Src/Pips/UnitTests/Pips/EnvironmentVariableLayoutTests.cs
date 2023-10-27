@@ -26,7 +26,11 @@ namespace Test.BuildXL.Pips
             // This test ensures the consistency.
             var pipData = PipData.Invalid;
             var envVar = new EnvironmentVariable(StringId.UnsafeCreateFrom(42), pipData, isPassThrough: true);
-            Assert.Equal(pipData, envVar.Value);
+
+            // Don't use XUnit Equals method for pip data comparison because it will treat pip data as a collection.
+            // Note that pip data implements IEnumerable, and XUnit will use collection comparison logic. This will cause
+            // System.NullReferenceException because invalid pip data may have some null entries.
+            XAssert.SimpleEqual(pipData, envVar.Value);
 
             var pipDataEntry = new PipDataEntry(PipDataFragmentEscaping.NoEscaping, PipDataEntryType.NestedDataHeader, 42);
             pipData = PipData.CreateInternal(
@@ -34,7 +38,7 @@ namespace Test.BuildXL.Pips
                 PipDataEntryList.FromEntries(new[] {pipDataEntry}),
                 StringId.UnsafeCreateFrom(1));
             envVar = new EnvironmentVariable(StringId.UnsafeCreateFrom(42), pipData, isPassThrough: false);
-            Assert.Equal(pipData, envVar.Value);
+            XAssert.SimpleEqual(pipData, envVar.Value);
         }
 
         [Fact]

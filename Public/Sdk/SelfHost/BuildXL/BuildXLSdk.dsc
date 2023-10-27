@@ -672,11 +672,11 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     let ruleset : File = undefined;
 
-	// Required for v2.x Roslyn compilers
-	// Flow analysis is used to infer the nullability of variables within executable code. The inferred nullability of a variable is independent of the variable's declared nullability.
-	// Method calls are analyzed even when they are conditionally omitted. For instance, `Debug.Assert` in release mode.
-	features = features.push("flow-analysis");
-	ruleset = f`BuildXL.Recommend.Required.Error.ruleset`;
+    // Required for v2.x Roslyn compilers
+    // Flow analysis is used to infer the nullability of variables within executable code. The inferred nullability of a variable is independent of the variable's declared nullability.
+    // Method calls are analyzed even when they are conditionally omitted. For instance, `Debug.Assert` in release mode.
+    features = features.push("flow-analysis");
+    ruleset = f`BuildXL.Recommend.Required.Error.ruleset`;
 
     args = Object.merge<Arguments>(
         {
@@ -972,6 +972,9 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
             ...addIf(isFullFramework,
                 importFrom("System.Runtime.Serialization.Primitives").pkg
             ),
+            ...addIf(isFullFramework,
+                NetFx.System.Collections.Concurrent.dll,
+                NetFx.System.ObjectModel.dll)
         ],
         skipTestRun: !targetFrameworkMatchesCurrentHost,
         runTestArgs: {

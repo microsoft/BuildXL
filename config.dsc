@@ -229,16 +229,11 @@ config({
 
                 // xUnit
                 { id: "xunit.abstractions", version: "2.0.3" },
-                { id: "xunit.analyzers", version: "0.10.0" },
-                { id: "xunit.assert", version: "2.4.1-ms" },
-                { id: "xunit.core", version: "2.4.1-ms" },
-                { id: "xunit.extensibility.core", version: "2.4.1" },
-                { id: "xunit.extensibility.execution", version: "2.4.1" },
-                { id: "xunit.runner.console", version: "2.4.1" },
-                { id: "Microsoft.DotNet.XUnitConsoleRunner", version: "2.5.1-beta.19270.4" },
-                { id: "xunit.runner.reporters", version: "2.4.1-pre.build.4059" },
-                { id: "xunit.runner.utility", version: "2.4.1" },
-                { id: "xunit.runner.visualstudio", version: "2.4.1", dependentPackageIdsToSkip: ["Microsoft.NET.Test.Sdk"]  },
+                { id: "xunit.assert", version: "2.5.3" },
+                { id: "xunit.extensibility.core", version: "2.5.3" },
+                { id: "xunit.extensibility.execution", version: "2.5.3" },
+                { id: "xunit.runner.console", version: "2.5.3" },
+                { id: "xunit.runner.visualstudio", version: "2.5.3" },
 
                 // microsoft test platform
                 { id: "Microsoft.TestPlatform.TestHost", version: "16.4.0"},

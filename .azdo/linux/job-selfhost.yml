@@ -1,7 +1,9 @@
 parameters:
 - name: BxlCommonArgs
   type: string
-  default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- # /p:[Sdk.BuildXL]xunitSemaphoreCount=20
+  # We pass xunit semaphore `/p:[Sdk.BuildXL]xunitSemaphoreCount=8` to limit the number of parallel xunit pips.
+  # Too many xunit pips running in parallel can cause the long running ones to hang. 
+  default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- /p:[Sdk.BuildXL]xunitSemaphoreCount=8
 - name: BxlExtraArgs
   type: string
 - name: ValidationName

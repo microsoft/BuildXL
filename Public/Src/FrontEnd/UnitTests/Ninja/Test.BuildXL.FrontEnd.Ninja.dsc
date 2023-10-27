@@ -12,6 +12,7 @@ namespace Test.Ninja {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
                 runWithUntrackedDependencies: true
             },
+            parallelBucketCount: 12
         },
         assemblyName: "Test.BuildXL.FrontEnd.Ninja",
         sources: globR(d`.`, "*.cs"),

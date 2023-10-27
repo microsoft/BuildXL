@@ -94,11 +94,11 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper.Ambients
 
                 if (expectedEqual)
                 {
-                    throw new EqualException(expectedString, actualString);
+                    throw EqualException.ForMismatchedValues(expectedString, actualString);
                 }
                 else
                 {
-                    throw new NotEqualException(expectedString, actualString);
+                    throw NotEqualException.ForEqualValues(expectedString, actualString);
                 }
             }
 

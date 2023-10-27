@@ -63,15 +63,15 @@ function getTargetFramework(): Framework {
     } 
 }
 
-@@public
-export const additionalNetCoreRuntimeContent = isDotNetCore(qualifier.targetFramework) ?
-    [
+const additionalNetCoreRuntimeContent = isDotNetCore(qualifier.targetFramework)
+    ? [
         // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and package it
         // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
         ...(getXunitConsoleRuntimeConfigNetCoreAppFiles()),
         xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
-        xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)
-    ] : [];
+        xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.console.dll`)
+      ] 
+    : [];
     
 // For the DotNetCore run we need to copy a bunch more files:
 function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.DeployableItem[] {
@@ -137,7 +137,6 @@ function wrapInUntrackedCmd(executeArguments: Transformer.ExecuteArguments) : Tr
                 ]),
                 Cmd.argument(Artifact.input(executeArguments.tool.exe))
             ].prependWhenMerged(),
-
             dependencies: staticDirectoryContents,
             tags: ["test", "telemetry:xUnitUntracked"]
         });

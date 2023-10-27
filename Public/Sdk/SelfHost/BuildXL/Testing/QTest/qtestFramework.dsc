@@ -9,7 +9,7 @@ import * as Qtest        from "BuildXL.Tools.QTest";
 export declare const qualifier : Managed.TargetFrameworks.All;
 const qTestContents = importFrom("CB.QTest").Contents.all;
 
-const isDotNetCore = qualifier.targetFramework.startsWith("netcoreapp");
+// const isDotNetCore = Shared.isDotNetCore(qualifier.targetFramework); // qualifier.targetFramework.startsWith("netcoreapp");
 
 @@public
 export const qTestTool: Transformer.ToolDefinition = Context.getCurrentHost().os === "win" && {
@@ -43,7 +43,7 @@ export interface TestRunArguments extends Managed.TestRunArguments, Qtest.QTestA
 export function getFramework(frameworkToWrap: Managed.TestFramework) : Managed.TestFramework {
     return {
         compileArguments: (args: Managed.Arguments) => {
-            if (isDotNetCore) {
+            if (Shared.isDotNetCore(qualifier.targetFramework)) {
                 args = Object.merge<Managed.Arguments>(
                     args,
                     {
@@ -59,13 +59,13 @@ export function getFramework(frameworkToWrap: Managed.TestFramework) : Managed.T
         },
         additionalRuntimeContent: (args: Managed.Arguments) => [ 
             ...(frameworkToWrap.additionalRuntimeContent ? frameworkToWrap.additionalRuntimeContent(args) : []), 
-            ...(isDotNetCore ? [
+            ...(Shared.isDotNetCore(qualifier.targetFramework) ? [
                 // hand picking files to avoid collisions with xunit assemblies specified elsewhere
                 ...importFrom("xunit.runner.visualstudio").Contents.all.getFiles([
-                    r`build/netcoreapp1.0/xunit.runner.reporters.netcoreapp10.dll`,
-                    r`build/netcoreapp1.0/xunit.runner.visualstudio.dotnetcore.testadapter.deps.json`,
-                    r`build/netcoreapp1.0/xunit.runner.visualstudio.dotnetcore.testadapter.dll`,
-                    r`build/netcoreapp1.0/xunit.runner.visualstudio.props`
+                    r`build/net6.0/xunit.runner.reporters.netcoreapp10.dll`,
+                    r`build/net6.0/xunit.runner.visualstudio.dotnetcore.testadapter.deps.json`,
+                    r`build/net6.0/xunit.runner.visualstudio.dotnetcore.testadapter.dll`,
+                    r`build/net6.0/xunit.runner.visualstudio.props`
                 ]),
                 ] : []),
             f`xunit.runner.json`
@@ -106,15 +106,20 @@ function getQTestDotNetFramework() : Qtest.QTestDotNetFramework {
     }
 }
 
-function runTest(args : TestRunArguments) : File[] {  
+function runTest(args : TestRunArguments) : File[] {
+
+    // Extracting a variable, because the type checker can't analyze a dotted names properly.
+    const targetFramework = qualifier.targetFramework;
+
     const testMethod = Environment.getStringValue("[UnitTest]Filter.testMethod");
     const testClass  = Environment.getStringValue("[UnitTest]Filter.testClass");
      
     let additionalOptions = undefined;
     let filterArgs = [];
     let rootTestAdapterPath = importFrom("xunit.runner.visualstudio").Contents.all;
-    let testAdapterPath =  d`${rootTestAdapterPath}/build/_common`;
-    
+    let testAdapterFolder = Shared.isDotNetCore(targetFramework) ? "net6.0" : "net462";
+    let testAdapterPath =  d`${rootTestAdapterPath}/build/${testAdapterFolder}`;
+
     // when testmethod or testclass ignore limitGroups and skipGroups arguments
     if (testMethod || testClass) {
         // vstest doesn't support a class filter for xunit runner. 
@@ -162,9 +167,6 @@ function runTest(args : TestRunArguments) : File[] {
     
     let qTestRuntimeDependencies = undefined;
     let qTestEnvironmentVariables = undefined;
-
-    // Extracting a variable, because the type checker can't analyze a dotted names properly.
-    const targetFramework = qualifier.targetFramework;
 
     if (Shared.isDotNetCore(targetFramework)) {
         const dotNetTool = importFrom("Sdk.Managed.Frameworks").Helpers.getDotNetToolTemplate(targetFramework);

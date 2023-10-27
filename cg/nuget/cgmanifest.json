@@ -1184,15 +1184,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.DotNet.XUnitConsoleRunner",
-          "Version": "2.5.1-beta.19270.4"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Extensions.Configuration",
           "Version": "2.2.0"
         }
@@ -4676,26 +4667,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "xunit.analyzers",
-          "Version": "0.10.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "xunit.assert",
-          "Version": "2.4.1-ms"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "xunit.core",
-          "Version": "2.4.1-ms"
+          "Version": "2.5.3"
         }
       }
     },
@@ -4704,7 +4677,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "xunit.extensibility.core",
-          "Version": "2.4.1"
+          "Version": "2.5.3"
         }
       }
     },
@@ -4713,7 +4686,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "xunit.extensibility.execution",
-          "Version": "2.4.1"
+          "Version": "2.5.3"
         }
       }
     },
@@ -4722,25 +4695,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "xunit.runner.console",
-          "Version": "2.4.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "xunit.runner.reporters",
-          "Version": "2.4.1-pre.build.4059"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "xunit.runner.utility",
-          "Version": "2.4.1"
+          "Version": "2.5.3"
         }
       }
     },
@@ -4749,7 +4704,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "xunit.runner.visualstudio",
-          "Version": "2.4.1"
+          "Version": "2.5.3"
         }
       }
     }

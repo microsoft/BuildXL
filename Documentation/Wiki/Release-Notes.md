@@ -2,6 +2,23 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20231021.0.1 (Release [337230](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=337230))
+-	Fix the dynamic worker's timeout issue when it is released early
+-	Do not reduce the orchestrator's slot when there are a few remote workers
+-	Quad align USN size to get the correct max size
+-	Propagate PID to normalize path in Linux Sandbox
+-	Make report processing more robust in Linux Sandbox
+-	Ensure execute permissions bit is set for destination file for copy file pip scenarios
+
+# 0.1.0-20231013.2 (Release [334693](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=334693))
+-	Use Linux stateless pool
+-	Do not declare yarn.lock as a static input in yarn SDK
+-	Wait for finalize to finish when it's called during shutdown 
+-	Deprecate /minAvailableRamMb flag
+-	Render namespaces and identifiers taking into consideration escaping rules 
+-	[Linux Sandbox] Avoid interference between primary and secondary access report consuming threads
+-	Some bug fixes
+
 # 0.1.0-20231006.2.1 (Release [333923](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=333923))
 -	Migrated Windows detours to C++ 2.0
 -	Enforce the same engine version when doing distributed builds

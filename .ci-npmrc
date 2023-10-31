@@ -1,0 +1,10 @@
+; this npmrc is only meant to be used on ADO builds
+; before starting the build, we must set CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64 to be a base64 encoded vso_packaging PAT for the BuildXL.Selfhost feed
+; begin auth token
+//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:username=cloudbuild
+//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:_password=${CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64}
+//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:email=npm requires email to be set but doesn't use the value
+//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/:username=cloudbuild
+//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/:_password=${CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64}
+//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/:email=npm requires email to be set but doesn't use the value
+; end auth token

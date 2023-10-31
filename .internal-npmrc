@@ -1,0 +1,4 @@
+; default npmrc for microsoft internal builds on local machines and CloudBuild
+; for CI builds on ADO use .ci-npmrc
+registry=https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/
+always-auth=true

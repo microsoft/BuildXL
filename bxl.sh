@@ -236,7 +236,46 @@ function launchCredProvider() {
 
     # CODESYNC: config.dsc. The URI needs to match the (single) feed used for the internal build
     $credProviderPath -U https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json -V Information -C -R
- }
+}
+
+function setAuthenticationTokenInNpmrc() {
+    # This function is responsible for setting the PAT generated for our internal selfhost feed to be used by npm
+    # first parse the local npmrc to see if there already exists a valid PAT
+    if ! [ -f "$HOME/.npmrc" ]; then
+        # npmrc doesn't exist, lets create one one now
+        touch "$HOME/.npmrc"
+    else
+        # delete any existing lines in the npmrc that might contain a stale token
+        # existing token may be valid, but we don't need to check that here because the credential provider has already generated/cached one
+        # we can just replace the existing one and save the trouble of having to verify whether it is valid by making a web request
+        mv "$HOME/.npmrc" "$HOME/.npmrc.bak"
+        touch "$HOME/.npmrc"
+
+        while read line; do
+            if [[ "$line" == *"//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry"* ]]; then
+                continue
+            fi
+
+            echo "$line" >> "$HOME/.npmrc"
+        done < "$HOME/.npmrc.bak"
+
+        rm "$HOME/.npmrc.bak"
+    fi
+
+    # get a cached token from credential provider (it should already be cached from when we called it earlier for nuget)
+    # we use the nuget uri here, but all this does is return a token with vso_packaging which is what we need for npm
+    credProviderOutput=$($credProviderPath -U https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json -C -F Json)
+
+    # output is in the format '{"Username":"VssSessionToken","Password":"token"}'
+    token=$(echo $credProviderOutput | sed -E -e 's/.*\{"Username":"[a-zA-Z0-9]*","Password":"([a-zA-Z0-9]*)"\}.*/\1/')
+    b64token=$(echo -ne "$token" | base64)
+
+    # write new token to file
+    echo "" >> "$HOME/.npmrc"
+    echo "//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:username=VssSessionToken" >> "$HOME/.npmrc"
+    echo "//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:_password=$b64token" >> "$HOME/.npmrc"
+    echo "//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:email=not-used@example.com" >> "$HOME/.npmrc"
+}
 
 # allow this script to be sourced, in which case we shouldn't execute anything
 if [[ "$0" != "${BASH_SOURCE[0]}" ]]; then 
@@ -274,10 +313,13 @@ fi
 # to prompt for credentials as a way to guarantee the auth token will be cached for the subsequent build.
 # This may prompt an interactive pop-up/console. ADO pipelines already configure the corresponding env vars 
 # so there is no need to do this on that case. Once the token is cached, launching the provider shouldn't need
-# any user interaction
+# any user interaction.
+# For npm authentication, we write the PAT to the npmrc file under $HOME/.npmrc.
+# On ADO builds, the CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64 variable is set instead.
 # TF_BUILD is an environment variable that is always present on ADO builds. So we use it to detect that case.
 if [[ -n "$arg_Internal" &&  ! -n "$TF_BUILD" ]];then
     launchCredProvider
+    setAuthenticationTokenInNpmrc
 fi
 
 # Make sure we pass the credential provider as an env var to bxl invocation
@@ -301,6 +343,7 @@ if [[ -n "$arg_Internal" && -n "$ADOBuild" && (! -n $VSS_NUGET_EXTERNAL_FEED_END
     fi
 
     export VSS_NUGET_EXTERNAL_FEED_ENDPOINTS="{\"endpointCredentials\":[{\"endpoint\":\"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json\",\"password\":\"$PAT1esSharedAssets\"},{\"endpoint\":\"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json\",\"password\":\"$PATCloudBuild\"}]}" 
+    export CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64=$(echo -ne "$PATCloudBuild" | base64)
 fi
 
 # For local builds we want to use the in-build Linux runtime (as opposed to the runtime.linux-x64.BuildXL package)

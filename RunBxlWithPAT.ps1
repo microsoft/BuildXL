@@ -53,6 +53,11 @@ Param(
 [Environment]::SetEnvironmentVariable("VSTSPERSONALACCESSTOKEN", $VstsPat, "Process")
 [Environment]::SetEnvironmentVariable("ARTIFACT_CREDENTIALPROVIDERS_PATH", $VstsCredProviderPath, "Process")
 
+# NPM authentication requires the PAT to be base64 encoded first
+$cbPatBytes = [System.Text.Encoding]::UTF8.GetBytes($CbPat)
+$b64CloudbuildPat = [Convert]::ToBase64String($cbPatBytes)
+[Environment]::SetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64", $b64CloudbuildPat, "Process")
+
 if ($NcPath)
 {
     [Environment]::SetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH", $NcPath, "Process")

@@ -96,6 +96,7 @@ namespace NugetPackages {
     const buildXLMemoizationStoreInterfacesIdentity = { id: `${packageNamePrefix}.Cache.MemoizationStore.Interfaces`, version: Branding.Nuget.packageVersion };
     const buildXLContentStoreHashingIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Hashing`, version: Branding.Nuget.packageVersion };
     const buildXLContentStoreUtilitiesCoreIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.UtilitiesCore`, version: Branding.Nuget.packageVersion };
+    const buildXLBlobLifetimeManagerIdentity = { id: `${packageNamePrefix}.Cache.BlobLifetimeManager.Library`, version: Branding.Nuget.packageVersion };
 
     // External packages
     // The macOS runtime package is only produced publicly, so 'Microsoft.BuildXL' will always be its prefix (ie: instead of using `packageNamePrefix`)
@@ -604,6 +605,12 @@ namespace NugetPackages {
         assemblies: [ ...Cache.NugetPackages.contentStoreUtilitiesCore ],
     };
 
+    // BuildXL.Cache.BlobLifetimeManager.Library
+    const blobLifetimeManagerLibrarySpecification = {
+        id: buildXLBlobLifetimeManagerIdentity,
+        assemblies: [ ...Cache.NugetPackages.blobLifetimeManagerLibrary ],
+    };
+
     /**
      * A set of all package specifications built by BuildXL.
      * When adding a new package, add its package specification here.
@@ -631,6 +638,7 @@ namespace NugetPackages {
         cacheMemoizationStoreInterfacesSpecification,
         cacheContentStoreHashingSpecification,
         cacheContentStoreUtilitiesCoreSpecification,
+        blobLifetimeManagerLibrarySpecification,
     ];
 
     const packageBranding : Nuget.PackageBranding = {
@@ -675,6 +683,7 @@ namespace NugetPackages {
     const cacheMemoizationStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheMemoizationStoreInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
     const cacheContentStoreHashing = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreHashingSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
     const cacheContentStoreUtilitiesCore = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreUtilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const blobLifetimeManagerLibrary = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(blobLifetimeManagerLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
 
     const cacheLibrariesPackages = [
         cacheContentStoreDistributed,
@@ -734,6 +743,7 @@ namespace NugetPackages {
                 cacheService,
                 cacheHashing,
                 ...cacheHashingPackages,
+                blobLifetimeManagerLibrary,
                 ariaCommon,
                 utilities,
                 utilitiesCore,

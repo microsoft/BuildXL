@@ -181,6 +181,11 @@ namespace Cache.NugetPackages {
         net7WinX64ContentStore.UtilitiesCore.dll,
     ];
 
+    // BlobLifetimeManager.Library
+    export const blobLifetimeManagerLibrary : Managed.Assembly[] = [
+        importFrom("BuildXL.Cache.BlobLifetimeManager").Library.withQualifier({ targetFramework: "net6.0", targetRuntime: "win-x64" }).dll,
+    ];
+
     // Old cache package deployments to be replaced by the ones above
     export const libraries : Deployment.Definition = {
         contents: [

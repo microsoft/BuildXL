@@ -1184,6 +1184,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.DotNet.XUnitConsoleRunner",
+          "Version": "2.5.1-beta.19270.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Extensions.Configuration",
           "Version": "2.2.0"
         }
@@ -4695,6 +4704,24 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "xunit.runner.console",
+          "Version": "2.5.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.runner.reporters",
+          "Version": "2.5.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.runner.utility",
           "Version": "2.5.3"
         }
       }

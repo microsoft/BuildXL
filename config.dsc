@@ -234,6 +234,9 @@ config({
                 { id: "xunit.extensibility.execution", version: "2.5.3" },
                 { id: "xunit.runner.console", version: "2.5.3" },
                 { id: "xunit.runner.visualstudio", version: "2.5.3" },
+                { id: "xunit.runner.utility", version: "2.5.3" },
+                { id: "xunit.runner.reporters", version: "2.5.3" },
+                { id: "Microsoft.DotNet.XUnitConsoleRunner", version: "2.5.1-beta.19270.4" },
 
                 // microsoft test platform
                 { id: "Microsoft.TestPlatform.TestHost", version: "16.4.0"},

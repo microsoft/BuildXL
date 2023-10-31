@@ -8,6 +8,11 @@ import {isDotNetCore} from "Sdk.Managed.Shared";
 
 export const xunitConsolePackage = importFrom("xunit.runner.console").Contents.all;
 
+// This package is published by Dotnet Arcade and contains some important fixes we need, when
+// running on .NETCoreApp 3.0, see: https://github.com/dotnet/arcade/tree/master/src/Microsoft.DotNet.XUnitConsoleRunner
+// For the issue, see: https://github.com/xunit/xunit/pull/1846
+export const xunitNetCoreConsolePackage = importFrom("Microsoft.DotNet.XUnitConsoleRunner").Contents.all;
+
 /**
  * Evaluate (i.e. schedule) xUnit test runner invocation with specified arguments.
  */

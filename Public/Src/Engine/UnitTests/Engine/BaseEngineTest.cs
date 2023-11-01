@@ -66,7 +66,7 @@ namespace Test.BuildXL.Engine
             RegisterEventSource(global::BuildXL.FrontEnd.Script.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
-            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
 
             ParseAndEvaluateLogger = Logger.CreateLoggerWithTracking();
             InitializationLogger = InitializationLogger.CreateLogger();

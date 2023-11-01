@@ -57,7 +57,7 @@ namespace BuildXL.Processes
 
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
-        private readonly LoggingContext m_loggingContext;
+        private readonly SandoxedProcessLogAction? m_sandboxedProcessLogAction;
 
         private readonly IList<Task<AsyncProcessExecutor>> m_ptraceRunners;
         private readonly TaskSourceSlim<bool> m_ptraceRunnersCancellation = TaskSourceSlim.Create<bool>();
@@ -181,7 +181,7 @@ namespace BuildXL.Processes
             ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
             IgnoreReportedAccesses = ignoreReportedAccesses;
             RootJailInfo = info.RootJailInfo;
-            m_loggingContext = info.LoggingContext;
+            m_sandboxedProcessLogAction = info.SandboxedProcessLogAction;
             m_ptraceRunners = new List<Task<AsyncProcessExecutor>>();
 
             if (info.MonitoringConfig is not null && info.MonitoringConfig.MonitoringEnabled)
@@ -203,7 +203,7 @@ namespace BuildXL.Processes
                 info.PathTable,
                 info.PipSemiStableHash,
                 info.PipDescription,
-                info.LoggingContext,
+                info.SandboxedProcessLogAction,
                 info.DetoursEventListener,
                 info.SidebandWriter,
                 info.FileSystemView,
@@ -221,7 +221,7 @@ namespace BuildXL.Processes
                     HandleAccessReport(accessReport, info.ForceAddExecutionPermission);
                 });
             // install 'ProcessReady' and 'ProcessStarted' handlers to inform the sandbox
-            ProcessReady += () => SandboxConnection.NotifyPipReady(info.LoggingContext, info.FileAccessManifest, this, m_pendingReports.Completion);
+            ProcessReady += () => SandboxConnection.NotifyPipReady(info.SandboxedProcessLogAction, info.FileAccessManifest, this, m_pendingReports.Completion);
             ProcessStarted += (pid) => OnProcessStartedAsync(info).GetAwaiter().GetResult();
         }
 
@@ -388,7 +388,7 @@ namespace BuildXL.Processes
 
             string? processStdinFileName = await FlushStandardInputToFileIfNeededAsync(info);
 
-            if (!SandboxConnection.NotifyPipStarted(info.LoggingContext, info.FileAccessManifest, this))
+            if (!SandboxConnection.NotifyPipStarted(info.SandboxedProcessLogAction, info.FileAccessManifest, this))
             {
                 ThrowCouldNotStartProcess("Failed to initialize the sandbox for process observation, make sure BuildXL is setup correctly!");
             }
@@ -1116,7 +1116,7 @@ namespace BuildXL.Processes
                 // We will kill these manually if the pip is exiting
                 Timeout.InfiniteTimeSpan,
                 // The runner will only log to stderr if there's a problem, other logs go to the main log using the fifo
-                errorBuilder: line => { if (line != null) { Logger.Log.PTraceRunnerError(m_loggingContext, line); } },
+                errorBuilder: line => { if (line != null) { m_sandboxedProcessLogAction?.Invoke(LogEventId.PTraceRunnerError, line); } },
                 forceAddExecutionPermission: forceAddExecutionPermission
            );
 

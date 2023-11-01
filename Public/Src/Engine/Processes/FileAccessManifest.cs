@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -1066,7 +1067,7 @@ namespace BuildXL.Processes
         /// native detour implementation
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
-        public ArraySegment<byte> GetPayloadBytes(LoggingContext loggingContext, FileAccessSetup setup, MemoryStream stream, uint timeoutMins, ref bool debugFlagsMatch)
+        public ArraySegment<byte> GetPayloadBytes(SandoxedProcessLogAction? sandboxedLogAction, FileAccessSetup setup, MemoryStream stream, uint timeoutMins, ref bool debugFlagsMatch)
         {
             stream.Position = 0;
             using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
@@ -1075,9 +1076,9 @@ namespace BuildXL.Processes
                 if (!debugFlagsMatch)
                 {
 #if DEBUG
-                    Tracing.Logger.Log.PipInvalidDetoursDebugFlag1(loggingContext);
+                    sandboxedLogAction?.Invoke(LogEventId.PipInvalidDetoursDebugFlag1, "Message is defined in real Log.cs, this message does nothing here.");
 #else
-                    Tracing.Logger.Log.PipInvalidDetoursDebugFlag2(loggingContext);
+                    sandboxedLogAction?.Invoke(LogEventId.PipInvalidDetoursDebugFlag2, "Message is defined in real Log.cs, this message does nothing here.");
 #endif
                 }
                 WriteInjectionTimeoutBlock(writer, timeoutMins);

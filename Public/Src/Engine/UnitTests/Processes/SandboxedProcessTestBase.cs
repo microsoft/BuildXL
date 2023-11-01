@@ -12,6 +12,7 @@ using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Xunit.Abstractions;
+using BuildXL.ProcessPipExecutor;
 
 namespace Test.BuildXL.Processes
 {
@@ -22,7 +23,7 @@ namespace Test.BuildXL.Processes
             {
                 "IntelliTrace.exe",
                 CmdHelper.Conhost,
-            }, 
+            },
             StringComparer.OrdinalIgnoreCase);
 
         public SandboxedProcessTestBase(ITestOutputHelper output) : base(output)
@@ -100,7 +101,7 @@ namespace Test.BuildXL.Processes
                 info.FileAccessManifest.AddScope(dir, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowAll);
 
             info.FileAccessManifest.PipId = GetNextPipId();
-
+            info.SandboxedProcessLogAction = SandboxedProcessPipExecutor.GetSandboxedProcessLogger(LoggingContext);
             return info;
         }
 

@@ -13,6 +13,7 @@ using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.VmCommandProxy;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.SandboxedProcessExecutor.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
@@ -92,7 +93,7 @@ namespace BuildXL.SandboxedProcessExecutor
             if (!Debugger.IsAttached && m_configuration.EnableTelemetry)
             {
                 AriaV2StaticState.Enable(BuildXL.Tracing.AriaTenantToken.Key);
-                TrackingEventListener.RegisterEventSource(ETWLogger.Log);
+                TrackingEventListener.RegisterEventSource(BuildXL.ProcessPipExecutor.ETWLogger.Log);
                 m_telemetryStopwatch.Start();
             }
         }
@@ -595,6 +596,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
                 using StreamReader? standardInputReader = standardInputStream == null ? null : new StreamReader(standardInputStream, CharUtilities.Utf8NoBomNoThrow);
                 info.StandardInputReader = standardInputReader;
+                info.SandboxedProcessLogAction = SandboxedProcessPipExecutor.GetSandboxedProcessLogger(m_loggingContext);
 
                 ISandboxedProcess? process = await StartProcessAsync(info);
 

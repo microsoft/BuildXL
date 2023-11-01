@@ -250,7 +250,7 @@ namespace BuildXL.Engine
             }
             catch (Exception e) when (e is BuildXLException || e is IOException || e is OperationCanceledException)
             {
-                Processes.Tracing.Logger.Log.CannotReadSidebandFileWarning(LoggingContext, filename, e.Message);
+                ProcessPipExecutor.Tracing.Logger.Log.CannotReadSidebandFileWarning(LoggingContext, filename, e.Message);
                 metadata = null;
                 paths = null;
                 return false;

@@ -32,7 +32,7 @@ namespace Test.BuildXL
         [InlineData(false)]
         public void LogAzureDevOpsIssueTest(bool isPipProcessError)
         {
-            m_eventListener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+            m_eventListener.RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
             m_eventListener.NestedLoggerHandler += (eventData, s) =>
             {
                 if (isPipProcessError)
@@ -48,7 +48,7 @@ namespace Test.BuildXL
             using (var testElements = PipProcessEventTestElement.Create(this, isPipProcessError: isPipProcessError))
             using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, AdoConsoleMaxIssuesToLog))
             {
-                listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+                listener.RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
                 if (isPipProcessError)
                 {
                     testElements.LogPipProcessError();
@@ -70,7 +70,7 @@ namespace Test.BuildXL
         public void ValidateErrorCap()
         {
             var adoConsoleMaxIssuesToLog = 1;
-            m_eventListener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+            m_eventListener.RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
             m_eventListener.NestedLoggerHandler += (eventData, _) =>
             {
                 m_pipProcessEventFields = new PipProcessEventFields(eventData.Payload, forwardedPayload: false, isPipProcessError: true);
@@ -79,7 +79,7 @@ namespace Test.BuildXL
             using (var testElements = PipProcessEventTestElement.Create(this, isPipProcessError: true))
             using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, adoConsoleMaxIssuesToLog))
             {
-                listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+                listener.RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
 
                 // First log should go through as normal
                 testElements.LogPipProcessError();
@@ -308,7 +308,7 @@ namespace Test.BuildXL
 
             public void LogPipProcessError()
             {
-                global::BuildXL.Processes.Tracing.Logger.Log.PipProcessError(m_loggingContext,
+                global::BuildXL.ProcessPipExecutor.Tracing.Logger.Log.PipProcessError(m_loggingContext,
                     PipProcessError.PipSemiStableHash,
                     PipProcessError.PipDescription,
                     PipProcessError.PipSpecPath,
@@ -325,7 +325,7 @@ namespace Test.BuildXL
 
             public void LogPipProcessWarning()
             {
-                global::BuildXL.Processes.Tracing.Logger.Log.PipProcessWarning(m_loggingContext,
+                global::BuildXL.ProcessPipExecutor.Tracing.Logger.Log.PipProcessWarning(m_loggingContext,
                     PipProcessWarning.PipSemiStableHash,
                     PipProcessWarning.PipDescription,
                     PipProcessWarning.PipSpecPath,

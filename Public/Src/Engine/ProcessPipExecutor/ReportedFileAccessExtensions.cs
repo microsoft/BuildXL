@@ -98,7 +98,7 @@ namespace BuildXL.ProcessPipExecutor
                         // If this is opening a special (device type) path, just report it as a verbose message, so we don't lose it completely.
                         if (IsSpecialDevicePath(access.Path))
                         {
-                            Processes.Tracing.Logger.Log.PipProcessIgnoringPathOfSpecialDeviceFileAccess(
+                            Tracing.Logger.Log.PipProcessIgnoringPathOfSpecialDeviceFileAccess(
                                 loggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(context),
@@ -107,7 +107,7 @@ namespace BuildXL.ProcessPipExecutor
                         }
                         else if (DoesPathContainsWildcards(access.Path))
                         {
-                            Processes.Tracing.Logger.Log.PipProcessIgnoringPathWithWildcardsFileAccess(
+                            Tracing.Logger.Log.PipProcessIgnoringPathWithWildcardsFileAccess(
                                 loggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(context),
@@ -116,7 +116,7 @@ namespace BuildXL.ProcessPipExecutor
                         }
                         else
                         {
-                            Processes.Tracing.Logger.Log.PipProcessFailedToParsePathOfFileAccess(
+                            Tracing.Logger.Log.PipProcessFailedToParsePathOfFileAccess(
                                 loggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(context),

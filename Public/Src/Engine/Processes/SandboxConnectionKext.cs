@@ -14,6 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.Processes;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -248,10 +249,10 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         }
 
         /// <inheritdoc />
-        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
+        public void NotifyPipReady(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
 
         /// <inheritdoc />
-        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
+        public bool NotifyPipStarted(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process)
         {
             Contract.Requires(process.Started);
             Contract.Requires(fam.PipId != 0);
@@ -272,7 +273,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
             {
                 var debugFlags = true;
                 ArraySegment<byte> manifestBytes = fam.GetPayloadBytes(
-                    loggingContext,
+                    sandboxedProcessLogAction,
                     setup,
                     wrapper.Instance,
                     timeoutMins: 10, // don't care because on Mac we don't kill the process from the Kext once it times out

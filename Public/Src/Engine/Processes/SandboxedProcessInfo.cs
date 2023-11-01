@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using BuildXL.Native.Processes;
 using BuildXL.Processes.Sideband;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.BuildParameters;
@@ -17,6 +18,19 @@ using static BuildXL.Utilities.Core.BuildParameters;
 
 namespace BuildXL.Processes
 {
+
+    /// <summary>
+    /// Callback invoked when a log action is to be performed.
+    /// </summary>
+    /// <remarks>
+    /// This pattern exists because the low level process monitoring and native projects shoud have a very minimal set of
+    /// dependencies for sake of other consumers. The logging architecture of BuildXL utilized a log code generator
+    /// which has a large dependency closure, so utilizing it at this layer would not achieve that goal of having minimal
+    /// dependencies. Instead, the relevant code calls this delegate when it would like to log something. It is up to the
+    /// calling code to implement how logging should be performed.
+    /// </remarks>
+    public delegate void SandoxedProcessLogAction(LogEventId id, string message);
+    
     /// <summary>
     /// Data-structure that holds all information needed to launch a sandboxed process.
     /// </summary>
@@ -74,6 +88,11 @@ namespace BuildXL.Processes
         /// The logging context used to log the messages to.
         /// </summary>
         public LoggingContext LoggingContext { get; private set; }
+
+        /// <summary>
+        /// Delegate logging action to use for logging messages from the sandboxed process.
+        /// </summary>
+        public SandoxedProcessLogAction? SandboxedProcessLogAction { get; set; }
 
         /// <summary>
         /// A detours event listener.
@@ -147,6 +166,44 @@ namespace BuildXL.Processes
                    monitoringConfig: monitoringConfig,
                    forceAddExecutionPermission: forceAddExecutionPermission)
         {
+        }
+
+        /// <summary>
+        /// Used in SandboxedProcessPipExecutor to pass delegate logger action.
+        /// </summary>
+        public SandboxedProcessInfo(
+            PathTable pathTable,
+            SandoxedProcessLogAction logAction,
+            ISandboxedProcessFileStorage ? fileStorage,
+            string fileName,
+            FileAccessManifest ? fileAccessManifest,
+            bool disableConHostSharing,
+            LoggingContext loggingContext,
+            bool testRetries = false,
+            IDetoursEventListener ? detoursEventListener = null,
+            ISandboxConnection ? sandboxConnection = null,
+            SidebandWriter ? sidebandWriter = null,
+            bool createJobObjectForCurrentProcess = true,
+            ISandboxFileSystemView ? fileSystemView = null,
+            SandboxedProcessResourceMonitoringConfig ? monitoringConfig = null,
+            bool forceAddExecutionPermission = true) : this (
+                pathTable,
+                fileStorage,
+                fileName,
+                fileAccessManifest,
+                disableConHostSharing,
+                loggingContext,
+                testRetries,
+                detoursEventListener,
+                sandboxConnection,
+                sidebandWriter,
+                createJobObjectForCurrentProcess,
+                fileSystemView,
+                monitoringConfig,
+                forceAddExecutionPermission
+        )
+        {
+            SandboxedProcessLogAction = logAction;
         }
 
         /// <summary>

@@ -21,6 +21,7 @@ using BuildXL.Utilities.Core.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Windows.Memory;
 using static BuildXL.Utilities.Core.OperatingSystemHelper;
+using BuildXL.Processes.Tracing;
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
@@ -79,6 +80,8 @@ namespace BuildXL.Processes
         private readonly Aggregation m_peakCommitSize = new Aggregation();
         private readonly Aggregation m_commitSize = new Aggregation();
 
+        private readonly SandoxedProcessLogAction? m_sandboxedProcessLogger;
+
         internal SandboxedProcess(SandboxedProcessInfo info)
         {
             Contract.Requires(!info.Timeout.HasValue || info.Timeout.Value >= TimeSpan.Zero);
@@ -132,12 +135,14 @@ namespace BuildXL.Processes
                 ? new SandboxedProcessTraceBuilder(info.FileStorage, info.PathTable)
                 : null;
 
+            m_sandboxedProcessLogger = info.SandboxedProcessLogAction;
+
             m_reports = new SandboxedProcessReports(
                     m_fileAccessManifest,
                     info.PathTable,
                     info.PipSemiStableHash,
                     info.PipDescription,
-                    info.LoggingContext,
+                    info.SandboxedProcessLogAction,
                     info.DetoursEventListener,
                     info.SidebandWriter,
                     info.FileSystemView,
@@ -158,6 +163,7 @@ namespace BuildXL.Processes
                     OnProcessExitedAsync,
                     info.Timeout,
                     info.DisableConHostSharing,
+                    info.SandboxedProcessLogAction,
                     info.LoggingContext,
                     info.TimeoutDumpDirectory,
                     // If there is any process configured to breakway from the sandbox, then we need to allow
@@ -225,7 +231,7 @@ namespace BuildXL.Processes
                     catch (Exception e)
                     {
                         suspendSuccess = false;
-                        Tracing.Logger.Log.ResumeOrSuspendException(m_loggingContext, "Suspend", e.ToStringDemystified());
+                        m_sandboxedProcessLogger?.Invoke(LogEventId.ResumeOrSuspendException, $"Suspend attempt failed with exception. {e.ToStringDemystified()}");
                     }
                 }
             });
@@ -297,7 +303,7 @@ namespace BuildXL.Processes
                 }
                 catch (Exception e)
                 {
-                    Tracing.Logger.Log.ResumeOrSuspendException(m_loggingContext, "Resume", e.ToStringDemystified());
+                    m_sandboxedProcessLogger?.Invoke(LogEventId.ResumeOrSuspendException, $"Resume attempt failed with exception. {e.ToStringDemystified()}");
                     success = false;
                 }
             });
@@ -361,7 +367,7 @@ namespace BuildXL.Processes
             catch (NullReferenceException ex)
             {
                 // Somewhere above there is a NRE but the stack doesn't match a line number and there is no obvious bug.
-                BuildXL.Tracing.UnexpectedCondition.Log(m_loggingContext, "Null reference exception when collecting MemoryCountersSnapshot: " + ex.ToString());
+                m_sandboxedProcessLogger?.Invoke(LogEventId.UnexpectedCondition, "Null reference exception when collecting MemoryCountersSnapshot: " + ex.ToString());
                 return null;
             }
         }
@@ -485,7 +491,7 @@ namespace BuildXL.Processes
 
                     bool debugFlagsMatch = true;
                     ArraySegment<byte> manifestBytes = new ArraySegment<byte>();
-                    manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_loggingContext, setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
+                    manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_sandboxedProcessLogger, setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
                     if (!debugFlagsMatch)
                     {
                         throw new BuildXLException("Mismatching build type for BuildXL and DetoursServices.dll.");
@@ -520,7 +526,7 @@ namespace BuildXL.Processes
                     }
 
                     string memUsage = $"RamPercent: {ramPercent}, AvailableRamMb: {availableRamMb}, AvailablePageFileMb: {availablePageFileMb}, TotalPageFileMb: {totalPageFileMb}";
-                    Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, m_reports.PipDescription + " - " + memUsage);
+                    m_sandboxedProcessLogger?.Invoke(LogEventId.DetouredProcessAccessViolationException, $"[{m_reports.PipDescription + " - " + memUsage}] AccessViolationException occurred in Detours.");
                     throw;
                 }
                 finally
@@ -736,7 +742,8 @@ namespace BuildXL.Processes
             }
 
             Dictionary<uint, ReportedProcess>? survivingChildProcesses = JobObjectProcessDumper.GetAndOptionallyDumpProcesses(jobObject: jobObject,
-                                                                               loggingContext: m_loggingContext, 
+                                                                               loggingContext: m_loggingContext,
+                                                                               m_sandboxedProcessLogger,
                                                                                survivingPipProcessDumpDirectory: m_survivingPipProcessChildrenDumpDirectory, 
                                                                                dumpProcess: false,
                                                                                out Exception? dumpException);
@@ -769,6 +776,7 @@ namespace BuildXL.Processes
         JobObjectProcessDumper.GetAndOptionallyDumpProcesses(
                 jobObject: jobObject,
                 loggingContext: m_loggingContext,
+                m_sandboxedProcessLogger,
                 survivingPipProcessDumpDirectory: m_survivingPipProcessChildrenDumpDirectory,
                 dumpProcess: shouldDumpProcess,
                 out Exception? _);

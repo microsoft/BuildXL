@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Processes.Sideband;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -97,7 +98,7 @@ namespace BuildXL.Processes
 
         private readonly FileAccessManifest m_manifest;
 
-        private readonly LoggingContext m_loggingContext;
+        private readonly SandoxedProcessLogAction m_loggingAction;
         
         private readonly ISandboxFileSystemView m_fileSystemView;
 
@@ -122,7 +123,7 @@ namespace BuildXL.Processes
             PathTable pathTable,
             long pipSemiStableHash,
             string pipDescription,
-            LoggingContext loggingContext,
+            [MaybeNull] SandoxedProcessLogAction loggingAction,
             [MaybeNull] IDetoursEventListener detoursEventListener,
             [MaybeNull] SidebandWriter sharedOpaqueOutputLogger,
             [MaybeNull] ISandboxFileSystemView fileSystemView,
@@ -131,7 +132,6 @@ namespace BuildXL.Processes
             Contract.RequiresNotNull(manifest);
             Contract.RequiresNotNull(pathTable);
             Contract.RequiresNotNull(pipDescription);
-            Contract.RequiresNotNull(loggingContext);
 
             PipSemiStableHash = pipSemiStableHash;
             PipDescription = pipDescription;
@@ -141,7 +141,7 @@ namespace BuildXL.Processes
             m_manifest = manifest;
             m_detoursEventListener = detoursEventListener;
             m_sharedOpaqueOutputLogger = sharedOpaqueOutputLogger;
-            m_loggingContext = loggingContext;
+            m_loggingAction = loggingAction;
             m_fileSystemView = fileSystemView;
             m_traceBuilder = traceBuilder;
             if (OperatingSystemHelper.IsLinuxOS)
@@ -166,11 +166,11 @@ namespace BuildXL.Processes
                 // be missing accesses
                 if (m_manifest.EnableLinuxPTraceSandbox)
                 {
-                    Tracing.Logger.Log.PTraceSandboxLaunchedForPip(m_loggingContext, PipDescription, exePath);
+                    m_loggingAction(LogEventId.PTraceSandboxLaunchedForPip, $"[{PipDescription}] Ptrace sandbox was launched for the following processes '{exePath}'.");
                 }
                 else
                 {
-                    Tracing.Logger.Log.LinuxSandboxReportedStaticallyLinkedBinary(m_loggingContext, PipDescription, exePath);
+                    m_loggingAction(LogEventId.LinuxSandboxReportedStaticallyLinkedBinary, $"[{PipDescription}] The following processes '{exePath}' is statically linked and its file accesses may not be reported by the sandbox.");
                 }
             }
         }
@@ -300,7 +300,7 @@ namespace BuildXL.Processes
                         m_detoursEventListener.HandleDebugMessage(new DebugData { PipId = PipSemiStableHash, PipDescription = PipDescription, DebugMessage = data });
                     }
 
-                    Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, PipSemiStableHash, data);
+                    m_loggingAction?.Invoke(LogEventId.LogDetoursDebugMessage, $"[Pip{PipSemiStableHash:X16}] Detours Debug Message: {data}");
                     break;
 
                 case ReportType.WindowsCall:
@@ -541,18 +541,7 @@ namespace BuildXL.Processes
                 return false;
             }
 
-            Tracing.Logger.Log.LogDetoursMaxHeapSize(
-                m_loggingContext,
-                PipSemiStableHash,
-                PipDescription,
-                detoursMaxMemHeapSizeInBytes,
-                processName,
-                processId,
-                manifestSizeInBytes,
-                finalDetoursHeapSizeInBytes,
-                allocatedPoolEntries,
-                maxHandleMapEntries,
-                handleMapEntries);
+            m_loggingAction?.Invoke(LogEventId.LogDetoursMaxHeapSize, $"[{PipSemiStableHash}] Maximum detours heap size for process in the pip is {detoursMaxMemHeapSizeInBytes} bytes. The processName '{processName}'. The processId is: {processId}. The manifestSize in bytes is: {manifestSizeInBytes}. The finalDetoursHeapSize in bytes is: {finalDetoursHeapSizeInBytes}. The allocatedPoolEntries is: {allocatedPoolEntries}. The maxHandleMapEntries is: {maxHandleMapEntries}. The handleMapEntries is: {handleMapEntries}.");
 
             if (MaxDetoursHeapSize < unchecked((long)detoursMaxMemHeapSizeInBytes))
             {
@@ -761,7 +750,7 @@ namespace BuildXL.Processes
                 if (matchingProcess == default)
                 {
                     // This should not happen unless a report came out of order for some reason, we will log, but we don't need to fail the build.
-                    Tracing.Logger.Log.ReportArgsMismatch(m_loggingContext, PipDescription, $"{processId}");
+                    m_loggingAction?.Invoke(LogEventId.ReportArgsMismatch, $"[{PipDescription}] Received ProcessCommandLine report without a matching ProcessStart report for pid '{processId}'.");
                     return true;
                 }
 
@@ -786,7 +775,7 @@ namespace BuildXL.Processes
             // just log it as a warning and return
             if (operation == ReportedFileOperation.ChangedReadWriteToReadAccess)
             {
-                Tracing.Logger.Log.ReadWriteFileAccessConvertedToReadMessage(m_loggingContext, PipSemiStableHash, PipDescription, processId, path);
+                m_loggingAction?.Invoke(LogEventId.ReadWriteFileAccessConvertedToReadMessage, $"[{PipSemiStableHash}] File access on file '{path}' requested with Read/Write but granted for Read only by process with ID: {processId}.");
                 HasReadWriteToReadFileAccessRequest = true;
                 return true;
             }
@@ -833,7 +822,7 @@ namespace BuildXL.Processes
             {
                 // This is just an info message for debugging purposes. We are interested in spotting reports without an associated process
                 // because it means that the process creation message was not received.
-                Tracing.Logger.Log.ReceivedReportFromUnknownPid(m_loggingContext, PipDescription, processId.ToString(), $"[{operation}-{requestedAccess}]{path}");
+                m_loggingAction?.Invoke(LogEventId.ReceivedReportFromUnknownPid, $"[{PipDescription}] [Warning] received report from unknown pid: {processId} - [{operation}-{requestedAccess}]{path}");
                 process = new ReportedProcess(processId, string.Empty, string.Empty);
             }
 

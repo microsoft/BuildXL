@@ -324,7 +324,7 @@ namespace BuildXL.ProcessPipExecutor
             int characterWithError;
             if (AbsolutePath.TryCreate(m_context.PathTable, reportedFileAccess.Process.Path, out toolPath, out characterWithError) != AbsolutePath.ParseResult.Success)
             {
-                Processes.Tracing.Logger.Log.FileAccessAllowlistFailedToParsePath(
+                Tracing.Logger.Log.FileAccessAllowlistFailedToParsePath(
                     loggingContext,
                     pip.SemiStableHash,
                     pip.FormattedSemiStableHash,

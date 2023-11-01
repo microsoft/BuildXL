@@ -36,6 +36,7 @@ namespace Test.Lage {
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,

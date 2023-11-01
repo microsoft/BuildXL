@@ -18,6 +18,7 @@ using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -848,11 +849,10 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) => true;
-
+        public bool NotifyPipStarted(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process) => true;
 
         /// <inheritdoc />
-        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion)
+        public void NotifyPipReady(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion)
         {
             Contract.Requires(!process.Started);
             Contract.Requires(process.PipId != 0);
@@ -869,7 +869,7 @@ namespace BuildXL.Processes
             {
                 var debugFlags = true;
                 ArraySegment<byte> manifestBytes = fam.GetPayloadBytes(
-                    loggingContext,
+                    sandboxedProcessLogAction,
                     new FileAccessSetup { DllNameX64 = string.Empty, DllNameX86 = string.Empty, ReportPath = process.ToPathInsideRootJail(fifoPath) },
                     wrapper.Instance,
                     timeoutMins: 10, // don't care

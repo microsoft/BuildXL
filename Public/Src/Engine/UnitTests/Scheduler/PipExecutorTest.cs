@@ -58,7 +58,7 @@ namespace Test.BuildXL.Scheduler
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
-            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Engine.Cache.ETWLogger.Log);
         }
 

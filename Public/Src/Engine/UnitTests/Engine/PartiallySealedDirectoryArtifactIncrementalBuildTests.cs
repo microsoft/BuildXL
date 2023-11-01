@@ -26,7 +26,7 @@ namespace Test.BuildXL.Engine
         public PartiallySealedDirectoryArtifactIncrementalBuildTests(ITestOutputHelper output)
             : base(output)
         {
-            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
         }
 
         [Fact]

@@ -1416,7 +1416,8 @@ namespace BuildXL
                     global::BuildXL.Pips.ETWLogger.Log,
                     global::BuildXL.Native.ETWLogger.Log,
                     global::BuildXL.Storage.ETWLogger.Log,
-                    global::BuildXL.Processes.ETWLogger.Log,
+                    global::BuildXL.ProcessPipExecutor.ETWLogger.Log,
+                    global::BuildXL.Processes.External.ETWLogger.Log,
                     global::BuildXL.Plugin.ETWLogger.Log,
                }.Concat(
                 FrontEndControllerFactory.GeneratedEventSources

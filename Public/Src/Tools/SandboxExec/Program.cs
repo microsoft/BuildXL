@@ -414,6 +414,7 @@ namespace BuildXL.SandboxExec
             sandboxProcessInfo.FileAccessManifest.IgnoreFullReparsePointResolving = false;
             sandboxProcessInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
             sandboxProcessInfo.FileAccessManifest.PipId = Interlocked.Increment(ref s_pipIdCounter);
+            sandboxProcessInfo.SandboxedProcessLogAction = SandboxedProcessPipExecutor.GetSandboxedProcessLogger(s_loggingContext);
             return sandboxProcessInfo;
         }
 

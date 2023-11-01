@@ -36,6 +36,7 @@ namespace Test.Ninja {
             Script.dll,
             Core.dll,
             importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             ...BuildXLSdk.tplPackages,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,

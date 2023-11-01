@@ -17,7 +17,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Native.IO;
-using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
@@ -27,7 +26,7 @@ using BuildXL.Processes;
 using BuildXL.Processes.External;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.Sideband;
-using BuildXL.Processes.Tracing;
+using BuildXL.ProcessPipExecutor.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
@@ -458,11 +457,7 @@ namespace BuildXL.ProcessPipExecutor
                 result.HasFlag(EmptyWorkingSetResult.SuspendFailed))
             {
                 var errorCode = Marshal.GetLastWin32Error();
-                Logger.Log.ResumeOrSuspendProcessError(
-                    m_loggingContext,
-                    m_pip.FormattedSemiStableHash,
-                    result.ToString(),
-                    errorCode);
+                Tracing.Logger.Log.ResumeOrSuspendProcessError(m_loggingContext, $"[{m_pip.FormattedSemiStableHash}] occurred an error for {result}: {errorCode}");
             }
 
             return result;
@@ -478,11 +473,8 @@ namespace BuildXL.ProcessPipExecutor
             if (result == false)
             {
                 var errorCode = Marshal.GetLastWin32Error();
-                Logger.Log.ResumeOrSuspendProcessError(
-                    m_loggingContext,
-                    m_pip.FormattedSemiStableHash,
-                    "ResumeProcess",
-                    errorCode);
+                Tracing.Logger.Log.ResumeOrSuspendProcessError(
+                    m_loggingContext,  $"[{m_pip.FormattedSemiStableHash}] occurred an error for ResumeProcess: {errorCode}");
             }
 
             return result ?? false;
@@ -563,7 +555,7 @@ namespace BuildXL.ProcessPipExecutor
                 }
                 catch (BuildXLException ex)
                 {
-                    Logger.Log.LogFailedToCreateDirectoryForInternalDetoursFailureFile(
+                    Tracing.Logger.Log.LogFailedToCreateDirectoryForInternalDetoursFailureFile(
                         m_loggingContext,
                         m_pip.SemiStableHash,
                         m_pipDescription,
@@ -828,6 +820,7 @@ namespace BuildXL.ProcessPipExecutor
 
                     var info = new SandboxedProcessInfo(
                         m_pathTable,
+                        GetSandboxedProcessLogger(m_loggingContext),
                         this,
                         executable,
                         m_fileAccessManifest,
@@ -925,7 +918,7 @@ namespace BuildXL.ProcessPipExecutor
         {
             if (SandboxedProcessNeedsExecuteExternal)
             {
-                Logger.Log.PipProcessNeedsExecuteExternalButExecuteInternal(
+                Tracing.Logger.Log.PipProcessNeedsExecuteExternalButExecuteInternal(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pipDescription,
@@ -989,7 +982,7 @@ namespace BuildXL.ProcessPipExecutor
                                 LocationData location = m_pip.Provenance.Token;
                                 string specFile = location.Path.ToString(m_pathTable);
 
-                                Logger.Log.PipProcessFileNotFound(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, 2, info.FileName, specFile, location.Position);
+                                Tracing.Logger.Log.PipProcessFileNotFound(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, 2, info.FileName, specFile, location.Position);
 
                                 return SandboxedProcessPipExecutionResult.PreparationFailure();
                             }
@@ -997,7 +990,7 @@ namespace BuildXL.ProcessPipExecutor
                             {
                                 processLaunchRetryCount++;
                                 shouldRelaunchProcess = true;
-                                Logger.Log.RetryStartPipDueToErrorPartialCopyDuringDetours(
+                                Tracing.Logger.Log.RetryStartPipDueToErrorPartialCopyDuringDetours(
                                     m_loggingContext,
                                     m_pip.SemiStableHash,
                                     m_pipDescription,
@@ -1025,7 +1018,7 @@ namespace BuildXL.ProcessPipExecutor
                             else
                             {
                                 // not all start failures map to Win32 error code, so we have a message here too
-                                Logger.Log.PipProcessStartFailed(
+                                Tracing.Logger.Log.PipProcessStartFailed(
                                     m_loggingContext,
                                     m_pip.SemiStableHash,
                                     m_pipDescription,
@@ -1092,7 +1085,7 @@ namespace BuildXL.ProcessPipExecutor
 
                     PopulateRemoteSandboxedProcessData(info);
 
-                    Logger.Log.PipProcessStartRemoteExecution(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
+                    Tracing.Logger.Log.PipProcessStartRemoteExecution(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
 
                     Contract.Assert(m_remoteSbDataBuilder != null);
 
@@ -1110,7 +1103,7 @@ namespace BuildXL.ProcessPipExecutor
                 }
                 else if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
                 {
-                    Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
+                    Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,
@@ -1125,7 +1118,7 @@ namespace BuildXL.ProcessPipExecutor
 
                     PopulateExternalVMSandboxedProcessData(info);
 
-                    Logger.Log.PipProcessStartExternalVm(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
+                    Tracing.Logger.Log.PipProcessStartExternalVm(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,
@@ -1134,7 +1127,7 @@ namespace BuildXL.ProcessPipExecutor
             }
             catch (BuildXLException ex)
             {
-                Logger.Log.PipProcessStartFailed(
+                Tracing.Logger.Log.PipProcessStartFailed(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pipDescription,
@@ -1260,7 +1253,7 @@ namespace BuildXL.ProcessPipExecutor
 
                         if (process is ExternalToolSandboxedProcess)
                         {
-                            Logger.Log.PipProcessFinishedExternalTool(
+                            Tracing.Logger.Log.PipProcessFinishedExternalTool(
                                 m_loggingContext,
                                 m_pip.SemiStableHash,
                                 m_pipDescription,
@@ -1270,7 +1263,7 @@ namespace BuildXL.ProcessPipExecutor
                         }
                         else if (process is ExternalVmSandboxedProcess externalVmSandboxedProcess)
                         {
-                            Logger.Log.PipProcessFinishedExternalVm(
+                            Tracing.Logger.Log.PipProcessFinishedExternalVm(
                                 m_loggingContext,
                                 m_pip.SemiStableHash,
                                 m_pipDescription,
@@ -1288,7 +1281,7 @@ namespace BuildXL.ProcessPipExecutor
                         }
                         else if (process is RemoteSandboxedProcess)
                         {
-                            Logger.Log.PipProcessFinishedRemoteExecution(
+                            Tracing.Logger.Log.PipProcessFinishedRemoteExecution(
                                 m_loggingContext,
                                 m_pip.SemiStableHash,
                                 m_pipDescription,
@@ -5604,10 +5597,84 @@ namespace BuildXL.ProcessPipExecutor
         public static void LogSubPhaseDuration(LoggingContext context, Pip pip, SandboxedProcessCounters counter, TimeSpan duration, string extraInfo = "")
         {
             Counters.AddToCounter(counter, duration);
-            if (Processes.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
+            if (ProcessPipExecutor.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
             {
                 Logger.Log.LogPhaseDuration(context, pip.FormattedSemiStableHash, counter.ToString(), duration.ToString(), extraInfo);
             }
+        }
+
+        /// <summary>
+        /// Return a delegate SandboxedProcess log action.
+        /// This is used to remove the BuildXL.Tracing reference from BuildXL.Processes. 
+        /// There is no generated logger in BuildXL.Processes, use this to get the delegate Log action for SandboxedProcessInfo before running the sandboxed process.
+        /// </summary>
+        public static SandoxedProcessLogAction GetSandboxedProcessLogger(LoggingContext loggingContext)
+        {
+            return (logEventId, message) =>
+            {
+                switch (logEventId)
+                {
+                    case Processes.Tracing.LogEventId.ResumeOrSuspendException:
+                        Logger.Log.ResumeOrSuspendProcessError(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.UnexpectedCondition:
+                        BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.DetouredProcessAccessViolationException:
+                        Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.PipInvalidDetoursDebugFlag1:
+                        Logger.Log.PipInvalidDetoursDebugFlag1(loggingContext);
+                        break;
+
+                    case Processes.Tracing.LogEventId.PipInvalidDetoursDebugFlag2:
+                        Logger.Log.PipInvalidDetoursDebugFlag2(loggingContext);
+                        break;
+
+                    case Processes.Tracing.LogEventId.DumpSurvivingPipProcessChildrenStatus:
+                        Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.PTraceSandboxLaunchedForPip:
+                        Logger.Log.PTraceSandboxLaunchedForPip(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.LinuxSandboxReportedStaticallyLinkedBinary:
+                        Logger.Log.LinuxSandboxReportedStaticallyLinkedBinary(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.LogDetoursDebugMessage:
+                        Logger.Log.LogDetoursDebugMessage(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.LogDetoursMaxHeapSize:
+                        Logger.Log.LogDetoursMaxHeapSize(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.ReportArgsMismatch:
+                        Logger.Log.ReportArgsMismatch(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.ReadWriteFileAccessConvertedToReadMessage:
+                        Logger.Log.ReadWriteFileAccessConvertedToReadMessage(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.PTraceRunnerError:
+                        Logger.Log.PTraceRunnerError(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.ReceivedReportFromUnknownPid:
+                        Logger.Log.ReceivedReportFromUnknownPid(loggingContext, message);
+                        break;
+
+                    case Processes.Tracing.LogEventId.BrokeredDetoursInjectionFailed:
+                        Logger.Log.BrokeredDetoursInjectionFailed(loggingContext, message);
+                        break;
+                }
+            };
         }
     }
 }

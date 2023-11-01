@@ -3663,7 +3663,7 @@ namespace BuildXL.Scheduler
                     // There are some outputs that were asserted as belonging to the opaque that were not found
                     if (existenceAssertions.Count != 0)
                     {
-                        Processes.Tracing.Logger.Log.ExistenceAssertionUnderOutputDirectoryFailed(
+                        ProcessPipExecutor.Tracing.Logger.Log.ExistenceAssertionUnderOutputDirectoryFailed(
                             operationContext,
                             pip.GetDescription(environment.Context),
                             existenceAssertions.First().Path.ToString(environment.Context.PathTable),
@@ -4740,7 +4740,7 @@ namespace BuildXL.Scheduler
                             // There are some outputs that were asserted as belonging to the shared opaque that were not found
                             if (existenceAssertions.Count != 0)
                             {
-                                Processes.Tracing.Logger.Log.ExistenceAssertionUnderOutputDirectoryFailed(
+                                ProcessPipExecutor.Tracing.Logger.Log.ExistenceAssertionUnderOutputDirectoryFailed(
                                             operationContext,
                                             description,
                                             existenceAssertions.First().Path.ToString(pathTable),

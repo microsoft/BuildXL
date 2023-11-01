@@ -6,6 +6,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BuildXL.Processes.Tracing;
 
 namespace BuildXL.Processes
 {
@@ -50,7 +51,7 @@ namespace BuildXL.Processes
         /// A task that completes when the report processing for the pip is passed as a way for the sandbox connection
         /// deal with clean up operations that may not be directly associated with the root process ending/the pip finishing
         /// </remarks>
-        void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion);
+        void NotifyPipReady(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion);
 
         /// <summary>
         /// Notifies the sandbox that a new pip process has started. Since the sandbox expects to receive the
@@ -59,7 +60,7 @@ namespace BuildXL.Processes
         /// sandbox is notified about it being started, the process should be started in some kind of suspended mode, and
         /// resumed only after the sandbox has been notified.
         /// </summary>
-        bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process);
+        bool NotifyPipStarted(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process);
 
         /// <summary>
         /// A concrete sandbox connection can override this method to specify additional environment variables

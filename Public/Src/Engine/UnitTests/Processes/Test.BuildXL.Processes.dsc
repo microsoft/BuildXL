@@ -61,6 +61,7 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             ...addIf(bxlSdk.isFullFramework,
                 bxlSdk.NetFx.System.IO.Compression.dll,

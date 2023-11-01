@@ -33,7 +33,7 @@ namespace Test.BuildXL.Processes
         public LinuxSandboxProcessTests(ITestOutputHelper output)
             : base(output)
         {
-            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
             TestOutput = output;
         }
 

@@ -66,7 +66,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         protected RushIntegrationTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
-            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);

@@ -29,6 +29,7 @@ using TypeScript.Net.BuildXLScript;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.ProcessPipExecutor;
 
 namespace BuildXL.FrontEnd.Utilities
 {
@@ -130,6 +131,7 @@ namespace BuildXL.FrontEnd.Utilities
                     PipDescription = description,
                     EnvironmentVariables = buildParameters,
                 };
+            info.SandboxedProcessLogAction = SandboxedProcessPipExecutor.GetSandboxedProcessLogger(context.LoggingContext);
 
             // We don't expect many failures (none for the typical case). A concurrent bag should be fine.
             var sandboxFailures = new ConcurrentBag<(int, string)>();

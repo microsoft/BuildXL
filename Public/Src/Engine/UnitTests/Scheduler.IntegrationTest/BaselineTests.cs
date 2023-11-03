@@ -25,6 +25,7 @@ using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using PipsTracingLogEventId = BuildXL.Pips.Tracing.LogEventId;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using BuildXL.Utilities.Collections;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -65,6 +66,13 @@ namespace IntegrationTest.BuildXL.Scheduler
                 CommitUsagePercentage = 50,
                 CommitLimitMb = 10000,
             };
+
+        private readonly List<PipSpecificPropertyAndValue> m_propertiesAndValues = new List<PipSpecificPropertyAndValue>
+        {
+            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss, 24 ,null),
+            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging, 24, null),
+            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging, 22, null)
+        };
 
         /// <summary>
         /// Verifies that when a pip fails and exits the build, the code
@@ -2334,6 +2342,45 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();            
             AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary, count: 1);
+        }
+
+        /// <summary>
+        /// Ensures that PipSepcificPropetiesConfig object is wired accordingly.
+        /// Ensure that the GetPipIdsForProerty retrieve set of ids as required.
+        /// </summary>
+        /// <param name="pipSpecificProperty"></param>
+        [Theory]
+        [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss)]
+        [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging)]
+        public void ValidateGetPipIdsForProperty(PipSpecificPropertiesConfig.PipSpecificProperty pipSpecificProperty)
+        {
+            Configuration.Engine.PipSpecificPropertyAndValues.AddRange(m_propertiesAndValues);
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // dummy file
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            SchedulePipBuilder(builder);
+            RunScheduler().AssertSuccess();
+
+            // Retrieve pipIds based on the property
+            var retrievedPipIds = PipSpecificPropertiesConfig?.GetPipIdsForProperty(pipSpecificProperty);
+
+            // Retrieve list of expected properties
+            var expectedPipIds = m_propertiesAndValues.Where(x => x.PropertyName == pipSpecificProperty)
+                                                      .Select(pipSpecificProperty => pipSpecificProperty.PipSemiStableHash)
+                                                      .ToReadOnlySet();
+
+            // Ensure that both the lists have the same semistablehashes.
+            XAssert.IsTrue(retrievedPipIds.Count > 0);
+            XAssert.IsTrue(expectedPipIds.SequenceEqual(retrievedPipIds));
+
+            // Checks if the given pipId has a proeprty or not.
+            foreach(var expectedPipId in expectedPipIds)
+            {
+                XAssert.IsTrue(PipSpecificPropertiesConfig.PipHasProperty(pipSpecificProperty, expectedPipId));
+            }
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

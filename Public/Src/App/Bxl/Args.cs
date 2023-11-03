@@ -356,9 +356,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "debug_LoadGraph",
                             opt => HandleLoadGraphOption(opt, pathTable, cacheConfiguration)),
-                        OptionHandlerFactory.CreateOption(
-                            "debug_enableVerboseProcessLogging",
-                            opt => HandleVerboseProcessLoggingOption(opt, sandboxConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
                             "determinismProbe",
                             sign =>
@@ -583,9 +580,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "flushPageCacheToFileSystemOnStoringOutputsToCache",
                             sign => sandboxConfiguration.FlushPageCacheToFileSystemOnStoringOutputsToCache = sign),
-                        OptionHandlerFactory.CreateOption(
-                            "forcedCacheMiss",
-                            opt => HandleForcedCacheMissOption(opt, cacheConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
                             "forceEnableLinuxPTraceSandbox",
                             sign =>
@@ -964,6 +958,10 @@ namespace BuildXL
                             "pipWarningTimeoutMultiplier",
                             opt =>
                             sandboxConfiguration.WarningTimeoutMultiplier = (int)CommandLineUtilities.ParseDoubleOption(opt, 0.000001, 1000000)),
+                        OptionHandlerFactory.CreateOption(
+                            "pipProperty",
+                            opt =>
+                            CapturePipSpecificPropertyArguments.ParsePipPropertyArg(opt, engineConfiguration)),
                         OptionHandlerFactory.CreateOption(
                             "posixDeleteMode",
                             opt => FileUtilities.PosixDeleteMode = CommandLineUtilities.ParseEnumOption<PosixDeleteMode>(opt)),
@@ -2246,46 +2244,6 @@ namespace BuildXL
 
             var missOptions = TryParseArtificialCacheMissOptions(opt.Value) ?? throw CommandLineUtilities.Error(Strings.Args_ArtificialCacheMiss_Invalid, opt.Value);
             cacheConfiguration.ArtificialCacheMissOptions = missOptions;
-        }
-
-        private static void HandleForcedCacheMissOption(CommandLineUtilities.Option opt, CacheConfiguration cacheConfiguration)
-        {
-            string[] pipIds = opt.Value.Split(';', StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (var maybePipId in pipIds)
-            {
-                if (!FilterParser.TryParsePipId(maybePipId, out var pipId))
-                {
-                    throw CommandLineUtilities.Error(Strings.Args_ForcedCacheMiss_InvalidPipId, maybePipId);
-                }
-
-                cacheConfiguration.ForcedCacheMissSemistableHashes.Add(pipId);
-            }
-        }
-
-        private static void HandleVerboseProcessLoggingOption(CommandLineUtilities.Option opt, SandboxConfiguration sandboxConfiguration)
-        {
-            sandboxConfiguration.VerboseProcessLoggingEnabledPips ??= new ReadOnlyHashSet<string>();
-
-            var mutableSet = (ReadOnlyHashSet<string>)sandboxConfiguration.VerboseProcessLoggingEnabledPips;
-
-            string[] pipIds = opt.Value.Split(';', StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (var maybePipId in pipIds)
-            {
-                if (maybePipId == "*")
-                {
-                    mutableSet.Add(maybePipId);
-                }
-                else if (FilterParser.TryParsePipId(maybePipId, out _))
-                {
-                    mutableSet.Add(maybePipId);
-                }
-                else
-                {
-                    throw CommandLineUtilities.Error(Strings.Args_EnableVerboseProcessLogging_InvalidPipId, maybePipId);
-                }
-            }
         }
 
         private static void HandleLoadGraphOption(

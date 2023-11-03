@@ -71,6 +71,8 @@ namespace Test.BuildXL.Scheduler
 
         public bool ShouldCreateLogDir { get; set; } = false;
 
+        public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; set; }
+
         /// <summary>
         /// Class for storing pip graph setup.
         /// </summary>
@@ -514,7 +516,7 @@ namespace Test.BuildXL.Scheduler
                 EngineSchedule.PreparePreviousOutputsSalt(localLoggingContext, Context.PathTable, config);
             Contract.Assert(previousOutputsSalt.HasValue);
             // .....................................................................................
-
+            PipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(config.Engine.PipSpecificPropertyAndValues);
             testHooks ??= new SchedulerTestHooks();
             testHooks.FingerprintStoreTestHooks ??= new FingerprintStoreTestHooks();
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
@@ -547,7 +549,8 @@ namespace Test.BuildXL.Scheduler
                     subst: subst), // VM command proxy for unit tests comes from engine.
                 testHooks: testHooks,
                 performanceCollector: performanceCollector,
-                fileTimestampTracker: fileTimestampTracker))
+                fileTimestampTracker: fileTimestampTracker,
+                pipSpecificPropertiesConfig: PipSpecificPropertiesConfig))
             {
                 CancellableTimedAction updateStatusAction = null;
 

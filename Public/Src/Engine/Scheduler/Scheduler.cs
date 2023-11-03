@@ -1183,7 +1183,8 @@ namespace BuildXL.Scheduler
             VmInitializer vmInitializer = null,
             SchedulerTestHooks testHooks = null,
             FileTimestampTracker fileTimestampTracker = null,
-            bool isTestScheduler = false)
+            bool isTestScheduler = false,
+            PipSpecificPropertiesConfig pipSpecificPropertiesConfig = null)
         {
             Contract.Requires(graph != null);
             Contract.Requires(pipQueue != null);
@@ -1201,7 +1202,6 @@ namespace BuildXL.Scheduler
             Contract.Assert(context != null);
 
             m_buildEngineFingerprint = buildEngineFingerprint;
-
             fingerprintSalt = fingerprintSalt ?? string.Empty;
             m_configuration = configuration;
             m_scheduleConfiguration = configuration.Schedule;
@@ -1222,6 +1222,7 @@ namespace BuildXL.Scheduler
 
             PipQueue = pipQueue;
             Context = context;
+            PipSpecificPropertiesConfig = pipSpecificPropertiesConfig;
 
             m_pipContentFingerprinter = new PipContentFingerprinter(
                 context.PathTable,
@@ -1247,11 +1248,14 @@ namespace BuildXL.Scheduler
 
             // Prepare artificial cache miss.
             var artificalCacheMissConfig = configuration.Cache.ArtificialCacheMissConfig ?? new ArtificialCacheMissConfig();
+            // Retrieve the list of pipIds which have the forcedCacheMiss property set on them.
+            var forcedCacheMissSemistableHashes = PipSpecificPropertiesConfig?.GetPipIdsForProperty(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss).ToHashSet() ?? new HashSet<long>();
+
             m_artificialCacheMissOptions = new ArtificialCacheMissOptions(
                 artificalCacheMissConfig.Rate / (double)ushort.MaxValue,
                 artificalCacheMissConfig.IsInverted,
                 artificalCacheMissConfig.Seed,
-                configuration.Cache.ForcedCacheMissSemistableHashes);
+                forcedCacheMissSemistableHashes);
 
             m_fileContentTable = fileContentTable;
             m_journalState = journalState ?? JournalState.DisabledJournal;
@@ -5385,6 +5389,8 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         public IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes { get; }
 
+        /// <inheritdoc />
+        public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; }
 
         /// <summary>
         /// Gets the execution information for the producer pip of the given file.

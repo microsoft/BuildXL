@@ -360,6 +360,8 @@ namespace Test.BuildXL.Scheduler
                 }
 
                 DirectoryTranslator.Seal();
+
+                PipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(Configuration.Engine.PipSpecificPropertyAndValues);
             }
 
             public void AddExpectedWrite(Pip producer, FileArtifact file, ContentHash expectedContent)
@@ -582,6 +584,9 @@ namespace Test.BuildXL.Scheduler
             public IReadOnlyDictionary<string, string> RootMappings => new Dictionary<string, string>();
 
             public IPipGraphFileSystemView PipGraphView => m_filesystemView;
+
+            /// <inheritdoc />
+            public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; }
 
             SealDirectoryKind IFileContentManagerHost.GetSealDirectoryKind(DirectoryArtifact directory)
             {

@@ -38,6 +38,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AllowDuplicateTemporaryDirectory = false;
             VerifyFileContentOnBuildManifestHashComputation = false;
             VerifyJournalForEngineVolumes = true;
+            PipSpecificPropertyAndValues = new List<PipSpecificPropertyAndValue>();
         }
 
         /// <nodoc />
@@ -82,6 +83,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnsafeAllowOutOfMountWrites = template.UnsafeAllowOutOfMountWrites;
             VerifyFileContentOnBuildManifestHashComputation = template.VerifyFileContentOnBuildManifestHashComputation;
             VerifyJournalForEngineVolumes = template.VerifyJournalForEngineVolumes;
+            PipSpecificPropertyAndValues = template.PipSpecificPropertyAndValues.Select(
+                                               p => new PipSpecificPropertyAndValue(p.PropertyName, p.PipSemiStableHash, p.PropertyValue)).ToList();
         }
 
         /// <inheritdoc />
@@ -182,5 +185,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool VerifyJournalForEngineVolumes { get; set; }
+
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public List<PipSpecificPropertyAndValue> PipSpecificPropertyAndValues { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<PipSpecificPropertyAndValue> IEngineConfiguration.PipSpecificPropertyAndValues => PipSpecificPropertyAndValues;
+
     }
 }

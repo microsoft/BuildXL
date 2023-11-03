@@ -187,6 +187,8 @@ namespace Test.BuildXL.Scheduler.Utils
             }
 
             DirectoryTranslator.Seal();
+
+            PipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(Configuration.Engine.PipSpecificPropertyAndValues);
         }
 
         internal void RecordExecution()
@@ -648,6 +650,9 @@ namespace Test.BuildXL.Scheduler.Utils
         public IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes => CollectionUtilities.EmptySet<AbsolutePath>();
 
         public SchedulerTestHooks SchedulerTestHooks { get; }
+
+        /// <inheritdoc />
+        public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; }
 
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {

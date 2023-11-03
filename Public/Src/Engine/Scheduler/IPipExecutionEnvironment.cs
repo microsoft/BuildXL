@@ -19,6 +19,7 @@ using BuildXL.Processes.VmCommandProxy;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler
 {
@@ -246,6 +247,10 @@ namespace BuildXL.Scheduler
         /// Test hooks for scheduler.
         /// </summary>
         SchedulerTestHooks SchedulerTestHooks { get; }
+
+        /// <nodoc />
+        PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; }
+
     }
 
     /// <summary>

@@ -197,6 +197,7 @@ namespace BuildXL.Engine
             int maxDegreeOfParallelism,
             TempCleaner tempCleaner,
             string buildEngineFingerprint,
+            PipSpecificPropertiesConfig pipSpecificPropertiesConfig,
             IDetoursEventListener detoursListener = null)
         {
             Contract.Requires(context != null);
@@ -308,7 +309,8 @@ namespace BuildXL.Engine
                         message => Logger.Log.StartInitializingVm(loggingContext, message),
                         message => Logger.Log.EndInitializingVm(loggingContext, message),
                         message => Logger.Log.InitializingVm(loggingContext, message)),
-                    testHooks: testHooks);
+                    testHooks: testHooks,
+                    pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
 
             }
             catch (BuildXLException e)
@@ -1559,7 +1561,8 @@ namespace BuildXL.Engine
             DirectoryTranslator directoryTranslator,
             EngineState engineState,
             TempCleaner tempCleaner,
-            string buildEngineFingerprint)
+            string buildEngineFingerprint,
+            PipSpecificPropertiesConfig pipSpecificPropertiesConfig)
         {
             // journal may be null, in the event that journal usage is not enabled.
             var graphLoaderAndFingerprint = await ReadGraphFingerprintAndCreateGraphLoader(oldContext, serializer, loggingContext, engineState);
@@ -1719,7 +1722,8 @@ namespace BuildXL.Engine
                                 : default,
                             message => Logger.Log.StartInitializingVm(loggingContext, message),
                             message => Logger.Log.EndInitializingVm(loggingContext, message),
-                            message => Logger.Log.InitializingVm(loggingContext, message)));
+                            message => Logger.Log.InitializingVm(loggingContext, message)),
+                        pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
                 }
                 catch (BuildXLException e)
                 {

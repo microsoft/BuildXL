@@ -5,6 +5,7 @@ using System;
 using System.Linq;
 using BuildXL;
 using BuildXL.Engine;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using System.Collections.Generic;
@@ -12,12 +13,20 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
+using System.Collections;
 
 namespace Test.BuildXL
 {
     public class ArgsTests
     {
         private readonly string m_specFilePath = A("d", "src", "blahBlah.dsc");
+
+        private readonly List<PipSpecificPropertyAndValue> m_propertiesAndValues = new List<PipSpecificPropertyAndValue>
+        {
+            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss, 24 ,null),
+            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging, 24, null),
+            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging, 22, null)
+        };
 
         /// <summary>
         /// Test to ensure that every unsafe option added in Args.cs (see m_handlers)
@@ -230,6 +239,48 @@ namespace Test.BuildXL
 
             XAssert.IsTrue(argsParser.TryParse(new[] { "/c:" + m_specFilePath, "/vsnew" }, pt, out config));
             XAssert.IsTrue(config.Cache.UseLocalOnly.Value);
+        }
+
+        /// <summary>
+        /// Ensure that the pipProperty arguments are parsed accordingly.
+        /// </summary>
+        [Fact]
+        public void PassMultiplePropertiesToPip()
+        {
+            var property1 = PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss;
+            var property2 = PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging;
+
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+
+            string pipProperty1 = $"/pipProperty:Pip0000000000000018[{property1},{property2}]";
+            string pipProperty2 = $"/pipProperty:Pip0000000000000016 [{property2}  ] ";
+
+            string[] args = new[] { @"/c:" + m_specFilePath, pipProperty1, pipProperty2 };
+
+            XAssert.IsTrue(argsParser.TryParse(args, pt, out var config));
+
+            var pipSpecificPropertyAndValues = config.Engine.PipSpecificPropertyAndValues.ToList();
+            XAssert.IsNotNull(pipSpecificPropertyAndValues);
+            XAssert.AreEqual(pipSpecificPropertyAndValues.Count, 3);
+
+            XAssert.IsTrue(pipSpecificPropertyAndValues.SequenceEqual(m_propertiesAndValues));
+        }
+
+        /// <summary>
+        /// Ensure that a disallowed property is not considered after parsing.
+        /// </summary>
+        [Fact]
+        public void PassDisallowedPropertyToPipProperty()
+        {
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+
+            var property = "wrongProperty";
+            string pipProperty = $"/pipProperty:Pip0000000000000018[{property}]";
+
+            string[] args = new[] { @"/c:" + m_specFilePath, pipProperty };
+            XAssert.IsFalse(argsParser.TryParse(args, pt, out var config));
         }
     }
 }

@@ -1301,6 +1301,8 @@ namespace Test.BuildXL.Scheduler
 
             directoryTranslator.Seal();
 
+            var pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(m_configuration.Engine.PipSpecificPropertyAndValues);
+
             m_scheduler = new TestScheduler(
                 graph: graph,
                 pipQueue: m_testQueue,
@@ -1316,7 +1318,8 @@ namespace Test.BuildXL.Scheduler
                 journalState: m_journalState,
                 tempCleaner: MoveDeleteCleaner,
                 directoryTranslator: directoryTranslator,
-                testHooks: testHooks);
+                testHooks: testHooks,
+                pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
 
             bool success = m_scheduler.InitForOrchestrator(LoggingContext, filter);
             XAssert.IsTrue(success);
@@ -2885,6 +2888,7 @@ namespace Test.BuildXL.Scheduler
             }
 
             directoryTranslator.Seal();
+            var pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(m_configuration.Engine.PipSpecificPropertyAndValues);
 
             var newScheduler = new TestScheduler(
                 graph,
@@ -2897,7 +2901,8 @@ namespace Test.BuildXL.Scheduler
                 cache: cache,
                 directoryTranslator: directoryTranslator,
                 tempCleaner: MoveDeleteCleaner,
-                testHooks: new SchedulerTestHooks());
+                testHooks: new SchedulerTestHooks(),
+                pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
 
             newScheduler.InitForOrchestrator(LoggingContext, filter);
 

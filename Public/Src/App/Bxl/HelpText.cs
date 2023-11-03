@@ -599,11 +599,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/forcedCacheMiss:<PipId1>[;<PipId2>;<PipId3>...]",
-                Strings.HelpText_DisplayHelp_ForcedCacheMiss,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/pipDefaultTimeout:<ms>",
                 Strings.HelpText_DisplayHelp_PipTimeout);
 
@@ -1188,11 +1183,6 @@ namespace BuildXL
             hw.WriteOption(
                 "/debug_LoadGraph:<fingerprint | path | name>",
                 Strings.HelpText_DisplayHelp_LoadGraph,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/debug_enableVerboseProcessLogging:<list>",
-                Strings.HelpText_DisplayHelp_EnableVerboseProcessLogging,
                 HelpLevel.Verbose);
 
             hw.WriteOption(

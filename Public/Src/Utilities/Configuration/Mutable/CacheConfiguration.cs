@@ -34,7 +34,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             StrongContentGuaranteeRefreshProbability = 1;
             FileChangeTrackingExclusionRoots = new List<AbsolutePath>();
             FileChangeTrackingInclusionRoots = new List<AbsolutePath>();
-            ForcedCacheMissSemistableHashes = new();
             ReplaceExistingFileOnMaterialization = false;
             ElideMinimalGraphEnumerationAbsentPathProbes = true;
             AugmentWeakFingerprintRequiredPathCommonalityFactor = 1;
@@ -58,7 +57,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CacheSpecs = template.CacheSpecs;
             CacheSessionName = template.CacheSessionName;
             ArtificialCacheMissOptions = template.ArtificialCacheMissConfig == null ? null : new ArtificialCacheMissConfig(template.ArtificialCacheMissConfig);
-            ForcedCacheMissSemistableHashes = template.ForcedCacheMissSemistableHashes;
             CacheSalt = template.CacheSalt;
             HistoricMetadataCache = template.HistoricMetadataCache;
             AllowFetchingCachedGraphFromContentCache = template.AllowFetchingCachedGraphFromContentCache;
@@ -119,9 +117,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         public ArtificialCacheMissConfig ArtificialCacheMissOptions { get; set; }
        
-        /// <inheritdoc />
-        public HashSet<long> ForcedCacheMissSemistableHashes { get; set; }
-
         /// <inheritdoc />
         IArtificialCacheMissConfig ICacheConfiguration.ArtificialCacheMissConfig => ArtificialCacheMissOptions;
 

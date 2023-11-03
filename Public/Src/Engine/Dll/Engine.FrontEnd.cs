@@ -593,7 +593,8 @@ namespace BuildXL.Engine
                     m_directoryTranslator,
                     engineState,
                     tempCleaner: m_tempCleaner,
-                    buildEngineFingerprint).GetAwaiter().GetResult();
+                    buildEngineFingerprint,
+                    m_pipSpecificPropertiesConfig).GetAwaiter().GetResult();
             }
             catch (BuildXLException e)
             {

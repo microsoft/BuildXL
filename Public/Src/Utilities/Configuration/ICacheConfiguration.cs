@@ -66,12 +66,6 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         IArtificialCacheMissConfig ArtificialCacheMissConfig { get; }
 
-
-        /// <summary>
-        /// Semistable hashes that will be forced to have cache misses.
-        /// </summary>
-        HashSet<long> ForcedCacheMissSemistableHashes { get; }
-
         /// <summary>
         /// An optional string to add to pip fingerprints; thus creating a separate cache universe.
         /// </summary>

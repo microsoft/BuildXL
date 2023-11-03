@@ -222,5 +222,10 @@ namespace BuildXL.Utilities.Configuration
         /// matches the one provided by the engine.
         /// </remarks>
         bool VerifyFileContentOnBuildManifestHashComputation { get; }
+
+        /// <summary>
+        /// Contains list of semistablehashes and the specific properties applied to those pips.
+        /// </summary>
+        IReadOnlyList<PipSpecificPropertyAndValue> PipSpecificPropertyAndValues { get; }
     }
 }

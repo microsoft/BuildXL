@@ -254,6 +254,11 @@ namespace BuildXL.Engine
         private bool IsDistributedWorker => Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker;
 
         /// <summary>
+        /// PipSpecificPropertiesConfig
+        /// </summary>
+        private readonly PipSpecificPropertiesConfig m_pipSpecificPropertiesConfig;
+
+        /// <summary>
         /// Private constructor. Please use BuildXLEngine.Create
         /// </summary>
         private BuildXLEngine(
@@ -375,6 +380,7 @@ namespace BuildXL.Engine
 
             SandboxedProcess.SetMaxWorkingSetToPeakBeforeResume(EngineEnvironmentSettings.SetMaxWorkingSetToPeakBeforeResume.Value);
             PipeReaderFactory.SetKind(EngineEnvironmentSettings.SandboxAsyncPipeReaderKind.Value);
+            m_pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(Configuration.Engine.PipSpecificPropertyAndValues);
         }
 
         /// <summary>
@@ -3142,7 +3148,6 @@ namespace BuildXL.Engine
                         }
 
                         CacheInitializer cacheInitializerForGraphConstruction = possibleCacheInitializer.Result;
-
                         engineSchedule = EngineSchedule.Create(
                             loggingContext,
                             context: Context,
@@ -3158,6 +3163,7 @@ namespace BuildXL.Engine
                             maxDegreeOfParallelism: Configuration.FrontEnd.MaxFrontEndConcurrency(),
                             tempCleaner: m_tempCleaner,
                             buildEngineFingerprint: graphFingerprint?.ExactFingerprint.BuildEngineHash.ToString(),
+                            pipSpecificPropertiesConfig: m_pipSpecificPropertiesConfig,
                             detoursListener: TestHooks?.DetoursListener);
 
                         if (engineSchedule == null)

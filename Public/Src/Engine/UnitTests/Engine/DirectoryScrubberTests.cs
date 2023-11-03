@@ -18,9 +18,10 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using Mount=BuildXL.Utilities.Configuration.Mutable.Mount;
+using Mount = BuildXL.Utilities.Configuration.Mutable.Mount;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Collections;
+using BuildXL.Pips;
 
 namespace Test.BuildXL.Engine
 {
@@ -254,8 +255,60 @@ namespace Test.BuildXL.Engine
                 pipBuilder.AdditionalTempDirectories = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(env.Paths.CreateAbsolutePath(pipTempDir2));
 
                 env.PipConstructionHelper.AddProcess(pipBuilder);
+
+                // Define a SourceAllDirectory and SourceTopDirectoryOnly:
+                //
+                //  \ssd\
+                //      fileUnderSsd.txt
+                //  \topLevelSsd\
+                //      fileUndertopLevelSsd.txt
+                //      \dirUnderTopLevelSsd\
+                //          fileUnderDirUnderTopLevelSsd.txt
+
+                var ssdDirPath = Path.Combine(sourceRoot, "ssd");
+                var ssdDir = env.Paths.CreateAbsolutePath(ssdDirPath);
+                Directory.CreateDirectory(ssdDirPath);
+                var fileUnderSsd = Path.Combine(ssdDirPath, "fileUnderSsd.txt");
+                WriteFile(fileUnderSsd);
+
+                var topLevelSsdDirPath = Path.Combine(sourceRoot, "topLevelSsd");
+                var topLevelSsdDir = env.Paths.CreateAbsolutePath(topLevelSsdDirPath);
+                Directory.CreateDirectory(topLevelSsdDirPath);
+                var fileUndertopLevelSsd = Path.Combine(ssdDirPath, "fileUndertopLevelSsd.txt");
+                WriteFile(fileUndertopLevelSsd);
+
+                var dirUnderTopLevelSsd = Path.Combine(topLevelSsdDirPath, "dirUnderTopLevelSsd");
+                var fileUnderDirUnderTopLevelSsd = Path.Combine(dirUnderTopLevelSsd, "fileUnderDirUnderTopLevelSsd.txt");
+                WriteFile(fileUnderDirUnderTopLevelSsd);
+
+                var ssdArtifact = env.PipGraph.AddSealDirectory(
+                    new SealDirectory(
+                        ssdDir,
+                        SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(
+                            CollectionUtilities.EmptyArray<FileArtifact>(),
+                            OrdinalFileArtifactComparer.Instance),
+                        outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
+                        SealDirectoryKind.SourceAllDirectories,
+                        env.CreatePipProvenance(StringId.Invalid),
+                        tags: ReadOnlyArray<StringId>.Empty,
+                        patterns: ReadOnlyArray<StringId>.Empty),
+                    default(PipId));
+
+                var topLevelSsdArtifact = env.PipGraph.AddSealDirectory(
+                    new SealDirectory(
+                        topLevelSsdDir,
+                        SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(
+                            CollectionUtilities.EmptyArray<FileArtifact>(),
+                            OrdinalFileArtifactComparer.Instance),
+                        outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
+                        SealDirectoryKind.SourceTopDirectoryOnly,
+                        env.CreatePipProvenance(StringId.Invalid),
+                        tags: ReadOnlyArray<StringId>.Empty,
+                        patterns: ReadOnlyArray<StringId>.Empty),
+                    default(PipId));
+
                 PipGraph pipGraph = AssertSuccessGraphBuilding(env);
-                RunScrubberWithPipGraph(env, pipGraph, pathsToScrub: new[] { outputRoot, targetRoot });
+                RunScrubberWithPipGraph(env, pipGraph, pathsToScrub: new[] { outputRoot, targetRoot, sourceRoot });
 
                 // All non-junk files/directories should be preserved, except ... (see below)
                 XAssert.IsTrue(File.Exists(inputFilePath));
@@ -281,6 +334,14 @@ namespace Test.BuildXL.Engine
                 XAssert.IsFalse(Directory.Exists(pipTempDir1));
                 XAssert.IsFalse(Directory.Exists(pipTempDir2));
                 XAssert.IsTrue(Directory.Exists(Path.GetDirectoryName(pipTempDir2)));
+
+                // SourceAllDirectories, SourceTopDirectoryOnly, and their content should not be scrubbed.
+                XAssert.IsTrue(Directory.Exists(ssdDirPath));
+                XAssert.IsTrue(File.Exists(fileUnderSsd));
+                XAssert.IsTrue(Directory.Exists(topLevelSsdDirPath));
+                XAssert.IsTrue(File.Exists(fileUndertopLevelSsd));
+                XAssert.IsTrue(Directory.Exists(dirUnderTopLevelSsd));
+                XAssert.IsTrue(File.Exists(fileUnderDirUnderTopLevelSsd));
             }
         }
 
@@ -456,9 +517,9 @@ namespace Test.BuildXL.Engine
             // So if the symlink is traversed, fileUnderTarget will be found, which is not a shared opaque output. So the file won't be deleted. And
             // so nor the symlink directory. If the symlink directory wasn't traversed, then it would be deleted.
             Scrubber.RemoveExtraneousFilesAndDirectories(
-                isPathInBuild: path => !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path), 
-                pathsToScrub: new[] { rootDir }, 
-                blockedPaths: CollectionUtilities.EmptyArray<string>(), 
+                isPathInBuild: path => !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path),
+                pathsToScrub: new[] { rootDir },
+                blockedPaths: CollectionUtilities.EmptyArray<string>(),
                 nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
 
             XAssert.FileExists(fileUnderTarget);
@@ -507,7 +568,7 @@ namespace Test.BuildXL.Engine
                 XAssert.AreEqual(!OperatingSystemHelper.IsUnixOS, Directory.Exists(realDirectory));
                 XAssert.AreEqual(!OperatingSystemHelper.IsUnixOS, Directory.Exists(symlinkDirectory));
             }
-            finally 
+            finally
             {
                 // On Windows, the temp directory cleaner has problems with cycles. So let's remove the symlink dir explicitly here
                 if (!OperatingSystemHelper.IsUnixOS)
@@ -550,7 +611,7 @@ namespace Test.BuildXL.Engine
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesHandlesAbsentFiles));
             Directory.CreateDirectory(rootDir);
             XAssert.IsTrue(Directory.Exists(rootDir));
-            
+
             var absentFile = Path.Combine(rootDir, "a b s e n t");
             XAssert.IsFalse(File.Exists(absentFile));
 
@@ -603,13 +664,19 @@ namespace Test.BuildXL.Engine
             string[] pathsToScrub,
             MountPathExpander mountPathExpander = null)
         {
+            HashSet<string> nonDeletableDirectories = null;
+
+            nonDeletableDirectories = pipGraph.AllDirectoriesContainingOutputs()
+                .Concat(pipGraph.AllParentsOfTemporaryPaths())
+                .Concat(pipGraph.AllSealDirectories.Select(sd => sd.Path))
+                .Select(env.Paths.Expand)
+                .ToHashSet(OperatingSystemHelper.PathComparer);
+
             bool removed = Scrubber.RemoveExtraneousFilesAndDirectories(
-                isPathInBuild: p => pipGraph.IsPathInBuild(env.Paths.CreateAbsolutePath(p)),
+                isPathInBuild: path => pipGraph.IsPathInBuildOrShouldNotBeScrubbed(env.Paths.CreateAbsolutePath(path)),
                 pathsToScrub: pathsToScrub,
                 blockedPaths: new string[0],
-                nonDeletableRootDirectories: pipGraph.AllDirectoriesContainingOutputs()
-                    .Concat(pipGraph.AllParentsOfTemporaryPaths())
-                    .Select(p => env.Paths.Expand(p)),
+                nonDeletableRootDirectories: nonDeletableDirectories,
                 mountPathExpander: mountPathExpander);
             XAssert.IsTrue(removed);
         }

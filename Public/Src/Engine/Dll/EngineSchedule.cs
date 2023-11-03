@@ -10,7 +10,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -98,7 +97,7 @@ namespace BuildXL.Engine
         private TimeSpan? m_schedulerStartTime;
 
         /// <summary>
-        /// The minimum amount of time the build must run before the optimizating data structures are serialized. This avoid overhead
+        /// The minimum amount of time the build must run before the optimization data structures are serialized. This avoid overhead
         /// of serializing these data structures for extremely short builds.
         /// </summary>
         private static TimeSpan MinExecutionTimeForSerializingOptimizationDataStructures => EngineEnvironmentSettings.PostExecOptimizeThreshold;
@@ -789,7 +788,8 @@ namespace BuildXL.Engine
                     !scheduler.PipGraph.PipTable.IsSealDirectoryComposite(scheduler.PipGraph.GetSealedDirectoryNode(directoryArtifact).ToPipId())));
             }
 
-            List<string> outputDirectories = null;
+            HashSet<string> nonDeletableDirectories = null;
+
             if (pathsToScrub.Count > 0 || sharedOpaqueDirectoriesToScrub.Count > 0)
             {
                 // All directories that can contain outputs should not be deleted. One reason for this is
@@ -805,10 +805,11 @@ namespace BuildXL.Engine
                 //
                 // Another alternative is to make incremental scheduling use FileSystemView for existence checking
                 // during journal scanning. This alternative requires more plumbing; see Task 1241786.
-                outputDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs()
+                nonDeletableDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs()
                     .Concat(scheduler.PipGraph.AllParentsOfTemporaryPaths())
+                    .Concat(scheduler.PipGraph.AllSealDirectories.Select(sd => sd.Path))
                     .Select(d => d.ToString(scheduler.Context.PathTable))
-                    .ToList();
+                    .ToHashSet(OperatingSystemHelper.PathComparer);
             }
 
             var scrubber = new DirectoryScrubber(
@@ -855,10 +856,10 @@ namespace BuildXL.Engine
             {
                 Logger.Log.ScrubbingStarted(loggingContext);
                 scrubber.RemoveExtraneousFilesAndDirectories(
-                    isPathInBuild: path => scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)),
+                    isPathInBuild: path => scheduler.PipGraph.IsPathInBuildOrShouldNotBeScrubbed(AbsolutePath.Create(scheduler.Context.PathTable, path)),
                     pathsToScrub: pathsToScrub,
                     blockedPaths: nonScrubbablePaths,
-                    nonDeletableRootDirectories: outputDirectories,
+                    nonDeletableRootDirectories: nonDeletableDirectories,
                     mountPathExpander: mountPathExpander,
                     statisticIdentifier: "Scrubbing");
             }
@@ -894,7 +895,7 @@ namespace BuildXL.Engine
                         ShouldRemoveEmptyDirectories(configuration, path),
                     pathsToScrub: sharedOpaqueDirectoriesToScrub.Select(directory => directory.Path.ToString(scheduler.Context.PathTable)),
                     blockedPaths: nonScrubbablePaths,
-                    nonDeletableRootDirectories: outputDirectories,
+                    nonDeletableRootDirectories: nonDeletableDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.
                     mountPathExpander: null,
                     statisticIdentifier: "SharedOpaqueScrubbing");
@@ -1116,7 +1117,7 @@ namespace BuildXL.Engine
                     return false;
                 }
 
-                // A user may explicitely set it to empty to blank out what would normally fall back on the
+                // A user may explicitly set it to empty to blank out what would normally fall back on the
                 // default filter from the config file
                 if (filterUnParsed.Length == 0)
                 {
@@ -1159,7 +1160,7 @@ namespace BuildXL.Engine
                         // directory containing the file
                         sb.AppendFormat(@"output='*{0}{1}' or spec='*{0}{1}' or tag='{1}'", Path.DirectorySeparatorChar, implicitFilter);
                     }
-                    
+
                     if (FilterParser.TryParsePipId(implicitFilter, out var pipId))
                     {
                         sb.AppendFormat(I($" or id='{implicitFilter}'"));
@@ -1990,7 +1991,7 @@ namespace BuildXL.Engine
                         return false;
                     }
 
-                    hashes.Add(new StringKeyedHash {Key = filesToPut[i].ToString(Context.PathTable), ContentHash = result.Result.ToByteString()});
+                    hashes.Add(new StringKeyedHash { Key = filesToPut[i].ToString(Context.PathTable), ContentHash = result.Result.ToByteString() });
                 }
 
                 // We can sort in place since nobody uses 'hashes' after this point in an order dependent way.

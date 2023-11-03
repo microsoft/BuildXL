@@ -732,12 +732,25 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
+        /// Checks to see whether a path is part of the build, and if it is not, whether we should avoid scrubbing the path.
+        /// </summary>
+        /// <returns>true if the path is a known input or output file, or if it is a non-scrubbable path</returns>
+        public bool IsPathInBuildOrShouldNotBeScrubbed(AbsolutePath path)
+        {
+            Contract.Requires(path.IsValid);
+
+            return IsPathInBuild(path) 
+                || SourceSealedDirectoryRoots.ContainsKey(path);
+        }
+
+        /// <summary>
         /// Gets all directories containing outputs.
         /// </summary>
         /// <returns>Set of all directories that contain outputs.</returns>
         public HashSet<AbsolutePath> AllDirectoriesContainingOutputs() =>
             PipProducers.Keys.Select(f => f.Path.GetParent(Context.PathTable))
             .Concat(OutputDirectoryProducers.Keys.Select(d => d.Path))
+            .Concat(CompositeOutputDirectoryProducers.Keys.Select(d => d.Path))
             .ToHashSet();
 
         /// <summary>

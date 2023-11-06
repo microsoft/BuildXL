@@ -64,7 +64,6 @@ This page lists flags that can be used to configure BuildXL.
 | EnableLinuxPTraceSandbox | Enables the ptrace sandbox on Linux when a statically linked binary is detected. Note that this will have a negative impact on performance, but is necessary to ensure correctness on some Linux builds. |
 | EnablePlugins | When enabled, plugins are allowed to be loaded. Defaults to off. |
 | EnableProcessRemoting | Enable process remoting via AnyBuild. Defaults to off. |
-| EnableVerboseProcessLogging | Enables verbose sandbox logging for specific pips based on their formatted semistable hashes. This is tantamount to switching /logObservedFileAccesses and /logProcesses for these pips, and also enabling verbose debug logging in the sandbox. A list of semistable hashes might be specified, separated by semicolons. If the special value "*" is given, sandbox logging will be enabled for every pip. Example: /debug_enableVerboseProcessLogging:Pip3855A4C7E1E820D0;PipE9638AD7DDD6AF67 |
 | EnforceAccessPoliciesOnDirectoryCreation | Indicates whether {ShortProductName} should enforce access policies on CreateDirectory for paths under writable mounts as well as the cases when the directory already exists. Defaults to off. |
 | EnforceFileAccesses | Whether {ShortProductName} is to monitor file accesses of individual tools at all. Disabling monitoring results in an unsafe configuration (for diagnostic purposes only). Defaults to on. |
 | EnforceFullReparsePointsUnderPath | Enforce that files accessed which begin with the given path will enforce reparse points underneath said path. All transitive reparse points encountered after enforcing and resolving the first one are also enforced, regardless of path. |
@@ -88,7 +87,6 @@ This page lists flags that can be used to configure BuildXL.
 | FilteringInfo | You can choose to build only a subset of available pips by using filtering. |
 | FlushPageCacheToFileSystemOnStoringOutputsToCache | Flush page cache to file system on storing outputs to cache. Defaults to off. |
 | ForceAddExecutionPermission | When set to true, it enables the execution permission for the root process of process pips in Linux builds. Defaults to true. |
-| ForcedCacheMiss | Forces a pips to be a cache miss in the build, independently of the artificial cache miss options (see /injectCacheMisses). A list of pips might be specified, separated by semicolons. Example: /forcedCacheMiss:Pip3855A4C7E1E820D0;PipE9638AD7DDD6AF67 |
 | ForceSkipDependencies | Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present. |
 | ForwardWorkerLog | Configure additional verbose event IDs that workers will forward to the orchestrator, in addition to warnings and errors (which are always forwarded).  |
 | GenerateCgManifest | Generates a cgmanifest.json file at the specified path. This file contains the names and versions for all Nuget packages used within BuildXL, and is used for Component Governance during CloudBuild. |

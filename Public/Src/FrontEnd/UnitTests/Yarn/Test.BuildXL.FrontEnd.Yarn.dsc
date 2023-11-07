@@ -23,6 +23,10 @@ namespace Test.Yarn {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
                 runWithUntrackedDependencies: true,
+                untrackedPaths: [
+                    // node may access the npmrc under the source root
+                    f`${Context.getMount("SourceRoot").path}/.npmrc`
+                ]
             },
         },
         assemblyName: "Test.BuildXL.FrontEnd.Yarn",

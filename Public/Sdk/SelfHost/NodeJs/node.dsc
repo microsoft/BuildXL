@@ -3,7 +3,8 @@
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
-import { Npm } from "Sdk.JavaScript";
+import { Npm, NpmrcLocation } from "Sdk.JavaScript";
+import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Node {
 
@@ -243,7 +244,8 @@ namespace Node {
     export function runNpmInstall(
         targetFolder: Directory, 
         dependencies: (File | StaticDirectory)[]) : SharedOpaqueDirectory {
-        
+
+        const userNpmRcLocation : NpmrcLocation = BuildXLSdk.NpmRc.getUserNpmRc();
         return Npm.runNpmInstall({
             nodeTool: tool,
             npmTool: tool,
@@ -251,8 +253,9 @@ namespace Node {
             targetFolder: targetFolder,
             additionalDependencies: dependencies,
             noBinLinks: true,
-            userNpmrcLocation: "local",
-            globalNpmrcLocation: "local"
+            userNpmrcLocation: userNpmRcLocation === undefined ? "local" : userNpmRcLocation,
+            globalNpmrcLocation: "local",
+            npmRcPasswordVariableName: BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName()
             });
     }
 
@@ -283,18 +286,32 @@ namespace Node {
         package: {name: string, version: string},
         noBinLinks?: boolean) : SharedOpaqueDirectory {
         
+        const localNpmRcFile = BuildXLSdk.NpmRc.getLocalNpmRc();
+        const userNpmRcFile = BuildXLSdk.NpmRc.getUserNpmRc();
+        // If a custom npmrc is specified, copy this first
+        
+        const npmRcCopy = localNpmRcFile !== undefined
+            ? Transformer.copyFile(localNpmRcFile, p`${targetFolder}/.npmrc`, /* tags */ [], "Copy .npmrc file")
+            : undefined;
+
         const nodeModules = d`${targetFolder}/node_modules`;
 
         const result = Npm.runNpmInstallWithAdditionalOutputs({
-            nodeTool: tool,
-            npmTool: tool,
-            additionalArguments: [Cmd.argument(Artifact.input(npmCli))],
-            package: package,
-            targetFolder: targetFolder,
-            additionalDependencies: dependencies,
-            noBinLinks: noBinLinks === undefined? true : noBinLinks,
-            userNpmrcLocation: "local",
-            globalNpmrcLocation: "local"}, 
+                nodeTool: tool,
+                npmTool: tool,
+                additionalArguments: [Cmd.argument(Artifact.input(npmCli))],
+                package: package,
+                targetFolder: targetFolder,
+                additionalDependencies: [...dependencies, npmRcCopy],
+                noBinLinks: noBinLinks === undefined? true : noBinLinks,
+                userNpmrcLocation: userNpmRcFile !== undefined 
+                    ? userNpmRcFile
+                    : localNpmRcFile !== undefined 
+                        ? "userprofile"
+                        : "local",
+                globalNpmrcLocation: "local",
+                npmRcPasswordVariableName: BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName()
+            },
             [nodeModules]);
         
             return <SharedOpaqueDirectory> result.getOutputDirectory(nodeModules);
@@ -350,19 +367,27 @@ namespace Node {
         // Copy all the sources to an output directory so we don't polute the source tree with outputs
         const outputDir = Context.getNewOutputDirectory(a`node-build-${displayName}`);
         const srcCopies = sources.map(source => Deployment.copyDirectory(
-            source.root, 
-            outputDir, 
+            source.root,
+            outputDir,
             source));
 
         const srcCopy: SharedOpaqueDirectory = Transformer.composeSharedOpaqueDirectories(outputDir, srcCopies);
 
+        const localNpmRc = BuildXLSdk.NpmRc.getLocalNpmRc();
+        const userNpmRc = BuildXLSdk.NpmRc.getUserNpmRc();
+        const npmRcCopy : DerivedFile = localNpmRc !== undefined
+            ? Transformer.copyFile(localNpmRc, p`${outputDir.path}/.npmrc`, /* tags */ [], "Copy .npmrc file")
+            : undefined;
+
+        const dependencies = [srcCopy, npmRcCopy, ...(args.npmDependencies || []), ...srcCopies];
+
         // Install required npm packages
-        const npmInstall = runNpmInstall(srcCopy.root, [srcCopy, ...(args.npmDependencies || []), ...srcCopies]);
+        const npmInstall = runNpmInstall(srcCopy.root, dependencies);
 
         // Compile
         const compileOutDir: SharedOpaqueDirectory = Node.tscCompile(
             srcCopy.root, 
-            [ srcCopy, npmInstall, ...(args.dependencies || []) ]);
+            [ srcCopy, npmInstall, npmRcCopy, ...(args.dependencies || []) ]);
 
         const outDir = Transformer.composeSharedOpaqueDirectories(
             outputDir, 
@@ -381,7 +406,7 @@ namespace Node {
                 }
             ]
         };
-        
+
         // We need to create a single shared opaque that contains the full layout
         const sourceDeployment : Directory = Context.getNewOutputDirectory(a`private-deployment-${displayName}`);
         const onDiskDeployment = Deployment.deployToDisk({definition: privateDeployment, targetDirectory: sourceDeployment, sealPartialWithoutScrubbing: true});

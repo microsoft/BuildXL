@@ -806,6 +806,47 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
     }
 
     Log "Authentication was successful."
+
+    # Set the cached credential into the user npmrc
+    # we don't run vsts-npm-auth here because it requires us to have npm installed first
+    # the code below will essentially duplicate what vsts-npm-auth performs
+    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processInfo.FileName = $credProvider
+    $processInfo.RedirectStandardError = $true
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.UseShellExecute = $false
+    $processInfo.CreateNoWindow = $true
+    $processInfo.Arguments = "-U $internalFeed -V Information -C -F Json"
+    # tells the artifacts cred provider to generate a PAT instead of a self-describing token
+    if ($processInfo.EnvironmentVariables.ContainsKey("NUGET_CREDENTIALPROVIDER_VSTS_TOKENTYPE")) {
+        $processInfo.EnvironmentVariables["NUGET_CREDENTIALPROVIDER_VSTS_TOKENTYPE"] = "Compact"
+    }
+    else {
+        $processInfo.EnvironmentVariables.Add("NUGET_CREDENTIALPROVIDER_VSTS_TOKENTYPE", "Compact")
+    }
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo = $processInfo
+    $p.Start() | Out-Null
+    $p.WaitForExit()
+    $stdout = $p.StandardOutput.ReadToEnd()
+    
+    # npmrc files can contain multiple sources, so we'll create a buildxl specific one here
+    if (![System.IO.File]::Exists("$env:USERPROFILE/.npmrc")) {
+        New-Item -Path "$env:USERPROFILE/.npmrc" -ItemType File
+    }
+    else {
+        Set-Content -Path "$env:USERPROFILE/.npmrc" -Value (Get-Content "$env:USERPROFILE/.npmrc" | Select-String -Pattern '.*\/\/cloudbuild\.pkgs\.visualstudio\.com\/_packaging\/BuildXL\.Selfhost\/npm\/registry.*' -NotMatch)
+    }
+
+    # parse token from output and base64 encode
+    $tokenMatches = $stdout | Select-String -Pattern '.*\{"Username":"[a-zA-Z0-9]*","Password":"(.*)"\}.*'
+    $token = $tokenMatches.Matches.Groups[1].Value
+    $b64token = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($token))
+
+    # add new lines with token to npmrc
+    Add-Content -Path "$env:USERPROFILE/.npmrc" -Value "//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:username=VssSessionToken" -Encoding UTF8
+    Add-Content -Path "$env:USERPROFILE/.npmrc" -Value "//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:_password=$b64token" -Encoding UTF8
+    Add-Content -Path "$env:USERPROFILE/.npmrc" -Value "//cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:email=not-used@example.com" -Encoding UTF8
 }
 
 $executable = $useDeployment.domino;

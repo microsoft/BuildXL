@@ -15,6 +15,11 @@
 [Environment]::SetEnvironmentVariable("MSENG_GIT_PAT", $msEngGitPat, "Process")
 [Environment]::SetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH", $ncPath, "Process")
 
+# NPM authentication requires the PAT to be base64 encoded first
+$cbPatBytes = [System.Text.Encoding]::UTF8.GetBytes($cbPat)
+$b64CloudbuildPat = [Convert]::ToBase64String($cbPatBytes)
+[Environment]::SetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64", $b64CloudbuildPat, "Process")
+
 [Environment]::SetEnvironmentVariable(
     "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS",
     <#[SuppressMessage("Microsoft.Security", "CS002:SecretInNextLine", Justification="Not a secret")]#>

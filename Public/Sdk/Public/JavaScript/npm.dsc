@@ -16,6 +16,7 @@ namespace Npm {
         noBinLinks?: boolean,
         userNpmrcLocation?: NpmrcLocation,
         globalNpmrcLocation?: NpmrcLocation,
+        npmRcPasswordVariableName?: string,
         additionalArguments?: Argument[],
     }
 
@@ -107,7 +108,10 @@ namespace Npm {
                 untrackedScopes: [...addIf(preserveCacheFolder, npmCachePath)],
                 // avoid making install sensitive to the npmrc files since that can be machine dependent
                 untrackedPaths: [npmrc, globalNpmrc],
-                passThroughEnvironmentVariables: defaultPassthroughVariables,
+                passThroughEnvironmentVariables: [
+                    ...defaultPassthroughVariables,
+                    ...addIf(args.npmRcPasswordVariableName !== undefined, args.npmRcPasswordVariableName)
+                ],
             },
             // Npm install fails with exit code 1, which usually means some flaky network error that can be retried
             retryExitCodes: [1],

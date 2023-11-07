@@ -1055,3 +1055,30 @@ namespace Native {
         return result;
     }
 }
+
+namespace NpmRc {
+    export declare const qualifier: {};
+
+    @@public
+    export function getLocalNpmRc() : File {
+        return Flags.isMicrosoftInternal
+            ? f`${Context.getMount("SourceRoot").path}/.npmrc`
+            : undefined;
+    }
+    
+    @@public
+    export function getUserNpmRc() : File {
+        return Flags.isMicrosoftInternal
+            ? Environment.hasVariable("TF_BUILD")
+                ? f`${Context.getMount("SourceRoot").path}/.ci-npmrc`
+                : f`${Environment.getDirectoryValue("USERPROFILE").path}/.npmrc`
+            : undefined;
+    }
+
+    @@public
+    export function getNpmPasswordEnvironmentVariableName() : string {
+        return Flags.isMicrosoftInternal && Environment.hasVariable("TF_BUILD")
+            ? "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64"
+            : undefined;
+    }
+}

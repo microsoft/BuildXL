@@ -46,7 +46,9 @@ namespace Test.Tool.JavascriptGraphBuilder {
                 ],
                 untrackedPaths: [
                     ...addIfLazy(Context.isWindowsOS() && Environment.getDirectoryValue("CommonProgramFiles") !== undefined,
-                        () => [f`${Environment.getDirectoryValue("CommonProgramFiles")}/SSL/openssl.cnf`])
+                        () => [f`${Environment.getDirectoryValue("CommonProgramFiles")}/SSL/openssl.cnf`]),
+                    // node may access the npmrc under the source root
+                    f`${Context.getMount("SourceRoot").path}/.npmrc`
                 ]
             }
         }

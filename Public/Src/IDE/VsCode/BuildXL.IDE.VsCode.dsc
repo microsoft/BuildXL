@@ -9,6 +9,7 @@ import * as DetoursServices from "BuildXL.Sandbox.Windows";
 import * as Branding from "BuildXL.Branding";
 import * as VSIntegration from "BuildXL.Ide.VsIntegration";
 import { Node } from "Sdk.NodeJs";
+import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace VsCode.Client {
     // A new namespace with empty qualifier space to ensure the values inside are evaluated only once
@@ -16,10 +17,16 @@ namespace VsCode.Client {
 
     const clientSealDir = Transformer.sealDirectory(d`client`, globR(d`client`));
 
-    const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, Context.getNewOutputDirectory("client-copy"), clientSealDir);
+    const clientCopyDir = Context.getNewOutputDirectory("client-copy");
+    const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, clientCopyDir, clientSealDir);
 
-    @public
-    export const npmInstall = Node.runNpmInstall(clientCopy.root, [clientCopy]);
+    // For internal builds, we need to add a local npmrc file pointing to our internal npm feed instead of npmjs.org
+    const npmRcCopy : DerivedFile = BuildXLSdk.Flags.isMicrosoftInternal
+        ? Transformer.copyFile(BuildXLSdk.NpmRc.getLocalNpmRc(), p`${clientCopyDir.path}/.npmrc`, /* tags */ [], "Copy VsCode Client .npmrc file")
+        : undefined;
+
+    @@public
+    export const npmInstall = Node.runNpmInstall(clientCopy.root, [clientCopy, npmRcCopy]);
 
     @@public
     export const compileOutDir: OpaqueDirectory = Node.tscCompile(

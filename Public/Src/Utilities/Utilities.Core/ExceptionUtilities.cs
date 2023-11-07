@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
@@ -37,7 +38,7 @@ namespace BuildXL.Utilities.Core
         {
             return exception.DemystifyToString();
         }
-        
+
         /// <summary>
         /// Creates a more readable string representation of the given exception.
         /// </summary>
@@ -57,29 +58,36 @@ namespace BuildXL.Utilities.Core
             return exception is UnauthorizedAccessException or SecurityException or IOException or Win32Exception;
         }
 
+        private static List<string> AllowedUnobservedExceptions = new()
+        {
+            // HttpClient can arbitrarily cause this to happen
+            "An existing connection was forcibly closed by the remote host",
+            // The Redis library has a lot of unobserved exceptions happening for unknown reasons
+            "StackExchange.Redis.Redis",
+        };
+
+        private static bool ContainsAllowedException(Exception exception)
+        {
+            var exceptionText = exception.ToString();
+            return AllowedUnobservedExceptions.Any(exceptionText.Contains);
+        }
+
         /// <summary>
         /// Returns true if a given exception is a known exception that should be ignored when handling unobserved task exceptions.
         /// </summary>
         public static bool IsKnownUnobservedException(Exception exception)
         {
-            string knownExceptionText = "StackExchange.Redis.Redis";
             if (exception is AggregateException ae)
             {
                 ae = ae.Flatten();
-                // Ignore known issue with unobserved task exceptions from redis layer until its fixed.
-                // Work item: 1768860
-
-                // Ignoring the AggregateException if any of the nested exceptions are coming from Redis layer.
-                // This case covers: StackExchange.Redis.RedisTimeoutException, StackExchange.Redis.RedisConnectionException
-                // and potentially similar issues from the redis layer.
-                if (ae.InnerExceptions.Any((e => e.ToString().Contains(knownExceptionText))))
+                if (ae.InnerExceptions.Any(ContainsAllowedException))
                 {
                     return true;
                 }
             }
             else
             {
-                return exception.ToString().Contains(knownExceptionText);
+                return ContainsAllowedException(exception);
             }
 
             return false;
@@ -268,7 +276,7 @@ namespace BuildXL.Utilities.Core
             const int NotEnoughStorage = unchecked((int)0x8);
             const int IncorrectFunction = unchecked((int)0x00000001);
             const int ConnectionReset = unchecked((int)0x80072746);
- 
+
             var buildXLException = ex as BuildXLException;
             if (buildXLException != null)
             {

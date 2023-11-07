@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,8 +78,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     clock,
                     async () =>
                     {
-                        await LogConfigAndAccountDifferencesAsync(context, secretsProvider, accountNames, config, metadataMatrix, contentMatrix);
-
                         using var temp = new DisposableDirectory(fileSystem);
 
                         var rootPath = temp.Path / "LifetimeDatabase";
@@ -161,6 +158,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                     CreateDispatcher(secretsProvider, accountNames, metadataMatrix, contentMatrix, db, updater, clock, checkpointManager, config.ChangeFeedPageSize);
 
                                 await dispatcher.ConsumeNewChangesAsync(context, config.CheckpointCreationInterval).ThrowIfFailure();
+
+                                await BlobLifetimeManagerHelpers.HandleConfigAndAccountDifferencesAsync(
+                                    context, db, secretsProvider, accountNames, config, metadataMatrix, contentMatrix, clock);
                             }
 
                             // TODO: consider doing this in parallel, although it could be argued that if each of these calls
@@ -260,71 +260,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             finally
             {
                 await masterSelection.ShutdownAsync(context).ThrowIfFailure();
-            }
-        }
-
-        private static async Task LogConfigAndAccountDifferencesAsync(
-            OperationContext context,
-            IBlobCacheSecretsProvider secretsProvider,
-            IReadOnlyList<BlobCacheStorageAccountName> accounts,
-            BlobQuotaKeeperConfig config,
-            string metadataMatrix,
-            string contentMatrix)
-        {
-            var configuredNamespaces = config.Namespaces.Select(config => (config.Universe, config.Namespace)).ToHashSet();
-            var enumeratedNamespaces = new HashSet<(string Universe, string Namespace)>();
-
-            // Start by enumerating all accounts and their containers, attempting to parse their namespaces.
-            foreach (var account in accounts)
-            {
-                var cred = await secretsProvider.RetrieveBlobCredentialsAsync(context, account);
-                var client = cred.CreateBlobServiceClient();
-
-                await foreach (var container in client.GetBlobContainersAsync())
-                {
-                    try
-                    {
-                        var name = BlobCacheContainerName.Parse(container.Name);
-
-                        if (!configuredNamespaces.Contains((name.Universe, name.Namespace)))
-                        {
-                            Tracer.Warning(context, $"Container {container.Name} in account {client.AccountName} has " +
-                                $"(Universe=[{name.Universe}], Namespace=[{name.Namespace}]), which is not listed in the configuration.");
-                        }
-                        else if (name.Purpose == BlobCacheContainerPurpose.Metadata)
-                        {
-                            if (name.Matrix != metadataMatrix)
-                            {
-                                Tracer.Warning(context, $"Container {container.Name} in account {client.AccountName} has Matrix=[{name.Matrix}], which does" +
-                                    $"not match current matrix=[{metadataMatrix}]. Resharding is likely to have occurred.");
-
-                                continue;
-                            }
-                        }
-                        else if (name.Purpose == BlobCacheContainerPurpose.Content)
-                        {
-                            if (name.Matrix != contentMatrix)
-                            {
-                                Tracer.Warning(context, $"Container {container.Name} in account {client.AccountName} has Matrix=[{name.Matrix}], which does" +
-                                    $"not match current matrix=[{contentMatrix}]. Resharding is likely to have occurred.");
-
-                                continue;
-                            }
-                        }
-
-                        enumeratedNamespaces.Add((name.Universe, name.Namespace));
-                    }
-                    catch (FormatException)
-                    {
-                        Tracer.Warning(context, $"Failed to parse container name {container.Name} in account {client.AccountName}");
-                    }
-                }
-            }
-
-            // Now find all configured namespaces with no matching containers.
-            foreach (var (universe, @namespace) in configuredNamespaces.Except(enumeratedNamespaces))
-            {
-                Tracer.Warning(context, $"(Universe=[{universe}], Namespace=[{@namespace}]) was found in configuration but no matching containers were found.");
             }
         }
     }

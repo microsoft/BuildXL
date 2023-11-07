@@ -22,6 +22,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         /// Specifies how often to create checkpoints while consuming the Azure Storage change feed.
         /// </summary>
         public TimeSpan CheckpointCreationInterval { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Specifies how old an untracked namespace should be before we delete it. Set to null to disable the feature.
+        /// TODO: Set a default of 2 days once we have rolled this out.
+        /// </summary>
+        public TimeSpan? UntrackedNamespaceDeletionThreshold { get; set; } = null;
     }
 
     public record GarbageCollectionNamespaceConfig(string Universe, string Namespace, double MaxSizeGb);

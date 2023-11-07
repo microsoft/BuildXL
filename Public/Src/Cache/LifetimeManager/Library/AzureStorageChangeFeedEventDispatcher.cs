@@ -328,6 +328,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                     _updater.ContentCreated(context, namespaceId, blobPath.Path.Path, blobLength);
                                 }
 
+                                _db.SetNamespaceLastAccessTime(namespaceId, blobPath.Container.Matrix, change.EventTime.UtcDateTime);
+
                                 break;
                             }
                             case BlobCacheContainerPurpose.Metadata:
@@ -343,6 +345,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                         return new Result<DateTime?>(result);
                                     }
                                 }
+
+                                _db.SetNamespaceLastAccessTime(namespaceId, blobPath.Container.Matrix, change.EventTime.UtcDateTime);
 
                                 break;
                             }

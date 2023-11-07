@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -85,6 +86,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             /// Stores a mapping from storage account to a cursor to the latest change feed event processed.
             /// </summary>
             Cursors,
+
+            /// <summary>
+            /// Stores the last access time for untracked namespaces, such that we can clean up old unused containers.
+            /// </summary>
+            NamespaceLastAccessTime,
         }
 
         internal record ContentEntry(long BlobSize, int ReferenceCount)
@@ -129,6 +135,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         private readonly IClock _clock;
 
         private readonly ColumnFamilyHandle _cursorsCf;
+        private readonly ColumnFamilyHandle _namespaceLastAccessTimeCf;
 
         private readonly ReadOptions _readOptions = new ReadOptions()
             .SetVerifyChecksums(true)
@@ -148,6 +155,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             _db = db;
 
             _cursorsCf = _db.GetColumnFamily(nameof(ColumnFamily.Cursors));
+            _namespaceLastAccessTimeCf = _db.GetColumnFamily(nameof(ColumnFamily.NamespaceLastAccessTime));
         }
 
         public static RocksDbLifetimeDatabase Create(
@@ -179,6 +187,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             var cursorOptions = new ColumnFamilyOptions()
                 .SetCompression(Compression.Zstd);
             columnFamilies.Add(new ColumnFamilies.Descriptor(nameof(ColumnFamily.Cursors), cursorOptions));
+
+            var namespaceLastAccessTimeOptions = new ColumnFamilyOptions()
+                .SetCompression(Compression.Zstd)
+                .SetMergeOperator(MergeOperators.CreateAssociative(
+                    "NamespaceLastAccessTimeMergeOperator",
+                    (key, value1, value2, result) =>
+                        MergeNamespaceLastAccessTime(value1, value2, result)));
+            columnFamilies.Add(new ColumnFamilies.Descriptor(nameof(ColumnFamily.NamespaceLastAccessTime), namespaceLastAccessTimeOptions));
 
             foreach (var namespaceId in configuration.BlobNamespaceIds)
             {
@@ -229,6 +245,26 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             return true;
         }
 
+        private static bool MergeNamespaceLastAccessTime(
+            ReadOnlySpan<byte> value1,
+            ReadOnlySpan<byte> value2,
+            MergeResult result)
+        {
+            var reader1 = value1.AsReader();
+            var reader2 = value2.AsReader();
+
+            var date1 = reader1.ReadDateTime();
+            var date2 = reader2.ReadDateTime();
+
+            var max = date1 > date2 ? date1 : date2;
+
+            result.ValueBuffer.Resize(value1.Length);
+            var writer = result.ValueBuffer.Value.AsWriter();
+            writer.Write(max);
+
+            return true;
+        }
+
         public void SetCreationTime(DateTime creationTimeUtc)
         {
             using var key = _serializationPool.SerializePooled(CreationTimeKey, static (string s, ref SpanWriter writer) => writer.Write(s));
@@ -246,6 +282,32 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             using var key = _serializationPool.SerializePooled(CreationTimeKey, static (string s, ref SpanWriter writer) => writer.Write(s));
             return Get<DateTime?>(key.WrittenSpan, cfHandle: null, (ref SpanReader reader) => reader.ReadDateTime());
         }
+
+        public void SetNamespaceLastAccessTime(BlobNamespaceId namespaceId, string matrix, DateTime? lastAccessTimeUtc)
+        {
+            var keyString = GetNamespaceLastAccessTimeKey(namespaceId, matrix);
+            using var key = _serializationPool.SerializePooled(keyString, static (string s, ref SpanWriter writer) => writer.Write(s));
+
+            if (lastAccessTimeUtc is null)
+            {
+                _db.Delete(key.WrittenSpan, cf: _namespaceLastAccessTimeCf);
+            }
+            else
+            {
+                using var value = _serializationPool.SerializePooled(
+                    lastAccessTimeUtc.Value, static (DateTime instance, ref SpanWriter writer) => writer.Write(instance));
+                _db.Merge(key.WrittenSpan, value.WrittenSpan, cf: _namespaceLastAccessTimeCf);
+            }
+        }
+
+        public DateTime? GetNamespaceLastAccessTime(BlobNamespaceId namespaceId, string matrix)
+        {
+            var keyString = GetNamespaceLastAccessTimeKey(namespaceId, matrix);
+            using var key = _serializationPool.SerializePooled(keyString, static (string s, ref SpanWriter writer) => writer.Write(s));
+            return Get<DateTime?>(key.WrittenSpan, cfHandle: _namespaceLastAccessTimeCf, (ref SpanReader reader) => reader.ReadDateTime());
+        }
+
+        private static string GetNamespaceLastAccessTimeKey(BlobNamespaceId namespaceId, string matrix) => $"{matrix}-{namespaceId}";
 
         private void AddContentHashList(
             ContentHashList contentHashList,

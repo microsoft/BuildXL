@@ -240,6 +240,47 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             db.GetCursor("account1").Should().Be("c3");
             db.GetCursor("account2").Should().Be("c4");
         }
+
+        [Fact]
+        public void NamespaceLastAccessTimeSetAndGet()
+        {
+            using var db = CreateDatabase();
+
+            var namespacesAndMatrixes = new[]
+            {
+                (new BlobNamespaceId("u1", "n1"), "m1"),
+                (new BlobNamespaceId("u2", "n2"), "m2"),
+            };
+
+            var now = DateTime.UtcNow;
+            var past = now.AddDays(-1);
+            var future = now.AddDays(1);
+
+            foreach (var (namespaceId, matrix) in namespacesAndMatrixes)
+            {
+                // Should not exist initially
+                db.GetNamespaceLastAccessTime(namespaceId, matrix).Should().BeNull();
+
+                // Setting should work.
+                db.SetNamespaceLastAccessTime(namespaceId, matrix, now);
+                db.GetNamespaceLastAccessTime(namespaceId, matrix).Should().Be(now);
+
+                // Setting to older date does nothing.
+                db.SetNamespaceLastAccessTime(namespaceId, matrix, past);
+                db.GetNamespaceLastAccessTime(namespaceId, matrix).Should().Be(now);
+
+                // Setting to newer date overrides.
+                db.SetNamespaceLastAccessTime(namespaceId, matrix, future);
+                db.GetNamespaceLastAccessTime(namespaceId, matrix).Should().Be(future);
+            }
+
+            foreach (var (namespaceId, matrix) in namespacesAndMatrixes)
+            {
+                // Should be deleteable.
+                db.SetNamespaceLastAccessTime(namespaceId, matrix, lastAccessTimeUtc: null);
+                db.GetNamespaceLastAccessTime(namespaceId, matrix).Should().BeNull();
+            }
+        }
     }
 
     public class BatchCountingDatabase : RocksDbLifetimeDatabase

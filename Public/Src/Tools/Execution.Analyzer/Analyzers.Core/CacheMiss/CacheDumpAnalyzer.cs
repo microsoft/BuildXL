@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Engine.Cache;
 using BuildXL.Execution.Analyzer.Analyzers.CacheMiss;
 using BuildXL.Native.IO;
@@ -24,6 +26,7 @@ namespace BuildXL.Execution.Analyzer
         {
             string outputDir = null;
             HashSet<long> semistableHashSet = new HashSet<long>();
+            bool includeOutputs = false;
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputDir", StringComparison.OrdinalIgnoreCase) ||
@@ -40,6 +43,10 @@ namespace BuildXL.Execution.Analyzer
                 {
                     semistableHashSet.Add(ParseSemistableHash(opt));
                 }
+                else if (opt.Name.Equals("includeOutputs", StringComparison.OrdinalIgnoreCase))
+                {
+                    includeOutputs = true;
+                }
                 else
                 {
                     throw Error("Unknown option for fingerprint text analysis: {0}", opt.Name);
@@ -51,7 +58,7 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("pip parameter is required");
             }
 
-            return new CacheDumpAnalyzer(analysisInput, outputDir, semistableHashSet);
+            return new CacheDumpAnalyzer(analysisInput, outputDir, semistableHashSet, includeOutputs);
         }
 
         private static void WriteCacheDumpHelp(HelpWriter writer)
@@ -77,26 +84,57 @@ namespace BuildXL.Execution.Analyzer
 
         public override bool CanHandleWorkerEvents => true;
 
-        private readonly HashSet<long> m_targetSemistableHashSet;
+        /// <summary>
+        /// A maps of a semistable hash to whether we know outputs a pip with this hash
+        /// (we know outputs if (a) pip was in a build and (b) pip was a cache hit or was
+        /// successfully executed)
+        /// </summary>
+        private readonly Dictionary<long, bool> m_targetSemistableHashes;
 
-        public CacheDumpAnalyzer(AnalysisInput input, string outputDir, HashSet<long> targetSemistableHashSet)
+        private readonly bool m_includeOutputs;
+
+        private readonly Dictionary<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_directoryContents = new();
+
+        public CacheDumpAnalyzer(AnalysisInput input, string outputDir, HashSet<long> targetSemistableHashSet, bool includeOutputs)
             : base(input)
         {
             m_model = new AnalysisModel(CachedGraph);
             m_outputDir = outputDir;
-            m_targetSemistableHashSet = targetSemistableHashSet;
+            m_targetSemistableHashes = targetSemistableHashSet.ToDictionary(pipHash => pipHash, _ => false);
+            m_includeOutputs = includeOutputs;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
         public override int Analyze()
         {
+            // The analysis is completed and output files have been created.
+            // If a user asked for pip's outputs and their hashes, update the output files.
+            if (m_includeOutputs)
+            {
+                // Process only marked pips (i.e., pips for which we have the output data).
+                // Ideally, we'd write this data when we originally write an output file, however, it's not possible
+                // because FileArtifactContentDecided and PipExecutionDirectoryOutputs events are logged after the 
+                // ProcessFingerprintComputed event, i.e., the data is simply not available at that point.
+                foreach (var kvp in m_targetSemistableHashes.Where(kvp => kvp.Value))
+                {
+                    var pipInfo = m_model.GetPipInfo(m_model.GetPipId(kvp.Key));
+
+                    var formattedHash = Pip.FormatSemiStableHash(kvp.Key);
+                    string outputFile = GetOutputFileFromFormattedPipHash(formattedHash);
+                    using (var sw = new StreamWriter(outputFile, append: true))
+                    {
+                        WritePipOutputInformation(pipInfo, sw);
+                    }
+                }
+            }
+
             return 0;
         }
 
         public override void Prepare()
         {
-            foreach (var semistableHash in m_targetSemistableHashSet)
+            foreach (var semistableHash in m_targetSemistableHashes.Keys)
             {
                 var formattedHash = Pip.FormatSemiStableHash(semistableHash);
                 string outputFile = GetOutputFileFromFormattedPipHash(formattedHash);
@@ -114,7 +152,7 @@ namespace BuildXL.Execution.Analyzer
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
         {
             var semistableHash = PipTable.GetPipSemiStableHash(data.PipId);
-            if (!m_targetSemistableHashSet.Contains(semistableHash))
+            if (!m_targetSemistableHashes.ContainsKey(semistableHash))
             {
                 return;
             }
@@ -134,11 +172,15 @@ namespace BuildXL.Execution.Analyzer
                     sw.WriteLine("There were no strong fingerprint computations. This might happen, for example, if this was the first time the pip ran with this weak fingerprint.");
                 }
 
+                // Mark a pip if it was a cache hit or was executed (in these two cases will have all data about its outputs)
+                m_targetSemistableHashes[semistableHash] |= data.Kind == FingerprintComputationKind.Execution;
                 foreach (var strongComputation in data.StrongFingerprintComputations)
                 {
                     pipInfo.StrongFingerprintComputation = strongComputation;
                     WriteStrongFingerprintData(pipInfo, sw);
                     sw.WriteLine();
+
+                    m_targetSemistableHashes[semistableHash] |= strongComputation.IsStrongFingerprintHit;
                 }
 
                 // Add an empty line for more readable output.
@@ -163,6 +205,14 @@ namespace BuildXL.Execution.Analyzer
             m_model.Salts = data.ToFingerprintSalts();
         }
 
+        public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
+        {
+            foreach (var item in data.DirectoryOutputs)
+            {
+                m_directoryContents[item.directoryArtifact] = item.fileArtifactArray;
+            }
+        }
+
         private static void WriteWeakFingerprintData(PipCachingInfo info, TextWriter writer, uint workerId, long timestamp)
         {
             writer.WriteLine($"Weak Fingerprint Info from worker {workerId} at timestamp {timestamp}");
@@ -173,7 +223,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 writer.WriteLine();
                 writer.WriteLine("WARNING - The WeakFingerprint text re-computed based on XLG events does not match the fingerprint computed during the build.");
-                writer.WriteLine("This discrepency means the Fingerprint Text below does not match the Weak Fingerprint.");
+                writer.WriteLine("This discrepancy means the Fingerprint Text below does not match the Weak Fingerprint.");
                 writer.WriteLine("Refer to a fingerprint store based analyzer to see how the fingerprint was computed");
             }
 
@@ -278,6 +328,37 @@ namespace BuildXL.Execution.Analyzer
                         {
                             writer.WriteLine($"  Warning: Missing directory membership data for {path.ToString(PathTable)}");
                         }
+                    }
+                }
+            }
+        }
+
+        private void WritePipOutputInformation(PipCachingInfo pipInfo, TextWriter writer)
+        {
+            writer.WriteLine("Pip outputs (either from cache entry or execution)");
+            writer.WriteLine();
+            writer.WriteLine("File outputs:");
+            writer.WriteLine();
+
+            foreach (var file in pipInfo.CacheablePipInfo.Outputs)
+            {
+                var hash = m_model.LookupHash(pipInfo.WorkerId, file.ToFileArtifact()).Hash;
+                writer.WriteLine($"{Print(file.Path)}, Hash = {hash}");
+            }
+
+            writer.WriteLine();
+            writer.WriteLine("Directory outputs:");
+            writer.WriteLine();
+
+            foreach (var directory in pipInfo.CacheablePipInfo.DirectoryOutputs)
+            {
+                writer.WriteLine($"{Print(directory.Path)} (IsSharedOpaque: {directory.IsSharedOpaque})");
+                if (m_directoryContents.TryGetValue(directory, out var directoryContent))
+                {
+                    foreach (var file in directoryContent)
+                    {
+                        var hash = m_model.LookupHash(pipInfo.WorkerId, file).Hash;
+                        writer.WriteLine(FormattableStringEx.I($"    {Print(file.Path)}, Hash = {hash}"));
                     }
                 }
             }

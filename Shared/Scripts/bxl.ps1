@@ -423,7 +423,7 @@ function Get-CacheConfig {
         Assembly                   = "BuildXL.Cache.MemoizationStoreAdapter";
         Type                       = "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory";
         CacheId                    = "SelfhostCS2L1";
-        MaxCacheSizeInMB           = 20240;
+        MaxCacheSizeInMB           = 40480;
         CacheRootPath              = $cacheDirectory;
         CacheLogPath               = "[BuildXLSelectedLogPath]";
         UseStreamCAS               = $true;

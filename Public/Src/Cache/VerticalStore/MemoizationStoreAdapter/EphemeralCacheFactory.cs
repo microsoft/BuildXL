@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Interfaces;
@@ -98,17 +99,21 @@ public class EphemeralCacheFactory : ICacheFactory
     public async Task<Possible<ICache, Failure>> InitializeCacheAsync(FactoryConfiguration configuration)
     {
         Contract.Requires(configuration != null);
+        if (string.IsNullOrEmpty(configuration.Universe))
+        {
+            configuration.Universe = "default";
+        }
+
+        if (string.IsNullOrEmpty(configuration.Namespace))
+        {
+            configuration.Namespace = "default";
+        }
 
         try
         {
             var logPath = new AbsolutePath(configuration.CacheLogPath);
 
-            // If the retention period is not set, this is not a blocker for constructing the cache, but performance can be degraded. Report it.
             var failures = new List<Failure>();
-            if (configuration.RetentionPolicyInDays == 0)
-            {
-                failures.Add(new RetentionDaysNotSetFailure(configuration.CacheId));
-            }
 
             var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds);
             var cache = new MemoizationStoreAdapterCache(
@@ -116,6 +121,7 @@ public class EphemeralCacheFactory : ICacheFactory
                 innerCache: await CreateEphemeralCache(logger, configuration),
                 logger: logger,
                 statsFile: new AbsolutePath(logPath.Path + ".stats"),
+                implicitPin: ImplicitPin.None,
                 precedingStateDegradationFailures: failures);
 
             var startupResult = await cache.StartupAsync();
@@ -139,10 +145,10 @@ public class EphemeralCacheFactory : ICacheFactory
 
         ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.Configuration factoryConfiguration;
 
-        var machineLocation = MachineLocation.Create(Environment.MachineName, GrpcConstants.DefaultGrpcPort);
-        var leaderLocation = MachineLocation.Create(configuration.LeaderMachineName, GrpcConstants.DefaultGrpcPort);
+        var machineLocation = MachineLocation.Create(Environment.MachineName, GrpcConstants.DefaultEphemeralGrpcPort);
+        var leaderLocation = MachineLocation.Create(configuration.LeaderMachineName, GrpcConstants.DefaultEphemeralGrpcPort);
         var rootPath = new AbsolutePath(configuration.CacheRootPath);
-        context.TracingContext.Info($"Creating ephemeral cache. Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}]", nameof(EphemeralCacheFactory));
+        context.TracingContext.Info($"Creating ephemeral cache. Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}]", nameof(EphemeralCacheFactory));
 
         if (configuration.DatacenterWide)
         {
@@ -171,8 +177,8 @@ public class EphemeralCacheFactory : ICacheFactory
             };
         }
 
-        var persistentCache = BlobCacheFactory.CreateCache(configuration);
-        return await Cache.ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.CreateAsync(context, factoryConfiguration, persistentCache);
+        var persistentCache = BlobCacheFactory.CreateCache(logger, configuration);
+        return await ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.CreateAsync(context, factoryConfiguration, persistentCache);
     }
 
     /// <inheritdoc />

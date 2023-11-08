@@ -844,8 +844,9 @@ public static class EphemeralCacheFactory
 
         private CreateSessionResult<ICacheSession> CreatePassthroughSession(Context context, string name, ImplicitPin implicitPin)
         {
-            var contentSession = _ephemeralCache.CreateSession(context, name, implicitPin).ThrowIfFailure();
-            CreateSessionResult<ICacheSession> cacheSession = _persistentCache.CreateSession(context, name, implicitPin).ThrowIfFailure();
+            // ImplicitPin is explicitly set to None because we absolutely never EVER want to pin here.
+            var contentSession = _ephemeralCache.CreateSession(context, name, ImplicitPin.None).ThrowIfFailure();
+            CreateSessionResult<ICacheSession> cacheSession = _persistentCache.CreateSession(context, name, ImplicitPin.None).ThrowIfFailure();
             var session = cacheSession.Session! as ICacheSessionWithLevelSelectors;
             Contract.Assert(session != null, "An invalid session was returned");
             return new CreateSessionResult<ICacheSession>(new PassthroughCacheSession(name, contentSession.Session!, session!));

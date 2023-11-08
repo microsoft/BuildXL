@@ -10,6 +10,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Utilities.Collections;
@@ -61,22 +65,28 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             public string ManagedIdentityId { get; set; }
 
             /// <summary>
-            /// The configured number of days the storage account will retain blobs before deleting (or soft deleting) them based
-            /// on last access time. If content and metadata have different retention policies, the shortest retention period is expected here.
+            /// The configured number of days the storage account will retain blobs before deleting (or soft deleting)
+            /// them based on last access time. If content and metadata have different retention policies, the shortest
+            /// retention period is expected here.
             /// </summary>
             /// <remarks>
-            /// By setting this value to reflect the storage account life management configuration policy, pin operations can be optimized.
-            /// If unset, pin operations will likely be costlier. If the value is set to a number larger than the storage account policy, that
-            /// can lead to build failures.
+            /// This setting should only be used when utilizing service-less GC (i.e., GC is performed via Azure
+            /// Storage's lifecycle management feature).
             /// 
-            /// When enabled (a non-zero value), every time that a content hash list is stored, a last upload time is associated to it and stored as well.
-            /// This last upload time is deemed very close to the one used for storing all the corresponding content for that content hash list
-            /// (since typically that's the immediate step prior to storing the fingerprint). Whenever a content hash list is retrieved and has a last upload
-            /// time associated to it, the metadata store notifies the cache of it. The cache then uses that information to determine whether the content
-            /// associated to that fingerprint can be elided, based on the provided configured blob retention policy of the blob storage account.
+            /// By setting this value to reflect the storage account life management configuration policy, pin
+            /// operations can be elided if we know a fingerprint got a cache hit within the retention policy period.
+            /// 
+            /// When enabled (a positive value), every time that a content hash list is stored, a last upload time is
+            /// associated to it and stored as well.
+            /// This last upload time is deemed very close to the one used for storing all the corresponding content
+            /// for that content hash (since typically that's the immediate step prior to storing the fingerprint).
+            /// Whenever a content hash list is retrieved and has a last upload time associated to it, the metadata
+            /// store notifies the cache of it. The cache then uses that information to determine whether the content
+            /// associated to that fingerprint can be elided, based on the provided configured blob retention policy of
+            /// the blob storage account.
             /// </remarks>
-            [DefaultValue(0)]
-            public int RetentionPolicyInDays { get; set; }
+            [DefaultValue(-1)]
+            public int RetentionPolicyInDays { get; set; } = -1;
 
             /// <nodoc />
             [DefaultValue("default")]
@@ -141,6 +151,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public async Task<Possible<ICache, Failure>> InitializeCacheAsync(Config configuration)
         {
             Contract.Requires(configuration != null);
+            if (string.IsNullOrEmpty(configuration.Universe))
+            {
+                configuration.Universe = "default";
+            }
+
+            if (string.IsNullOrEmpty(configuration.Namespace))
+            {
+                configuration.Namespace = "default";
+            }
 
             try
             {
@@ -148,16 +167,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 // If the retention period is not set, this is not a blocker for constructing the cache, but performance can be degraded. Report it.
                 var failures = new List<Failure>();
-                if (configuration.RetentionPolicyInDays == 0)
-                {
-                    failures.Add(new RetentionDaysNotSetFailure(configuration.CacheId));
-                }
 
+                var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds);
                 var cache = new MemoizationStoreAdapterCache(
                     cacheId: configuration.CacheId,
-                    innerCache: CreateCache(configuration),
-                    logger: new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds),
+                    innerCache: CreateCache(logger, configuration),
+                    logger: logger,
                     statsFile: new AbsolutePath(logPath.Path + ".stats"),
+                    implicitPin: ImplicitPin.None,
                     precedingStateDegradationFailures: failures);
 
                 var startupResult = await cache.StartupAsync();
@@ -174,15 +191,20 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
         }
 
-        internal static MemoizationStore.Interfaces.Caches.IFullCache CreateCache(BlobCacheConfig configuration)
+        internal static MemoizationStore.Interfaces.Caches.IFullCache CreateCache(ILogger logger, BlobCacheConfig configuration)
         {
+            var tracingContext = new Context(logger);
+            var context = new OperationContext(tracingContext);
+
+            context.TracingContext.Info($"Creating blob cache. Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}]", nameof(EphemeralCacheFactory));
+
             var credentials = LoadAzureCredentials(configuration);
 
             var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
                 ShardingScheme: new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
                 Universe: configuration.Universe,
                 Namespace: configuration.Namespace,
-                RetentionPolicyInDays: configuration.RetentionPolicyInDays);
+                RetentionPolicyInDays: configuration.RetentionPolicyInDays <= 0 ? null : configuration.RetentionPolicyInDays);
 
             return AzureBlobStorageCacheFactory.Create(factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
         }

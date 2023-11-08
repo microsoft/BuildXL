@@ -61,6 +61,22 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> DebugFingerprintSalt = CreateSetting("BUILDXL_FINGERPRINT_SALT", value => ProcessFingerprintSalt(value));
 
         /// <summary>
+        /// Logical cache universe.
+        /// </summary>
+        /// <remarks>
+        /// This parameter should only be used for testing.
+        /// </remarks>
+        public static readonly Setting<string> CacheUniverse = CreateSetting("BUILDXL_CACHE_UNIVERSE", value => value);
+
+        /// <summary>
+        /// Logical cache namespace.
+        /// </summary>
+        /// <remarks>
+        /// This parameter should only be used for testing.
+        /// </remarks>
+        public static readonly Setting<string> CacheNamespace = CreateSetting("BUILDXL_CACHE_NAMESPACE", value => value);
+
+        /// <summary>
         /// Defines optional text used to salt graph fingerprints.
         /// Unspecified means salt is not added to fingerprint.
         /// '*' corresponds to using a random guid as the salt.

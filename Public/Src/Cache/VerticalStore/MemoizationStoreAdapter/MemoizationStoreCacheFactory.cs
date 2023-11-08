@@ -8,13 +8,14 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Grpc;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -134,6 +135,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue(null)]
             public GrpcCoreClientOptions GrpcCoreClientOptions { get; set; }
+
+            /// <nodoc />
+            [DefaultValue((int)ContentStore.Interfaces.Stores.ImplicitPin.PutAndGet)]
+            public int ImplicitPin { get; set; }
 
             /// <nodoc />
             public Config()
@@ -258,7 +263,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
 
-                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
+                var cache = new MemoizationStoreAdapterCache(
+                    cacheConfig.CacheId,
+                    localCache,
+                    logger,
+                    statsFilePath,
+                    cacheConfig.ReplaceExistingOnPlaceFile,
+                    (ImplicitPin)cacheConfig.ImplicitPin);
 
                 var startupResult = await cache.StartupAsync();
                 if (!startupResult.Succeeded)
@@ -277,17 +288,17 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         private static CasConfig GetCasConfig(Config config)
         {
             return new CasConfig
-                   {
-                       ApplyDenyWriteAttributesOnContent = config.ApplyDenyWriteAttributesOnContent,
-                       CacheRootPath = config.CacheRootPath,
-                       DiskFreePercent = config.DiskFreePercent,
-                       MaxCacheSizeInMB = config.MaxCacheSizeInMB,
-                       SingleInstanceTimeoutInSeconds = config.SingleInstanceTimeoutInSeconds,
-                       EnableElasticity = config.EnableElasticity,
-                       InitialElasticSizeInMB = config.InitialElasticSizeInMB,
-                       HistoryBufferSize = config.HistoryBufferSize,
-                       HistoryWindowSize = config.HistoryWindowSize,
-                   };
+            {
+                ApplyDenyWriteAttributesOnContent = config.ApplyDenyWriteAttributesOnContent,
+                CacheRootPath = config.CacheRootPath,
+                DiskFreePercent = config.DiskFreePercent,
+                MaxCacheSizeInMB = config.MaxCacheSizeInMB,
+                SingleInstanceTimeoutInSeconds = config.SingleInstanceTimeoutInSeconds,
+                EnableElasticity = config.EnableElasticity,
+                InitialElasticSizeInMB = config.InitialElasticSizeInMB,
+                HistoryBufferSize = config.HistoryBufferSize,
+                HistoryWindowSize = config.HistoryWindowSize,
+            };
         }
 
         private static ConfigurationModel CreateConfigurationModel(CasConfig casConfig)
@@ -340,7 +351,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             Contract.Requires(config.RetryIntervalSeconds >= 0);
             Contract.Requires(config.RetryCount >= 0);
 
-            var serviceClientRpcConfiguration = new ServiceClientRpcConfiguration() {
+            var serviceClientRpcConfiguration = new ServiceClientRpcConfiguration()
+            {
                 GrpcCoreClientOptions = config.GrpcCoreClientOptions,
             };
             if (config.GrpcPort > 0)
@@ -349,7 +361,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
 
             ServiceClientContentStoreConfiguration serviceClientContentStoreConfiguration = null;
-            if (config.EnableContentServer) {
+            if (config.EnableContentServer)
+            {
                 new ServiceClientContentStoreConfiguration(config.CacheName, serviceClientRpcConfiguration, config.ScenarioName)
                 {
                     RetryIntervalSeconds = (uint)config.RetryIntervalSeconds,

@@ -16,8 +16,8 @@ using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Engine.Cache.Plugin.CacheCore;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using ICacheCoreCache = BuildXL.Cache.Interfaces.ICache;
@@ -123,11 +123,11 @@ namespace BuildXL.Engine
                                     loggingContext,
                                     maybeCacheCoreEngineCache.Failure.DescribeIncludingInnerFailures());
                             }
-                            else if(errorMessage.Contains(VssUnauthorizedExceptionPattern))
+                            else if (errorMessage.Contains(VssUnauthorizedExceptionPattern))
                             {
                                 Tracing.Logger.Log.FailedToAuthorizeVSTSCache(
                                     loggingContext,
-                                    maybeCacheCoreEngineCache.Failure.DescribeIncludingInnerFailures());                                
+                                    maybeCacheCoreEngineCache.Failure.DescribeIncludingInnerFailures());
                             }
                             else
                             {
@@ -300,6 +300,16 @@ namespace BuildXL.Engine
             cacheConfigContent = cacheConfigContent.Replace("[UseDedupStore]", config.UseDedupStore.ToString());
             cacheConfigContent = cacheConfigContent.Replace("[ReplaceExistingFileOnMaterialization]", config.ReplaceExistingFileOnMaterialization.ToString());
 
+            if (!string.IsNullOrEmpty(EngineEnvironmentSettings.CacheUniverse.Value))
+            {
+                cacheConfigContent = cacheConfigContent.Replace("[BuildXLCacheUniverse]", EngineEnvironmentSettings.CacheUniverse.Value);
+            }
+
+            if (!string.IsNullOrEmpty(EngineEnvironmentSettings.CacheNamespace.Value))
+            {
+                cacheConfigContent = cacheConfigContent.Replace("[BuildXLCacheNamespace]", EngineEnvironmentSettings.CacheNamespace.Value);
+            }
+
             var orchestratorLocation = distributionConfiguration?.OrchestratorLocation?.IpAddress;
             if (string.IsNullOrEmpty(orchestratorLocation))
             {
@@ -307,7 +317,7 @@ namespace BuildXL.Engine
             }
             cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedLeader]", orchestratorLocation);
 
-            var vfsCasRoot = config.VfsCasRoot.IsValid 
+            var vfsCasRoot = config.VfsCasRoot.IsValid
                 ? config.VfsCasRoot.ToString(pathTable)
                 : "";
 
@@ -414,7 +424,7 @@ namespace BuildXL.Engine
                     if (session != null)
                     {
                         Analysis.IgnoreResult(await session.CloseAsync(), justification: "Okay to ignore close");
-                        Analysis.IgnoreResult(await cache.ShutdownAsync(), justification:  "Okay to ignore shutdown");
+                        Analysis.IgnoreResult(await cache.ShutdownAsync(), justification: "Okay to ignore shutdown");
                     }
                 }
             }
@@ -505,10 +515,10 @@ namespace BuildXL.Engine
                         {
                             var value = Convert.ToInt64(statValue.Value);
                             statistics.Add((
-                                singleCacheStats.CacheId, 
-                                singleCacheStats.CacheType, 
-                                $"{singleCacheStats.CacheId}.{statValue.Key}", 
-                                statValue.Key, 
+                                singleCacheStats.CacheId,
+                                singleCacheStats.CacheType,
+                                $"{singleCacheStats.CacheId}.{statValue.Key}",
+                                statValue.Key,
                                 value));
                         }
                     }

@@ -8,19 +8,15 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Cache.MemoizationStore.Distributed.Stores;
-using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Sessions;
-using BuildXL.Cache.MemoizationStore.Stores;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
-using BuildXL.Cache.ContentStore.Distributed.Blob;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -148,7 +144,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             MemoizationStore.Interfaces.Caches.ICache cache = LocalCache.CreateRpcCache(logger, clientConfiguration);
             var statisticsFilePath = new AbsolutePath(logPath.Path + ".stats");
 
-            return new MemoizationStoreAdapterCache(configuration.CacheId, cache, logger, statisticsFilePath);
+            return new MemoizationStoreAdapterCache(configuration.CacheId, cache, logger, statisticsFilePath, implicitPin: ImplicitPin.PutAndGet);
         }
 
         private static ServiceClientContentStoreConfiguration CreateClientConfiguration(Config configuration, ILogger logger)

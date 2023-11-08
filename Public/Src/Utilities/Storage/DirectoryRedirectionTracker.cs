@@ -32,7 +32,7 @@ namespace BuildXL.Storage
         /// Ensures that a redirected directory redirection exists.
         /// </summary>
         /// <exception cref="BuildXLException">Thrown if an I/O error prevents creating the redirected directory.</exception>
-        public void CreateRedirection(string redirectedPath, string realPath, bool deleteExisting, bool deleteOnDispose)
+        public void CreateRedirection(string redirectedPath, string realPath, bool deleteOnDispose)
         {
             Contract.Requires(!string.IsNullOrEmpty(redirectedPath));
             Contract.Requires(!string.IsNullOrEmpty(realPath));
@@ -40,51 +40,9 @@ namespace BuildXL.Storage
             ExceptionUtilities.HandleRecoverableIOException(
                 () =>
                 {
-                    var probeRedirectedPath = FileUtilities.TryProbePathExistence(redirectedPath, false);
-                    if (!probeRedirectedPath.Succeeded)
-                    {
-                        throw probeRedirectedPath.Failure.Throw();
-                    }
-
-                    if (deleteExisting)
-                    {
-                        if (probeRedirectedPath.Result == PathExistence.ExistsAsFile)
-                        {
-                            if (!OperatingSystemHelper.IsUnixOS)
-                            {
-                                if (!FileUtilities.TryRemoveDirectory(redirectedPath, out var hr))
-                                {
-                                    throw new NativeWin32Exception(hr);
-                                }
-                            }
-                            else
-                            {
-                                FileUtilities.DeleteFile(redirectedPath, retryOnFailure: true);
-                            }
-                        }
-                        else if (probeRedirectedPath.Result == PathExistence.ExistsAsDirectory)
-                        {
-                            FileUtilities.DeleteDirectoryContents(redirectedPath, deleteRootDirectory: true);
-                        }
-                    }
-
-                    Possible<Unit> maybeCreated = Unit.Void;
-
-                    if (!OperatingSystemHelper.IsUnixOS)
-                    {
-                        // On some Windows OS, creating directory symlinks is not allowed, so we create a junction.
-                        Directory.CreateDirectory(redirectedPath);
-                        FileUtilities.CreateJunction(redirectedPath, realPath);
-                    }
-                    else
-                    {
-                        maybeCreated = FileUtilities.TryCreateSymbolicLink(redirectedPath, realPath, isTargetFile: false);
-                    }
-
-                    if (!maybeCreated.Succeeded)
-                    {
-                        throw maybeCreated.Failure.Throw();
-                    }
+#pragma warning disable EPC13 // ThrowIfFailure() correctly observes the result of the Possible
+                    FileUtilities.TryCreateReparsePointIfTargetsDoNotMatch(redirectedPath, realPath, OperatingSystemHelper.IsWindowsOS ? ReparsePointType.Junction : ReparsePointType.DirectorySymlink, out _).ThrowIfFailure();
+#pragma warning restore EPC13 
 
                     if (deleteOnDispose)
                     {

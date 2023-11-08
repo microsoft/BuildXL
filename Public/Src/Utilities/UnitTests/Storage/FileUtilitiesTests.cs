@@ -1356,6 +1356,41 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(expectedResult, result);
         }
 
+        [Fact]
+        public void TestTryCreateReparsePointIfTargetsDoNotMatch()
+        {
+            // Set up some test files and directories
+            string fileName = "myfile.txt";
+            string redirectPath = Path.Combine(TemporaryDirectory, "redirect");
+            string targetPath = Path.Combine(TemporaryDirectory, "target");
+            
+            Directory.CreateDirectory(targetPath);
+            File.WriteAllText(Path.Combine(targetPath, fileName), "hola");
+
+            ReparsePointType type = OperatingSystemHelper.IsWindowsOS ? ReparsePointType.Junction : ReparsePointType.UnixSymlink;
+
+            // Create and validate the redirect
+            redirectAndAssertSuccess(expectNoop: false);
+
+            // Everything should still work after calling it a second time with no changes
+            redirectAndAssertSuccess(expectNoop: true);
+
+            // Change the redirect
+            FileUtilities.OsFileUtilities.DeleteFile(redirectPath, retryOnFailure: true);
+            XAssert.IsTrue(FileUtilities.TryCreateReparsePoint(redirectPath, Path.Combine(TemporaryDirectory, "bogusPath"), type).Succeeded);
+            XAssert.IsFalse(File.Exists(Path.Combine(redirectPath, fileName)));
+
+            // The redirect should be fixed up
+            redirectAndAssertSuccess(expectNoop: false);
+
+            void redirectAndAssertSuccess(bool expectNoop)
+            {
+                XAssert.IsTrue(FileUtilities.TryCreateReparsePointIfTargetsDoNotMatch(redirectPath, targetPath, type, out bool reparsePointUnchanged).Succeeded);
+                XAssert.IsTrue(File.Exists(Path.Combine(redirectPath, fileName)));
+                XAssert.IsTrue(expectNoop ^ !reparsePointUnchanged);
+            }
+        }
+
         private void AssertNonexistent(Possible<PathExistence, NativeFailure> maybeFileExistence)
             => AssertPathExistence(PathExistence.Nonexistent, maybeFileExistence);
 

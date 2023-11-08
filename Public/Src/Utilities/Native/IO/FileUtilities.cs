@@ -765,16 +765,15 @@ namespace BuildXL.Native.IO
             return OsFileSystem.TryCreateSymbolicLink(symLinkFileName, targetFileName, isTargetFile);
         }
 
-
-
         /// <summary>
         /// Tries to create a reparse point if targets do not match.
         /// </summary>
         /// <remarks>
         /// The first parameter should be a path to an existing reparse point 
         /// </remarks>
-        public static Possible<Unit> TryCreateReparsePointIfTargetsDoNotMatch(string reparsePoint, string reparsePointTarget, ReparsePointType type)
+        public static Possible<Unit> TryCreateReparsePointIfTargetsDoNotMatch(string reparsePoint, string reparsePointTarget, ReparsePointType type, out bool reparsePointUnchanged)
         {
+            reparsePointUnchanged = false;
             bool shouldCreate = true;
             if (IsReparsePointActionable(type))
             {
@@ -796,7 +795,8 @@ namespace BuildXL.Native.IO
 
                         if (possibleExistingSymlinkTarget.Succeeded && possibleExistingSymlinkType.Succeeded)
                         {
-                            shouldCreate = !string.Equals(reparsePointTarget, possibleExistingSymlinkTarget.Result, OperatingSystemHelper.PathComparison) || type != possibleExistingSymlinkType.Result;
+                            string normalizedTarget = OperatingSystemHelper.IsWindowsOS ? possibleExistingSymlinkTarget.Result.Replace(FileSystemWin.NtPathPrefix, "") : possibleExistingSymlinkTarget.Result;
+                            shouldCreate = !string.Equals(reparsePointTarget, normalizedTarget, OperatingSystemHelper.PathComparison) || type != possibleExistingSymlinkType.Result;
                         }
                     }
                 }
@@ -808,6 +808,7 @@ namespace BuildXL.Native.IO
                 return TryCreateReparsePoint(reparsePoint, reparsePointTarget, type);
             }
 
+            reparsePointUnchanged = true;
             return Unit.Void;
         }
 

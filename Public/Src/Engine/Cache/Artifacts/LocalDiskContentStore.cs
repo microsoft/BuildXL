@@ -292,7 +292,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             Possible<Unit> maybeReparsePoint;
             if (existsAsReparsePoint)
             {
-                maybeReparsePoint = FileUtilities.TryCreateReparsePointIfTargetsDoNotMatch(source.ExpandedPath, reparsePointTarget, type);
+                maybeReparsePoint = FileUtilities.TryCreateReparsePointIfTargetsDoNotMatch(source.ExpandedPath, reparsePointTarget, type, out _);
             }
             else
             {

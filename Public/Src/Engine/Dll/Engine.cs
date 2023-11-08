@@ -2511,7 +2511,6 @@ namespace BuildXL.Engine
                     container.CreateRedirection(
                         Configuration.Logging.RedirectedLogsDirectory.ToString(pathTable),
                         Configuration.Logging.LogsDirectory.ToString(pathTable),
-                        deleteExisting: true,
                         deleteOnDispose: true);
                 }
 
@@ -2521,7 +2520,6 @@ namespace BuildXL.Engine
                     container.CreateRedirection(
                         layout.NormalizedBuildEngineDirectory.ToString(pathTable),
                         Directory.GetParent(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly())).FullName,
-                        deleteExisting: true,
                         deleteOnDispose: false);
                 }
 

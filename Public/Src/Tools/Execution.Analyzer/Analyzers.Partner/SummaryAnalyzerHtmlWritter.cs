@@ -639,7 +639,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
             // Reason for execution
             writer.WriteStartElement("td");
             writer.WriteStartElement("a");
-            writer.WriteAttributeString("href", "https://www.1eswiki.com/wiki/Domino_execution_analyzer#Reasons_for_process_Pip_Execution_section");
+            writer.WriteAttributeString("href", "[https://eng.ms/docs/cloud-ai-platform/devdiv/one-engineering-system-1es/1es-build/cloudbuild/usingcloudbuild/domino-execution-analyzer#reasons-for-process-pip-execution-section](https://eng.ms/docs/cloud-ai-platform/devdiv/one-engineering-system-1es/1es-build/cloudbuild/usingcloudbuild/domino-execution-analyzer#reasons-for-process-pip-execution-section)");
             writer.WriteString(missReason);
             writer.WriteEndElement();
             writer.WriteEndElement();
@@ -1049,7 +1049,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
 
             // Add a link to wiki documentation.
             writer.WriteStartElement("a");
-            writer.WriteAttributeString("href", "https://www.1eswiki.com/wiki/Domino_execution_analyzer#HTML_Diff_Report_output");
+            writer.WriteAttributeString("href", "[https://eng.ms/docs/cloud-ai-platform/devdiv/one-engineering-system-1es/1es-build/cloudbuild/usingcloudbuild/domino-execution-analyzer#html-diff-report-output](https://eng.ms/docs/cloud-ai-platform/devdiv/one-engineering-system-1es/1es-build/cloudbuild/usingcloudbuild/domino-execution-analyzer#html-diff-report-output)");
             writer.WriteStartElement("a");
             writer.WriteString("Execution log compare report");
             writer.WriteEndElement();

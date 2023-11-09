@@ -238,9 +238,9 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <inheritdoc/>
-        public void Cancel()
+        public void Cancel(TimeSpan? timeout)
         {
-            m_innerQueue.Cancel();
+            m_innerQueue.Cancel(timeout);
         }
 
         /// <inheritdoc/>

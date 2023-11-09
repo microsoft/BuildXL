@@ -123,6 +123,7 @@ namespace BuildXL.Scheduler
         private long m_triggerDispatcherCount;
         private long m_dispatcherLoopCount;
         private TimeSpan m_dispatcherLoopTime;
+        private TimeSpan? m_cancelTimeout = null;
 
         /// <summary>
         /// Time spent in dispatcher loop
@@ -308,8 +309,18 @@ namespace BuildXL.Scheduler
 
                 if (m_queuesByKind.Sum(a => a.Value.NumRunningPips) != 0)
                 {
-                    // Make sure that all running tasks are completed.
-                    m_hasAnyRunning.Task.Wait();
+                    // Wait for all running tasks to be completed. In some cases it might be desireable only wait for a
+                    // limited amount of time and abandon running tasks. This is generally bad practice because it can have
+                    // unpredictable results for downstream assertions and validations that happen as part of scheduler
+                    // shutdown. But the strategy is used when terminating internal error builds as a pattern there is to have
+                    // long outstanding cache operations that would never terminate. Abandoning those tasks gives a shot
+                    // at tearing things down somewhat cleanly, including flushing telemetry. It also avoid hanging until
+                    // the process is externally killed by the running infrastructure.
+                    if (!m_hasAnyRunning.Task.Wait(m_cancelTimeout ?? Timeout.InfiniteTimeSpan))
+                    {
+                        // Return early before setting IsDraining to be false below
+                        return;
+                    }
                 }
             }
 
@@ -396,8 +407,9 @@ namespace BuildXL.Scheduler
         }
 
         /// <inheritdoc />
-        public void Cancel()
+        public void Cancel(TimeSpan? timeout)
         {
+            m_cancelTimeout = timeout;
             m_hasAnyRunning = new TaskCompletionSource<bool>();
             IsCancelled = true;
             TriggerDispatcher();

@@ -3190,7 +3190,7 @@ namespace BuildXL.Scheduler
             {
                 Logger.Log.TerminatingDueToInternalError(m_executePhaseLoggingContext);
 
-                RequestTermination(cancelQueue: false);
+                RequestTermination(cancelQueue: true, cancelRunningPips: true, cancelQueueTimeout: TimeSpan.FromMinutes(2));
             }
         }
 
@@ -8092,7 +8092,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Inform the scheduler that we want to terminate ASAP (but with clean shutdown as needed).
         /// </summary>
-        private void RequestTermination(bool cancelQueue = true, bool cancelRunningPips = false)
+        private void RequestTermination(bool cancelQueue = true, bool cancelRunningPips = false, TimeSpan? cancelQueueTimeout = null)
         {
             if (m_scheduleTerminating)
             {
@@ -8117,7 +8117,7 @@ namespace BuildXL.Scheduler
             {
                 // We cancel the queue for more aggressive but still graceful cancellation.
                 // This will stop pips to make transition between PipExecutionSteps.
-                PipQueue.Cancel();
+                PipQueue.Cancel(cancelQueueTimeout);
             }
 
             if (cancelRunningPips)

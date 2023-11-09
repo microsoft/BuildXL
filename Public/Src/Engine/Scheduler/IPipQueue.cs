@@ -106,7 +106,9 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Cancels draining the queues
         /// </summary>
-        void Cancel();
+        /// <param name="timeout">Length of time to allow queues to drain upon cancellations. After this timeout,
+        /// <see cref="DrainQueues"/> will return even if there are still actively running child tasks.</param>
+        void Cancel(TimeSpan? timeout);
 
         /// <summary>
         /// Adjusts the concurrency limit for the IO queue

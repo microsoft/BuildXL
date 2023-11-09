@@ -72,9 +72,8 @@ config({
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "4.6.0",
+                { id: "System.Diagnostics.DiagnosticSource", version: "7.0.2",
                     dependentPackageIdsToSkip: ["System.Memory"] },
-                { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
                 // The old compiler used by integration tests only.
@@ -190,11 +189,11 @@ config({
                 // Key Vault
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.5.0" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.5.1" },
-                { id: "Azure.Identity", version: "1.10.0" },
-                { id: "Microsoft.Identity.Client", version: "4.55.0" },
+                { id: "Azure.Identity", version: "1.10.2" },
+                { id: "Microsoft.Identity.Client", version: "4.56.0" },
                 { id: "Microsoft.IdentityModel.Abstractions", version: "6.32.1" },
-                { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.32.0" },
-                { id: "Azure.Core", version: "1.34.0", 
+                { id: "Microsoft.Identity.Client.Extensions.Msal", version: "4.56.0" },
+                { id: "Azure.Core", version: "1.35.0", 
                     dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors", "Microsoft.Bcl.AsyncInterfaces" ] },
                 { id: "System.Memory.Data", version: "1.0.2",
                     dependentPackageIdsToSkip: [ "System.Memory", "System.Text.Json" ] },
@@ -331,8 +330,7 @@ config({
                 { id: "System.CodeDom", version: "4.4.0"},
                 { id: "System.Text.Encoding.CodePages", version: "4.5.1",
                     dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
-                { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.3", alias: "SystemRuntimeCompilerServicesUnsafeForMSBuild", dependentPackageIdsToSkip: ["*"]},
-                {id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
+                { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },

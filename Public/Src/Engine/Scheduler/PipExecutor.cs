@@ -2217,7 +2217,7 @@ namespace BuildXL.Scheduler
                             expectedCommitMb: expectedMemoryCounters.PeakCommitSizeMb,
                             cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                     }
-                    else if (environment.Context.CancellationToken.IsCancellationRequested
+                    else if (environment.SchedulerCancellationToken.IsCancellationRequested
                              && environment.Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
                     {
                         // The pip was cancelled due to the scheduler terminating on this distributed worker.

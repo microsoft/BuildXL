@@ -766,6 +766,50 @@ if ($isRunningOnADO) {
 [string[]]$DominoArguments = @($DominoArguments | % { $_.Replace("#singlequote#", "'").Replace("#openparens#", "(").Replace("#closeparens#", ")"); })
 [string[]]$DominoArguments = $AdditionalBuildXLArguments + $DominoArguments;
 
+function getTokenFromCredentialProvider() {
+    [OutputType([string])]
+    Param (
+        [parameter(Mandatory=$true)]
+        [string]
+        $credProvider,
+
+        [parameter(Mandatory=$true)]
+        [string]
+        $internalFeed,
+
+        [parameter(Mandatory=$true)]
+        [boolean]
+        $isRetry
+    )
+
+    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processInfo.FileName = $credProvider
+    $processInfo.RedirectStandardError = $true
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.UseShellExecute = $false
+    $processInfo.CreateNoWindow = $true
+    $processInfo.Arguments = "-U $internalFeed -V Information -C -F Json"
+    if ($isRetry) {
+        $processInfo.Arguments += " -I"
+    }
+    # tells the artifacts cred provider to generate a PAT instead of a self-describing token
+    if ($processInfo.EnvironmentVariables.ContainsKey("NUGET_CREDENTIALPROVIDER_VSTS_TOKENTYPE")) {
+        $processInfo.EnvironmentVariables["NUGET_CREDENTIALPROVIDER_VSTS_TOKENTYPE"] = "Compact"
+    }
+    else {
+        $processInfo.EnvironmentVariables.Add("NUGET_CREDENTIALPROVIDER_VSTS_TOKENTYPE", "Compact")
+    }
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo = $processInfo
+    $p.Start() | Out-Null
+    $p.WaitForExit()
+    $stdout = $p.StandardOutput.ReadToEnd()
+
+    # parse token from output
+    $tokenMatches = $stdout | Select-String -Pattern '.*\{"Username":"[a-zA-Z0-9]*","Password":"(.*)"\}.*'
+    return $tokenMatches.Matches.Groups[1].Value
+}
+
 # The MS internal build needs authentication. When not running on ADO use the configured cred provider
 # to prompt for credentials as a way to guarantee the auth token will be cached for the subsequent build.
 # This may prompt an interactive pop-up/console. ADO pipelines already configure the corresponding env vars 
@@ -810,26 +854,29 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
     # Set the cached credential into the user npmrc
     # we don't run vsts-npm-auth here because it requires us to have npm installed first
     # the code below will essentially duplicate what vsts-npm-auth performs
-    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $processInfo.FileName = $credProvider
-    $processInfo.RedirectStandardError = $true
-    $processInfo.RedirectStandardOutput = $true
-    $processInfo.UseShellExecute = $false
-    $processInfo.CreateNoWindow = $true
-    $processInfo.Arguments = "-U $internalFeed -V Information -C -F Json"
-    # tells the artifacts cred provider to generate a PAT instead of a self-describing token
-    if ($processInfo.EnvironmentVariables.ContainsKey("NUGET_CREDENTIALPROVIDER_VSTS_TOKENTYPE")) {
-        $processInfo.EnvironmentVariables["NUGET_CREDENTIALPROVIDER_VSTS_TOKENTYPE"] = "Compact"
+    $token = getTokenFromCredentialProvider $credProvider $internalFeed $false;
+
+    # verify whether the provided PAT is valid
+    $auth = "username" + ':' + $token
+    $encoded = [System.Text.Encoding]::UTF8.GetBytes($auth)
+    $authorizationInfo = [System.Convert]::ToBase64String($encoded)
+    $headers = @{"Authorization"="Basic $($authorizationInfo)"}
+    $statusCode = 0;
+
+    try {
+        $response = Invoke-WebRequest -Uri "https://feeds.dev.azure.com/cloudbuild/CloudBuild/_apis/packaging/feeds?api-version=7.1-preview.1" -Method GET -Headers $headers
+        $statusCode = $response.StatusCode
     }
-    else {
-        $processInfo.EnvironmentVariables.Add("NUGET_CREDENTIALPROVIDER_VSTS_TOKENTYPE", "Compact")
+    catch {
+        $statusCode = 401
     }
-    $p = New-Object System.Diagnostics.Process
-    $p.StartInfo = $processInfo
-    $p.Start() | Out-Null
-    $p.WaitForExit()
-    $stdout = $p.StandardOutput.ReadToEnd()
-    
+
+    # a 200 response indicates that the PAT is valid
+    # if we didn't get this, we need to re-run the credential provider with the -I arg
+    if ($statusCode -ne 200) {
+        $token = getTokenFromCredentialProvider $credProvider $internalFeed $true;
+    }
+
     # npmrc files can contain multiple sources, so we'll create a buildxl specific one here
     if (![System.IO.File]::Exists("$env:USERPROFILE/.npmrc")) {
         New-Item -Path "$env:USERPROFILE/.npmrc" -ItemType File
@@ -838,9 +885,7 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
         Set-Content -Path "$env:USERPROFILE/.npmrc" -Value (Get-Content "$env:USERPROFILE/.npmrc" | Select-String -Pattern '.*\/\/cloudbuild\.pkgs\.visualstudio\.com\/_packaging\/BuildXL\.Selfhost\/npm\/registry.*' -NotMatch)
     }
 
-    # parse token from output and base64 encode
-    $tokenMatches = $stdout | Select-String -Pattern '.*\{"Username":"[a-zA-Z0-9]*","Password":"(.*)"\}.*'
-    $token = $tokenMatches.Matches.Groups[1].Value
+    # base64 encode the token
     $b64token = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($token))
 
     # add new lines with token to npmrc

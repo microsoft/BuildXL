@@ -11,9 +11,9 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -57,7 +57,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         shardingScheme,
                         secretsProvider,
                         n.Universe,
-                        n.Namespace)));
+                        n.Namespace,
+                        config.BlobRetryPolicy)));
 
             // Using the 0th shard of the cache, so that checkpoint data is preserved between re-sharding.
             // However, the container needs to be differentiated between reshardings.

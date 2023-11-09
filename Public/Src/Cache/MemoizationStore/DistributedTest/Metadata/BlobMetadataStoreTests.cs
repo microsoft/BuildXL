@@ -6,12 +6,13 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -32,7 +33,6 @@ using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
-using System.Threading;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -90,7 +90,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
                     SecretsProvider: new StaticBlobCacheSecretsProvider(credentials),
                     Universe: ThreadSafeRandom.LowercaseAlphanumeric(10),
-                    Namespace: "default"));
+                    Namespace: "default",
+                    BlobRetryPolicy: new ShardedBlobCacheTopology.BlobRetryPolicy()));
             var config = new BlobMetadataStoreConfiguration
             {
                 Topology = topology,
@@ -133,7 +134,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
                     var contentSessionResult = contentStore.CreateSession(context, Name, ImplicitPin.None);
                     contentSessionResult.ShouldBeSuccess();
-                    
+
                     var sessionResult = store.CreateSession(context, Name, contentSessionResult.Session, automaticallyOverwriteContentHashLists: true);
                     sessionResult.ShouldBeSuccess();
 
@@ -324,7 +325,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         public Task TestSelectorsAreMRUOrdered()
         {
             var context = new Context(Logger);
-           
+
             var retentionPolicy = TimeSpan.FromDays(1);
 
             return RunTestAsync(context, retentionPolicy, async (
@@ -340,7 +341,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
                 // Store a new content hash list
                 var strongFingerprint = StrongFingerprint.Random();
-                _ =await AddContentHashListWithStrongFingerprint(database, cacheSession, context, strongFingerprint, ctx);
+                _ = await AddContentHashListWithStrongFingerprint(database, cacheSession, context, strongFingerprint, ctx);
 
                 // Make sure there is a 1 second delay between pushes. The last modified time for blobs has a 1 second granularity.
                 Thread.Sleep(1000);

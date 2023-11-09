@@ -58,6 +58,11 @@ public static class AzureBlobStorageCacheFactory
         /// takes into consideration that most builds will take under 12 hours.
         /// </remarks>
         public TimeSpan MetadataPinElisionDuration { get; init; } = TimeSpan.FromHours(12);
+
+        /// <summary>
+        /// Retry policy for Azure Storage client.
+        /// </summary>
+        public ShardedBlobCacheTopology.BlobRetryPolicy BlobRetryPolicy { get; init; } = new();
     }
 
     /// <nodoc />
@@ -108,7 +113,8 @@ public static class AzureBlobStorageCacheFactory
                 ShardingScheme: configuration.ShardingScheme,
                 SecretsProvider: secretsProvider,
                 Universe: configuration.Universe,
-                Namespace: configuration.Namespace));
+                Namespace: configuration.Namespace,
+                BlobRetryPolicy: configuration.BlobRetryPolicy));
     }
 
     private static AzureBlobStorageContentStore CreateContentStore(Configuration configuration, IBlobCacheTopology topology)

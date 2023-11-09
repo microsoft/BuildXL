@@ -3,19 +3,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -366,7 +364,8 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
                                         new ShardingScheme(ShardingAlgorithm.JumpHash, shards),
                                         SecretsProvider: secretsProvider,
                                         Universe: OverrideFolderName ?? _runId,
-                                        Namespace: "default")),
+                                        Namespace: "default",
+                                        BlobRetryPolicy: new ShardedBlobCacheTopology.BlobRetryPolicy())),
         };
 
         store = new AzureBlobStorageContentStore(configuration);

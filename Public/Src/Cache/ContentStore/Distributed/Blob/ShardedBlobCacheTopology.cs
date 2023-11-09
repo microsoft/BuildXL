@@ -6,11 +6,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
-using Azure.Core.Pipeline;
 using Azure.Storage.Blobs;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -24,17 +22,36 @@ using BuildXL.Utilities.Core;
 namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 
 public class ShardedBlobCacheTopology : IBlobCacheTopology
-{   
+{
     protected Tracer Tracer { get; } = new Tracer(nameof(ShardedBlobCacheTopology));
+
+    public record BlobRetryPolicy
+    {
+        /// <summary>
+        /// Maximum number of retries for Azure Storage client.
+        /// </summary>
+        public int MaxRetries { get; set; } = 20;
+        /// <summary>
+        /// Delay for Azure Storage client.
+        /// </summary>
+        public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(0.5);
+        /// <summary>
+        /// Maximum amount of time we're willing to wait for any operation against storage.
+        /// </summary>
+        public TimeSpan NetworkTimeout { get; set; } = TimeSpan.FromSeconds(200);
+    }
 
     public record Configuration(
         ShardingScheme ShardingScheme,
         IBlobCacheSecretsProvider SecretsProvider,
         string Universe,
         string Namespace,
+        BlobRetryPolicy BlobRetryPolicy,
         TimeSpan? ClientCreationTimeout = null);
 
     private readonly Configuration _configuration;
+
+    private readonly BlobClientOptions _blobClientOptions;
 
     /// <summary>
     /// Holds pre-allocated container names to avoid allocating strings every time we want to get the container for a
@@ -64,6 +81,14 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
     {
         _configuration = configuration;
 
+        _blobClientOptions = new BlobClientOptions()
+        {
+            Retry = {
+                MaxRetries = configuration.BlobRetryPolicy.MaxRetries,
+                Delay = configuration.BlobRetryPolicy.RetryDelay,
+                NetworkTimeout = configuration.BlobRetryPolicy.NetworkTimeout
+            }
+        };
         _scheme = _configuration.ShardingScheme.Create();
         _containers = GenerateContainerNames(_configuration.Universe, _configuration.Namespace, _configuration.ShardingScheme);
     }
@@ -185,7 +210,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             async context =>
             {
                 var credentials = await _configuration.SecretsProvider.RetrieveBlobCredentialsAsync(context, account);
-                var containerClient = credentials.CreateContainerClient(container.ContainerName);
+                var containerClient = credentials.CreateContainerClient(container.ContainerName, _blobClientOptions);
 
                 try
                 {

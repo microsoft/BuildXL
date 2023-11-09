@@ -26,9 +26,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
         /// <summary>
         /// Specifies how old an untracked namespace should be before we delete it. Set to null to disable the feature.
-        /// TODO: Set a default of 2 days once we have rolled this out.
         /// </summary>
-        public TimeSpan? UntrackedNamespaceDeletionThreshold { get; set; } = null;
+        public TimeSpan? UntrackedNamespaceDeletionThreshold { get; set; } = TimeSpan.FromDays(2);
 
         /// <summary>
         /// Retry policy for Azure Storage client.

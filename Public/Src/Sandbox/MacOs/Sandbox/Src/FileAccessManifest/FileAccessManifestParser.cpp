@@ -46,7 +46,7 @@ RequestedAccess GetRequestedAccess(DWORD desiredAccess)
     return reqAccess;
 }
 
-// Returns the length of the skipped-over string.
+// Returns the lenmgth of the skipped-over string.
 uint32_t SkipOverCharArray(const BYTE *&cursor)
 {
     uint32_t len = *((uint32_t *)(cursor));
@@ -108,10 +108,7 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
 
         for (uint32_t i = 0; i < manifestChildProcessesToBreakAwayFromJob_->Count ; i++)
         {
-            // CODESYNC: FileAccessManifest.cs :: WriteChildProcessesToBreakAwayFromSandbox
             SkipOverCharArray(payloadCursor); // process name
-            SkipOverCharArray(payloadCursor); // requiredCommandLineArgsSubstring
-            payloadCursor++; // commandLineArgsSubstringContainmentIgnoreCase
         }
 
         manifestTranslatePathsStrings_ = ParseAndAdvancePointer<PManifestTranslatePathsStrings>(payloadCursor);

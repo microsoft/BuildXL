@@ -22,30 +22,10 @@ namespace Test.BuildXL.Processes
         public SandboxedProcessBreakawayTest(ITestOutputHelper output)
             : base(output) { }
 
-        private static IEnumerable<object[]> OSAgnosticChildBreakawayData()
-        {
-            yield return Array.Empty<object[]>();
-            yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName) };
-        }
-
-        private static IEnumerable<object[]> WindowsChildBreakawayData()
-        {
-            yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName, "foo", CommandLineArgsSubstringContainmentIgnoreCase: false), "foo bar baz" };
-            yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName, "foo", CommandLineArgsSubstringContainmentIgnoreCase: true), "bar FOO baz" };
-            yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName, "foo", CommandLineArgsSubstringContainmentIgnoreCase: false), "bar FOO baz" };
-        }
-
         [Theory]
-        [MemberData(nameof(OSAgnosticChildBreakawayData))]
-        public void ChildProcessCanBreakawayWhenConfiguredOSAgnostic(FileAccessManifest.BreakawayChildProcess breakawayChildProcess = null, string commandArgs = null)
-            => ChildProcessCanBreakawayWhenConfiguredHelper(breakawayChildProcess, commandArgs);
-
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [MemberData(nameof(WindowsChildBreakawayData))]
-        public void ChildProcessCanBreakawayWhenConfiguredWindows(FileAccessManifest.BreakawayChildProcess breakawayChildProcess, string commandArgs)
-            => ChildProcessCanBreakawayWhenConfiguredHelper(breakawayChildProcess, commandArgs);
-
-        private void ChildProcessCanBreakawayWhenConfiguredHelper(FileAccessManifest.BreakawayChildProcess breakawayChildProcess = null, string commandArgs = null)
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ChildProcessCanBreakawayWhenConfigured(bool letInfiniteWaiterSurvive)
         {
             // Skip this test if running on .NET Framework with vstest
             // Reason: when this is the case and code coverage is turned on, launching breakaway 
@@ -59,7 +39,7 @@ namespace Test.BuildXL.Processes
             // escape the job object
             var fam = new FileAccessManifest(
                 Context.PathTable,
-                childProcessesToBreakawayFromSandbox: breakawayChildProcess is null ? null : new[] { breakawayChildProcess })
+                childProcessesToBreakawayFromSandbox: letInfiniteWaiterSurvive ? new[] { InfiniteWaiterToolName } : null)
             {
                 FailUnexpectedFileAccesses = false
             };
@@ -68,9 +48,8 @@ namespace Test.BuildXL.Processes
             var info = ToProcessInfo(
                 ToProcess(
                     Operation.SpawnExe(
-                        Context.PathTable,
-                        CreateFileArtifactWithName(InfiniteWaiterToolName, TestDeploymentDir),
-                        commandArgs)),
+                        Context.PathTable, 
+                        CreateFileArtifactWithName(InfiniteWaiterToolName, TestDeploymentDir))),
                 fileAccessManifest: fam);
 
             // Let's shorten the default time to wait for nested processes, since we are spawning 
@@ -86,8 +65,7 @@ namespace Test.BuildXL.Processes
                     $"\n\n=== stderr ===\n\n ${result.StandardError.ReadValueAsync().Result}");
             }
 
-            if (breakawayChildProcess is null || (breakawayChildProcess.RequiredCommandLineArgsSubstring is not null
-                && commandArgs.IndexOf(breakawayChildProcess.RequiredCommandLineArgsSubstring, breakawayChildProcess.CommandLineArgsSubstringContainmentIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) == -1))
+            if (!letInfiniteWaiterSurvive)
             {
                 // If we didn't let infinite waiter escape, we should have killed it when the job object was finalized
                 XAssert.IsTrue(result.Killed);
@@ -135,7 +113,7 @@ namespace Test.BuildXL.Processes
 
             var fam = new FileAccessManifest(
                 Context.PathTable,
-                childProcessesToBreakawayFromSandbox: new[] { new FileAccessManifest.BreakawayChildProcess(TestProcessToolName) })
+                childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
             {
                 FailUnexpectedFileAccesses = false,
                 ReportUnexpectedFileAccesses = true,
@@ -176,7 +154,7 @@ namespace Test.BuildXL.Processes
         {
             var fam = new FileAccessManifest(
                 Context.PathTable,
-                childProcessesToBreakawayFromSandbox: new[] { new FileAccessManifest.BreakawayChildProcess(TestProcessToolName) })
+                childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
             {
                 FailUnexpectedFileAccesses = false,
                 ReportUnexpectedFileAccesses = true,
@@ -231,7 +209,7 @@ namespace Test.BuildXL.Processes
         {
             var fam = new FileAccessManifest(
                 Context.PathTable,
-                childProcessesToBreakawayFromSandbox: new[] { new FileAccessManifest.BreakawayChildProcess(TestProcessToolName) })
+                childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
             {
                 FailUnexpectedFileAccesses = false,
                 ReportUnexpectedFileAccesses = true,
@@ -263,7 +241,7 @@ namespace Test.BuildXL.Processes
         {
             var fam = new FileAccessManifest(
                 Context.PathTable,
-                childProcessesToBreakawayFromSandbox: new[] { new FileAccessManifest.BreakawayChildProcess(TestProcessToolName) })
+                childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
             {
                 FailUnexpectedFileAccesses = false,
                 ReportUnexpectedFileAccesses = true,
@@ -314,7 +292,7 @@ namespace Test.BuildXL.Processes
         {
             var fam = new FileAccessManifest(
                     Context.PathTable,
-                    childProcessesToBreakawayFromSandbox: new[] { new FileAccessManifest.BreakawayChildProcess(TestProcessToolName) })
+                    childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
             {
                 FailUnexpectedFileAccesses = false,
                 ReportUnexpectedFileAccesses = true,

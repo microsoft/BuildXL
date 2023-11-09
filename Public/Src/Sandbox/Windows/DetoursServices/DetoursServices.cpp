@@ -228,7 +228,7 @@ uint64_t g_FileAccessManifestPipId;
 PCManifestRecord g_manifestTreeRoot;
 
 PManifestChildProcessesToBreakAwayFromJob g_manifestChildProcessesToBreakAwayFromJob;
-vector<BreakawayChildProcess>* g_breakawayChildProcesses = nullptr;
+unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>* g_processNamesToBreakAwayFromJob = nullptr;
 PManifestTranslatePathsStrings g_manifestTranslatePathsStrings;
 vector<TranslatePathTuple*>* g_pManifestTranslatePathTuples = nullptr;
 unordered_set<std::wstring>* g_pManifestTranslatePathLookupTable = nullptr;
@@ -262,7 +262,7 @@ volatile LONG g_detoursAllocatedNoLockConcurentPoolEntries = 0;
 volatile LONG64 g_detoursMaxHandleHeapEntries = 0;
 
 // Currently allocated entries in the HandleHeapMap hash table. Allocated in private heap.
-volatile LONG64 g_detoursHandleHeapEntries = 0;
+volatile LONG64 g_detoursHandleHeapEntries = 0;\
 
 //
 // Substitute process execution shim.
@@ -511,7 +511,7 @@ InternalCreateDetouredProcess(
     // the JOB_OBJECT_LIMIT_BREAKAWAY_OK limit. But if we reached this point
     // the process being created is not allowed to break away. So make
     // sure we don't pass CREATE_BREAKAWAY_FROM_JOB
-    if (!g_breakawayChildProcesses->empty())
+    if (!g_processNamesToBreakAwayFromJob->empty())
     {
         creationFlags &= ~CREATE_BREAKAWAY_FROM_JOB;
     }
@@ -624,7 +624,7 @@ InternalCreateDetouredProcess(
     else {
         status = CreateDetouredProcessStatus::ProcessCreationFailed;
     }
-
+    
     if (status == CreateDetouredProcessStatus::Succeeded &&
         !(dwCreationFlags & CREATE_SUSPENDED) &&
         dwCreationFlags != creationFlags &&
@@ -701,12 +701,12 @@ struct ProcessCreationAttributes {
     ProcessCreationAttributes& operator=(const ProcessCreationAttributes&) = delete;
 
     ProcessCreationAttributes(ProcessCreationAttributes&& other)
-        : attrList(move(other.attrList)), handles(move(other.handles))
-    {
+        : attrList(move(other.attrList)), handles(move(other.handles)) 
+    { 
         hJob = other.hJob;
     }
 
-    ProcessCreationAttributes& operator=(ProcessCreationAttributes&& other)
+    ProcessCreationAttributes& operator=(ProcessCreationAttributes&& other) 
     {
         attrList = move(other.attrList);
         handles = move(other.handles);
@@ -834,10 +834,10 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
     }
 
     if (!CreateProcAttributesForExplicitHandleInheritance(
-        hStdInput,
-        hStdOutput,
+        hStdInput, 
+        hStdOutput, 
         hStdError,
-        /*out*/ processCreationAttributes))
+        /*out*/ processCreationAttributes)) 
     {
         std::wstring errorMsg = DebugStringFormat(
             L"CreateProcessAttributes: Failed to create Proc attributes for explicit handle inheritance (CreateDetouredProcessStatus: %d, error code: 0x%08X)",
@@ -908,10 +908,10 @@ CreateDetouredProcess(
     ZeroMemory(&pi, sizeof(pi));
 
     ProcessCreationAttributes processCreationAttributes = ProcessCreationAttributes(hJob);
-
+    
     CreateDetouredProcessStatus createAttributesStatus = CreateProcessAttributes(
-        hStdInput,
-        hStdOutput,
+        hStdInput, 
+        hStdOutput, 
         hStdError,
         lpcwCommandLine,
         dwCreationFlags,
@@ -1036,11 +1036,6 @@ static bool DllProcessDetach()
         delete g_manifestChildProcessesToBreakAwayFromJob;
     }
 
-    if (g_breakawayChildProcesses != nullptr)
-    {
-        delete g_breakawayChildProcesses;
-    }
-
     if (g_pManifestTranslatePathTuples != nullptr)
     {
         delete g_pManifestTranslatePathTuples;
@@ -1122,7 +1117,7 @@ static bool DllProcessAttach()
         return false;
     }
 
-    g_breakawayChildProcesses = new vector<BreakawayChildProcess>();
+    g_processNamesToBreakAwayFromJob = new unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>();
     g_pManifestTranslatePathTuples = new vector<TranslatePathTuple*>();
     g_pManifestTranslatePathLookupTable = new unordered_set<std::wstring>();
     g_pDetouredProcessInjector = new DetouredProcessInjector(g_manifestGuid);
@@ -1150,11 +1145,11 @@ static bool DllProcessAttach()
     // This is the way the AugmentedManifestReporter (the API to directly talk to detours
     // internal tools can use) can actually interact with the manifest
     // Keep in sync with C# side
-    if (!g_breakawayChildProcesses->empty())
+    if (!g_processNamesToBreakAwayFromJob->empty())
     {
         // CODESYNC: Keep variable name in sync with the C# side
         SetEnvironmentVariable(
-            L"BUILDXL_AUGMENTED_MANIFEST_HANDLE",
+            L"BUILDXL_AUGMENTED_MANIFEST_HANDLE", 
             std::to_wstring(DetouredProcessInjector::HandleToUint64(g_reportFileHandle)).c_str());
     }
 
@@ -1165,7 +1160,7 @@ static bool DllProcessAttach()
         Dbg(L"Failed to attach to function: " L#Name); \
         failed = true; \
     }
-    // end #define ATTACH
+// end #define ATTACH
 
     bool failed = false;
 
@@ -1186,7 +1181,7 @@ static bool DllProcessAttach()
         if (GetProcessKind() != SpecialProcessKind::WinDbg) {
             ATTACH(CreateFileW);
             ATTACH(CreateFileA);
-
+       
             ATTACH(GetVolumePathNameW);
             ATTACH(GetFileAttributesA);
             ATTACH(GetFileAttributesW);
@@ -1367,7 +1362,7 @@ static bool DllProcessAttach()
         return false;
     }
 
-    g_breakawayChildProcesses = new vector<BreakawayChildProcess>();
+    g_processNamesToBreakAwayFromJob = new unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>();
     g_pManifestTranslatePathTuples = new vector<TranslatePathTuple*>();
     g_pManifestTranslatePathLookupTable = new unordered_set<std::wstring>();
     g_pDetouredProcessInjector = new DetouredProcessInjector(g_manifestGuid);
@@ -1402,9 +1397,9 @@ void RetrieveParentProcessId()
 BOOL
 WINAPI
 DllMain(
-    _In_ HINSTANCE instance,
-    _In_ ULONG reason,
-    _In_ PVOID reserved)
+_In_ HINSTANCE instance,
+_In_ ULONG reason,
+_In_ PVOID reserved)
 {
     switch (reason) {
     case DLL_PROCESS_ATTACH:

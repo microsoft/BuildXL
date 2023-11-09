@@ -294,9 +294,7 @@ namespace BuildXL.ProcessPipExecutor
                 new FileAccessManifest(
                     m_pathTable,
                     directoryTranslator,
-                    // Note that BreakawayChildProcess provides the option to specify a RequiredCommandLineArgsSubstring: this option is *only* available for breakaway child
-                    // processes at the sandbox level.
-                    m_pip.ChildProcessesToBreakawayFromSandbox.Select(process => new FileAccessManifest.BreakawayChildProcess(process.ToString(context.StringTable))).ToReadOnlyArray())
+                    m_pip.ChildProcessesToBreakawayFromSandbox.Select(process => process.ToString(context.StringTable)).ToReadOnlyArray())
                 {
                     MonitorNtCreateFile = m_sandboxConfig.UnsafeSandboxConfiguration.MonitorNtCreateFile,
                     MonitorZwCreateOpenQueryFile = m_sandboxConfig.UnsafeSandboxConfiguration.MonitorZwCreateOpenQueryFile,

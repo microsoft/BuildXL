@@ -95,7 +95,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Infinite waiter process tool name
         /// </summary>
-        protected static string InfiniteWaiterToolName => OperatingSystemHelper.IsUnixOS
+        protected string InfiniteWaiterToolName => OperatingSystemHelper.IsUnixOS
             ? InfiniteWaiterWithoutExtension
             : InfiniteWaiterWithoutExtension + ".exe";
 

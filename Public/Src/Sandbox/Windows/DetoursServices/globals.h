@@ -24,7 +24,6 @@ using std::vector;
 // ----------------------------------------------------------------------------
 class TranslatePathTuple;
 class ShimProcessMatch;
-struct BreakawayChildProcess;
 
 // ----------------------------------------------------------------------------
 // GLOBALS
@@ -46,7 +45,7 @@ extern uint64_t g_FileAccessManifestPipId;
 extern PCManifestRecord g_manifestTreeRoot;
 
 extern PManifestChildProcessesToBreakAwayFromJob g_manifestChildProcessesToBreakAwayFromJob;
-extern vector<BreakawayChildProcess>* g_breakawayChildProcesses;
+extern std::unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>* g_processNamesToBreakAwayFromJob;
 extern PManifestTranslatePathsStrings g_manifestTranslatePathsStrings;
 extern vector<TranslatePathTuple*>* g_pManifestTranslatePathTuples;
 extern std::unordered_set<std::wstring>* g_pManifestTranslatePathLookupTable;

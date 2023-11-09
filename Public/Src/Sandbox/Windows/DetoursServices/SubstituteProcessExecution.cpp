@@ -94,7 +94,7 @@ static inline void trim_inplace(std::wstring& s) {
 }
 
 // Returns in 'command' the command from lpCommandLine without quotes, and in commandArgs the arguments from the remainder of the string.
-void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLine, _Out_ std::wstring &command, _Out_ std::wstring &commandArgs)
+static void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLine, _Out_ wstring &command, _Out_ wstring &commandArgs)
 {
     wstring fullCommandLine(lpCommandLine);
     if (fullCommandLine.length() == 0)

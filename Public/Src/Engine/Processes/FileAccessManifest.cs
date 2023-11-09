@@ -55,10 +55,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates an empty instance.
         /// </summary>
-        public FileAccessManifest(
-            PathTable pathTable,
-            DirectoryTranslator? translateDirectories = null,
-            IReadOnlyCollection<BreakawayChildProcess>? childProcessesToBreakawayFromSandbox = null)
+        public FileAccessManifest(PathTable pathTable, DirectoryTranslator? translateDirectories = null, IReadOnlyCollection<string>? childProcessesToBreakawayFromSandbox = null)
         {
             PathTable = pathTable;
             m_rootNode = Node.CreateRootNode();
@@ -561,7 +558,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// List of child processes that will break away from the sandbox
         /// </summary>
-        public IReadOnlyCollection<BreakawayChildProcess>? ChildProcessesToBreakawayFromSandbox { get; set; }
+        public IReadOnlyCollection<string>? ChildProcessesToBreakawayFromSandbox { get; set; }
 
         /// <summary>
         /// Whether there is any configured child process that can breakaway from the sandbox
@@ -812,50 +809,51 @@ namespace BuildXL.Processes
             return directoryTranslator;
         }
 
-        // CODESYNC: FileAccessManifestParser.cpp :: init
-        private static void WriteChildProcessesToBreakAwayFromSandbox(
-            BinaryWriter writer,
-            IReadOnlyCollection<BreakawayChildProcess>? breakawayChildProcesses)
+        [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Justification = "Architecture strings are USASCII")]
+        private static void WriteChildProcessesToBreakAwayFromSandbox(BinaryWriter writer, IReadOnlyCollection<string>? processNames)
         {
 #if DEBUG
             writer.Write(CheckedCode.ChildProcessesBreakAwayString);
 #endif
 
-            // Write the number of breakaway child processes.
-            uint numBreakawayChildProcesses = (uint)(breakawayChildProcesses?.Count ?? 0);
-            writer.Write(numBreakawayChildProcesses);
+            // Write the number of process names
+            uint processNamesLen = (uint)(processNames?.Count ?? 0);
+            writer.Write(processNamesLen);
 
-            if (numBreakawayChildProcesses > 0)
+            if (processNamesLen > 0)
             {
-                foreach (BreakawayChildProcess breakawayChildProcess in breakawayChildProcesses!)
+                foreach (string processName in processNames!)
                 {
-                    (string processName, string? requiredCommandLineArgsSubstring, bool commandLineArgsSubstringContainmentIgnoreCase) = breakawayChildProcess;
                     WriteChars(writer, processName);
-                    WriteChars(writer, requiredCommandLineArgsSubstring);
-                    writer.Write(commandLineArgsSubstringContainmentIgnoreCase);
                 }
             }
         }
 
-        private static IReadOnlyCollection<BreakawayChildProcess>? ReadChildProcessesToBreakAwayFromSandbox(BinaryReader reader)
+        private static IReadOnlyCollection<string>? ReadChildProcessesToBreakAwayFromSandbox(BinaryReader reader)
         {
 #if DEBUG
             CheckedCode.EnsureRead(reader, CheckedCode.ChildProcessesBreakAwayString);
 #endif
 
-            uint numBreakawayChildProcesses = reader.ReadUInt32();
-            if (numBreakawayChildProcesses == 0)
+            uint length = reader.ReadUInt32();
+
+            if (length == 0)
             {
                 return null;
             }
 
-            var breakawayChildProcesses = new HashSet<BreakawayChildProcess>((int)numBreakawayChildProcesses);
-            for (int i = 0; i < numBreakawayChildProcesses; ++i)
+            var childProcesses = new List<string>((int)length);
+
+            for (int i = 0; i < length; ++i)
             {
-                breakawayChildProcesses.Add(new BreakawayChildProcess(ReadChars(reader)!, ReadChars(reader), reader.ReadBoolean()));
+                string? s = ReadChars(reader);
+                if (s is not null)
+                {
+                    childProcesses.Add(s);
+                }
             }
 
-            return breakawayChildProcesses;
+            return childProcesses;
         }
 
         [SuppressMessage("Microsoft.Naming", "CA2204:LiteralsShouldBeSpelledCorrectly")]
@@ -1153,7 +1151,7 @@ namespace BuildXL.Processes
         public static FileAccessManifest Deserialize(Stream stream)
         {
             using var reader = new BinaryReader(stream, Encoding.Unicode, true);
-            IReadOnlyCollection<BreakawayChildProcess>? childProcessesToBreakAwayFromSandbox = ReadChildProcessesToBreakAwayFromSandbox(reader);
+            IReadOnlyCollection<string>? childProcessesToBreakAwayFromSandbox = ReadChildProcessesToBreakAwayFromSandbox(reader);
             DirectoryTranslator? directoryTranslator = ReadTranslationPathStrings(reader);
             string? internalDetoursErrorNotificationFile = ReadErrorDumpLocation(reader);
             FileAccessManifestFlag fileAccessManifestFlag = ReadFlagsBlock(reader);
@@ -2014,17 +2012,6 @@ namespace BuildXL.Processes
                 }
             }
         }
-
-        // CODESYNC: DetoursServices.h :: BreakawayChildProcess struct
-        /// <summary>
-        /// A container for a breakaway child process.
-        /// </summary>
-        /// <param name="ProcessName">The breakaway child process name.</param>
-        /// <param name="RequiredCommandLineArgsSubstring">Optionally, the substring that the command line arguments to <paramref name="ProcessName"/> must contain for it to breakaway.</param>
-        /// <param name="CommandLineArgsSubstringContainmentIgnoreCase">Whether to ignore case when checking if the command line arguments
-        /// to <paramref name="ProcessName"/> contain <paramref name="RequiredCommandLineArgsSubstring"/> (if <paramref name="RequiredCommandLineArgsSubstring"/> is not <see langword="null"/>).
-        /// Defaults to <see langword="false"/>.</param>
-        public record BreakawayChildProcess(string ProcessName, string? RequiredCommandLineArgsSubstring = null, bool CommandLineArgsSubstringContainmentIgnoreCase = false);
 
         /// <summary>
         /// Formatter for FileAccessPolicy flags in a compact way for more readable output messages.

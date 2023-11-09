@@ -2740,52 +2740,20 @@ NTSTATUS NTAPI Detoured_ZwSetInformationFile(
         FileInformationClass);
 }
 
-static bool ShouldBreakawayFromJob(const CanonicalizedPath& fullApplicationPath, _Inout_opt_ LPWSTR lpCommandLine)
+static bool ShouldBreakawayFromJob(const CanonicalizedPath& fullApplicationPath)
 {
-    if (g_breakawayChildProcesses->empty() || fullApplicationPath.IsNull())
+    if (g_processNamesToBreakAwayFromJob->empty() || fullApplicationPath.IsNull())
     {
         return false;
     }
 
     std::wstring imageName(fullApplicationPath.GetLastComponent());
-    for (auto it = g_breakawayChildProcesses->begin(); it != g_breakawayChildProcesses->end(); ++it)
-    {
-        if (it->ProcessName == imageName)
-        {
-            if (it->RequiredCommandLineArgsSubstring.empty())
-            {
-#if SUPER_VERBOSE
-                Dbg(L"Allowing process to breakaway from job object. Image name: '%s'", imageName.c_str());
-#endif
-                return true;
-            }
 
-            std::wstring command;
-            std::wstring commandArgs;
-            FindApplicationNameFromCommandLine(lpCommandLine, command, commandArgs);
-            if (it->CommandLineArgsSubstringContainmentIgnoreCase)
-            {
-                if (std::search(commandArgs.begin(), commandArgs.end(), it->RequiredCommandLineArgsSubstring.begin(), it->RequiredCommandLineArgsSubstring.end(), [](wchar_t c1, wchar_t c2) {
-                    return std::towlower(c1) == std::towlower(c2);
-                    }) != commandArgs.end())
-                {
 #if SUPER_VERBOSE
-                    Dbg(L"Allowing process to breakaway from job object. Image name: '%s' | Command line args: '%s'.", imageName.c_str(), commandArgs.c_str());
+    Dbg(L"Allowing process to breakaway from job object. Image name: '%s'", imageName.c_str());
 #endif
-                    return true;
-                }
-            }
-            else if (commandArgs.find(it->RequiredCommandLineArgsSubstring) != std::wstring::npos)
-            {
-#if SUPER_VERBOSE
-                Dbg(L"Allowing process to breakaway from job object. Image name: '%s' | Command line args: '%s'.", imageName.c_str(), commandArgs.c_str());
-#endif
-                return true;
-            }
-        }
-    }
 
-    return false;
+    return g_processNamesToBreakAwayFromJob->find(imageName) != g_processNamesToBreakAwayFromJob->end();
 }
 
 IMPLEMENTED(Detoured_CreateProcessW)
@@ -2839,7 +2807,7 @@ BOOL WINAPI Detoured_CreateProcessW(
 
     CanonicalizedPath imagePath = GetImagePath(lpApplicationName, lpCommandLine);
 
-    if (ShouldBreakawayFromJob(imagePath, lpCommandLine))
+    if (ShouldBreakawayFromJob(imagePath))
     {
         // If the process to be created is configured to breakaway from the current
         // job object, we use the regular process creation, and set the breakaway flag.

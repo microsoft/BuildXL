@@ -134,8 +134,6 @@ bool ExistsAsFile(_In_ PCWSTR path);
 // See https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa.
 CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWSTR lpCommandLine);
 
-void FindApplicationNameFromCommandLine(const wchar_t* lpCommandLine, _Out_ std::wstring& command, _Out_ std::wstring& commandArgs);
-
 class ReportData
 {
 private:

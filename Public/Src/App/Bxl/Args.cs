@@ -16,15 +16,15 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
-using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Collections;
 #if PLATFORM_OSX
 using static BuildXL.Interop.Unix.Memory;
 #endif
@@ -72,97 +72,6 @@ namespace BuildXL
         public Args()
             : this(null)
         {
-        }
-
-        private struct OptionHandler
-        {
-            /// <summary>
-            /// The name of the option with no suffixes.
-            /// </summary>
-            public readonly string OptionName;
-
-            // The action to take in response to the option being set.
-            public readonly Action<CommandLineUtilities.Option> Action;
-
-            // After Action(opt) has run, determines whether the option is considered enabled or disabled.
-            public readonly Func<bool> IsEnabled;
-
-            // Whether the option is considered unsafe, this should trigger a warning printout.
-            public readonly bool IsUnsafe;
-
-            // Anything passed into the command line after the OptionName.
-            public readonly string Suffix;
-
-            /// <summary>
-            /// Set when the option exist to prevent legacy command lines from failing, but no longer does anything.
-            /// </summary>
-            public readonly bool Inactive;
-
-            public OptionHandler(string optionName, Action<CommandLineUtilities.Option> action, bool isUnsafe, Func<bool> isEnabled = null, string suffix = "", bool inactive = false)
-            {
-                OptionName = optionName;
-                Action = action;
-                IsUnsafe = isUnsafe;
-                IsEnabled = isEnabled ?? (() => true);
-                Suffix = suffix;
-                Inactive = inactive;
-            }
-        }
-
-        /// <summary>
-        /// Factory class to create option handlers.
-        /// </summary>
-        private static class OptionHandlerFactory
-        {
-            // Returns a singleton array containing a single OptionHandler instance for given name/action.
-            public static OptionHandler[] CreateOption(string name, Action<CommandLineUtilities.Option> action, bool isUnsafe = false, Func<bool> isEnabled = null)
-            {
-                return new[] {new OptionHandler(name, action, isUnsafe),};
-            }
-
-            // Returns an array containing two OptionHandler instances for two given names, both having the same action.
-            public static OptionHandler[] CreateOption2(string name1, string name2, Action<CommandLineUtilities.Option> action, bool isUnsafe = false)
-            {
-                return new[] {new OptionHandler(name1, action, isUnsafe), new OptionHandler(name2, action, isUnsafe),};
-            }
-
-            // Returns an array with three OptionHandler instances, having the following names: <name>, <name>+, <name>-.
-            // The "action" argument must accept two arguments: the original CommandLineUtilities.Option,
-            // and a boolean corresponding to the sign suffix (no suffix means true).
-            public static OptionHandler[] CreateBoolOptionWithValue(
-                string name,
-                Action<CommandLineUtilities.Option, bool> action,
-                bool isUnsafe = false,
-                Func<bool> isEnabled = null,
-                bool inactive = false)
-            {
-                return new[]
-                       {
-                           new OptionHandler(name, opt => action(opt, true), isUnsafe, isEnabled: isEnabled, inactive: inactive),
-                           new OptionHandler(name, opt => action(opt, true), isUnsafe, isEnabled: () => true, suffix: "+", inactive: inactive),
-                           new OptionHandler(name, opt => action(opt, false), isUnsafe, isEnabled: () => false, suffix: "-", inactive: inactive),
-                       };
-            }
-
-            // Returns an array with three OptionHandler instances, having the following names: <name>, <name>+, <name>-.
-            // The "action" argument must accept only one argument, which is a boolean corresponding to the sign suffix (no suffix means true).
-            public static OptionHandler[] CreateBoolOption(string name, Action<bool> action, bool isUnsafe = false, bool inactive = false)
-            {
-                return CreateBoolOptionWithValue(name, (opt, sign) => action(sign), isUnsafe: isUnsafe, inactive: inactive);
-            }
-
-            public static OptionHandler[] CreateBoolOption2(
-                string name1,
-                string name2,
-                Action<bool> action,
-                bool isUnsafe = false,
-                bool inactive = false)
-            {
-                var options = new List<OptionHandler>();
-                options.AddRange(CreateBoolOption(name1, action, isUnsafe, inactive));
-                options.AddRange(CreateBoolOption(name2, action, isUnsafe, inactive));
-                return options.ToArray();
-            }
         }
 
         /// <nodoc />
@@ -1794,47 +1703,14 @@ namespace BuildXL
 
         private void IterateArgs(CommandLineUtilities cl, CommandLineConfiguration configuration, HashSet<string> specialCaseUnsafeOptions)
         {
-            foreach (CommandLineUtilities.Option opt in cl.Options)
+            if (!OptionHandlerMatcher.TryMatchAndExecuteHandler(
+                cl.Options, 
+                m_handlers,
+                out var unrecognizedOption,
+                specialCaseUnsafeOptions, 
+                (string unsafeOptionName) => { configuration.CommandLineEnabledUnsafeOptions.Add(unsafeOptionName); }))
             {
-                int min = 0;
-                int limit = m_handlers.Length;
-                while (min < limit)
-                {
-                    // This avoids overflow, while i = (min + limit) >> 1 could overflow.
-                    int i = unchecked((int)(((uint)min + (uint)limit) >> 1));
-
-                    int order = string.Compare(m_handlers[i].OptionName + m_handlers[i].Suffix, opt.Name, StringComparison.OrdinalIgnoreCase);
-                    if (order < 0)
-                    {
-                        min = i + 1;
-                    }
-                    else
-                    {
-                        // Since i < limit, this is guaranteed to make progress.
-                        limit = i;
-                    }
-                }
-
-                // Check for equality
-                if (min < m_handlers.Length)
-                {
-                    if (string.Equals(m_handlers[min].OptionName + m_handlers[min].Suffix, opt.Name, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // min it is
-                        m_handlers[min].Action(opt);
-
-                        // compile list of user-enabled unsafe options to log later
-                        if (specialCaseUnsafeOptions.Contains(opt.Name) || (m_handlers[min].IsUnsafe && m_handlers[min].IsEnabled()))
-                        {
-                            configuration.CommandLineEnabledUnsafeOptions.Add(m_handlers[min].OptionName);
-                        }
-
-                        continue;
-                    }
-                }
-
-                // unknown argument, fail
-                throw CommandLineUtilities.Error(Strings.Args_Args_NotRecognized, opt.Name);
+                throw CommandLineUtilities.Error(Strings.Args_Args_NotRecognized, unrecognizedOption.Name);
             }
         }
 

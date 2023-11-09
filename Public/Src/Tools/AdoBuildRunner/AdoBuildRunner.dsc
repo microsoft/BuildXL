@@ -12,12 +12,7 @@ namespace AdoBuildRunner {
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "AdoBuildRunner",
-        sources: [
-            ...globR(d`./Build/`, "*.cs"),
-            ...globR(d`./Vsts/`, "*.cs"),
-            f`Constants.cs`,
-            f`Program.cs`,
-        ],
+        sources: globR(d`.`, "*.cs"),
         references: [
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("Newtonsoft.Json").pkg,
@@ -26,6 +21,9 @@ namespace AdoBuildRunner {
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.TeamFoundation.DistributedTask.WebApi").pkg,
             importFrom("Microsoft.TeamFoundation.DistributedTask.Common.Contracts").pkg,
+            importFrom("BuildXL.Utilities").ToolSupport.dll,
+            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
     });
 

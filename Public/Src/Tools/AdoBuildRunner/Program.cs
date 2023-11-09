@@ -2,11 +2,16 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner.Build;
 using BuildXL.AdoBuildRunner.Vsts;
+using BuildXL.ToolSupport;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 
@@ -53,6 +58,19 @@ namespace BuildXL.AdoBuildRunner
                 return 1;
             }
 
+            if (Environment.GetEnvironmentVariable("AdoBuildRunnerDebugOnStart") == "1")
+            {
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    Console.WriteLine("=== Attach to this process from a debugger, then press ENTER to continue ...");
+                    Console.ReadLine();
+                }
+                else
+                {
+                    Debugger.Launch();
+                }
+            }
+
             try
             {
                 var api = new Api(logger);
@@ -82,13 +100,23 @@ namespace BuildXL.AdoBuildRunner
                 {
                     logger.Info($"Trying to coordinate build for command: {string.Join(" ", args)}");
 
+                    // TODO: There are currently many arguments that are passed to the runner via environment variables. Fold them into
+                    // the configuration object and add explicit CLI arguments for them.
+                    if (!Args.TryParseArguments(logger, args, out var configuration, out var forwardingArguments))
+                    {
+                        throw new InvalidArgumentException("Invalid command line option");
+                    }
+
+                    var buildArgs = forwardingArguments.ToList();
+                    await GenerateCacheConfigFileIfNeededAsync(logger, configuration, buildArgs);
+
                     // Carry out the build.
                     // For now, we explicitly mark the role with an environment
                     // variable. When we discontinue the "non-worker-pipeline" approach, we can
                     // infer the role from the parameters, but for now there is no easy way
                     // to distinguish runs using the "worker-pipeline" model from ones who don't
                     var role = Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerPipelineRole);
-                    
+
                     executor = new BuildExecutor(logger);
 
                     bool isOrchestrator;
@@ -96,14 +124,14 @@ namespace BuildXL.AdoBuildRunner
                     {
                         // When the build role is not specified, we assume this build is being run with the parallel strategy
                         // where the role is inferred from the ordinal position in the phase: the first agent is the orchestrator
-                        isOrchestrator = api.JobPositionInPhase == 1;                        
+                        isOrchestrator = api.JobPositionInPhase == 1;
                     }
-                    else 
+                    else
                     {
                         bool isWorker = string.Equals(role, "Worker", StringComparison.OrdinalIgnoreCase);
                         isOrchestrator = string.Equals(role, "Orchestrator", StringComparison.OrdinalIgnoreCase);
                         if (!isWorker && !isOrchestrator)
-                        {                        
+                        {
                             throw new CoordinationException($"{Constants.AdoBuildRunnerPipelineRole} must be 'Worker' or 'Orchestrator'");
                         }
                     }
@@ -129,7 +157,8 @@ namespace BuildXL.AdoBuildRunner
                     }
 
                     var buildContext = await api.GetBuildContextAsync(invocationKey);
-                    var buildManager = new BuildManager(api, executor, buildContext, args, logger);
+
+                    var buildManager = new BuildManager(api, executor, buildContext, buildArgs.ToArray(), logger);
                     return await buildManager.BuildAsync(isOrchestrator);
                 }
             }
@@ -143,6 +172,30 @@ namespace BuildXL.AdoBuildRunner
                 logger.Error(e, "ADOBuildRunner failed, aborting!");
                 return 1;
             }
-        } 
+        }
+
+        private static async Task GenerateCacheConfigFileIfNeededAsync(Logger logger, IAdoBuildRunnerConfiguration configuration, List<string> buildArgs)
+        {
+            // If the storage account endpoint was provided, that is taken as an indicator that the cache config needs to be generated
+            if (configuration.CacheConfigGenerationConfiguration.StorageAccountEndpoint == null)
+            {
+                return;
+            }
+
+            string cacheConfigContent = CacheConfigGenerator.GenerateCacheConfig(configuration.CacheConfigGenerationConfiguration);
+            string cacheConfigFilePath = Path.GetTempFileName();
+
+            await File.WriteAllTextAsync(cacheConfigFilePath, cacheConfigContent);
+            logger.Info($"Cache config file generated at '{cacheConfigFilePath}'");
+
+            if (configuration.CacheConfigGenerationConfiguration.LogGeneratedConfiguration())
+            {
+                logger.Info($"Generated cache config file: {cacheConfigContent}");
+            }
+
+            // Inject the cache config file path as the first argument in the build arguments. This is so if there is any user override pointing to another
+            // cache config file, that will be honored
+            buildArgs.Insert(0, $"/cacheConfigFilePath:{cacheConfigFilePath}");
+        }
     }
 }

@@ -11,10 +11,32 @@ using System.Linq;
 using System.Security;
 using System.Text;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.ToolSupport
 {
+    /// <summary>
+    /// Indicates which arguments are required for a given query
+    /// </summary>
+    public enum ArgumentOption : byte
+    {
+        /// <summary>
+        /// All arguments
+        /// </summary>
+        All = 0,
+
+        /// <summary>
+        /// Arguments before '--', or all arguments if '--' is not present
+        /// </summary>
+        CallerArguments = 1,
+
+        /// <summary>
+        /// Arguments after '--', or no arguments if '--' is not present
+        /// </summary>
+        ForwardingArguments = 2
+    }
+
     /// <summary>
     /// Support services to help command-line parsing.
     /// </summary>
@@ -23,6 +45,9 @@ namespace BuildXL.ToolSupport
     /// in the /name:value syntax.
     /// Whenever this class fails and throws an exception, it always displays a suitable error
     /// to the user prior to returning so there is not need for further output.
+    /// This class supports an argument '--' to serve as a special mark to split 'after' and 'before' arguments. The argument
+    /// '--' semantically marks the end of the arguments for the calling tool and the start of the 'rest' of the arguments, typically forwarded to
+    /// another tool. We call arguments before '--' the caller arguments, and arguments after it the forwarding arguments.
     /// </remarks>
     public class CommandLineUtilities
     {
@@ -30,6 +55,11 @@ namespace BuildXL.ToolSupport
         /// The marker character to indicate a response file.
         /// </summary>
         private const char ResponseFilePrefix = '@';
+
+        /// <summary>
+        /// The special argument that marks the end of the caller arguments and the start of the forwarding arguments.
+        /// </summary>
+        private const string EndOfCallerArguments = "--";
 
         private readonly string[] m_args;
 
@@ -57,34 +87,104 @@ namespace BuildXL.ToolSupport
         /// <remarks>
         /// Options are expressed using a /name:value syntax.
         /// </remarks>
-        public IEnumerable<Option> Options
+        public IEnumerable<Option> GetOptions(ArgumentOption option)
         {
-            get
+            bool endOfCallerArgumentsReached = false;
+
+            foreach (string iteratorArg in m_args)
             {
-                foreach (string iteratorArg in m_args)
+                string arg = iteratorArg;
+
+                if (EndOfCallerArguments.Equals(arg, StringComparison.OrdinalIgnoreCase))
                 {
-                    string arg = iteratorArg;
-
-                    if (arg.StartsWith("/", StringComparison.Ordinal))
+                    endOfCallerArgumentsReached = true;
+                    continue; // skip since we know it does not start with / already
+                }
+                else
+                {
+                    if (endOfCallerArgumentsReached && option == ArgumentOption.CallerArguments)
                     {
-                        string name;
-                        string value;
-
-                        int separatorIndex = arg.IndexOfAny(s_separators);
-                        if (separatorIndex != -1)
-                        {
-                            name = arg.Substring(1, separatorIndex - 1);
-                            value = arg.Substring(separatorIndex + 1);
-                        }
-                        else
-                        {
-                            name = arg.Substring(1);
-                            value = string.Empty;
-                        }
-
-                        var opt = new Option { Name = name, Value = value };
-                        yield return opt;
+                        yield break;
                     }
+                    else if (!endOfCallerArgumentsReached && option == ArgumentOption.ForwardingArguments)
+                    {
+                        continue;
+                    }
+                }
+
+                if (arg.StartsWith("/", StringComparison.Ordinal))
+                {
+                    string name;
+                    string value;
+
+                    int separatorIndex = arg.IndexOfAny(s_separators);
+                    if (separatorIndex != -1)
+                    {
+                        name = arg.Substring(1, separatorIndex - 1);
+                        value = arg.Substring(separatorIndex + 1);
+                    }
+                    else
+                    {
+                        name = arg.Substring(1);
+                        value = string.Empty;
+                    }
+
+                    var opt = new Option { Name = name, Value = value };
+                    yield return opt;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the set of options associated with the current command-line.
+        /// </summary>
+        /// <remarks>
+        /// Options are expressed using a /name:value syntax.
+        /// Gets all the options, <see cref="ArgumentOption"/>
+        /// </remarks>
+        public IEnumerable<Option> Options => GetOptions(ArgumentOption.All);
+
+        /// <summary>
+        /// Gets the set of unadorned arguments associated with the current command-line.
+        /// </summary>
+        /// <remarks>
+        /// This eliminates all options from the command-line and returns what's left.
+        /// </remarks>
+        public IEnumerable<string> GetArguments(ArgumentOption option)
+        {
+            bool endOfCallerArgumentsReached = false;
+
+            foreach (string iteratorArg in m_args)
+            {
+                string arg = iteratorArg;
+
+                if (EndOfCallerArguments.Equals(arg, StringComparison.OrdinalIgnoreCase))
+                {
+                    endOfCallerArgumentsReached = true;
+                    
+                    if (option == ArgumentOption.All)
+                    {
+                        // If all arguments are required, include '--'
+                        yield return arg;
+                    }
+
+                    continue;
+                }
+                else
+                {
+                    if (endOfCallerArgumentsReached && option == ArgumentOption.CallerArguments)
+                    {
+                        yield break;
+                    }
+                    else if (!endOfCallerArgumentsReached && option == ArgumentOption.ForwardingArguments)
+                    {
+                        continue;
+                    }
+                }
+
+                if (!arg.StartsWith("/", StringComparison.Ordinal))
+                {
+                    yield return arg;
                 }
             }
         }
@@ -94,33 +194,39 @@ namespace BuildXL.ToolSupport
         /// </summary>
         /// <remarks>
         /// This eliminates all options from the command-line and returns what's left.
+        /// Gets all the options, <see cref="ArgumentOption"/>
         /// </remarks>
-        public IEnumerable<string> Arguments
-        {
-            get
-            {
-                foreach (string iteratorArg in m_args)
-                {
-                    string arg = iteratorArg;
+        public IEnumerable<string> Arguments => GetArguments(ArgumentOption.All);
 
-                    if (!arg.StartsWith("/", StringComparison.Ordinal))
-                    {
-                        yield return arg;
-                    }
-                }
+        /// <summary>
+        /// Gets the set of arguments from the current command-line with response file arguments expanded
+        /// </summary>
+        public IReadOnlyCollection<string> GetExpandedArguments(ArgumentOption option)
+        {
+            switch (option)
+            {
+                case ArgumentOption.All:
+                    return m_args;
+                case ArgumentOption.CallerArguments:
+                    return m_args.TakeWhile(arg => !EndOfCallerArguments.Equals(arg, StringComparison.OrdinalIgnoreCase)).ToReadOnlyArray();
+                case ArgumentOption.ForwardingArguments:
+                    // Consider that Skip(1) is safe since if there are no elements in the sequence, skip just returns an empty sequence
+                    return m_args.SkipWhile(arg => !EndOfCallerArguments.Equals(arg, StringComparison.OrdinalIgnoreCase)).Skip(1).ToReadOnlyArray(); ;
+                default:
+                    throw new ArgumentException($"Unexpected option {option}");
             }
         }
 
         /// <summary>
         /// Gets the set of arguments from the current command-line with response file arguments expanded
+        /// Gets all the options, <see cref="ArgumentOption"/>
         /// </summary>
-        public IReadOnlyCollection<string> ExpandedArguments
-        {
-            get
-            {
-                return m_args;
-            }
-        }
+        public IReadOnlyCollection<string> ExpandedArguments => GetExpandedArguments(ArgumentOption.All);
+
+        /// <summary>
+        /// Whether the provided arguments contains the end of caller arguments marker
+        /// </summary>
+        public bool HasEndOfCallerArgument => m_args.Contains(EndOfCallerArguments, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Parse an option that produces a string and fail if the option has already been encountered.
@@ -146,6 +252,24 @@ namespace BuildXL.ToolSupport
             }
 
             return opt.Value;
+        }
+
+        /// <summary>
+        /// Parse an option that produces a URI.
+        /// </summary>
+        public static Uri ParseUriOption(Option opt)
+        {
+            if (string.IsNullOrEmpty(opt.Value))
+            {
+                throw Error("The /{0} argument requires a value.", opt.Name);
+            }
+
+            if (!Uri.TryCreate(opt.Value, UriKind.Absolute, out var uri))
+            {
+                throw Error("The /{0} argument requires a valid URI.", opt.Name);
+            }
+
+            return uri;
         }
 
         /// <summary>

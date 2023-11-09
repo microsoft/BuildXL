@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using System.Linq;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -440,6 +440,86 @@ Arg1");
                 opt.Value = "101";
                 CommandLineUtilities.ParseInt64Option(opt, 0, 100);
             });
+        }
+
+        [Fact]
+        public void CommandLineUtilsMarkerTest()
+        {
+            var callerArgs = new string[]
+                       {
+                           "/opt0",
+                           "/opt1:abc",
+                           "Arg0",
+                           "Arg1",
+                       };
+
+            var forwardingArgs = new string[]
+                        {
+                           "Arg2",
+                           "/opt2",
+                           "Arg3",
+                        };
+
+
+            var args = callerArgs.Append("--").Union(forwardingArgs).ToReadOnlyArray();
+                       
+            var clu = new CommandLineUtilities(args);
+
+            // Validate expanded args
+            XAssert.ArrayEqual(args.ToArray(), clu.GetExpandedArguments(ArgumentOption.All).ToArray());
+            XAssert.ArrayEqual(callerArgs.ToArray(), clu.GetExpandedArguments(ArgumentOption.CallerArguments).ToArray());
+            XAssert.ArrayEqual(forwardingArgs.ToArray(), clu.GetExpandedArguments(ArgumentOption.ForwardingArguments).ToArray());
+
+            // Validate unadorned args
+            XAssert.ArrayEqual(new[] { "Arg0", "Arg1", "--", "Arg2", "Arg3" }, clu.GetArguments(ArgumentOption.All).ToArray());
+            XAssert.ArrayEqual(new[] { "Arg0", "Arg1" }, clu.GetArguments(ArgumentOption.CallerArguments).ToArray());
+            XAssert.ArrayEqual(new[] { "Arg2", "Arg3" }, clu.GetArguments(ArgumentOption.ForwardingArguments).ToArray());
+
+            // Validate options
+            XAssert.ArrayEqual(new[] { "/opt0", "/opt1:abc", "/opt2" }, clu.GetOptions(ArgumentOption.All).Select(option => option.PrintCommandLineString()).ToArray());
+            XAssert.ArrayEqual(new[] { "/opt0", "/opt1:abc" }, clu.GetOptions(ArgumentOption.CallerArguments).Select(option => option.PrintCommandLineString()).ToArray());
+            XAssert.ArrayEqual(new[] { "/opt2" }, clu.GetOptions(ArgumentOption.ForwardingArguments).Select(option => option.PrintCommandLineString()).ToArray());
+        }
+
+        [Fact]
+        public void CommandLineUtilsMarkerAbsentTest()
+        {
+            // No end of caller mark
+            var args = new string[]
+                       {
+                           "/opt0",
+                           "/opt1:abc",
+                           "Arg0",
+                           "Arg1",
+                       };
+
+            var clu = new CommandLineUtilities(args);
+
+            // Validate expanded args
+            XAssert.ArrayEqual(args, clu.GetExpandedArguments(ArgumentOption.All).ToArray());
+            XAssert.ArrayEqual(args, clu.GetExpandedArguments(ArgumentOption.CallerArguments).ToArray());
+            XAssert.ArrayEqual(CollectionUtilities.EmptyArray<string>(), clu.GetExpandedArguments(ArgumentOption.ForwardingArguments).ToArray());
+
+            // Validate unadorned args
+            XAssert.ArrayEqual(new[] { "Arg0", "Arg1"}, clu.GetArguments(ArgumentOption.All).ToArray());
+            XAssert.ArrayEqual(new[] { "Arg0", "Arg1" }, clu.GetArguments(ArgumentOption.CallerArguments).ToArray());
+            XAssert.ArrayEqual(CollectionUtilities.EmptyArray<string>(), clu.GetArguments(ArgumentOption.ForwardingArguments).ToArray());
+
+            // Validate options
+            XAssert.ArrayEqual(new[] { "/opt0", "/opt1:abc" }, clu.GetOptions(ArgumentOption.All).Select(option => option.PrintCommandLineString()).ToArray());
+            XAssert.ArrayEqual(new[] { "/opt0", "/opt1:abc" }, clu.GetOptions(ArgumentOption.CallerArguments).Select(option => option.PrintCommandLineString()).ToArray());
+            XAssert.ArrayEqual(CollectionUtilities.EmptyArray<string>(), clu.GetOptions(ArgumentOption.ForwardingArguments).Select(option => option.PrintCommandLineString()).ToArray());
+        }
+
+        [Theory]
+        [InlineData(new[] { "/opt0", "Arg0", "--", "/opt1", "Arg1"}, true)]
+        [InlineData(new[] { "/opt0", "Arg0", "/opt1", "Arg1" }, false)]
+        [InlineData(new[] { "--" }, true)]
+        [InlineData(new string[] { }, false)]
+        public void HasEndOfCallerArgumentTest(string[] args, bool expectedEndOfCallerArgument)
+        {
+            var clu = new CommandLineUtilities(args);
+            XAssert.AreEqual(expectedEndOfCallerArgument, clu.HasEndOfCallerArgument);
         }
     }
 }

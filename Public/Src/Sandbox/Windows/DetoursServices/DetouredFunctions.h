@@ -8,6 +8,7 @@ Declaractions for detoured function handlers
 #pragma once
 
 #include "DetoursHelpers.h"
+#include "DetoursServices.h"
 #include "FileAccessHelpers.h"
 
 // Data structures - from ntifs.h

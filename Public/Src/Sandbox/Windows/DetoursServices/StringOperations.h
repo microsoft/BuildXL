@@ -261,6 +261,8 @@ bool IsPathToNamedStream(PCPathChar const path, size_t pathLength) noexcept;
 size_t GetRootLength(PCPathChar path) noexcept;
 
 #if _WIN32
+bool AreEqualCaseInsensitively(const std::wstring& s1, const std::wstring& s2);
+
 // Returns a collection of all path atoms of the given path
 int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements);
 

@@ -191,8 +191,8 @@ bool GetSpecialCaseRulesForWindows(
         // Windows can have an "unlink" behavior where deleted files are not really deleted if there's an opened handle.
         // This behavior is possible because a process can open a file with FILE_SHARE_DELETE that makes other processes able to delete it.
         // If a file is opened by specifying the FILE_SHARE_DELETE flag for the CreateFile function and another process tries to delete it,
-        // the file is actually moved to the ì\$Extend\$Deletedî directory on the same volume. When the last handle to such a file is closed,
-        // it's deleted as usual. When the file system is mounted, all existing files in the ì\$Extend\$Deletedî directory, if any, are deleted,
+        // the file is actually moved to the ‚Äú\$Extend\$Deleted‚Äù directory on the same volume. When the last handle to such a file is closed,
+        // it's deleted as usual. When the file system is mounted, all existing files in the ‚Äú\$Extend\$Deleted‚Äù directory, if any, are deleted,
         // The same logic also applies to deleted directories.
         // Details can be found in this unofficial documentation: https://dfir.ru/2020/03/21/the-extenddeleted-directory/
 #if SUPER_VERBOSE
@@ -549,7 +549,14 @@ void WriteToInternalErrorsFile(PCWSTR format, ...)
     }
 }
 
-inline uint32_t ParseUint32(const byte *payloadBytes, size_t &offset)
+static inline byte ParseByte(const byte* payloadBytes, size_t& offset)
+{
+    byte b = payloadBytes[offset];
+    offset += sizeof(byte);
+    return b;
+}
+
+static inline uint32_t ParseUint32(const byte *payloadBytes, size_t &offset)
 {
     uint32_t i = *(uint32_t*)(&payloadBytes[offset]);
     offset += sizeof(uint32_t);
@@ -807,11 +814,13 @@ bool ParseFileAccessManifest(
 
     for (uint32_t i = 0; i < g_manifestChildProcessesToBreakAwayFromJob->Count; i++)
     {
-        std::wstring processNameToBrakeAway(L"");
-        AppendStringFromWriteChars(payloadBytes, offset, processNameToBrakeAway);
-        if (!processNameToBrakeAway.empty())
-        {
-            g_processNamesToBreakAwayFromJob->insert(processNameToBrakeAway);
+        std::wstring processName(L"");
+        AppendStringFromWriteChars(payloadBytes, offset, processName);
+        if (!processName.empty())
+        {   
+            std::wstring requiredCommandLineArgsSubstring(L"");
+            AppendStringFromWriteChars(payloadBytes, offset, requiredCommandLineArgsSubstring);
+            g_breakawayChildProcesses->push_back(BreakawayChildProcess(processName, requiredCommandLineArgsSubstring, ParseByte(payloadBytes, offset) == 1U));
         }
     }
 

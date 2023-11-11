@@ -1,0 +1,77 @@
+{
+  "hydrated": false,
+  "properties": {
+    "helpUri": "https://eng.ms/docs/microsoft-security/security/azure-security/cloudai-security-fundamentals-engineering/security-integration/guardian-wiki/microsoft-guardian/general/suppressions",
+    "hydrationStatus": "This file does not contain identifying data. It is safe to check into your repo. To hydrate this file with identifying data, run `guardian hydrate --help` and follow the guidance."
+  },
+  "version": "1.0.0",
+  "suppressionSets": {
+    "default": {
+      "name": "default",
+      "createdDate": "2023-11-10 17:41:34Z",
+      "lastUpdatedDate": "2023-11-10 17:41:34Z"
+    }
+  },
+  "results": {
+    "1dd05d8b8594baa7c336e68001c5d1e3783df633589c40e65de0d588bef31066": {
+      "signature": "1dd05d8b8594baa7c336e68001c5d1e3783df633589c40e65de0d588bef31066",
+      "alternativeSignatures": [
+        "6506a9ff706edea77733a803088f3c92d88b828d3cfdadaafbe38902aaf01ede"
+      ],
+      "memberOf": [
+        "default"
+      ],
+      "createdDate": "2023-11-10 17:41:34Z"
+    },
+    "7a2e829aa71e721a8dbff0432070f4f596da0d29a378ac8dfc12af10d897b64f": {
+      "signature": "7a2e829aa71e721a8dbff0432070f4f596da0d29a378ac8dfc12af10d897b64f",
+      "alternativeSignatures": [
+        "6506a9ff706edea77733a803088f3c92d88b828d3cfdadaafbe38902aaf01ede"
+      ],
+      "memberOf": [
+        "default"
+      ],
+      "createdDate": "2023-11-10 17:41:34Z"
+    },
+    "0b25e860cce62ca078e31e00097c9afd7f17007233d4ab588f63e32e7acbe93a": {
+      "signature": "0b25e860cce62ca078e31e00097c9afd7f17007233d4ab588f63e32e7acbe93a",
+      "alternativeSignatures": [
+        "6506a9ff706edea77733a803088f3c92d88b828d3cfdadaafbe38902aaf01ede"
+      ],
+      "memberOf": [
+        "default"
+      ],
+      "createdDate": "2023-11-10 17:41:34Z"
+    },
+    "58cbe5e72bf98a73159f30a00fd229ffb9885ed3170e9a86a55d5a3eaace2d1b": {
+      "signature": "58cbe5e72bf98a73159f30a00fd229ffb9885ed3170e9a86a55d5a3eaace2d1b",
+      "alternativeSignatures": [
+        "6506a9ff706edea77733a803088f3c92d88b828d3cfdadaafbe38902aaf01ede"
+      ],
+      "memberOf": [
+        "default"
+      ],
+      "createdDate": "2023-11-10 17:41:34Z"
+    },
+    "7588924b547de62d6e7393b598ca6ca489d79bb5276dfab4b78520e40e65bb2a": {
+      "signature": "7588924b547de62d6e7393b598ca6ca489d79bb5276dfab4b78520e40e65bb2a",
+      "alternativeSignatures": [
+        "bcf4e660d920d628df05d8590bd4fdde16442e447b47e25bf58d38dd0723efce"
+      ],
+      "memberOf": [
+        "default"
+      ],
+      "createdDate": "2023-11-10 17:41:34Z"
+    },
+    "7883e691a0d59b06bd503c29d2d1fabc2d9cf1d07f08e4e1549801b1ca0faf5a": {
+      "signature": "7883e691a0d59b06bd503c29d2d1fabc2d9cf1d07f08e4e1549801b1ca0faf5a",
+      "alternativeSignatures": [
+        "bcf4e660d920d628df05d8590bd4fdde16442e447b47e25bf58d38dd0723efce"
+      ],
+      "memberOf": [
+        "default"
+      ],
+      "createdDate": "2023-11-10 17:41:34Z"
+    }
+  }
+}

@@ -86,7 +86,7 @@ namespace BuildXL.Processes.Internal
         private readonly StringBuilder m_diagnostics;
         internal string Diagnostics => m_diagnostics?.ToString();
 
-        private readonly SandoxedProcessLogAction m_loggingAction;
+        private readonly SandboxedProcessLogAction m_loggingAction;
         private readonly LoggingContext m_loggingContext;
 
         /// <summary>
@@ -344,7 +344,7 @@ namespace BuildXL.Processes.Internal
             Func<Task> processExited,
             TimeSpan? timeout,
             bool disableConHostSharing,
-            SandoxedProcessLogAction loggingAction,
+            SandboxedProcessLogAction loggingAction,
             LoggingContext loggingContext,
             string timeoutDumpDirectory,
             bool setJobBreakawayOk,

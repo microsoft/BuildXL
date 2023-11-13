@@ -11,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Processes;
-using BuildXL.ProcessPipExecutor;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
@@ -414,7 +413,6 @@ namespace BuildXL.SandboxExec
             sandboxProcessInfo.FileAccessManifest.IgnoreFullReparsePointResolving = false;
             sandboxProcessInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
             sandboxProcessInfo.FileAccessManifest.PipId = Interlocked.Increment(ref s_pipIdCounter);
-            sandboxProcessInfo.SandboxedProcessLogAction = SandboxedProcessPipExecutor.GetSandboxedProcessLogger(s_loggingContext);
             return sandboxProcessInfo;
         }
 

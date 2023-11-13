@@ -1069,7 +1069,7 @@ namespace BuildXL.Processes
         /// native detour implementation
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
-        public ArraySegment<byte> GetPayloadBytes(SandoxedProcessLogAction? sandboxedLogAction, FileAccessSetup setup, MemoryStream stream, uint timeoutMins, ref bool debugFlagsMatch)
+        public ArraySegment<byte> GetPayloadBytes(SandboxedProcessLogAction? sandboxedLogAction, FileAccessSetup setup, MemoryStream stream, uint timeoutMins, ref bool debugFlagsMatch)
         {
             stream.Position = 0;
             using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))

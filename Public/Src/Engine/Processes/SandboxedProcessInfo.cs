@@ -29,7 +29,7 @@ namespace BuildXL.Processes
     /// dependencies. Instead, the relevant code calls this delegate when it would like to log something. It is up to the
     /// calling code to implement how logging should be performed.
     /// </remarks>
-    public delegate void SandoxedProcessLogAction(LogEventId id, string message);
+    public delegate void SandboxedProcessLogAction(LogEventId id, string message);
     
     /// <summary>
     /// Data-structure that holds all information needed to launch a sandboxed process.
@@ -92,7 +92,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Delegate logging action to use for logging messages from the sandboxed process.
         /// </summary>
-        public SandoxedProcessLogAction? SandboxedProcessLogAction { get; set; }
+        public SandboxedProcessLogAction? SandboxedProcessLogAction { get; set; }
 
         /// <summary>
         /// A detours event listener.
@@ -166,44 +166,6 @@ namespace BuildXL.Processes
                    monitoringConfig: monitoringConfig,
                    forceAddExecutionPermission: forceAddExecutionPermission)
         {
-        }
-
-        /// <summary>
-        /// Used in SandboxedProcessPipExecutor to pass delegate logger action.
-        /// </summary>
-        public SandboxedProcessInfo(
-            PathTable pathTable,
-            SandoxedProcessLogAction logAction,
-            ISandboxedProcessFileStorage ? fileStorage,
-            string fileName,
-            FileAccessManifest ? fileAccessManifest,
-            bool disableConHostSharing,
-            LoggingContext loggingContext,
-            bool testRetries = false,
-            IDetoursEventListener ? detoursEventListener = null,
-            ISandboxConnection ? sandboxConnection = null,
-            SidebandWriter ? sidebandWriter = null,
-            bool createJobObjectForCurrentProcess = true,
-            ISandboxFileSystemView ? fileSystemView = null,
-            SandboxedProcessResourceMonitoringConfig ? monitoringConfig = null,
-            bool forceAddExecutionPermission = true) : this (
-                pathTable,
-                fileStorage,
-                fileName,
-                fileAccessManifest,
-                disableConHostSharing,
-                loggingContext,
-                testRetries,
-                detoursEventListener,
-                sandboxConnection,
-                sidebandWriter,
-                createJobObjectForCurrentProcess,
-                fileSystemView,
-                monitoringConfig,
-                forceAddExecutionPermission
-        )
-        {
-            SandboxedProcessLogAction = logAction;
         }
 
         /// <summary>

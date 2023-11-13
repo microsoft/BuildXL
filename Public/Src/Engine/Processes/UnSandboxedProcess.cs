@@ -85,7 +85,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Logging action from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
         /// </summary>
-        protected SandoxedProcessLogAction? SandboxedProcessLogAction;
+        protected SandboxedProcessLogAction? SandboxedProcessLogAction;
 
         /// <summary>
         /// Pip description from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.

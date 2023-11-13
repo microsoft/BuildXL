@@ -822,7 +822,6 @@ namespace BuildXL.ProcessPipExecutor
 
                     var info = new SandboxedProcessInfo(
                         m_pathTable,
-                        GetSandboxedProcessLogger(m_loggingContext),
                         this,
                         executable,
                         m_fileAccessManifest,
@@ -852,6 +851,7 @@ namespace BuildXL.ProcessPipExecutor
                         NumRetriesPipeReadOnCancel = EngineEnvironmentSettings.SandboxNumRetriesPipeReadOnCancel.Value
                             ?? SandboxedProcessInfo.DefaultPipeReadRetryOnCancellationCount,
                         CreateSandboxTraceFile = m_pip.TraceFile.IsValid,
+                        SandboxedProcessLogAction = GetSandboxedProcessLogger(m_loggingContext),
                     };
 
                     if (m_pluginEP != null)
@@ -5610,7 +5610,7 @@ namespace BuildXL.ProcessPipExecutor
         /// This is used to remove the BuildXL.Tracing reference from BuildXL.Processes. 
         /// There is no generated logger in BuildXL.Processes, use this to get the delegate Log action for SandboxedProcessInfo before running the sandboxed process.
         /// </summary>
-        public static SandoxedProcessLogAction GetSandboxedProcessLogger(LoggingContext loggingContext)
+        public static SandboxedProcessLogAction GetSandboxedProcessLogger(LoggingContext loggingContext)
         {
             return (logEventId, message) =>
             {

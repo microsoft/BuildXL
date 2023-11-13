@@ -32,7 +32,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Attempts to obtain a collection of surviving processes and dump all processes in a process tree if required. Any files existing in the dump directory will be deleted.
         /// </summary>
-        public static Dictionary<uint, ReportedProcess>? GetAndOptionallyDumpProcesses(JobObject jobObject, LoggingContext loggingContext, SandoxedProcessLogAction? sandboxedProcessLogAction, string? survivingPipProcessDumpDirectory, bool dumpProcess, out Exception? dumpException)
+        public static Dictionary<uint, ReportedProcess>? GetAndOptionallyDumpProcesses(JobObject jobObject, LoggingContext loggingContext, SandboxedProcessLogAction? sandboxedProcessLogAction, string? survivingPipProcessDumpDirectory, bool dumpProcess, out Exception? dumpException)
         {
             dumpException = null;
 
@@ -140,7 +140,7 @@ namespace BuildXL.Processes
             return survivingChildProcesses;
         }
 
-        private static void DumpProcess(SandoxedProcessLogAction? sandboxedProcessLogAction, string survivingPipProcessDumpDirectory, ReportedProcess reportedProcess, out Exception? childDumpException)
+        private static void DumpProcess(SandboxedProcessLogAction? sandboxedProcessLogAction, string survivingPipProcessDumpDirectory, ReportedProcess reportedProcess, out Exception? childDumpException)
         {
             childDumpException = null;
 
@@ -161,7 +161,7 @@ namespace BuildXL.Processes
             childDumpException ??= getProcessIdException;
         }
 
-        private static bool TryGetProcessById(int pid, out System.Diagnostics.Process? process, SandoxedProcessLogAction? sandboxedProcessLogAction, out Exception? childDumpException)
+        private static bool TryGetProcessById(int pid, out System.Diagnostics.Process? process, SandboxedProcessLogAction? sandboxedProcessLogAction, out Exception? childDumpException)
         {
             process = null;
             childDumpException = null;

@@ -57,7 +57,7 @@ namespace BuildXL.Processes
 
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
-        private readonly SandoxedProcessLogAction? m_sandboxedProcessLogAction;
+        private readonly SandboxedProcessLogAction? m_sandboxedProcessLogAction;
 
         private readonly IList<Task<AsyncProcessExecutor>> m_ptraceRunners;
         private readonly TaskSourceSlim<bool> m_ptraceRunnersCancellation = TaskSourceSlim.Create<bool>();

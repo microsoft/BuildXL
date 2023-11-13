@@ -98,7 +98,7 @@ namespace BuildXL.Processes
 
         private readonly FileAccessManifest m_manifest;
 
-        private readonly SandoxedProcessLogAction m_loggingAction;
+        private readonly SandboxedProcessLogAction m_loggingAction;
         
         private readonly ISandboxFileSystemView m_fileSystemView;
 
@@ -123,7 +123,7 @@ namespace BuildXL.Processes
             PathTable pathTable,
             long pipSemiStableHash,
             string pipDescription,
-            [MaybeNull] SandoxedProcessLogAction loggingAction,
+            [MaybeNull] SandboxedProcessLogAction loggingAction,
             [MaybeNull] IDetoursEventListener detoursEventListener,
             [MaybeNull] SidebandWriter sharedOpaqueOutputLogger,
             [MaybeNull] ISandboxFileSystemView fileSystemView,

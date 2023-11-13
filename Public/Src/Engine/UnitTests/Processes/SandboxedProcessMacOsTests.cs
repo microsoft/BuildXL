@@ -51,8 +51,8 @@ namespace Test.BuildXL.Processes
             public bool IsInTestMode => true;
 
             public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
-            public void NotifyPipReady(SandoxedProcessLogAction action, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
-            public bool NotifyPipStarted(SandoxedProcessLogAction action, FileAccessManifest fam, SandboxedProcessUnix process) { return true; }
+            public void NotifyPipReady(SandboxedProcessLogAction action, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
+            public bool NotifyPipStarted(SandboxedProcessLogAction action, FileAccessManifest fam, SandboxedProcessUnix process) { return true; }
             public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName) { return Enumerable.Empty<(string, string)>(); }
 
             public void NotifyPipProcessTerminated(long pipId, int processId) { ProcessTerminated?.Invoke(pipId, processId); }

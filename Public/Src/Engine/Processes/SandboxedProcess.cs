@@ -40,7 +40,6 @@ namespace BuildXL.Processes
     /// </remarks>
     public sealed class SandboxedProcess : ISandboxedProcess
     {
-        private const int MaxProcessPathLength = 1024;
         private static BinaryPaths? s_binaryPaths;
         private static bool s_setMaxWorkingSetToPeakBeforeResume = false;
         private static readonly Guid s_payloadGuid = new Guid("7CFDBB96-C3D6-47CD-9026-8FA863C52FEC");
@@ -80,7 +79,7 @@ namespace BuildXL.Processes
         private readonly Aggregation m_peakCommitSize = new Aggregation();
         private readonly Aggregation m_commitSize = new Aggregation();
 
-        private readonly SandoxedProcessLogAction? m_sandboxedProcessLogger;
+        private readonly SandboxedProcessLogAction? m_sandboxedProcessLogger;
 
         internal SandboxedProcess(SandboxedProcessInfo info)
         {

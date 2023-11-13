@@ -249,10 +249,10 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         }
 
         /// <inheritdoc />
-        public void NotifyPipReady(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
+        public void NotifyPipReady(SandboxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
 
         /// <inheritdoc />
-        public bool NotifyPipStarted(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process)
+        public bool NotifyPipStarted(SandboxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process)
         {
             Contract.Requires(process.Started);
             Contract.Requires(fam.PipId != 0);

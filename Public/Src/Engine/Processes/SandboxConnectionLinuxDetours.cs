@@ -849,10 +849,10 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public bool NotifyPipStarted(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process) => true;
+        public bool NotifyPipStarted(SandboxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process) => true;
 
         /// <inheritdoc />
-        public void NotifyPipReady(SandoxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion)
+        public void NotifyPipReady(SandboxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion)
         {
             Contract.Requires(!process.Started);
             Contract.Requires(process.PipId != 0);

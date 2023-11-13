@@ -43,7 +43,7 @@ namespace BuildXL.Processes
         private IAsyncPipeReader m_injectionRequestReader;
         private bool m_stopping;
 
-        private readonly SandoxedProcessLogAction m_loggingAction;
+        private readonly SandboxedProcessLogAction m_loggingAction;
 
         public ProcessTreeContext(
             Guid payloadGuid,
@@ -53,7 +53,7 @@ namespace BuildXL.Processes
             string dllNameX86,
             int numRetriesPipeReadOnCancel,
             Action<string> debugPipeReporter,
-            [MaybeNull] SandoxedProcessLogAction loggingAction)
+            [MaybeNull] SandboxedProcessLogAction loggingAction)
         {
             // We cannot create this object in a wow64 process
             Contract.Assume(!ProcessUtilities.IsWow64Process(), "ProcessTreeContext:ctor - Cannot run injection server in a wow64 32 bit process");

@@ -14,6 +14,7 @@ declare arg_Minimal=""
 declare arg_Internal=""
 # default configuration is debug
 declare configuration="Debug"
+declare credProviderPath=""
 
 if [[ "${OSTYPE}" == "linux-gnu" ]]; then
     readonly HostQualifier=Linux
@@ -227,7 +228,7 @@ function installCredProvider() {
 }
 
 function launchCredProvider() {
-    local credProviderPath=$(find "$NUGET_CREDENTIALPROVIDERS_PATH" -name "CredentialProvider*.exe" -type f | head -n 1)
+    credProviderPath=$(find "$NUGET_CREDENTIALPROVIDERS_PATH" -name "CredentialProvider*.exe" -type f | head -n 1)
 
     if [[ -z $credProviderPath ]]; then
         print_error "Did not find a credential provider under $NUGET_CREDENTIALPROVIDERS_PATH"

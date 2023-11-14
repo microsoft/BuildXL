@@ -1071,7 +1071,7 @@ namespace NpmRc {
         return Flags.isMicrosoftInternal
             ? Environment.hasVariable("TF_BUILD")
                 ? f`${Context.getMount("SourceRoot").path}/.ci-npmrc`
-                : f`${Environment.getDirectoryValue("USERPROFILE").path}/.npmrc`
+                : f`${Environment.getDirectoryValue(Context.getCurrentHost().os === "win" ? "USERPROFILE" : "HOME").path}/.npmrc`
             : undefined;
     }
 

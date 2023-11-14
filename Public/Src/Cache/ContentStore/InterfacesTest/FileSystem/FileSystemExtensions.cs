@@ -10,7 +10,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 {
     public static class FileSystemExtensions
     {
-        public static AbsolutePath MakeLongPath(this IFileSystem<AbsolutePath> fileSystem, AbsolutePath root, int length)
+        public static AbsolutePath MakeLongPath(this IAbsFileSystem fileSystem, AbsolutePath root, int length)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(root != null);

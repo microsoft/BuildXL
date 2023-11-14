@@ -36,6 +36,12 @@ namespace VBCSCompilerLogger
         /// <inheritdoc/>
         public override void Initialize(IEventSource eventSource)
         {
+            if (eventSource is IEventSource4 eventSource4)
+            {
+                // This needs to happen so binary loggers can get evaluation properties and items
+                eventSource4.IncludeEvaluationPropertiesAndItems();
+            }
+
             eventSource.MessageRaised += EventSourceOnMessageRaised;
             eventSource.BuildFinished += EventSourceOnBuildFinished;
         }

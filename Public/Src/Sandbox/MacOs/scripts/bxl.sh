@@ -191,9 +191,16 @@ function build {
     fi
 
     setBxlCmdArgs
-
     local bxlExe="$arg_BuildXLBin/bxl"
-    chmod u=rx "$bxlExe" || true # could already be executable
+    
+    # On some usages of this script, execution bits might be
+    # missing from the deployment. This is the case, for example, on ADO
+    # builds where the engine is deployed by downloading pipeline artifacts.
+    # Make sure that the executables that we need in the build are indeed executable.
+    chmod u+rx "$bxlExe"
+    chmod u+rx "$arg_BuildXLBin/NugetDownloader"
+    chmod u+rx "$arg_BuildXLBin/Downloader"
+    chmod u+rx "$arg_BuildXLBin/Extractor"
 
     if [[ -n "$arg_useAdoBuildRunner" ]]; then
         local adoBuildRunnerExe="$arg_BuildXLBin/AdoBuildRunner"

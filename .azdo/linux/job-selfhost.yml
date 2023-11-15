@@ -1,33 +1,15 @@
 parameters:
-- name: BxlCommonArgs
+- name: BxlCommonArgs # We reuse these across jobs like a constant
   type: string
-  # We pass xunit semaphore `/p:[Sdk.BuildXL]xunitSemaphoreCount=8` to limit the number of parallel xunit pips.
-  # Too many xunit pips running in parallel can cause the long running ones to hang. 
-  default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /exp:lazysodeletion- /p:[Sdk.BuildXL]xunitSemaphoreCount=8
+# The following parameters change
 - name: BxlExtraArgs
   type: string
 - name: ValidationName
   type: string
-- name: Distributed
-  type: boolean
-  default: false
-- name: Role
-  type: string
-  default: Orchestrator
-  values:
-  - Orchestrator
-  - Worker
 
 jobs:
 - job: Selfhost_${{ parameters.validationName }}
   displayName: Build and Validate Selfhost (${{ parameters.validationName }})
-
-  variables:
-  - name: ScriptExtraArgs
-    ${{ if parameters.Distributed }}:
-      value: "--use-adobuildrunner"
-    ${{ else }}:
-      value: ""
 
   pool:
     name: BuildXL-DevOpsAgents-Linux-Stateless-PME
@@ -38,13 +20,15 @@ jobs:
     - input: checkout
       repository: self
       fetchDepth: 1
+    - input: pipelineArtifact
+      artifactName: 'Dev'
+      # Use the path that --deploy-dev would use, because we --use-dev in the validation
+      targetPath: "$(Build.SourcesDirectory)/Out/Selfhost/Dev"
+
     outputs:
     - output: pipelineArtifact
       targetPath: $(Build.SourcesDirectory)/Out/Logs
-      ${{ if parameters.Distributed }}:
-        artifactName: BuildXL-Logs.${{ parameters.validationName }}.$(System.JobName).${{ parameters.Role }}.$(System.JobAttempt)
-      ${{ else }}:
-        artifactName: BuildXL-Logs.${{ parameters.validationName }}.$(System.JobName).$(System.JobAttempt)
+      artifactName: BuildXL-Logs.${{ parameters.validationName }}.$(System.JobName).$(System.JobAttempt)
       condition: always()
       continueOnError: true
       displayName: Upload BuildXL Logs
@@ -59,121 +43,27 @@ jobs:
   timeoutInMinutes: 90
 
   steps:
-  - task: UseDotNet@2
-    displayName: Use .NET Core sdk 6.x
-    inputs:
-      version: 6.x
+  - template: build-selfhost-singlemachine.yml
+    parameters:
+      cacheUniverse: bxlselfhost
+      buildSteps:
+      - bash: |
+          set -eu
+          # - the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
+          # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
+          timeout --signal 9 60m ./bxl.sh --use-dev $(ScriptExtraArgs) ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache-
+        displayName: Test (${{ parameters.validationName }})
+        workingDirectory: /home/subst
+        env:
+          PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
+          PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
-  - template: step-install-mono.yml
 
-  # The Bxl selfhost uses some shared opaque directories to build JS components. These outputs are interleaved with sources. When a build is cancelled on ADO
-  # some of these outputs may not be flagged as shared opaque outputs as the bxl process is suddenly aborted. In stateful agents, these can cause stale output
-  # files that may interact with subsequent builds. Make sure the source directory is clean before bxl starts (but spare the Out/Cache folder, so we can still reuse 
-  # the local cache).
-  - bash: |
-      set -euo pipefail
-      echo "== Making sure source directory is clean =="
-      git clean -xdf -e Out/Cache
-    displayName: Cleaning up source directory
-
-  - bash: |
-      set -euo pipefail
-      readonly isNotMain="${{ ne(variables['Build.SourceBranchName'], 'main') }}"
-      mkdir -p Out
-      tee Out/CacheConfig.json << EOF
-      {
-      "RemoteIsReadOnly": ${isNotMain,,},
-      "SkipDeterminismRecovery":  true,
-      "RemoteConstructionTimeoutMilliseconds":  10000,
-      "Assembly":  "BuildXL.Cache.VerticalAggregator",
-      "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
-      "RemoteCache":  {
-                        "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
-                        "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
-                        "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
-                        "CacheId": "L3Cache",
-                        "Universe": "blob3bxlselfhost",
-                        "RetentionPolicyInDays": 6,
-                        "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
-                        "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
-                      },
-      "LocalCache":  {
-                        "MaxCacheSizeInMB":  20240,
-                        "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
-                        "UseStreamCAS":  true,
-                        "Type":  "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
-                        "CacheLogPath":  "[BuildXLSelectedLogPath]",
-                        "CacheRootPath":  "[BuildXLSelectedRootPath]",
-                        "CacheId":  "SelfhostCS2L1",
-                        "UseRocksDbMemoizationStore":  true
-                    }
-      }
-      EOF
-    displayName: Write cache config file
-
-  - bash: |
-      sudo mkdir /home/subst
-      sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
-    displayName: Bind /home/subst to sources directory  
-
-  - bash: |
-      set -eu
-      # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
-      timeout --signal 9 60m bash bxl.sh ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev --release /forceAddExecutionPermission-
-    displayName: Build
-    workingDirectory: /home/subst
-    env:
-      PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
-      PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
-      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
-  
-  - bash: |
-      set -euo pipefail
-      rm -f Out/CacheConfig.json
-      tee Out/CacheConfig.json << EOF
-      {
-          "RetentionPolicyInDays":  6,
-          "CacheSizeMb":  20240,
-          "Type":  "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory",
-          "DatacenterWide":  true,
-          "LeaderMachineName":  "[BuildXLSelectedLeader]",
-          "CacheRootPath":  "[BuildXLSelectedRootPath]",
-          "CacheId":  "L1L2L3Cache",
-          "Universe":  "bxlselfhost",
-          "CacheLogPath":  "[BuildXLSelectedLogPath]",
-          "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
-          "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
-          "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
-      }
-      EOF
-    displayName: Write cache config file for distributed build
-
-  - bash: |
-      set -eu
-      # - the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
-      # - we also disable early worker release to avoid releasing a worker before attachment, which tends to happen
-      #   when the build is highly cached: the intention is to have as much of a distributed build as possible for validation purposes
-      # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
-      timeout --signal 9 60m ./bxl.sh --use-dev $(ScriptExtraArgs) ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /earlyWorkerRelease- /p:BuildXLWorkerAttachTimeoutMin=5 /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache- /p:BuildXLGrpcVerbosityEnabled=1 /p:BuildXLGrpcVerbosityLevel=1 /dynamicBuildWorkerSlots:1
-    displayName: Test (${{ parameters.validationName }})
-    workingDirectory: /home/subst
-    env:
-      PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
-      PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
-      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
-      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-      AdoBuildRunnerInvocationKey: LinuxSelfhostValidation_${{ parameters.validationName }}
-      AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
-      AdoBuildRunnerWorkerAlwaysSucceeds: true
-
-  - task: PublishTestResults@2
-    displayName: Publish Test Results
-    inputs:
-      testResultsFormat: XUnit
-      testResultsFiles: 'Out/Objects/**/xunit-logs/**/xunit*.xml'
-    condition: always()
-    continueOnError: true
-
-  - bash: sudo umount -v --lazy /home/subst
-    condition: always()
-    displayName: Unmount /home/subst
+      - task: PublishTestResults@2
+        displayName: Publish Test Results
+        inputs:
+          testResultsFormat: XUnit
+          testResultsFiles: 'Out/Objects/**/xunit-logs/**/xunit*.xml'
+        condition: always()
+        continueOnError: true

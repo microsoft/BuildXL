@@ -1,0 +1,93 @@
+parameters:
+- name: Role
+  type: string
+  default: Orchestrator
+  values:
+  - Orchestrator
+  - Worker
+
+jobs:
+- job: TestDistributed
+  displayName: Test distributed build
+
+  pool:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+
+  variables:
+    - name: BootstrapLocation
+      value: $(System.DefaultWorkingDirectory)/Bootstrap
+
+  templateContext:
+    inputs:
+    - input: checkout
+      repository: self
+      fetchDepth: 1
+    - input: pipelineArtifact
+      artifactName: 'Dev'
+      targetPath: '$(BootstrapLocation)'
+    outputs:
+    - output: pipelineArtifact
+      targetPath: $(Build.SourcesDirectory)/Out/Logs
+      artifactName: BuildXL-Logs.DistributedTest.$(System.JobName).${{ parameters.Role }}.$(System.JobAttempt)
+      condition: always()
+      continueOnError: true
+      displayName: Upload Distributed test Logs
+    sdl:
+      credscan:
+        enabled: false
+      antimalwareScan:
+        enabled: false
+      publishLogs:
+        enabled: false
+
+  timeoutInMinutes: 20
+
+  steps:
+  - bash: |
+      sudo mkdir /home/subst
+      sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
+    displayName: Bind /home/subst to sources directory  
+
+  # Write cache config file
+  - bash: |
+      set -euo pipefail
+      mkdir -p /home/subst/Out
+      rm -f /home/subst/Out/CacheConfig.json
+      tee /home/subst/Out/CacheConfig.json << EOF
+      {
+          "RetentionPolicyInDays":  6,
+          "CacheSizeMb":  20240,
+          "Type":  "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory",
+          "DatacenterWide":  true,
+          "LeaderMachineName":  "[BuildXLSelectedLeader]",
+          "CacheRootPath":  "[BuildXLSelectedRootPath]",
+          "CacheId":  "L1L2L3Cache",
+          "Universe":  "bxlselfhost",
+          "CacheLogPath":  "[BuildXLSelectedLogPath]",
+          "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+          "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
+          "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
+      }
+      EOF
+    displayName: Write cache config file for distributed build
+
+  # Run build
+  - bash: |
+      set -eu
+      chmod +x $(BootstrapLocation)/AdoBuildRunner
+      chmod +x $(BootstrapLocation)/bxl
+          
+      $(BootstrapLocation)/AdoBuildRunner /c:config.dsc /logsDirectory:$(Build.SourcesDirectory)/Out/Logs /cacheConfigFilePath:/home/subst/Out/CacheConfig.json /p:BUILDXL_FINGERPRINT_SALT=* /p:BUILDXL_GRAPH_FINGERPRINT_SALT=* /replicateOutputsToWorkers+ /p:BuildXLMinimumWaitForRemoteWorkerMin=5 /dynamicBuildWorkerSlots:1
+    displayName: Test distributed
+    workingDirectory: /home/subst/Private/AdoDistributionTests
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      AdoBuildRunnerInvocationKey: LinuxDistributedValidation
+      AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
+      TRANSFORMERS_SDK_DIR: /home/subst/Public/Sdk/Public/Transformers
+      OUTPUT_DIR: /home/subst/Out
+
+  - bash: sudo umount -v --lazy /home/subst
+    condition: always()
+    displayName: Unmount /home/subst

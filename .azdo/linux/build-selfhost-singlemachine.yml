@@ -1,0 +1,69 @@
+# Template for validations that run bxl.sh single-machine with L3 cache
+# and share common pre- and post- build steps
+
+parameters:
+- name: cacheUniverse
+  type: string
+- name: buildSteps
+  type: stepList
+
+steps:
+- task: UseDotNet@2
+  displayName: Use .NET Core sdk 7.x
+  inputs:
+    version: 7.x
+
+- bash: |
+    set -eu
+    # install mono
+    sudo apt-get update
+    sudo apt-get install -y mono-complete mono-devel
+    mono --version
+  displayName: Install Mono
+
+- bash: |
+    set -euo pipefail
+    readonly isNotMain="${{ ne(variables['Build.SourceBranchName'], 'main') }}"
+    mkdir -p Out
+    tee Out/CacheConfig.json << EOF
+    {
+    "RemoteIsReadOnly": ${isNotMain,,},
+    "SkipDeterminismRecovery":  true,
+    "RemoteConstructionTimeoutMilliseconds":  10000,
+    "Assembly":  "BuildXL.Cache.VerticalAggregator",
+    "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
+    "RemoteCache":  {
+                      "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
+                      "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
+                      "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
+                      "CacheId": "L3Cache",
+                      "Universe": "${{ parameters.cacheUniverse }}",
+                      "RetentionPolicyInDays": 6,
+                      "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
+                      "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
+                    },
+    "LocalCache":  {
+                      "MaxCacheSizeInMB":  20240,
+                      "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+                      "UseStreamCAS":  true,
+                      "Type":  "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
+                      "CacheLogPath":  "[BuildXLSelectedLogPath]",
+                      "CacheRootPath":  "[BuildXLSelectedRootPath]",
+                      "CacheId":  "SelfhostCS2L1",
+                      "UseRocksDbMemoizationStore":  true
+                  }
+    }
+    EOF
+  displayName: Write cache config file
+
+- bash: |
+    sudo mkdir /home/subst
+    sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
+  displayName: Bind /home/subst to sources directory  
+
+- ${{ each step in parameters.buildSteps }}:
+  - ${{ step }}
+
+- bash: sudo umount -v --lazy /home/subst
+  condition: always()
+  displayName: Unmount /home/subst

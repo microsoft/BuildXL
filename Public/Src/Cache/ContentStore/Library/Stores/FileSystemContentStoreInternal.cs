@@ -34,12 +34,12 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Cache.ContentStore.Interfaces.Results.PlaceFileResult.ResultCode;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
-using static BuildXL.Cache.ContentStore.Interfaces.Results.PlaceFileResult.ResultCode;
-using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -170,7 +170,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly FileSystemContentStoreInternalChecker _checker;
 
         private Timer? _selfCheckTimer;
-        
+
         /// <nodoc />
         public FileSystemContentStoreInternal(
             IAbsFileSystem fileSystem,
@@ -313,12 +313,30 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return Task.FromResult(FileSystem.TryOpen(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete));
             }
         }
-        
-        private void DeleteTempFolder()
+
+        /// <summary>
+        /// When running PutStream, the streams are written down to temporary storage as they are hashed. After
+        /// hashing completes, we'll move the temporary file into the CAS. It's important to prevent accumulation
+        /// of too many files, because this temporary folder isn't necessarily inside the OS's temporary folder.
+        /// </summary>
+        private void RegenerateTemporaryFolder(OperationContext context)
         {
-            if (FileSystem.DirectoryExists(_tempFolder))
+            try
             {
-                FileSystem.DeleteDirectory(_tempFolder, DeleteOptions.All);
+                if (FileSystem.DirectoryExists(_tempFolder))
+                {
+                    FileSystem.DeleteDirectory(_tempFolder, DeleteOptions.All);
+                }
+            }
+            catch (Exception ex)
+            {
+                // We need to avoid bubbling the exception here because it'd cause Startup to fail for a non-essential
+                // reason.
+                Tracer.Warning(context, ex, message: $"Failed to delete temporary files from {_tempFolder}");
+            }
+            finally
+            {
+                FileSystem.CreateDirectory(_tempFolder);
             }
         }
 
@@ -416,8 +434,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             _applyDenyWriteAttributesOnContent = Configuration.DenyWriteAttributesOnContent == DenyWriteAttributesOnContentSetting.Enable;
 
-            DeleteTempFolder();
-            FileSystem.CreateDirectory(_tempFolder);
+            RegenerateTemporaryFolder(context);
 
             await ContentDirectory.StartupAsync(context).ThrowIfFailure();
 
@@ -465,7 +482,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     dueTime: TimeSpan.Zero,
                     period: Timeout.InfiniteTimeSpan);
             }
-            
+
             return result;
         }
 
@@ -2145,7 +2162,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         }
                         else
                         {
-                            return new (e, $"Failed to place hash=[{contentHash}] to path=[{destinationPath}]");
+                            return new(e, $"Failed to place hash=[{contentHash}] to path=[{destinationPath}]");
                         }
                     }
 
@@ -2209,7 +2226,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             }
                             else
                             {
-                                return new (e, $"Failed to place hash=[{contentHash}] to path=[{destinationPath}]");
+                                return new(e, $"Failed to place hash=[{contentHash}] to path=[{destinationPath}]");
                             }
                         }
                     }

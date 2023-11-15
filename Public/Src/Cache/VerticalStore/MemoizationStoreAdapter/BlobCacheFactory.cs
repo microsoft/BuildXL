@@ -206,7 +206,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 Namespace: configuration.Namespace,
                 RetentionPolicyInDays: configuration.RetentionPolicyInDays <= 0 ? null : configuration.RetentionPolicyInDays);
 
-            return AzureBlobStorageCacheFactory.Create(factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
+            return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
         }
 
         /// <nodoc />

@@ -12,9 +12,9 @@ using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -428,7 +428,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             MachineLocation leader,
             ConfigurationModifier? modifier)
         {
-            var persistentCache = AzureBlobStorageCacheFactory.Create(_blobCacheConfiguration, _secretsProvider) as IFullCache;
+            var persistentCache = AzureBlobStorageCacheFactory.Create(context, _blobCacheConfiguration, _secretsProvider) as IFullCache;
             Contract.Assert(persistentCache != null);
 
             EphemeralCacheFactory.Configuration? factoryConfiguration;

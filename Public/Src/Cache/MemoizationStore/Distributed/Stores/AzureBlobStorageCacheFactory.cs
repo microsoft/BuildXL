@@ -5,11 +5,13 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
+using BuildXL.Utilities;
 
 #nullable enable
 
@@ -66,8 +68,10 @@ public static class AzureBlobStorageCacheFactory
     }
 
     /// <nodoc />
-    public static IFullCache Create(Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
+    public static IFullCache Create(OperationContext context, Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
     {
+        context.TracingContext.Warning($"Creating cache with BuildXL version {Branding.Version}", nameof(AzureBlobStorageCacheFactory));
+
         if (string.IsNullOrEmpty(configuration.Universe))
         {
             configuration = configuration with { Universe = Configuration.DefaultUniverse };

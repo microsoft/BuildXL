@@ -5,6 +5,9 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using Xunit;
 
@@ -16,7 +19,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
         public void ZeroRetentionPolicyThrows()
         {
             var accountName = BlobCacheStorageAccountName.Parse("devstoreaccount1");
-            var config =  new AzureBlobStorageCacheFactory.Configuration(
+            var config = new AzureBlobStorageCacheFactory.Configuration(
                     ShardingScheme: new ShardingScheme(
                         ShardingAlgorithm.SingleShard,
                         new List<BlobCacheStorageAccountName>() { accountName }),
@@ -30,6 +33,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             });
 
             Assert.Throws<ContractException>(() => AzureBlobStorageCacheFactory.Create(
+                new OperationContext(new Context(NullLogger.Instance)),
                 config,
                 secretsProvider));
         }

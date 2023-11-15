@@ -32,6 +32,7 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using ProtoBuf.Grpc.Client;
@@ -161,6 +162,8 @@ public static class EphemeralCacheFactory
     /// </summary>
     public static async Task<IFullCache> CreateAsync(OperationContext context, Configuration configuration, IFullCache persistentCache)
     {
+        context.TracingContext.Warning($"Creating cache with BuildXL version {Branding.Version}", nameof(EphemeralCacheFactory));
+
         return (await CreateInternalAsync(context, configuration, persistentCache)).Cache;
     }
 

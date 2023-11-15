@@ -5,8 +5,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -61,7 +61,7 @@ public class AzureBlobStoragePublishingSession : PublishingSessionBase<AzureBlob
         // TODO: force publishing for blob l3
         // TODO: how to deal with sharded secrets in async publishing?
         var secretsProvider = new StaticBlobCacheSecretsProvider(fallback: new SecretBasedAzureStorageCredentials(connectionString: configuration.PersonalAccessToken));
-        var cache = AzureBlobStorageCacheFactory.Create(configuration.Configuration, secretsProvider);
+        var cache = AzureBlobStorageCacheFactory.Create(context, configuration.Configuration, secretsProvider);
         await cache.StartupAsync(context).ThrowIfFailureAsync();
         var session = ((ICache)cache).CreateSession(context, name: configuration.SessionName, implicitPin: ImplicitPin.None).ThrowIfFailure();
 

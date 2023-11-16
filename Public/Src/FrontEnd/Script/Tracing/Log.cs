@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using BuildXL.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -27,7 +26,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.ScriptDebugLog,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Parser,
             Message = "{message}",
@@ -36,7 +35,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.PackageDescriptorsIsNotArrayLiteral,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "Package descriptors in '{packageDescriptorPath}' does not evaluate to an array literal.",
@@ -45,7 +44,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.PackageDescriptorIsNotObjectLiteral,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "Package descriptor '{number}' in '{packageDescriptorPath}' does not evaluate to an object literal.",
@@ -54,7 +53,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.PackageMainFileIsNotInTheSameDirectoryAsPackageConfiguration,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "Package main file '{packageMainFile}' is not in the same directory as package configuration '{packageConfiguration}'.",
@@ -63,7 +62,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FailAddingPackageDueToPackageOwningAllProjectsExists,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "Failed adding package '{addedPackage}' in '{packageConfigPath}' because a package, '{packageOwningAll}', that owns all projects exists. When defining multiple packages in a single package configuration file, none of them may implicitly own all projects (by omitting to specify the 'projects' field).",
@@ -72,7 +71,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FailAddingPackageBecauseItWantsToOwnAllProjectsButSomeAreOwnedByOtherPackages,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "Failed adding package '{addedPackage}' in '{packageConfigPath}' because the package wants to own all projects, but some of them are owned by other existing packages. When defining multiple packages in a single package configuration file, none of them may implicitly own all projects (by omitting to specify the 'projects' field).",
@@ -81,7 +80,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FailAddingPackageBecauseItsProjectIsOwnedByAnotherPackage,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "Failed adding package '{addedPackage}' in '{packageConfigPath}' because its project '{projectPath}' is owned by another package '{anotherPackage}'.",
@@ -90,7 +89,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.ConversionException,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "{exceptionMessage}.",
@@ -99,7 +98,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.UnexpectedResolverException,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Unexpected exception: {exceptionMessage}.",
@@ -108,7 +107,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.MissingField,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "Missing field in configuration file '{fileModulePath}': {fieldName}.",
@@ -117,7 +116,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.InvalidPackageNameDueToUsingConfigPackage,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Invalid package name {name} (case insensitive) because the name is reserved.",
@@ -126,7 +125,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.SourceResolverPackageFileNotWithinConfiguration,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Specified package file '{packagePath}' is not within the configuration directory '{configFilePath}'.",
@@ -135,7 +134,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.SourceResolverPackageFilesDoNotExist,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Specified package (configuration) file '{packageConfigPath}' does not exist.",
@@ -144,7 +143,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.SourceResolverModuleFilesDoNotExistVerbose,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Specified module (configuration) file '{moduleConfigPath}' does not exist.",
@@ -153,7 +152,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.SourceResolverRootDirForPackagesDoesNotExist,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "{locationInfo}Directory specified for the SourceResolver.root property ('{rootDirPath}') does not exist.",
@@ -162,7 +161,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.SourceResolverFailEvaluateUnregisteredFileModule,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "Failed evaluating file module '{fileModulePath}' because it is unregistered; the file module may have not been parsed.",
@@ -171,7 +170,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.SourceResolverConfigurationIsNotObjectLiteral,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Configuration in '{configPath}' does not evaluate to an object literal.",
@@ -346,7 +345,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.ModuleProjectFileDoesNotExist,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Specified project file '{projectPath}' in package file '{modulePath}' does not exist.",

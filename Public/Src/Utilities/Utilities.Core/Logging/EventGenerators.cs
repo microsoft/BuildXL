@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities.Instrumentation.Common;
-
-namespace BuildXL.Tracing
+namespace BuildXL.Utilities.Instrumentation.Common
 {
     /// <summary>
     /// Standard settings for BuildXL event generators

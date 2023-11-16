@@ -662,7 +662,7 @@ namespace NugetPackages {
     // NOTE: utilitiesCore, native, processes, and processesLinux have a restricted set of dependencies.
     // Do not modify its set of allowed dependencies without first consulting with the BuildXL team.
     const utilitiesCore = Nuget.packAssembliesAndAssertDependencies(utilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true, /* dependencyScope */ []);
-    const native = Nuget.packAssembliesAndAssertDependencies(nativeSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false,/* dependencyScope */ [buildXLUtilitiesCoreIdentity]);
+    const native = Nuget.packAssembliesAndAssertDependencies(nativeSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true,/* dependencyScope */ [buildXLUtilitiesCoreIdentity]);
     const pips = Nuget.packAssemblies(pipsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
     const processes = Nuget.packAssembliesAndAssertDependencies(processesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
     const processesLinux = Nuget.packAssembliesAndAssertDependencies(processesLinuxSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);

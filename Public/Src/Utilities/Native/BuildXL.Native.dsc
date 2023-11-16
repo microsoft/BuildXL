@@ -61,6 +61,7 @@ namespace Native {
         assemblyName: "BuildXL.Native",
         sources: globR(d`.`, "*.cs"),
         generateLogs: true,
+        excludeTracing: true,
         addNotNullAttributeFile: true,
         references: [
             // IMPORTANT!!! Do not add non-bxl dependencies or any bxl projects with external dependencies into this project

@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
 // Suppress missing XML comments on publicly visible types or members

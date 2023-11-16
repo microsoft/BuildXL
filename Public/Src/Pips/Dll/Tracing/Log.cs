@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.Tracing;
-using BuildXL.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 

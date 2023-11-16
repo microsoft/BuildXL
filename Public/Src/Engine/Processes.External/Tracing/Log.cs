@@ -1,6 +1,5 @@
 // Licensed under the MIT License.
 
-using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591

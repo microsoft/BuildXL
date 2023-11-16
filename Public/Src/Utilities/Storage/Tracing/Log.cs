@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
-using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591

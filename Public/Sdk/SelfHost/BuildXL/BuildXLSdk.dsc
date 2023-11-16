@@ -56,6 +56,9 @@ export interface Arguments extends Managed.Arguments {
     /** Whether to run LogGen. */
     generateLogs?: boolean;
 
+    /** Whether to exclude BuildXL.Tracing reference for LogGen. */
+    excludeTracing?: boolean;
+
     /** Whether to generate logs during the compilation process. */
     generateLogsInProc?: boolean;
 
@@ -703,8 +706,8 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     ...(isDotNetCoreOrStandard ? [] : [
                         NetFx.System.Threading.Tasks.dll,
                     ]),
-                    ...(args.generateLogs || args.generateLogsInProc ? [
-                        importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll
+                    ...((args.generateLogs || args.generateLogsInProc) && !args.excludeTracing ? [
+                        importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
                     ] : []),
                 ]),
             ],
@@ -764,10 +767,10 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
             ] : [
                 importFrom("BuildXL.Utilities").Utilities.Core.dll.compile,
-                importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
+                ...addIf(!args.excludeTracing, importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile),
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
             ];
-        
+
         if (args.generateLogs) {
             // $TODO: We have some ugglyness here in that there is not a good way to do a 'under' path check from the sdk
             // without the caller passing in the path. BuildXL.Tracing doesn't follow the proper loggen pattern either with

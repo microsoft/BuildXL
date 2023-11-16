@@ -29,7 +29,7 @@ namespace BuildXL.ConsoleRedirector.Tracing
         /// </summary>
         [GeneratedEvent(
             (ushort)LogEventId.LogToConsole,
-            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Unclassified,
             Message = "{text}")]

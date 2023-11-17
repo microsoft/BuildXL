@@ -35,6 +35,9 @@ namespace Scheduler {
                 BuildXLSdk.NetFx.System.Reflection.dll,
                 BuildXLSdk.NetFx.Netstandard.dll
             ),
+            ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
+                importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            ]),
             EngineTestUtilities.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,

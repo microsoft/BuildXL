@@ -2126,6 +2126,11 @@ namespace BuildXL.Engine
 
                                 ThreadPoolHelper.ConfigureWorkerThreadPools(Configuration.Schedule.MaxProcesses);
 
+#if NET6_0_OR_GREATER
+                                // We are done with the Schedule phase. Config is final at this point, so we can log it now.
+                                var configLoggingTask = Configuration.SerialzieToFileAsync(Context.PathTable, indent: true, includePaths: true, ignoreNulls: false);
+#endif
+
                                 if (success && !exitOnNewGraph && phase.HasFlag(EnginePhases.Execute))
                                 {
                                     Contract.Assert(
@@ -2211,6 +2216,15 @@ namespace BuildXL.Engine
                                         "An error should have been logged during saving file content table.");
                                     return BuildXLEngineResult.Failed(engineState);
                                 }
+#if NET6_0_OR_GREATER
+                                var configLoggingResult = configLoggingTask.GetAwaiter().GetResult();
+                                if (!configLoggingResult.Succeeded)
+                                {
+                                    // Serialization / logging might throw. If it does happen, it has no impact on a build process,
+                                    // so just log a warning and move on.
+                                    UnexpectedCondition.Log(loggingContext, $"An exception occurred while serializing config to a file. Exception: {configLoggingResult.Failure.DescribeIncludingInnerFailures()}");
+                                }
+#endif
                             }
                             finally
                             {

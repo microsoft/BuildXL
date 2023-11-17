@@ -5803,7 +5803,7 @@ namespace BuildXL.Scheduler
                 if (durationSec > 0)
                 {
                     desc = "".PadLeft(indentLevel * 4) + desc;
-                    builder.AppendLine($"{desc, -120}:{durationSec, 10}s");
+                    builder.AppendLine($"{desc,-120}:{durationSec,10}s");
                 }
             }
         }

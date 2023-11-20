@@ -664,7 +664,7 @@ namespace NugetPackages {
     const utilitiesCore = Nuget.packAssembliesAndAssertDependencies(utilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true, /* dependencyScope */ []);
     const native = Nuget.packAssembliesAndAssertDependencies(nativeSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true,/* dependencyScope */ [buildXLUtilitiesCoreIdentity]);
     const pips = Nuget.packAssemblies(pipsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
-    const processes = Nuget.packAssembliesAndAssertDependencies(processesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
+    const processes = Nuget.packAssembliesAndAssertDependencies(processesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
     const processesLinux = Nuget.packAssembliesAndAssertDependencies(processesLinuxSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
     const engineCache = Nuget.packAssemblies(engineCacheSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
     const cacheContentStoreDistributed = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreDistributedSpecification, packageSpecifications, packageBranding, /* inferBuildXLDepencies */ true);

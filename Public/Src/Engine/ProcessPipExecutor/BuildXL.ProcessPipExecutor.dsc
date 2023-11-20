@@ -8,7 +8,6 @@ namespace ProcessPipExecutor {
         assemblyName: "BuildXL.ProcessPipExecutor",
         sources: globR(d`.`, "*.cs"),
         allowUnsafeBlocks: true,
-        generateLogs: true,
         references: [
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
@@ -25,11 +24,6 @@ namespace ProcessPipExecutor {
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").PluginGrpc.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-        ],
-        generateLogBinaryRefs: [
-            Processes.dll.compile,
-            importFrom("BuildXL.Utilities").Utilities.Core.dll.compile,
-            importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Processes",

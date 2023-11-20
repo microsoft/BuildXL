@@ -278,7 +278,7 @@ namespace BuildXL.ProcessPipExecutor
 
             if (path.StartsWith(PipEnvironment.RestrictedTemp, OperatingSystemHelper.PathComparison))
             {
-                Tracing.Logger.Log.PipProcessDisallowedTempFileAccess(
+                Processes.Tracing.Logger.Log.PipProcessDisallowedTempFileAccess(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.FormattedSemiStableHash,
@@ -287,7 +287,7 @@ namespace BuildXL.ProcessPipExecutor
             }
             else
             {
-                Tracing.Logger.Log.PipProcessDisallowedFileAccess(
+                Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccess(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.FormattedSemiStableHash,
@@ -303,7 +303,7 @@ namespace BuildXL.ProcessPipExecutor
                     // Since there will be no error or warning for the ignored NtCreateFile violations in the FileMonitoringViolationAnalyzer, 
                     // this is the only place for us to log a warning for those.
                     // We also need to emit a dx09 verbose above for those violations due to WrapItUp. 
-                    Tracing.Logger.Log.PipProcessDisallowedNtCreateFileAccessWarning(
+                    Processes.Tracing.Logger.Log.PipProcessDisallowedNtCreateFileAccessWarning(
                         m_loggingContext,
                         m_pip.SemiStableHash,
                         m_pip.FormattedSemiStableHash,
@@ -322,7 +322,7 @@ namespace BuildXL.ProcessPipExecutor
             string path = reportedFileAccess.GetPath(m_context.PathTable);
             string process = reportedFileAccess.Process.Path;
 
-            Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedNonCacheable(
+            Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedNonCacheable(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -338,7 +338,7 @@ namespace BuildXL.ProcessPipExecutor
             string process = reportedFileAccess.Process.Path;
 
             AddUnexpectedFileAccessNotAllowlisted(reportedFileAccess);
-            Tracing.Logger.Log.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
+            Processes.Tracing.Logger.Log.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.FormattedSemiStableHash,
@@ -351,7 +351,7 @@ namespace BuildXL.ProcessPipExecutor
             string path = reportedFileAccess.GetPath(m_context.PathTable);
             string process = reportedFileAccess.Process.Path;
 
-            Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedCacheable(
+            Processes.Tracing.Logger.Log.PipProcessDisallowedFileAccessAllowlistedCacheable(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.FormattedSemiStableHash,

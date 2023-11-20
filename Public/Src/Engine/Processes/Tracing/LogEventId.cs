@@ -10,7 +10,7 @@ namespace BuildXL.Processes.Tracing
 #pragma warning disable 1591
 
     /// <summary>
-    /// Defines event IDs corresponding to events />
+    /// Defines event IDs corresponding to events in <see cref="Logger" />
     /// </summary>
     public enum LogEventId
     {
@@ -59,6 +59,8 @@ namespace BuildXL.Processes.Tracing
         PipProcessFinishedExternalTool = 79,
         PipProcessStartExternalVm = 80,
         PipProcessFinishedExternalVm = 81,
+        PipProcessExternalExecution = 82,
+
         RetryStartPipDueToErrorPartialCopyDuringDetours = 85,
 
         PipProcessStandardInputException = 86,
@@ -106,9 +108,7 @@ namespace BuildXL.Processes.Tracing
         ResumeOrSuspendProcessError = 878,
         ResumeOrSuspendException = 879,
         // 880 is used
-        UnexpectedCondition = 881,
 
-        DetouredProcessAccessViolationException = 882,
 
         // Temp files/directory cleanup
         PipTempDirectoryCleanupWarning = 2201,
@@ -152,8 +152,21 @@ namespace BuildXL.Processes.Tracing
         DumpSurvivingPipProcessChildrenStatus = 12213,
         ExistenceAssertionUnderOutputDirectoryFailed = 12214,
 
+        /// Sandboxed process remoting.
+        FindAnyBuildClient = 12500, // was LogRemotingDebugMessage
+        FindOrStartAnyBuildDaemon = 12501, // was LogRemotingErrorMessage
         PipProcessStartRemoteExecution = 12502,
         PipProcessFinishedRemoteExecution = 12503,
+        ExceptionOnFindOrStartAnyBuildDaemon = 12504,
+        ExceptionOnGetAnyBuildRemoteProcessFactory = 12505,
+        InstallAnyBuildClient = 12506,
+        FailedDownloadingAnyBuildClient = 12507,
+        FailedInstallingAnyBuildClient = 12508,
+        FinishedInstallAnyBuild = 12509,
+        ExecuteAnyBuildBootstrapper = 12510,
+        InstallAnyBuildClientDetails = 12511,
+        ExceptionOnFindingAnyBuildClient = 12512,
+        AnyBuildRepoConfigOverrides = 12513,
 
         SandboxedProcessResultLogOutputTimeout = 12514,
 

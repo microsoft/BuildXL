@@ -24,7 +24,6 @@ namespace UnitTests.Bxl {
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Engine").ViewModel.dll,
             importFrom("BuildXL.Engine").Processes.dll,
-            importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             importFrom("BuildXL.Pips").dll,
         ],
     });

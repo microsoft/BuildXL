@@ -168,7 +168,7 @@ namespace BuildXL.ProcessPipExecutor
         /// </summary>
         public static void ReportDuplicateVariable(LoggingContext loggingContext, string key, string existingValue, string ignoredValue)
         {
-            Tracing.Logger.Log.DuplicateWindowsEnvironmentVariableEncountered(
+            Processes.Tracing.Logger.Log.DuplicateWindowsEnvironmentVariableEncountered(
                 loggingContext,
                 key,
                 existingValue,

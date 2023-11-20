@@ -2,12 +2,11 @@
 // Licensed under the MIT License.
 
 using BuildXL.Utilities.Instrumentation.Common;
-using LogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable 1591
 #nullable enable
 
-namespace BuildXL.ProcessPipExecutor.Tracing
+namespace BuildXL.Processes.Tracing
 {
     /// <summary>
     /// Logging
@@ -21,25 +20,6 @@ namespace BuildXL.ProcessPipExecutor.Tracing
         /// Returns the logger instance
         /// </summary>
         public static Logger Log => m_log;
-
-        [GeneratedEvent(
-            (int)LogEventId.PipProcessFinishedRemoteExecution,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Remoting process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
-        public abstract void PipProcessFinishedRemoteExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
-
-
-        [GeneratedEvent(
-            (int)LogEventId.PipProcessStartRemoteExecution,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Remoting process execution via '{tool}' starts")]
-        public abstract void PipProcessStartRemoteExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, string tool);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessFileAccess,
@@ -370,31 +350,135 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             Message = EventConstants.PipPrefix + "Process with id {2} at '{3}'")]
         public abstract void PipProcess(LoggingContext context, long pipSemiStableHash, string pipDescription, uint id, string path);
 
-        /// <summary>
-        /// Message format: Failed to instrument process ID {processId} for file monitoring on behalf of an existing instrumented process, error: {error}. Most likely reason for this error is the run time for the process exceeded the allowed timeout for the process to complete.
-        /// </summary>
         [GeneratedEvent(
             (int)LogEventId.BrokeredDetoursInjectionFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "{message}")]
-        public abstract void BrokeredDetoursInjectionFailed(LoggingContext context, string message);
+            Message = "Failed to instrument process ID {0} for file monitoring on behalf of an existing instrumented process, error: {1}. Most likely reason for this error is the run time for the process exceeded the allowed timeout for the process to complete.")]
+        public abstract void BrokeredDetoursInjectionFailed(LoggingContext context, uint processId, string error);
 
-        /// <summary>
-        /// Message format: [Pip{pipSemiStableHash:X16}] Detours Debug Message: {message}
-        /// </summary>
         [GeneratedEvent(
             (int)LogEventId.LogDetoursDebugMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "{message}")]
-        public abstract void LogDetoursDebugMessage(LoggingContext context, string message);
+            Message = "[Pip{pipSemiStableHash:X16}] Detours Debug Message: {message}")]
+        public abstract void LogDetoursDebugMessage(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string message);
 
- 
+        [GeneratedEvent(
+            (int)LogEventId.FindAnyBuildClient,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Find AnyBuild client for process remoting at '{anyBuildInstallDir}'")]
+        public abstract void FindAnyBuildClient(LoggingContext context, string anyBuildInstallDir);
+
+        [GeneratedEvent(
+            (int)LogEventId.FindOrStartAnyBuildDaemon,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Find or start AnyBuild daemon manager for process remoting with arguments '{args}' (log directory: '{logDir}')")]
+        public abstract void FindOrStartAnyBuildDaemon(LoggingContext context, string args, string logDir);
+
+        [GeneratedEvent(
+            (int)LogEventId.ExceptionOnFindOrStartAnyBuildDaemon,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Exception on finding or starting AnyBuild daemon: {exception}")]
+        public abstract void ExceptionOnFindOrStartAnyBuildDaemon(LoggingContext context, string exception);
+
+        [GeneratedEvent(
+            (int)LogEventId.ExceptionOnGetAnyBuildRemoteProcessFactory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Exception on getting AnyBuild remote process factory: {exception}")]
+        public abstract void ExceptionOnGetAnyBuildRemoteProcessFactory(LoggingContext context, string exception);
+
+        [GeneratedEvent(
+            (int)LogEventId.ExceptionOnFindingAnyBuildClient,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Exception on finding AnyBuild client: {exception}")]
+        public abstract void ExceptionOnFindingAnyBuildClient(LoggingContext context, string exception);
+
+        [GeneratedEvent(
+            (int)LogEventId.AnyBuildRepoConfigOverrides,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "AnyBuild repo config overrides: {config}")]
+        public abstract void AnyBuildRepoConfigOverrides(LoggingContext context, string config);
+
+        [GeneratedEvent(
+            (int)LogEventId.InstallAnyBuildClient,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Installing AnyBuild client from '{source}' (ring: {ring})")]
+        public abstract void InstallAnyBuildClient(LoggingContext context, string source, string ring);
+
+        [GeneratedEvent(
+            (int)LogEventId.InstallAnyBuildClientDetails,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Installing AnyBuild client from '{source}' (ring: {ring}): {reason}")]
+        public abstract void InstallAnyBuildClientDetails(LoggingContext context, string source, string ring, string reason);
+
+        [GeneratedEvent(
+            (int)LogEventId.FailedDownloadingAnyBuildClient,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Failed downloading AnyBuild client: {message}")]
+        public abstract void FailedDownloadingAnyBuildClient(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.FailedInstallingAnyBuildClient,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Failed installing AnyBuild client: {message}")]
+        public abstract void FailedInstallingAnyBuildClient(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.FinishedInstallAnyBuild,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Finished installing AnyBuild client: {message}")]
+        public abstract void FinishedInstallAnyBuild(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.ExecuteAnyBuildBootstrapper,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Execute AnyBuild bootstrapper: {command}")]
+        public abstract void ExecuteAnyBuildBootstrapper(LoggingContext context, string command);
+
         [GeneratedEvent(
             (int)LogEventId.LogMacKextFailure,
             EventGenerators = EventGenerators.LocalOnly,
@@ -421,17 +505,25 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             string pipDescription,
             string policyFilePath);
 
-        /// <summary>
-        /// Message foramt: "[{PipSemiStableHash}] Maximum detours heap size for process in the pip is {maxDetoursHeapSizeInBytes} bytes. The processName '{processName}'. The processId is: {processId}. The manifestSize in bytes is: {manifestSizeInBytes}. The finalDetoursHeapSize in bytes is: {finalDetoursHeapSizeInBytes}. The allocatedPoolEntries is: {allocatedPoolEntries}. The maxHandleMapEntries is: {maxHandleMapEntries}. The handleMapEntries is: {handleMapEntries}."  
-        /// </summary>
         [GeneratedEvent(
             (int)LogEventId.LogDetoursMaxHeapSize,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "{message}")]
-        public abstract void LogDetoursMaxHeapSize(LoggingContext context, string message);
+            Message = EventConstants.PipPrefix + "Maximum detours heap size for process in the pip is {maxDetoursHeapSizeInBytes} bytes. The processName '{processName}'. The processId is: {processId}. The manifestSize in bytes is: {manifestSizeInBytes}. The finalDetoursHeapSize in bytes is: {finalDetoursHeapSizeInBytes}. The allocatedPoolEntries is: {allocatedPoolEntries}. The maxHandleMapEntries is: {maxHandleMapEntries}. The handleMapEntries is: {handleMapEntries}.")]
+        public abstract void LogDetoursMaxHeapSize(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            ulong maxDetoursHeapSizeInBytes,
+            string processName,
+            uint processId,
+            uint manifestSizeInBytes,
+            ulong finalDetoursHeapSizeInBytes,
+            uint allocatedPoolEntries,
+            ulong maxHandleMapEntries,
+            ulong handleMapEntries);
 
         [GeneratedEvent(
             (int)LogEventId.LogInternalDetoursErrorFileNotEmpty,
@@ -846,17 +938,19 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             string existingValue,
             string ignoredValue);
 
-        /// <summary>
-        /// Message format: "[{PipSemiStableHash}] File access on file '{path}' requested with Read/Write but granted for Read only by process with ID: {processId}."
-        /// </summary>
         [GeneratedEvent(
             (int)LogEventId.ReadWriteFileAccessConvertedToReadMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "{message}")]
-        public abstract void ReadWriteFileAccessConvertedToReadMessage(LoggingContext context, string message);
+            Message = EventConstants.PipPrefix + "File access on file '{3}' requested with Read/Write but granted for Read only by process with ID: {2}.")]
+        public abstract void ReadWriteFileAccessConvertedToReadMessage(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            uint processId,
+            string path);
 
         [GeneratedEvent(
             (int)LogEventId.ReadWriteFileAccessConvertedToReadWarning,
@@ -953,7 +1047,6 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = EventConstants.PipPrefix + "Detected double write in '{destinationFile}' when merging outputs to their original location. The double write is allowed due to configured policy.")]
         internal abstract void DoubleWriteAllowedDueToPolicy(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string destinationFile);
-        
         [GeneratedEvent(
             (int)LogEventId.PipProcessStartExternalTool,
             EventGenerators = EventGenerators.LocalOnly,
@@ -971,7 +1064,25 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
         public abstract void PipProcessFinishedExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
-            
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessStartRemoteExecution,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Remoting process execution via '{tool}' starts")]
+        public abstract void PipProcessStartRemoteExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, string tool);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessFinishedRemoteExecution,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Remoting process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
+        public abstract void PipProcessFinishedRemoteExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
+
         [GeneratedEvent(
             (int)LogEventId.PipProcessStartExternalVm,
             EventGenerators = EventGenerators.LocalOnly,
@@ -989,6 +1100,15 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Process execution in VM finished with VM's command proxy exit code {exitCode}:{stdOut}{stdErr}")]
         public abstract void PipProcessFinishedExternalVm(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessExternalExecution,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "External execution: {message}")]
+        public abstract void PipProcessExternalExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, string message);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessNeedsExecuteExternalButExecuteInternal,
@@ -1051,17 +1171,14 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             Message = "Cannot read sideband file '{fileName}': {error}")]
         public abstract void CannotReadSidebandFileWarning(LoggingContext context, string fileName, string error);
 
-        /// <summary>
-        /// Message format: [{pipSemiStableHash}] occurred an error for {failedOperation}: {errorCode}
-        /// </summary>
         [GeneratedEvent(
             (ushort)LogEventId.ResumeOrSuspendProcessError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "{message}")]
-        public abstract void ResumeOrSuspendProcessError(LoggingContext context, string message);
+            Message = "[{pipSemiStableHash}] occurred an error for {failedOperation}: {errorCode}")]
+        public abstract void ResumeOrSuspendProcessError(LoggingContext context, string pipSemiStableHash, string failedOperation, int errorCode);
 
         [GeneratedEvent(
             (int)LogEventId.ResumeOrSuspendException,
@@ -1081,17 +1198,14 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             Message = "[{pipDescription}] Failed to probe '{path}' under a shared opaque directory : {details}")]
         public abstract void CannotProbeOutputUnderSharedOpaque(LoggingContext context, string pipDescription, string path, string details);
 
-        /// <summary>
-        /// Message format: "Failure during dumping unexpected surviving child processes for Process: '{processName}'. Status: {status}"
-        /// </summary>
         [GeneratedEvent(
             (int)LogEventId.DumpSurvivingPipProcessChildrenStatus,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "{message}")]
-        public abstract void DumpSurvivingPipProcessChildrenStatus(LoggingContext context, string message);
+            Message = EventConstants.PipPrefix + "Failure during dumping unexpected surviving child processes for Process: '{processName}'. Status: {status}")]
+        public abstract void DumpSurvivingPipProcessChildrenStatus(LoggingContext context, string processName, string status);
 
         [GeneratedEvent(
             (int)LogEventId.ExistenceAssertionUnderOutputDirectoryFailed,
@@ -1111,29 +1225,23 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             Message = "[{pipSemiStableHash}] Logging process StandardOutput/StandardError timed out after exceeding '{timeoutInMinutes}' minutes. This may be caused by the default terminal being Windows Terminal, workaround this by switching the default terminal to 'Windows Console Host' in Windows settings or Windows Terminal settings. Output streams may be incomplete due to this error.")]
         public abstract void SandboxedProcessResultLogOutputTimeout(LoggingContext context, string pipSemiStableHash, int timeoutInMinutes);
 
-        /// <summary>
-        /// Message format: [{pipDescription}] The following processes '{exePath}' are statically linked and their file accesses may not be reported by the sandbox.
-        /// </summary>
         [GeneratedEvent(
             (int)LogEventId.LinuxSandboxReportedStaticallyLinkedBinary,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "{message}")]
-        public abstract void LinuxSandboxReportedStaticallyLinkedBinary(LoggingContext context, string message);
+            Message = "[{pipDescription}] The following processes '{exePath}' are statically linked and their file accesses may not be reported by the sandbox.")]
+        public abstract void LinuxSandboxReportedStaticallyLinkedBinary(LoggingContext context, string pipDescription, string exePath);
 
-        /// <summary>
-        /// Message format: [{pipDescription}] The following processes '{exePath}' are statically linked and their file accesses may not be reported by the sandbox.
-        /// </summary>
         [GeneratedEvent(
             (int)LogEventId.PTraceSandboxLaunchedForPip,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)((Keywords.UserMessage) | Keywords.Diagnostics),
             EventTask = (int)Tasks.PipExecutor,
-            Message = "{message}")]
-        public abstract void PTraceSandboxLaunchedForPip(LoggingContext context, string message);
+            Message = "[{pipDescription}] Ptrace sandbox was launched for the following processes '{exePath}'.")]
+        public abstract void PTraceSandboxLaunchedForPip(LoggingContext context, string pipDescription, string exePath);
 
         [GeneratedEvent(
             (ushort)LogEventId.PTraceRunnerError,
@@ -1144,28 +1252,22 @@ namespace BuildXL.ProcessPipExecutor.Tracing
             Message = "PTraceRunner logged the following error: {content}")]
         internal abstract void PTraceRunnerError(LoggingContext loggingContext, string content);
 
-        /// <summary>
-        /// Message format: [{pipDescription}] Received ProcessCommandLine report without a matching ProcessStart report for pid '{pid}'.
-        /// </summary>
         [GeneratedEvent(
             (ushort)LogEventId.ReportArgsMismatch,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "{message}")]
-        internal abstract void ReportArgsMismatch(LoggingContext loggingContext, string message);
+            Message = "[{pipDescription}] Received ProcessCommandLine report without a matching ProcessStart report for pid '{pid}'.")]
+        internal abstract void ReportArgsMismatch(LoggingContext loggingContext, string pipDescription, string pid);
 
-        /// <summary>
-        /// Message format: [{pipDescription}] [Warning] received report from unknown pid: {pid} - {reportDetail}
-        /// </summary>
         [GeneratedEvent(
-                    (ushort)LogEventId.ReceivedReportFromUnknownPid,
-                    EventGenerators = EventGenerators.LocalOnly,
-                    EventLevel = Level.Verbose,
-                    Keywords = (int)Keywords.UserMessage,
-                    EventTask = (ushort)Tasks.Scheduler,
-                    Message = "{message}")]
-        internal abstract void ReceivedReportFromUnknownPid(LoggingContext loggingContext, string message);
+            (ushort)LogEventId.ReceivedReportFromUnknownPid,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] [Warning] received report from unknown pid: {pid} - {reportDetail}")]
+        internal abstract void ReceivedReportFromUnknownPid(LoggingContext loggingContext, string pipDescription, string pid, string reportDetail);
     }
 }

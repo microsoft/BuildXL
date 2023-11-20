@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO.Pipes;
@@ -14,7 +13,6 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Processes.Internal;
-using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
@@ -43,7 +41,7 @@ namespace BuildXL.Processes
         private IAsyncPipeReader m_injectionRequestReader;
         private bool m_stopping;
 
-        private readonly SandboxedProcessLogAction m_loggingAction;
+        private readonly LoggingContext m_loggingContext;
 
         public ProcessTreeContext(
             Guid payloadGuid,
@@ -53,12 +51,13 @@ namespace BuildXL.Processes
             string dllNameX86,
             int numRetriesPipeReadOnCancel,
             Action<string> debugPipeReporter,
-            [MaybeNull] SandboxedProcessLogAction loggingAction)
+            LoggingContext loggingContext)
         {
             // We cannot create this object in a wow64 process
             Contract.Assume(!ProcessUtilities.IsWow64Process(), "ProcessTreeContext:ctor - Cannot run injection server in a wow64 32 bit process");
+            Contract.Requires(loggingContext != null);
 
-            m_loggingAction = loggingAction;
+            m_loggingContext = loggingContext;
             SafeFileHandle childHandle = null;
             NamedPipeServerStream serverStream = null;
 
@@ -302,7 +301,7 @@ namespace BuildXL.Processes
             }
 
             HasDetoursInjectionFailures = true;
-            m_loggingAction?.Invoke(LogEventId.BrokeredDetoursInjectionFailed, $"Failed to instrument process ID {processId} for file monitoring on behalf of an existing instrumented process, error: {error}. Most likely reason for this error is the run time for the process exceeded the allowed timeout for the process to complete.");
+            Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext, processId, error);
         }
     }
 }

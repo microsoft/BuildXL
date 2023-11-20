@@ -8,7 +8,6 @@ namespace Processes.External {
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Processes.External",
-        generateLogs: true,
         sources: [
             ...globR(d`.`, "*.cs"),
             ...GrpcSdk.generateCSharp({

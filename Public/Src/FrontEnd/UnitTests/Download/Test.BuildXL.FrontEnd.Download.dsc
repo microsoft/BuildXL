@@ -15,7 +15,6 @@ namespace Download {
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Engine").Processes.dll,
-            importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

@@ -13,7 +13,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using BuildXL.Processes.Tracing;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
 #else
@@ -83,9 +82,9 @@ namespace BuildXL.Processes
         protected Process Process => m_processExecutor.Process;
 
         /// <summary>
-        /// Logging action from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
+        /// Logging context from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
         /// </summary>
-        protected SandboxedProcessLogAction? SandboxedProcessLogAction;
+        protected LoggingContext LoggingContext { get; }
 
         /// <summary>
         /// Pip description from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
@@ -139,7 +138,7 @@ namespace BuildXL.Processes
         public UnsandboxedProcess(SandboxedProcessInfo info)
         {
             PathTable = info.PathTable;
-            SandboxedProcessLogAction = info.SandboxedProcessLogAction;
+            LoggingContext = info.LoggingContext;
             PipDescription = info.PipDescription;
             PipSemiStableHash = info.PipSemiStableHash;
             TimeoutDumpDirectory = info.TimeoutDumpDirectory;
@@ -440,7 +439,10 @@ namespace BuildXL.Processes
                 DetoursListener.HandleDebugMessage(new IDetoursEventListener.DebugData { PipId = PipSemiStableHash, PipDescription = PipDescription, DebugMessage = fullMessage });
             }
 
-            SandboxedProcessLogAction?.Invoke(LogEventId.LogDetoursDebugMessage, $"[Pip{PipSemiStableHash:X16}] Detours Debug Message: {fullMessage}");
+            if (LoggingContext != null)
+            {
+                Tracing.Logger.Log.LogDetoursDebugMessage(LoggingContext, PipSemiStableHash, fullMessage);
+            }
         }
 
         /// <summary>

@@ -47,7 +47,7 @@ namespace Test.BuildXL.FrontEnd.Download
         protected DownloadResolverIntegrationTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
-            RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);

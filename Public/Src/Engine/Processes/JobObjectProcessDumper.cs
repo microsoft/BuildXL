@@ -10,7 +10,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Native.Processes;
-using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
@@ -32,7 +31,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Attempts to obtain a collection of surviving processes and dump all processes in a process tree if required. Any files existing in the dump directory will be deleted.
         /// </summary>
-        public static Dictionary<uint, ReportedProcess>? GetAndOptionallyDumpProcesses(JobObject jobObject, LoggingContext loggingContext, SandboxedProcessLogAction? sandboxedProcessLogAction, string? survivingPipProcessDumpDirectory, bool dumpProcess, out Exception? dumpException)
+        public static Dictionary<uint, ReportedProcess>? GetAndOptionallyDumpProcesses(JobObject jobObject, LoggingContext loggingContext, string? survivingPipProcessDumpDirectory, bool dumpProcess, out Exception? dumpException)
         {
             dumpException = null;
 
@@ -125,12 +124,12 @@ namespace BuildXL.Processes
                         {
                             if (!string.IsNullOrEmpty(survivingPipProcessDumpDirectory))
                             {
-                                DumpProcess(sandboxedProcessLogAction, survivingPipProcessDumpDirectory!, reportedProcess, out Exception? childDumpException);
+                                DumpProcess(loggingContext, survivingPipProcessDumpDirectory!, reportedProcess, out Exception? childDumpException);
                                 dumpException ??= childDumpException;
                             }
                             else
                             {
-                                sandboxedProcessLogAction?.Invoke(LogEventId.DumpSurvivingPipProcessChildrenStatus, $"Failure during dumping unexpected surviving child processes for Process: '{reportedProcess.ProcessId}'. Status: Failed due to missing dump directory.");
+                                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, reportedProcess.ProcessId.ToString(), $"Failed due to missing dump directory.");
                                 continue;
                             }
                         }
@@ -140,28 +139,28 @@ namespace BuildXL.Processes
             return survivingChildProcesses;
         }
 
-        private static void DumpProcess(SandboxedProcessLogAction? sandboxedProcessLogAction, string survivingPipProcessDumpDirectory, ReportedProcess reportedProcess, out Exception? childDumpException)
+        private static void DumpProcess(LoggingContext loggingContext, string survivingPipProcessDumpDirectory, ReportedProcess reportedProcess, out Exception? childDumpException)
         {
             childDumpException = null;
 
-            if (TryGetProcessById((int)reportedProcess.ProcessId, out var processToBeDumped, sandboxedProcessLogAction, out Exception? getProcessIdException))
+            if (TryGetProcessById((int)reportedProcess.ProcessId, out var processToBeDumped, loggingContext, out Exception? getProcessIdException))
             {
                 string dumpPath = System.IO.Path.Combine(survivingPipProcessDumpDirectory, $"Dump_{reportedProcess.ParentProcessId}_{reportedProcess.ProcessId}_{processToBeDumped?.ProcessName}.zip");
                 if (!ProcessDumper.TryDumpProcess(processToBeDumped!, dumpPath, out Exception dumpException, compress: true))
                 {
-                    sandboxedProcessLogAction?.Invoke(LogEventId.DumpSurvivingPipProcessChildrenStatus, $"Failure during dumping unexpected surviving child processes for Process: '{processToBeDumped!.ProcessName}'. Status: Failed with Exception: {dumpException?.Message}");
+                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, processToBeDumped!.ProcessName, $"Failed with exception: {dumpException?.Message}");
                     getProcessIdException = dumpException;
                 }
                 else
                 {
-                    sandboxedProcessLogAction?.Invoke(LogEventId.DumpSurvivingPipProcessChildrenStatus, $"Failure during dumping unexpected surviving child processes for Process: '{processToBeDumped!.ProcessName}'. Status: Succeeded at path: {dumpPath}");
+                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, processToBeDumped!.ProcessName, $"Succeeded at path: {dumpPath}");
                 }
             }
 
             childDumpException ??= getProcessIdException;
         }
 
-        private static bool TryGetProcessById(int pid, out System.Diagnostics.Process? process, SandboxedProcessLogAction? sandboxedProcessLogAction, out Exception? childDumpException)
+        private static bool TryGetProcessById(int pid, out System.Diagnostics.Process? process, LoggingContext loggingContext, out Exception? childDumpException)
         {
             process = null;
             childDumpException = null;
@@ -177,12 +176,12 @@ namespace BuildXL.Processes
             }
             catch (ArgumentException aEx)
             {
-                sandboxedProcessLogAction?.Invoke(LogEventId.DumpSurvivingPipProcessChildrenStatus, $"Failure during dumping unexpected surviving child processes for Process: '{pid}'. Status: Failed with Exception: {aEx.Message}");
+                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, pid.ToString(), $"Failed with Exception: {aEx.Message}");
                 childDumpException = aEx;
             }
             catch (InvalidOperationException ioEx)
             {
-                sandboxedProcessLogAction?.Invoke(LogEventId.DumpSurvivingPipProcessChildrenStatus, $"Failure during dumping unexpected surviving child processes for Process: '{pid}'. Status: Failed with Exception: {ioEx.Message}");
+                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, pid.ToString(), $"Failed with Exception: {ioEx.Message}");
                 childDumpException = ioEx;
             }
             return false;

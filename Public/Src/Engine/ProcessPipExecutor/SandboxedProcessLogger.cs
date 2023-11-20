@@ -51,7 +51,7 @@ namespace BuildXL.ProcessPipExecutor
             {
                 foreach (ReportedFileAccess reportedFile in fileAccesses)
                 {
-                    Tracing.Logger.Log.PipProcessFileAccess(
+                    Processes.Tracing.Logger.Log.PipProcessFileAccess(
                         LoggingContext,
                         Process.SemiStableHash,
                         Process.FormattedSemiStableHash,
@@ -64,7 +64,7 @@ namespace BuildXL.ProcessPipExecutor
             {
                 foreach (var reportedProcess in processes)
                 {
-                    Tracing.Logger.Log.PipProcess(
+                    Processes.Tracing.Logger.Log.PipProcess(
                         LoggingContext,
                         Process.SemiStableHash,
                         Process.FormattedSemiStableHash,

@@ -36,7 +36,7 @@ namespace Test.BuildXL.Processes.Detours
         public SandboxedProcessPipExecutorTest(ITestOutputHelper output)
             : base(output)
         {
-            RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
         }
 
         #region Test Helper Methods

@@ -33,7 +33,7 @@ namespace Test.BuildXL.Processes
             : base(output)
         {
             TestOutput = output;
-            RegisterEventSource(global::BuildXL.ProcessPipExecutor.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
         }
 
         private sealed class MyListener : IDetoursEventListener

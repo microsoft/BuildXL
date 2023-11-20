@@ -18,7 +18,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Text.Json;
 using static BuildXL.Utilities.Core.CounterCollection;
-using BuildXL.Processes.External.Tracing;
 
 #nullable enable
 
@@ -133,12 +132,12 @@ namespace BuildXL.Processes.Remoting
             {
                 try
                 {
-                    Logger.Log.FindAnyBuildClient(m_loggingContext, EngineEnvironmentSettings.AnyBuildInstallDir ?? "default");
+                    Tracing.Logger.Log.FindAnyBuildClient(m_loggingContext, EngineEnvironmentSettings.AnyBuildInstallDir ?? "default");
                     abClient = AnyBuildClient.Find(EngineEnvironmentSettings.AnyBuildInstallDir);
                 }
                 catch (AnyBuildNotInstalledException e)
                 {
-                    Logger.Log.ExceptionOnFindingAnyBuildClient(m_loggingContext, e.ToString());
+                    Tracing.Logger.Log.ExceptionOnFindingAnyBuildClient(m_loggingContext, e.ToString());
                     return new InitResult(
                         null,
                         null,
@@ -158,7 +157,7 @@ namespace BuildXL.Processes.Remoting
                     string logDir = m_configuration.Logging.LogsDirectory.ToString(m_executionContext.PathTable);
                     string extraParams = CreateAnyBuildParams();
 
-                    Logger.Log.FindOrStartAnyBuildDaemon(m_loggingContext, extraParams, logDir);
+                    Tracing.Logger.Log.FindOrStartAnyBuildDaemon(m_loggingContext, extraParams, logDir);
 
                     var options = new AnyBuildClientFindDaemonOptions
                     {
@@ -178,7 +177,7 @@ namespace BuildXL.Processes.Remoting
                 }
                 catch (Exception e)
                 {
-                    Logger.Log.ExceptionOnFindOrStartAnyBuildDaemon(m_loggingContext, e.ToString());
+                    Tracing.Logger.Log.ExceptionOnFindOrStartAnyBuildDaemon(m_loggingContext, e.ToString());
                     return new InitResult(
                         abClient,
                         null,
@@ -197,7 +196,7 @@ namespace BuildXL.Processes.Remoting
                 }
                 catch (Exception e)
                 {
-                    Logger.Log.ExceptionOnGetAnyBuildRemoteProcessFactory(m_loggingContext, e.ToString());
+                    Tracing.Logger.Log.ExceptionOnGetAnyBuildRemoteProcessFactory(m_loggingContext, e.ToString());
                     return new InitResult(
                         abClient,
                         daemonManager,
@@ -301,7 +300,7 @@ namespace BuildXL.Processes.Remoting
             // TODO: Change to File.WriteAllTextAsync when moving completely from NET framework.
             File.WriteAllText(jsonConfigOverridesFile, jsonConfigOverrides);
 
-            Logger.Log.AnyBuildRepoConfigOverrides(m_loggingContext, Environment.NewLine + jsonConfigOverrides);
+            Tracing.Logger.Log.AnyBuildRepoConfigOverrides(m_loggingContext, Environment.NewLine + jsonConfigOverrides);
 
             return jsonConfigOverridesFile;
         }

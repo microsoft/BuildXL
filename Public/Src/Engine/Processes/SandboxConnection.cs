@@ -11,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.Processes;
-using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -174,10 +173,10 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public void NotifyPipReady(SandboxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
+        public void NotifyPipReady(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process, Task reportCompletion) {}
 
         /// <inheritdoc />
-        public bool NotifyPipStarted(SandboxedProcessLogAction sandboxedProcessLogAction, FileAccessManifest fam, SandboxedProcessUnix process)
+        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
         {
             Contract.Requires(process.Started);
             Contract.Requires(process.PipId != 0);
@@ -198,7 +197,7 @@ namespace BuildXL.Processes
             {
                 var debugFlags = true;
                 ArraySegment<byte> manifestBytes = fam.GetPayloadBytes(
-                    sandboxedProcessLogAction,
+                    loggingContext,
                     setup,
                     wrapper.Instance,
                     timeoutMins: 10, // don't care because on Mac we don't kill the process from the sandbox once it times out

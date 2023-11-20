@@ -8,7 +8,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Processes;
-using BuildXL.Processes.Tracing;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -504,13 +503,12 @@ namespace Test.BuildXL.Processes.Detours
             StringBuilder stdOutBuilder,
             StringBuilder stdErrBuilder)
         {
-            LoggingContext loggingContext = CreateLoggingContext();
             return new SandboxedProcessInfo(
                 context.PathTable,
                 new LocalSandboxedFileStorage(),
                 executable,
                 disableConHostSharing: false,
-                loggingContext: loggingContext,
+                loggingContext: CreateLoggingContext(),
                 fileAccessManifest: fileAccessManifest,
                 sidebandWriter: null)
             {
@@ -527,7 +525,6 @@ namespace Test.BuildXL.Processes.Detours
                 EnvironmentVariables = BuildParameters.GetFactory().PopulateFromEnvironment(),
 
                 Timeout = TimeSpan.FromMinutes(1),
-                SandboxedProcessLogAction = SandboxedProcessPipExecutor.GetSandboxedProcessLogger(loggingContext),
             };
         }
 

@@ -12,10 +12,8 @@ namespace Processes {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Processes",
         sources: globR(d`.`, "*.cs"),
-        // disable log gen to remove BuildXL.Tracing reference. Logger is passed by delegate log action when creating SandboxedProcessInfo
-        // BuildXL.Tracing depends on BuildXL.Utilities which is problematic for downstream consumers of these packages.
-        generateLogs: false,
-        allowUnsafeBlocks: true,
+        generateLogs: true,
+        excludeTracing: true,
         references: [
             // IMPORTANT!!! Do not add non-bxl dependencies or any bxl projects apart from Native and Utilities.Core into this project
             //              This is consumed by MSBuild and adding any additional reference will cause it to break! BXL specific change

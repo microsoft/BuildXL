@@ -15,7 +15,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Processes.External.Tracing;
 
 #nullable enable
 
@@ -169,12 +168,12 @@ namespace BuildXL.Processes.Remoting
             }
             catch (Exception ex)
             {
-                Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, $"Failed to clean up installation root '{s_installRoot}': {ex}");
+                Tracing.Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, $"Failed to clean up installation root '{s_installRoot}': {ex}");
                 return false;
             }
 
-            Logger.Log.InstallAnyBuildClientDetails(m_loggingContext, m_source, m_ring.ToString(), reason);
-            Logger.Log.InstallAnyBuildClient(m_loggingContext, m_source, m_ring.ToString());
+            Tracing.Logger.Log.InstallAnyBuildClientDetails(m_loggingContext, m_source, m_ring.ToString(), reason);
+            Tracing.Logger.Log.InstallAnyBuildClient(m_loggingContext, m_source, m_ring.ToString());
 
             string? bootstrapperFile = await DownloadBootstrapperWinAsync(token);
 
@@ -199,7 +198,7 @@ namespace BuildXL.Processes.Remoting
                 ? args
                 : $"/c powershell.exe {args}";
 
-            Logger.Log.ExecuteAnyBuildBootstrapper(m_loggingContext, $"{fileName} {args}");
+            Tracing.Logger.Log.ExecuteAnyBuildBootstrapper(m_loggingContext, $"{fileName} {args}");
 
             var process = new Process()
             {
@@ -237,7 +236,7 @@ namespace BuildXL.Processes.Remoting
 
                 if (!processStarted)
                 {
-                    Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, "Failed to execute bootstrapper script");
+                    Tracing.Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, "Failed to execute bootstrapper script");
                     return false;
                 }
 
@@ -251,7 +250,7 @@ namespace BuildXL.Processes.Remoting
 
                 if (process.ExitCode != 0)
                 {
-                    Logger.Log.FailedInstallingAnyBuildClient(
+                    Tracing.Logger.Log.FailedInstallingAnyBuildClient(
                         m_loggingContext,
                         error.ToString() + " (see log for details)");
                 }
@@ -263,7 +262,7 @@ namespace BuildXL.Processes.Remoting
                     $"StdErr: {error}"
                 };
 
-                Logger.Log.FinishedInstallAnyBuild(
+                Tracing.Logger.Log.FinishedInstallAnyBuild(
                     m_loggingContext,
                     Environment.NewLine + string.Join(Environment.NewLine, result));
 
@@ -271,7 +270,7 @@ namespace BuildXL.Processes.Remoting
             }
             catch (Exception e)
             {
-                Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, e.ToString());
+                Tracing.Logger.Log.FailedInstallingAnyBuildClient(m_loggingContext, e.ToString());
                 return false;
             }
         }
@@ -303,7 +302,7 @@ namespace BuildXL.Processes.Remoting
             }
             catch (Exception ex)
             {
-                Logger.Log.FailedDownloadingAnyBuildClient(m_loggingContext, ex.ToString());
+                Tracing.Logger.Log.FailedDownloadingAnyBuildClient(m_loggingContext, ex.ToString());
                 return null;
             }
         }

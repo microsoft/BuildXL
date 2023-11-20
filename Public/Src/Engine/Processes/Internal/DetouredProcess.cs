@@ -15,13 +15,13 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
+using BuildXL.Native.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Diagnostics;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Threading;
 using Microsoft.Win32.SafeHandles;
-using BuildXL.Processes.Tracing;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = Microsoft.Win32.SafeHandles.SafeProcessHandle;
 #else
@@ -86,7 +86,6 @@ namespace BuildXL.Processes.Internal
         private readonly StringBuilder m_diagnostics;
         internal string Diagnostics => m_diagnostics?.ToString();
 
-        private readonly SandboxedProcessLogAction m_loggingAction;
         private readonly LoggingContext m_loggingContext;
 
         /// <summary>
@@ -344,7 +343,6 @@ namespace BuildXL.Processes.Internal
             Func<Task> processExited,
             TimeSpan? timeout,
             bool disableConHostSharing,
-            SandboxedProcessLogAction loggingAction,
             LoggingContext loggingContext,
             string timeoutDumpDirectory,
             bool setJobBreakawayOk,
@@ -381,7 +379,6 @@ namespace BuildXL.Processes.Internal
                 m_workingDirectory = Directory.GetCurrentDirectory();
             }
 
-            m_loggingAction = loggingAction;
             m_loggingContext = loggingContext;
             m_timeoutDumpDirectory = timeoutDumpDirectory;
             m_numRetriesPipeReadOnCancel = numRetriesPipeReadOnCancel;
@@ -546,7 +543,7 @@ namespace BuildXL.Processes.Internal
                             dllNameX86,
                             m_numRetriesPipeReadOnCancel,
                             m_debugPipeReporter,
-                            m_loggingAction);
+                            m_loggingContext);
 
                         if (!m_jobObjectCreatedExternally)
                         {
@@ -728,7 +725,7 @@ namespace BuildXL.Processes.Internal
                 {
                     if (e is AccessViolationException)
                     {
-                        m_loggingAction?.Invoke(LogEventId.DetouredProcessAccessViolationException, creationFlags + " - " + m_commandLine);
+                        Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, creationFlags + " - " + m_commandLine);
                     }
 
                     // Dispose pipe handles in case they are not assigned to streams.
@@ -930,7 +927,6 @@ namespace BuildXL.Processes.Internal
                         var survivingProcesses = JobObjectProcessDumper.GetAndOptionallyDumpProcesses(
                             jobObject: m_job,
                             loggingContext: m_loggingContext,
-                            sandboxedProcessLogAction: m_loggingAction,
                             survivingPipProcessDumpDirectory: DumpFileDirectory,
                             dumpProcess: true,
                             dumpException: out dumpCreationException);

@@ -531,7 +531,7 @@ namespace BuildXL.Engine
         {
             if (configuration.Cache.HistoricMetadataCache == true)
             {
-                var historicMetadataCache = Scheduler.State.Cache as HistoricMetadataCache;
+                var historicMetadataCache = Scheduler?.State?.Cache as HistoricMetadataCache;
                 if (!ShouldSerializeOptimizationDataStructurePostExecution() || historicMetadataCache == null)
                 {
                     return true;

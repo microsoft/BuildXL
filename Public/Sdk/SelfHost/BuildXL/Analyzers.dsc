@@ -9,7 +9,8 @@ export function getAnalyzerDlls(contents: StaticDirectory): Managed.Binary[] {
 
     return contents
         .getContent()
-        .filter(file => file.extension === a`.dll` && file.parent.name === a`cs`)
+        // Some of the analyzer live in 'dotnet' subfolder, not in 'cs' subfolder
+        .filter(file => file.extension === a`.dll` && (file.parent.name === a`cs` || file.parent.name === a`dotnet`))
         .map(file => Managed.Factory.createBinary(contents, file));
 }
 
@@ -23,4 +24,9 @@ export function getAnalyzers(args: Arguments) : Managed.Binary[] {
         ...getAnalyzerDlls(importFrom("Microsoft.CodeAnalysis.BannedApiAnalyzers").Contents.all),
         ...addIfLazy(Flags.isMicrosoftInternal, () => [ ...getAnalyzerDlls(importFrom("Microsoft.Internal.Analyzers").Contents.all) ]),
     ];
+}
+
+/** Returns analyzers dlls for 'Microsoft.CodeAnalysis.PublicApiAnalyzers'. */
+export function getPublicApiAnalyzers() : Managed.Binary[] {
+    return getAnalyzerDlls(importFrom("Microsoft.CodeAnalysis.PublicApiAnalyzers").Contents.all);
 }

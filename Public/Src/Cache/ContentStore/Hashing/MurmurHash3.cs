@@ -60,7 +60,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Hashes the given byte array.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public static unsafe MurmurHash3 Create(byte[] key, uint seed = 0)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             Contract.Requires(key != null);
 
@@ -73,7 +75,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Hashes the given byte array.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public static unsafe MurmurHash3 Create(byte* key, uint len, uint seed = 0)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             Contract.Requires(len == 0 || key != null);
 

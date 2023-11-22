@@ -216,7 +216,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <nodoc/>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public static BlobIdentifier CreateFromAlgorithmResult(string algorithmResult, byte algorithmId = Hashing.AlgorithmId.File)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             if (!HexUtilities.TryToByteArray(algorithmResult, out var identifier))
             {
@@ -227,7 +229,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <nodoc/>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public static BlobIdentifier CreateFromAlgorithmResult(byte[] algorithmResult, byte algorithmId = Hashing.AlgorithmId.File)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             return new BlobIdentifier(algorithmResult, algorithmId);
         }

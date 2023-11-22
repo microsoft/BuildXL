@@ -1049,6 +1049,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.PublicApiAnalyzers",
+          "Version": "3.3.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.VisualBasic",
           "Version": "2.10.0"
         }

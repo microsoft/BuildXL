@@ -99,22 +99,30 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Construct a stream wrapper that calculates the content hash as the stream is read.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         HashingStream CreateReadHashingStream(long streamLength, Stream stream, long parallelHashingFileSizeBoundary = -1);
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
 
         /// <summary>
         ///     Construct a stream wrapper that calculates the content hash as the stream is read.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         HashingStream CreateReadHashingStream(StreamWithLength stream, long parallelHashingFileSizeBoundary = -1);
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
 
         /// <summary>
         ///     Construct a stream wrapper that calculates the content hash as the stream is written.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         HashingStream CreateWriteHashingStream(long streamLength, Stream stream, long parallelHashingFileSizeBoundary = -1);
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
 
         /// <summary>
         ///     Construct a stream wrapper that calculates the content hash as the stream is written.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         HashingStream CreateWriteHashingStream(StreamWithLength stream, long parallelHashingFileSizeBoundary = -1);
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
 
         /// <summary>
         ///     Get statistics

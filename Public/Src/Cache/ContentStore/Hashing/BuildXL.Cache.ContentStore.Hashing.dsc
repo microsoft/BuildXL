@@ -41,6 +41,10 @@ namespace Hashing {
         allowUnsafeBlocks: true,
         // We reference 'ActionBlockSlim' here as sources to avoid runtime dependency to BuildXL.Utilities.
         // But we don't want to have two dlls with the same public type, so we make it internal in for this case.
-        defineConstants: ["DO_NOT_EXPOSE_ACTIONBLOCKSLIM"]
+        defineConstants: ["DO_NOT_EXPOSE_ACTIONBLOCKSLIM"],
+        
+        // The public surface of this project must be stable since any breakages are very expensive to integrate.
+        usePublicApiAnalyzer: true,
+        publicApiFiles: BuildXLSdk.getFrameworkSpecificPublicApiFiles(p`PublicAPI`),
     });
 }

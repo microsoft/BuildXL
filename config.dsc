@@ -126,6 +126,7 @@ config({
                 { id: "protobuf-net.BuildTools", version: "3.0.101" },
                 { id: "Microsoft.VisualStudio.Threading.Analyzers", version: "17.6.40"},
                 { id: "Text.Analyzers", version: "2.3.0-beta1" },
+                { id: "Microsoft.CodeAnalysis.PublicApiAnalyzers", version: "3.3.4" },
 
                 // MEF
                 { id: "Microsoft.Composition", version: "1.0.30" },

@@ -96,6 +96,12 @@ export interface Arguments extends Managed.Arguments {
      * A set of Roslyn analyzers used by the project.
      */
     analyzers?: NugetPackage[];
+    
+    /**
+     * If true then the public api analyzers are used for the project to enforce that the public (published) API of the project stays stable.
+     */
+    usePublicApiAnalyzer?: boolean;
+    publicApiFiles?: File[];
 }
 
 @@public
@@ -619,6 +625,14 @@ export function sdkTest(testFiles:ScriptSdkTestRunner.TestArguments): Managed.Te
     return ScriptSdkTestRunner.test(testFiles);
 }
 
+@@public
+export function getFrameworkSpecificPublicApiFiles(root: Path) {
+    return [
+        f`${root}/${qualifier.targetFramework}/PublicAPI.Shipped.txt`,
+        f`${root}/${qualifier.targetFramework}/PublicAPI.Unshipped.txt`,
+    ];
+}
+
 export const assemblyInfo: Managed.AssemblyInfo = {
     productName: Branding.longProductName,
     company: Branding.company,
@@ -665,12 +679,18 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     let analyzers = [
         ...getAnalyzers(args), 
         ...(args.sourceGenerators !== undefined ? args.sourceGenerators.mapMany(s => getAnalyzerDlls(s.contents)) : []),
-        ...(args.analyzers !== undefined ? args.analyzers.mapMany(s => getAnalyzerDlls(s.contents)) : [])
+        ...(args.analyzers !== undefined ? args.analyzers.mapMany(s => getAnalyzerDlls(s.contents)) : []),
+        ...(args.usePublicApiAnalyzer ? getPublicApiAnalyzers() : [])
         ];
 
     if (args.generateLogsInProc) {
         // We use custom-built source generators for in-proc log gen that requires special logic here.
         analyzers = [...analyzers, ...getInProcLogGenerators()];
+    }
+
+    let additionalFiles = [];
+    if (args.usePublicApiAnalyzer) {
+        additionalFiles = args.publicApiFiles || [];
     }
 
     let ruleset : File = undefined;
@@ -806,17 +826,17 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             };
             
             const logGenFile = Json.write(logGenConfig, config, '"');
-
-            args = args.merge({
-                tools: {
-                    csc: {
-                            additionalFiles: [logGenFile]
-                    }
-                }
-            });
+            additionalFiles = [...additionalFiles, logGenFile];
         }
-
     }
+
+    args = args.merge({
+        tools: {
+            csc: {
+                additionalFiles: additionalFiles
+            }
+        }
+    });
 
     let polySharpAttributeFiles : File[] = [];
 

@@ -274,25 +274,33 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public HashingStream CreateReadHashingStream(long streamLength, Stream stream, long parallelHashingFileSizeBoundary = -1)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             return new HashingStreamImpl(stream, this, CryptoStreamMode.Read, useParallelHashing: parallelHashingFileSizeBoundary >= 0, parallelHashingFileSizeBoundary, streamLength);
         }
 
         /// <inheritdoc />
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public HashingStream CreateReadHashingStream(StreamWithLength stream, long parallelHashingFileSizeBoundary = -1)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             return CreateReadHashingStream(stream.Length, stream, parallelHashingFileSizeBoundary);
         }
 
         /// <inheritdoc />
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public HashingStream CreateWriteHashingStream(long streamLength, Stream stream, long parallelHashingFileSizeBoundary = -1)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             return new HashingStreamImpl(stream, this, CryptoStreamMode.Write, useParallelHashing: parallelHashingFileSizeBoundary >= 0, parallelHashingFileSizeBoundary, streamLength);
         }
 
         /// <inheritdoc />
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public HashingStream CreateWriteHashingStream(StreamWithLength stream, long parallelHashingFileSizeBoundary = -1)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             return CreateWriteHashingStream(stream.Length, stream, parallelHashingFileSizeBoundary);
         }

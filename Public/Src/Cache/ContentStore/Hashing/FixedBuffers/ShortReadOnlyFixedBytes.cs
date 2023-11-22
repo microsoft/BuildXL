@@ -159,7 +159,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Give the bytes as a hex string.
         /// </summary>
+#pragma warning disable RS0027 // API with optional parameter(s) should have the most parameters amongst its public overloads
         public string ToHex(int length = MaxLength) => ToHex(0, length);
+#pragma warning restore RS0027 // API with optional parameter(s) should have the most parameters amongst its public overloads
 
         /// <summary>
         ///     Give the bytes as a hex string.
@@ -219,7 +221,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Serialize value to a buffer.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public void Serialize(byte[] buffer, int length = MaxLength, int offset = 0)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
 
@@ -232,7 +236,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Serialize whole value to a binary writer.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public void Serialize(BinaryWriter writer, byte[] buffer, int length = MaxLength)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             fixed (byte* p = &_bytes.FixedElementField)
             {

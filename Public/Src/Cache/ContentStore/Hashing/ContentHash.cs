@@ -85,7 +85,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentHash" /> struct from byte array
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public ContentHash(HashType hashType, byte[] buffer, int offset = 0)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             Contract.Requires(hashType != HashType.Unknown);
 
@@ -119,7 +121,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentHash" /> struct from byte array
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public ContentHash(byte[] buffer, int offset = 0, SerializeHashBytesMethod serializeMethod = SerializeHashBytesMethod.Trimmed)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             _hashType = (HashType)buffer[offset++];
             var length = serializeMethod == SerializeHashBytesMethod.Trimmed
@@ -267,7 +271,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Serialize to a string.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public string Serialize(char delimiter = SerializedDelimiter)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             return HashType.Serialize() + delimiter + ToHex();
         }
@@ -283,7 +289,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Serialize to a buffer.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public void Serialize(byte[] buffer, int offset = 0, SerializeHashBytesMethod serializeMethod = SerializeHashBytesMethod.Trimmed)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             unchecked
             {
@@ -297,7 +305,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Serialize to a span.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public int Serialize(Span<byte> buffer, int offset = 0, SerializeHashBytesMethod serializeMethod = SerializeHashBytesMethod.Trimmed)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             var length = serializeMethod == SerializeHashBytesMethod.Trimmed ? ByteLength : MaxHashByteLength;
             return Serialize(buffer, offset, length);
@@ -363,7 +373,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Serialize only the hash bytes to a buffer.
         /// </summary>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public void SerializeHashBytes(byte[] buffer, int offset = 0)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             _bytes.Serialize(buffer, ByteLength, offset);
         }
@@ -388,7 +400,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         ///     Unlike <see cref="Serialize(BinaryWriter)"/> method that writes <see cref="SerializedLength"/> number of bytes,
         ///     this method only writes <see cref="ByteLength"/> number of bytes that can be smaller for some hash types.
         /// </remarks>
+#pragma warning disable RS0026 // Do not add multiple public overloads with optional parameters
         public void SerializeHashBytes(BinaryWriter writer, byte[]? buffer = null)
+#pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
             if (buffer is null)
             {

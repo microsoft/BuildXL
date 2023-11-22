@@ -1,0 +1,766 @@
+﻿#nullable enable
+abstract BuildXL.Cache.ContentStore.Hashing.HashInfo.CreateContentHasher() -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+abstract BuildXL.Cache.ContentStore.Hashing.HashingStream.DisposeAsync() -> System.Threading.Tasks.ValueTask
+abstract BuildXL.Cache.ContentStore.Hashing.HashingStream.GetContentHash() -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+abstract BuildXL.Cache.ContentStore.Hashing.HashingStream.GetContentHashAsync() -> System.Threading.Tasks.ValueTask<BuildXL.Cache.ContentStore.Hashing.ContentHash>
+abstract BuildXL.Cache.ContentStore.Hashing.HashingStream.TimeSpentHashing.get -> System.TimeSpan
+BuildXL.Cache.ContentStore.Hashing.AlgorithmId
+BuildXL.Cache.ContentStore.Hashing.AlgorithmIdExtensions
+BuildXL.Cache.ContentStore.Hashing.AlgorithmIdHelpers
+BuildXL.Cache.ContentStore.Hashing.AlgorithmIdLookup
+BuildXL.Cache.ContentStore.Hashing.BlobBlockHash
+BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.BlobBlockHash(byte[]! hashValue) -> void
+BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.BlobBlockHash(string! hex) -> void
+BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.Equals(BuildXL.Cache.ContentStore.Hashing.BlobBlockHash? other) -> bool
+BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.HashString.get -> string!
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.AlgorithmId.get -> byte
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.AlgorithmResultBytes.get -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.AlgorithmResultString.get -> string!
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.BlobIdentifier(byte[]! algorithmResult, byte algorithmId) -> void
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.BlobIdentifier(byte[]! value) -> void
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.Bytes.get -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.CompareTo(object? obj) -> int
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.Equals(BuildXL.Cache.ContentStore.Hashing.BlobIdentifier? other) -> bool
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.GetByteCount() -> int
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.GetLongHashCode() -> long
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.ToContentHash() -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.ToContentHash(BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.ValueString.get -> string!
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.BlobId.get -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.BlobIdentifierWithBlocks(BuildXL.Cache.ContentStore.Hashing.BlobIdentifier! blobId, System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.BlobBlockHash!>! blockIdentifiers) -> void
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.BlockHashes.get -> System.Collections.Generic.IList<BuildXL.Cache.ContentStore.Hashing.BlobBlockHash!>!
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.Equals(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks? other) -> bool
+BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.Serialize() -> string!
+BuildXL.Cache.ContentStore.Hashing.ByteArrayPool
+BuildXL.Cache.ContentStore.Hashing.ByteArrayPool.ArraySize.get -> int
+BuildXL.Cache.ContentStore.Hashing.ByteArrayPool.ByteArrayPool(int bufferSize) -> void
+BuildXL.Cache.ContentStore.Hashing.ByteArrayPool.ByteArrayPool(int bufferSize, int maxReserveInstances) -> void
+BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash
+BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.ChunkDedupedFileContentHash(byte[]! hashValue) -> void
+BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.ChunkDedupedFileContentHash(string! hex) -> void
+BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.Equals(BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash? other) -> bool
+BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.HashString.get -> string!
+BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHashVerifier
+BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier
+BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier.ChunkDedupIdentifier(BuildXL.Cache.ContentStore.Hashing.HashAndAlgorithm hash) -> void
+BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier.ChunkDedupIdentifier(byte[]! hashResult) -> void
+BuildXL.Cache.ContentStore.Hashing.Chunker
+BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration
+BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration.ChunkerConfiguration() -> void
+BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration.ChunkerConfiguration(int avgChunkSize) -> void
+BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration.MinPushBufferSize.get -> int
+BuildXL.Cache.ContentStore.Hashing.ChunkInfo
+BuildXL.Cache.ContentStore.Hashing.ChunkInfo.ChunkInfo() -> void
+BuildXL.Cache.ContentStore.Hashing.ChunkInfo.ChunkInfo(ulong offset, uint size, byte[]! hash) -> void
+BuildXL.Cache.ContentStore.Hashing.ChunkInfo.Equals(BuildXL.Cache.ContentStore.Hashing.ChunkInfo other) -> bool
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.DedupBasicChunkInfo() -> void
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.DedupBasicChunkInfo(ulong startChunk, ulong chunkLength, BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType type) -> void
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.Equals(BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo other) -> bool
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_All_Zero = 12 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_Chunk_by_16Zeros = 11 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_End = 12 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_EndReached = 5 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_EndReached_And_Partial = 1 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_MaxReached = 4 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_MinReached = 2 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_Normal = 3 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_Regress_1_bit = 7 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_Regress_2_bit = 8 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_Regress_3_bit = 9 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_Regress_4_bit = 10 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_Transition = 6 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType.DDP_CCT_Unknown = 0 -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+BuildXL.Cache.ContentStore.Hashing.Chunking.Rabin64Table
+BuildXL.Cache.ContentStore.Hashing.Chunking.RegressionChunking
+BuildXL.Cache.ContentStore.Hashing.Chunking.RegressionChunking.Chunks.get -> System.Collections.Generic.IReadOnlyList<BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo>!
+BuildXL.Cache.ContentStore.Hashing.Chunking.RegressionChunking.Complete() -> void
+BuildXL.Cache.ContentStore.Hashing.Chunking.RegressionChunking.PushBuffer(byte[]! buffer) -> void
+BuildXL.Cache.ContentStore.Hashing.Chunking.RegressionChunking.PushBuffer(System.ArraySegment<byte> buffer) -> void
+BuildXL.Cache.ContentStore.Hashing.Chunking.RegressionChunking.RegressionChunking(BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration configuration, System.Action<BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo>! chunkCallback) -> void
+BuildXL.Cache.ContentStore.Hashing.ComChunker
+BuildXL.Cache.ContentStore.Hashing.ComChunker.BeginChunking(System.Action<BuildXL.Cache.ContentStore.Hashing.ChunkInfo>! chunkCallback) -> BuildXL.Cache.ContentStore.Hashing.IChunkerSession!
+BuildXL.Cache.ContentStore.Hashing.ComChunker.ComChunker(BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration configuration) -> void
+BuildXL.Cache.ContentStore.Hashing.ComChunker.Configuration.get -> BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration
+BuildXL.Cache.ContentStore.Hashing.ComChunker.Dispose() -> void
+BuildXL.Cache.ContentStore.Hashing.ComChunker.GetBufferFromPool() -> BuildXL.Cache.ContentStore.Hashing.Pool<byte[]!>.PoolHandle
+BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.ContentHash.AsShortHash() -> BuildXL.Cache.ContentStore.Hashing.ShortHash
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ByteLength.get -> int
+BuildXL.Cache.ContentStore.Hashing.ContentHash.CompareTo(BuildXL.Cache.ContentStore.Hashing.ContentHash other) -> int
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ContentHash() -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ContentHash(BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ContentHash(BuildXL.Cache.ContentStore.Hashing.HashType hashType, byte[]! buffer, int offset = 0) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ContentHash(BuildXL.Cache.ContentStore.Hashing.HashType hashType, System.IO.BinaryReader! reader) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ContentHash(BuildXL.Cache.ContentStore.Hashing.HashType hashType, System.ReadOnlySpan<byte> buffer) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ContentHash(byte[]! buffer, int offset = 0, BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod serializeMethod = BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod.Trimmed) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ContentHash(string! serialized) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ContentHash(System.IO.BinaryReader! reader) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.Equals(BuildXL.Cache.ContentStore.Hashing.ContentHash other) -> bool
+BuildXL.Cache.ContentStore.Hashing.ContentHash.HashType.get -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.ContentHash.IsValid.get -> bool
+BuildXL.Cache.ContentStore.Hashing.ContentHash.LeastSignificantLong() -> long
+BuildXL.Cache.ContentStore.Hashing.ContentHash.Length.get -> int
+BuildXL.Cache.ContentStore.Hashing.ContentHash.Serialize(byte[]! buffer, int offset = 0, BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod serializeMethod = BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod.Trimmed) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.Serialize(char delimiter = ':') -> string!
+BuildXL.Cache.ContentStore.Hashing.ContentHash.Serialize(System.IO.BinaryWriter! writer) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.Serialize(System.Span<byte> buffer, int offset = 0, BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod serializeMethod = BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod.Trimmed) -> int
+BuildXL.Cache.ContentStore.Hashing.ContentHash.Serialize(System.Span<byte> buffer, int offset, int length) -> int
+BuildXL.Cache.ContentStore.Hashing.ContentHash.Serialize(System.Span<byte> targetSpan) -> int
+BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytes(byte[]! buffer, int offset = 0) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytes(System.IO.BinaryWriter! writer, byte[]? buffer = null) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod
+BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod.Full = 1 -> BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod
+BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod.Trimmed = 0 -> BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod
+BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeReverse(char delimiter = ':') -> string!
+BuildXL.Cache.ContentStore.Hashing.ContentHash.StringLength.get -> int
+BuildXL.Cache.ContentStore.Hashing.ContentHash.this[int index].get -> byte
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ToByteArray(BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod serializeMethod = BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializeHashBytesMethod.Trimmed) -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ToFixedBytes() -> BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ToHashByteArray() -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ToHex(int? stringLength = null) -> string!
+BuildXL.Cache.ContentStore.Hashing.ContentHash.ToShortString(bool includeHashType = true) -> string!
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.ContentHasher(BuildXL.Cache.ContentStore.Hashing.HashInfo! info) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.CreateReadHashingStream(BuildXL.Cache.ContentStore.Hashing.StreamWithLength stream, long parallelHashingFileSizeBoundary = -1) -> BuildXL.Cache.ContentStore.Hashing.HashingStream!
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.CreateReadHashingStream(long streamLength, System.IO.Stream! stream, long parallelHashingFileSizeBoundary = -1) -> BuildXL.Cache.ContentStore.Hashing.HashingStream!
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.CreateToken() -> BuildXL.Cache.ContentStore.Hashing.HasherToken
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.CreateWriteHashingStream(BuildXL.Cache.ContentStore.Hashing.StreamWithLength stream, long parallelHashingFileSizeBoundary = -1) -> BuildXL.Cache.ContentStore.Hashing.HashingStream!
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.CreateWriteHashingStream(long streamLength, System.IO.Stream! stream, long parallelHashingFileSizeBoundary = -1) -> BuildXL.Cache.ContentStore.Hashing.HashingStream!
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.Dispose() -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.GetContentHash(byte[]! content) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.GetContentHash(byte[]! content, int offset, int count) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.GetContentHash(System.ReadOnlySpan<byte> content) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.GetContentHashAsync(BuildXL.Cache.ContentStore.Hashing.StreamWithLength content) -> System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Hashing.ContentHash>!
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.GetContentHashInternalAsync(BuildXL.Cache.ContentStore.Hashing.StreamWithLength content) -> System.Threading.Tasks.Task<(BuildXL.Cache.ContentStore.Hashing.ContentHash, BuildXL.Cache.ContentStore.Hashing.DedupNode?)>!
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.GetCounters() -> BuildXL.Cache.ContentStore.UtilitiesCore.CounterSet!
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.Info.get -> BuildXL.Cache.ContentStore.Hashing.HashInfo!
+BuildXL.Cache.ContentStore.Hashing.ContentHasher<T>.PoolSize.get -> int
+BuildXL.Cache.ContentStore.Hashing.ContentHashExtensions
+BuildXL.Cache.ContentStore.Hashing.ContentHashingHelper
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithLastAccessTime
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithLastAccessTime.ContentHashWithLastAccessTime() -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithLastAccessTime.ContentHashWithLastAccessTime(BuildXL.Cache.ContentStore.Hashing.ContentHash Hash, System.DateTime LastAccessTime) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithLastAccessTime.Hash.get -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithLastAccessTime.Hash.init -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithLastAccessTime.LastAccessTime.get -> System.DateTime
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithLastAccessTime.LastAccessTime.init -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize.ContentHashWithSize() -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize.ContentHashWithSize(BuildXL.Cache.ContentStore.Hashing.ContentHash Hash, long Size) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize.Hash.get -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize.Hash.init -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize.Size.get -> long
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize.Size.init -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSizeAndLastAccessTime
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSizeAndLastAccessTime.ContentHashWithSizeAndLastAccessTime() -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSizeAndLastAccessTime.ContentHashWithSizeAndLastAccessTime(BuildXL.Cache.ContentStore.Hashing.ContentHash Hash, long Size, System.DateTime LastAccessTime) -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSizeAndLastAccessTime.Hash.get -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSizeAndLastAccessTime.Hash.init -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSizeAndLastAccessTime.LastAccessTime.get -> System.DateTime
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSizeAndLastAccessTime.LastAccessTime.init -> void
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSizeAndLastAccessTime.Size.get -> long
+BuildXL.Cache.ContentStore.Hashing.ContentHashWithSizeAndLastAccessTime.Size.init -> void
+BuildXL.Cache.ContentStore.Hashing.Dedup1024KHashAlgorithm
+BuildXL.Cache.ContentStore.Hashing.Dedup1024KHashAlgorithm.Dedup1024KHashAlgorithm() -> void
+BuildXL.Cache.ContentStore.Hashing.Dedup1024KHashAlgorithm.Dedup1024KHashAlgorithm(BuildXL.Cache.ContentStore.Hashing.IChunker! chunker) -> void
+BuildXL.Cache.ContentStore.Hashing.Dedup1024KHashInfo
+BuildXL.Cache.ContentStore.Hashing.DedupChunkHashAlgorithm
+BuildXL.Cache.ContentStore.Hashing.DedupChunkHashAlgorithm.DedupChunkHashAlgorithm() -> void
+BuildXL.Cache.ContentStore.Hashing.DedupContentHasher<T>
+BuildXL.Cache.ContentStore.Hashing.DedupContentHasher<T>.DedupContentHasher(BuildXL.Cache.ContentStore.Hashing.HashInfo! info) -> void
+BuildXL.Cache.ContentStore.Hashing.DedupContentHasher<T>.HashContentAndGetDedupNodeAsync(BuildXL.Cache.ContentStore.Hashing.StreamWithLength content) -> System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Hashing.DedupNode>!
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.AlgorithmId.get -> byte
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.AlgorithmResult.get -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.AlgorithmResultString.get -> string!
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.CastToChunkDedupIdentifier() -> BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier!
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.CastToNodeDedupIdentifier() -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.CompareTo(BuildXL.Cache.ContentStore.Hashing.DedupIdentifier? other) -> int
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.DedupIdentifier(BuildXL.Cache.ContentStore.Hashing.HashAndAlgorithm hashAndAlgorithm) -> void
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.DedupIdentifier(byte[]! algorithmResult, byte algorithmId) -> void
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.Equals(BuildXL.Cache.ContentStore.Hashing.DedupIdentifier? other) -> bool
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.GetLongHashCode() -> long
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.ToBlobIdentifier() -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.Value.get -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.ValueString.get -> string!
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifierTypeConverter
+BuildXL.Cache.ContentStore.Hashing.DedupIdentifierTypeConverter.DedupIdentifierTypeConverter() -> void
+BuildXL.Cache.ContentStore.Hashing.DedupNode
+BuildXL.Cache.ContentStore.Hashing.DedupNode.DedupNode() -> void
+BuildXL.Cache.ContentStore.Hashing.DedupNode.DedupNode(BuildXL.Cache.ContentStore.Hashing.ChunkInfo chunk) -> void
+BuildXL.Cache.ContentStore.Hashing.DedupNode.DedupNode(BuildXL.Cache.ContentStore.Hashing.DedupNode.NodeType type, ulong size, byte[]! hash, uint? height) -> void
+BuildXL.Cache.ContentStore.Hashing.DedupNode.DedupNode(System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.DedupNode>! childNodes) -> void
+BuildXL.Cache.ContentStore.Hashing.DedupNode.EnumerateChunkLeafsInOrder() -> System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.DedupNode>!
+BuildXL.Cache.ContentStore.Hashing.DedupNode.EnumerateInnerNodesDepthFirst() -> System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.DedupNode>!
+BuildXL.Cache.ContentStore.Hashing.DedupNode.Equals(BuildXL.Cache.ContentStore.Hashing.DedupNode other) -> bool
+BuildXL.Cache.ContentStore.Hashing.DedupNode.GetChunks(ulong startOffset = 0) -> System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.ChunkInfo>!
+BuildXL.Cache.ContentStore.Hashing.DedupNode.HashString.get -> string!
+BuildXL.Cache.ContentStore.Hashing.DedupNode.NodeType
+BuildXL.Cache.ContentStore.Hashing.DedupNode.NodeType.ChunkLeaf = 0 -> BuildXL.Cache.ContentStore.Hashing.DedupNode.NodeType
+BuildXL.Cache.ContentStore.Hashing.DedupNode.NodeType.InnerNode = 1 -> BuildXL.Cache.ContentStore.Hashing.DedupNode.NodeType
+BuildXL.Cache.ContentStore.Hashing.DedupNode.Serialize() -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.DedupNode.VisitPreorder(System.Func<BuildXL.Cache.ContentStore.Hashing.DedupNode, bool>! visitFunc) -> void
+BuildXL.Cache.ContentStore.Hashing.DedupNode64KHashInfo
+BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions
+BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm
+BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.DedupNodeOrChunkHashAlgorithm() -> void
+BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.DedupNodeOrChunkHashAlgorithm(BuildXL.Cache.ContentStore.Hashing.IChunker! chunker) -> void
+BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.GetBufferFromPool() -> BuildXL.Cache.ContentStore.Hashing.Pool<byte[]!>.PoolHandle
+BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.GetNode() -> BuildXL.Cache.ContentStore.Hashing.DedupNode
+BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.SetInputLength(long expectedSize) -> void
+BuildXL.Cache.ContentStore.Hashing.DedupNodeTree
+BuildXL.Cache.ContentStore.Hashing.DedupSingleChunkHashInfo
+BuildXL.Cache.ContentStore.Hashing.EqualityHelper
+BuildXL.Cache.ContentStore.Hashing.FileStreamUtility
+BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.MemoryMappedFileHandle
+BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.MemoryMappedFileHandle.Dispose() -> void
+BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.MemoryMappedFileHandle.MemoryMappedFileHandle(int length, System.IO.MemoryMappedFiles.MemoryMappedFile! memoryMappedFile, System.IO.MemoryMappedFiles.MemoryMappedViewAccessor! memoryMappedViewAccessor) -> void
+BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.ReadOnlyMemoryMappedFileHandle
+BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.ReadOnlyMemoryMappedFileHandle.Content.get -> System.ReadOnlySpan<byte>
+BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.ReadWriteMemoryMappedFileHandle
+BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.ReadWriteMemoryMappedFileHandle.Content.get -> System.Span<byte>
+BuildXL.Cache.ContentStore.Hashing.GlobalObjectPools
+BuildXL.Cache.ContentStore.Hashing.HashAndAlgorithm
+BuildXL.Cache.ContentStore.Hashing.HashAndAlgorithm.AlgorithmId.get -> byte
+BuildXL.Cache.ContentStore.Hashing.HashAndAlgorithm.HashAndAlgorithm() -> void
+BuildXL.Cache.ContentStore.Hashing.HashAndAlgorithm.HashAndAlgorithm(byte[]! bytes) -> void
+BuildXL.Cache.ContentStore.Hashing.HasherToken
+BuildXL.Cache.ContentStore.Hashing.HasherToken.Dispose() -> void
+BuildXL.Cache.ContentStore.Hashing.HasherToken.Equals(BuildXL.Cache.ContentStore.Hashing.HasherToken other) -> bool
+BuildXL.Cache.ContentStore.Hashing.HasherToken.Hasher.get -> System.Security.Cryptography.HashAlgorithm!
+BuildXL.Cache.ContentStore.Hashing.HasherToken.HasherToken() -> void
+BuildXL.Cache.ContentStore.Hashing.HasherToken.HasherToken(BuildXL.Cache.ContentStore.Hashing.Pool<System.Security.Cryptography.HashAlgorithm!>.PoolHandle pooledHasher) -> void
+BuildXL.Cache.ContentStore.Hashing.HashInfo
+BuildXL.Cache.ContentStore.Hashing.HashInfo.ByteLength.get -> int
+BuildXL.Cache.ContentStore.Hashing.HashInfo.EmptyHash.get -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.HashInfo.HashInfo(BuildXL.Cache.ContentStore.Hashing.HashType hashType, int length) -> void
+BuildXL.Cache.ContentStore.Hashing.HashInfo.HashType.get -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashInfo.Name.get -> string!
+BuildXL.Cache.ContentStore.Hashing.HashInfo.StringLength.get -> int
+BuildXL.Cache.ContentStore.Hashing.HashInfo.Zero.get -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.HashInfoLookup
+BuildXL.Cache.ContentStore.Hashing.HashingStream
+BuildXL.Cache.ContentStore.Hashing.HashingStream.HashingStream() -> void
+BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.Dedup1024K = 9 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.Dedup64K = 7 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.DedupNode = 6 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.DedupSingleChunk = 5 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.DeprecatedVso0 = 810505046 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.MD5 = 3 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.Murmur = 8 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.SHA1 = 1 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.SHA256 = 2 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.Unknown = 0 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashType.Vso0 = 4 -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.HashTypeExtensions
+BuildXL.Cache.ContentStore.Hashing.IChunker
+BuildXL.Cache.ContentStore.Hashing.IChunker.BeginChunking(System.Action<BuildXL.Cache.ContentStore.Hashing.ChunkInfo>! chunkCallback) -> BuildXL.Cache.ContentStore.Hashing.IChunkerSession!
+BuildXL.Cache.ContentStore.Hashing.IChunker.Configuration.get -> BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration
+BuildXL.Cache.ContentStore.Hashing.IChunkerSession
+BuildXL.Cache.ContentStore.Hashing.IChunkerSession.PushBuffer(byte[]! buffer, int startOffset, int count) -> void
+BuildXL.Cache.ContentStore.Hashing.IContentHasher
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.CreateReadHashingStream(BuildXL.Cache.ContentStore.Hashing.StreamWithLength stream, long parallelHashingFileSizeBoundary = -1) -> BuildXL.Cache.ContentStore.Hashing.HashingStream!
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.CreateReadHashingStream(long streamLength, System.IO.Stream! stream, long parallelHashingFileSizeBoundary = -1) -> BuildXL.Cache.ContentStore.Hashing.HashingStream!
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.CreateToken() -> BuildXL.Cache.ContentStore.Hashing.HasherToken
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.CreateWriteHashingStream(BuildXL.Cache.ContentStore.Hashing.StreamWithLength stream, long parallelHashingFileSizeBoundary = -1) -> BuildXL.Cache.ContentStore.Hashing.HashingStream!
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.CreateWriteHashingStream(long streamLength, System.IO.Stream! stream, long parallelHashingFileSizeBoundary = -1) -> BuildXL.Cache.ContentStore.Hashing.HashingStream!
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.GetContentHash(byte[]! content) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.GetContentHash(byte[]! content, int offset, int count) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.GetContentHash(System.ReadOnlySpan<byte> content) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.GetContentHashAsync(BuildXL.Cache.ContentStore.Hashing.StreamWithLength content) -> System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Hashing.ContentHash>!
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.GetCounters() -> BuildXL.Cache.ContentStore.UtilitiesCore.CounterSet!
+BuildXL.Cache.ContentStore.Hashing.IContentHasher.Info.get -> BuildXL.Cache.ContentStore.Hashing.HashInfo!
+BuildXL.Cache.ContentStore.Hashing.IDedupContentHasher
+BuildXL.Cache.ContentStore.Hashing.IDedupContentHasher.HashContentAndGetDedupNodeAsync(BuildXL.Cache.ContentStore.Hashing.StreamWithLength content) -> System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Hashing.DedupNode>!
+BuildXL.Cache.ContentStore.Hashing.IHashAlgorithmBufferPool
+BuildXL.Cache.ContentStore.Hashing.IHashAlgorithmBufferPool.GetBufferFromPool() -> BuildXL.Cache.ContentStore.Hashing.Pool<byte[]!>.PoolHandle
+BuildXL.Cache.ContentStore.Hashing.IHashAlgorithmInputLength
+BuildXL.Cache.ContentStore.Hashing.IHashAlgorithmInputLength.SetInputLength(long inputLength) -> void
+BuildXL.Cache.ContentStore.Hashing.IHashAlgorithmWithCleanup
+BuildXL.Cache.ContentStore.Hashing.IHashAlgorithmWithCleanup.Cleanup() -> void
+BuildXL.Cache.ContentStore.Hashing.IHashCount
+BuildXL.Cache.ContentStore.Hashing.IHashCount.GetByteCount() -> int
+BuildXL.Cache.ContentStore.Hashing.ILongHash
+BuildXL.Cache.ContentStore.Hashing.ILongHash.GetLongHashCode() -> long
+BuildXL.Cache.ContentStore.Hashing.ManagedChunker
+BuildXL.Cache.ContentStore.Hashing.ManagedChunker.BeginChunking(System.Action<BuildXL.Cache.ContentStore.Hashing.ChunkInfo>! chunkCallback) -> BuildXL.Cache.ContentStore.Hashing.IChunkerSession!
+BuildXL.Cache.ContentStore.Hashing.ManagedChunker.Configuration.get -> BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration
+BuildXL.Cache.ContentStore.Hashing.ManagedChunker.Dispose() -> void
+BuildXL.Cache.ContentStore.Hashing.ManagedChunker.GetBufferFromPool() -> BuildXL.Cache.ContentStore.Hashing.Pool<byte[]!>.PoolHandle
+BuildXL.Cache.ContentStore.Hashing.ManagedChunker.ManagedChunker(BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration configuration) -> void
+BuildXL.Cache.ContentStore.Hashing.MD5HashInfo
+BuildXL.Cache.ContentStore.Hashing.MemoryHelpers
+BuildXL.Cache.ContentStore.Hashing.Murmur3HashAlgorithm
+BuildXL.Cache.ContentStore.Hashing.Murmur3HashAlgorithm.Murmur3HashAlgorithm() -> void
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3.CombineOrderIndependent(in BuildXL.Cache.ContentStore.Hashing.MurmurHash3 right) -> BuildXL.Cache.ContentStore.Hashing.MurmurHash3
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3.Equals(BuildXL.Cache.ContentStore.Hashing.MurmurHash3 other) -> bool
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3.GetDerivedHash(int index) -> ulong
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3.GetHashBytes(byte[]! buffer, uint offset) -> void
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3.IsZero.get -> bool
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3.MurmurHash3() -> void
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3.MurmurHash3(ulong high, ulong low) -> void
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3.ToByteArray() -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.Equals(BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32 other) -> bool
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.IsZero.get -> bool
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.MurmurHash3_32() -> void
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.MurmurHash3_32(uint hash) -> void
+BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.ToByteArray() -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.MurmurHashInfo
+BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId.Node1024K = 6 -> BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId.Node128K = 3 -> BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId.Node2056K = 7 -> BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId.Node256K = 4 -> BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId.Node4192K = 8 -> BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId.Node512K = 5 -> BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId.Node64K = 2 -> BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier
+BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.NodeDedupIdentifier(BuildXL.Cache.ContentStore.Hashing.HashAndAlgorithm hash) -> void
+BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.NodeDedupIdentifier(byte[]! hashResult) -> void
+BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.NodeDedupIdentifier(byte[]! hashResult, BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId algorithmId) -> void
+BuildXL.Cache.ContentStore.Hashing.PackedDedupNodeTree
+BuildXL.Cache.ContentStore.Hashing.Pool<T>
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.Dispose() -> void
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.FactoryCalls.get -> long
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.Pool(System.Func<T>! factory, System.Action<T>? reset = null, int maxReserveInstances = -1) -> void
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.PoolHandle
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.PoolHandle.Dispose() -> void
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.PoolHandle.PoolHandle() -> void
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.PoolHandle.PoolHandle(BuildXL.Cache.ContentStore.Hashing.Pool<T>! pool, T value) -> void
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.PoolHandle.Value.get -> T
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.Size.get -> int
+BuildXL.Cache.ContentStore.Hashing.Pool<T>.UseCount.get -> long
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.CompareTo(BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes other) -> int
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Equals(BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes other) -> bool
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.LeastSignificantLong(int length) -> long
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Length.get -> int
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.ReadOnlyFixedBytes() -> void
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.ReadOnlyFixedBytes(byte[]! buffer, int length = 33, int offset = 0) -> void
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.ReadOnlyFixedBytes(System.ReadOnlySpan<byte> source) -> void
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Serialize() -> string!
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Serialize(byte[]! buffer, int length = 33, int offset = 0) -> void
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Serialize(System.IO.BinaryWriter! writer, byte[]! buffer, int index = 0, int length = 33) -> void
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Serialize(System.IO.BinaryWriter! writer, int length = 33) -> void
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Serialize(System.Span<byte> buffer, int length = 33) -> int
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.this[int index].get -> byte
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.ToByteArray(int length = 33) -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.ToHex(int length = 33) -> string!
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.ToHex(int offset, int length) -> string!
+BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.ToHex(System.Text.StringBuilder! builder, int offset, int length) -> void
+BuildXL.Cache.ContentStore.Hashing.SHA1HashInfo
+BuildXL.Cache.ContentStore.Hashing.SHA256HashInfo
+BuildXL.Cache.ContentStore.Hashing.ShortHash
+BuildXL.Cache.ContentStore.Hashing.ShortHash.CompareTo(BuildXL.Cache.ContentStore.Hashing.ShortHash other) -> int
+BuildXL.Cache.ContentStore.Hashing.ShortHash.Equals(BuildXL.Cache.ContentStore.Hashing.ShortHash other) -> bool
+BuildXL.Cache.ContentStore.Hashing.ShortHash.HashType.get -> BuildXL.Cache.ContentStore.Hashing.HashType
+BuildXL.Cache.ContentStore.Hashing.ShortHash.Serialize(byte[]! buffer) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortHash.Serialize(System.IO.BinaryWriter! writer) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortHash.ShortHash() -> void
+BuildXL.Cache.ContentStore.Hashing.ShortHash.ShortHash(BuildXL.Cache.ContentStore.Hashing.ContentHash hash) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortHash.ShortHash(BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes bytes) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortHash.ShortHash(string! serialized) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortHash.this[int index].get -> byte
+BuildXL.Cache.ContentStore.Hashing.ShortHash.ToByteArray() -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.ShortHash.ToString(bool includeHashType) -> string!
+BuildXL.Cache.ContentStore.Hashing.ShortHash.ToString(int hashLength, bool includeHashType = true) -> string!
+BuildXL.Cache.ContentStore.Hashing.ShortHash.ToString(System.Text.StringBuilder! sb) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortHashExtensions
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.CompareTo(BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes other) -> int
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.Equals(BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes other) -> bool
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.Length.get -> int
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.Serialize() -> string!
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.Serialize(byte[]! buffer, int length = 12, int offset = 0) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.Serialize(System.IO.BinaryWriter! writer) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.Serialize(System.IO.BinaryWriter! writer, byte[]! buffer, int length = 12) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.ShortReadOnlyFixedBytes() -> void
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.ShortReadOnlyFixedBytes(byte[]! buffer, int length = 12, int offset = 0) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.ShortReadOnlyFixedBytes(System.ReadOnlySpan<byte> source) -> void
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.this[int index].get -> byte
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.ToByteArray(int length = 12) -> byte[]!
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.ToHex(int length = 12) -> string!
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.ToHex(int offset, int length) -> string!
+BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.ToHex(System.Text.StringBuilder! builder, int offset, int length) -> void
+BuildXL.Cache.ContentStore.Hashing.StreamWithLength
+BuildXL.Cache.ContentStore.Hashing.StreamWithLength.Dispose() -> void
+BuildXL.Cache.ContentStore.Hashing.StreamWithLength.Length.get -> long
+BuildXL.Cache.ContentStore.Hashing.StreamWithLength.Length.init -> void
+BuildXL.Cache.ContentStore.Hashing.StreamWithLength.Stream.get -> System.IO.Stream!
+BuildXL.Cache.ContentStore.Hashing.StreamWithLength.Stream.init -> void
+BuildXL.Cache.ContentStore.Hashing.StreamWithLength.StreamWithLength() -> void
+BuildXL.Cache.ContentStore.Hashing.StreamWithLength.StreamWithLength(System.IO.Stream! Stream, long Length) -> void
+BuildXL.Cache.ContentStore.Hashing.StreamWithLengthExtensions
+BuildXL.Cache.ContentStore.Hashing.TaggedHashInfo
+BuildXL.Cache.ContentStore.Hashing.TaggedHashInfo.AlgorithmId.get -> byte
+BuildXL.Cache.ContentStore.Hashing.TaggedHashInfo.TaggedHashInfo(BuildXL.Cache.ContentStore.Hashing.HashType hashType, int length) -> void
+BuildXL.Cache.ContentStore.Hashing.VsoHash
+BuildXL.Cache.ContentStore.Hashing.VsoHash.MultipleBlockBlobCallbackAsync
+BuildXL.Cache.ContentStore.Hashing.VsoHash.MultipleBlockBlobSealCallbackAsync
+BuildXL.Cache.ContentStore.Hashing.VsoHash.RollingBlobIdentifier
+BuildXL.Cache.ContentStore.Hashing.VsoHash.RollingBlobIdentifier.Finalize(BuildXL.Cache.ContentStore.Hashing.BlobBlockHash! currentBlockIdentifier) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+BuildXL.Cache.ContentStore.Hashing.VsoHash.RollingBlobIdentifier.RollingBlobIdentifier() -> void
+BuildXL.Cache.ContentStore.Hashing.VsoHash.RollingBlobIdentifier.Update(BuildXL.Cache.ContentStore.Hashing.BlobBlockHash! currentBlockIdentifier) -> void
+BuildXL.Cache.ContentStore.Hashing.VsoHash.RollingBlobIdentifierWithBlocks
+BuildXL.Cache.ContentStore.Hashing.VsoHash.RollingBlobIdentifierWithBlocks.Finalize(BuildXL.Cache.ContentStore.Hashing.BlobBlockHash! currentBlockIdentifier) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks!
+BuildXL.Cache.ContentStore.Hashing.VsoHash.RollingBlobIdentifierWithBlocks.RollingBlobIdentifierWithBlocks() -> void
+BuildXL.Cache.ContentStore.Hashing.VsoHash.RollingBlobIdentifierWithBlocks.Update(BuildXL.Cache.ContentStore.Hashing.BlobBlockHash! currentBlockIdentifier) -> void
+BuildXL.Cache.ContentStore.Hashing.VsoHash.SingleBlockBlobCallbackAsync
+BuildXL.Cache.ContentStore.Hashing.VsoHashAlgorithm
+BuildXL.Cache.ContentStore.Hashing.VsoHashAlgorithm.VsoHashAlgorithm() -> void
+BuildXL.Cache.ContentStore.Hashing.VsoHashInfo
+BuildXL.Cache.ContentStore.Interfaces.Utils.ByteArrayComparer
+BuildXL.Cache.ContentStore.Interfaces.Utils.ByteArrayComparer.ByteArrayComparer() -> void
+BuildXL.Cache.ContentStore.Interfaces.Utils.ByteArrayComparer.Compare(byte[]? x, byte[]? y) -> int
+BuildXL.Cache.ContentStore.Interfaces.Utils.ByteArrayComparer.Equals(byte[]? x, byte[]? y) -> bool
+BuildXL.Cache.ContentStore.Interfaces.Utils.ByteArrayComparer.GetHashCode(byte[]? obj) -> int
+BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities
+BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities
+const BuildXL.Cache.ContentStore.Hashing.AlgorithmId.Chunk = 1 -> byte
+const BuildXL.Cache.ContentStore.Hashing.AlgorithmId.File = 0 -> byte
+const BuildXL.Cache.ContentStore.Hashing.AlgorithmId.Node = 2 -> byte
+const BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier.ChunkAlgorithmId = 1 -> byte
+const BuildXL.Cache.ContentStore.Hashing.Chunking.RegressionChunking.m_nWindowSize = 16 -> ulong
+const BuildXL.Cache.ContentStore.Hashing.ContentHash.MaxHashByteLength = 33 -> int
+const BuildXL.Cache.ContentStore.Hashing.ContentHash.SerializedLength = 34 -> int
+const BuildXL.Cache.ContentStore.Hashing.ContentHashingHelper.MaxSupportedSizeForMemoryMappedFileHashing = 2147483646 -> int
+const BuildXL.Cache.ContentStore.Hashing.Dedup1024KHashInfo.Length = 33 -> int
+const BuildXL.Cache.ContentStore.Hashing.DedupNode.MaxDirectChildrenPerNode = 512 -> int
+const BuildXL.Cache.ContentStore.Hashing.DedupNode64KHashInfo.Length = 33 -> int
+const BuildXL.Cache.ContentStore.Hashing.DedupSingleChunkHashInfo.Length = 32 -> int
+const BuildXL.Cache.ContentStore.Hashing.FileStreamUtility.RecommendedFileStreamBufferSize = 1 -> int
+const BuildXL.Cache.ContentStore.Hashing.MD5HashInfo.Length = 16 -> int
+const BuildXL.Cache.ContentStore.Hashing.MurmurHashInfo.Length = 33 -> int
+const BuildXL.Cache.ContentStore.Hashing.MurmurHashInfo.MurmurAlgorithmId = 3 -> byte
+const BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.MaxHexLength = 66 -> int
+const BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.MaxLength = 33 -> int
+const BuildXL.Cache.ContentStore.Hashing.SHA1HashInfo.Length = 20 -> int
+const BuildXL.Cache.ContentStore.Hashing.SHA256HashInfo.Length = 32 -> int
+const BuildXL.Cache.ContentStore.Hashing.ShortHash.HashLength = 11 -> int
+const BuildXL.Cache.ContentStore.Hashing.ShortHash.HashStringLength = 22 -> int
+const BuildXL.Cache.ContentStore.Hashing.ShortHash.SerializedLength = 12 -> int
+const BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.MaxLength = 12 -> int
+const BuildXL.Cache.ContentStore.Hashing.VsoHash.BlockSize = 2097152 -> int
+const BuildXL.Cache.ContentStore.Hashing.VsoHash.HashSize = 32 -> int
+const BuildXL.Cache.ContentStore.Hashing.VsoHash.PageSize = 65536 -> int
+const BuildXL.Cache.ContentStore.Hashing.VsoHash.VsoAlgorithmId = 0 -> byte
+const BuildXL.Cache.ContentStore.Hashing.VsoHashInfo.Length = 33 -> int
+Microsoft.DataDeduplication.Interop.DedupChunkInfoHash32
+Microsoft.DataDeduplication.Interop.DedupChunkInfoHash32.DataSize -> ulong
+Microsoft.DataDeduplication.Interop.DedupChunkInfoHash32.DedupChunkInfoHash32() -> void
+Microsoft.DataDeduplication.Interop.DedupChunkInfoHash32.Flags -> uint
+Microsoft.DataDeduplication.Interop.DedupChunkInfoHash32.Hash -> byte[]!
+Microsoft.DataDeduplication.Interop.DedupChunkInfoHash32.StreamOffset -> ulong
+Microsoft.DataDeduplication.Interop.IDedupChunkLibrary
+Microsoft.DataDeduplication.Interop.IDedupChunkLibrary.InitializeForPushBuffers() -> void
+Microsoft.DataDeduplication.Interop.IDedupChunkLibrary.SetParameter(uint paramType, ref object! paramVariant) -> void
+Microsoft.DataDeduplication.Interop.IDedupChunkLibrary.StartChunking(System.Guid iteratorInterfaceID, out object! chunkEnumerator) -> void
+Microsoft.DataDeduplication.Interop.IDedupChunkLibrary.Uninitialize() -> void
+Microsoft.DataDeduplication.Interop.IDedupIterateChunksHash32
+Microsoft.DataDeduplication.Interop.IDedupIterateChunksHash32.Drain() -> void
+Microsoft.DataDeduplication.Interop.IDedupIterateChunksHash32.Next(uint maxChunks, Microsoft.DataDeduplication.Interop.DedupChunkInfoHash32[]! hashes, out uint chunkCount) -> int
+Microsoft.DataDeduplication.Interop.IDedupIterateChunksHash32.PushBuffer(byte* data, uint dataLength) -> void
+Microsoft.DataDeduplication.Interop.IDedupIterateChunksHash32.Reset() -> void
+override BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.ByteArrayPool.Get() -> BuildXL.Cache.ContentStore.Hashing.Pool<byte[]!>.PoolHandle
+override BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.ChunkInfo.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.ChunkInfo.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.ChunkInfo.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.ContentHash.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.ContentHash.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.ContentHash.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.Dedup1024KHashAlgorithm.DedupHashType.get -> BuildXL.Cache.ContentStore.Hashing.HashType
+override BuildXL.Cache.ContentStore.Hashing.Dedup1024KHashInfo.CreateContentHasher() -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+override BuildXL.Cache.ContentStore.Hashing.DedupChunkHashAlgorithm.Hash.get -> byte[]!
+override BuildXL.Cache.ContentStore.Hashing.DedupChunkHashAlgorithm.Initialize() -> void
+override BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.DedupIdentifierTypeConverter.CanConvertFrom(System.ComponentModel.ITypeDescriptorContext? context, System.Type! sourceType) -> bool
+override BuildXL.Cache.ContentStore.Hashing.DedupIdentifierTypeConverter.ConvertFrom(System.ComponentModel.ITypeDescriptorContext? context, System.Globalization.CultureInfo? culture, object! value) -> object?
+override BuildXL.Cache.ContentStore.Hashing.DedupIdentifierTypeConverter.ConvertTo(System.ComponentModel.ITypeDescriptorContext? context, System.Globalization.CultureInfo? culture, object? value, System.Type! destinationType) -> object?
+override BuildXL.Cache.ContentStore.Hashing.DedupNode.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.DedupNode.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.DedupNode64KHashInfo.CreateContentHasher() -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+override BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.Dispose(bool disposing) -> void
+override BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.HashCore(byte[]! array, int ibStart, int cbSize) -> void
+override BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.HashFinal() -> byte[]!
+override BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.Initialize() -> void
+override BuildXL.Cache.ContentStore.Hashing.DedupSingleChunkHashInfo.CreateContentHasher() -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+override BuildXL.Cache.ContentStore.Hashing.HasherToken.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.HasherToken.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.MD5HashInfo.CreateContentHasher() -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+override BuildXL.Cache.ContentStore.Hashing.Murmur3HashAlgorithm.HashCore(byte[]! array, int ibStart, int cbSize) -> void
+override BuildXL.Cache.ContentStore.Hashing.Murmur3HashAlgorithm.HashFinal() -> byte[]!
+override BuildXL.Cache.ContentStore.Hashing.Murmur3HashAlgorithm.Initialize() -> void
+override BuildXL.Cache.ContentStore.Hashing.MurmurHash3.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.MurmurHash3.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.MurmurHash3.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.MurmurHashInfo.CreateContentHasher() -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+override BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.SHA1HashInfo.CreateContentHasher() -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+override BuildXL.Cache.ContentStore.Hashing.SHA256HashInfo.CreateContentHasher() -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+override BuildXL.Cache.ContentStore.Hashing.ShortHash.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.ShortHash.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.ShortHash.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.Equals(object? obj) -> bool
+override BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.GetHashCode() -> int
+override BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.StreamWithLength.ToString() -> string!
+override BuildXL.Cache.ContentStore.Hashing.VsoHashAlgorithm.HashCore(byte[]! array, int ibStart, int cbSize) -> void
+override BuildXL.Cache.ContentStore.Hashing.VsoHashAlgorithm.HashFinal() -> byte[]!
+override BuildXL.Cache.ContentStore.Hashing.VsoHashAlgorithm.Initialize() -> void
+override BuildXL.Cache.ContentStore.Hashing.VsoHashInfo.CreateContentHasher() -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+readonly BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.HashBytes -> byte[]!
+readonly BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.HashBytes -> byte[]!
+readonly BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration.AvgChunkSize -> int
+readonly BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration.MaxChunkSize -> int
+readonly BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration.MinChunkSize -> int
+readonly BuildXL.Cache.ContentStore.Hashing.ChunkInfo.Hash -> byte[]!
+readonly BuildXL.Cache.ContentStore.Hashing.ChunkInfo.Offset -> ulong
+readonly BuildXL.Cache.ContentStore.Hashing.ChunkInfo.Size -> uint
+readonly BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.m_eCutType -> BuildXL.Cache.ContentStore.Hashing.Chunking.DedupChunkCutType
+readonly BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.m_nChunkLength -> ulong
+readonly BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.m_nStartChunk -> ulong
+readonly BuildXL.Cache.ContentStore.Hashing.ContentHash._hashType -> BuildXL.Cache.ContentStore.Hashing.HashType
+readonly BuildXL.Cache.ContentStore.Hashing.DedupNode.ChildNodes -> System.Collections.Generic.IReadOnlyList<BuildXL.Cache.ContentStore.Hashing.DedupNode>?
+readonly BuildXL.Cache.ContentStore.Hashing.DedupNode.Hash -> byte[]!
+readonly BuildXL.Cache.ContentStore.Hashing.DedupNode.Height -> uint?
+readonly BuildXL.Cache.ContentStore.Hashing.DedupNode.TransitiveContentBytes -> ulong
+readonly BuildXL.Cache.ContentStore.Hashing.DedupNode.Type -> BuildXL.Cache.ContentStore.Hashing.DedupNode.NodeType
+readonly BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.MemoryMappedFileHandle.Data -> byte*
+readonly BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.MemoryMappedFileHandle.Length -> int
+readonly BuildXL.Cache.ContentStore.Hashing.HashAndAlgorithm.Bytes -> byte[]!
+readonly BuildXL.Cache.ContentStore.Hashing.MurmurHash3.High -> ulong
+readonly BuildXL.Cache.ContentStore.Hashing.MurmurHash3.Low -> ulong
+readonly BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.Hash -> uint
+readonly BuildXL.Cache.ContentStore.Hashing.ShortHash.Value -> BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes
+static BuildXL.Cache.ContentStore.Hashing.AlgorithmIdExtensions.GetContentHasher(this BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId algorithmId) -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+static BuildXL.Cache.ContentStore.Hashing.AlgorithmIdExtensions.IsValidNode(this BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId algorithmId) -> bool
+static BuildXL.Cache.ContentStore.Hashing.AlgorithmIdHelpers.IsHashTagValid(BuildXL.Cache.ContentStore.Hashing.ContentHash contentHash) -> bool
+static BuildXL.Cache.ContentStore.Hashing.AlgorithmIdLookup.Find(BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> byte
+static BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.operator !=(BuildXL.Cache.ContentStore.Hashing.BlobBlockHash? left, BuildXL.Cache.ContentStore.Hashing.BlobBlockHash? right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.BlobBlockHash.operator ==(BuildXL.Cache.ContentStore.Hashing.BlobBlockHash? left, BuildXL.Cache.ContentStore.Hashing.BlobBlockHash? right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.ConvertCompatibleAlgorithmId(byte oldId) -> byte
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.ConvertCompatibleIdToHashType(byte algorithmId) -> BuildXL.Cache.ContentStore.Hashing.HashType
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.CreateFromAlgorithmResult(byte[]! algorithmResult, byte algorithmId = 0) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.CreateFromAlgorithmResult(string! algorithmResult, byte algorithmId = 0) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.Deserialize(string! valueIncludingAlgorithm) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.IdStringToContentHash(string! blobId) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.IdToContentHash(BuildXL.Cache.ContentStore.Hashing.BlobIdentifier! id) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.operator !=(BuildXL.Cache.ContentStore.Hashing.BlobIdentifier? left, BuildXL.Cache.ContentStore.Hashing.BlobIdentifier? right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.operator ==(BuildXL.Cache.ContentStore.Hashing.BlobIdentifier? left, BuildXL.Cache.ContentStore.Hashing.BlobIdentifier? right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.Random(byte dedupType = 0) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.TestInstance() -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.CalculateBlobIdentifier(this byte[]! blob) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.CalculateBlobIdentifier(this System.IO.Stream! blob) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.CalculateBlobIdentifierWithBlocks(this byte[]! blob) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.CalculateBlobIdentifierWithBlocks(this System.IO.Stream! blob) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.CalculateBlobIdentifierWithBlocksAsync(this System.IO.Stream! blob) -> System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks!>!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(this BuildXL.Cache.ContentStore.Hashing.ContentHash contentHash) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToContentHash(this BuildXL.Cache.ContentStore.Hashing.BlobIdentifier! blobId) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToContentHash(this BuildXL.Cache.ContentStore.Hashing.BlobIdentifier! blobId, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.Deserialize(string! serialized) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks!
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.operator !=(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks? left, BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks? right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks.operator ==(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks? left, BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks? right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.operator !=(BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash? left, BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash? right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash.operator ==(BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash? left, BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash? right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHashVerifier.VerifyFileAsync(string! filePath, System.Collections.Generic.IList<BuildXL.Cache.ContentStore.Hashing.ChunkInfo>! expectedChunks, BuildXL.Cache.ContentStore.Hashing.ChunkDedupedFileContentHash! expectedHash, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<bool>!
+static BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier.CalculateIdentifier(byte[]! bytes) -> BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier.CalculateIdentifier(byte[]! bytes, int offset, int count) -> BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier.CalculateIdentifier(System.ArraySegment<byte> bytes) -> BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier.Parse(string! value) -> BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.Chunker.ComChunkerLoadError -> System.Lazy<System.Exception?>!
+static BuildXL.Cache.ContentStore.Hashing.Chunker.Create(BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration configuration) -> BuildXL.Cache.ContentStore.Hashing.IChunker!
+static BuildXL.Cache.ContentStore.Hashing.Chunker.PushBuffer<T>(this T session, System.ArraySegment<byte> bytes) -> void
+static BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration.GetNodeAlgorithmId(BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration chunkerConfiguration) -> BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+static BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration.IsValidChunkSize(BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration chunkerConfiguration) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration.SupportedComChunkerConfiguration.get -> BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration
+static BuildXL.Cache.ContentStore.Hashing.ChunkInfo.operator !=(BuildXL.Cache.ContentStore.Hashing.ChunkInfo left, BuildXL.Cache.ContentStore.Hashing.ChunkInfo right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ChunkInfo.operator ==(BuildXL.Cache.ContentStore.Hashing.ChunkInfo left, BuildXL.Cache.ContentStore.Hashing.ChunkInfo right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.operator !=(BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo chunk1, BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo chunk2) -> bool
+static BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo.operator ==(BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo chunk1, BuildXL.Cache.ContentStore.Hashing.Chunking.DedupBasicChunkInfo chunk2) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ContentHash.FromFixedBytes(BuildXL.Cache.ContentStore.Hashing.HashType hashType, BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes bytes) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.ContentHash.FromSpan(System.ReadOnlySpan<byte> source) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.ContentHash.operator !=(BuildXL.Cache.ContentStore.Hashing.ContentHash left, BuildXL.Cache.ContentStore.Hashing.ContentHash right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ContentHash.operator <(BuildXL.Cache.ContentStore.Hashing.ContentHash left, BuildXL.Cache.ContentStore.Hashing.ContentHash right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ContentHash.operator ==(BuildXL.Cache.ContentStore.Hashing.ContentHash left, BuildXL.Cache.ContentStore.Hashing.ContentHash right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ContentHash.operator >(BuildXL.Cache.ContentStore.Hashing.ContentHash left, BuildXL.Cache.ContentStore.Hashing.ContentHash right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ContentHash.Random(BuildXL.Cache.ContentStore.Hashing.HashType hashType = BuildXL.Cache.ContentStore.Hashing.HashType.Vso0) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.ContentHash.TryParse(BuildXL.Cache.ContentStore.Hashing.HashType hashType, string! serialized, out BuildXL.Cache.ContentStore.Hashing.ContentHash contentHash) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ContentHash.TryParse(string! serialized, out BuildXL.Cache.ContentStore.Hashing.ContentHash contentHash) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ContentHashExtensions.ToPooledByteArray(this in BuildXL.Cache.ContentStore.Hashing.ContentHash contentHash) -> BuildXL.Cache.ContentStore.Hashing.Pool<byte[]!>.PoolHandle
+static BuildXL.Cache.ContentStore.Hashing.ContentHashExtensions.ToPooledByteArray(this in BuildXL.Cache.ContentStore.Hashing.ShortHash contentHash) -> BuildXL.Cache.ContentStore.Hashing.Pool<byte[]!>.PoolHandle
+static BuildXL.Cache.ContentStore.Hashing.ContentHashingHelper.CalculateBytesHash(this byte[]! content, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.ContentHashingHelper.CalculateBytesHash(this System.ArraySegment<byte> content, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.ContentHashingHelper.CalculateHash(this System.ReadOnlySpan<byte> content, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.ContentHashingHelper.HashFile(string! absoluteFilePath, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.ContentHashingHelper.HashFile(this System.IO.FileStream! fileStream, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.ContentHashingHelper.OpenForHashing(string! absoluteFilePath) -> System.IO.FileStream!
+static BuildXL.Cache.ContentStore.Hashing.ContentHashingHelper.OpenForHashing(string! absoluteFilePath, System.Func<(string! path, System.IO.FileMode mode, System.IO.FileAccess fileAccess, System.IO.FileShare fileShare, int bufferSize, System.IO.FileOptions options), System.IO.FileStream!>! openFileStream) -> System.IO.FileStream!
+static BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize.implicit operator BuildXL.Cache.ContentStore.Hashing.ContentHash(BuildXL.Cache.ContentStore.Hashing.ContentHashWithSize hashWithSize) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.Create(BuildXL.Cache.ContentStore.Hashing.DedupNode node) -> BuildXL.Cache.ContentStore.Hashing.DedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.Create(BuildXL.Cache.ContentStore.Hashing.HashAndAlgorithm hashAndAlgorithm) -> BuildXL.Cache.ContentStore.Hashing.DedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.Create(byte[]! algorithmResult, byte algorithmId) -> BuildXL.Cache.ContentStore.Hashing.DedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.Create(string! valueIncludingAlgorithm) -> BuildXL.Cache.ContentStore.Hashing.DedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.Deserialize(string! valueIncludingAlgorithm) -> BuildXL.Cache.ContentStore.Hashing.DedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.operator !=(BuildXL.Cache.ContentStore.Hashing.DedupIdentifier? x, BuildXL.Cache.ContentStore.Hashing.DedupIdentifier? y) -> bool
+static BuildXL.Cache.ContentStore.Hashing.DedupIdentifier.operator ==(BuildXL.Cache.ContentStore.Hashing.DedupIdentifier? x, BuildXL.Cache.ContentStore.Hashing.DedupIdentifier? y) -> bool
+static BuildXL.Cache.ContentStore.Hashing.DedupNode.Create(System.Collections.Generic.IList<BuildXL.Cache.ContentStore.Hashing.ChunkInfo>! chunks) -> BuildXL.Cache.ContentStore.Hashing.DedupNode
+static BuildXL.Cache.ContentStore.Hashing.DedupNode.Deserialize(byte[]! serialized) -> BuildXL.Cache.ContentStore.Hashing.DedupNode
+static BuildXL.Cache.ContentStore.Hashing.DedupNode.Deserialize(System.ArraySegment<byte> serialized) -> BuildXL.Cache.ContentStore.Hashing.DedupNode
+static BuildXL.Cache.ContentStore.Hashing.DedupNode.Deserialize(System.IO.Stream! serialized) -> BuildXL.Cache.ContentStore.Hashing.DedupNode
+static BuildXL.Cache.ContentStore.Hashing.DedupNode.operator !=(BuildXL.Cache.ContentStore.Hashing.DedupNode left, BuildXL.Cache.ContentStore.Hashing.DedupNode right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.DedupNode.operator ==(BuildXL.Cache.ContentStore.Hashing.DedupNode left, BuildXL.Cache.ContentStore.Hashing.DedupNode right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions.AssertFilled(this BuildXL.Cache.ContentStore.Hashing.DedupNode node) -> void
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions.CalculateNodeDedupIdentifier(this BuildXL.Cache.ContentStore.Hashing.DedupNode node) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions.CalculateNodeDedupIdentifier(this BuildXL.Cache.ContentStore.Hashing.DedupNode node, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions.GetChunkIdentifier(this BuildXL.Cache.ContentStore.Hashing.DedupNode node) -> BuildXL.Cache.ContentStore.Hashing.ChunkDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions.GetDedupIdentifier(this BuildXL.Cache.ContentStore.Hashing.DedupNode node) -> BuildXL.Cache.ContentStore.Hashing.DedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions.GetDedupIdentifier(this BuildXL.Cache.ContentStore.Hashing.DedupNode node, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.DedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions.GetNodeIdentifier(this BuildXL.Cache.ContentStore.Hashing.DedupNode node) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions.GetNodeIdentifier(this BuildXL.Cache.ContentStore.Hashing.DedupNode node, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeExtensions.ToContentHash(this BuildXL.Cache.ContentStore.Hashing.DedupNode node, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.ContentHash
+static BuildXL.Cache.ContentStore.Hashing.DedupNodeTree.Create(System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.ChunkInfo>! chunks) -> BuildXL.Cache.ContentStore.Hashing.DedupNode
+static BuildXL.Cache.ContentStore.Hashing.EqualityHelper.GetCombinedHashCode(params object![]! args) -> int
+static BuildXL.Cache.ContentStore.Hashing.EqualityHelper.SequenceEqual<TSource>(this System.Collections.Generic.IEnumerable<TSource>? first, System.Collections.Generic.IEnumerable<TSource>? second, System.Collections.Generic.IEqualityComparer<TSource>? comparer = null) -> bool
+static BuildXL.Cache.ContentStore.Hashing.EqualityHelper.SequenceHashCode<TSource>(this System.Collections.Generic.IEnumerable<TSource>? sequence, System.Collections.Generic.IEqualityComparer<TSource>? comparer = null, int limit = 4) -> int
+static BuildXL.Cache.ContentStore.Hashing.FileStreamUtility.OpenFileStreamForAsync(string! filePath, System.IO.FileMode mode, System.IO.FileAccess fileAccess, System.IO.FileShare fileShare, System.IO.FileOptions extraOptions = System.IO.FileOptions.None) -> System.IO.FileStream!
+static BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.MemoryMappedFileHandle.CreateReadOnly(System.IO.FileStream! fs, bool leaveOpen = true) -> BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.ReadOnlyMemoryMappedFileHandle!
+static BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.MemoryMappedFileHandle.CreateReadWrite(System.IO.FileStream! fs, bool leaveOpen = true) -> BuildXL.Cache.ContentStore.Hashing.FileSystemHelpers.ReadWriteMemoryMappedFileHandle!
+static BuildXL.Cache.ContentStore.Hashing.GlobalObjectPools.FileIOBuffersArrayPool.get -> BuildXL.Cache.ContentStore.Hashing.ByteArrayPool!
+static BuildXL.Cache.ContentStore.Hashing.GlobalObjectPools.Reset() -> void
+static BuildXL.Cache.ContentStore.Hashing.GlobalObjectPools.TwoMbByteArrayPool.get -> BuildXL.Cache.ContentStore.Hashing.ByteArrayPool!
+static BuildXL.Cache.ContentStore.Hashing.HasherToken.operator !=(BuildXL.Cache.ContentStore.Hashing.HasherToken left, BuildXL.Cache.ContentStore.Hashing.HasherToken right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.HasherToken.operator ==(BuildXL.Cache.ContentStore.Hashing.HasherToken left, BuildXL.Cache.ContentStore.Hashing.HasherToken right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.HashInfoLookup.All() -> System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.HashInfo!>!
+static BuildXL.Cache.ContentStore.Hashing.HashInfoLookup.ContentHasherIdlePoolSize -> int
+static BuildXL.Cache.ContentStore.Hashing.HashInfoLookup.CreateAll() -> System.Collections.Generic.Dictionary<BuildXL.Cache.ContentStore.Hashing.HashType, BuildXL.Cache.ContentStore.Hashing.IContentHasher!>!
+static BuildXL.Cache.ContentStore.Hashing.HashInfoLookup.Find(BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.HashInfo!
+static BuildXL.Cache.ContentStore.Hashing.HashInfoLookup.GetContentHasher(BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.IContentHasher!
+static BuildXL.Cache.ContentStore.Hashing.HashTypeExtensions.Deserialize(this string! value, out BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> bool
+static BuildXL.Cache.ContentStore.Hashing.HashTypeExtensions.FindHashTypeByName(this string! name) -> BuildXL.Cache.ContentStore.Hashing.HashType
+static BuildXL.Cache.ContentStore.Hashing.HashTypeExtensions.GetAvgChunkSize(this BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> int
+static BuildXL.Cache.ContentStore.Hashing.HashTypeExtensions.GetChunkerConfiguration(this BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.ChunkerConfiguration
+static BuildXL.Cache.ContentStore.Hashing.HashTypeExtensions.GetNodeAlgorithmId(this BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.NodeAlgorithmId
+static BuildXL.Cache.ContentStore.Hashing.HashTypeExtensions.IsValidDedup(this BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> bool
+static BuildXL.Cache.ContentStore.Hashing.HashTypeExtensions.Serialize(this BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> string!
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3.Create(byte* key, uint len, uint seed = 0) -> BuildXL.Cache.ContentStore.Hashing.MurmurHash3
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3.Create(byte[]! key, uint seed = 0) -> BuildXL.Cache.ContentStore.Hashing.MurmurHash3
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3.operator !=(BuildXL.Cache.ContentStore.Hashing.MurmurHash3 left, BuildXL.Cache.ContentStore.Hashing.MurmurHash3 right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3.operator ==(BuildXL.Cache.ContentStore.Hashing.MurmurHash3 left, BuildXL.Cache.ContentStore.Hashing.MurmurHash3 right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3.Zero.get -> BuildXL.Cache.ContentStore.Hashing.MurmurHash3
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.Create(byte* key, uint len, uint seed = 0) -> BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.Create(byte[]! key, uint seed = 0) -> BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.operator !=(BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32 left, BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32 right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.operator ==(BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32 left, BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32 right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32.Zero.get -> BuildXL.Cache.ContentStore.Hashing.MurmurHash3_32
+static BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.CalculateIdentifierFromSerializedNode(byte[]! bytes) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.CalculateIdentifierFromSerializedNode(byte[]! bytes, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.CalculateIdentifierFromSerializedNode(byte[]! bytes, int offset, int count) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.CalculateIdentifierFromSerializedNode(byte[]! bytes, int offset, int count, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.CalculateIdentifierFromSerializedNode(System.ArraySegment<byte> bytes) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.CalculateIdentifierFromSerializedNode(System.ArraySegment<byte> bytes, BuildXL.Cache.ContentStore.Hashing.HashType hashType) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier.Parse(string! value) -> BuildXL.Cache.ContentStore.Hashing.NodeDedupIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.PackedDedupNodeTree.EnumerateTree(System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.ChunkInfo>! chunks) -> System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.DedupNode>!
+static BuildXL.Cache.ContentStore.Hashing.PackedDedupNodeTree.EnumerateTree(System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.DedupNode>! nodes) -> System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.DedupNode>!
+static BuildXL.Cache.ContentStore.Hashing.PackedDedupNodeTree.EnumerateTree(System.Collections.Generic.IReadOnlyCollection<BuildXL.Cache.ContentStore.Hashing.ChunkInfo>! chunks) -> System.Collections.Generic.IEnumerable<BuildXL.Cache.ContentStore.Hashing.DedupNode>!
+static BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.FromSpan(System.ReadOnlySpan<byte> source) -> BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes
+static BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.operator !=(BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes left, BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.operator <(BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes left, BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.operator ==(BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes left, BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.operator >(BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes left, BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Parse(string! serialized) -> BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes
+static BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.Random(int length = 33) -> BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes
+static BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.ReadFrom(System.IO.BinaryReader! reader, int length = 33) -> BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes
+static BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes.TryParse(string! serialized, out BuildXL.Cache.ContentStore.Hashing.ReadOnlyFixedBytes result, out int length) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ShortHash.FromBytes(byte[]! data) -> BuildXL.Cache.ContentStore.Hashing.ShortHash
+static BuildXL.Cache.ContentStore.Hashing.ShortHash.FromSpan(System.ReadOnlySpan<byte> data) -> BuildXL.Cache.ContentStore.Hashing.ShortHash
+static BuildXL.Cache.ContentStore.Hashing.ShortHash.implicit operator BuildXL.Cache.ContentStore.Hashing.ShortHash(BuildXL.Cache.ContentStore.Hashing.ContentHash hash) -> BuildXL.Cache.ContentStore.Hashing.ShortHash
+static BuildXL.Cache.ContentStore.Hashing.ShortHash.operator !=(BuildXL.Cache.ContentStore.Hashing.ShortHash left, BuildXL.Cache.ContentStore.Hashing.ShortHash right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ShortHash.operator <(BuildXL.Cache.ContentStore.Hashing.ShortHash left, BuildXL.Cache.ContentStore.Hashing.ShortHash right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ShortHash.operator ==(BuildXL.Cache.ContentStore.Hashing.ShortHash left, BuildXL.Cache.ContentStore.Hashing.ShortHash right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ShortHash.operator >(BuildXL.Cache.ContentStore.Hashing.ShortHash left, BuildXL.Cache.ContentStore.Hashing.ShortHash right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ShortHash.TryParse(string! str, out BuildXL.Cache.ContentStore.Hashing.ShortHash result) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ShortHashExtensions.AsSpanUnsafe(this in BuildXL.Cache.ContentStore.Hashing.ShortHash hash) -> System.ReadOnlySpan<byte>
+static BuildXL.Cache.ContentStore.Hashing.ShortHashExtensions.ReadShortHash(this System.IO.BinaryReader! reader) -> BuildXL.Cache.ContentStore.Hashing.ShortHash
+static BuildXL.Cache.ContentStore.Hashing.ShortHashExtensions.ToShortHash(this BuildXL.Cache.ContentStore.Hashing.ContentHash contentHash) -> BuildXL.Cache.ContentStore.Hashing.ShortHash
+static BuildXL.Cache.ContentStore.Hashing.ShortHashExtensions.Write(this System.IO.BinaryWriter! writer, in BuildXL.Cache.ContentStore.Hashing.ShortHash value) -> void
+static BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.FromSpan(System.ReadOnlySpan<byte> source) -> BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes
+static BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.operator !=(BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes left, BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.operator <(BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes left, BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.operator ==(BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes left, BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes.operator >(BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes left, BuildXL.Cache.ContentStore.Hashing.ShortReadOnlyFixedBytes right) -> bool
+static BuildXL.Cache.ContentStore.Hashing.StreamWithLength.implicit operator BuildXL.Cache.ContentStore.Hashing.StreamWithLength(System.IO.FileStream! s) -> BuildXL.Cache.ContentStore.Hashing.StreamWithLength
+static BuildXL.Cache.ContentStore.Hashing.StreamWithLength.implicit operator BuildXL.Cache.ContentStore.Hashing.StreamWithLength(System.IO.MemoryStream! s) -> BuildXL.Cache.ContentStore.Hashing.StreamWithLength
+static BuildXL.Cache.ContentStore.Hashing.StreamWithLength.implicit operator BuildXL.Cache.ContentStore.Hashing.StreamWithLength?(System.IO.FileStream? s) -> BuildXL.Cache.ContentStore.Hashing.StreamWithLength?
+static BuildXL.Cache.ContentStore.Hashing.StreamWithLength.implicit operator BuildXL.Cache.ContentStore.Hashing.StreamWithLength?(System.IO.MemoryStream? s) -> BuildXL.Cache.ContentStore.Hashing.StreamWithLength?
+static BuildXL.Cache.ContentStore.Hashing.StreamWithLength.implicit operator System.IO.Stream!(BuildXL.Cache.ContentStore.Hashing.StreamWithLength s) -> System.IO.Stream!
+static BuildXL.Cache.ContentStore.Hashing.StreamWithLengthExtensions.AssertHasLength(this System.IO.Stream! s) -> BuildXL.Cache.ContentStore.Hashing.StreamWithLength
+static BuildXL.Cache.ContentStore.Hashing.StreamWithLengthExtensions.WithLength(this System.IO.FileStream! s) -> BuildXL.Cache.ContentStore.Hashing.StreamWithLength
+static BuildXL.Cache.ContentStore.Hashing.StreamWithLengthExtensions.WithLength(this System.IO.MemoryStream! s) -> BuildXL.Cache.ContentStore.Hashing.StreamWithLength
+static BuildXL.Cache.ContentStore.Hashing.StreamWithLengthExtensions.WithLength(this System.IO.Stream! s, long length) -> BuildXL.Cache.ContentStore.Hashing.StreamWithLength
+static BuildXL.Cache.ContentStore.Hashing.VsoHash.CalculateBlobIdentifier(byte[]! content) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.VsoHash.CalculateBlobIdentifier(System.IO.Stream! stream) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static BuildXL.Cache.ContentStore.Hashing.VsoHash.CalculateBlobIdentifierWithBlocks(System.IO.Stream! stream) -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks!
+static BuildXL.Cache.ContentStore.Hashing.VsoHash.CalculateBlobIdentifierWithBlocksAsync(System.IO.Stream! stream) -> System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks!>!
+static BuildXL.Cache.ContentStore.Hashing.VsoHash.HashBlock(byte[]! block, int lengthToHash, int startIndex = 0) -> BuildXL.Cache.ContentStore.Hashing.BlobBlockHash!
+static BuildXL.Cache.ContentStore.Hashing.VsoHash.WalkAllBlobBlocksAsync(System.IO.Stream! stream, System.Threading.SemaphoreSlim! blockActionSemaphore, bool multipleBlocksInParallel, BuildXL.Cache.ContentStore.Hashing.VsoHash.MultipleBlockBlobCallbackAsync! multipleBlockCallback, long? bytesToReadFromStream = null) -> System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks!>!
+static BuildXL.Cache.ContentStore.Hashing.VsoHash.WalkBlocksAsync(System.IO.Stream! stream, System.Threading.SemaphoreSlim? blockActionSemaphore, bool multipleBlocksInParallel, BuildXL.Cache.ContentStore.Hashing.VsoHash.SingleBlockBlobCallbackAsync! singleBlockCallback, BuildXL.Cache.ContentStore.Hashing.VsoHash.MultipleBlockBlobCallbackAsync! multipleBlockCallback, BuildXL.Cache.ContentStore.Hashing.VsoHash.MultipleBlockBlobSealCallbackAsync! multipleBlockSealCallback, long bytesToReadFromStream = -1) -> System.Threading.Tasks.Task!
+static BuildXL.Cache.ContentStore.Interfaces.Utils.ByteArrayComparer.ArraysEqual(byte[]? x, byte[]? y) -> bool
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.BytesToHex(System.Collections.Generic.IList<byte>! bytes) -> string!
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.CharToHexLookup.get -> System.ReadOnlySpan<byte>
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.HexToBytes(string! hex) -> byte[]!
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.HexToBytes(string! hex, byte[]! buffer) -> System.ReadOnlySpan<byte>
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.IsHexChar(int c) -> bool
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.IsHexString(string! data) -> bool
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.IsHexString(System.ReadOnlySpan<char> data) -> bool
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.ToHex(this System.Collections.Generic.IList<byte>? bytes) -> string!
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.TryToByteArray(string! hexString, out byte[]? bytes) -> bool
+static BuildXL.Cache.ContentStore.Interfaces.Utils.HexUtilities.TryToByteArray(System.ReadOnlySpan<char> chars, out byte[]? bytes) -> bool
+static BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities.Equals<T>(T left, object? right) -> bool
+static BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities.Equals<TLeft, TRight>(TLeft left, TRight right) -> bool
+static readonly BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.MaxValue -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static readonly BuildXL.Cache.ContentStore.Hashing.BlobIdentifier.MinValue -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifier!
+static readonly BuildXL.Cache.ContentStore.Hashing.Chunker.IsComChunkerSupported -> bool
+static readonly BuildXL.Cache.ContentStore.Hashing.Dedup1024KHashInfo.Instance -> BuildXL.Cache.ContentStore.Hashing.Dedup1024KHashInfo!
+static readonly BuildXL.Cache.ContentStore.Hashing.DedupNode64KHashInfo.Instance -> BuildXL.Cache.ContentStore.Hashing.DedupNode64KHashInfo!
+static readonly BuildXL.Cache.ContentStore.Hashing.DedupSingleChunkHashInfo.Instance -> BuildXL.Cache.ContentStore.Hashing.DedupSingleChunkHashInfo!
+static readonly BuildXL.Cache.ContentStore.Hashing.MD5HashInfo.Instance -> BuildXL.Cache.ContentStore.Hashing.MD5HashInfo!
+static readonly BuildXL.Cache.ContentStore.Hashing.MurmurHashInfo.Instance -> BuildXL.Cache.ContentStore.Hashing.MurmurHashInfo!
+static readonly BuildXL.Cache.ContentStore.Hashing.SHA1HashInfo.Instance -> BuildXL.Cache.ContentStore.Hashing.SHA1HashInfo!
+static readonly BuildXL.Cache.ContentStore.Hashing.SHA256HashInfo.Instance -> BuildXL.Cache.ContentStore.Hashing.SHA256HashInfo!
+static readonly BuildXL.Cache.ContentStore.Hashing.VsoHash.OfNothing -> BuildXL.Cache.ContentStore.Hashing.BlobIdentifierWithBlocks!
+static readonly BuildXL.Cache.ContentStore.Hashing.VsoHashInfo.Instance -> BuildXL.Cache.ContentStore.Hashing.VsoHashInfo!
+static readonly BuildXL.Cache.ContentStore.Interfaces.Utils.ByteArrayComparer.Instance -> BuildXL.Cache.ContentStore.Interfaces.Utils.ByteArrayComparer!
+virtual BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.CreateNode() -> BuildXL.Cache.ContentStore.Hashing.DedupNode
+virtual BuildXL.Cache.ContentStore.Hashing.DedupNodeOrChunkHashAlgorithm.DedupHashType.get -> BuildXL.Cache.ContentStore.Hashing.HashType
+virtual BuildXL.Cache.ContentStore.Hashing.Pool<T>.Get() -> BuildXL.Cache.ContentStore.Hashing.Pool<T>.PoolHandle

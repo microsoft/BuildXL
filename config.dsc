@@ -190,11 +190,11 @@ config({
                 // Key Vault
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.5.0" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.5.1" },
-                { id: "Azure.Identity", version: "1.10.2" },
+                { id: "Azure.Identity", version: "1.10.4" },
                 { id: "Microsoft.Identity.Client", version: "4.56.0" },
                 { id: "Microsoft.IdentityModel.Abstractions", version: "6.32.1" },
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "4.56.0" },
-                { id: "Azure.Core", version: "1.35.0", 
+                { id: "Azure.Core", version: "1.36.0", 
                     dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors", "Microsoft.Bcl.AsyncInterfaces" ] },
                 { id: "System.Memory.Data", version: "1.0.2",
                     dependentPackageIdsToSkip: [ "System.Memory", "System.Text.Json" ] },

@@ -60,7 +60,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Azure.Core",
-          "Version": "1.35.0"
+          "Version": "1.36.0"
         }
       }
     },
@@ -87,7 +87,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Azure.Identity",
-          "Version": "1.10.2"
+          "Version": "1.10.4"
         }
       }
     },

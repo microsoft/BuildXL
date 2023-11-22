@@ -65,6 +65,7 @@ namespace Main {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
             ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
+            importFrom("Microsoft.Identity.Client").pkg,
             importFrom("Grpc.Core.Api").pkg,
         ],
         internalsVisibleTo: [

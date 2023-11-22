@@ -1,11 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage.Fingerprints;
+using System.Linq;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities;
 
 namespace BuildXL.Pips.Graph
 {
@@ -43,8 +46,9 @@ namespace BuildXL.Pips.Graph
             PathExpander pathExpander = null,
             PipDataLookup pipDataLookup = null,
             SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null,
-            StaticHashLookup staticHashLookup = null)
-            : base(pathTable, contentHashLookup, extraFingerprintSalts, pathExpander, pipDataLookup, sourceChangeAffectedInputsLookup)
+            StaticHashLookup staticHashLookup = null,
+            PipFingerprintSaltLookup pipFingerprintSaltLookup = null)
+            : base(pathTable, contentHashLookup, extraFingerprintSalts, pathExpander, pipDataLookup, sourceChangeAffectedInputsLookup, pipFingerprintSaltLookup)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(contentHashLookup != null);

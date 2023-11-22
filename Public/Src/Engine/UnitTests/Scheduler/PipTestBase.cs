@@ -31,6 +31,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 
 using Process = BuildXL.Pips.Operations.Process;
+using BuildXL.Utilities;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -385,6 +386,7 @@ namespace Test.BuildXL.Scheduler
             ((EngineConfiguration)configuration.Engine).UnsafeAllowOutOfMountWrites ??= true;
             var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable).ComputeSearchPathToolsHash();
             FrontEndContext = FrontEndContext.CreateInstanceForTesting(pathTable: Context.PathTable, symbolTable: Context.SymbolTable, qualifierTable: Context.QualifierTable, frontEndConfig: configuration.FrontEnd, loggingContext: LoggingContext);
+            var pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(configuration.Engine.PipSpecificPropertyAndValues);
 
             PipGraphBuilder = new PipGraph.Builder(
                 PipTable,
@@ -394,7 +396,8 @@ namespace Test.BuildXL.Scheduler
                 configuration,
                 Expander,
                 fingerprintSalt: configuration.Cache.CacheSalt,
-                searchPathToolsHash: searchPathToolsHash);
+                searchPathToolsHash: searchPathToolsHash,
+                pipSpecificPropertiesConfig);
 
             ReadonlyRoot = Path.Combine(ObjectRoot, "readonly");
             NonHashableRoot = Path.Combine(ObjectRoot, "nonhashable");

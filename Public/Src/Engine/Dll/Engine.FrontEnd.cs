@@ -16,6 +16,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Tracing;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -40,6 +41,7 @@ namespace BuildXL.Engine
             MountsTable mountsTable,
             EvaluationFilter evaluationFilter,
             [AllowNull] GraphReuseResult reuseResult,
+            [AllowNull] PipSpecificPropertiesConfig pipSpecificPropertiesConfig,
             out PipGraph pipGraph)
         {
             Contract.Requires(frontEndEngineAbstration != null);
@@ -62,7 +64,7 @@ namespace BuildXL.Engine
 
             if (Configuration.Engine.Phase.HasFlag(EnginePhases.Schedule))
             {
-                pipGraphBuilder = CreatePipGraphBuilder(loggingContext, mountsTable, reuseResult);
+                pipGraphBuilder = CreatePipGraphBuilder(loggingContext, mountsTable, reuseResult, pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
             }
 
             // Have to do some horrible magic here to get to a proper Task<T> with the BuildXL cache since
@@ -129,7 +131,8 @@ namespace BuildXL.Engine
         private IPipGraphBuilder CreatePipGraphBuilder(
             LoggingContext loggingContext,
             MountsTable mountsTable,
-            [AllowNull] GraphReuseResult reuseResult)
+            [AllowNull] GraphReuseResult reuseResult,
+            [AllowNull] PipSpecificPropertiesConfig pipSpecificPropertiesConfig)
         {
             var searchPathToolsHash = new Scheduler.DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable).ComputeSearchPathToolsHash();
             var builder = new PipGraph.Builder(
@@ -140,7 +143,8 @@ namespace BuildXL.Engine
                 Configuration,
                 mountsTable.MountPathExpander,
                 fingerprintSalt: Configuration.Cache.CacheSalt,
-                searchPathToolsHash: searchPathToolsHash);
+                searchPathToolsHash: searchPathToolsHash,
+                pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
 
             PatchablePipGraph patchableGraph = null;
             if (Configuration.FrontEnd.UseGraphPatching() && reuseResult?.IsPartialReuse == true)

@@ -12,6 +12,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -62,7 +63,8 @@ namespace BuildXL.Scheduler.Graph
         public PipGraphFragmentBuilder(
             PipExecutionContext pipExecutionContext, 
             IConfiguration configuration,
-            PathExpander pathExpander)
+            PathExpander pathExpander,
+            PipSpecificPropertiesConfig pipSpecificPropertiesConfig)
         {
             Contract.Requires(pipExecutionContext != null);
 
@@ -85,7 +87,8 @@ namespace BuildXL.Scheduler.Graph
                     sealDirectoryFingerprintLookup: null,
                     directoryProducerFingerprintLookup: null,
                     extraFingerprintSalts: extraFingerprintSalts,
-                    pathExpander: pathExpander)
+                    pathExpander: pathExpander,
+                    pipFingerprintSaltLookup: process => pipSpecificPropertiesConfig.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash))
                 {
                     FingerprintTextEnabled = configuration.Schedule.LogPipStaticFingerprintTexts
                 };

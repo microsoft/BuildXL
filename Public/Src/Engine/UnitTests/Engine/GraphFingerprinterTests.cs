@@ -187,8 +187,8 @@ namespace Test.BuildXL.Engine
 
             var fileContentTable1 = FileContentTable.CreateNew(loggingContext1);
 
-            var oldFingerprint = GraphFingerprinter.TryComputeFingerprint(loggingContext1, configuration1.Startup, configuration1, context1.PathTable, evaluationFilter1, fileContentTable1, "111aaa", null).ExactFingerprint;
-            var newFingerprint1 = GraphFingerprinter.TryComputeFingerprint(loggingContext1, configuration1.Startup, configuration1, context1.PathTable, evaluationFilter2, fileContentTable1, "111aaa", null).ExactFingerprint;
+            var oldFingerprint = GraphFingerprinter.TryComputeFingerprint(loggingContext1, configuration1.Startup, configuration1, context1.PathTable, evaluationFilter1, fileContentTable1, "111aaa", null, null).ExactFingerprint;
+            var newFingerprint1 = GraphFingerprinter.TryComputeFingerprint(loggingContext1, configuration1.Startup, configuration1, context1.PathTable, evaluationFilter2, fileContentTable1, "111aaa", null, null).ExactFingerprint;
             
             var comparison = oldFingerprint.CompareFingerprint(newFingerprint1);
 
@@ -237,7 +237,7 @@ namespace Test.BuildXL.Engine
 
             var fileContentTable1 = FileContentTable.CreateNew(loggingContext1);
 
-            return GraphFingerprinter.TryComputeFingerprint(loggingContext1, configuration1.Startup, configuration1, context1.PathTable, evaluationFilter1, fileContentTable1, "111aaa", null).ExactFingerprint;
+            return GraphFingerprinter.TryComputeFingerprint(loggingContext1, configuration1.Startup, configuration1, context1.PathTable, evaluationFilter1, fileContentTable1, "111aaa", null, null).ExactFingerprint;
         }
 
         private CompositeGraphFingerprint CreateRandomWithModulesAndValues(string[] modules, string[] valueNames)

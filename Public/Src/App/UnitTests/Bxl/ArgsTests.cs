@@ -24,8 +24,8 @@ namespace Test.BuildXL
         private readonly List<PipSpecificPropertyAndValue> m_propertiesAndValues = new List<PipSpecificPropertyAndValue>
         {
             new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss, 24 ,null),
-            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging, 24, null),
-            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging, 22, null)
+            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, 24, null),
+            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, 22, null)
         };
 
         /// <summary>
@@ -248,7 +248,7 @@ namespace Test.BuildXL
         public void PassMultiplePropertiesToPip()
         {
             var property1 = PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss;
-            var property2 = PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging;
+            var property2 = PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging;
 
             PathTable pt = new PathTable();
             var argsParser = new Args();

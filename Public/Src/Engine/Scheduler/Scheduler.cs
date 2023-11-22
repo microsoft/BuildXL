@@ -1230,8 +1230,9 @@ namespace BuildXL.Scheduler
                 extraFingerprintSalts,
                 m_semanticPathExpander,
                 PipGraph.QueryFileArtifactPipData,
-                process => m_fileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(process),
-                pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default);
+                process => m_fileContentManager?.SourceChangeAffectedInputs.GetChangeAffectedInputs(process) ?? CollectionUtilities.EmptyArray<AbsolutePath>(),
+                pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default,
+                process => pipSpecificPropertiesConfig?.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash));
             m_historicPerfDataTableTask = runningTimeTable;
 
             // Prepare Root Map redirection table. see m_rootMappings comment on why this is happening here.
@@ -1249,7 +1250,7 @@ namespace BuildXL.Scheduler
             // Prepare artificial cache miss.
             var artificalCacheMissConfig = configuration.Cache.ArtificialCacheMissConfig ?? new ArtificialCacheMissConfig();
             // Retrieve the list of pipIds which have the forcedCacheMiss property set on them.
-            var forcedCacheMissSemistableHashes = PipSpecificPropertiesConfig?.GetPipIdsForProperty(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss).ToHashSet() ?? new HashSet<long>();
+            var forcedCacheMissSemistableHashes = PipSpecificPropertiesConfig?.GetPipIdsForProperty(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss) ?? Enumerable.Empty<long>();
 
             m_artificialCacheMissOptions = new ArtificialCacheMissOptions(
                 artificalCacheMissConfig.Rate / (double)ushort.MaxValue,
@@ -1398,8 +1399,9 @@ namespace BuildXL.Scheduler
                         extraFingerprintSalts,
                         m_semanticPathExpander,
                         PipGraph.QueryFileArtifactPipData,
-                        process => m_fileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(process),
-                        pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default),
+                        process => m_fileContentManager?.SourceChangeAffectedInputs.GetChangeAffectedInputs(process) ?? CollectionUtilities.EmptyArray<AbsolutePath>(),
+                        pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default,
+                        process => pipSpecificPropertiesConfig?.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash)),
                     cache,
                     DirectedGraph,
                     m_fingerprintStoreCounters,
@@ -5390,7 +5392,7 @@ namespace BuildXL.Scheduler
         public IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes { get; }
 
         /// <inheritdoc />
-        public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; }
+        public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; set; }
 
         /// <summary>
         /// Gets the execution information for the producer pip of the given file.

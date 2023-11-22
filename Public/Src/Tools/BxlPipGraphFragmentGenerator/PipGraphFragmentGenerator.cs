@@ -100,9 +100,11 @@ namespace BuildXL.PipGraphFragmentGenerator
                     false,
                     controller.RegisteredFrontEnds);
 
+                var pipSpecificPropertiesConfig = new Utilities.PipSpecificPropertiesConfig(config.Engine.PipSpecificPropertyAndValues);
+
                 var pipGraphBuilder = pipGraphFragmentGeneratorConfig.TopSort
-                    ? new PipGraphFragmentBuilderTopSort(engineContext, config, mountsTable.MountPathExpander)
-                    : new PipGraphFragmentBuilder(engineContext, config, mountsTable.MountPathExpander);
+                    ? new PipGraphFragmentBuilderTopSort(engineContext, config, mountsTable.MountPathExpander, pipSpecificPropertiesConfig: pipSpecificPropertiesConfig)
+                    : new PipGraphFragmentBuilder(engineContext, config, mountsTable.MountPathExpander, pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
 
                 // Observe mount table is completed during workspace construction
                 AddConfigurationMounts(config, mountsTable);

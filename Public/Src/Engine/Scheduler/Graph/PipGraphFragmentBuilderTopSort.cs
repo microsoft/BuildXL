@@ -8,6 +8,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler.Graph
 {
@@ -24,8 +25,9 @@ namespace BuildXL.Scheduler.Graph
         public PipGraphFragmentBuilderTopSort(
             PipExecutionContext pipExecutionContext, 
             IConfiguration configuration, 
-            PathExpander pathExpander) 
-            : base(pipExecutionContext, configuration, pathExpander)
+            PathExpander pathExpander,
+            PipSpecificPropertiesConfig pipSpecificPropertiesConfig) 
+            : base(pipExecutionContext, configuration, pathExpander, pipSpecificPropertiesConfig: pipSpecificPropertiesConfig)
         {
         }
 

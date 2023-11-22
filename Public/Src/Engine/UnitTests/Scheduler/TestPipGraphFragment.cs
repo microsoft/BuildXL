@@ -12,6 +12,7 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -77,9 +78,12 @@ namespace Test.BuildXL.Scheduler
 
             m_frontEndContext = FrontEndContext.CreateInstanceForTesting();
             m_useTopSort = useTopSort;
+
+            var pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(configuration.Engine.PipSpecificPropertyAndValues);
+
             PipGraph = m_useTopSort
-                ? new PipGraphFragmentBuilderTopSort(Context, configuration, m_expander)
-                : new PipGraphFragmentBuilder(Context, configuration, m_expander);
+                ? new PipGraphFragmentBuilderTopSort(Context, configuration, m_expander, pipSpecificPropertiesConfig)
+                : new PipGraphFragmentBuilder(Context, configuration, m_expander, pipSpecificPropertiesConfig);
 
             ModuleName = moduleName;
             var specFileName = moduleName + ".dsc";

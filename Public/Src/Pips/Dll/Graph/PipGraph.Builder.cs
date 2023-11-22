@@ -177,7 +177,8 @@ namespace BuildXL.Pips.Graph
                 IConfiguration configuration,
                 SemanticPathExpander semanticPathExpander,
                 string fingerprintSalt = null,
-                ContentHash? searchPathToolsHash = null)
+                ContentHash? searchPathToolsHash = null,
+                PipSpecificPropertiesConfig pipSpecificPropertiesConfig = null)
                 : base(pipTable, context, semanticPathExpander, new MutableDirectedGraph())
             {
                 MutableDataflowGraph = (MutableDirectedGraph)DataflowGraph;
@@ -222,7 +223,8 @@ namespace BuildXL.Pips.Graph
                     GetSealDirectoryFingerprint,
                     GetDirectoryProducerFingerprint,
                     extraFingerprintSalts,
-                    semanticPathExpander)
+                    semanticPathExpander,
+                    process => pipSpecificPropertiesConfig?.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash))
                 {
                     FingerprintTextEnabled = configuration.Schedule.LogPipStaticFingerprintTexts
                 };

@@ -249,7 +249,7 @@ namespace BuildXL.Scheduler
         SchedulerTestHooks SchedulerTestHooks { get; }
 
         /// <nodoc />
-        PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; }
+        PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; set; }
 
     }
 

@@ -28,6 +28,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using BuildXL.Utilities;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -785,6 +786,77 @@ namespace Test.BuildXL.Scheduler
 
             XAssert.AreNotEqual(fingerprintText1, fingerprintText2, $"fp1: '{fingerprintText1}'; fp2: '{fingerprintText2}'");
             XAssert.AreNotEqual(contentFingerprint1, contentFingerprint2);
+        }
+
+        /// <summary>
+        ///  Ensure the pipSpecificFingerprint salt is used in the computation of weak fingerprint for Static and ContentFingperinter.
+        /// </summary>
+        [Theory]
+        [InlineData("StaticFingerprinter")]
+        [InlineData("ContentFingerprinter")]
+        public void ComputeWeakFingerprintForPipSpecificFingerprintSalt(string pipFingerprinterType)
+        {
+            var pipSaltValue = "Salted";
+            var result = ProcessWeakFingerprintForPipSpecificSalt(pipFingerprinterType, pipSaltValue);
+
+            var baselineFingerprint = result.pipFingerprinter.ComputeWeakFingerprint(result.process, out var fingerprintText);
+            XAssert.IsTrue(fingerprintText.Contains(pipSaltValue));
+        }
+
+        [Theory]
+        [InlineData("StaticFingerprinter")]
+        [InlineData("ContentFingerprinter")]
+        public void ComputeWeakFingerprintForUniquePipSpecificFingerprintSalt(string pipFingerprinterType)
+        {    
+            var result = ProcessWeakFingerprintForPipSpecificSalt(pipFingerprinterType, "*");
+
+            // If the pipFingerprintingSaltValue is "*" then we expect the value to be unique everytime.
+            var baselineFingerprint1 = result.pipFingerprinter.ComputeWeakFingerprint(result.process, out var fingerprintText1);
+            var baselineFingerprint2 = result.pipFingerprinter.ComputeWeakFingerprint(result.process, out var fingerprintText2);
+            XAssert.AreNotEqual(fingerprintText1, fingerprintText2);
+        }
+
+        private (PipFingerprinter pipFingerprinter, Process process) ProcessWeakFingerprintForPipSpecificSalt(string pipFingerprinterType, string pipSaltValue)
+        {
+            var pathTable = m_context.PathTable;
+            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
+            var process = GetDefaultProcessBuilder(pathTable, executable).Build();
+
+            // Pass the pip specific fingerprint salt.
+            var propertiesAndValues = new List<PipSpecificPropertyAndValue>
+             {
+                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash, pipSaltValue),
+             };
+
+            var pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(propertiesAndValues);
+
+            PipFingerprinter pipFingerprinter = null;
+
+            // Compute the fingerprints of the pip
+            if (pipFingerprinterType == "StaticFingerprinter")
+            {
+                pipFingerprinter = new PipContentFingerprinter(
+                    pathTable,
+                    GetContentHashLookup(executable),
+                    ExtraFingerprintSalts.Default(),
+                    pipFingerprintSaltLookup: p => pipSpecificPropertiesConfig.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, p.SemiStableHash))
+                {
+                    FingerprintTextEnabled = true
+                };
+            }
+
+            if (pipFingerprinterType == "ContentFingerprinter")
+            {
+                pipFingerprinter = new PipStaticFingerprinter(
+                    pathTable,
+                    extraFingerprintSalts: ExtraFingerprintSalts.Default(),
+                    pipFingerprintSaltLookup: p => pipSpecificPropertiesConfig.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, p.SemiStableHash))
+                {
+                    FingerprintTextEnabled = true
+                };
+            }
+
+            return (pipFingerprinter, process);
         }
 
         private ProcessBuilder GetDefaultProcessBuilder(PathTable pathTable, FileArtifact executable)

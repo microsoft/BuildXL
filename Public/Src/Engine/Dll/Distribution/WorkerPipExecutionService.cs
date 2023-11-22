@@ -5,27 +5,23 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
-using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
-using BuildXL.Storage;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Tracing.Diagnostics;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using System.Linq;
-using BuildXL.Distribution.Grpc;
-using Google.Protobuf;
+using static BuildXL.Utilities.PipSpecificPropertiesConfig;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -119,6 +115,7 @@ namespace BuildXL.Engine.Distribution
                 m_environment = m_scheduler;
                 m_environment.ContentFingerprinter.FingerprintSalt = buildStartData.FingerprintSalt;
                 m_environment.State.PipEnvironment.OrchestratorEnvironmentVariables = buildStartData.EnvironmentVariables;
+                GetPipSpecificPropertiesConfigObject(buildStartData.PipSpecificPropertiesAndValues);
             }
 
             /// <inheritdoc/>
@@ -126,6 +123,17 @@ namespace BuildXL.Engine.Distribution
 
             /// <inheritdoc/>
             void IWorkerPipExecutionService.WhenDone() => m_pipQueue.SetAsFinalized();
+
+            /// <summary>
+            /// Refresh the mappings of pipSpecificPropertiesAndValues on the workers based on the buildStartData from the orchestrator
+            /// </summary>
+            public void GetPipSpecificPropertiesConfigObject(IEnumerable<PipSpecificPropertyAndValue> pipPropertiesAndValuesFromOrchestrator)
+            {
+                m_environment.PipSpecificPropertiesConfig = new Utilities.PipSpecificPropertiesConfig(pipPropertiesAndValuesFromOrchestrator.Select(pipSpecificPropertyAndValueEntry => new Utilities.PipSpecificPropertyAndValue(
+                                                                                                                                            (PipSpecificProperty)(pipSpecificPropertyAndValueEntry.PipSpecificProperty),
+                                                                                                                                            pipSpecificPropertyAndValueEntry.PipSemiStableHash,
+                                                                                                                                            pipSpecificPropertyAndValueEntry.PropertyValue)).ToList().AsReadOnlyList());
+            }
 
             /// <inheritdoc/>
             AttachCompletionInfo IWorkerPipExecutionService.ConstructAttachCompletionInfo() 

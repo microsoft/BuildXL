@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
@@ -13,8 +14,8 @@ using BuildXL.Pips.Graph;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Engine
@@ -56,6 +57,7 @@ namespace BuildXL.Engine
             IEvaluationFilter evaluationFilter,
             FileContentTable fileContentTable,
             string commitId,
+            [AllowNull] PipSpecificPropertiesConfig pipSpecificPropertiesConfig,
             EngineTestHooksData testHooks)
         {
             Contract.Requires(pathTable != null);
@@ -71,6 +73,7 @@ namespace BuildXL.Engine
                 evaluationFilter,
                 fileContentTable,
                 commitId,
+                pipSpecificPropertiesConfig,
                 testHooks);
             Optional<CompositeGraphFingerprint> compatibleFingerprint;
             if (!exactFingerprint.HasValue)
@@ -88,6 +91,7 @@ namespace BuildXL.Engine
                     null,
                     fileContentTable,
                     commitId,
+                    pipSpecificPropertiesConfig,
                     testHooks);
 
                 if (!compatibleFingerprint.HasValue)
@@ -113,6 +117,7 @@ namespace BuildXL.Engine
             IEvaluationFilter partialEvaluationData,
             FileContentTable fileContentTable,
             string commitId,
+            [AllowNull] PipSpecificPropertiesConfig pipSpecificPropertiesConfig,
             EngineTestHooksData testHooks)
         {
             ILayoutConfiguration layout = config.Layout;
@@ -196,6 +201,15 @@ namespace BuildXL.Engine
                             new Scheduler.DirectoryMembershipFingerprinterRuleSet(config, pathTable.StringTable).ComputeSearchPathToolsHash());
 
                         AddFingerprint(topLevelHasher, "ExtraFingerprintSalts", extraFingerprintSalts.CalculatedSaltsFingerprint);
+
+                        // If the pip has been passed with a specific fingerprint salt, those salt values should be used to see if the graph can be invalidated.
+                        var pipSemiStableHashesAndValues = pipSpecificPropertiesConfig?.RetrievePipSemistableHashesWithValues(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt);
+                        if (pipSemiStableHashesAndValues?.Any() == true)
+                        {
+                            var pipSpecificComputedSalt = string.Join(";", pipSemiStableHashesAndValues.OrderBy(pipSemiStableHashesAndValue => pipSemiStableHashesAndValue.Key)
+                                                                                                      .Select(pipSemiStableHashesAndValue => $"{pipSemiStableHashesAndValue.Key}={pipSemiStableHashesAndValue.Value}"));
+                            AddText(topLevelHasher, "PipSpecificComputedSalt", pipSpecificComputedSalt);
+                        }
                     }
 
                     fingerprint.TopLevelHash = topLevelHasher.GenerateHash();

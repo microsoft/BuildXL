@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using System.Linq;
 
 namespace BuildXL.Pips
 {
@@ -40,7 +41,7 @@ namespace BuildXL.Pips
         /// Creates miss-rate options with a random seed and no forced hashes.
         /// </summary>
         public ArtificialCacheMissOptions(double missRate, bool invert)
-            : this(missRate, invert, Environment.TickCount, new())
+            : this(missRate, invert, Environment.TickCount, Enumerable.Empty<long>())
         {
             Contract.Requires(missRate >= 0.0 && missRate <= 1.0);
         }
@@ -49,7 +50,7 @@ namespace BuildXL.Pips
         /// Creates miss-rate options with a random seed and no forced hashes, including a seed.
         /// </summary>
         public ArtificialCacheMissOptions(double missRate, bool invert, int seed)
-            : this(missRate, invert, seed, new())
+            : this(missRate, invert, seed, Enumerable.Empty<long>())
         {
             Contract.Requires(missRate >= 0.0 && missRate <= 1.0);
         }
@@ -61,7 +62,7 @@ namespace BuildXL.Pips
         /// <remarks>
         /// Given these exact parameters and the same pip graph, the same pips will have artificial misses.
         /// </remarks>
-        public ArtificialCacheMissOptions(double missRate, bool invert, int seed, HashSet<long> forcedMisses)
+        public ArtificialCacheMissOptions(double missRate, bool invert, int seed, IEnumerable<long> forcedMisses)
         {
             Contract.Requires(missRate >= 0.0 && missRate <= 1.0);
             m_seed = seed;

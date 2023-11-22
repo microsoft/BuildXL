@@ -652,7 +652,7 @@ namespace Test.BuildXL.Scheduler.Utils
         public SchedulerTestHooks SchedulerTestHooks { get; }
 
         /// <inheritdoc />
-        public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; }
+        public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; set; }
 
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {

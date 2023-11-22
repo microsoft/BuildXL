@@ -1979,7 +1979,7 @@ namespace BuildXL.Scheduler
                 IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleDynamicOutputs = null;
 
                 // A collection of formatted semistable hashes for pips which will have verbose sandbox logging enableed. 
-                var isVerboseLoggingEnabled = environment.PipSpecificPropertiesConfig?.PipHasProperty(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging, pip.SemiStableHash) == true;
+                var isVerboseLoggingEnabled = environment.PipSpecificPropertiesConfig?.PipHasProperty(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, pip.SemiStableHash) == true;
 
                 // Retry pip count up to limit if we produce result without detecting file access.
                 // There are very rare cases where a child process is started not Detoured and we don't observe any file accesses from such process.

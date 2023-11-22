@@ -13,8 +13,9 @@ using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -25,7 +26,6 @@ using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using PipsTracingLogEventId = BuildXL.Pips.Tracing.LogEventId;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
-using BuildXL.Utilities.Collections;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -66,13 +66,6 @@ namespace IntegrationTest.BuildXL.Scheduler
                 CommitUsagePercentage = 50,
                 CommitLimitMb = 10000,
             };
-
-        private readonly List<PipSpecificPropertyAndValue> m_propertiesAndValues = new List<PipSpecificPropertyAndValue>
-        {
-            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss, 24 ,null),
-            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging, 24, null),
-            new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging, 22, null)
-        };
 
         /// <summary>
         /// Verifies that when a pip fails and exits the build, the code
@@ -2351,10 +2344,21 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// <param name="pipSpecificProperty"></param>
         [Theory]
         [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss)]
-        [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.Debug_EnableVerboseProcessLogging)]
+        [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging)]
+        [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt)]
         public void ValidateGetPipIdsForProperty(PipSpecificPropertiesConfig.PipSpecificProperty pipSpecificProperty)
         {
-            Configuration.Engine.PipSpecificPropertyAndValues.AddRange(m_propertiesAndValues);
+            var propertiesAndValues = new List<PipSpecificPropertyAndValue>
+            {
+               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss, 24 ,null),
+               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, 24, null),
+               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, 22, null),
+               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, 24 ,"salty"),
+               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, 24, "TooSalty"),
+               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, 22, "saltLess")
+            };
+
+            Configuration.Engine.PipSpecificPropertyAndValues.AddRange(propertiesAndValues);
             var builder = CreatePipBuilder(new Operation[]
             {
                 // dummy file
@@ -2364,23 +2368,114 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
 
-            // Retrieve pipIds based on the property
-            var retrievedPipIds = PipSpecificPropertiesConfig?.GetPipIdsForProperty(pipSpecificProperty);
+            // Retrieve semistableHashes for a specific property
+            var retrievedSemistableHashes = PipSpecificPropertiesConfig?.GetPipIdsForProperty(pipSpecificProperty);
 
-            // Retrieve list of expected properties
-            var expectedPipIds = m_propertiesAndValues.Where(x => x.PropertyName == pipSpecificProperty)
+            // Retrieve list of semistableHashes which are specific to the property
+            var expectedSemistableHashes = propertiesAndValues.Where(x => x.PropertyName == pipSpecificProperty)
                                                       .Select(pipSpecificProperty => pipSpecificProperty.PipSemiStableHash)
                                                       .ToReadOnlySet();
 
             // Ensure that both the lists have the same semistablehashes.
-            XAssert.IsTrue(retrievedPipIds.Count > 0);
-            XAssert.IsTrue(expectedPipIds.SequenceEqual(retrievedPipIds));
+            XAssert.IsTrue(retrievedSemistableHashes.Any());
+            XAssert.IsTrue(expectedSemistableHashes.SequenceEqual(retrievedSemistableHashes));
 
-            // Checks if the given pipId has a proeprty or not.
-            foreach(var expectedPipId in expectedPipIds)
+            // Checks if the given pipId has a property or not.
+            foreach (var expectedSemistableHash in expectedSemistableHashes)
             {
-                XAssert.IsTrue(PipSpecificPropertiesConfig.PipHasProperty(pipSpecificProperty, expectedPipId));
+                XAssert.IsTrue(PipSpecificPropertiesConfig.PipHasProperty(pipSpecificProperty, expectedSemistableHash));
             }
+
+            // Obtain pip property value for a given property and semistablehash.
+            if (pipSpecificProperty.ToString().Equals("PipFingerprintingSalt"))
+            {
+                XAssert.AreEqual(PipSpecificPropertiesConfig.GetPipSpecificPropertyValue(pipSpecificProperty, 24), "TooSalty");
+            }
+        }
+
+        /// <summary>
+        /// Ensure that a pip is salted when the salt value is passed via PipFingerprintingSalt flag.
+        /// This test also runs with IS feature enabled as well. So it covers the IS feature
+        /// </summary>
+        [Fact]
+        public void CheckPipSpecificFingerprintSaltingForConstantSaltValue()
+        {
+            var pOperations = new Operation[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) };
+
+            // Schedule pip1 but without passing the pipSpecificFingerprintSalt
+            Configuration.Engine.PipSpecificPropertyAndValues = new List<PipSpecificPropertyAndValue>();
+            Process pip = CreateAndSchedulePipBuilder(pOperations).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Set the pipFingerprintingSalt property value for this pip in the config object.
+            // Once this is passed we expect the pip to have a cache miss.
+            var propertiesAndValues = new List<PipSpecificPropertyAndValue>
+             {
+                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, pip.SemiStableHash, "TooSalted"),
+             };
+            Configuration.Engine.PipSpecificPropertyAndValues.AddRange(propertiesAndValues);
+            ResetPipGraphBuilder();
+            // Build pip1 again and we should get an initial cache miss as we have passed the pipSpecificSalt
+            pip = CreateAndSchedulePipBuilder(pOperations).Process;
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Do not pass the pipSpecificFingerprintSalt
+            // Now when we reconstruct the graph we expect a cache hit with the first constructed graph
+            Configuration.Engine.PipSpecificPropertyAndValues = new List<PipSpecificPropertyAndValue>();
+            ResetPipGraphBuilder();
+            pip = CreateAndSchedulePipBuilder(pOperations).Process;
+            RunScheduler().AssertCacheHit(pip.PipId);
+        }
+
+        /// <summary>
+        /// Ensure that a pip is salted when the salt value of "*" is passed via PipFingerprintingSalt flag.
+        /// This test also runs with IS feature enabled as well. So it covers the IS feature.
+        /// </summary>
+        [Fact]
+        public void CheckPipSpecificFingerprintSaltingWhenSaltValueIsNotConstant()
+        {
+            var pOperations = new Operation[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) };
+
+            // Schedule pip1 but without passing the pipSpecificFingerprintSalt
+            Configuration.Engine.PipSpecificPropertyAndValues = new List<PipSpecificPropertyAndValue>();
+            Process pip = CreateAndSchedulePipBuilder(pOperations).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Set the pipFingerprintingSalt property value for this pip in the config object.
+            // Once this is passed we expect the pip to have a cache miss.
+            SchedulePipsForSaltValue(pOperations, pip);
+            SchedulePipsForSaltValue(pOperations, pip);
+
+            // Do not pass the pipSpecificFingerprintSalt
+            // Now when we reconstruct the graph we expect a cache hit with the first constructed graph
+            Configuration.Engine.PipSpecificPropertyAndValues = new List<PipSpecificPropertyAndValue>();
+            ResetPipGraphBuilder();
+            pip = CreateAndSchedulePipBuilder(pOperations).Process;
+            RunScheduler().AssertCacheHit(pip.PipId);
+        }
+
+        /// <summary>
+        /// A special use case where the salt value is "*" in this case it generates a random salt value everytime we pass this value.
+        /// </summary>
+        /// <remarks>
+        /// If this method is invoked consecutively then it should make the pip have a cache miss as the salt value is random everytime.
+        /// </remarks>
+        private void SchedulePipsForSaltValue(Operation[] pOperations, Process pip)
+        {
+            var propertiesAndValues = new List<PipSpecificPropertyAndValue>
+             {
+                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, pip.SemiStableHash, "*"),
+             };
+            Configuration.Engine.PipSpecificPropertyAndValues.AddRange(propertiesAndValues);
+            ResetPipGraphBuilder();
+            // Build pip1 again we should get a cache miss everytime as the salt value is "*", means the salt value is not constant.
+            pip = CreateAndSchedulePipBuilder(pOperations).Process;
+            RunScheduler().AssertCacheMiss(pip.PipId);
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

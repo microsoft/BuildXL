@@ -586,7 +586,7 @@ namespace Test.BuildXL.Scheduler
             public IPipGraphFileSystemView PipGraphView => m_filesystemView;
 
             /// <inheritdoc />
-            public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; }
+            public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; set; }
 
             SealDirectoryKind IFileContentManagerHost.GetSealDirectoryKind(DirectoryArtifact directory)
             {

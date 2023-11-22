@@ -2954,6 +2954,7 @@ namespace BuildXL.Engine
                         partialEvaluationData.GetDeserializedFilter(),
                         FileContentTable,
                         m_commitId,
+                        m_pipSpecificPropertiesConfig,
                         TestHooks)
                     : null;
             }
@@ -3111,6 +3112,7 @@ namespace BuildXL.Engine
                             mountsTable,
                             evaluationFilter,
                             reuseResult,
+                            m_pipSpecificPropertiesConfig,
                             out newlyEvaluatedGraph))
                         {
                             Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged during DScript graph construction.");

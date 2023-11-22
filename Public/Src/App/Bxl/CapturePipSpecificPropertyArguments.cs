@@ -22,7 +22,7 @@ namespace BuildXL
         /// Parse pipProperty argument and map pipIds with the respective pipProperties.
         /// </summary>
         /// <remarks>
-        /// /pipProperty:Pip232325435435[pipFingerprintingSalt=TooSalty,forcedCacheMiss,enableVerboseLogging]
+        /// /pipProperty:Pip232325435435[PipFingerprintingSalt=TooSalty,ForcedCacheMiss,Debug_EnableVerboseProcessLogging]
         /// </remarks>
         public static void ParsePipPropertyArg(CommandLineUtilities.Option opt, EngineConfiguration engineConfiguration)
         {

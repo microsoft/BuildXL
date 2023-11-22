@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips.Graph
@@ -35,13 +36,15 @@ namespace BuildXL.Pips.Graph
             Func<DirectoryArtifact, ContentFingerprint> sealDirectoryFingerprintLookup = null,
             Func<DirectoryArtifact, ContentFingerprint> directoryProducerFingerprintLookup = null,
             ExtraFingerprintSalts? extraFingerprintSalts = null,
-            PathExpander pathExpander = null)
+            PathExpander pathExpander = null,
+            PipFingerprintSaltLookup pipFingerprintSaltLookup = null)
             : base(
                   pathTable,
                   contentHashLookup: null,
                   extraFingerprintSalts: extraFingerprintSalts,
                   pathExpander: pathExpander,
-                  pipDataLookup: null)
+                  pipDataLookup: null,
+                  pipFingerprintSaltLookup: pipFingerprintSaltLookup)
         {
             m_sealDirectoryFingerprintLookup = sealDirectoryFingerprintLookup;
             m_directoryProducerFingerprintLookup = directoryProducerFingerprintLookup;

@@ -11,6 +11,8 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using BuildXL.Utilities;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Pips.Graph
 {
@@ -54,6 +56,11 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public delegate IReadOnlyList<AbsolutePath> SourceChangeAffectedInputsLookup(Process process);
 
+        /// <summary>
+        /// Delegate for getting the fingerpring salt for a particular process.
+        /// </summary>
+        public delegate string PipFingerprintSaltLookup(Process process);
+
         private readonly PathTable m_pathTable;
         private readonly PipFragmentRenderer.ContentHashLookup m_contentHashLookup;
         private readonly PipDataLookup m_pipDataLookup;
@@ -94,6 +101,8 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public string CalculatedFingerprintSaltText => m_extraFingerprintSalts.CalculatedSaltsFingerprintText;
 
+        private readonly PipFingerprintSaltLookup m_pipFingerprintSaltLookup;
+
         /// <summary>
         /// Creates a content fingerprinter which will look up the content of pip dependencies
         /// (when fingerprinting that pip) via the given callback. The new instance is thread-safe
@@ -105,7 +114,8 @@ namespace BuildXL.Pips.Graph
             ExtraFingerprintSalts? extraFingerprintSalts = null,
             PathExpander pathExpander = null,
             PipDataLookup pipDataLookup = null,
-            SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null)
+            SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null,
+            PipFingerprintSaltLookup pipFingerprintSaltLookup = null)
         {
             Contract.Requires(pathTable != null);
 
@@ -127,6 +137,7 @@ namespace BuildXL.Pips.Graph
                 // Use the hash lookup delegate that was passed as an argument.
                 // PipFragmentRenderer can accept a null value here, and it has special logic for such cases.
                 m_contentHashLookup);
+            m_pipFingerprintSaltLookup = pipFingerprintSaltLookup ?? new PipFingerprintSaltLookup(_ => string.Empty);
         }
 
         /// <summary>
@@ -381,6 +392,13 @@ namespace BuildXL.Pips.Graph
                 process.OutputDirectoryExclusions, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
 
             fingerprinter.Add(nameof(Process.PreserveOutputsTrustLevel), process.PreserveOutputsTrustLevel);
+
+            // If the pip has been passed with a specific fingerprinting salt value then we use it in the computation of weak fingerprint.
+            var pipFingerprintingSaltValue = m_pipFingerprintSaltLookup(process);
+            if (!string.IsNullOrEmpty(pipFingerprintingSaltValue))
+            {
+                fingerprinter.Add("PipSpecificFingerprintingSalt", pipFingerprintingSaltValue == "*" ? Guid.NewGuid().ToString() : pipFingerprintingSaltValue);
+            }
         }
 
         /// <summary>

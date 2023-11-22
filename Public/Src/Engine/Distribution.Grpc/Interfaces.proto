@@ -202,6 +202,19 @@ message BuildStartData
     
     // Content hash of optional symlink file.
     bytes SymlinkFileContentHash = 7;
+
+    // PipSpecificPropertiesAndValues data
+    repeated PipSpecificPropertyAndValue PipSpecificPropertiesAndValues = 8;
+}
+
+// Represents the corresponding property and its value for a given pipsemistablehash.
+message PipSpecificPropertyAndValue
+{
+    int32 PipSpecificProperty = 1;
+
+    int64 PipSemiStableHash = 2;
+
+    string PropertyValue = 3;
 }
 
 // Defines location at which a service can be connected to.

@@ -1,9 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.IO;
-using BuildXL.Utilities.Core;
+using System.Linq;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -153,6 +157,34 @@ const combineCopyAndTwo = Transformer.execute({{
 }});
 ";
         }
+
+        [Fact]
+        public void IncrementalBuildWithPipSpecificFingerprintSalting()
+        {
+            Configuration.Schedule.IncrementalScheduling = true;
+            Configuration.Schedule.ComputePipStaticFingerprints = true;
+
+            SetupTestState();
+            EagerCleanBuild("IntialBuild");
+
+            IEnumerable<Pip> processPipsInBuild = null;
+            // Using this method to capture the process pips executed, one of these pips is salted in the next build.
+            var counters2 = Build("Build before Salting", scheduler => processPipsInBuild = scheduler.PipGraph.RetrievePipsOfType(PipType.Process).ToList());
+            counters2.VerifyNumberOfProcessPipsCached(2);
+
+            Configuration.Engine.PipSpecificPropertyAndValues = new List<PipSpecificPropertyAndValue>
+             {
+                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, processPipsInBuild.First().SemiStableHash, "TooSalt"),
+             };
+
+            var countersPostSaltingPip = Build("Build after Salting");
+            // If a specific pip has been salted then it needs to be scheduled for execution.
+            // Here there are two process pips and only one of them is salted.
+            // Hence one pip is cached and the other is executed.
+            countersPostSaltingPip.VerifyNumberOfProcessPipsCached(1);
+            countersPostSaltingPip.VerifyNumberOfPipsExecuted(1);
+        }
+
 
         /// <summary>
         /// Number of pips that would run on a clean build.

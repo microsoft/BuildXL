@@ -6,43 +6,35 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
-using System.IO;
+using System.Globalization;
 using System.Linq;
-using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Distribution.Grpc;
-using BuildXL.Engine.Cache.Artifacts;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Pips;
-using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Google.Protobuf;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using static BuildXL.Utilities.Core.Tasks.TaskUtilities;
 using Logger = BuildXL.Engine.Tracing.Logger;
-using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Cache.ContentStore.Extensions;
-using static BuildXL.Distribution.Grpc.Orchestrator;
-using Grpc.Core;
-using System.Globalization;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -449,6 +441,14 @@ namespace BuildXL.Engine.Distribution
 
             startData.EnvironmentVariables.Add(m_orchestratorService.Environment.State.PipEnvironment
                        .FullEnvironmentVariables.ToDictionary());
+
+            startData.PipSpecificPropertiesAndValues.AddRange(m_orchestratorService.Environment.Configuration.Engine.PipSpecificPropertyAndValues
+                                                                            .Select(pipSpecificPropertyAndValue => new PipSpecificPropertyAndValue
+                                                                            {
+                                                                                PipSpecificProperty = (int)pipSpecificPropertyAndValue.PropertyName,
+                                                                                PipSemiStableHash = pipSpecificPropertyAndValue.PipSemiStableHash,
+                                                                                PropertyValue = pipSpecificPropertyAndValue.PropertyValue
+                                                                            }));
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             while (sw.Elapsed < EngineEnvironmentSettings.WorkerAttachTimeout && !m_schedulerCompletionExceptMaterializeOutputs.IsCompleted)

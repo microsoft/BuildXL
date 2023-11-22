@@ -33,7 +33,7 @@ jobs:
   timeoutInMinutes: 90
 
   steps:
-  - template: build-selfhost-singlemachine.yml
+  - template: build-selfhost-base.yml
     parameters:
       cacheUniverse: bxlselfhostptrace
       buildSteps:

@@ -38,14 +38,14 @@ jobs:
   timeoutInMinutes: 90
 
   steps:
-  - template: build-selfhost-singlemachine.yml
+  - template: build-selfhost-base.yml
     parameters:
       cacheUniverse: blob3bxlselfhost
       buildSteps:
       - bash: |
           set -eu
           # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
-          timeout --signal 9 60m bash bxl.sh /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev --release /forceAddExecutionPermission- ${{ parameters.BxlCommonArgs }}
+          timeout --signal 9 60m bash bxl.sh /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev --release /forceAddExecutionPermission- /cacheConfigFilePath:Out/CacheConfig.json ${{ parameters.BxlCommonArgs }}
         displayName: Build
         workingDirectory: /home/subst
         env:

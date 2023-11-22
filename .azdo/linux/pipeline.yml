@@ -15,7 +15,7 @@ parameters:
   type: string
   # We pass xunit semaphore `/p:[Sdk.BuildXL]xunitSemaphoreCount=8` to limit the number of parallel xunit pips.
   # Too many xunit pips running in parallel can cause the long running ones to hang. 
-  default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /p:[Sdk.BuildXL]xunitSemaphoreCount=8
+  default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /logoutput:FullOutputOnError /logsToRetain:10 /p:[Sdk.BuildXL]xunitSemaphoreCount=8
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
@@ -57,7 +57,19 @@ extends:
           BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
           ValidationName: InternalRelease
           BxlExtraArgs: --internal /q:ReleaseLinux /forceAddExecutionPermission-
+          Role: Orchestrator
     
+    - stage: Build_Internal_Workers
+      displayName: Internal validation [Workers]
+      dependsOn: Bootstrap_Internal
+      jobs:
+      - template: /.azdo/linux/job-selfhost.yml@self
+        parameters:
+          BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
+          ValidationName: InternalRelease
+          BxlExtraArgs: --internal /q:ReleaseLinux /forceAddExecutionPermission-
+          Role: Worker
+
     - stage: Verify_PTrace
       displayName: PTrace validation
       dependsOn: Bootstrap_Internal  

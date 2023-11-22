@@ -1,6 +1,13 @@
 parameters:
 - name: BxlCommonArgs # We reuse these across jobs like a constant
   type: string
+- name: Role
+  type: string
+  default: SingleMachine
+  values:
+  - Orchestrator
+  - Worker
+  - SingleMachine
 # The following parameters change
 - name: BxlExtraArgs
   type: string
@@ -28,7 +35,7 @@ jobs:
     outputs:
     - output: pipelineArtifact
       targetPath: $(Build.SourcesDirectory)/Out/Logs
-      artifactName: BuildXL-Logs.${{ parameters.validationName }}.$(System.JobName).$(System.JobAttempt)
+      artifactName: BuildXL-Logs.${{ parameters.validationName }}.${{ parameters.Role }}.$(System.JobName).$(System.JobAttempt)
       condition: always()
       continueOnError: true
       displayName: Upload BuildXL Logs
@@ -43,22 +50,36 @@ jobs:
   timeoutInMinutes: 90
 
   steps:
-  - template: build-selfhost-singlemachine.yml
+  - template: build-selfhost-base.yml
     parameters:
       cacheUniverse: bxlselfhost
+      # if we are running single machine, write down a cache config file. Otherwise the adobuildrunner will generate one
+      writeCacheConfigFile: ${{ eq(parameters.Role, 'SingleMachine') }}
       buildSteps:
       - bash: |
           set -eu
           # - the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
           # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
-          timeout --signal 9 60m ./bxl.sh --use-dev $(ScriptExtraArgs) ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache-
+
+          USE_ADOBUILDRUNNER=""
+          DYNAMIC_WORKER_SLOTS=""
+
+          # if we are doing a distributed build, use the ado build runner and configure
+          # an extra worker
+          if [ "${{ parameters.Role }}" != "SingleMachine" ]; then
+            USE_ADOBUILDRUNNER="--use-adobuildrunner"
+            DYNAMIC_WORKER_SLOTS="/dynamicBuildWorkerSlots:1"
+          fi
+
+          timeout --signal 9 60m ./bxl.sh $USE_ADOBUILDRUNNER --use-dev ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache- $DYNAMIC_WORKER_SLOTS
         displayName: Test (${{ parameters.validationName }})
         workingDirectory: /home/subst
         env:
           PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
           PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-
+          AdoBuildRunnerInvocationKey: LinuxSelfhostDistributedValidation
+          AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
 
       - task: PublishTestResults@2
         displayName: Publish Test Results

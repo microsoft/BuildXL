@@ -49,36 +49,19 @@ jobs:
       sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
     displayName: Bind /home/subst to sources directory  
 
-  # Write cache config file
-  - bash: |
-      set -euo pipefail
-      mkdir -p /home/subst/Out
-      rm -f /home/subst/Out/CacheConfig.json
-      tee /home/subst/Out/CacheConfig.json << EOF
-      {
-          "RetentionPolicyInDays":  6,
-          "CacheSizeMb":  20240,
-          "Type":  "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory",
-          "DatacenterWide":  true,
-          "LeaderMachineName":  "[BuildXLSelectedLeader]",
-          "CacheRootPath":  "[BuildXLSelectedRootPath]",
-          "CacheId":  "L1L2L3Cache",
-          "Universe":  "bxlselfhost",
-          "CacheLogPath":  "[BuildXLSelectedLogPath]",
-          "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
-          "StorageAccountEndpoint": "https://l3bxlselfhost.blob.core.windows.net",
-          "ManagedIdentityId": "eb694749-b1d6-45bc-b7af-2bd81603968a"
-      }
-      EOF
-    displayName: Write cache config file for distributed build
-
   # Run build
   - bash: |
       set -eu
       chmod +x $(BootstrapLocation)/AdoBuildRunner
       chmod +x $(BootstrapLocation)/bxl
-          
-      $(BootstrapLocation)/AdoBuildRunner /c:config.dsc /logsDirectory:$(Build.SourcesDirectory)/Out/Logs /cacheConfigFilePath:/home/subst/Out/CacheConfig.json /p:BUILDXL_FINGERPRINT_SALT=* /p:BUILDXL_GRAPH_FINGERPRINT_SALT=* /replicateOutputsToWorkers+ /p:BuildXLMinimumWaitForRemoteWorkerMin=5 /dynamicBuildWorkerSlots:1
+
+      $(BootstrapLocation)/AdoBuildRunner \
+        /cacheConfigLogGeneratedConfiguration \
+        /cacheConfigStorageAccountEndpoint:https://l3bxlselfhost.blob.core.windows.net \
+        /cacheConfigManagedIdentityId:eb694749-b1d6-45bc-b7af-2bd81603968a \
+        /cacheConfigCacheType:EphemeralDatacenterWide \
+        -- \
+        /c:config.dsc /logsDirectory:$(Build.SourcesDirectory)/Out/Logs /p:BUILDXL_FINGERPRINT_SALT=* /p:BUILDXL_GRAPH_FINGERPRINT_SALT=* /replicateOutputsToWorkers+ /p:BuildXLMinimumWaitForRemoteWorkerMin=5 /dynamicBuildWorkerSlots:1
     displayName: Test distributed
     workingDirectory: /home/subst/Private/AdoDistributionTests
     env:

@@ -38,10 +38,7 @@ function setBxlCmdArgs {
         "/p:DOTNET_EXE=$(which dotnet)"
         "/p:MONO_EXE=$(which mono)"
         # user-specified config files
-        "/cacheConfigFilePath:$arg_CacheConfigFile"
         "/c:$arg_MainConfig"
-        # all other user-specified args
-        "${arg_Positional[@]}"
     )
 
     if [[ "${OSTYPE}" == "linux-gnu" ]]; then
@@ -52,6 +49,19 @@ function setBxlCmdArgs {
             /noWarn:460
         )
     fi
+
+    # If we are not using the ado build runner, inject a default cache. Otherwise, we are using
+    # the cache config autogen functionality of the runner, so let that kick in
+    if [[ -z "$arg_useAdoBuildRunner" ]]; then
+        g_bxlCmdArgs+=(
+            "/cacheConfigFilePath:$arg_CacheConfigFile"
+        )
+    fi
+
+    # all other user-specified args
+    g_bxlCmdArgs+=(
+        "${arg_Positional[@]}"
+    )
 }
 
 # Greps system log for messages from BuildXLSandbox kext.
@@ -207,7 +217,13 @@ function build {
         chmod u=rx "$adoBuildRunnerExe" || true
         print_info "${tputBold}Running AdoBuildRunner:${tputReset} '$adoBuildRunnerExe' ${g_bxlCmdArgs[@]}"
 
-        "$adoBuildRunnerExe" "${g_bxlCmdArgs[@]}"
+        "$adoBuildRunnerExe" \
+        "/cacheConfigLogGeneratedConfiguration" \
+        "/cacheConfigStorageAccountEndpoint:https://l3bxlselfhost.blob.core.windows.net" \
+        "/cacheConfigManagedIdentityId:eb694749-b1d6-45bc-b7af-2bd81603968a" \
+        "/cacheConfigCacheType:EphemeralDatacenterWide"\
+        "--" \
+        "${g_bxlCmdArgs[@]}"
     else
         print_info "${tputBold}Running bxl:${tputReset} '$bxlExe' ${g_bxlCmdArgs[@]}"
 

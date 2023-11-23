@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -14,6 +15,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             OsSkip = new List<string>();
             DependentPackageIdsToSkip = new List<string>();
             DependentPackageIdsToIgnore = new List<string>();
+            FilesToExclude = new List<RelativePath>();
         }
 
         /// <nodoc />
@@ -27,6 +29,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DependentPackageIdsToSkip = template.DependentPackageIdsToSkip ?? new List<string>();
             DependentPackageIdsToIgnore = template.DependentPackageIdsToIgnore ?? new List<string>();
             ForceFullFrameworkQualifiersOnly = template.ForceFullFrameworkQualifiersOnly;
+            FilesToExclude = template.FilesToExclude ?? new List<RelativePath>();
         }
 
         /// <inheritdoc />
@@ -52,5 +55,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool ForceFullFrameworkQualifiersOnly { get; private set; } = false;
+
+        /// <inheritdoc />
+        public List<RelativePath> FilesToExclude { get; private set; }
     }
 }

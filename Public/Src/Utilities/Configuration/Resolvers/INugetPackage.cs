@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -55,6 +56,11 @@ namespace BuildXL.Utilities.Configuration
         /// Optional flag to force package spec generation to use full framework qualifiers only
         /// </summary>
         bool ForceFullFrameworkQualifiersOnly { get; }
+
+        /// <summary>
+        /// List of files to exclude from the package, relative to the package root
+        /// </summary>
+        List<RelativePath> FilesToExclude { get; }
     }
 
     /// <nodoc/>

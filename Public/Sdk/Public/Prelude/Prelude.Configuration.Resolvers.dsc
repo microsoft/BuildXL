@@ -74,7 +74,8 @@ interface NuGetResolver extends ResolverBase {
         osSkip?: OsType[];
         dependentPackageIdsToSkip?: string[],
         dependentPackageIdsToIgnore?: string[],
-        forceFullFrameworkQualifiersOnly?: boolean
+        forceFullFrameworkQualifiersOnly?: boolean,
+        filesToExclude?: RelativePath[],
     }[];
 
     /**

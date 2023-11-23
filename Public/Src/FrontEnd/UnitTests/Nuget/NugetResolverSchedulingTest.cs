@@ -12,6 +12,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast;
 using Xunit;
 using Xunit.Abstractions;
+using System.Linq;
 
 namespace Test.BuildXL.FrontEnd.Nuget
 {
@@ -78,6 +79,47 @@ namespace Test.BuildXL.FrontEnd.Nuget
             }
         }
 
+        [Fact]
+        public void TestFileExclusions()
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
+            {
+                var appDeployment = CreateAppDeployment(tempFiles);
+
+                // Set Nuget required Environment variables
+                Environment.SetEnvironmentVariable("LOCALAPPDATA", SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify));
+                Environment.SetEnvironmentVariable("APPDATA", SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.DoNotVerify));
+                Environment.SetEnvironmentVariable("USERPROFILE", SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify));
+
+                // Exclude a file that we know is part of ILRepack nuget package
+                var excludeRelativePath = RelativePath.Create(FrontEndContext.StringTable, "tools/ILRepack.exe");
+
+                var config = Build()
+                    .Configuration(NugetResolverConfigurationWithFileExclusions($"r`{excludeRelativePath.ToString(FrontEndContext.StringTable)}`"))
+                    .PersistSpecsAndGetConfiguration();
+
+                ((CommandLineConfiguration)config).Engine.Phase = Phase;
+
+                var engineResult = CreateAndRunEngine(
+                    config,
+                    appDeployment,
+                    testRootDirectory: null,
+                    rememberAllChangedTrackedInputs: true,
+                    engine: out var engine);
+
+                XAssert.IsTrue(engineResult.IsSuccess);
+
+                // Pip graph should have 1 Process pips for downloading nuget package
+                IReadOnlyList<Pip> processes = new List<Pip>(engineResult.EngineState.PipGraph.RetrievePipsOfType(PipType.Process));
+                Assert.Equal(1, processes.Count);
+
+                // The excluded file should be an untracked path
+                var processPip = (Process)processes[0];
+                var excludeAbsolutePath = processPip.WorkingDirectory.Combine(FrontEndContext.PathTable, "ILRepack.2.0.16").Combine(FrontEndContext.PathTable, excludeRelativePath);
+                Assert.True(processPip.UntrackedPaths.Any(path => path.Equals(excludeAbsolutePath)));
+            }
+        }
+
         private string NugetResolverConfigurationWithEsrpSign()
         {
             return $@"
@@ -98,6 +140,24 @@ config({{
                 signToolAadAuth: p`invalid`,
             }},
             doNotEnforceDependencyVersions: true,
+        }},
+    ],
+}});";
+        }
+
+        private string NugetResolverConfigurationWithFileExclusions(string exclusion)
+        {
+            return $@"
+config({{
+    resolvers: [
+        {{
+            kind: 'Nuget',
+            repositories: {{
+                'nuget.org' : 'https://api.nuget.org/v3/index.json',
+            }},
+            packages: [
+                {{id: 'ILRepack', version: '2.0.16', filesToExclude: [{exclusion}]}},
+            ],
         }},
     ],
 }});";

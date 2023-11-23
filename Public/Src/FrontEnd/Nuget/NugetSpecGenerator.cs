@@ -37,7 +37,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly IEsrpSignConfiguration m_esrpSignConfiguration;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 18;
+        public const int SpecGenerationFormatVersion = 19;
 
         /// <nodoc />
         public NugetSpecGenerator(
@@ -293,6 +293,7 @@ namespace BuildXL.FrontEnd.Nuget
                     ("id", new LiteralExpression(m_analyzedPackage.Id)),
                     ("version", new LiteralExpression(m_analyzedPackage.Version)),
                     ("extractedFiles", new ArrayLiteralExpression(m_analyzedPackage.PackageOnDisk.Contents
+                        .Filter(relativePath => !m_analyzedPackage.FilesToExclude.Contains(relativePath))
                         .Select(relativePath => PathLikeLiteral(InterpolationKind.RelativePathInterpolation, relativePath.ToString(m_pathTable.StringTable, PathFormat.Script))))),
                     ("repositories", new ArrayLiteralExpression(m_repositories.Select(kvp => new ArrayLiteralExpression(new LiteralExpression(kvp.Key), new LiteralExpression(kvp.Value)))))
             };
@@ -334,6 +335,11 @@ namespace BuildXL.FrontEnd.Nuget
                 };
 
                 downloadCallArgs.Add(("esrpSignConfiguration", ObjectLiteral(esrpSignArgs.ToArray())));
+            }
+
+            if (m_analyzedPackage.FilesToExclude.Any())
+            {
+                downloadCallArgs.Add(("excludedFiles", new ArrayLiteralExpression(m_analyzedPackage.FilesToExclude.Select(relativePath => PathLikeLiteral(InterpolationKind.RelativePathInterpolation, relativePath.ToString(m_pathTable.StringTable, PathFormat.Script))))));
             }
 
             return new ModuleDeclaration(

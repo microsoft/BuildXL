@@ -44,6 +44,7 @@ export interface Arguments extends Transformer.RunnerArguments {
     credentialProviderPath?: File;
     timeoutInMinutes?: number;
     esrpSignConfiguration?: EsrpSignConfiguration;
+    excludedFiles?: RelativePath[];
 }
 
 /**
@@ -123,7 +124,8 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
             // Make NuGet pips so fingerprint salts (the general fingerprint V2 version and the debug salt passed with /p:BUILDXL_FINGERPRINT_SALT) are not
             // included in the weak fingerprint. Observe this option is not exposed in DScript, so we are forcing the hand of the type checker with the cast above
             // to not complain about this extra field (which will be picked up at runtime)
-            bypassFingerprintSalt: true
+            bypassFingerprintSalt: true,
+            untrackedPaths: (args.excludedFiles || []).map(relativePath => f`${downloadDirectory}/${directoryName}/${relativePath}`)
         },
         // This is to avoid DFAs under the credential provider directory, which is an arbitrarily specified directory that would need to
         // be contained in a statically declared read mount otherwise

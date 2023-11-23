@@ -96,6 +96,9 @@ namespace BuildXL.FrontEnd.Nuget
         public string Version => PackageOnDisk.Package.Version;
 
         /// <nodoc />
+        public IReadOnlySet<RelativePath> FilesToExclude { get; }
+
+        /// <nodoc />
         public string Tfm => PackageOnDisk.Package.Tfm;
 
         /// <nodoc />
@@ -156,6 +159,7 @@ namespace BuildXL.FrontEnd.Nuget
             CredentialProviderPath = credentialProviderPath;
             m_nugetRelativePathComparer = new NugetRelativePathComparer(m_context.StringTable);
             m_nugetResolverSettings = nugetResolverSettings;
+            FilesToExclude = PackageOnDisk.Package.FilesToExclude.ToReadOnlySet();
         }
 
         /// <summary>
@@ -246,12 +250,13 @@ namespace BuildXL.FrontEnd.Nuget
                         if (dllExtension.CaseInsensitiveEquals(stringTable, ext))
                         {
                             isManagedEntry = true;
-                            if (isRef)
+                            // Let's exclude from the references/libs paths that are on the exclusion list
+                            if (isRef && !FilesToExclude.Contains(relativePath))
                             {
                                 References.Add(targetFramework, relativePath);
                             }
 
-                            if (isLib)
+                            if (isLib && !FilesToExclude.Contains(relativePath))
                             {
                                 Libraries.Add(targetFramework, relativePath);
                             }

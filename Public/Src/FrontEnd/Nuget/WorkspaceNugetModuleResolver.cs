@@ -1072,7 +1072,8 @@ namespace BuildXL.FrontEnd.Nuget
                                         "pkgDepSkips=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToSkip),
                                         "pkgDepsIgnore=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToIgnore),
                                         "forceFullOnly=" + (package.ForceFullFrameworkQualifiersOnly ? "1" : "0"),
-                                        "esrpSignConfiguration=" + (m_resolverSettings.EsrpSignConfiguration != null ? "1" : "0")
+                                        "esrpSignConfiguration=" + (m_resolverSettings.EsrpSignConfiguration != null ? "1" : "0"),
+                                        "filesToExclude=" + UppercaseSortAndJoinStrings(package.FilesToExclude.Select(r => r.ToString(m_context.StringTable)))
                                     };
             
             return  restoreFingerPrint + "&" + string.Join("&", fingerprintParams);

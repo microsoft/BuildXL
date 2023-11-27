@@ -145,6 +145,7 @@ namespace BuildXL.Utilities.Core
             bool forceAddExecutionPermission = true)
         {
             Contract.RequiresNotNull(process);
+            Contract.Requires(process.EnableRaisingEvents, $"{nameof(AsyncProcessExecutor)} requires EnableRaisingEvents in the underlying process to be true, as it registers to the Exited event for completion");
 
             m_logger = logger;
             m_outputBuilder = outputBuilder;
@@ -204,11 +205,6 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         public void Start()
         {
-            if (!System.IO.File.Exists(Process.StartInfo.FileName))
-            {
-                ThrowBuildXLException($"Process creation failed: File '{Process.StartInfo.FileName}' not found", new Win32Exception(0x2));
-            }
-
             if (!string.IsNullOrWhiteSpace(Process.StartInfo.WorkingDirectory) &&
                 !System.IO.Directory.Exists(Process.StartInfo.WorkingDirectory))
             {

@@ -2,10 +2,15 @@ trigger: none  # Explicitly scheduled for PRs
 
 resources:
   repositories:
-  - repository: 1esPipelines
+  # Temporarily use the private repo until buildJob with BuildXL gets released 
+  # - repository: 1esPipelines
+  #   type: git
+  #   name: 1ESPipelineTemplates/1ESPipelineTemplates
+  #   ref: refs/tags/release
+  - repository: 1ESPipelines
     type: git
-    name: 1ESPipelineTemplates/1ESPipelineTemplates
-    ref: refs/tags/release
+    name: Domino/1ESPipelines
+    ref: main
 
 parameters:
 - name: BuildSelfhost
@@ -15,7 +20,16 @@ parameters:
   type: string
   # We pass xunit semaphore `/p:[Sdk.BuildXL]xunitSemaphoreCount=8` to limit the number of parallel xunit pips.
   # Too many xunit pips running in parallel can cause the long running ones to hang. 
-  default: --shared-comp /ado /cacheMiss:"[Bxl.Selfhost.Linux]" /logObservedFileAccesses /logoutput:FullOutputOnError /logsToRetain:10 /p:[Sdk.BuildXL]xunitSemaphoreCount=8
+  default: '
+    --shared-comp 
+    /ado 
+    /cacheMiss:"[Bxl.Selfhost.Linux]" 
+    /logObservedFileAccesses 
+    /logoutput:FullOutputOnError 
+    /logsToRetain:10 
+    /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
+    /forceAddExecutionPermission-
+  '
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
@@ -40,13 +54,12 @@ extends:
     
     - stage: Build_Public
       displayName: Public validation
-      dependsOn: Bootstrap_Internal
+      dependsOn: []
       jobs:
-        - template: /.azdo/linux/job-selfhost.yml@self
+        - template: /.azdo/linux/job-public.yml@self
           parameters:
             BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
             ValidationName: PublicRelease
-            BxlExtraArgs: /q:ReleaseLinux /forceAddExecutionPermission-
 
     - stage: Build_Internal
       displayName: Internal validation
@@ -56,18 +69,18 @@ extends:
         parameters:
           BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
           ValidationName: InternalRelease
-          BxlExtraArgs: --internal /q:ReleaseLinux /forceAddExecutionPermission-
+          BxlExtraArgs: --internal /q:ReleaseLinux
           Role: Orchestrator
     
     - stage: Build_Internal_Workers
-      displayName: Internal validation [Workers]
+      displayName: "[Workers] Internal validation"
       dependsOn: Bootstrap_Internal
       jobs:
       - template: /.azdo/linux/job-selfhost.yml@self
         parameters:
           BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
           ValidationName: InternalRelease
-          BxlExtraArgs: --internal /q:ReleaseLinux /forceAddExecutionPermission-
+          BxlExtraArgs: --internal /q:ReleaseLinux 
           Role: Worker
 
     - stage: Verify_PTrace
@@ -79,19 +92,7 @@ extends:
           BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
     
     - stage: Build_Distributed
-      displayName: Distributed test [Orchestrator]
-      dependsOn: [Build_Public, Build_Internal, Verify_PTrace] 
+      displayName: Distributed test
+      dependsOn: [Build_Internal, Verify_PTrace] 
       jobs:
-      # Build and test selfhost with BuildXL
-      - template: /.azdo/linux/job-distributed.yml@self
-        parameters:
-          Role: Orchestrator
-    
-    - stage: Build_Distributed_Workers
-      displayName: Distributed test [Workers]
-      dependsOn: [Build_Public, Build_Internal, Verify_PTrace]
-      jobs:
-      # Build and test selfhost with BuildXL
-      - template: /.azdo/linux/job-distributed.yml@self
-        parameters:
-          Role: Worker
+      - template: /.azdo/linux/job-distributed-1espt.yml@self

@@ -15,6 +15,7 @@ declare DEFAULT_CACHE_CONFIG_FILE_NAME=DefaultCacheConfig.json
 
 declare arg_CacheConfigFile=""
 declare arg_Positional=()
+declare arg_Runner=()
 declare arg_BuildXLBin=""
 declare arg_MainConfig=""
 declare arg_SymlinkSdksInto=""
@@ -24,6 +25,7 @@ declare arg_installDaemon=""
 declare arg_useAdoBuildRunner=""
 
 declare g_bxlCmdArgs=()
+declare g_adoBuildRunnerCmdArgs=()
 
 # Allow for up to 2MB of thread stack size, frontend evaluation stack frames can easily grow beyond the default stack size,
 # which is PTHREAD_STACK_MIN for the CLR running on Unix systems
@@ -55,6 +57,14 @@ function setBxlCmdArgs {
     if [[ -z "$arg_useAdoBuildRunner" ]]; then
         g_bxlCmdArgs+=(
             "/cacheConfigFilePath:$arg_CacheConfigFile"
+        )
+    else
+        g_adoBuildRunnerCmdArgs+=(
+            "/cacheConfigLogGeneratedConfiguration" 
+            "/cacheConfigStorageAccountEndpoint:https://l3bxlselfhost.blob.core.windows.net" 
+            "/cacheConfigManagedIdentityId:eb694749-b1d6-45bc-b7af-2bd81603968a" 
+            "/cacheConfigCacheType:EphemeralDatacenterWide" 
+            "${arg_Runner[@]}"
         )
     fi
 
@@ -215,15 +225,8 @@ function build {
     if [[ -n "$arg_useAdoBuildRunner" ]]; then
         local adoBuildRunnerExe="$arg_BuildXLBin/AdoBuildRunner"
         chmod u=rx "$adoBuildRunnerExe" || true
-        print_info "${tputBold}Running AdoBuildRunner:${tputReset} '$adoBuildRunnerExe' ${g_bxlCmdArgs[@]}"
-
-        "$adoBuildRunnerExe" \
-        "/cacheConfigLogGeneratedConfiguration" \
-        "/cacheConfigStorageAccountEndpoint:https://l3bxlselfhost.blob.core.windows.net" \
-        "/cacheConfigManagedIdentityId:eb694749-b1d6-45bc-b7af-2bd81603968a" \
-        "/cacheConfigCacheType:EphemeralDatacenterWide"\
-        "--" \
-        "${g_bxlCmdArgs[@]}"
+        print_info "${tputBold}Running AdoBuildRunner:${tputReset} '$adoBuildRunnerExe' ${g_adoBuildRunnerCmdArgs[@]} -- ${g_bxlCmdArgs[@]}"
+        "$adoBuildRunnerExe" "${g_adoBuildRunnerCmdArgs[@]}" "--" "${g_bxlCmdArgs[@]}"
     else
         print_info "${tputBold}Running bxl:${tputReset} '$bxlExe' ${g_bxlCmdArgs[@]}"
 
@@ -303,6 +306,11 @@ function parseArgs {
                 ;;
             --use-adobuildrunner)
                 arg_useAdoBuildRunner="1"
+                shift
+                ;;
+            --runner-arg)
+                arg_Runner+=("$2")
+                shift
                 shift
                 ;;
             *)

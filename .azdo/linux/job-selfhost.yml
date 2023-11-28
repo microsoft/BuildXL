@@ -67,11 +67,11 @@ jobs:
           # if we are doing a distributed build, use the ado build runner and configure
           # an extra worker
           if [ "${{ parameters.Role }}" != "SingleMachine" ]; then
-            USE_ADOBUILDRUNNER="--use-adobuildrunner"
+            USE_ADOBUILDRUNNER="--use-adobuildrunner --runner-arg /cacheConfigUniverse:bxlselfhost"
             DYNAMIC_WORKER_SLOTS="/dynamicBuildWorkerSlots:1"
           fi
 
-          timeout --signal 9 60m ./bxl.sh $USE_ADOBUILDRUNNER --use-dev ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 /historicMetadataCache- $DYNAMIC_WORKER_SLOTS
+          timeout --signal 9 60m ./bxl.sh $USE_ADOBUILDRUNNER --use-dev ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /logToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 $DYNAMIC_WORKER_SLOTS
         displayName: Test (${{ parameters.validationName }})
         workingDirectory: /home/subst
         env:

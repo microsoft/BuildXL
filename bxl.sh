@@ -106,7 +106,7 @@ function compileWithBxl() {
 }
 
 function printHelp() {
-    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--vs] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
+    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--vs] [--use-adobuildrunner] [--runner-arg <arg-to-buildrunner>] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
 }
 
 function parseArgs() {
@@ -156,6 +156,11 @@ function parseArgs() {
             ;;
         --use-adobuildrunner)
             arg_Positional+=("--use-adobuildrunner")
+            shift
+            ;;
+        --runner-arg)
+            arg_Positional+=("--runner-arg $2")
+            shift
             shift
             ;;
         --vs)

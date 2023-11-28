@@ -1,0 +1,81 @@
+jobs:
+- job: TestDistributed
+  displayName: Test distributed build
+
+  pool:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+
+  variables:
+    - name: BootstrapLocation
+      value: $(System.DefaultWorkingDirectory)/Bootstrap
+
+  timeoutInMinutes: 20
+
+  templateContext:
+    type: buildJob
+    workflow: BuildXL
+    distribution:
+      enabled: true
+      workerCount: 1
+    outputs:
+    - output: pipelineArtifact
+      targetPath: $(Build.SourcesDirectory)/Out/Logs
+      artifactName: BuildXL-Logs.DistributedTest.$(System.JobName).$(System.StageName)
+      condition: always()
+      continueOnError: true
+      displayName: Upload Distributed test Logs
+    sdl:
+      credscan:
+        enabled: false
+      antimalwareScan:
+        enabled: false
+      publishLogs:
+        enabled: false
+    
+    # Pre-build steps: get the engine & prepare workspace
+    restoreSteps:
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: current
+        artifactName: Dev
+        targetPath: $(BootstrapLocation)
+      displayName: Download BuildXL
+
+    - bash: |
+        sudo mkdir /home/subst
+        sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
+      displayName: Bind /home/subst to sources directory  
+
+    - bash: |
+        set -eu
+        chmod +x $(BootstrapLocation)/AdoBuildRunner
+        chmod +x $(BootstrapLocation)/bxl
+      displayName: Set execution bits
+    
+    # Build parameters
+    buildXL:
+      invocationKey: DistributedTest
+
+      # invoker: exe means we need to provide the directory where AdoBuildRunner is located
+      invoker: exe
+      engineLocation: $(BootstrapLocation)
+      
+      arguments: '
+        /c:/home/subst/Private/AdoDistributionTests/config.dsc
+        /logsDirectory:$(Build.SourcesDirectory)/Out/Logs
+        /p:BUILDXL_FINGERPRINT_SALT=*
+        /p:BUILDXL_GRAPH_FINGERPRINT_SALT=*
+        /replicateOutputsToWorkers+ 
+        /p:BuildXLMinimumWaitForRemoteWorkerMin=5
+        '
+      env:
+        TRANSFORMERS_SDK_DIR: /home/subst/Public/Sdk/Public/Transformers
+        OUTPUT_DIR: /home/subst/Out
+
+      cache:
+        storageAccountEndpoint: https://l3bxlselfhost.blob.core.windows.net
+        managedIdentityClientId: eb694749-b1d6-45bc-b7af-2bd81603968a
+        cacheType: EphemeralDatacenterWide
+        logGeneratedConfiguration: true
+        # retentionPolicyInDays: {default}

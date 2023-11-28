@@ -45,7 +45,7 @@ jobs:
       - bash: |
           set -eu
           # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
-          timeout --signal 9 60m bash bxl.sh /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev --release /forceAddExecutionPermission- /cacheConfigFilePath:Out/CacheConfig.json ${{ parameters.BxlCommonArgs }}
+          timeout --signal 9 60m bash bxl.sh /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev --release /cacheConfigFilePath:Out/CacheConfig.json ${{ parameters.BxlCommonArgs }}
         displayName: Build
         workingDirectory: /home/subst
         env:

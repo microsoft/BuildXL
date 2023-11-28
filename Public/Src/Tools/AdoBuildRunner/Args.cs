@@ -64,6 +64,9 @@ namespace BuildXL.AdoBuildRunner
                     OptionHandlerFactory.CreateOption(
                             "cacheConfigStorageAccountEndpoint",
                             opt => cacheConfigGenerationConfiguration.StorageAccountEndpoint = CommandLineUtilities.ParseUriOption(opt)),
+                    OptionHandlerFactory.CreateOption(
+                            "cacheConfigUniverse",
+                            opt => cacheConfigGenerationConfiguration.Universe = opt.Value),
                 }.SelectMany(x => x)
                  .OrderBy(opt => opt.OptionName, StringComparer.OrdinalIgnoreCase)
                  .ToArray();

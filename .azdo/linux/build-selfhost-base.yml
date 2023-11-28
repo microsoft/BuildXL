@@ -66,7 +66,3 @@ steps:
 
 - ${{ each step in parameters.buildSteps }}:
   - ${{ step }}
-
-- bash: sudo umount -v --lazy /home/subst
-  condition: always()
-  displayName: Unmount /home/subst

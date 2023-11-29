@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20231122.3 (Release [344123](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=344123))
+- Opt-in to new msbuild logger behaviour.
+- Clean up reference to BuildXL.Tracing in BuildXL.Native.
+- Log the final configuration object used by bxl during a build.
+- Add PublicAPI Analyzers to BXL and enforce the public API for hashing.
+- Fix cancellation crash when HistoricMetadataCache is not initialized.
+
 # 0.1.0-20231021.0.1 (Release [337230](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=337230))
 -	Fix the dynamic worker's timeout issue when it is released early
 -	Do not reduce the orchestrator's slot when there are a few remote workers

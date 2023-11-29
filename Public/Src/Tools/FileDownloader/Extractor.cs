@@ -22,7 +22,7 @@ namespace Tool.Download
     /// </summary>
     internal sealed class Extractor : ToolProgram<ExtractorArgs>
     {
-        private static readonly Dictionary<string, string> packagesToBeChecked = new Dictionary<string, string>
+        private static readonly Dictionary<string, string> s_packagesToBeChecked = new Dictionary<string, string>
         {
             {"NodeJs.linux-x64",  "node-v18.6.0-linux-x64/bin/node"},
             {"DotNet-Runtime.linux", "dotnet"}
@@ -137,11 +137,11 @@ namespace Tool.Download
                             tar.ExtractContents(target);
                             if (OperatingSystemHelper.IsLinuxOS)
                             {
-                                foreach (var packageName in packagesToBeChecked.Keys)
+                                foreach (var packageName in s_packagesToBeChecked.Keys)
                                 {
                                     if (target.Contains(packageName))
                                     {
-                                        if (!SetExecutePermissionsForExtractedFiles(target, packagesToBeChecked[packageName]))
+                                        if (!SetExecutePermissionsForExtractedFiles(target, s_packagesToBeChecked[packageName]))
                                         {
                                             return false;
                                         }
@@ -212,11 +212,6 @@ namespace Tool.Download
             if (File.Exists(fullPathForExecutableFile))
             {
                 _ = FileUtilities.TrySetExecutePermissionIfNeeded(fullPathForExecutableFile);
-            }
-            else
-            {
-                Console.Error.WriteLine($"Failed to find the file - {relativePath} at the expected location: {fullPathForExecutableFile}");
-                return false;
             }
 
             return true;

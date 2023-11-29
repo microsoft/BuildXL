@@ -333,6 +333,25 @@ namespace BuildXL.ToolSupport
         }
 
         /// <summary>
+        /// Parse an option that produces a <see cref="DateTime"/>.
+        /// </summary>
+        public static DateTime ParseDateTime(Option opt)
+        {
+            string value = ParseStringOption(opt);
+
+            // Trim off any quotes and spaces, which sometimes get added by the command line parser.
+            value = value.Trim(' ', '\"');
+
+            DateTime dateTime;
+            if (DateTime.TryParse(value, out dateTime))
+            {
+                return dateTime;
+            }
+
+            throw Error("The /{0} argument is not a legal date.", opt.Name);
+        }
+
+        /// <summary>
         /// Parse an option that produces an enum.
         /// </summary>
         public static TEnum ParseEnumOption<TEnum>(Option opt)

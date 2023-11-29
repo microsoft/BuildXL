@@ -365,6 +365,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.WinIdeDependency:
                     m_analyzer = InitializeWinIdeDependencyAnalyzer();
                     break;
+                case AnalysisMode.ConcurrentPipsAnalyzer:
+                    m_analyzer = InitializeConcurrentPipsAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;
@@ -676,6 +679,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteFileConsumptionAnalyzerHelp(writer);
+
+            writer.WriteLine("");
+            WriteConcurrentPipsAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

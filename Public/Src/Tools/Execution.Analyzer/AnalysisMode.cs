@@ -64,5 +64,6 @@ namespace BuildXL.Execution.Analyzer
         Whitelist, // compatibility
         WinIdeDependency,
         XlgToDb,
+        ConcurrentPipsAnalyzer
     }
 }

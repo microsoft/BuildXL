@@ -138,6 +138,7 @@ namespace Test.BuildXL.Scheduler
             {
                 RunData.CacheLookupResults[pipId] = ((ProcessRunnablePip)runnablePip).CacheResult;
                 RunData.ExecutionCachingInfos[pipId] = runnablePip.ExecutionResult?.TwoPhaseCachingInfo;
+                RunData.RunnablePipPerformanceInfos[pipId] = runnablePip.Performance;
             }
 
             await base.OnPipCompleted(runnablePip);

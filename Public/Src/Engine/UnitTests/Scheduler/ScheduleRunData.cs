@@ -20,5 +20,7 @@ namespace Test.BuildXL.Scheduler
         public ConcurrentDictionary<PipId, RunnableFromCacheResult> CacheLookupResults { get; } = new ConcurrentDictionary<PipId, RunnableFromCacheResult>();
 
         public ConcurrentDictionary<PipId, TwoPhaseCachingInfo> ExecutionCachingInfos { get; } = new ConcurrentDictionary<PipId, TwoPhaseCachingInfo>();
+
+        public ConcurrentDictionary<PipId, RunnablePipPerformanceInfo> RunnablePipPerformanceInfos { get; } = new ConcurrentDictionary<PipId, RunnablePipPerformanceInfo>();
     }
 }

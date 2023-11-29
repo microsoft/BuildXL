@@ -36,11 +36,7 @@ namespace VBCSCompilerLogger
         /// <inheritdoc/>
         public override void Initialize(IEventSource eventSource)
         {
-            if (eventSource is IEventSource4 eventSource4)
-            {
-                // This needs to happen so binary loggers can get evaluation properties and items
-                eventSource4.IncludeEvaluationPropertiesAndItems();
-            }
+            TryCallIncludeEvaluationPropertiesAndItems(eventSource);
 
             eventSource.MessageRaised += EventSourceOnMessageRaised;
             eventSource.BuildFinished += EventSourceOnBuildFinished;
@@ -130,6 +126,29 @@ namespace VBCSCompilerLogger
 
                 RegisterAccesses(new ParseResult(parsedCommandLine, embeddedResourceFilePaths));
             }
+        }
+
+        private void TryCallIncludeEvaluationPropertiesAndItems(IEventSource eventSource)
+        {
+            try
+            {
+                var eventSourceType = eventSource.GetType();
+                var eventSource4Type = typeof(IEventSource).Assembly.GetType("Microsoft.Build.Framework.IEventSource4");
+
+                // MSBuild 16.11+ will be IEventSource4
+                if (eventSource4Type != null && eventSource4Type.IsAssignableFrom(eventSourceType))
+                {
+                    // If this method exists, we need to call it. If not, do nothing (old versions of MSBuild)
+                    var includeMethod = eventSource4Type.GetMethod("IncludeEvaluationPropertiesAndItems");
+                    includeMethod?.Invoke(eventSource, null);
+                }
+            }
+            catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            {
+                // Do nothing, no reason to fail for this.
+            }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
         }
 
         // internal for unit testing.

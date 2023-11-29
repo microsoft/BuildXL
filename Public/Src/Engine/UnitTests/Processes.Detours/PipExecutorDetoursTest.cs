@@ -4473,6 +4473,17 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        /// <summary>
+        /// Test accessing undeclared network path.
+        /// </summary>
+        /// <remarks>
+        /// This test tries to access a network path that is not declared in the manifest.
+        /// This test tries to exercise the scenario where the path exists and where the path does not exist.
+        /// The issue with this test is when network is slow, the test takes a lot of time and may time out due to
+        /// the timeout time set in our XUnit test runner.
+        ///
+        /// TODO: Figure out a way to test accesses to network paths without relying on network.
+        /// </remarks>
         [Fact]
         public async Task TestNetworkPathNotDeclared()
         {
@@ -4510,19 +4521,10 @@ namespace Test.BuildXL.Processes.Detours
                     pip: process,
                     errorString: out errorString);
 
-                bool inputNotFound = false;
-
-                foreach (ReportedFileAccess raf in result.AllReportedFileAccesses)
-                {
-                    // 3 - FileNotFound. Detours allow file accesses for non existing files.
-                    // This could happen if the network acts weird and the file is not accessible through the network.
-                    if (raf.GetPath(pathTable) == @"\\daddev\office\16.0\7923.1000\shadow\store\X64\Debug\airspace\x-none\inc\airspace.etw.man"
-                        && raf.Error == 3)
-                    {
-                        inputNotFound = true;
-                    }
-                }
-
+                bool inputNotFound = result.AllReportedFileAccesses.Any(rfa => string.Equals(rfa.GetPath(pathTable), inputFile, OperatingSystemHelper.PathComparison) && rfa.Error == NativeIOConstants.ErrorPathNotFound);
+                
+                // Detours allows file accesses for non existing files.
+                // This could happen if the network acts weird and the file is not accessible through the network.
                 if (!inputNotFound)
                 {
                     VerifyNoObservedFileAccessesAndUnexpectedFileAccesses(
@@ -8580,25 +8582,12 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.AreEqual(0, result.ObservedFileAccesses.Length);
             VerifyFileAccessViolations(result, result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted.Count);
 
-            foreach (string unexpectedFileAccessExpected in unexpectedFileAccesses)
+            var unexpected = new HashSet<string>(unexpectedFileAccesses, OperatingSystemHelper.PathComparer);
+            unexpected.ExceptWith(result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted.Select(u => OperatingSystemHelper.CanonicalizePath(u.GetPath(pathTable))));
+
+            if (unexpected.Count > 0)
             {
-                bool exitInner = false;
-                foreach (ReportedFileAccess unexpectedFileAccess in result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted)
-                {
-                    if (exitInner)
-                    {
-                        break;
-                    }
-
-                    string unexpectedFileAccessString = unexpectedFileAccess.GetPath(pathTable);
-                    if (unexpectedFileAccessExpected == unexpectedFileAccessString)
-                    {
-                        exitInner = true;
-                        continue;
-                    }
-
-                    XAssert.Fail("Unexpected file access on file {0} not registered.", unexpectedFileAccessString);
-                }
+                XAssert.Fail("No unexpected file accesses on files {0} registered.", string.Join(", ", unexpected.Select(u => "'" + u + "'")));
             }
         }
     }

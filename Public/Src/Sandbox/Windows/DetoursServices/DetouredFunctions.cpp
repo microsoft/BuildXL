@@ -6256,7 +6256,7 @@ NTSTATUS NTAPI Detoured_ZwQueryDirectoryFile(
     return result;
 }
 
-static bool PathFromObjectAttributesViaId(POBJECT_ATTRIBUTES attributes, CanonicalizedPath &path)
+static bool PathFromObjectAttributesViaId(POBJECT_ATTRIBUTES objectAttributes, ULONG fileAttributes, CanonicalizedPath &path)
 {
     DetouredScope scope;
 
@@ -6273,11 +6273,11 @@ static bool PathFromObjectAttributesViaId(POBJECT_ATTRIBUTES attributes, Canonic
 
     NTSTATUS status = NtCreateFile(
         &hFile,
-        FILE_GENERIC_READ,
-        attributes,
+        FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+        objectAttributes,
         &ioStatusBlock,
         nullptr,
-        FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_REPARSE_POINT,
+        fileAttributes,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         FILE_OPEN,
         FILE_OPEN_BY_FILE_ID,
@@ -6307,14 +6307,14 @@ static bool PathFromObjectAttributesViaId(POBJECT_ATTRIBUTES attributes, Canonic
 }
 
 // Helper function converts OBJECT_ATTRIBUTES into CanonicalizedPath
-static bool PathFromObjectAttributes(POBJECT_ATTRIBUTES attributes, CanonicalizedPath &path, ULONG createOptions)
+static bool PathFromObjectAttributes(POBJECT_ATTRIBUTES objectAttributes, ULONG fileAttributes, ULONG createOptions, CanonicalizedPath& path)
 {
     if ((createOptions & FILE_OPEN_BY_FILE_ID) != 0)
     {
-        return PathFromObjectAttributesViaId(attributes, path);
+        return PathFromObjectAttributesViaId(objectAttributes, fileAttributes, path);
     }
 
-    if (attributes->ObjectName == nullptr)
+    if (objectAttributes->ObjectName == nullptr)
     {
         return false;
     }
@@ -6322,9 +6322,9 @@ static bool PathFromObjectAttributes(POBJECT_ATTRIBUTES attributes, Canonicalize
     HandleOverlayRef overlay;
 
     // Check for the root directory
-    if (attributes->RootDirectory != nullptr)
+    if (objectAttributes->RootDirectory != nullptr)
     {
-        overlay = TryLookupHandleOverlay(attributes->RootDirectory);
+        overlay = TryLookupHandleOverlay(objectAttributes->RootDirectory);
         // If root directory is specified, we better know about it by know -- ignore unknown relative paths
         if (overlay == nullptr || overlay->Policy.GetCanonicalizedPath().IsNull())
         {
@@ -6333,7 +6333,7 @@ static bool PathFromObjectAttributes(POBJECT_ATTRIBUTES attributes, Canonicalize
     }
 
     // Convert the ObjectName (buffer with a size) to be null-terminated.
-    wstring name(attributes->ObjectName->Buffer, (size_t)(attributes->ObjectName->Length / sizeof(wchar_t)));
+    wstring name(objectAttributes->ObjectName->Buffer, (size_t)(objectAttributes->ObjectName->Length / sizeof(wchar_t)));
 
     if (overlay != nullptr)
     {
@@ -6437,7 +6437,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
     if (scope.Detoured_IsDisabled() ||
         !MonitorZwCreateOpenQueryFile() ||
         ObjectAttributes == nullptr ||
-        !PathFromObjectAttributes(ObjectAttributes, path, CreateOptions) ||
+        !PathFromObjectAttributes(ObjectAttributes, FileAttributes, CreateOptions, path) ||
         IsSpecialDeviceName(path.GetPathString()))
     {
         return Real_ZwCreateFile(
@@ -6742,7 +6742,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
 
     if (scope.Detoured_IsDisabled() ||
         ObjectAttributes == nullptr ||
-        !PathFromObjectAttributes(ObjectAttributes, path, CreateOptions) ||
+        !PathFromObjectAttributes(ObjectAttributes, FileAttributes, CreateOptions, path) ||
         IsSpecialDeviceName(path.GetPathString()))
     {
         return Real_NtCreateFile(

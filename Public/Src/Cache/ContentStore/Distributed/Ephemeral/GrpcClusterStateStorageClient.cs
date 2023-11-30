@@ -23,8 +23,8 @@ public class GrpcClusterStateStorageClient : GrpcCodeFirstClient<IGrpcClusterSta
 
     protected override Tracer Tracer { get; } = new(nameof(GrpcClusterStateStorageClient));
 
-    public GrpcClusterStateStorageClient(Configuration configuration, IFixedClientAccessor<IGrpcClusterStateStorage> accessor)
-        : base(accessor, CreateRetryPolicy(configuration.RetryPolicy), SystemClock.Instance, configuration.OperationTimeout)
+    public GrpcClusterStateStorageClient(Configuration configuration, IFixedClientAccessor<IGrpcClusterStateStorage> accessor, IClock clock)
+        : base(accessor, CreateRetryPolicy(configuration.RetryPolicy), clock, configuration.OperationTimeout)
     {
     }
 

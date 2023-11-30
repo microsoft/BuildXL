@@ -170,6 +170,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
         var silentContext = new OperationContext(silentTracingContext, context.Token);
 
         var setupContext = silentContext.CreateNested(nameof(RunTestAsync), caller: "SetupTestContext");
+        var startupContext = silentContext.CreateNested(nameof(RunTestAsync), caller: "StartupTestContext");
         foreach (var ringNum in Enumerable.Range(0, numRings))
         {
             // TODO: parallelize
@@ -178,7 +179,6 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         try
         {
-            var startupContext = silentContext.CreateNested(nameof(RunTestAsync), caller: "StartupTestContext");
             await host.StartupAsync(startupContext).ThrowIfFailureAsync();
 
             // Ensure all machines see each other
@@ -211,6 +211,8 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         public IFullCache Cache { get; }
 
+        public OperationContext MachineContext { get; }
+
         public ILocalContentTracker ContentTracker => Host.LocalContentTracker;
 
         public IContentResolver ContentResolver => Host.ContentResolver;
@@ -223,12 +225,13 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         public IContentSession? Session { get; private set; }
 
-        public TestNode(MachineLocation location, int port, EphemeralHost host, IFullCache cache)
+        public TestNode(OperationContext machineContext, MachineLocation location, int port, EphemeralHost host, IFullCache cache)
         {
             Location = location;
             Port = port;
             Host = host;
             Cache = cache;
+            MachineContext = machineContext;
             LinkLifetime(cache);
         }
 
@@ -312,7 +315,15 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         public async Task<BoolResult> HearbeatAsync(OperationContext context, MachineState state = MachineState.Unknown)
         {
-            var tasks = _instances.Values.Select(instance => instance.Instance.ClusterStateManager.HeartbeatAsync(context, state));
+            var tasks = _instances.Values.Select(
+                async instance =>
+                {
+                    await Task.Yield();
+                    using var boundContext = instance.Instance.MachineContext.WithCancellationToken(context.Token);
+                    return await instance.Instance.ClusterStateManager.HeartbeatAsync(
+                        boundContext,
+                        state);
+                });
             var results = await TaskUtilities.SafeWhenAll(tasks);
             return results.And();
         }
@@ -320,10 +331,31 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
         public async Task<Result<BuildRing>> AddRingAsync(OperationContext context, string id, int numInstances, ConfigurationModifier? modifier = null)
         {
             // TODO: operation and cleanup
-            var instances = await CreateTestRingAsync(context, numInstances, modifier);
+
+            var leader = MachineLocation.Invalid;
+            var instances = new List<TestNode>(numInstances);
+            foreach (var machineNum in Enumerable.Range(0, numInstances))
+            {
+                var port = PortExtensions.GetNextAvailablePort(context);
+                var location = MachineLocation.Create(Environment.MachineName, port);
+
+                var machineContext = context.CreateNested(nameof(AddRingAsync), caller: $"CreateMachineContext({machineNum})");
+                Tracer.Warning(machineContext, $"This context was created for {machineNum} -> {location}");
+
+                if (!leader.IsValid)
+                {
+                    leader = location;
+                }
+                Contract.Assert(leader.IsValid);
+
+                // TODO: parallelize
+                var (host, cache) = await CreateSingleInstanceAsync(machineContext, location, leader, modifier);
+                instances.Add(new TestNode(machineContext, location, port, host, cache));
+            }
+
             var ring = new BuildRing(id, instances.Select(instance => instance.Location).ToList());
 
-            var tasks = instances.Select(instance => instance.StartupAsync(context));
+            var tasks = instances.Select(instance => instance.StartupAsync(instance.MachineContext));
             var results = await TaskUtilities.SafeWhenAll(tasks);
             var result = results.And();
 
@@ -383,41 +415,18 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
             if (ring.Builders.Count == 0)
             {
-                Tracer.Warning(context, $"Removed machine location {location} which was the last machine in ring {ring.Id}");
+                Tracer.Warning(instance.MachineContext, $"Removed machine location {location} which was the last machine in ring {ring.Id}");
                 _rings.Remove(ring.Id);
             }
             else if (wasLeader)
             {
                 // We will allow this, because it's useful for testing.
-                Tracer.Error(context, $"Removed machine location {location} which was the leader of ring {ring.Id}");
+                Tracer.Error(instance.MachineContext, $"Removed machine location {location} which was the leader of ring {ring.Id}");
             }
 
 
-            return await instance.ShutdownAsync(context);
-        }
-
-        private async Task<List<TestNode>> CreateTestRingAsync(
-            OperationContext context,
-            int numInstances,
-            ConfigurationModifier? modifier)
-        {
-            var leader = MachineLocation.Invalid;
-            var instances = new List<TestNode>(numInstances);
-            foreach (var machineNum in Enumerable.Range(0, numInstances))
-            {
-                var port = PortExtensions.GetNextAvailablePort(context);
-                var location = MachineLocation.Create(Environment.MachineName, port);
-                if (!leader.IsValid)
-                {
-                    leader = location;
-                }
-
-                // TODO: parallelize
-                var (host, cache) = await CreateSingleInstanceAsync(context, location, leader, modifier);
-                instances.Add(new TestNode(location, port, host, cache));
-            }
-
-            return instances;
+            using var boundContext = instance.MachineContext.WithCancellationToken(context.Token);
+            return await instance.ShutdownAsync(boundContext);
         }
 
         public delegate EphemeralCacheFactory.Configuration ConfigurationModifier(EphemeralCacheFactory.Configuration configuration);

@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
@@ -52,15 +53,16 @@ public class GrpcClusterStateStorageTests
         var connectionHandle = new ConnectionHandle(context, location, port);
         await connectionHandle.StartupAsync(context).ThrowIfFailureAsync();
 
-        var clusterStateManager = new ClusterStateManager(new ClusterStateManager.Configuration
-        {
-            PrimaryLocation = location,
-        }, new GrpcClusterStateStorageClient(
-            configuration: new GrpcClusterStateStorageClient.Configuration(
-                TimeSpan.FromMinutes(1),
-                RetryPolicyConfiguration.Exponential()),
-            accessor: new FixedClientAccessor<IGrpcClusterStateStorage>(
-                connectionHandle.Channel.CreateGrpcService<IGrpcClusterStateStorage>(MetadataServiceSerializer.ClientFactory), location)));
+        var clusterStateManager = new ClusterStateManager(
+            new ClusterStateManager.Configuration { PrimaryLocation = location, },
+            new GrpcClusterStateStorageClient(
+                configuration: new GrpcClusterStateStorageClient.Configuration(
+                    TimeSpan.FromMinutes(1),
+                    RetryPolicyConfiguration.Exponential()),
+                accessor: new FixedClientAccessor<IGrpcClusterStateStorage>(
+                    connectionHandle.Channel.CreateGrpcService<IGrpcClusterStateStorage>(MetadataServiceSerializer.ClientFactory),
+                    location),
+                clock: SystemClock.Instance));
 
         await clusterStateManager.StartupAsync(context).ThrowIfFailureAsync();
 

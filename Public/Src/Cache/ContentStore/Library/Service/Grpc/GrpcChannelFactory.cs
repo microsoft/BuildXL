@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         // Have to use an explicit property becuase MemberNotNullWhen attribute can't be applied to a "property" declared with primary constructors.
         [MemberNotNullWhen(true, nameof(EncryptionOptions))]
         public bool EncryptionEnabled { get; init; }
-        
+
         public ChannelEncryptionOptions? EncryptionOptions { get; init; } // Null if encryption if disabled
     }
 
@@ -82,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             grpcDotNetSpecificOptions.ConnectionTimeout.ApplyIfNotNull(v => handler.ConnectTimeout = v);
             grpcDotNetSpecificOptions.PooledConnectionLifetime.ApplyIfNotNull(v => handler.PooledConnectionIdleTimeout = v);
             grpcDotNetSpecificOptions.PooledConnectionLifetime.ApplyIfNotNull(v => handler.PooledConnectionLifetime = v);
-            
+
             if (grpcDotNetSpecificOptions.KeepAliveEnabled)
             {
                 handler.KeepAlivePingDelay = grpcDotNetSpecificOptions.KeepAlivePingDelay;
@@ -97,11 +97,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             var options = new GrpcChannelOptions
-                          {
-                              MaxSendMessageSize = grpcDotNetSpecificOptions.MaxSendMessageSize,
-                              MaxReceiveMessageSize = grpcDotNetSpecificOptions.MaxReceiveMessageSize,
-                              HttpHandler = handler,
-                          };
+            {
+                MaxSendMessageSize = grpcDotNetSpecificOptions.MaxSendMessageSize,
+                MaxReceiveMessageSize = grpcDotNetSpecificOptions.MaxReceiveMessageSize,
+                HttpHandler = handler,
+            };
 
             string grpcMinVerbosity = grpcDotNetSpecificOptions.MinLogLevelVerbosity != null
                 ? ((Microsoft.Extensions.Logging.LogLevel)grpcDotNetSpecificOptions.MinLogLevelVerbosity).ToString()
@@ -266,16 +266,33 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             if (channel is Channel channelCore)
             {
-                var deadline = clock.UtcNow + timeout;
-                await channelCore.ConnectAsync(deadline);
-                return;
+                if (timeout == Timeout.InfiniteTimeSpan || timeout <= TimeSpan.Zero)
+                {
+                    await channelCore.ConnectAsync();
+                    return;
+                }
+                else
+                {
+                    var deadline = clock.UtcNow + timeout;
+                    await channelCore.ConnectAsync(deadline);
+                    return;
+                }
             }
 #if NET6_0_OR_GREATER
             else if (channel is GrpcChannel channelDotNet)
             {
                 // Grpc.Net version of ConnectAsync takes a cancellation token and not a deadline.
-                using var cts = new CancellationTokenSource(timeout);
-                await channelDotNet.ConnectAsync(cts.Token);
+                if (timeout == Timeout.InfiniteTimeSpan || timeout <= TimeSpan.Zero)
+                {
+                    await channelDotNet.ConnectAsync();
+                    return;
+                }
+                else
+                {
+                    using var cts = new CancellationTokenSource(timeout);
+                    await channelDotNet.ConnectAsync(cts.Token);
+                }
+
                 return;
             }
 #endif

@@ -155,6 +155,16 @@ public static class EphemeralCacheFactory
     /// </summary>
     public sealed record BuildWideCacheConfiguration : Configuration
     {
+        /// <summary>
+        /// Maximum time to wait to establish or finalize a gRPC connection to the leader for the purposes of tracking
+        /// the cluster's state.
+        /// </summary>
+        /// <remarks>
+        /// This defaults to infinite because it is assumed that a worker can start up an arbitrary amount of time
+        /// before the leader does. This is because the processes are started up independently, so we let the build
+        /// engine handle the synchronization here.
+        /// </remarks>
+        public TimeSpan ClusterStateConnectionTimeout { get; init; } = Timeout.InfiniteTimeSpan;
     };
 
     /// <summary>
@@ -257,8 +267,8 @@ public static class EphemeralCacheFactory
         {
             clusterStateStorage = new GrpcClusterStateStorageClient(
                 configuration: new GrpcClusterStateStorageClient.Configuration(
-                    TimeSpan.FromMinutes(1),
-                    RetryPolicyConfiguration.Exponential()),
+                    TimeSpan.FromSeconds(30),
+                    RetryPolicyConfiguration.Exponential(maximumRetryCount: 100)),
                 accessor: new DelayedFixedClientAccessor<IGrpcClusterStateStorage>(
                     async () =>
                     {
@@ -269,13 +279,14 @@ public static class EphemeralCacheFactory
                             // all machine locations, so it should never be used.
                             GrpcConstants.DefaultEphemeralLeaderGrpcPort,
                             // Allow waiting for the leader to setup for up to 30m
-                            connectionTimeout: configuration.ConnectionTimeout);
+                            connectionTimeout: configuration.ClusterStateConnectionTimeout);
                         await connectionHandle.StartupAsync(context).ThrowIfFailureAsync();
 
                         return connectionHandle.Channel.CreateGrpcService<IGrpcClusterStateStorage>(MetadataServiceSerializer.ClientFactory);
                     },
                     configuration.Leader
-                ));
+                ),
+                clock);
         }
 
         return CreateInternalAsync(

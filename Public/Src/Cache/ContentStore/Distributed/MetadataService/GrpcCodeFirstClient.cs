@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -57,15 +58,6 @@ public abstract class GrpcCodeFirstClient<TClient> : StartupShutdownComponentBas
             {
                 var callOptions = new CallOptions(
                     headers: new Metadata() { MetadataServiceSerializer.CreateContextIdHeaderEntry(context.TracingContext.TraceId) },
-#if NETCOREAPP3_1_OR_GREATER
-                    // We use the deadline as a last resort timeout. The actual timeout is meant to be controlled
-                    // through the cancellation token.
-                    deadline: _clock.UtcNow + 1.5 * _operationTimeout,
-#else
-                    // We use the deadline as a last resort timeout. The actual timeout is meant to be controlled
-                    // through the cancellation token.
-                    deadline: _clock.UtcNow + _operationTimeout,
-#endif
                     cancellationToken: context.Token);
 
                 return _retryPolicy.ExecuteAsync(

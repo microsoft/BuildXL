@@ -228,7 +228,7 @@ namespace BuildXL.ProcessPipExecutor
         private readonly IPipGraphFileSystemView m_pipGraphFileSystemView;
 
         /// <summary>
-        /// Name of the diretory in Log directory for std output files
+        /// Name of the directory in Log directory for std output files
         /// </summary>
         public static readonly string StdOutputsDirNameInLog = "StdOutputs";
 
@@ -1456,32 +1456,35 @@ namespace BuildXL.ProcessPipExecutor
             // If we have a failure already, that could have cause some of the mismatch in message count of writing the side communication file.
             if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && !string.IsNullOrEmpty(m_detoursFailuresFile))
             {
-                FileInfo fi;
-
-                try
+                if (OperatingSystemHelper.IsWindowsOS)
                 {
-                    fi = new FileInfo(m_detoursFailuresFile);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log.LogGettingInternalDetoursErrorFile(
-                        m_loggingContext,
-                        m_pip.SemiStableHash,
-                        m_pipDescription,
-                        ex.ToStringDemystified());
-                    return SandboxedProcessPipExecutionResult.DetouringFailure(result);
-                }
+                    FileInfo fi;
 
-                bool fileExists = fi.Exists;
-                if (fileExists)
-                {
-                    Logger.Log.LogInternalDetoursErrorFileNotEmpty(
-                        m_loggingContext,
-                        m_pip.SemiStableHash,
-                        m_pipDescription,
-                        File.ReadAllText(m_detoursFailuresFile, Encoding.Unicode));
+                    try
+                    {
+                        fi = new FileInfo(m_detoursFailuresFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log.LogGettingInternalDetoursErrorFile(
+                            m_loggingContext,
+                            m_pip.SemiStableHash,
+                            m_pipDescription,
+                            ex.ToStringDemystified());
+                        return SandboxedProcessPipExecutionResult.DetouringFailure(result);
+                    }
 
-                    return SandboxedProcessPipExecutionResult.DetouringFailure(result);
+                    bool fileExists = fi.Exists;
+                    if (fileExists)
+                    {
+                        Logger.Log.LogInternalDetoursErrorFileNotEmpty(
+                            m_loggingContext,
+                            m_pip.SemiStableHash,
+                            m_pipDescription,
+                            File.ReadAllText(m_detoursFailuresFile, Encoding.Unicode));
+
+                        return SandboxedProcessPipExecutionResult.DetouringFailure(result);
+                    }
                 }
 
                 // Avoid eager reporting of message count mismatch. We have observed two failures in WDG and both were due to
@@ -1498,7 +1501,11 @@ namespace BuildXL.ProcessPipExecutor
                             m_pipDescription,
                             lastMessageCount);
 
-                        return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(result);
+                        // TODO [pgunasekara]: for Linux we want to get more testing with production builds before allowing it to fail builds.
+                        if (OperatingSystemHelper.IsWindowsOS)
+                        {
+                            return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(result);
+                        }
                     }
                 }
             }
@@ -2247,15 +2254,23 @@ namespace BuildXL.ProcessPipExecutor
 
             if (allowInternalErrorsLogging || m_fileAccessManifest.CheckDetoursMessageCount)
             {
-                // Create unique file name.
-                m_detoursFailuresFile = GetDetoursInternalErrorFilePath();
-
-                // Delete the file
-                if (FileUtilities.FileExistsNoFollow(m_detoursFailuresFile))
+                if (OperatingSystemHelper.IsWindowsOS)
                 {
-                    Analysis.IgnoreResult(FileUtilities.TryDeleteFile(m_detoursFailuresFile, tempDirectoryCleaner: m_tempDirectoryCleaner));
-                }
+                    // Create unique file name.
+                    m_detoursFailuresFile = GetDetoursInternalErrorFilePath();
 
+                    // Delete the file
+                    if (FileUtilities.FileExistsNoFollow(m_detoursFailuresFile))
+                    {
+                        Analysis.IgnoreResult(FileUtilities.TryDeleteFile(m_detoursFailuresFile, tempDirectoryCleaner: m_tempDirectoryCleaner));
+                    }
+                }
+                else
+                {
+                    // this doesn't point to a real path, but to align with the value used for the windows side, we will use the failures file for now for the semaphore name
+                    m_detoursFailuresFile = "/" + Guid.NewGuid().ToString().Replace("-", string.Empty) + m_pip.FormattedSemiStableHash;
+                }
+                
                 if (allowInternalErrorsLogging)
                 {
                     m_fileAccessManifest.InternalDetoursErrorNotificationFile = m_detoursFailuresFile;
@@ -2285,7 +2300,7 @@ namespace BuildXL.ProcessPipExecutor
                 return true;
             }
 
-            if (OperatingSystemHelper.IsWindowsOS && !SandboxedProcessNeedsExecuteExternal)
+            if ((OperatingSystemHelper.IsWindowsOS || OperatingSystemHelper.IsLinuxOS) && !SandboxedProcessNeedsExecuteExternal)
             {
                 // Semaphore names don't allow '\\' chars.
                 if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))

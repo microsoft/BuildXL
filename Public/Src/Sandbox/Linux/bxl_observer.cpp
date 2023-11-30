@@ -82,6 +82,19 @@ BxlObserver::BxlObserver()
     }
 }
 
+BxlObserver::~BxlObserver()
+{
+    if (messageCountingSemaphore_ != nullptr)
+    {
+        // best effort, no need to observe the return value here
+        // if this does fail for whatever reason, the managed side should still unlink this semaphore
+        real_sem_close(messageCountingSemaphore_);
+        messageCountingSemaphore_ = nullptr;
+    }
+
+    disposed_ = true;
+}
+
 void BxlObserver::InitDetoursLibPath()
 {
     const char *path = getenv(BxlEnvDetoursPath);
@@ -142,6 +155,25 @@ void BxlObserver::InitFam(pid_t pid)
     sandbox_->SetAccessReportCallback(HandleAccessReport);
 
     sandboxLoggingEnabled_ = CheckEnableLinuxSandboxLogging(pip_->GetFamExtraFlags());
+}
+
+void BxlObserver::Init()
+{
+    // If message counting is enabled, open the associated semaphore (this should already be created by the managed side)
+    if (CheckCheckDetoursMessageCount(pip_->GetFamFlags()))
+    {
+        // Setting initializingSemaphore_ will communicate to the interpose layer to not interpose any libc functions called inside sem_open
+        initializingSemaphore_ = true;
+        messageCountingSemaphore_ = real_sem_open(pip_->GetInternalDetoursErrorNotificationFile(), O_CREAT, 0644, 0);
+
+        if (messageCountingSemaphore_ == SEM_FAILED)
+        {
+            // we'll log a message here, but this won't fail the pip until this feature is tested more thorougly
+            real_fprintf(stdout, "BuildXL injected message: File access monitoring failed to open message counting semaphore '%s' with errno: '%d'. You should rerun this build, or contact the BuildXL team if the issue persists across multiple builds.", pip_->GetInternalDetoursErrorNotificationFile(), errno);
+        }
+
+        initializingSemaphore_ = false;
+    }
 }
 
 void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...)
@@ -280,7 +312,7 @@ bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const st
     return CheckCache(event, path, /* addEntryIfMissing */ false);
 }
 
-bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe)
+bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe, bool countReport)
 {
     if (!real_open)
     {
@@ -298,6 +330,23 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe)
     if (logFd == -1)
     {
         _fatal("Could not open file '%s'; errno: %d", reportsPath, errno);
+    }
+
+    // update message counting semaphore whenever a report is sent
+    // We update the message counting semaphore before sending the report because we could hit a race condition where
+    // the message is received by the managed side but we haven't yet incremented the counter if we do it after sending the message.
+    // If the message fails to send, the code below will write to stderr and exit with a bad exit code causing the pip to fail anyways.
+    // So it doesn't matter if we increment the counter but fail to send a message.
+    if (messageCountingSemaphore_ != nullptr && countReport)
+    {
+        auto result = real_sem_post(messageCountingSemaphore_);
+        if (result != 0)
+        {
+            // something went wrong with the semaphore, we shouldn't call LOG_DEBUG here because it will just come back to this function
+            // we also don't want to call _fatal because that will fail the pip.
+            // instead log the error to stdout (this could be promoted to stderr in the future when this feature is stable)
+            real_fprintf(stdout, "posting to buildxl message counting semaphore failed with errno: %d\n", errno);
+        }
     }
 
     ssize_t numWritten = real_write(logFd, buf, bufsiz);
@@ -351,6 +400,12 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bo
     char buffer[PIPE_BUF] = {0};
     int maxMessageLength = PIPE_BUF - PrefixLength;
     int reportSize = BuildReport(&buffer[PrefixLength], maxMessageLength, report, report.path);
+    // CODESYNC: Public/Src/Engine/Processes/SandboxedProcessUnix.cs
+    bool shouldCountReportType = 
+        report.operation != FileOperation::kOpProcessStart
+        && report.operation != FileOperation::kOpProcessExit
+        && report.operation != FileOperation::kOpProcessTreeCompleted
+        && report.operation != FileOperation::kOpDebugMessage;
 
     if (reportSize >= maxMessageLength)
     {
@@ -377,7 +432,7 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bo
     }
 
     *(uint*)(buffer) = reportSize;
-    return Send(buffer, std::min(reportSize + PrefixLength, PIPE_BUF), useSecondaryPipe);
+    return Send(buffer, std::min(reportSize + PrefixLength, PIPE_BUF), useSecondaryPipe, shouldCountReportType);
 }
 
 void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode, pid_t associatedPid)

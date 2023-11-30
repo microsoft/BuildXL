@@ -18,6 +18,10 @@ namespace BuildXL.Interop.Unix
     /// </summary>
     public static class IO
     {
+        /// <summary>
+        /// The uniform system limit (if any) for the length of a file name component, not including the terminating null character.
+        /// </summary>
+        public static int NAME_MAX => 255;
 
         /// <summary>
         /// Errorno codes

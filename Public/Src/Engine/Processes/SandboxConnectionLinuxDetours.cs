@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -17,7 +16,6 @@ using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -46,7 +44,10 @@ namespace BuildXL.Processes
         // 0 active processes
         private const int EndOfReportsSentinel = -22;
 
-        private static readonly string s_detoursLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libDetours.so");
+        /// <summary>
+        /// Location of the Linux sandbox shared library binary.
+        /// </summary>
+        public static readonly string DetoursLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libDetours.so");
         private static readonly string s_auditLibFile = SandboxedProcessUnix.EnsureDeploymentFile("libBxlAudit.so");
 
         /// <summary>
@@ -63,41 +64,6 @@ namespace BuildXL.Processes
         /// Environment variable containing the path to a ptraced process for the ptracerunner process to use.
         /// </summary>
         public static readonly string BuildXLTracedProcessPath = "__BUILDXL_TRACED_PATH";
-
-        internal sealed class PathCacheRecord
-        {
-            internal RequestedAccess RequestedAccess { get; set; }
-
-            internal RequestedAccess GetClosure(RequestedAccess access)
-            {
-                var result = RequestedAccess.None;
-
-                // Read implies Probe
-                if (access.HasFlag(RequestedAccess.Read))
-                {
-                    result |= RequestedAccess.Probe;
-                }
-
-                // Write implies Read and Probe
-                if (access.HasFlag(RequestedAccess.Write))
-                {
-                    result |= RequestedAccess.Read | RequestedAccess.Probe;
-                }
-
-                return result;
-            }
-
-            internal bool CheckCacheHitAndUpdate(RequestedAccess access)
-            {
-                // if all flags in 'access' are already present --> cache hit
-                bool isCacheHit = (RequestedAccess & access) == access;
-                if (!isCacheHit)
-                {
-                    RequestedAccess |= GetClosure(access);
-                }
-                return isCacheHit;
-            }
-        }
 
         internal sealed class Info : IDisposable
         {
@@ -200,9 +166,6 @@ namespace BuildXL.Processes
 
                 private void LogDebug(string s) => Info.Process.LogDebug(s);
 
-#if NETCOREAPP
-                private void LogDebug([InterpolatedStringHandlerArgument("")] DebugMessageInterpolatedStringHandler builder) => Info.Process.LogDebug(builder);
-#endif
                 private void LogError(string s) => Info.LogError(s);
 
                 /// <summary>
@@ -342,8 +305,7 @@ namespace BuildXL.Processes
             internal string SecondaryFifoPath { get; }
             internal string FamPath { get; }
 
-            private readonly Sandbox.ManagedFailureCallback m_failureCallback;
-            private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
+            private readonly ManagedFailureCallback m_failureCallback;
             private readonly bool m_isInTestMode;
 
             /// <remarks>
@@ -372,7 +334,7 @@ namespace BuildXL.Processes
 
             private ReportProcessor GetReportProcessorFor(Lazy<SafeFileHandle> lazyWriteHandle) => lazyWriteHandle == m_lazyWriteHandle ? m_reportProcessor : m_secondaryReportProcessor;
 
-            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string secondaryFifoPath, string famPath, bool isInTestMode)
+            internal Info(ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string secondaryFifoPath, string famPath, bool isInTestMode)
             {
                 m_isInTestMode = isInTestMode;
                 m_failureCallback = failureCallback;
@@ -381,7 +343,6 @@ namespace BuildXL.Processes
                 SecondaryFifoPath = secondaryFifoPath;
                 FamPath = famPath;
 
-                m_pathCache = new Dictionary<string, PathCacheRecord>();
                 m_activeProcesses = new ConcurrentDictionary<int, byte>();
                 m_activeProcessesChecker = new CancellableTimedAction(
                     CheckActiveProcesses,
@@ -559,21 +520,6 @@ namespace BuildXL.Processes
                 }
             }
 
-            internal PathCacheRecord GetOrCreateCacheRecord(string path)
-            {
-                PathCacheRecord cacheRecord;
-                if (!m_pathCache.TryGetValue(path, out cacheRecord))
-                {
-                    cacheRecord = new PathCacheRecord()
-                    {
-                        RequestedAccess = RequestedAccess.None
-                    };
-                    m_pathCache[path] = cacheRecord;
-                }
-
-                return cacheRecord;
-            }
-
             internal void LogError(string message)
             {
                 message = $"{message} (errno: {Marshal.GetLastWin32Error()})";
@@ -583,9 +529,6 @@ namespace BuildXL.Processes
 
             internal void LogDebug(string s) => Process.LogDebug(s);
 
-#if NETCOREAPP
-            private void LogDebug([InterpolatedStringHandlerArgument("")] DebugMessageInterpolatedStringHandler builder) => Process.LogDebug(builder);
-#endif
 
             /// <nodoc />
             public void Dispose()
@@ -602,7 +545,6 @@ namespace BuildXL.Processes
                     // without that being the case
                 }
 
-                m_pathCache.Clear();
                 m_activeProcesses.Clear();
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, retryOnFailure: false));
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(FamPath, retryOnFailure: false));
@@ -665,12 +607,6 @@ namespace BuildXL.Processes
                     var path = nextField(restOfMessage, out restOfMessage);
                     Contract.Assert(restOfMessage.IsEmpty);  // We should have reached the end of the message
 
-                    // ignore accesses to libDetours.so, because we injected that library
-                    if (path.SequenceEqual(s_detoursLibFile.AsSpan()))
-                    {
-                        return;
-                    }
-
                     var report = new AccessReport
                     {
                         Pid = (int)pid,
@@ -698,22 +634,6 @@ namespace BuildXL.Processes
                     {
                         LogDebug($"Received FileOperation.OpProcessExit for pid {report.Pid})");
                         RemovePid(report.Pid);
-                    }
-                    else
-                    {
-                        // We don't want to check the path cache for statically linked processes
-                        // because we rely on this report to start the ptrace sandbox.
-                        // OpProcessCommandLine can also be skipped because its not a path, and shouldn't be cached.
-                        if (report.Operation != FileOperation.OpStaticallyLinkedProcess && report.Operation != FileOperation.OpProcessCommandLine)
-                        {
-                            var pathStr = path.ToString();
-                            // check the path cache (only when the message is not about process tree)                        
-                            if (GetOrCreateCacheRecord(pathStr).CheckCacheHitAndUpdate(access))
-                            {
-                                LogDebug($"Cache hit for access report: ({pathStr}, {access})");
-                                return;
-                            }
-                        }
                     }
 
                     // post the AccessReport
@@ -810,7 +730,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
-            var detoursLibPath = info.RootJailInfo.CopyToRootJailIfNeeded(s_detoursLibFile);
+            var detoursLibPath = info.RootJailInfo.CopyToRootJailIfNeeded(DetoursLibFile);
             (_, _, string famPath) = GetPaths(info.RootJailInfo, uniqueName);
 
             yield return ("__BUILDXL_ROOT_PID", "1"); // CODESYNC: Public/Src/Sandbox/Linux/common.h (temp solution for breakaway processes)

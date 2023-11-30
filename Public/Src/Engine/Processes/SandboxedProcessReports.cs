@@ -63,6 +63,11 @@ namespace BuildXL.Processes
             return m_manifest.MessageCountSemaphore?.Release() ?? 0;
         }
 
+        public INamedSemaphore GetMessageCountSemaphore()
+        {
+            return m_manifest.MessageCountSemaphore;
+        }
+
         private bool m_isFrozen;
         
         /// <summary>

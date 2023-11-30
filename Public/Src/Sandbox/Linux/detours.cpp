@@ -439,7 +439,22 @@ INTERPOSE(int, __fxstat, int __ver, int fd, struct stat *__stat_buf)({
     return result.restore();
 })
 
-INTERPOSE(int, __fxstat64, int __ver, int fd, struct stat64 *buf)({
+INTERPOSE_SOMETIMES(int, __fxstat64,
+if (BxlObserver::GetInstance()->IsPerformingInit())
+{
+    // During initialization, the sandbox may create a semaphore using sem_open.
+    // sem_open will call __fxstat64 behind the scenes causing us to hit this codepath before init is complete.
+    // However, since the file access is for an internal semaphore, we don't need to report it.
+    // Additionally, the process creation access report has not been sent yet, meaning that the managed side
+    // will consider this an unexpected access if we send it.
+    // So during initialization we will just call the real function here using the short circuit check.
+    // This is an unconventional use of the short circuit check since we get an instance of the bxlobserver here,
+    // however in our case it should be okay to do because we know the bxlobserver doesn't call fxstat anywhere else during init
+    // and we know that during semaphore creation the bxlobserver object has already been created.
+    // Note: We can't call fwd___fxstat64 here because that will send a log message which we can't do until the semaphore has been created.
+    return BxlObserver::GetInstance()->real___fxstat64(__ver, fd, buf);
+},
+int __ver, int fd, struct stat64 *buf)({
     result_t<int> result(bxl->fwd___fxstat64(__ver, fd, buf));
     bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_STAT, fd, get_errno_from_result(result));
     return result.restore();
@@ -1319,6 +1334,8 @@ void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
 {
     // set up an on-exit handler
     on_exit(report_exit, NULL);
+
+    BxlObserver::GetInstance()->Init();
 
     // report that a new process has been created 
     BxlObserver::GetInstance()->report_access("__init__", ES_EVENT_TYPE_NOTIFY_EXEC, __progname);

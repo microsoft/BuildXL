@@ -126,6 +126,8 @@ namespace BuildXL.Processes
         /// </summary>
         internal static readonly Lazy<string> PTraceRunnerExecutable = new(() => EnsureDeploymentFile(SandboxConnectionLinuxDetours.PTraceRunnerFileName, setExecuteBit: true));
 
+        private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
+
         internal static string GetDeploymentFileFullPath(string relativePath)
         {
             var deploymentDir = Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()) ?? string.Empty;
@@ -166,6 +168,9 @@ namespace BuildXL.Processes
 
         internal string ToPathInsideRootJail(string path) => RootJailInfo.ToPathInsideRootJail(path);
 
+        /// <inheritdoc />
+        public override int GetLastMessageCount() => m_reports.GetLastMessageCount();
+
         /// <nodoc />
         public SandboxedProcessUnix(SandboxedProcessInfo info, bool ignoreReportedAccesses = false)
             : base(info)
@@ -183,6 +188,7 @@ namespace BuildXL.Processes
             RootJailInfo = info.RootJailInfo;
             m_loggingContext = info.LoggingContext;
             m_ptraceRunners = new List<Task<AsyncProcessExecutor>>();
+            m_pathCache = new Dictionary<string, PathCacheRecord>();
 
             if (info.MonitoringConfig is not null && info.MonitoringConfig.MonitoringEnabled)
             {
@@ -513,6 +519,8 @@ namespace BuildXL.Processes
             // If ptrace runners have not finished yet, then do that now
             // Completing the task below will make us kill any leftover PTraceRunner processes
             KillActivePTraceRunners();
+
+            m_pathCache.Clear();
 
             base.Dispose();
         }
@@ -871,8 +879,48 @@ namespace BuildXL.Processes
                 UpdateAverageTimeSpentInReportQueue(report.Statistics);
 
                 // caching path existence checks would speed things up, but it would not be semantically sound w.r.t. our unit tests
-                // TODO: check if the tests are overspecified because in practice BuildXL doesn't really rely much on the outcome of this check
+                // TODO: check if the tests are over specified because in practice BuildXL doesn't really rely much on the outcome of this check
                 var reportPath = report.DecodePath();
+
+                if (m_reports.GetMessageCountSemaphore() != null && ShouldCountReportType(report.Operation))
+                {
+                    try
+                    {
+                        m_reports.GetMessageCountSemaphore().WaitOne(0);
+                    }
+                    catch (Exception e)
+                    {
+                        // Semaphore was zero.
+                        // We should not have to wait to be unblocked because the native side should have incremented
+                        // the semaphore as soon as it sent a message.
+                        // For now we don't consider this a failure, but in the future this should become a failure
+                        LogDebug($"[Pip{PipId}] Message counting semaphore mismatch for pid '{report.Pid}' with reported path '{reportPath}' with exception {e}");
+                    }
+                }
+
+                // ignore accesses to libDetours.so, because we injected that library
+                if (reportPath == SandboxConnectionLinuxDetours.DetoursLibFile)
+                {
+                    return;
+                }
+
+                // Path cache checks are in here instead of SandboxConnectionLinuxDetours because we need to check the semaphore before discarding reports.
+                // We don't want to check the path cache for statically linked processes
+                // because we rely on this report to start the ptrace sandbox.
+                // OpProcessCommandLine can also be skipped because its not a path, and shouldn't be cached.
+                if (report.Operation != FileOperation.OpProcessStart
+                    && report.Operation != FileOperation.OpProcessExit
+                    && report.Operation != FileOperation.OpProcessTreeCompleted
+                    && report.Operation != FileOperation.OpStaticallyLinkedProcess
+                    && report.Operation != FileOperation.OpProcessCommandLine)
+                {
+                    // check the path cache (only when the message is not about process tree)                        
+                    if (GetOrCreateCacheRecord(reportPath).CheckCacheHitAndUpdate((RequestedAccess)report.RequestedAccess))
+                    {
+                        LogDebug($"Cache hit for access report: ({reportPath}, {(RequestedAccess)report.RequestedAccess})");
+                        return;
+                    }
+                }
 
                 if (report.Operation == FileOperation.OpDebugMessage)
                 {
@@ -954,6 +1002,17 @@ namespace BuildXL.Processes
                     ReportFileAccess(ref report);
                 }
             }
+        }
+
+        private bool ShouldCountReportType(FileOperation op)
+        {
+            // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.cpp
+            // We explicitly ignore start/exit/processtreecompleted here because during
+            // exit signalling a semaphore doesn't seem to work.
+            return op != FileOperation.OpProcessStart
+                && op != FileOperation.OpProcessExit
+                && op != FileOperation.OpProcessTreeCompleted
+                && op != FileOperation.OpDebugMessage;
         }
 
         private void ReportFileAccess(ref AccessReport report)
@@ -1163,5 +1222,56 @@ namespace BuildXL.Processes
                 runner.Dispose();
             }
         }
+
+        private PathCacheRecord GetOrCreateCacheRecord(string path)
+        {
+            if (!m_pathCache.TryGetValue(path, out var cacheRecord))
+            {
+                cacheRecord = new PathCacheRecord()
+                {
+                    RequestedAccess = RequestedAccess.None
+                };
+                m_pathCache[path] = cacheRecord;
+            }
+
+            return cacheRecord;
+        }
+
+        #region HelperClasses
+        internal sealed class PathCacheRecord
+        {
+            internal RequestedAccess RequestedAccess { get; set; }
+
+            internal RequestedAccess GetClosure(RequestedAccess access)
+            {
+                var result = RequestedAccess.None;
+
+                // Read implies Probe
+                if (access.HasFlag(RequestedAccess.Read))
+                {
+                    result |= RequestedAccess.Probe;
+                }
+
+                // Write implies Read and Probe
+                if (access.HasFlag(RequestedAccess.Write))
+                {
+                    result |= RequestedAccess.Read | RequestedAccess.Probe;
+                }
+
+                return result;
+            }
+
+            internal bool CheckCacheHitAndUpdate(RequestedAccess access)
+            {
+                // if all flags in 'access' are already present --> cache hit
+                bool isCacheHit = (RequestedAccess & access) == access;
+                if (!isCacheHit)
+                {
+                    RequestedAccess |= GetClosure(access);
+                }
+                return isCacheHit;
+            }
+        }
+        #endregion
     }
 }

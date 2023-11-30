@@ -2,9 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Pips.Filter;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;

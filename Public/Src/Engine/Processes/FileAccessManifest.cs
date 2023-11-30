@@ -544,7 +544,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// The semaphore that keeps count to the sent and received messages.
         /// </summary>
-        public System.Threading.Semaphore? MessageCountSemaphore { get; private set; }
+        public INamedSemaphore? MessageCountSemaphore { get; private set; }
 
         /// <summary>
         /// Directory translator.
@@ -575,10 +575,15 @@ namespace BuildXL.Processes
             Contract.Requires(semaphoreName.Length > 0);
 
             UnsetMessageCountSemaphore();
-            m_messageCountSemaphoreName = semaphoreName;
-            MessageCountSemaphore = new System.Threading.Semaphore(0, int.MaxValue, semaphoreName, out bool newlyCreated);
+            var maybeSemaphore = SemaphoreFactory.CreateNew(semaphoreName, 0, int.MaxValue);
 
-            return newlyCreated;
+            if (maybeSemaphore.Succeeded)
+            {
+                MessageCountSemaphore = maybeSemaphore.Result;
+                m_messageCountSemaphoreName = semaphoreName;
+            }
+
+            return maybeSemaphore.Succeeded;
         }
 
         /// <summary>
@@ -592,7 +597,7 @@ namespace BuildXL.Processes
                 return;
             }
 
-            MessageCountSemaphore.Dispose();
+            MessageCountSemaphore?.Dispose();
             MessageCountSemaphore = null;
             m_messageCountSemaphoreName = null;
         }

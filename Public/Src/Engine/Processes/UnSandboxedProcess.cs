@@ -12,7 +12,6 @@ using BuildXL.Interop;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
 #else
@@ -281,7 +280,7 @@ namespace BuildXL.Processes
         public long GetDetoursMaxHeapSize() => 0;
 
         /// <inheritdoc />
-        public int GetLastMessageCount() => 0;
+        public virtual int GetLastMessageCount() => 0;
 
         /// <inheritdoc />
         public async Task<SandboxedProcessResult> GetResultAsync()
@@ -483,16 +482,6 @@ namespace BuildXL.Processes
                 LogProcessState(message);
             }
         }
-
-#if NETCOREAPP
-        internal void LogDebug([InterpolatedStringHandlerArgument("")] DebugMessageInterpolatedStringHandler builder)
-        {
-            if (DebugLogEnabled)
-            {
-                LogProcessState(builder.GetFormattedString());
-            }
-        }
-#endif
 
         /// <nodoc/>
         [return: NotNull]

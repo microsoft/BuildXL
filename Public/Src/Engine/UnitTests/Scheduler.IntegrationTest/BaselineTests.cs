@@ -268,7 +268,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builder = CreatePipBuilder(operations);
             SchedulePipBuilder(builder);
 
-            using (PerformanceCollector performanceCollector = new PerformanceCollector(System.TimeSpan.FromMilliseconds(10), testHooks: new PerformanceCollector.TestHooks(){ AvailableDiskSpace = 0 }))
+            using (PerformanceCollector performanceCollector = new PerformanceCollector(System.TimeSpan.FromMilliseconds(10), testHooks: new PerformanceCollector.TestHooks() { AvailableDiskSpace = 0 }))
             {
                 RunScheduler(performanceCollector: performanceCollector, updateStatusTimerEnabled: true).AssertFailure();
                 IgnoreWarnings();
@@ -1577,7 +1577,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             };
 
             // The value we pass to the pip builder for the given env var can be null, which means that it will be left unset and the environment will take effect
-            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarName]=(value, isPassThrough)});
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarName] = (value, isPassThrough) });
             var process = SchedulePipBuilder(builder).Process;
 
             RunScheduler().AssertSuccess();
@@ -1587,7 +1587,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Let's change the value on the environment and the corresponding one we pass to the pip
             Environment.SetEnvironmentVariable(envVarName, updatedValue);
-            
+
             ResetPipGraphBuilder();
             builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarName] = (updatedValue, isPassThrough) });
             process = SchedulePipBuilder(builder).Process;
@@ -1883,7 +1883,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             Configuration.Sandbox.RetryOnAzureWatsonExitCode = true;
             Configuration.Logging.TreatWarningsAsErrors = treatWarningsAsErrors;
-            
+
             FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
 
             var ops = new Operation[]
@@ -1931,7 +1931,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.Spawn(Context.PathTable, true, Operation.CreateDirOnRetry(stateFile2,dirToCreate)),
                 Operation.WaitUntilPathExists(dirToCreate, doNotInfer: true),    // Would block only the first time, causing a timeout
                 Operation.WriteFile(CreateOutputFileArtifact()) });
-            
+
             builder.Timeout = TimeSpan.FromSeconds(1);  // Will timeout on WaitUntilPathExists
 
             builder.AddUntrackedFile(stateFile.Path);
@@ -2331,9 +2331,9 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // This file is written by the actual test process to test whether it gets detected by the sandbox
                 builder.AddOutputFile(AbsolutePath.Create(Context.PathTable, Path.Combine(workingDirectory.Path.ToString(Context.PathTable), "testFile.txt")));
             }
-            
+
             SchedulePipBuilder(builder);
-            RunScheduler().AssertSuccess();            
+            RunScheduler().AssertSuccess();
             AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary, count: 1);
         }
 
@@ -2476,6 +2476,37 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Build pip1 again we should get a cache miss everytime as the salt value is "*", means the salt value is not constant.
             pip = CreateAndSchedulePipBuilder(pOperations).Process;
             RunScheduler().AssertCacheMiss(pip.PipId);
+        }
+
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
+        public void VerifySandboxMessageCount()
+        {
+            Configuration.Sandbox.CheckDetoursMessageCount = true;
+
+            var tempFile = $"{TemporaryDirectory}/testfile.txt";
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // dummy file
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.SpawnExe(
+                    Context.PathTable,
+                    GetCmdExecutable(),
+                    OperatingSystemHelper.IsWindowsOS
+                    ? $"/d /c \"echo hello world > {tempFile}\""
+                    : $"-c \"echo hello world > {tempFile}\"")
+            });
+            builder.AddOutputFile(ToPath(tempFile));
+
+            SchedulePipBuilder(builder);
+            RunScheduler().AssertSuccess();
+
+            AssertVerboseEventLogged(ProcessesLogEventId.LogMismatchedDetoursVerboseCount, count: 0);
+            
+            // The Linux sandbox will also log additional messages if the semaphore was not signalled when a message arrives
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                AssertLogNotContains(caseSensitive: false, requiredLogMessages: "Message counting semaphore mismatch");
+            }
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

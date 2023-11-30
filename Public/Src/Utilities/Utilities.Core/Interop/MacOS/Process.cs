@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using static BuildXL.Interop.Dispatch;
-using static BuildXL.Interop.Unix.Constants;
 using static BuildXL.Interop.Unix.Impl_Common;
 
 namespace BuildXL.Interop.Unix

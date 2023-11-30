@@ -19,6 +19,11 @@ namespace BuildXL.Interop
         public const string LibC = "libc";
 
         /// <summary>
+        /// POSIX thread libraries
+        /// </summary>
+        public const string LibPthread = "pthread";
+
+        /// <summary>
         /// Windows Kernel32
         /// </summary>
         public const string WindowsKernel32 = "kernel32.dll";

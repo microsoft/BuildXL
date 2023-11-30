@@ -5,7 +5,6 @@
 #include "PTraceSandbox.hpp"
 #include <linux/filter.h>
 #include <linux/seccomp.h>
-#include <semaphore.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/reg.h>

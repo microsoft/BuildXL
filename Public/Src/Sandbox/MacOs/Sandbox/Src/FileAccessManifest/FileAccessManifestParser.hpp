@@ -15,6 +15,7 @@ private:
     PCManifestInjectionTimeout injectionTimeoutFlag_;
     PManifestChildProcessesToBreakAwayFromJob manifestChildProcessesToBreakAwayFromJob_;
     PManifestTranslatePathsStrings manifestTranslatePathsStrings_;
+    char internalDetoursErrorNotificationFile_[NAME_MAX-4];
     PCManifestFlags flags_;
     PCManifestExtraFlags extraFlags_;
     PCManifestPipId pipId_;
@@ -59,6 +60,7 @@ public:
         return report_->Report.ReportPath;
     }
     inline const char* GetProcessPath(int *length) const { return GetReportsPath(length); }
+    inline const char* GetInternalDetoursErrorNotificationFile() const { return internalDetoursErrorNotificationFile_; }
 
     // Debugging helper
     static void PrintManifestTree(PCManifestRecord node, const int indent = 0, const int index = 0);

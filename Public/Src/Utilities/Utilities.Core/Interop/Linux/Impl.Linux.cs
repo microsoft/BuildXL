@@ -797,7 +797,7 @@ namespace BuildXL.Interop.Unix
         [DllImport(LibC, EntryPoint = "gnu_dev_makedev", SetLastError = true, CharSet = CharSet.Ansi)]
         internal static extern ulong makedev(uint major, uint minor);
 
-        [DllImport(Libraries.LibC, SetLastError = true)]
+        [DllImport(LibC, SetLastError = true)]
         unsafe internal static extern int lsetxattr(
             [MarshalAs(UnmanagedType.LPStr)] string path,
             [MarshalAs(UnmanagedType.LPStr)] string name,
@@ -805,7 +805,7 @@ namespace BuildXL.Interop.Unix
             ulong size,
             int flags);
 
-        [DllImport(Libraries.LibC, SetLastError = true)]
+        [DllImport(LibC, SetLastError = true)]
         internal static extern long lgetxattr(
             [MarshalAs(UnmanagedType.LPStr)] string path,
             [MarshalAs(UnmanagedType.LPStr)] string name,
@@ -815,6 +815,30 @@ namespace BuildXL.Interop.Unix
 
         [DllImport(LibC, SetLastError = true)]
         internal static extern IntPtr realpath(string path, StringBuilder resolved_path);
+
+        [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_open")]
+        public static extern IntPtr sem_open([MarshalAs(UnmanagedType.LPStr)] string name, int oflag, int mode, uint value);
+
+        [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_wait")]
+        public static extern int sem_wait(IntPtr sem);
+
+        [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_timedwait")]
+        public static extern int sem_timedwait(IntPtr sem, Timespec abs_timeout);
+
+        [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_trywait")]
+        public static extern int sem_trywait(IntPtr sem);
+
+        [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_post")]
+        public static extern int sem_post(IntPtr sem);
+
+        [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_getvalue")]
+        public static extern int sem_getvalue(IntPtr sem, out int sval);
+
+        [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_close")]
+        public static extern int sem_close(IntPtr sem);
+
+        [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_unlink")]
+        public static extern int sem_unlink([MarshalAs(UnmanagedType.LPStr)] string name);
 
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 

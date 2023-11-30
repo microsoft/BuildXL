@@ -63,6 +63,34 @@ inline uint32_t ParseUint32(const BYTE *&cursor)
     return i;
 }
 
+uint32_t CreateStringFromUtf16Chars(const BYTE *&payload, char *buffer, int bufferSize)
+{
+    // NOTE: this function assumes that the string from payload that is being read was encoded in utf16.
+    // it also assumes that the characters being parsed falls within the utf8 range.
+    uint32_t len = ParseUint32(payload);
+
+    if (len >= bufferSize - 1)
+    {
+        // truncate the value if it's bigger than the provided buffer
+        len = bufferSize;
+    }
+
+    memset(buffer, 0, bufferSize);
+
+    if (len > 0)
+    {
+        for (int i = 0; i < len; i++)
+        {
+            // this is a narrowing cast
+            buffer[i] = static_cast<char>(payload[i * sizeof(char16_t)]);
+        }
+        buffer[len] = '\0';
+        payload += sizeof(char16_t) * len;
+    }
+
+    return len;
+}
+
 const char *CheckValidUnixManifestTreeRoot(PCManifestRecord node)
 {
     // empty manifest is ok
@@ -126,7 +154,9 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
         ParseAndAdvancePointer<PManifestInternalDetoursErrorNotificationFileString>(payloadCursor);
         if (HasErrors()) continue;
 
-        SkipOverCharArray(payloadCursor); // error log path
+        // on Unix this does not point to a real path, however to align with the Windows format for the file access manifest we'll re-use this for now
+        // this string is encoded in utf16 in the manifest
+        CreateStringFromUtf16Chars(payloadCursor, internalDetoursErrorNotificationFile_, NAME_MAX-4);
 
         flags_ = ParseAndAdvancePointer<PCManifestFlags>(payloadCursor);
         if (HasErrors()) continue;

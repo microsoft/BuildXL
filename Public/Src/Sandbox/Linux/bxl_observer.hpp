@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <limits.h>
+#include <semaphore.h>
 #include <stddef.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
@@ -240,7 +241,7 @@ class BxlObserver final
 {
 private:
     BxlObserver();
-    ~BxlObserver() { disposed_ = true; }
+    ~BxlObserver();
     BxlObserver(const BxlObserver&) = delete;
     BxlObserver& operator = (const BxlObserver&) = delete;
 
@@ -275,9 +276,13 @@ private:
     std::vector<std::pair<std::string, bool>> staticallyLinkedProcessCache_;
     std::vector<std::string> forcedPTraceProcessNames_;
 
+    // Message counting
+    sem_t *messageCountingSemaphore_ = nullptr;
+    bool initializingSemaphore_ = false;
+
     void InitFam(pid_t pid);
     void InitDetoursLibPath();
-    bool Send(const char *buf, size_t bufsiz, bool useSecondaryPipe = false);
+    bool Send(const char *buf, size_t bufsiz, bool useSecondaryPipe, bool countReport);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
     bool CheckCache(es_event_type_t event, const string &path, bool addEntryIfMissing);
     char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
@@ -344,6 +349,13 @@ private:
 
 public:
     static BxlObserver* GetInstance();
+
+    // Performs additional initialization tasks after the static instance is initally constructed.
+    void Init();
+    bool IsPerformingInit()
+    {
+        return initializingSemaphore_;
+    }
 
     bool SendReport(const AccessReport &report, bool isDebugMessage = false, bool useSecondaryPipe = false);
     bool SendReport(const AccessReportGroup &report);
@@ -650,6 +662,9 @@ public:
     GEN_FN_DEF(int, fstatfs64, int fd, struct statfs64 *buf);
     GEN_FN_DEF(FILE*, popen, const char *command, const char *type);
     GEN_FN_DEF(int, pclose, FILE *stream);
+    GEN_FN_DEF(sem_t *, sem_open, const char *, int, mode_t, unsigned int);
+    GEN_FN_DEF(int, sem_close, sem_t *);
+    GEN_FN_DEF(int, sem_post, sem_t *);
     /* =================================================================== */
 
     /* ============ old/obsolete/unavailable ==========================

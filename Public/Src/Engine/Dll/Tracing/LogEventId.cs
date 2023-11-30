@@ -307,8 +307,8 @@ namespace BuildXL.Engine.Tracing
 
         DistributionWorkerUnexpectedFailureAfterOrchestratorExits = 7017,
         DistributionWorkerFinish = 7018,
-        DistributionWorkerExecutePipRequest = 7019,
-        DistributionWorkerFinishedPipRequest = 7020,
+        //DistributionWorkerExecutePipRequest = 7019,
+        //DistributionWorkerFinishedPipRequest = 7020,
         DistributionWorkerCouldNotLoadGraph = 7021,
         //DistributionFailedToRetrieveValidationContentFromWorkerCache = 7022,
         //DistributionFailedToRetrieveValidationContentFromWorkerCacheWithException = 7023,
@@ -332,7 +332,7 @@ namespace BuildXL.Engine.Tracing
         DistributionServiceInitializationError = 7043,
         WorkerTotalRamMb = 7044,
 
-        RemoteWorkerProcessedExecutionBlob = 7045,
+        //RemoteWorkerProcessedExecutionBlob = 7045,
         // 7046 in use by SharedLogEventId
 
         DistributionConnectionTimeout = 7047,

@@ -440,16 +440,8 @@ namespace BuildXL.Engine.Distribution
 
                 if (callResult.Succeeded)
                 {
-                    using (DistributionService.Counters.StartStopwatch(DistributionCounter.PrintFinishedLogsDuration))
-                    {
-                        foreach (var result in m_executionResults)
-                        {
-                            Tracing.Logger.Log.DistributionWorkerFinishedPipRequest(m_loggingContext, result.SemiStableHash, ((PipExecutionStep)result.SerializedData.Step).AsString());
-                            m_numResultsSent++;
-                        }
-
-                        m_numBatchesSent++;
-                    }
+                    m_numResultsSent += m_executionResults.Count;
+                    m_numBatchesSent++;
                 }
                 else if (!cancellationToken.IsCancellationRequested)
                 {

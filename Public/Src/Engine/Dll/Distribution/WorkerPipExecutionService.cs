@@ -341,12 +341,6 @@ namespace BuildXL.Engine.Distribution
                 var pipId = runnablePip.PipId;
                 var processRunnable = runnablePip as ProcessRunnablePip;
 
-                Tracing.Logger.Log.DistributionWorkerExecutePipRequest(
-                    runnablePip.LoggingContext,
-                    runnablePip.Pip.SemiStableHash,
-                    runnablePip.Description,
-                    runnablePip.Step.AsString());
-
                 var pipIdStepTuple = (pipId, runnablePip.Step);
 
                 switch (runnablePip.Step)

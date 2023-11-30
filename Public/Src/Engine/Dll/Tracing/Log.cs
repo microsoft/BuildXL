@@ -532,18 +532,6 @@ namespace BuildXL.Engine.Tracing
             string errorMessage);
 
         [GeneratedEvent(
-            (ushort)LogEventId.RemoteWorkerProcessedExecutionBlob,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "'{workerName}' processed execution blob '{message}'.")]
-        public abstract void RemoteWorkerProcessedExecutionBlob(
-            LoggingContext context,
-            string workerName,
-            string message);
-
-        [GeneratedEvent(
             (ushort)LogEventId.DistributionSuccessfulRetryCallToWorker,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
@@ -831,16 +819,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerForwardedEvent(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionWorkerExecutePipRequest,
-            EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Executing distributed pip build request of step {step}",
-            EventLevel = Level.Verbose,
-            EventTask = (ushort)Tasks.Distribution,
-            EventOpcode = (byte)EventOpcode.Info,
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void DistributionWorkerExecutePipRequest(LoggingContext context, long pipSemiStableHash, string pipDescription, string step);
-
-        [GeneratedEvent(
             (ushort)LogEventId.DistributionPipFailedOnWorker,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipDescription}] Failed pip execution of step {step} on worker {workerName}.",
@@ -889,16 +867,6 @@ namespace BuildXL.Engine.Tracing
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)Keywords.UserMessage)]
         public abstract void GrpcServerTraceWarning(LoggingContext context, string message);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DistributionWorkerFinishedPipRequest,
-            EventGenerators = EventGenerators.LocalOnly,
-            Message = "[Pip{pipSemiStableHash:X16}] Finished distributed pip build request of step {step}.",
-            EventLevel = Level.Verbose,
-            EventTask = (ushort)Tasks.Distribution,
-            EventOpcode = (byte)EventOpcode.Info,
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void DistributionWorkerFinishedPipRequest(LoggingContext context, long pipSemiStableHash, string step);
 
         [GeneratedEvent(
             (ushort)LogEventId.Custom,

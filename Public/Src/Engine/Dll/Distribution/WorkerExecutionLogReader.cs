@@ -180,8 +180,6 @@ namespace BuildXL.Engine.Distribution
                     m_logTarget = null;
                 }
 
-                Logger.Log.RemoteWorkerProcessedExecutionBlob(m_loggingContext, $"Worker#{m_workerName}", $"{seqNumber} - {dataBlob.Count()}");
-
                 if (m_queue.IsCompleted)
                 {
                     m_completionTask.TrySetResult(true);

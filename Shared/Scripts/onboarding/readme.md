@@ -1,0 +1,1 @@
+These L3 cache provisioning scripts are also uploaded to https://bxlscripts.blob.core.windows.net/provisioning under the subscription BUILDXL-RELEASE-PME, resource group BuildXL-Misc. They are kept here for git versioning reasons. Please keep them in sync.

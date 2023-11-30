@@ -44,8 +44,15 @@ namespace BuildXL.Engine.Distribution
         private BinaryLogReader m_binaryReader;
         private ExecutionLogFileReader m_executionLogReader;
 
+        /// <summary>
+        /// Whether the execution log events coming from workers should be asynchronously processed with the grpc messages coming from workers.
+        /// If enabled, the ack would be sent to the worker after the message is added to the queue.
+        /// If disabled, the ack would be sent to the worker after the message is processed.
+        /// </summary>
+        private readonly bool m_asyncProcessing;
+
         /// <nodoc/>
-        public WorkerExecutionLogReader(LoggingContext loggingContext, IExecutionLogTarget logTarget, IPipExecutionEnvironment environment, string workerName)
+        public WorkerExecutionLogReader(LoggingContext loggingContext, IExecutionLogTarget logTarget, IPipExecutionEnvironment environment, string workerName, bool asyncProcessing)
         {
             m_loggingContext = loggingContext;
             m_logTarget = logTarget;
@@ -54,6 +61,7 @@ namespace BuildXL.Engine.Distribution
 
             m_bufferStream = new MemoryStream();
             m_completionTask = TaskSourceSlim.Create<bool>();
+            m_asyncProcessing = asyncProcessing;
         }
 
         /// <nodoc/>
@@ -99,14 +107,18 @@ namespace BuildXL.Engine.Distribution
 
             m_queue.Add(newData);
 
-            // After we put the executionBlob in a queue, we can unblock the caller and give an ACK to the worker.
-            await Task.Yield();
+            if (m_asyncProcessing)
+            {
+                // After we put the executionBlob in a queue, we can unblock the caller and give an ACK to the worker.
+                await Task.Yield();
+            }
 
             // Execution log events cannot be logged by multiple threads concurrently since they must be ordered
             SemaphoreReleaser logBlobAcquiredMtx;
             using (m_environment.Counters[PipExecutorCounter.RemoteWorker_ProcessExecutionLogWaitDuration].Start())
             {
-                logBlobAcquiredMtx = await m_lock.AcquireAsync();
+                var taskAcquireLock = m_lock.AcquireAsync();
+                logBlobAcquiredMtx = m_asyncProcessing ? await taskAcquireLock : taskAcquireLock.GetAwaiter().GetResult();
             }
 
             using (logBlobAcquiredMtx)

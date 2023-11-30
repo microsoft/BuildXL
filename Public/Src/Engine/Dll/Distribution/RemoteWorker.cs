@@ -183,8 +183,13 @@ namespace BuildXL.Engine.Distribution
         public override void InitializeForDistribution(IConfiguration config, PipGraph pipGraph, IExecutionLogTarget executionLogTarget, Task schedulerCompletionExceptMaterializeOutputs)
         {
             m_pipGraph = pipGraph;
-            m_buildManifestReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name);
-            m_executionLogReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name);
+
+            // For manifest events, we wait for the messages to be processed before we send an ack to the worker. 
+            m_buildManifestReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name, asyncProcessing: false);
+
+            // For manifest events, we wait for the messages to be added to the queue before we send an ack to the worker. 
+            m_executionLogReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name, asyncProcessing: true);
+
             m_initializationTime = DateTime.UtcNow;
             m_beforeSendingToRemoteTask = m_attachCompletion.Task;
 

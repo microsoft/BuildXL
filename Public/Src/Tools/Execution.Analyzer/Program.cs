@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.ToolSupport;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -24,6 +25,10 @@ namespace BuildXL.Execution.Analyzer
             catch (InvalidArgumentException e)
             {
                 Console.Error.WriteLine("Execution error: " + (e.InnerException ?? e).Message);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"An exception occurred during execution: {e.ToStringDemystified()}");
             }
 
             return -1;

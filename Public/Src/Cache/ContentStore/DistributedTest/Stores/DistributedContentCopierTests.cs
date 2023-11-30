@@ -48,14 +48,14 @@ namespace ContentStoreTest.Distributed.Stores
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
                     hash,
                     size: 42,
-                    new MachineLocation[0]);
+                    Array.Empty<MachineLocation>());
 
                 mockFileCopier.CopyToAsyncResult = CopyFileResult.SuccessWithSize(42);
                 var result = await distributedCopier.TryCopyAndPutAsync(
                     new OperationContext(context),
                     hashWithLocations,
                     handleCopyAsync: tpl => Task.FromResult(new PutResult(hash, 42)),
-                    inRingMachines: new MachineLocation[] { new MachineLocation(@"grpc://fun.com:123") });
+                    inRingMachines: new MachineLocation[] { MachineLocation.Create("fun.com", 123) });
 
                 result.ShouldBeSuccess();
             }
@@ -74,7 +74,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
                     hash,
                     size: 42,
-                    new MachineLocation[0]);
+                    Array.Empty<MachineLocation>());
 
                 mockFileCopier.CopyToAsyncResult = CopyFileResult.SuccessWithSize(42);
                 var result = await distributedCopier.TryCopyAndPutAsync(
@@ -99,7 +99,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
                     hash,
                     size: 42,
-                    new MachineLocation[] {new MachineLocation(@"grpc://fun.com:123") });
+                    new[] { MachineLocation.Create("fun.com", 123) });
 
                 mockFileCopier.CopyToAsyncResult = CopyFileResult.SuccessWithSize(41);
                 var result = await distributedCopier.TryCopyAndPutAsync(
@@ -127,7 +127,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
                     hash,
                     size: 42,
-                    new MachineLocation[] {new MachineLocation(@"grpc://fun.com:123") });
+                    new[] { MachineLocation.Create("fun.com", 123) });
 
                 mockFileCopier.CopyToAsyncResult = CopyFileResult.SuccessWithSize(42);
                 var result = await distributedCopier.TryCopyAndPutAsync(
@@ -149,10 +149,10 @@ namespace ContentStoreTest.Distributed.Stores
             var context = new Context(Logger);
             using (var directory = new DisposableDirectory(FileSystem))
             {
-                var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path,TimeSpan.Zero, retries);
+                var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.Zero, retries);
                 await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
 
-                var machineLocations = new MachineLocation[] {new MachineLocation(@"grpc://fun.com:123") };
+                var machineLocations = new MachineLocation[] { MachineLocation.Create("fun.com", 123) };
 
                 var hash = ContentHash.Random();
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
@@ -190,8 +190,8 @@ namespace ContentStoreTest.Distributed.Stores
                     maxRetryCount: retries + 1);
                 await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
 
-                var empty = new MachineLocation(@"grpc://fun.com:123");
-                var machineLocations = new [] { empty, empty, empty, empty, empty };
+                var empty = MachineLocation.Create("fun.com", 123);
+                var machineLocations = new[] { empty, empty, empty, empty, empty };
 
                 var hash = ContentHash.Random();
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
@@ -245,7 +245,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.FromMilliseconds((10)), retries);
                 await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
 
-                var machineLocations = new MachineLocation[] { new MachineLocation(@"grpc://fun.com:123"), new MachineLocation(@"grpc://fun.com:123") };
+                var machineLocations = new MachineLocation[] { MachineLocation.Create("fun.com", 123), MachineLocation.Create("fun.com", 123) };
 
                 var hash = ContentHash.Random();
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
@@ -256,7 +256,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var totalCopyAttempts = (retries - 1) * machineLocations.Length + 1;
                 mockFileCopier.CustomResults = new CopyFileResult[totalCopyAttempts];
                 mockFileCopier.CustomResults[0] = CopyFileResult.FromResultCode(CopyResultCode.DestinationPathError);
-                for(int counter = 1; counter < totalCopyAttempts; counter ++)
+                for (int counter = 1; counter < totalCopyAttempts; counter++)
                 {
                     mockFileCopier.CustomResults[counter] = CopyFileResult.FromResultCode(CopyResultCode.UnknownServerError);
                 };
@@ -306,7 +306,7 @@ namespace ContentStoreTest.Distributed.Stores
 #pragma warning restore 649
             public CopyFileResult[] CustomResults;
 
-            public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot) => new MachineLocation(@"grpc://fun.com:123");
+            public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot) => MachineLocation.Create("fun.com", 123);
 
             /// <inheritdoc />
             public Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options)

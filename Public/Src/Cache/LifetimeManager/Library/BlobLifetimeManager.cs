@@ -68,7 +68,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
             var checkpointManagerStorageCreds = await secretsProvider.RetrieveBlobCredentialsAsync(context, checkpointManagerStorageAccount);
 
-            var machineLocation = new MachineLocation(runId);
+            var machineLocation = MachineLocation.Parse(runId);
 
             await RunWithLeaseAsync(
                     context,
@@ -236,7 +236,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             if (state.Role != Role.Master)
             {
                 throw new InvalidOperationException(
-                    $"Failed to get lease on the blob cache. This indicates another GC run is already happening. The cache is currently leased to: {state.Master.Path}");
+                    $"Failed to get lease on the blob cache. This indicates another GC run is already happening. The cache is currently leased to: {state.Master}");
             }
 
             try

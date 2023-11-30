@@ -245,7 +245,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 networkPathRoot = Path.Combine(Path.DirectorySeparatorChar + _localMachineName, cacheRootString.TrimStart(Path.DirectorySeparatorChar));
             }
 
-            return new MachineLocation(networkPathRoot.ToUpperInvariant());
+            return MachineLocation.Parse(networkPathRoot.ToUpperInvariant());
         }
     }
 }

@@ -58,7 +58,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                     new BoolJsonConverter(),
                     new JsonStringEnumConverter(),
                     FuncJsonConverter.Create(ReadMachineId, (writer, value) => writer.WriteNumberValue(value.Index)),
-                    FuncJsonConverter.Create(ReadMachineLocation, (writer, value) => writer.WriteStringValue(value.Path)),
                     FuncJsonConverter.Create(ReadShortHash, (writer, value) => writer.WriteStringValue(value.HashType == HashType.Unknown ? null : value.ToString())),
                     FuncJsonConverter.Create(ReadShardHash, (writer, value) => writer.WriteStringValue(value.ToShortHash().HashType == HashType.Unknown ? null : value.ToShortHash().ToString())),
                     FuncJsonConverter.Create(ReadCompactTime, (writer, value) => writer.WriteStringValue(value.ToDateTime())),
@@ -66,24 +65,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 }
             };
             return result;
-        }
-
-        private static MachineLocation ReadMachineLocation(ref Utf8JsonReader reader)
-        {
-            if (reader.TokenType == JsonTokenType.StartObject)
-            {
-                var document = JsonDocument.ParseValue(ref reader);
-                var property = document.RootElement.GetProperty(nameof(MachineLocation.Path));
-                if (property.ValueKind == JsonValueKind.Null)
-                {
-                    return default;
-                }
-
-                return new MachineLocation(property.GetString());
-            }
-
-            var data = reader.GetString();
-            return data == null ? default : new MachineLocation(data);
         }
 
         private static MachineId ReadMachineId(ref Utf8JsonReader reader)

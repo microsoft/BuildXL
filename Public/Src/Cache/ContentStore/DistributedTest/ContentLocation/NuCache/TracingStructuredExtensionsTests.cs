@@ -16,14 +16,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         public void GetShortHashesTraceStringForInactiveMachinesTests()
         {
             var hash = ContentHash.Random();
-            var machines = Enumerable.Range(1, 1000).Select(n => new MachineLocation($"Machine {n}")).ToList();
+            var machines = Enumerable.Range(1, 1000).Select(n => MachineLocation.Create($"Machine{n}", 1234)).ToList();
             GetBulkLocationsResult result = new GetBulkLocationsResult(
                 new List<ContentHashWithSizeAndLocations>()
                 {
                     new ContentHashWithSizeAndLocations(
                         hash,
                         size: 42,
-                        new List<MachineLocation>() {new MachineLocation("Machine1")},
+                        new List<MachineLocation>() {MachineLocation.Create("Machine1", 1234)},
                         filteredOutLocations: machines)
                 });
 

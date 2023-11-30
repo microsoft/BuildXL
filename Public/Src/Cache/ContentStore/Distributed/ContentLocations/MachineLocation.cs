@@ -2,108 +2,215 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
-namespace BuildXL.Cache.ContentStore.Distributed
+namespace BuildXL.Cache.ContentStore.Distributed;
+
+#nullable enable
+
+/// <summary>
+/// This class handles serialization and deserialization of <see cref="MachineLocation"/> from JSON.
+/// </summary>
+/// <remarks>
+/// It is important to declare this as a <see cref="JsonConverter{T}"/> because it is the only .NET 4.7.2 compatible
+/// mechanism to do so.
+/// </remarks>
+public class MachineLocationJsonConverter : JsonConverter<MachineLocation>
 {
-    /// <summary>
-    /// Location information for a machine usually represented as UNC path with machine name and a root path.
-    /// </summary>
-    public readonly record struct MachineLocation
+    public override MachineLocation Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        private const string GrpcUriSchemePrefix = "grpc://";
-
-        public static MachineLocation Invalid { get; } = new(string.Empty);
-
-        /// <summary>
-        /// Gets whether the current machine location represents valid data
-        /// </summary>
-        [JsonIgnore]
-        public bool IsValid => !string.IsNullOrEmpty(Path);
-
-        /// <summary>
-        /// Gets the path representation of the machine location
-        /// </summary>
-        public string Path { get; init; }
-
-        /// <nodoc />
-        public MachineLocation(string path)
+        if (reader.TokenType == JsonTokenType.StartObject)
         {
-            Contract.Requires(path != null);
-            Path = path;
-        }
+            var document = JsonDocument.ParseValue(ref reader);
 
-        public bool Equals(MachineLocation other)
-        {
-            if (Path is null)
+            if (document.RootElement.TryGetProperty(nameof(MachineLocation.Uri), out var uriProperty) && uriProperty.ValueKind == JsonValueKind.String)
             {
-                return other.Path is null;
+                return MachineLocation.Parse(uriProperty.GetString()!);
             }
 
-            return Path.Equals(other.Path, StringComparison.InvariantCultureIgnoreCase);
-        }
-
-        public override int GetHashCode()
-        {
-            if (Path is null)
+            if (document.RootElement.TryGetProperty(nameof(MachineLocation.Path), out var pathProperty) && pathProperty.ValueKind == JsonValueKind.String)
             {
-                return 42;
+                return MachineLocation.Parse(pathProperty.GetString()!);
             }
 
-            return StringComparer.InvariantCultureIgnoreCase.GetHashCode(Path);
+            return default;
         }
 
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return Path;
-        }
+        var data = reader.GetString();
+        return data == null ? default : MachineLocation.Parse(data);
+    }
 
-        public static MachineLocation Create(string machineName, int port)
-        {
-            return new MachineLocation($"{MachineLocation.GrpcUriSchemePrefix}{machineName}:{port}/");
-        }
+    public override void Write(Utf8JsonWriter writer, MachineLocation value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString());
+    }
+}
 
-        public (string host, int? port) ExtractHostInfo()
+/// <summary>
+/// This represents the location of a CAS. This can be essentially any arbitrary URI. In practice, this is used:
+/// 1. To represent hostnames
+/// 2. To represent specific paths on a host. This can be:
+///     - The local host, in which case the URI is to a directory (ex: file:\\C:\path\to\cas\root)
+///     - A remote host, in which case the URI can be:
+///       - A UNC path (ex: \\host\path\to\cas\root)
+///       - In Linux and Mac OS, a UNC-style path (ex: /host/path/to/cas/root)
+/// 
+/// There's a few complexities here:
+/// 1. The MachineLocation has to be able to accept an Invalid state, because this happens in several places. It is
+///    represented as having the Uri be null. This can be instantiated by either default-initializing the struct or
+///    creating a new instance with uri: string.Empty.
+/// 2. When the MachineLocation is invalid, Path is the empty string.
+/// 3. When the MachineLocation is valid, Path is expected to point to either:
+///     - A fully qualified path to a file across the network (ex: \\host\path\to\cas\root)
+///     - An absolute path to a file on the local machine (ex: C:\path\to\cas\root)
+///     - A URI to a remote hostname (ex: grpc://host:1234/)
+/// </summary>
+[JsonConverter(typeof(MachineLocationJsonConverter))]
+public readonly record struct MachineLocation
+{
+    public static MachineLocation Invalid { get; } = new(null);
+
+    /// <summary>
+    /// Gets whether the current machine location represents valid data
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Uri))]
+    public bool IsValid => Uri is not null;
+
+    /// <summary>
+    /// Extracts the path from the URI.
+    /// </summary>
+    /// <remarks>
+    /// This should only be used by tests.
+    /// </remarks>
+    public string Path
+    {
+        get
         {
-            if (Path.StartsWith(GrpcUriSchemePrefix))
+            if (!IsValid)
             {
-                // This is a uri format machine location
-                var uri = new Uri(Path);
-                return (uri.Host, uri.Port);
+                return string.Empty;
             }
 
-            var sourcePath = new AbsolutePath(Path);
+            if (Uri.IsFile && !Uri.IsUnc)
+            {
+                if (!OperatingSystemHelper.IsWindowsOS)
+                {
+                    var path = new AbsolutePath(Uri.OriginalString);
+                    Contract.Assert(path.IsLocal);
 
-            // TODO: Keep the segments in the AbsolutePath object?
-            // TODO: Indexable structure?
-            var segments = sourcePath.GetSegments();
-            Contract.Assert(segments.Count >= 1);
+                    var segments = path.GetSegments();
+                    Contract.Assert(segments.Count >= 1);
 
-            string host = GetHostName(sourcePath.IsLocal, segments);
+                    return System.IO.Path.Combine(segments.Skip(1).ToArray());
+                }
 
-            return (host, null);
+                return Uri.LocalPath;
+            }
+
+            return Uri.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Uri that represents the actual machine location.
+    /// </summary>
+    /// <remarks>
+    /// This can be null when the machine location is invalid. This happens only if the MachineLocation is default
+    /// initialized.
+    /// </remarks>
+    internal Uri? Uri { get; private init; }
+
+    private static readonly Regex _hostRegex = new(@"^(?<host>[A-Za-z0-9\.]+)(:(?<port>\d+))?$", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+    /// <nodoc />
+    private MachineLocation(Uri? uri)
+    {
+        Uri = uri;
+    }
+
+    public static MachineLocation Create(string machineName, int port)
+    {
+        if (string.IsNullOrEmpty(machineName))
+        {
+            return Invalid;
         }
 
-        /// <summary>
-        /// Extract the host name from an AbsolutePath's segments.
-        /// </summary>
-        public static string GetHostName(bool isLocal, IReadOnlyList<string> segments)
+        return new MachineLocation(new Uri($"grpc://{machineName}:{port}/"));
+    }
+
+    public static MachineLocation Parse(string uri)
+    {
+        if (string.IsNullOrEmpty(uri))
         {
-            if (OperatingSystemHelper.IsWindowsOS)
+            return Invalid;
+        }
+
+        // hostname:1234 is a valid URI, equivalent to hostname://:1234. This is contrary to our convention, so we
+        // do this horrible thing where we try to convert this into a URI we agree with.
+        Uri url;
+        try
+        {
+            var match = _hostRegex.Match(uri);
+            if (match.Success)
             {
-                return isLocal ? "localhost" : segments.First();
+                url = new Uri($"grpc://{uri}/");
             }
             else
             {
-                // Linux always uses the first segment as the host name.
-                return segments.First();
+                url = new Uri(uri);
             }
         }
+        catch (Exception ex)
+        {
+            throw new ArgumentException($"Failed to extract {nameof(MachineLocation)} from {uri}", nameof(uri), ex);
+        }
+
+        return new MachineLocation(url);
+    }
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        return Uri?.OriginalString ?? Uri?.ToString() ?? string.Empty;
+    }
+
+    public (string host, int? port) ExtractHostInfo()
+    {
+        Contract.Requires(IsValid, $"Attempt to obtain Host and Port from invalid {nameof(MachineLocation)}");
+
+        // The following if statement is meant to find out URIs of the form file://<blah>, so we explicitly exclude UNC
+        // paths.
+        if (Uri.IsFile && !Uri.IsUnc)
+        {
+            if (!OperatingSystemHelper.IsWindowsOS)
+            {
+                var path = new AbsolutePath(Uri.OriginalString);
+                Contract.Assert(path.IsLocal);
+
+                var segments = path.GetSegments();
+                Contract.Assert(segments.Count >= 1);
+
+                return (segments[0], null);
+            }
+
+            return ("localhost", null);
+        }
+
+        // Port is reported as -1 when unavailable. We prefer to use null for historical reasons. This code-path should
+        // almost never be executed in production because we always specify ports.
+        int? port = Uri.Port;
+        if (port is < 0 or > 65535)
+        {
+            port = null;
+        }
+
+        return (Uri.Host, port);
     }
 }

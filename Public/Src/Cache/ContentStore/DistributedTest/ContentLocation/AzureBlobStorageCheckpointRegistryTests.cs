@@ -5,8 +5,8 @@ using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
     [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public class AzureBlobStorageCheckpointRegistryTests : TestWithOutput
     {
-        private readonly static MachineLocation M1 = new MachineLocation("M1");
+        private readonly static MachineLocation M1 = MachineLocation.Create("M1", 1);
         private readonly LocalRedisFixture _fixture;
 
         public AzureBlobStorageCheckpointRegistryTests(LocalRedisFixture fixture, ITestOutputHelper output)
@@ -71,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 });
         }
 
-        int _index = 0;
+        private int _index = 0;
 
         public CheckpointState CreateCheckpointState(IClock clock)
         {

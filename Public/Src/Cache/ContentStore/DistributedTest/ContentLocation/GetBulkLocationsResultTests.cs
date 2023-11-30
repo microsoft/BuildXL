@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 
 
         private static ContentHashWithSizeAndLocations FromHashAndLocations(ContentHash hash, params AbsolutePath[] paths)
-            => new ContentHashWithSizeAndLocations(hash, 0, paths.Select(p => new MachineLocation(p.Path)).ToList());
+            => new ContentHashWithSizeAndLocations(hash, 0, paths.Select(p => MachineLocation.Parse(p.Path)).ToList());
 
         private static GetBulkLocationsResult ToResult(params ContentHashWithSizeAndLocations[] contentHashes)
             => new GetBulkLocationsResult(contentHashes);

@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         public MachineId Id { get; init; } = MachineId.Invalid;
 
-        public MachineLocation Location { get; init; } = new MachineLocation(string.Empty);
+        public MachineLocation Location { get; init; } = MachineLocation.Invalid;
 
         public MachineState State { get; init; } = MachineState.Unknown;
 

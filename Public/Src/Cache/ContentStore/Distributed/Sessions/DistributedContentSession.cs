@@ -1376,7 +1376,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 _buildRingMachinesCache.Update(buildRingMachines);
                 Tracer.Debug(
                     context,
-                    $"{Tracer.Name}.{nameof(GetLocationsForProactiveCopyAsync)}: InRingMachines=[{string.Join(", ", buildRingMachines.Select(m => m.Path))}] BuildId='{_buildId}'");
+                    $"{Tracer.Name}.{nameof(GetLocationsForProactiveCopyAsync)}: InRingMachines=[{string.Join(", ", buildRingMachines)}] BuildId='{_buildId}'");
                 return result.Take(originalLength).ToList();
             }
             else

@@ -54,7 +54,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot)
         {
-            return new MachineLocation(cacheRoot.Path);
+            return MachineLocation.Parse(cacheRoot.Path);
         }
 
         public Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options)
@@ -117,9 +117,9 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 return null;
             }
 
-            return   _fileSystem.OpenReadOnly(sourcePath, FileShare.Read);
+            return _fileSystem.OpenReadOnly(sourcePath, FileShare.Read);
         }
-        
+
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
             return UseAsync(CopyHandlersByLocation, targetMachine, h => h.HandleCopyFileRequestAsync(context, hash, CancellationToken.None));
@@ -128,7 +128,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
             var result = await UseAsync(DeleteHandlersByLocation, targetMachine,
-                h => h.HandleDeleteAsync(context, hash, new DeleteContentOptions() {DeleteLocalOnly = true}));
+                h => h.HandleDeleteAsync(context, hash, new DeleteContentOptions() { DeleteLocalOnly = true }));
             return result;
         }
 

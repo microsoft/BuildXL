@@ -7,8 +7,8 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
@@ -33,8 +33,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
     [Trait("Category", "WindowsOSOnly")] // 'redis-server' executable no longer exists
     public class AzureBlobStorageMasterElectionMechanismTests : TestWithOutput
     {
-        private readonly static MachineLocation M1 = new MachineLocation("M1");
-        private readonly static MachineLocation M2 = new MachineLocation("M2");
+        private static readonly MachineLocation M1 = MachineLocation.Create("M1", 1);
+        private static readonly MachineLocation M2 = MachineLocation.Create("M2", 1);
 
         private readonly MemoryClock _clock1;
         private MemoryClock _clock2;

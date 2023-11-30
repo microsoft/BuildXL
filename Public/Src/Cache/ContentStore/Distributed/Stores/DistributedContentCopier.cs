@@ -11,13 +11,13 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions; // Don't remove. Needed for lower framework version because of ToHashSet.
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions; // Don't remove. Needed for lower framework version because of ToHashSet.
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -28,8 +28,8 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using ContentStore.Grpc;
 using static BuildXL.Utilities.ConfigurationHelper;
-using ResultsExtensions = BuildXL.Cache.ContentStore.Interfaces.Results.ResultsExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using ResultsExtensions = BuildXL.Cache.ContentStore.Interfaces.Results.ResultsExtensions;
 
 #nullable enable
 
@@ -193,7 +193,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     return HashInfo.Locations;
                 }
-                
+
                 var hs = HashInfo.Locations.ToHashSet();
                 var uniqueInRingMachines = InRingMachines.Where(l => !hs.Contains(l)).ToList();
 
@@ -295,7 +295,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         // Log with the original attempt count
                         // Trace time remaining under trying to copy the first location of the next attempt.
                         TimeSpan waitedTime = _clock.UtcNow - lastFailureTimes[0];
-                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {maxReplicaCount} failed. Retrying for hash {hashInfo.ContentHash} in { (waitedTime < waitDelay ? (waitDelay - waitedTime).TotalMilliseconds : 0)}ms...");
+                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {maxReplicaCount} failed. Retrying for hash {hashInfo.ContentHash} in {(waitedTime < waitDelay ? (waitDelay - waitedTime).TotalMilliseconds : 0)}ms...");
                     }
                     else
                     {
@@ -522,7 +522,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             context,
                             $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries of {_maxRetryCount}. TotalRetries={totalRetries}, ReplicaIndex={replicaIndex}.");
                     // Including the last copy error into the final error message to make diagnostic simpler.
-                    return new (Result: CreateMaxRetryPutResult(copyFileResult), AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
+                    return new(Result: CreateMaxRetryPutResult(copyFileResult), AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
                 }
 
                 // if the file is explicitly reported missing by the remote, don't bother retrying.
@@ -555,7 +555,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     Tracer.Debug(
                         context,
                         $"{AttemptTracePrefix(attemptCount)}: Could not copy file with hash {hashInfo.ContentHash.ToShortString()} to temp path {tempLocation} because cancellation was requested.");
-                    return new (Result: CreateCanceledPutResult(), AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
+                    return new(Result: CreateCanceledPutResult(), AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
                 }
 
                 try
@@ -676,7 +676,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 context,
                                 $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
                             // Out of disk space issues are not retriable because its very unlikely that we'll succeed next time.
-                            return new (Result: new ErrorResult(copyFileResult, errorMessage).AsResult<PutResult>(), AttemptedRetries: replicaIndex + 1, ShouldRetry: !IsOutOfDiskSpaceError(lastErrorMessage));
+                            return new(Result: new ErrorResult(copyFileResult, errorMessage).AsResult<PutResult>(), AttemptedRetries: replicaIndex + 1, ShouldRetry: !IsOutOfDiskSpaceError(lastErrorMessage));
                         case CopyResultCode.CopyTimeoutError:
                             lastErrorMessage =
                                 $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
@@ -703,7 +703,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             break;
                         default:
                             lastErrorMessage = $"File copier result code {copyFileResult.Code} is not recognized. Not trying another replica.";
-                            return new (
+                            return new(
                                 Result: new ErrorResult(copyFileResult, $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage}")
                                     .AsResult<PutResult>(), AttemptedRetries: replicaIndex + 1, ShouldRetry: true);
                     }
@@ -743,7 +743,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             }
 
                             // Successful case
-                            return new (Result: putResult, AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
+                            return new(Result: putResult, AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
                         }
                         else if (putResult.IsCancelled)
                         {
@@ -758,7 +758,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             Tracer.Warning(
                                 context,
                                 $"{AttemptTracePrefix(attemptCount)} {errorMessage} diagnostics {putResult.Diagnostics}");
-                            return new (Result: putResult, AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
+                            return new(Result: putResult, AttemptedRetries: replicaIndex + 1, ShouldRetry: false);
                         }
                     }
 
@@ -778,7 +778,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             // replicaIndex was incremented once again, so we don't have to do +1 to get the correct number of attempts.
-            return new (new PutResult(request.HashInfo.ContentHash, $"Unable to copy file{lastErrorMessage}"), AttemptedRetries: replicaIndex, ShouldRetry: true);
+            return new(new PutResult(request.HashInfo.ContentHash, $"Unable to copy file{lastErrorMessage}"), AttemptedRetries: replicaIndex, ShouldRetry: true);
         }
 
         private static bool IsOutOfDiskSpaceError(string error) => ResultsExtensions.IsOutOfDiskSpaceError(error);
@@ -912,7 +912,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 FileSystem.CreateDirectory(directoryPath);
             }
 
-            
+
             using var stream = FileSystem.OpenForWrite(destinationPath, sourcePath.Size, FileMode.Create, FileShare.None, FileOptions.SequentialScan, DefaultBufferSize);
             var result = await copier.CopyToAsync(context, sourcePath, stream, options);
 
@@ -984,7 +984,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             {
                 size = Math.Max(size, deleteResults[i].ContentSize);
                 // The mapping could already have a given path.
-                deleteMapping.TryAdd(machines[i].Path, deleteResults[i]);
+                deleteMapping.TryAdd(machines[i].ToString(), deleteResults[i]);
             }
 
             return new DistributedDeleteResult(contentHash, size, deleteMapping);

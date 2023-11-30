@@ -2,22 +2,22 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Text.Json;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using FluentAssertions;
-using System.Text.Json;
-using Xunit;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
-using ContentStoreTest.Distributed.ContentLocation.NuCache;
-using System.Collections.Generic;
-using BuildXL.Utilities.Core;
-using BuildXL.Cache.ContentStore.InterfacesTest.Time;
-using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
-using System.Diagnostics;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
+using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Utilities.Core;
+using ContentStoreTest.Distributed.ContentLocation.NuCache;
 using ContentStoreTest.Test;
+using FluentAssertions;
+using Xunit;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 {
@@ -93,6 +93,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
+        public void CanJsonSerializeMachineLocation()
+        {
+            TestJsonRoundtrip(MachineLocation.Parse("grpc://machine:12334/"));
+            TestJsonRoundtrip(MachineLocation.Parse(@"\\DS4PNPF000066FA\D$\DBS\CACHE\CONTENTADDRESSABLESTORE\SHARED"));
+            TestJsonRoundtrip(MachineLocation.Parse("node1:1234"));
+            TestJsonRoundtrip(MachineLocation.Parse("node1"));
+            TestJsonRoundtrip(MachineLocation.Parse(@"C:\src\test"));
+        }
+
+        [Fact]
         public void CanJsonSerializeSequencePoints()
         {
             var test1 = new EventSequencePoint(42);
@@ -130,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var test3 = new CheckpointState(
                 new EventSequencePoint(42),
                 CheckpointId: "TestCheckpointId",
-                Producer: new MachineLocation("This is a machine loc"));
+                Producer: MachineLocation.Create("machine", 1));
             TestJsonRoundtrip(test3);
         }
 
@@ -208,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var test = new CheckpointState(
                 new EventSequencePoint(42),
                 CheckpointId: "TestCheckpointId",
-                Producer: new MachineLocation("This is a machine loc"));
+                Producer: MachineLocation.Parse("machine"));
             var serialized = JsonSerializer.Serialize(test);
             var deserialized = JsonUtilities.JsonDeserialize<CheckpointState>(serialized);
 
@@ -219,9 +229,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         [Fact]
         public async Task TestRemoveOldCheckpointsAsync()
         {
-            var storage = new Dictionary<string, byte[]> { {"storageId1", new byte[1]}, {"storageId2", new byte[2]}, {"storageId3", new byte[3]}, {"storageId4", new byte[4]} };
+            var storage = new Dictionary<string, byte[]> { { "storageId1", new byte[1] }, { "storageId2", new byte[2] }, { "storageId3", new byte[3] }, { "storageId4", new byte[4] } };
             var mockCentralStorage = new MockCentralStorage(storage);
-            var configuration = new CheckpointManagerConfiguration(new Interfaces.FileSystem.AbsolutePath(Constants.ValidAbsoluteLocalLongPath), new MachineLocation(string.Empty))
+            var configuration = new CheckpointManagerConfiguration(new Interfaces.FileSystem.AbsolutePath(Constants.ValidAbsoluteLocalLongPath), MachineLocation.Parse(string.Empty))
             {
                 RestoreCheckpoints = false
             };
@@ -254,7 +264,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 new EventSequencePoint(334869783),
                 CheckpointId:
                 @"MD5:80B764AD2DC6B24F7EFFE7EBA3D6E412||DCS||incrementalCheckpoints/334869783.4fbf7c06-b361-4a89-9d10-a5d294bc48bf/checkpointInfo.txt.MD5.80B764AD2DC6B24F7EFFE7EBA3D6E412|Incremental",
-                Producer: new MachineLocation(@"DM3APS197CDADE"),
+                Producer: MachineLocation.Parse(@"DM3APS197CDADE"),
                 CheckpointTime: new DateTime(2023, 03, 08, 00, 25, 55, DateTimeKind.Utc));
             var serialized = @"{
   ""StartSequencePoint"": {
@@ -278,17 +288,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         private void TestJsonRoundtrip<T>(T expected, Action<T, T, bool> assertEqual = null)
         {
             assertEqual ??= (t0, t1, legacySerialized) => Assert.Equal(t0, t1);
-            var serialized = JsonSerializer.Serialize(expected);
-            var deserialized = JsonSerializer.Deserialize<T>(serialized);
+
+            // This is testing that all ways to serialize and deserialize into work. The reason this matters is because
+            // JsonUtilities adds a number of serialization convertions that be produce incompatible JSON w.r.t. the
+            // old serialization format.
+            var serialized = JsonUtilities.JsonSerialize(expected);
+            var deserialized = JsonUtilities.JsonDeserialize<T>(serialized);
+            assertEqual(expected, deserialized, false);
+
+            serialized = JsonSerializer.Serialize(expected);
+            deserialized = JsonSerializer.Deserialize<T>(serialized);
             assertEqual(expected, deserialized, true);
 
             serialized = JsonSerializer.Serialize(expected);
             deserialized = JsonUtilities.JsonDeserialize<T>(serialized);
             assertEqual(expected, deserialized, true);
-
-            serialized = JsonUtilities.JsonSerialize(expected);
-            deserialized = JsonUtilities.JsonDeserialize<T>(serialized);
-            assertEqual(expected, deserialized, false);
         }
     }
 }

@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var nowUtc = _clock.UtcNow;
             MachineId machineId;
 
-            var machineLocation = new MachineLocation(@"\\node1\dir");
+            var machineLocation = MachineLocation.Create(@"node1", 123);
 
             (clusterState, machineId) = clusterState.RegisterMachine(machineLocation, nowUtc);
             machineId.Index.Should().Be(MachineId.MinValue);
@@ -66,10 +66,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var nowUtc = _clock.UtcNow;
             MachineId machineId;
 
-            (clusterState, machineId) = clusterState.RegisterMachine(new MachineLocation("node1"), nowUtc);
+            (clusterState, machineId) = clusterState.RegisterMachine(MachineLocation.Create("node1", 1234), nowUtc);
             machineId.Index.Should().Be(1);
 
-            (_, machineId) = clusterState.RegisterMachine(new MachineLocation("node2"), nowUtc);
+            (_, machineId) = clusterState.RegisterMachine(MachineLocation.Create("node2", 1234), nowUtc);
             machineId.Index.Should().Be(2);
         }
 
@@ -98,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 
             // After transition, adding proceeds as usual, by appending to the end basically
             MachineId n1Id;
-            (clusterState, n1Id) = clusterState.RegisterMachine(MachineLocation.Create("Machine Gets Added After Transition", 0), nowUtc);
+            (clusterState, n1Id) = clusterState.RegisterMachine(MachineLocation.Create("MachineAddedAfterTransition", 0), nowUtc);
             n1Id.Index.Should().Be(24);
             clusterState.NextMachineId.Should().Be(25);
         }
@@ -109,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var clusterState = new ClusterStateMachine();
             MachineId machineId;
 
-            (clusterState, machineId) = clusterState.RegisterMachine(new MachineLocation("node1"), _clock.UtcNow);
+            (clusterState, machineId) = clusterState.RegisterMachine(MachineLocation.Create("node1", 1234), _clock.UtcNow);
 
             _clock.Increment(TimeSpan.FromMinutes(1));
             clusterState = clusterState.Heartbeat(machineId, _clock.UtcNow, MachineState.Open).ThrowIfFailure().Next;
@@ -126,10 +126,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var nowUtc = _clock.UtcNow;
 
             MachineId n1Id;
-            (clusterState, n1Id) = clusterState.RegisterMachine(new MachineLocation("node1"), nowUtc);
+            (clusterState, n1Id) = clusterState.RegisterMachine(MachineLocation.Create("node1", 1234), nowUtc);
 
             MachineId n2Id;
-            (clusterState, n2Id) = clusterState.RegisterMachine(new MachineLocation("node2"), nowUtc);
+            (clusterState, n2Id) = clusterState.RegisterMachine(MachineLocation.Create("node2", 1234), nowUtc);
 
             _clock.Increment(TimeSpan.FromMinutes(1));
             clusterState = clusterState.Heartbeat(n1Id, _clock.UtcNow, MachineState.Closed).ThrowIfFailure().Next;

@@ -32,11 +32,11 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Serialization;
-using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using static BuildXL.Cache.ContentStore.UtilitiesCore.Internal.CollectionUtilities;
 
@@ -184,7 +184,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _checkpointRegistry = checkpointManager.CheckpointRegistry;
             _evictionPartitions = PartitionId.GetPartitions(Configuration.Settings.EvictionPartitionCount);
 
-            _machineHash = MurmurHash3.Create(Encoding.UTF8.GetBytes(Configuration.PrimaryMachineLocation.Path ?? string.Empty)).ToByteArray();
+            _machineHash = MurmurHash3.Create(Encoding.UTF8.GetBytes(Configuration.PrimaryMachineLocation.ToString())).ToByteArray();
 
             var reader = new SpanReader(_machineHash.AsSpan());
             _evictionPartitionOffset = reader.Read<uint>();
@@ -2212,7 +2212,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 ContentInfo localInfo = default;
                 var foundLocalInfo = _machineInfo.LocalContentStore?.TryGetContentInfo(hash, out localInfo);
-                
+
                 // Need to find the entry from the dtabase even if TryGetContentInfo returns false.
                 bool foundDistributedEntry = _localLocationStore.TryGetContentLocations(context, hash, out var distributedEntry);
 

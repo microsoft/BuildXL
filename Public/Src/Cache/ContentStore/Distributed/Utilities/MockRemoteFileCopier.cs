@@ -14,9 +14,10 @@ using BuildXL.Native.IO;
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
     /// <summary>
-    /// File copier to handle copying files between two distributed instances
+    /// File copier to handle copying files between two distributed instances. This is only used in tests. Be aware 
+    /// that we have tests that run an app, so this class is also used in our main executables.
     /// </summary>
-    public class DistributedCopier : IRemoteFileCopier
+    public sealed class MockRemoteFileCopier : IRemoteFileCopier
     {
         /// <inheritdoc />
         public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot)
@@ -31,11 +32,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 cacheRoot = cacheRoot / Constants.SharedDirectoryName;
             }
 
-            return new MachineLocation(cacheRoot.Path.ToUpperInvariant());
+            return MachineLocation.Parse(cacheRoot.Path.ToUpperInvariant());
         }
 
         /// <inheritdoc />
-        public virtual async Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options)
+        public async Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options)
         {
             var sourcePath = new AbsolutePath(sourceLocation.Machine.Path) / FileSystemContentStoreInternal.GetPrimaryRelativePath(sourceLocation.Hash, includeSharedFolder: false);
 

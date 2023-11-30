@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         protected override Tracer Tracer => _tracer;
 
         private readonly IContentLocationStore _contentLocationStore;
-        
+
         internal IContentLocationStore ContentLocationStore => NotNull(_contentLocationStore, nameof(_contentLocationStore));
 
         private readonly DistributedContentStoreSettings _settings;
@@ -429,15 +429,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
 
                     return new ProactiveReplicationResult
-                           {
-                               SuccessCount = succeeded,
-                               FailCount = failed,
-                               SkippedCount = skipped,
-                               RejectedCount = rejected,
-                               TotalLocalContent = localContent.Length,
-                               TotalContentScanned = scanned,
-                               LastVisited = lastVisited,
-                           };
+                    {
+                        SuccessCount = succeeded,
+                        FailCount = failed,
+                        SkippedCount = skipped,
+                        RejectedCount = rejected,
+                        TotalLocalContent = localContent.Length,
+                        TotalContentScanned = scanned,
+                        LastVisited = lastVisited,
+                    };
                 },
                 counter: CounterCollection[Counters.ProactiveReplication]);
         }
@@ -716,11 +716,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     if (!result)
                     {
                         deleteResult = new DeleteResult(result, result.ToString());
-                        deleteResultsMapping.Add(LocalMachineLocation.Path, deleteResult);
+                        deleteResultsMapping.Add(LocalMachineLocation.ToString(), deleteResult);
                         return new DistributedDeleteResult(contentHash, deleteResult.ContentSize, deleteResultsMapping);
                     }
 
-                    deleteResultsMapping.Add(LocalMachineLocation.Path, deleteResult);
+                    deleteResultsMapping.Add(LocalMachineLocation.ToString(), deleteResult);
 
                     // Go through each machine that has this content, and delete async locally on each machine.
                     var machineLocations = result.ContentHashesInfo[0].Locations;

@@ -129,6 +129,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
+        [Trait("DisableFailFast", "true")]
         public async Task TestServicePutAndRetrieveOnDifferentMachinesWithRecovery(bool masterSwitch)
         {
             // Suppress async fixer

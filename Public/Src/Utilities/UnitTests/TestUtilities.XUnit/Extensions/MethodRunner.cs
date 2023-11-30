@@ -185,7 +185,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
             void throwInvalidOperationOnContractViolation()
             {
                 string error = string.Join(", ", contractViolations.Select(kvp => $"Condition: {kvp.Key.condition}, Message: {kvp.Key.message}, StackTrace: {kvp.Value}"));
-                
+
                 // The error can be quite long, so limit the message.
                 var finalError = error.Substring(0, length: 5000);
                 if (finalError.Length != error.Length)

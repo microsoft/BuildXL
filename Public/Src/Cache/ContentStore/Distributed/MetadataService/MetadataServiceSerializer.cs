@@ -7,10 +7,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using Grpc.Core;
 using ProtoBuf;
 using ProtoBuf.Grpc.Configuration;
@@ -109,12 +109,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 return default;
             }
 
-            return new MachineLocation(value);
+            return MachineLocation.Parse(value);
         }
 
         private static string Convert(MachineLocation value)
         {
-            return value.Path;
+            return value.ToString();
         }
 
         private static ContentLocationEntry SurrogateToContentLocationEntry((IReadOnlyCollection<MachineId> locations, long size) t)

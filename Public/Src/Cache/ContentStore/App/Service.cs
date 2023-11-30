@@ -140,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.App
             var distributedCacheServiceArguments = new DistributedCacheServiceArguments(
                 tracingContext: new Context(_logger),
                 telemetryFieldsProvider: new TelemetryFieldsProvider(ringId, stampId, serviceName: "Service"),
-                copier: new DistributedCopier(),
+                copier: new MockRemoteFileCopier(),
                 copyRequester: null,
                 host: new EnvironmentVariableHost(new Context(_logger)),
                 hostInfo: new HostInfo(null, null, new List<string>()),

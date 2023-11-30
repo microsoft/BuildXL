@@ -22,8 +22,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var tracingContext = new Context(TestGlobal.Logger);
             var context = new OperationContext(tracingContext, default);
 
-            var machineLocation = new MachineLocation(@"grpc://fun.com:123");
-            var casedMachineLocation = new MachineLocation(@"grpc://FuN.com:123");
+            var machineLocation = MachineLocation.Create("fun.com", 123);
+            var casedMachineLocation = MachineLocation.Create("FuN.com", 123);
             var clusterStateMachine = new ClusterStateMachine();
             var cfg = new ClusterStateRecomputeConfiguration();
 

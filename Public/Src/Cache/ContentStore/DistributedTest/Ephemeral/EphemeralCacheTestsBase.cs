@@ -429,6 +429,31 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             return await instance.ShutdownAsync(boundContext);
         }
 
+        private async Task<List<TestNode>> CreateTestRingAsync(
+            OperationContext context,
+            int numInstances,
+            ConfigurationModifier? modifier)
+        {
+            MachineLocation? leader = null;
+            var instances = new List<TestNode>(numInstances);
+            foreach (var machineNum in Enumerable.Range(0, numInstances))
+            {
+                var port = PortExtensions.GetNextAvailablePort(context);
+                var location = MachineLocation.Create(Environment.MachineName, port);
+                if (leader is null)
+                {
+                    leader = location;
+                }
+
+                // TODO: parallelize
+
+                var (host, cache) = await CreateSingleInstanceAsync(context, location, leader.Value, modifier);
+                instances.Add(new TestNode(context, location, port, host, cache));
+            }
+
+            return instances;
+        }
+
         public delegate EphemeralCacheFactory.Configuration ConfigurationModifier(EphemeralCacheFactory.Configuration configuration);
 
         private async Task<(EphemeralHost Host, IFullCache Cache)> CreateSingleInstanceAsync(

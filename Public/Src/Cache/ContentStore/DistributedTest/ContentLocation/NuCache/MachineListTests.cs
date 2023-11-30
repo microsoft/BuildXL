@@ -14,7 +14,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Native.Tracing;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -271,7 +270,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
                 this.MachineIds = Enumerable.Range(1, amountMachines).Select(n => (ushort)n).ToArray();
 
-                var machineMappings = MachineIds.Select(m => new MachineMapping(new MachineId(m), new MachineLocation($"grpc://{m}:123"))).ToArray();
+                var machineMappings = MachineIds.Select(m => new MachineMapping(new MachineId(m), MachineLocation.Create(m.ToString(), 123))).ToArray();
                 var clusterState = new ClusterState(primaryMachineId: default, machineMappings);
                 foreach (var mapping in machineMappings)
                 {
@@ -302,7 +301,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             {
                 machineIds ??= MachineMappings.Select(m => m.Id).ToArray();
                 var machineIdSet = new ArrayMachineIdSet(machineIds.Select(id => (ushort)id.Index));
-                return  MachineLocationResolver.Resolve(Context, machineIdSet, Tracker, ClusterState, TestHash, settings, MasterElectionMechanism);
+                return MachineLocationResolver.Resolve(Context, machineIdSet, Tracker, ClusterState, TestHash, settings, MasterElectionMechanism);
             }
 
             public void Deconstruct(out ClusterState clusterState, out MachineReputationTracker tracker, out MachineMapping[] mappings)

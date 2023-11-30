@@ -2,33 +2,33 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
+using Azure;
+using Azure.Core;
+using Azure.Storage.Blobs.ChangeFeed;
+using BuildXL.Cache.BlobLifetimeManager.Library;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.BlobLifetimeManager.Library;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.Stores;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
-using Xunit.Abstractions;
-using System.Threading.Tasks;
-using Xunit;
-using System.Collections.Generic;
-using BuildXL.Cache.ContentStore.Distributed.Blob;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
-using Azure;
-using Azure.Storage.Blobs.ChangeFeed;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
-using System.Linq;
-using BuildXL.Cache.MemoizationStore.Stores;
-using System.IO;
-using Azure.Core;
-using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
-using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Test
 {
@@ -89,7 +89,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                             secretsProvider,
                             accounts,
                             SystemClock.Instance,
-                            runId: $"run#{i}",
+                            runId: $"run{i}",
                             contentDegreeOfParallelism: 1,
                             fingerprintDegreeOfParallelism: 1,
                             dryRun: false);

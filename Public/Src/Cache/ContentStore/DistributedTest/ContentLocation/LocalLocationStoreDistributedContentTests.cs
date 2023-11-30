@@ -258,7 +258,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var workerStore = context.GetLocalLocationStore(context.GetFirstWorkerIndex());
 
                     var workerSession = sessions[context.GetFirstWorkerIndex()];
-    
+
                     // Insert random file in session 0
                     await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
@@ -2617,7 +2617,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ;
             var localContentDirectoryPath = @"D:\temp\Directory.backup.bin";
             var machineId = 4;
-            var producerMachineLocation = new MachineLocation();
+            var producerMachineLocation = MachineLocation.Invalid;
 
             TestClock.UtcNow = DateTime.Parse("2020-02-19 21:30:0.0Z").ToUniversalTime();
 
@@ -2972,7 +2972,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
 
             int machineCount = 2;
-            
+
             return RunTestAsync(
                 machineCount,
                 ensureLiveness: false,

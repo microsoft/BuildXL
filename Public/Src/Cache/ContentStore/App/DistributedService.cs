@@ -53,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.App
             // allowing it.
             var cacheName = "Default";
             Initialize();
-            
+
             if (debug)
             {
                 System.Diagnostics.Debugger.Launch();
@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.App
 
                 var copier = useDistributedGrpc
                         ? grpcCopier
-                        : (IRemoteFileCopier)new DistributedCopier();
+                        : (IRemoteFileCopier)new MockRemoteFileCopier();
 
                 LoggingSettings loggingSettings = null;
                 if (!string.IsNullOrEmpty(nLogConfigurationPath))

@@ -789,6 +789,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerForwardedError(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
 
         [GeneratedEvent(
+            (ushort)SharedLogEventId.GrpcEventHandlerExceptionOccurred,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "An exception occurred in the grpc event handler:\n{exceptionMessage}",
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage))]
+        public abstract void GrpcEventHandlerExceptionOccurred(LoggingContext context, string exceptionMessage);
+
+        [GeneratedEvent(
             (ushort)SharedLogEventId.StoppedDistributionWorkerForwardedError,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Worker {workerForwardedEvent.WorkerName} logged an error, which was received after the worker was stopped. Error message:\n{workerForwardedEvent.Text},",

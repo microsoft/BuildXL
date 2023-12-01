@@ -8,6 +8,9 @@ using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Configuration;
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -16,9 +19,11 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// </summary>
     public sealed class GrpcOrchestrator : Orchestrator.OrchestratorBase
     {
+        private readonly LoggingContext m_loggingContext;
         private readonly IOrchestratorService m_orchestratorService; 
-        internal GrpcOrchestrator(IOrchestratorService service)
+        internal GrpcOrchestrator(LoggingContext loggingContext, IOrchestratorService service)
         {
+            m_loggingContext = loggingContext;
             m_orchestratorService = service;
         }
 
@@ -39,14 +44,14 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <inheritdoc/>
         public override Task<RpcResponse> ReportPipResults(PipResultsInfo message, ServerCallContext context)
         {
-            m_orchestratorService.ReceivedPipResults(message).Forget();
+            m_orchestratorService.ReceivedPipResults(message).Forget(ex => Tracing.Logger.Log.GrpcEventHandlerExceptionOccurred(m_loggingContext, ex.ToStringDemystified()));
             return GrpcUtils.EmptyResponseTask;
         }
 
         /// <inheritdoc/>
         public override Task<RpcResponse> ReportExecutionLog(ExecutionLogInfo message, ServerCallContext context)
         {
-            m_orchestratorService.ReceivedExecutionLog(message).Forget();
+            m_orchestratorService.ReceivedExecutionLog(message).Forget(ex => Tracing.Logger.Log.GrpcEventHandlerExceptionOccurred(m_loggingContext, ex.ToStringDemystified()));
             return GrpcUtils.EmptyResponseTask;
         }
 

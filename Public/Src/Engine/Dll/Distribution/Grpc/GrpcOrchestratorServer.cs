@@ -23,7 +23,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         internal GrpcOrchestratorServer(LoggingContext loggingContext, IOrchestratorService orchestratorService, DistributedInvocationId invocationId) 
             : base(loggingContext, invocationId)
         {
-            m_grpcOrchestrator = new GrpcOrchestrator(orchestratorService);
+            m_grpcOrchestrator = new GrpcOrchestrator(loggingContext, orchestratorService);
         }
 
         /// <inheritdoc/>

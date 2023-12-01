@@ -41,6 +41,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         DistributionWorkerForwardedWarning = 7016,
         StoppedDistributionWorkerForwardedError = 7046,
         DistributionWorkerForwardedEvent = 7066,
+        GrpcEventHandlerExceptionOccurred = 7067,
         CbTimeoutReached = 15001,
         CbTimeoutTooLow = 15002,
         /*

@@ -388,7 +388,7 @@ config({
                 { id: "System.Reactive", version: "4.4.1" },
 
                 // Windows CoW on ReFS
-                { id: "CopyOnWrite", version: "0.3.6" },
+                { id: "CopyOnWrite", version: "0.3.7" },
 
                 // Windows SDK
                 // CODESYNC: This version should be updated together with the version number in Public/Sdk/Experimental/Msvc/WindowsSdk/windowsSdk.dsc

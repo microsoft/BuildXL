@@ -29,7 +29,6 @@ namespace BuildXL.Native.IO
         /// <inheritdoc />
         public static bool CheckIfVolumeSupportsCopyOnWriteByHandle(SafeFileHandle fileHandle)
         {
-#if NETCOREAPP
             try
             {
                 return GetVolumeFileSystemByHandle(fileHandle) == FileSystemType.ReFS;
@@ -38,14 +37,10 @@ namespace BuildXL.Native.IO
             {
                 return false;
             }
-#else
-            return false;
-#endif
         }
 
         public Possible<Unit> CloneFile(string source, string destination, bool followSymlink)
         {
-#if NETCOREAPP
             try
             {
                 // NoFileIntegrityCheck: Cache does not use Windows file integrity.
@@ -63,14 +58,10 @@ namespace BuildXL.Native.IO
             }
 
             return Unit.Void;
-#else
-            return new Failure<string>("CloneFile is not supported in non NETCOREAPP");
-#endif
         }
 
         private static bool SupportsCopyOnWrite()
         {
-#if NETCOREAPP
             bool disableCopyOnWrite = string.Equals(Environment.GetEnvironmentVariable("DisableCopyOnWriteWin"), "1", StringComparison.Ordinal);
 
             if (disableCopyOnWrite)
@@ -91,7 +82,6 @@ namespace BuildXL.Native.IO
                     return CheckIfVolumeSupportsCopyOnWriteByHandle(directoryHandle);
                 }
             }
-#endif  
             return false;
         }
     }

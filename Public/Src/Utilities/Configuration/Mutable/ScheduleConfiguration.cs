@@ -89,6 +89,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnableSetupCostWhenChoosingWorker = false;
             EnableLessAggresiveMemoryProjection = false;
             MaxRetriesDueToRetryableFailures = 5;
+            MaxRetriesDueToLowMemory = 20; // Based on telemetry, p99 of the retries due to the low memory is 14. 
 
             PluginLocations = new List<AbsolutePath>();
             TreatAbsentDirectoryAsExistentUnderOpaque = true;
@@ -401,7 +402,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public int? MinimumDiskSpaceForPipsGb { get; set; }
 
         /// <inheritdoc />
-        public int? MaxRetriesDueToLowMemory { get; set; }
+        public int MaxRetriesDueToLowMemory { get; set; }
 
         /// <inheritdoc />
         public int MaxRetriesDueToRetryableFailures { get; set; }

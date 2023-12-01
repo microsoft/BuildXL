@@ -4817,14 +4817,14 @@ namespace BuildXL.Scheduler
                                 // Use the max of the observed memory and the worker's expected memory (multiplied with 1.25 to increase the expectations) for the pip
                                 var expectedCounters = processRunnable.ExpectedMemoryCounters.Value;
                                 var actualCounters = executionResult.PerformanceInformation?.MemoryCounters;
+
                                 processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
                                     peakWorkingSetMb: Math.Max((int)(expectedCounters.PeakWorkingSetMb * 1.25), actualCounters?.PeakWorkingSetMb ?? 0),
                                     averageWorkingSetMb: Math.Max((int)(expectedCounters.AverageWorkingSetMb * 1.25), actualCounters?.AverageWorkingSetMb ?? 0),
                                     peakCommitSizeMb: Math.Max((int)(expectedCounters.PeakCommitSizeMb * 1.25), actualCounters?.PeakCommitSizeMb ?? 0),
                                     averageCommitSizeMb: Math.Max((int)(expectedCounters.AverageCommitSizeMb * 1.25), actualCounters?.AverageCommitSizeMb ?? 0));
-
-                                if (m_scheduleConfiguration.MaxRetriesDueToLowMemory.HasValue &&
-                                    processRunnable.Performance.RetryCountDueToLowMemory == m_scheduleConfiguration.MaxRetriesDueToLowMemory)
+                               
+                                if (processRunnable.Performance.RetryCountDueToLowMemory == m_scheduleConfiguration.MaxRetriesDueToLowMemory)
                                 {
                                     Logger.Log.ExcessivePipRetriesDueToLowMemory(operationContext, processRunnable.Description, processRunnable.Performance.RetryCountDueToLowMemory);
                                     return runnablePip.SetPipResult(PipResultStatus.Failed);

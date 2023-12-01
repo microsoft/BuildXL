@@ -342,7 +342,7 @@ namespace BuildXL.Utilities.Configuration
         /// Number of retries allowed per Pip failing due to low memory. 
         /// null represents inifinite attempts.
         /// </summary>
-        int? MaxRetriesDueToLowMemory { get; }
+        int MaxRetriesDueToLowMemory { get; }
 
         /// <summary>
         /// Number of retries allowed per pip failing due to retryable failures. 

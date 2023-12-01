@@ -101,6 +101,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 MaxSendMessageSize = grpcDotNetSpecificOptions.MaxSendMessageSize,
                 MaxReceiveMessageSize = grpcDotNetSpecificOptions.MaxReceiveMessageSize,
                 HttpHandler = handler,
+                DisposeHttpClient = true,
             };
 
             string grpcMinVerbosity = grpcDotNetSpecificOptions.MinLogLevelVerbosity != null

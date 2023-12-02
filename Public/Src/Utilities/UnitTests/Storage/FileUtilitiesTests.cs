@@ -1269,11 +1269,21 @@ namespace Test.BuildXL.Storage
             var createHardLink = FileUtilities.TryCreateHardLinkViaSetInformationFile(hardLink, file, replaceExisting: false);
             XAssert.AreEqual(CreateHardLinkStatus.Success, createHardLink);
 
+            FileSystemType fsType = GetFileSystemType(file);
+
             // Open hardLink, but delete target file.
             using (File.Open(hardLink, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
             {
                 var delete = FileUtilities.TryDeletePathIfExists(file);
-                XAssert.PossiblySucceeded(delete);
+                if (fsType == FileSystemType.ReFS)
+                {
+                    XAssert.IsTrue(!delete.Succeeded);
+                    XAssert.Contains(delete.Failure.DescribeIncludingInnerFailures(), "Native: Opening a file handle failed: SharingViolation");
+                }
+                else
+                {
+                    XAssert.PossiblySucceeded(delete);
+                }
             }
         }
 

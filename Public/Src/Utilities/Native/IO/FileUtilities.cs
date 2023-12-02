@@ -1044,7 +1044,7 @@ namespace BuildXL.Native.IO
             return OsFileSystem.GetShortVolumeSerialNumberByHandle(fileHandle);
         }
 
-        /// <see cref="IFileSystem.GetVolumeFileSystemByHandle(SafeFileHandle)"/>
+        /// <see cref="IFileSystem.GetVolumeSerialNumberByHandle(SafeFileHandle)"/>
         public static ulong GetVolumeSerialNumberByHandle(SafeFileHandle fileHandle)
         {
             return OsFileSystem.GetVolumeSerialNumberByHandle(fileHandle);

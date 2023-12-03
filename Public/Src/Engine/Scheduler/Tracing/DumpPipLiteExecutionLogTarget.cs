@@ -134,7 +134,7 @@ namespace BuildXL.Scheduler.Tracing
             var processPerformance = data.ExecutionPerformance as ProcessPipExecutionPerformance;
             if (m_pipTable.GetPipType(data.PipId) == PipType.Process && processPerformance != null)
             {
-                fileAccessViolationCount = processPerformance.FileMonitoringViolations.Total;
+                fileAccessViolationCount = processPerformance.FileMonitoringViolations.NumFileAccessViolationsNotAllowlisted;
             }
 
             if ((data.ExecutionPerformance.ExecutionLevel == PipExecutionLevel.Failed || fileAccessViolationCount > 0) && !m_loggingErrorOccured)

@@ -81,7 +81,16 @@ namespace BuildXL.Engine.Distribution
             private readonly WorkerService m_workerService;
             private LoggingContext LoggingContext => m_workerService.m_appLoggingContext;
             private ConcurrentDictionary<(PipId, PipExecutionStep), SinglePipBuildRequest> PendingBuildRequests => m_workerService.m_pendingBuildRequests;
+           
+            /// <summary>
+            /// Active pip steps: elements are added when receiving a build request, and removed when we are ready to report a result
+            /// </summary>
             private ConcurrentDictionary<(PipId, PipExecutionStep), ExtendedPipCompletionData> PendingPipCompletions => m_workerService.m_pendingPipCompletions;
+           
+            /// <summary>
+            /// Requested pip steps that were already processed but might still not have been scheduled
+            /// </summary>
+            private ConcurrentDictionary<(PipId, PipExecutionStep), bool> PendingScheduleRequests => m_workerService.PendingScheduleRequests;
 
             // Scheduler & engine state
             private IConfiguration Config => m_workerService.m_config;
@@ -210,6 +219,8 @@ namespace BuildXL.Engine.Distribution
                         }
 
                         m_scheduler.StartPipStep(pipId, m_workerRunnablePipObserver, step, pipBuildRequest.Priority);
+                        var removed = PendingScheduleRequests.TryRemove((pipId, step), out _);
+                        Contract.Assert(removed, $"This pip step ({pip.FormattedSemiStableHash} : {step}) should be marked as pending scheduling");
                     }
                 }
                 catch (Exception ex)

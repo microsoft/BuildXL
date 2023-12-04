@@ -76,11 +76,11 @@ namespace BuildXL.Engine.Distribution
         internal Task<bool> AttachCompletion => m_attachCompletionSource.Task;
         private readonly TaskSourceSlim<bool> m_attachCompletionSource;
 
-        private readonly ConcurrentDictionary<(PipId, PipExecutionStep), SinglePipBuildRequest> m_pendingBuildRequests =
-            new ConcurrentDictionary<(PipId, PipExecutionStep), SinglePipBuildRequest>();
+        private readonly ConcurrentDictionary<(PipId, PipExecutionStep), SinglePipBuildRequest> m_pendingBuildRequests = new();
 
-        private readonly ConcurrentDictionary<(PipId,PipExecutionStep), ExtendedPipCompletionData> m_pendingPipCompletions =
-            new ConcurrentDictionary<(PipId, PipExecutionStep), ExtendedPipCompletionData>();
+        private readonly ConcurrentDictionary<(PipId, PipExecutionStep), ExtendedPipCompletionData> m_pendingPipCompletions = new();
+
+        internal readonly ConcurrentDictionary<(PipId, PipExecutionStep), bool> PendingScheduleRequests = new();
 
         private readonly ConcurrentBigSet<int> m_handledBuildRequests = new ConcurrentBigSet<int>();
 
@@ -179,12 +179,26 @@ namespace BuildXL.Engine.Distribution
             bool success = await CompleteAttachmentAfterProcessBuildRequestStartedAsync();
 
             // Wait until the build finishes or we discovered that the orchestrator is dead
-            success &= await ExitCompletion; 
-            
+            success &= await ExitCompletion;
+
             success &= !m_hasFailures;
             if (m_failureMessage != null)
             {
                 Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, m_failureMessage);
+            }
+
+
+            if (success && !PendingScheduleRequests.IsEmpty)
+            {
+                // We might meet this condition on fireForgetMaterializeOutputBuilds: if the orchestrator calls Exit on a worker
+                // after fire-forgetting all the materializations, we might still be processing materialization requests and in a stage
+                // where they haven't reached the pip queue.
+                // We should avoid marking the pip queue as complete if this is the case, so let's wait for everything to be queued
+                // before doing that.
+                while (!PendingScheduleRequests.IsEmpty)
+                {
+                    await Task.Delay(5_000);
+                }
             }
 
             m_pipExecutionService.WhenDone();
@@ -278,6 +292,7 @@ namespace BuildXL.Engine.Distribution
             // so there is no problem if we're executing this as part of an "exit" RPC (which is the normal way of exiting)
             // Do not await, as this call to Exit may have been made as part of the exit RPC and we need to finish it.
             m_workerServer.ShutdownAsync().Forget();
+
             m_exitCompletionSource.TrySetResult(reportSuccess);
         }
 
@@ -393,12 +408,17 @@ namespace BuildXL.Engine.Distribution
             using (Counters.StartStopwatch(DistributionCounter.ReportInputsDuration))
             {
                 reportInputsResult = m_pipExecutionService.TryReportInputs(request.Hashes);
-            } 
-            
-            // Unblock the caller, so we can send a response to the orchestrator asap to receive the new pipbuildrequest messages.
-            // We intentionally unblock the caller after processing the inputs. 
-            await Task.Yield();
+            }
 
+            // We want to unblock the caller to process this asynchronously except on builds where we might get
+            // fire-and-forget, where we need to make sure to add them to the 'pending' collections before unblocking
+            // an orchestrator that might quicky call exit on this worker before we finish that processing.
+            // This race, though presumably unlikely, would be silent and hard to diagnose, so we'll pay the extra cost.
+            if (!((m_config.Distribution.ReplicateOutputsToWorkers ?? false) && (m_config.Distribution.FireForgetMaterializeOutput ?? false)))
+            {
+                await Task.Yield();
+            }
+            
             using (Counters.StartStopwatch(DistributionCounter.StartPipStepDuration))
             {
                 for (int i = 0; i < request.Pips.Count; i++)
@@ -410,8 +430,10 @@ namespace BuildXL.Engine.Distribution
                     {
                         var pipId = new PipId(pipBuildRequest.PipIdValue);
                         var pipIdStepTuple = (pipId, (PipExecutionStep)pipBuildRequest.Step);
-                        m_pendingBuildRequests[pipIdStepTuple] = pipBuildRequest;
 
+                        PendingScheduleRequests[pipIdStepTuple] = true;
+                        m_pendingBuildRequests[pipIdStepTuple] = pipBuildRequest;
+                        
                         var pipCompletionData = new ExtendedPipCompletionData(new PipCompletionData() { PipIdValue = pipId.Value, Step = pipBuildRequest.Step });
                         m_pendingPipCompletions[pipIdStepTuple] = pipCompletionData;
 

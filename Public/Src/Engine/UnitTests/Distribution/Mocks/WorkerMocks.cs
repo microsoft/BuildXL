@@ -121,6 +121,7 @@ namespace Test.BuildXL.Distribution
             await Task.Yield();
             var step = (PipExecutionStep)pipBuildRequest.Step;
 
+            WorkerService.PendingScheduleRequests.TryRemove((pipId, step), out _);
             if (StepsToFail.Contains((pipId.Value, step)))
             {
                 WorkerService.ReportResult(

@@ -13,6 +13,7 @@ using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -218,8 +219,43 @@ namespace Test.BuildXL.Processes
             using (ISandboxedProcess process = await StartProcessAsync(info))
             {
                 // process is running in an infinite loop, let's kill it
-                await process.KillAsync();
-                SandboxedProcessResult result = await process.GetResultAsync();
+                TestOutput.WriteLine("Starting ISandboxedProcess.KillAsync()");
+                try
+                {
+                    if (OperatingSystemHelper.IsLinuxOS)
+                    {
+                        await process.KillAsync().WithTimeoutAsync(TimeSpan.FromSeconds(60)); // This should never take 60 seconds
+                    }
+                    else
+                    {
+                        await process.KillAsync();
+                    }
+                }
+                catch(TimeoutException e)
+                {
+                    XAssert.IsTrue(false, $"KillAsync timed out after running for 60 seconds. Exception: {e}");
+                }
+                TestOutput.WriteLine("Finished ISandboxedProcess.KillAsync()");
+                
+                TestOutput.WriteLine("Starting ISandboxedProcess.GetResultAsync()");
+                SandboxedProcessResult result = null;
+                try
+                {
+                    if (OperatingSystemHelper.IsLinuxOS)
+                    {
+                        result = await process.GetResultAsync().WithTimeoutAsync(TimeSpan.FromSeconds(60)); // This should never take 60 seconds
+                    }
+                    else
+                    {
+                        result = await process.GetResultAsync();
+                    }
+                }
+                catch (TimeoutException e)
+                {
+                    XAssert.IsTrue(false, $"GetResultAsync timed out after running for 60 seconds. Exception: {e}");
+                }
+                TestOutput.WriteLine("Finished ISandboxedProcess.GetResultAsync()");
+
                 XAssert.IsTrue(result.Killed);
                 XAssert.IsFalse(result.TimedOut, "Process claims it was timed out, but instead it was killed.");
             }

@@ -300,12 +300,14 @@ namespace BuildXL.Processes
             m_reportsReceivedTime = DateTime.UtcNow;
             reports?.Freeze();
 
+            LogDebug("GetResultAsync: m_processExecutor.WaitForStdOutAndStdErrAsync()");
             await m_processExecutor.WaitForStdOutAndStdErrAsync();
 
             var fileAccesses = ShouldReportFileAccesses ? (reports?.FileAccesses ?? EmptyFileAccessesSet) : null;
 
             var traceBuilder = GetTraceFileBuilderAsync();
 
+            LogDebug("GetResultAsync: Freezing outputs and returning result");
             return new SandboxedProcessResult
             {
                 ExitCode                            = m_processExecutor.TimedOut ? ExitCodes.Timeout : (Process?.ExitCode ?? ExitCodes.Timeout),

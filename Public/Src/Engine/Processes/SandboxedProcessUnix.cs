@@ -447,11 +447,17 @@ namespace BuildXL.Processes
                 // surviving child processes may only be set when the process is explicitly killed
                 m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
                 // Before notifying that the root process has exited, kill all ptracerunners to avoid receiving access reports after the communication pipe is closed.
+                LogDebug("KillAsyncInternal: KillActivePTraceRunners()");
                 KillActivePTraceRunners();
+                LogDebug("KillAsyncInternal: System.Diagnostics.Process.Kill()");
                 await base.KillAsyncInternal(dumpProcessTree);
+                LogDebug("KillAsyncInternal: KillAllChildProcesses()");
                 KillAllChildProcesses();
+                LogDebug("KillAsyncInternal: SandboxConnection.NotifyRootProcessExited()");
                 SandboxConnection.NotifyRootProcessExited(PipId, this);
+                LogDebug("KillAsyncInternal: Waiting m_pendingReports.Completion");
                 await m_pendingReports.Completion;
+                LogDebug("KillAsyncInternal: Completed m_pendingReports.Completion");
             }
         }
 
@@ -466,20 +472,25 @@ namespace BuildXL.Processes
 
             if (!Killed)
             {
+                LogDebug("GetReportsAsync: Waiting for pending reports.");
                 var awaitedTask = await Task.WhenAny(m_pendingReports.Completion, m_processTreeTimeoutTask!);
                 if (awaitedTask == m_processTreeTimeoutTask)
                 {
+                    LogDebug("GetReportsAsync: Attempting to dump process tree after timeout.");
                     // The process tree timed out, so let's try to dump it
                     await KillAsyncInternal(dumpProcessTree: true);
                 }
             }
 
+            LogDebug("GetReportsAsync: Waiting for pending reports to complete.");
             // in any case must wait for pending reports to complete, because we must not freeze m_reports before that happens
             await m_pendingReports.Completion;
 
             // at this point this pip is done executing (it's only left to construct SandboxedProcessResult,
             // which is done by the base class) so notify the sandbox connection about it.
             SandboxConnection.NotifyPipFinished(PipId, this);
+
+            LogDebug("GetReportsAsync: Returning reports.");
 
             return IgnoreReportedAccesses ? null : m_reports;
         }

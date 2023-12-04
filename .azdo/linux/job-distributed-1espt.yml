@@ -18,13 +18,6 @@ jobs:
     distribution:
       enabled: true
       workerCount: 1
-    outputs:
-    - output: pipelineArtifact
-      targetPath: $(Build.SourcesDirectory)/Out/Logs
-      artifactName: BuildXL-Logs.DistributedTest.$(System.JobName).$(System.StageName)
-      condition: always()
-      continueOnError: true
-      displayName: Upload Distributed test Logs
     sdl:
       credscan:
         enabled: false
@@ -63,7 +56,6 @@ jobs:
       
       arguments: '
         /c:/home/subst/Private/AdoDistributionTests/config.dsc
-        /logsDirectory:$(Build.SourcesDirectory)/Out/Logs
         /p:BUILDXL_FINGERPRINT_SALT=*
         /p:BUILDXL_GRAPH_FINGERPRINT_SALT=*
         /replicateOutputsToWorkers+ 

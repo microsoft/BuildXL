@@ -26,13 +26,6 @@ jobs:
     - input: pipelineArtifact
       artifactName: 'Dev'
       targetPath: '$(BootstrapLocation)'
-    outputs:
-    - output: pipelineArtifact
-      targetPath: $(Build.SourcesDirectory)/Out/Logs
-      artifactName: BuildXL-Logs.DistributedTest.$(System.JobName).${{ parameters.Role }}.$(System.JobAttempt)
-      condition: always()
-      continueOnError: true
-      displayName: Upload Distributed test Logs
     sdl:
       credscan:
         enabled: false

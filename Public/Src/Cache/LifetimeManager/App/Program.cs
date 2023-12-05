@@ -52,7 +52,7 @@ namespace BuildXL.Cache.BlobLifetimeManager
             int fingerprintDegreeOfParallelism,
 
             [Required]
-            [Description("ID of the current GC run. This is used to identify which run produced a checkpoint.")]
+            [Description("ID of the current GC run. This is used to identify which run produced a checkpoint. It should be an alphanumeric string.")]
             string runId,
 
             [DefaultValue(Severity.Debug)]

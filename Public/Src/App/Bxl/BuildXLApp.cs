@@ -897,6 +897,13 @@ namespace BuildXL
             {
                 return (ExitKind: ExitKind.InternalError, ErrorBucket: SchedulerLogEventId.ErrorApiServerGetBuildManifestHashFromLocalFileFailed.ToString(), BucketMessage: string.Empty);
             }
+            // Set the errorbucket to WorkerFailedDueToLowDiskSpace to reduce confusion in reliability dashboard
+            else if (listener.CountsPerEventId((int)SchedulerLogEventId.WorkerFailedDueToLowDiskSpace) >= 1
+                && listener.InternalErrorDetails.Count > 0
+                && listener.InternalErrorDetails.FirstErrorName == EngineLogEventId.DistributionPipFailedOnWorker.ToString())
+            {
+                return (ExitKind: ExitKind.InternalError, ErrorBucket: SchedulerLogEventId.WorkerFailedDueToLowDiskSpace.ToString(), BucketMessage: string.Empty);
+            }
             else if (listener.InternalErrorDetails.Count > 0)
             {
                 return (ExitKind: ExitKind.InternalError, ErrorBucket: listener.InternalErrorDetails.FirstErrorName, BucketMessage: listener.InternalErrorDetails.FirstErrorMessage);

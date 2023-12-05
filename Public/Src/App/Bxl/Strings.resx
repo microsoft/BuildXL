@@ -1166,7 +1166,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>When set to true, it enables the execution permission for the root process of process pips in Linux builds. Defaults to true.</value>
   </data>
   <data name="HelpText_DisplayHelp_PipProperty" xml:space="preserve">
-    <value>Enforces specific properties to the pip. The list of properties that are permitted: PipFingerprintingSalt, ForcedCacheMiss, and EnableVerboseProcessLogging. These properties should be passed along with the semi-stable hash of the pip should be specified using /pipProperty flag. Example: /pipProperty:Pip232325435435[PipFingerprintingSalt=TooSalty, ForcedCacheMiss, EnableVerboseProcessLogging].</value>
+    <value>Enforces specific properties to the pip. The list of properties that are permitted: PipFingerprintingSalt, ForcedCacheMiss, and EnableVerboseProcessLogging. These properties should be passed along with the semi-stable hash of the pip using /pipProperty flag. Example: /pipProperty:Pip232325435435[PipFingerprintingSalt=TooSalty, ForcedCacheMiss, EnableVerboseProcessLogging].</value>
   </data>
   <data name="HelpText_DisplayHelp_PipProperty_ForcedCacheMiss" xml:space="preserve">
     <value>Forces a pip to be a cache miss in the build, independently of the artificial cache miss options(see /injectCacheMisses). The pip semi-stable hash along with the ForcedCacheMiss flag needs to be specified using the flag /pipProperty. Example: /pipProperty:Pip232325435435[ForcedCacheMiss] /pipProperty:Pip342343423423[ForcedCacheMiss].</value>
@@ -1175,7 +1175,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Enables verbose sandbox logging for specific pips based on their formatted semistable hashes. This is tantamount to switching /logObservedFileAccesses and /logProcesses for these pips, and also enabling verbose debug logging in the sandbox. The pip semi-stable hash along with the EnableVerboseProcessLogging flag might be specified using the /pipProperty flag .Example: /pipProperty:Pip232325435435[EnableVerboseProcessLogging] /pipProperty:Pip435345345345[EnableVerboseProcessLogging].</value>
   </data>
   <data name="HelpText_DisplayHelp_PipProperty_PipFingerprintingSalt" xml:space="preserve">
-    <value>Enables fingerprint salting for specific pips. The pip semi-stable hash along with the the PipFingerprintingSalt flag and the specific fingerprint salt value needs to be specified using the /pipPropertyFlag. If the specific value "*" is given as the salt value then a random salt value is generated everytime and used for the weak-fingerprint computation of the pip. Example: /pipProperty:Pip232325435435[PipFingerprintingSalt=TooSalty] /pipProperty:Pip4354554[PipFingerprintingSalt=*].</value>
+    <value>Enables fingerprint salting for specific pips. The pip semi-stable hash along with the the PipFingerprintingSalt flag and the specific fingerprint salt value needs to be specified using the /pipPropertyFlag. If the specific value ``*`` is given as the salt value then a random salt value is generated everytime and used for the weak-fingerprint computation of the pip. Example: /pipProperty:Pip232325435435[PipFingerprintingSalt=TooSalty] /pipProperty:Pip4354554[PipFingerprintingSalt=``*``].</value>
   </data>
   <data name="Args_PipProperty_InvalidProperty" xml:space="preserve">
     <value>The specified property '{0}' in the /pipProperty argument is not to be enforced on specific pips.</value>

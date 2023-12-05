@@ -6,13 +6,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Pips.Builders;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
-using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using FileUtilities = BuildXL.Native.IO.FileUtilities;
+using Operation = Test.BuildXL.Executables.TestProcess.Operation;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
@@ -34,31 +35,16 @@ namespace Test.BuildXL.Processes
         [Fact]
         public async Task StaticallyLinkedProcessWithPTraceSandbox()
         {
-            var staticProcessName = "TestProcessStaticallyLinked";
-            var staticProcessPath = Path.Combine(TestBinRoot, "LinuxTestProcesses", staticProcessName);
-
-            var workingDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
-            var workingDirectoryStr = workingDirectory.Path.ToString(Context.PathTable);
-            var staticProcessArtifact = CreateFileArtifactWithName(staticProcessName, workingDirectory.Path.ToString(Context.PathTable));
-
-            // Copy test executables to new working directory
-            File.Copy(staticProcessPath, Path.Combine(workingDirectoryStr, staticProcessName));
-
-            var unlinkedPath = Path.Combine(workingDirectoryStr, "unlinkme");
-            File.WriteAllText(unlinkedPath, "This file should be deleted by the static process.");
-
-            var writePath = Path.Combine(workingDirectoryStr, "writeme");
-            File.WriteAllText(writePath, "Write to this file");
-
-            var rmdirPath = Path.Combine(workingDirectoryStr, "rmdirme");
-            Directory.CreateDirectory(rmdirPath);
-
-            var renamedDirectoryOld = Path.Combine(workingDirectoryStr, "renameme");
-            var renamedDirectoryNew = Path.Combine(workingDirectoryStr, "renamed");
-            var renamePathOld = Path.Combine(renamedDirectoryOld, "insiderenameddir");
-            var renamePathNew = Path.Combine(renamedDirectoryNew, "insiderenameddir");
-            Directory.CreateDirectory(renamedDirectoryOld);
-            File.WriteAllText(renamePathOld, "This file should be deleted then recreated");
+            PrepareStaticallyLinkedProcess(
+                out FileArtifact staticProcessArtifact, 
+                out string unlinkedPath, 
+                out string writePath, 
+                out string rmdirPath, 
+                out string renamedDirectoryOld, 
+                out string renamedDirectoryNew, 
+                out string renamePathOld, 
+                out string renamePathNew, 
+                out DirectoryArtifact workingDirectory);
 
             var fam = new FileAccessManifest(Context.PathTable);
             fam.ReportFileAccesses = true;
@@ -104,14 +90,58 @@ namespace Test.BuildXL.Processes
                 .Where(i => (i.Operation == ReportedFileOperation.Process || i.Operation == ReportedFileOperation.ProcessExit) && i.GetPath(Context.PathTable) == staticProcessArtifact.Path.ToString(Context.PathTable))
                 .Select(i => $"{i.Operation}: '{i.GetPath(Context.PathTable)}'")
                 .ToList();
-            
+
             // 5 fork and 5 exit calls are expected here
             // 1 fork + 1 exit for the main process
             // 4 fork calls inside the statically linked process, and 4 matching exits
             var expectedForkAndExitCount = 10;
-            
+
             XAssert.IsTrue(forksAndExits.Count() == expectedForkAndExitCount, $"Mismatch in the number of process creations and exits. Expected {expectedForkAndExitCount}, got {forksAndExits.Count()}. Process creations and exits:\n{string.Join("\n", forksAndExits)}");
             XAssert.IsTrue(intersection.Count == expectedAccesses.Count, $"Ptrace sandbox did not report the following accesses: {string.Join("\n", expectedAccesses.Except(intersection).ToList())}");
+        }
+
+        [Fact]
+        public async Task SandboxTeardownOnUnobservedRootProcess()
+        {
+            PrepareStaticallyLinkedProcess(
+               out FileArtifact staticProcessArtifact,
+               out _,
+               out _,
+               out _,
+               out _,
+               out _,
+               out _,
+               out _,
+               out DirectoryArtifact workingDirectory);
+
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.FailUnexpectedFileAccesses = false;
+            fam.ReportUnexpectedFileAccesses = true;
+            // We explicitly turn off ptrace, so the statically linked process we are about to run won't be observed
+            fam.EnableLinuxPTraceSandbox = false;
+
+            // Create a pip whose root process is the statically linked one
+            var processBuilder = ProcessBuilder.CreateForTesting(Context.PathTable, FrontEndContext.CredentialScanner, LoggingContext);
+            processBuilder.Executable = staticProcessArtifact;
+            processBuilder.ArgumentsBuilder.Add("0");
+            processBuilder.AddInputFile(staticProcessArtifact);
+            AddUntrackedWindowsDirectories(processBuilder);
+            var ok = processBuilder.TryFinish(PipConstructionHelper, out var process, out _);
+            XAssert.IsTrue(ok, "Could not finish creating process builder");
+
+            var staticProcessInfo = ToProcessInfo(
+                process,
+                workingDirectory: workingDirectory.Path.ToString(Context.PathTable),
+                fileAccessManifest: fam
+            );
+
+            var result = await RunProcess(staticProcessInfo);
+
+            // The pip should finish successfully (that is, the sandbox is terminating), and we should have noted that
+            // the root process start event is missing
+            XAssert.AreEqual(0, result.ExitCode);
+            AssertLogContains(caseSensitive: true, "We missed the process start event for root process");
         }
 
         [Fact]
@@ -319,6 +349,35 @@ namespace Test.BuildXL.Processes
                 fa.Error == 0);
 
             AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 2);
+        }
+
+        private void PrepareStaticallyLinkedProcess(out FileArtifact staticProcessArtifact, out string unlinkedPath, out string writePath, out string rmdirPath, out string renamedDirectoryOld, out string renamedDirectoryNew, out string renamePathOld, out string renamePathNew, out DirectoryArtifact workingDirectory)
+        {
+            var staticProcessName = "TestProcessStaticallyLinked";
+            var staticProcessPath = Path.Combine(TestBinRoot, "LinuxTestProcesses", staticProcessName);
+
+            workingDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
+            var workingDirectoryStr = workingDirectory.Path.ToString(Context.PathTable);
+            staticProcessArtifact = CreateFileArtifactWithName(staticProcessName, workingDirectory.Path.ToString(Context.PathTable));
+
+            // Copy test executables to new working directory
+            File.Copy(staticProcessPath, Path.Combine(workingDirectoryStr, staticProcessName));
+
+            unlinkedPath = Path.Combine(workingDirectoryStr, "unlinkme");
+            File.WriteAllText(unlinkedPath, "This file should be deleted by the static process.");
+
+            writePath = Path.Combine(workingDirectoryStr, "writeme");
+            File.WriteAllText(writePath, "Write to this file");
+
+            rmdirPath = Path.Combine(workingDirectoryStr, "rmdirme");
+            Directory.CreateDirectory(rmdirPath);
+
+            renamedDirectoryOld = Path.Combine(workingDirectoryStr, "renameme");
+            renamedDirectoryNew = Path.Combine(workingDirectoryStr, "renamed");
+            renamePathOld = Path.Combine(renamedDirectoryOld, "insiderenameddir");
+            renamePathNew = Path.Combine(renamedDirectoryNew, "insiderenameddir");
+            Directory.CreateDirectory(renamedDirectoryOld);
+            File.WriteAllText(renamePathOld, "This file should be deleted then recreated");
         }
     }
 }

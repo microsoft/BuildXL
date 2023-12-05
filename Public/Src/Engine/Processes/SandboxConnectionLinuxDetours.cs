@@ -318,6 +318,13 @@ namespace BuildXL.Processes
             /// </remarks>
             private readonly ConcurrentDictionary<int, byte> m_activeProcesses;
 
+            /// <summary>
+            /// Sanity check to make sure the sandbox is torn down appropriately even if, for whatever reason, we never
+            /// see the root process start event.
+            /// </summary>
+            private bool m_rootProcessWasRemoved = false;
+            private readonly object m_removePidLock = new object();
+
             private readonly CancellableTimedAction m_activeProcessesChecker;
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
             private readonly Lazy<SafeFileHandle> m_lazySecondaryFifoWriteHandle;
@@ -492,8 +499,41 @@ namespace BuildXL.Processes
             /// </summary>
             internal void RemovePid(int pid)
             {
-                bool removed = m_activeProcesses.TryRemove(pid, out var _);
-                LogDebug($"RemovePid({pid}) :: removed: {removed}; size: {m_activeProcesses.Count}");
+                bool removed;
+                lock (m_removePidLock)
+                {
+                    removed = m_activeProcesses.TryRemove(pid, out var _);
+                    LogDebug($"RemovePid({pid}) :: removed: {removed}; size: {m_activeProcesses.Count}");
+
+                    // If the process that we tried to remove is the root process, we do a defensive check here to see if we ever added it.
+                    if (pid == Process.ProcessId)
+                    {
+                        // If it was successfully removed it means we saw a process start event for it and we are fine. Just track it
+                        if (removed)
+                        {
+                            m_rootProcessWasRemoved = true;
+                        }
+                        // If it was not removed and it was never removed before, then we have a problem:
+                        // we missed the process start event for it (and potentially other events). This can happen for a number of reasons
+                        // (e.g. the process is statically linked and ptrace was not enabled, or the process didn't get interposed because of a reason
+                        // we are not aware of). 
+                        // This is potentially a problem for any process, not only the root (and we are already warning on that case,
+                        // check ReceivedReportFromUnknownPid), but this happening for the root process is particularly sensitive: orphan processes
+                        // can still be active and we have to start the active process checker. Or no active processes are left and we should send the proper
+                        // sentinel to try to tear down the sandbox. Failing to doing so can make the sandbox non-terminating.
+                        else if (!m_rootProcessWasRemoved)
+                        {
+                            LogDebug($"We missed the process start event for root process {pid}");
+                            // The first time we try to remove the root process without having added it first, let's pretend we actually removed it,
+                            // so the sentinel sending/active process checker start logic can kick in anyway.
+                            removed = true;
+                            // Let's make sure we do this only once. There are actually not many consequences if we do this multiple times, but we can avoid
+                            // sending the sentinel unnecessarily multiple times.
+                            m_rootProcessWasRemoved = true;
+                        }
+                    }
+                }
+
                 if (removed && m_activeProcesses.IsEmpty)
                 {
                     LogDebug($"Removed {pid} and the active count is 0. Sending sentinel on primary FIFO");

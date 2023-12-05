@@ -54,6 +54,7 @@ namespace Processes {
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Processes.External.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
+            importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,

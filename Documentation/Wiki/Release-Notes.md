@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20231202.0 (Release [346718](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=346718))
+-	Do not produce a pip dump if a DFA is allow listed.
+-	Add a message counting semaphore for the Linux sandbox as a sanity check.
+-	L3 cache provisioning scripts available.
+-	Add a concurrent pip analyzer.
+-	Bug fixes.
+
 # 0.1.0-20231122.3 (Release [344123](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=344123))
 - Opt-in to new msbuild logger behaviour.
 - Clean up reference to BuildXL.Tracing in BuildXL.Native.

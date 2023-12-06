@@ -118,70 +118,13 @@ namespace BuildXL.AdoBuildRunner
         /// </summary>
         public const string TargetBranchVariableName = "BUILD_TARGETBRANCH";
 
-        /// <summary>
-        /// Variable indicating the current agent type
-        /// </summary>
-        public const string MachineType = "MachineType";
-
-        /// <summary>
-        /// Hostname of the agent
-        /// </summary>
-        public const string MachineHostName = "MachineHostName";
-
-        /// <summary>
-        /// Name of the task variable used to communicate the machine IPV4 address
-        /// </summary>
-        public const string MachineIpV4Address = "MachineIpV4Address";
-
-        /// <summary>
-        /// Name of the task variable used to communicate the machine IPV4 address
-        /// </summary>
-        public const string MachineIpV6Address = "MachineIpV6Address";
-
-        /// <summary>
-        /// Name of the task variable used to communicate to the workers if the build failed
-        /// </summary>
-        public const string BuildStatus = "BuildStatus";
-
-        /// <summary>
-        /// Value used to communicate to the workers that the build has not started
-        /// </summary>
-        public const string BuildStatusNotFinished = "BuildStatusNotFinished";
-
-        /// <summary>
-        /// Value used to communicate to the workers that the build has succeeded
-        /// </summary>
-        public const string BuildStatusSuccess = "BuildStatusSuccess";
-
-        /// <summary>
-        /// Value used to communicate to the workers that the build has failed
-        /// </summary>
-        public const string BuildStatusFailure = "BuildStatusFailure";
-
-        /// <summary>
-        /// Some post-build steps in the job may be interested in which build role
-        /// was adopted by this agent. We expose this fact through this environment variable
-        /// </summary>
-        public const string BuildRoleVariableName = "BUILDXL_DISTRIBUTED_ROLE";
-
-        /// <nodoc />
-        public const string BuildRoleOrchestrator = "BuildXLOrchestrator";
-
         /// <nodoc />
         public const string TriggeringAdoBuildIdParameter = "BuildXLTriggeringAdoBuildId";
-
-        /// <nodoc />
-        public const string BuildRoleWorker = "BuildXLWorker";
 
         /// <summary>
         /// The port used to establish GRPC based connections for distributed builds
         /// </summary>
         public const int MachineGrpcPort = 6979;
-
-        /// <summary>
-        /// The port used to establish GRPC based connections for distributed builds
-        /// </summary>
-        public const int OrchestratorFailedWorkerReturnCode = 21;
 
         /// <summary>
         /// The maximum time an agent waits for the other agents to get ready before failing

@@ -76,39 +76,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         string RepositoryUrl { get; }
 
         /// <summary>
-        /// Get the address information of all the agents participating as workers
-        /// </summary>
-        /// <returns>Address information of all agents participating as workers, consisting of hostname and IP address entries</returns>
-        Task<IEnumerable<IDictionary<string, string>>> GetWorkerAddressInformationAsync();
-
-        /// <summary>
-        /// Get the address information of the orchestrator
-        /// </summary>
-        /// <returns>Address information of the orchestrator, consisting of hostname and IP address entries</returns>
-        Task<IEnumerable<IDictionary<string, string>>> GetOrchestratorAddressInformationAsync();
-
-        /// <summary>
         /// Gets the build context from the ADO build run information
         /// </summary>
         Task<BuildContext> GetBuildContextAsync(string buildKey);
-
-        /// <summary>
-        /// Indicate that this machine is ready to build using a timeline record
-        /// </summary>
-        /// <returns></returns>
-        Task SetMachineReadyToBuild(string hostName, string ipV4Address, string ipv6Address, bool isOrchestrator = false);
-
-        /// <summary>
-        /// Wait until all the other workers are ready
-        /// </summary>
-        /// <returns></returns>
-        Task WaitForOtherWorkersToBeReady();
-
-        /// <summary>
-        /// Wait until the orchestrator is ready
-        /// </summary>
-        /// <returns></returns>
-        Task WaitForOrchestratorToBeReady();
 
         /// <summary>
         /// Wait until the orchestrator is ready and return its address
@@ -121,12 +91,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// </summary>
         /// <returns></returns>
         Task PublishBuildInfo(BuildContext buildContext, BuildInfo buildInfo);
-
-        /// <summary>
-        /// Indicates the build result in this machine
-        /// </summary>
-        /// <returns></returns>
-        Task SetBuildResult(bool success);
 
         /// <summary>
         /// Queue a build

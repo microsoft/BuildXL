@@ -73,11 +73,11 @@ export const pkgs = isMicrosoftInternal ? [
     // SBOM Generation
     { id: "Microsoft.SBOMCore", version: "4.0.2" },
     { id: "Microsoft.Parsers.ManifestGenerator", version: "3.8.11", dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
-    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "1.8.1" },
-    { id: "Microsoft.Sbom.Adapters", version: "1.8.1" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "4.0.6" },
-    { id: "Microsoft.Sbom.Contracts", version: "1.8.1" },
-    { id: "Microsoft.Sbom.Extensions", version: "1.8.1", dependentPackageIdsToSkip: ["System.Text.Json"] },
+    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "2.0.0" },
+    { id: "Microsoft.Sbom.Adapters", version: "2.0.0" },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "4.0.8" },
+    { id: "Microsoft.Sbom.Contracts", version: "2.0.0" },
+    { id: "Microsoft.Sbom.Extensions", version: "2.0.0", dependentPackageIdsToSkip: ["System.Text.Json"] },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
 
     // Process remoting

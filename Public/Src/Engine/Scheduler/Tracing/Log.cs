@@ -3539,8 +3539,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Storage,
-            Message = "Fingerprint store cannot be saved to cache because no fingerprint store key information was given to {ShortProductName}: /cachemiss:<value>")]
-        public abstract void MissingKeyWhenSavingFingerprintStore(LoggingContext context);
+            Message = "Fingerprint store cannot be saved to cache because {reason}")]
+        public abstract void MissingKeyWhenSavingFingerprintStore(LoggingContext context, string reason);
 
         [GeneratedEvent(
             (int)LogEventId.FingerprintStoreSavingFailed,

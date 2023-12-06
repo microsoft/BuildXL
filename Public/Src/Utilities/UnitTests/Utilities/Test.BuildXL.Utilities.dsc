@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
+import {Transformer} from "Sdk.Transformers";
 
 namespace Core {
     export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
@@ -15,7 +16,7 @@ namespace Core {
             // These tests require Detours to run itself, so we won't detour the test runner process itself
             unsafeTestRunArguments: {
                 runWithUntrackedDependencies: true
-            },
+            }
         },
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
@@ -33,7 +34,14 @@ namespace Core {
         ],
         runtimeContent: [
             AsyncMutexClient.exe,
+            ...addIf(Context.getCurrentHost().os === "win", 
+                {
+                    subfolder: r`git`,
+                    contents: [importFrom("MinGit.win-x64").extracted],
+                }
+            ),
         ],
+
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects()
     });
 }

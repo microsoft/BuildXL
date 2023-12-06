@@ -25,6 +25,7 @@ using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
+using System.Text.RegularExpressions;
 #if PLATFORM_OSX
 using static BuildXL.Interop.Unix.Memory;
 #endif
@@ -45,6 +46,9 @@ namespace BuildXL
     internal sealed class Args : IArgumentParser<ICommandLineConfiguration>, IDisposable
     {
         private static readonly string[] s_serviceLocationSeparator = { ":" };
+
+        //  git:{optional prefix}[{optional additional Branches}]
+        private static readonly Regex s_gitCacheMissFormat = new(@"git(:.*(\[[^\[\]](:[^\[\]])*\])?)?");
 
         /// <summary>
         /// Canonical name for cached graph from last build
@@ -1753,6 +1757,35 @@ namespace BuildXL
             if (string.IsNullOrEmpty(opt.Value))
             {
                 loggingConfiguration.CacheMissAnalysisOption = sign ? CacheMissAnalysisOption.LocalMode() : CacheMissAnalysisOption.Disabled();
+            }
+            else if (s_gitCacheMissFormat.IsMatch(opt.Value))
+            {
+                string prefix;
+                string[] additionalBranches;
+                var trimmed = opt.Value.Replace(" ", string.Empty);
+
+                var bracketOcurrence = trimmed.IndexOf('[');
+                if (bracketOcurrence >= 0)
+                {
+                    // git:prefix[...] - prefix can be empty
+                    prefix = trimmed.Substring(4, bracketOcurrence - 4);
+                    additionalBranches = trimmed.TrimEnd(']').Substring(bracketOcurrence + 1).Split(":");
+                }
+                else
+                {
+                    additionalBranches = Array.Empty<string>();
+
+                    const string gitPrefix = "git";
+                    prefix = string.Equals(opt.Value, gitPrefix, StringComparison.OrdinalIgnoreCase)
+                        ? string.Empty
+                        : opt.Value.Substring(gitPrefix.Length + 1);
+                }
+
+                List<string> keys = new();
+                keys.Add(prefix);   // The prefix will be the first element of the list, even if empty
+                keys.AddRange(additionalBranches.Where(b => !string.IsNullOrEmpty(b))); // Add any additional branches to 
+
+                loggingConfiguration.CacheMissAnalysisOption = CacheMissAnalysisOption.GitHashesMode(keys.ToArray());
             }
             else if (opt.Value.StartsWith("[") && opt.Value.EndsWith("]"))
             {

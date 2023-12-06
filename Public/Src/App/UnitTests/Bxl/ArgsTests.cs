@@ -241,6 +241,36 @@ namespace Test.BuildXL
             XAssert.IsTrue(config.Cache.UseLocalOnly.Value);
         }
 
+
+        [Theory]
+        [InlineData("/cacheMiss:git", "", null)]
+        [InlineData("/cacheMiss:git:", "", null)]
+        [InlineData("/cacheMiss:git:[]", "", null)]
+        [InlineData("/cacheMiss:git:[main]", "", "main")]
+        [InlineData("/cacheMiss:git:[main:release]", "", "main:release")]
+        [InlineData("/cacheMiss:git:prefix[main:release]", "prefix", "main:release")]
+        [InlineData("/cacheMiss:git:prefix", "prefix", null)]
+        public void CacheMissGitHashesValidFormats(string arg, string prefix, string branches)
+        {
+            PathTable pt = new PathTable();
+            ICommandLineConfiguration config;
+            var argsParser = new Args();
+            XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, arg }, pt, out config), "Expecting succesful parsing");
+
+            var opt = config.Logging.CacheMissAnalysisOption;
+            XAssert.AreEqual(CacheMissMode.GitHashes, opt.Mode);
+
+            var branchList = branches == null ? Array.Empty<string>() : branches.Split(":");
+            var keyCount = 1 + branchList.Length;  // prefix + branches
+            XAssert.AreEqual(keyCount, opt.Keys.Count);
+            XAssert.AreEqual(prefix, opt.Keys[0]);
+
+            for (var i = 0; i < branchList.Length; i++)
+            {
+                XAssert.AreEqual(branchList[i], opt.Keys[1 + i]);
+            }
+        }
+        
         /// <summary>
         /// Ensure that the pipProperty arguments are parsed accordingly.
         /// </summary>

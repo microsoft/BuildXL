@@ -21,7 +21,56 @@ The FingerprintStore is separate from the cache actually delivering cache hits. 
 
 The FingerprintStore database itself is stored in the content cache for use in future builds. This is useful when the build is configured to use a remote cache. The `/cachemiss` option can take a key to control which FingerprintStore database to use. The newest matching store will be used. For example a rolling build pipeline may want to use `/cachemiss:pipelineName` so it performs analysis on the last completed invocation of the pipeline. When the build is complete, it will add the FingerprintStore to the cache utilizing the same key (if the cache is configured to be writeable). When no key is specified, BuildXL will only ever utilize the local FingerprintStore even if BuildXL is configured to use a remote cache.
 
-In more complex scenarios, multiple keys can be passed which will find a baseline in precedence order. For example, consider a rolling build that publishes to the cache and developer builds that pull from the same cache. When a developer pulls their repo, they want the cache miss baseline to be the newest rolling build that is closest to their commit. Both builds could use the 3 last git commit hashes from their view of the repo as their identifier: `/cachemiss:[commit3:commit2:commit1]`. The developer machine build might pull commit3 before a rolling build has built it. If that is the case, it can find the FingerprintStore from commit2 and use that as its baseline. If none are found in the remote cache it will fall back to its local fingerprint store. The first key in the series is what is used to store the FingerprintStore in the cache.
+### Automatic baseline selection for builds running in a git repository
+In more complex scenarios, multiple keys can be selected, which will find a baseline store in precedence order. For example, consider a rolling build that publishes to the cache and developer builds that pull from the same cache. When a developer pulls their repo, they want the cache miss baseline to be the newest rolling build that is closest to their commit. We can use a series of recent commit hashes as candidate keys for the store, trying to pick candidate keys that might have been used to publish a fingerprint store for a build as "close" as the one running.
+
+Essentially, we produce a mapping `{git commit ids} -> {fingerprint stores}`, and we try to retrieve the closest fingerprint store available by assuming a closer commit in the git history represents a better baseline for analysis than a farther one.
+
+To enable this mode, the argument has to be of the form `/cacheMiss:git:CustomPrefix:[branch1,branch2,...]`, where `branch1,branch2,...` represents a comma-separated list of (one or more) names of git branches that are regularly built in the repository and represent a good baseline for cache miss analysis (this should typically be just the `main` branch, if it's built consistently, like in a rolling pipeline as in the given example), and `CustomPrefix` can be replaced by any value and will be used as a prefix for the keys (effectively acting as a namespace for the fingerprint store pushing and retrieval). Examples:
+
+- `/cacheMiss:git:mybuild[main]`
+- `/cacheMiss:git[main]`    (An empty prefix is permitted)
+- `/cacheMiss:git:mybuild`  (Will only use the current branch's commits)
+
+The candidates are picked by the following procedure:
+
+1. Get latest 5 commits from the current HEAD. We should get a match if this branch was built before, for example for a PR we expect one build per 'iteration'. Because an iteration can have multiple commits, we should not use a very small number (like, say, this commit and the one before), but let's not go overboard either (hence 5). 
+2. For any additional branches, we retrieve the merge-base from HEAD and that branch. We use as keys the hashes for the 3 commits immediately previous to the merge-base.
+3. Finally, as a last resort, we use the latest 3 hashes from the additional branches
+
+For example, consider a PR that wants to merge against the `main` branch, and the PR has the following git topology:
+
+```
+                                .-- b5 -- b4 -- b3 -- b2 -- b1 -- b0    [PR branch]
+                               /
+             h8 -- h7 --h6--- h5 -- h4 -- h3 -- h2 -- h1 -- h0          [main]
+```
+
+The PR created a branch from `h5` commit, and did several commits subsequently. The hashes for the keys for the cache miss analysis would then be:
+
+1. `b0, b1, b2, b3, b4, b5`
+2. `h5, h6, h7`
+3. `h0, h1, h2`
+
+With a topology like this:
+
+```                  
+                    .-- b1 -- b0    [PR branch]
+                /
+h8 -- h7 --h6 -- h5 -- h1 -- h0     [main]
+```
+
+where each step produces the candidates (notice the duplicates):
+
+1. `b0, b1, h5, h6, h7`
+2. `h5, h6, h7`
+3. `h0, h1, h5`
+
+results in the following list: `b0, b1, h5, h6, h7, h0, h1`. The duplicates are simply not counted twice, but we don't look for additional candidates (so the size of this list varies depending on the state of the repository).
+
+If none are found in the remote cache it will fall back to its local fingerprint store. 
+
+Finally, the first key in the series is what is used to store the FingerprintStore in the cache (namely, the latest commit hash on the current branch). 
 
 ### Telemetry (Microsoft internal)
 When available, cache miss analysis data is pumped to telemetry. See the Telemetry section in the internal documentation at https://aka.ms/BuildXL

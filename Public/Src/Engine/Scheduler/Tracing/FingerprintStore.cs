@@ -85,6 +85,16 @@ namespace BuildXL.Scheduler.Tracing
         public bool MinimalIO;
 
         /// <summary>
+        /// For mocking GitHelper
+        /// </summary>
+        public IGitHelper GitHelper;
+
+        /// <summary>
+        /// Resulting keys from configuration
+        /// </summary>
+        public List<string> CandidateKeys;
+
+        /// <summary>
         /// Runtime cache misses.
         /// </summary>
         public ConcurrentDictionary<PipId, CacheMissData> RuntimeCacheMisses;
@@ -111,6 +121,11 @@ namespace BuildXL.Scheduler.Tracing
         {
             cacheMiss = default;
             return RuntimeCacheMisses?.TryGetValue(pipId, out cacheMiss) ?? false;
+        }
+
+        internal void SelectedCandidateKeys(IEnumerable<string> keys)
+        {
+            CandidateKeys = new List<string>(keys);
         }
 
         /// <summary>

@@ -532,6 +532,12 @@ config({
                     url: 'https://registry.npmjs.org/yarn/-/yarn-1.22.19.tgz',
                     archiveType: "tgz"
                 },
+                {
+                    moduleName: "MinGit.win-x64",
+                    url: 'https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/MinGit-2.43.0-64-bit.zip',
+                    hash: 'VSO0:15D4663615814ADAE92F449B78A2668C515BD475DFDAC30384EFF84C8413546700',
+                    archiveType: "zip"
+                }
             ],
         },
     ],

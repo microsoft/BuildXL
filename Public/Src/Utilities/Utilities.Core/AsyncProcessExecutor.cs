@@ -222,7 +222,7 @@ namespace BuildXL.Utilities.Core
             {
                 if (m_forceAddExecutionPermission)
                 {
-                    SetExecutePermissionIfNeeded(Process.StartInfo.FileName);
+                    SetExecutePermissionIfNeeded(Process.StartInfo.FileName, throwIfNotFound: false);
                 }
 
                 Process.Start();

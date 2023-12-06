@@ -27,6 +27,8 @@ using static BuildXL.Scheduler.Tracing.FingerprintStoreTestHooks;
 using BuildXL.Scheduler.Fingerprints;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using System.Threading;
+using BuildXL;
+using System.Threading.Tasks;
 
 namespace Test.BuildXL.FingerprintStore
 {
@@ -43,11 +45,11 @@ namespace Test.BuildXL.FingerprintStore
             Configuration.Logging.LogsToRetain = int.MaxValue;
         }
 
-        private void EnableFingerprintStore()
+        private void EnableFingerprintStore(CacheMissAnalysisOption option = null)
         {
             Configuration.Logging.StoreFingerprints = true;
             Configuration.Logging.FingerprintStoreMode = FingerprintStoreMode.ExecutionFingerprintsOnly;
-            Configuration.Logging.CacheMissAnalysisOption = CacheMissAnalysisOption.LocalMode();
+            Configuration.Logging.CacheMissAnalysisOption = option ?? CacheMissAnalysisOption.LocalMode();
         }
 
         private void DisableFingerprintStore()
@@ -202,6 +204,50 @@ namespace Test.BuildXL.FingerprintStore
 
             // Process2's cache miss is not analyzed as it is not a frontier pip.
             XAssert.IsFalse(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process2.PipId, out var _));
+        }
+
+        [Fact]
+        public void CacheMissAnalysisGitKeySelection()
+        {
+            EnableFingerprintStore(CacheMissAnalysisOption.GitHashesMode(new[] { "myprefix", "main" }));
+
+            var testHooks = new SchedulerTestHooks()
+            {
+                FingerprintStoreTestHooks = new FingerprintStoreTestHooks() {
+                    MaxEntryAge = TimeSpan.FromDays(1),
+                    GitHelper = new GitHelperMock()
+                }
+            };
+
+            var p = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            RunScheduler(testHooks).AssertSuccess();
+            var keys = testHooks.FingerprintStoreTestHooks.CandidateKeys;
+
+            // The key selection should get
+            // - the 5 latest commits from HEAD (HEAD-0, HEAD-1... HEAD-4)
+            // - the 3 latest commits from mergebase(HEAD, main)
+            //     these should be HEAD-4, HEAD-5, HEAD-6 (see GitHelperMock)
+            // - the 3 latest commits from 'main' (main-0, main-1, main-2)
+            // Duplicates are removed (so HEAD-4 won't appear twice)
+            var expectedKeys = new string[]
+            {
+                "myprefix_HEAD-0",
+                "myprefix_HEAD-1",
+                "myprefix_HEAD-2",
+                "myprefix_HEAD-3",
+                "myprefix_HEAD-4",
+                "myprefix_HEAD-5",
+                "myprefix_HEAD-6",
+                "myprefix_main-0",
+                "myprefix_main-1",
+                "myprefix_main-2",
+            };
+
+            XAssert.ArrayEqual(expectedKeys, keys.ToArray());
         }
 
         [Fact]

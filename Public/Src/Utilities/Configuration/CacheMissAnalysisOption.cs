@@ -14,7 +14,7 @@ namespace BuildXL.Utilities.Configuration
     {
         /// <nodoc />
         public CacheMissMode Mode { get; set; }
-
+        
         /// <summary>
         /// The list of keys that are candidates for comparison
         /// </summary>
@@ -41,6 +41,12 @@ namespace BuildXL.Utilities.Configuration
         public static CacheMissAnalysisOption RemoteMode(string[] keys)
         {
             return new CacheMissAnalysisOption(CacheMissMode.Remote, keys, AbsolutePath.Invalid);
+        }
+
+        /// <nodoc />
+        public static CacheMissAnalysisOption GitHashesMode(string[] keys)
+        {
+            return new CacheMissAnalysisOption(CacheMissMode.GitHashes, keys, AbsolutePath.Invalid);
         }
 
         /// <nodoc />
@@ -87,7 +93,12 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Using the fingerprint store in the given directory
         /// </summary>
-        CustomPath
+        CustomPath,
+
+        /// <summary>
+        /// Look up the fingerprint store in the cache using recent git commit hashes
+        /// </summary>
+        GitHashes,
     }
 
     /// <summary>

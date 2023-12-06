@@ -26,7 +26,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
     {
         private static readonly Tracer Tracer = new(nameof(BlobLifetimeManager));
 
-        public async Task RunAsync(
+        public Task RunAsync(
             OperationContext context,
             BlobQuotaKeeperConfig config,
             IAbsFileSystem fileSystem,
@@ -36,7 +36,27 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             string runId,
             int contentDegreeOfParallelism,
             int fingerprintDegreeOfParallelism,
+            string cacheInstance,
             bool dryRun)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () => RunCoreAsync(context, config, fileSystem, secretsProvider, accountNames, clock, runId, contentDegreeOfParallelism, fingerprintDegreeOfParallelism, dryRun, cacheInstance),
+                extraEndMessage: _ => $"CacheInstance=[{cacheInstance}], RunId=[{runId}]");
+        }
+
+        private async Task<BoolResult> RunCoreAsync(
+            OperationContext context,
+            BlobQuotaKeeperConfig config,
+            IAbsFileSystem fileSystem,
+            IBlobCacheSecretsProvider secretsProvider,
+            IReadOnlyList<BlobCacheStorageAccountName> accountNames,
+            IClock clock,
+            string runId,
+            int contentDegreeOfParallelism,
+            int fingerprintDegreeOfParallelism,
+            bool dryRun,
+            string cacheInstance)
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             context = context.WithCancellationToken(cts.Token);
@@ -71,129 +91,133 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             var machineLocation = MachineLocation.Parse(runId);
 
             await RunWithLeaseAsync(
-                    context,
-                    checkpointManagerStorageCreds,
-                    checkpointContainerName,
-                    machineLocation,
-                    cts,
-                    clock,
-                    async () =>
+                context,
+                checkpointManagerStorageCreds,
+                checkpointContainerName,
+                machineLocation,
+                cts,
+                clock,
+                async () =>
+                {
+                    using var temp = new DisposableDirectory(fileSystem);
+
+                    var rootPath = temp.Path / "LifetimeDatabase";
+                    var dbConfig = new RocksDbLifetimeDatabase.Configuration
                     {
-                        using var temp = new DisposableDirectory(fileSystem);
+                        DatabasePath = rootPath.Path,
+                        LruEnumerationPercentileStep = config.LruEnumerationPercentileStep,
+                        LruEnumerationBatchSize = config.LruEnumerationBatchSize,
+                        BlobNamespaceIds = namespaces,
+                    };
 
-                        var rootPath = temp.Path / "LifetimeDatabase";
-                        var dbConfig = new RocksDbLifetimeDatabase.Configuration
+                    var checkpointable = new RocksDbLifetimeDatabase.CheckpointableLifetimeDatabase(
+                        dbConfig,
+                        clock);
+
+                    var registry = new AzureBlobStorageCheckpointRegistry(
+                        new AzureBlobStorageCheckpointRegistryConfiguration
                         {
-                            DatabasePath = rootPath.Path,
-                            LruEnumerationPercentileStep = config.LruEnumerationPercentileStep,
-                            LruEnumerationBatchSize = config.LruEnumerationBatchSize,
-                            BlobNamespaceIds = namespaces,
-                        };
+                            Storage = new AzureBlobStorageCheckpointRegistryConfiguration.StorageSettings(
+                                Credentials: checkpointManagerStorageCreds,
+                                ContainerName: checkpointContainerName)
+                        });
 
-                        var checkpointable = new RocksDbLifetimeDatabase.CheckpointableLifetimeDatabase(
+                    var centralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(
+                        checkpointManagerStorageCreds,
+                        containerName: checkpointContainerName,
+                        checkpointsKey: "lifetime-manager"
+                        ));
+
+                    var checkpointManager = new CheckpointManager(
+                        checkpointable,
+                        registry,
+                        centralStorage,
+                        new CheckpointManagerConfiguration(
+                            WorkingDirectory: temp.Path / "CheckpointManager",
+                            PrimaryMachineLocation: machineLocation)
+                        {
+                            // We don't want to restore checkpoints on a loop.
+                            RestoreCheckpoints = false,
+                        },
+                        new CounterCollection<ContentLocationStoreCounters>(),
+                        clock);
+
+                    await checkpointManager.StartupAsync(context).ThrowIfFailure();
+                    var checkpointStateResult = await registry.GetCheckpointStateAsync(context).ThrowIfFailure();
+
+                    RocksDbLifetimeDatabase db;
+                    var firstRun = string.IsNullOrEmpty(checkpointStateResult.Value?.CheckpointId);
+                    if (!firstRun)
+                    {
+                        await checkpointManager.RestoreCheckpointAsync(context, checkpointStateResult.Value!).ThrowIfFailure();
+                        db = checkpointable.GetDatabase();
+                    }
+                    else
+                    {
+                        db = await LifetimeDatabaseCreator.CreateAsync(
+                            context,
                             dbConfig,
-                            clock);
+                            clock,
+                            contentDegreeOfParallelism,
+                            fingerprintDegreeOfParallelism,
+                            namespaceId => topologies[namespaceId]).ThrowIfFailureAsync();
 
-                        var registry = new AzureBlobStorageCheckpointRegistry(
-                            new AzureBlobStorageCheckpointRegistryConfiguration
-                            {
-                                Storage = new AzureBlobStorageCheckpointRegistryConfiguration.StorageSettings(
-                                    Credentials: checkpointManagerStorageCreds,
-                                    ContainerName: checkpointContainerName)
-                            });
+                        checkpointable.Database = db;
+                    }
 
-                        var centralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(
-                            checkpointManagerStorageCreds,
-                            containerName: checkpointContainerName,
-                            checkpointsKey: "lifetime-manager"
-                            ));
+                    using (db)
+                    {
+                        var accessors = namespaces.ToDictionary(
+                            n => n,
+                            db.GetAccessor);
 
-                        var checkpointManager = new CheckpointManager(
-                            checkpointable,
-                            registry,
-                            centralStorage,
-                            new CheckpointManagerConfiguration(
-                                WorkingDirectory: temp.Path / "CheckpointManager",
-                                PrimaryMachineLocation: machineLocation)
-                            {
-                                // We don't want to restore checkpoints on a loop.
-                                RestoreCheckpoints = false,
-                            },
-                            new CounterCollection<ContentLocationStoreCounters>(),
-                            clock);
-
-                        await checkpointManager.StartupAsync(context).ThrowIfFailure();
-                        var checkpointStateResult = await registry.GetCheckpointStateAsync(context).ThrowIfFailure();
-
-                        RocksDbLifetimeDatabase db;
-                        var firstRun = string.IsNullOrEmpty(checkpointStateResult.Value?.CheckpointId);
                         if (!firstRun)
                         {
-                            await checkpointManager.RestoreCheckpointAsync(context, checkpointStateResult.Value!).ThrowIfFailure();
-                            db = checkpointable.GetDatabase();
+                            // Only get updates from Azure if the database already existed
+                            var updater = new LifetimeDatabaseUpdater(topologies, accessors, clock, fingerprintDegreeOfParallelism);
+                            AzureStorageChangeFeedEventDispatcher dispatcher =
+                                CreateDispatcher(secretsProvider, accountNames, metadataMatrix, contentMatrix, db, updater, clock, checkpointManager, config.ChangeFeedPageSize);
+
+                            await dispatcher.ConsumeNewChangesAsync(context, config.CheckpointCreationInterval).ThrowIfFailure();
+
+                            await BlobLifetimeManagerHelpers.HandleConfigAndAccountDifferencesAsync(
+                                context, db, secretsProvider, accountNames, config, metadataMatrix, contentMatrix, clock);
                         }
-                        else
+
+                        // TODO: consider doing this in parallel, although it could be argued that if each of these calls
+                        // is making full use of resources, it can be better to just do this sequentially.
+                        foreach (var namespaceId in namespaces)
                         {
-                            db = await LifetimeDatabaseCreator.CreateAsync(
+                            context.Token.ThrowIfCancellationRequested();
+
+                            var accessor = accessors[namespaceId];
+                            var quotaKeeper = new BlobQuotaKeeper(accessor, topologies[namespaceId], config.LastAccessTimeDeletionThreshold, clock);
+                            _ = await quotaKeeper.EnsureUnderQuotaAsync(
                                 context,
-                                dbConfig,
-                                clock,
+                                maxSizes[namespaceId],
+                                dryRun,
                                 contentDegreeOfParallelism,
                                 fingerprintDegreeOfParallelism,
-                                namespaceId => topologies[namespaceId]).ThrowIfFailureAsync();
-
-                            checkpointable.Database = db;
+                                checkpointManager,
+                                config.CheckpointCreationInterval,
+                                cacheInstance,
+                                runId);
                         }
 
-                        using (db)
+                        if (!dryRun)
                         {
-                            var accessors = namespaces.ToDictionary(
-                                n => n,
-                                db.GetAccessor);
+                            context.Token.ThrowIfCancellationRequested();
 
-                            if (!firstRun)
-                            {
-                                // Only get updates from Azure if the database already existed
-                                var updater = new LifetimeDatabaseUpdater(topologies, accessors, clock, fingerprintDegreeOfParallelism);
-                                AzureStorageChangeFeedEventDispatcher dispatcher =
-                                    CreateDispatcher(secretsProvider, accountNames, metadataMatrix, contentMatrix, db, updater, clock, checkpointManager, config.ChangeFeedPageSize);
-
-                                await dispatcher.ConsumeNewChangesAsync(context, config.CheckpointCreationInterval).ThrowIfFailure();
-
-                                await BlobLifetimeManagerHelpers.HandleConfigAndAccountDifferencesAsync(
-                                    context, db, secretsProvider, accountNames, config, metadataMatrix, contentMatrix, clock);
-                            }
-
-                            // TODO: consider doing this in parallel, although it could be argued that if each of these calls
-                            // is making full use of resources, it can be better to just do this sequentially.
-                            foreach (var namespaceId in namespaces)
-                            {
-                                context.Token.ThrowIfCancellationRequested();
-
-                                var accessor = accessors[namespaceId];
-                                var quotaKeeper = new BlobQuotaKeeper(accessor, topologies[namespaceId], config.LastAccessTimeDeletionThreshold, clock);
-                                _ = await quotaKeeper.EnsureUnderQuota(
-                                    context,
-                                    maxSizes[namespaceId],
-                                    dryRun,
-                                    contentDegreeOfParallelism,
-                                    fingerprintDegreeOfParallelism,
-                                    checkpointManager,
-                                    config.CheckpointCreationInterval);
-                            }
-
-                            if (!dryRun)
-                            {
-                                context.Token.ThrowIfCancellationRequested();
-
-                                await checkpointManager.CreateCheckpointAsync(
-                                    context,
-                                    new EventSequencePoint(clock.UtcNow),
-                                    maxEventProcessingDelay: null)
-                                    .ThrowIfFailure();
-                            }
+                            await checkpointManager.CreateCheckpointAsync(
+                                context,
+                                new EventSequencePoint(clock.UtcNow),
+                                maxEventProcessingDelay: null)
+                                .ThrowIfFailure();
                         }
-                    });
+                    }
+                });
+
+            return BoolResult.Success;
         }
 
         protected virtual AzureStorageChangeFeedEventDispatcher CreateDispatcher(

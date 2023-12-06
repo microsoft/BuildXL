@@ -61,14 +61,16 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         ///
         /// While this is going on, periodically creates checkpoints to make sure that, if something goes wrong, we don't have to start over.
         /// </summary>
-        public Task<Result<long>> EnsureUnderQuota(
+        public Task<Result<long>> EnsureUnderQuotaAsync(
             OperationContext context,
             long maxSize,
             bool dryRun,
             int contentDegreeOfParallelism,
             int fingerprintDegreeOfParallelism,
             CheckpointManager checkpointManager,
-            TimeSpan checkpointCreationInterval)
+            TimeSpan checkpointCreationInterval,
+            string cacheInstance,
+            string runId)
         {
             Contract.Requires(contentDegreeOfParallelism > 0);
             Contract.Requires(fingerprintDegreeOfParallelism > 0);
@@ -131,7 +133,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     return currentSize;
                 },
-                extraEndMessage: result => $"MaxSize=[{maxSize}], CurrentSize=[{(result.Succeeded ? result.Value : null)}]");
+                extraEndMessage: result => $"CacheInstance=[{cacheInstance}], RunId=[{runId}], MaxSize=[{maxSize}], CurrentSize=[{(result.Succeeded ? result.Value : null)}]");
         }
 
         private async Task<long> DeleteContentHashListsAndReturnSizeAsync(

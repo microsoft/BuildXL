@@ -74,14 +74,16 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
 
                     // It is much, much simpler to pass in null here, since this test really shouldn't use the checkpoint manager.
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-                    await manager.EnsureUnderQuota(
+                    await manager.EnsureUnderQuotaAsync(
                         context,
                         maxSize: 0,
                         dryRun: false,
                         contentDegreeOfParallelism: 1,
                         fingerprintDegreeOfParallelism: 1,
                         checkpointManager: null,
-                        checkpointCreationInterval: TimeSpan.FromDays(1)).ThrowIfFailure();
+                        checkpointCreationInterval: TimeSpan.FromDays(1),
+                        cacheInstance: "cacheInstance",
+                        runId: "runId").ThrowIfFailure();
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 
                     (await session.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None)).Code.Should().Be(OpenStreamResult.ResultCode.ContentNotFound);
@@ -192,14 +194,16 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
 
                     // It is much, much simpler to pass in null here, since this test really shouldn't use the checkpoint manager.
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-                    await manager.EnsureUnderQuota(
+                    await manager.EnsureUnderQuotaAsync(
                         context,
                         maxSize: maxSize,
                         dryRun: false,
                         contentDegreeOfParallelism: 1,
                         fingerprintDegreeOfParallelism: 1,
                         checkpointManager: null,
-                        checkpointCreationInterval: TimeSpan.FromDays(1)).ThrowIfFailure();
+                        checkpointCreationInterval: TimeSpan.FromDays(1),
+                        cacheInstance: "cacheInstance",
+                        runId: "runId").ThrowIfFailure();
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 
                     for (var i = 0; i < (totalContent - contentToKeep); i++)

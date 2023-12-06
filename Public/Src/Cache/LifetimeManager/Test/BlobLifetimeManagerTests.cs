@@ -92,6 +92,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                             runId: $"run{i}",
                             contentDegreeOfParallelism: 1,
                             fingerprintDegreeOfParallelism: 1,
+                            cacheInstance: "testCache",
                             dryRun: false);
                     }
                 });

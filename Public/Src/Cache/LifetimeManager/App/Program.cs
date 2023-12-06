@@ -62,9 +62,13 @@ namespace BuildXL.Cache.BlobLifetimeManager
             [DefaultValue(false)]
             bool enableFileLogging,
 
+            [Description("For tracing. Name of the cache instance that is being GCd.")]
+            [DefaultValue("")]
+            string cacheInstance,
+
             bool debug)
         {
-            RunCoreAsync(configPath, dryRun, contentDegreeOfParallelism, fingerprintDegreeOfParallelism, runId, logSeverity, enableFileLogging, debug).GetAwaiter().GetResult();
+            RunCoreAsync(configPath, dryRun, contentDegreeOfParallelism, fingerprintDegreeOfParallelism, runId, logSeverity, enableFileLogging, cacheInstance, debug).GetAwaiter().GetResult();
         }
 
         public static async Task RunCoreAsync(
@@ -75,6 +79,7 @@ namespace BuildXL.Cache.BlobLifetimeManager
             string runId,
             Severity logSeverity,
             bool enableFileLogging,
+            string cacheInstance,
             bool debug)
         {
             if (debug)
@@ -132,6 +137,7 @@ namespace BuildXL.Cache.BlobLifetimeManager
                 runId,
                 contentDegreeOfParallelism,
                 fingerprintDegreeOfParallelism,
+                cacheInstance,
                 dryRun);
         }
     }

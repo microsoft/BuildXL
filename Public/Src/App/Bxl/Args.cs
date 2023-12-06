@@ -95,7 +95,9 @@ namespace BuildXL
                 // Setting engine configuration has to be done before the creation of configuration.
                 SetEngineConfigurationVersionIfSpecified(cl);
 
-                var configuration = new Utilities.Configuration.Mutable.CommandLineConfiguration();
+                var infra = CaptureBuildInfo.DetermineInfra(cl);
+                // Start with a config with infra-specific defaults and apply user-provided configuration on top of it.
+                var configuration = ConfigurationProvider.GetMutableDefaultConfig(infra);
                 var startupConfiguration = configuration.Startup;
                 var engineConfiguration = configuration.Engine;
                 var layoutConfiguration = configuration.Layout;
@@ -582,7 +584,7 @@ namespace BuildXL
                             sign => configuration.Cache.HonorDirectoryCasingOnDisk = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "inCloudBuild",
-                            sign => configuration.InCloudBuild = sign),
+                            sign => { /* Do nothing - the argument is handled by CaptureBuildInfo, and listed here for backward compatibility. */}),
                         OptionHandlerFactory.CreateBoolOption(
                             "incremental",
                             sign => cacheConfiguration.Incremental = sign),
@@ -1122,7 +1124,7 @@ namespace BuildXL
                             "typeCheck",
                             sign => { /* Do nothing Office still passes this flag even though it is deprecated. */ }),
 
-                        // <Begin unsafe arguments>
+#region Unsafe arguments
                         // Unsafe options should follow the pattern that enabling them (i.e. "/unsafe_option" or "/unsafe_option+") should lead to an unsafe configuration
                         // Unsafe options must pass the optional parameter isUnsafe as true
                         // IMPORTANT: If an unsafe option is added here, there should also be a new warning logging function added.
@@ -1328,7 +1330,7 @@ namespace BuildXL
                             "unsafe_SkipFlaggingSharedOpaqueOutputs",
                             sign => { sandboxConfiguration.UnsafeSandboxConfigurationMutable.SkipFlaggingSharedOpaqueOutputs = sign; },
                             isUnsafe: true),
-                        // </ end unsafe options>
+#endregion
 
                         OptionHandlerFactory.CreateBoolOption(
                             "updateFileContentTableByScanningChangeJournal",
@@ -1514,18 +1516,11 @@ namespace BuildXL
                 {
                     configuration.Server = ServerMode.Disabled;
 
-                    if (!loggingConfiguration.RemoteTelemetry.HasValue)
-                    {
-                        loggingConfiguration.RemoteTelemetry = RemoteTelemetry.EnabledAndNotify;
-                    }
-
-                    cacheConfiguration.CacheGraph = true;
-
-                    // Forcefully disable incremental scheduling in CB.
-                    schedulingConfiguration.IncrementalScheduling = false;
-
                     // if not explicitly disabled, enable user profile redirect and force the location
-                    if (!enableProfileRedirect.HasValue || enableProfileRedirect.Value)
+                    if ((!enableProfileRedirect.HasValue || enableProfileRedirect.Value)
+                        // Profile redirection only happens on Windows. Technically, this is a redundant check because there are only
+                        // Windows based builds in CloudBuild. However, some of the tests exercise this code path when they run on Linux.
+                        && !OperatingSystemHelper.IsUnixOS)
                     {
                         if (!layoutConfiguration.RedirectedUserProfileJunctionRoot.IsValid)
                         {
@@ -1533,17 +1528,12 @@ namespace BuildXL
                         }
 
                         enableProfileRedirect = true;
-                    }
-
-                    if (!frontEndConfiguration.EnableCredScan.HasValue)
-                    {
-                        frontEndConfiguration.EnableCredScan = true;
-                    }
+                    } 
                 }
 
                 if (!OperatingSystemHelper.IsUnixOS)
                 {
-                    // if /enableProfileRedirect was set, RedirectedUserProfileJunctionRoot must have been set as well
+                    // If /enableProfileRedirect was set, RedirectedUserProfileJunctionRoot must have been set as well
                     // (either explicitly via /redirectedUserProfilePath argument or implicitly via /inCloudBuild flag)
                     if (enableProfileRedirect.HasValue && enableProfileRedirect.Value && !layoutConfiguration.RedirectedUserProfileJunctionRoot.IsValid)
                     {

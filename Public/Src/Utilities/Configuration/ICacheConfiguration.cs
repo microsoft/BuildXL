@@ -173,5 +173,10 @@ namespace BuildXL.Utilities.Configuration
         /// When true, casing of directories of the produced outputs will match the one found on disk (as opposed to using the casing of the first time the path is mentioned in the build)
         /// </summary>
         bool HonorDirectoryCasingOnDisk { get; }
+
+        /// <summary>
+        /// For source files, allow reusing file's weak identity when recording a new content hash.
+        /// </summary>
+        bool AllowReuseOfWeakIdenityForSourceFiles { get; }
     }
 }

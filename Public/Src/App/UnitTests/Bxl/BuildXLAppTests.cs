@@ -7,11 +7,9 @@ using System.Reflection;
 using System.Text;
 using System.Xml;
 using BuildXL;
-using BuildXL.App.Tracing;
-using BuildXL.Scheduler;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -141,6 +139,30 @@ namespace Test.BuildXL
             {
                 XAssert.Fail(errors.ToString());
             }
+        }
+
+        [Theory]
+        [InlineData(Infra.CloudBuild, DistributedBuildRoles.Master, ExecutionEnvironment.OfficeMetaBuildDev, "0100-ffff-0f2d")]
+        [InlineData(Infra.Ado, DistributedBuildRoles.Orchestrator, ExecutionEnvironment.OfficeMetaBuildDev, "0300-eeee-0f2d")]
+        [InlineData(Infra.Developer, DistributedBuildRoles.None, ExecutionEnvironment.OfficeMetaBuildDev, "0000-0000-0f2d")]
+        [InlineData(Infra.Developer, DistributedBuildRoles.None, ExecutionEnvironment.OfficeProductBuildLab, "0000-0000-0f37")]
+        [InlineData(Infra.Developer, DistributedBuildRoles.None, ExecutionEnvironment.SelfHostLKG, "0000-0000-bd07")]
+        public void TestSessionIdGeneration(Infra infra, DistributedBuildRoles buildRole, ExecutionEnvironment executionEnvironment, string expectedSubString)
+        {
+            var config = new ConfigurationImpl();
+            config.Infra = infra;
+            config.Logging.Environment = executionEnvironment;
+            config.Distribution.BuildRole = buildRole;
+
+            var guid = System.Guid.NewGuid();
+            var stringGuid = guid.ToString();
+            var firstDash = stringGuid.IndexOf('-');
+            var expectedString = $"-{expectedSubString}{stringGuid[stringGuid.LastIndexOf('-')..]}";
+
+            var sessionId = BuildXLApp.ComputeSessionId(guid, config).ToString();
+
+            XAssert.AreNotEqual(stringGuid[..firstDash], sessionId[..firstDash], "The first blocks should not match");
+            XAssert.AreEqual(expectedString, sessionId[firstDash..]);
         }
     }
 }

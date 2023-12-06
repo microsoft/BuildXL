@@ -13,6 +13,7 @@ namespace BxlPipGraphFragmentGenerator {
         sources: globR(d`.`, "*.cs"),
         generateLogs: true,
         references: [
+            importFrom("BuildXL.App").Main.exe,
             importFrom("BuildXL.App").ConsoleLogger.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Engine.dll,

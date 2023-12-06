@@ -12,6 +12,7 @@ namespace BxlScriptAnalyzer {
         sources: globR(d`.`, "*.cs"),
         generateLogs: true,
         references: [
+            importFrom("BuildXL.App").Main.exe,
             importFrom("BuildXL.App").ConsoleLogger.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Engine").Cache.dll,

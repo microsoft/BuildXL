@@ -227,5 +227,10 @@ namespace BuildXL.Utilities.Configuration
         /// Contains list of semistablehashes and the specific properties applied to those pips.
         /// </summary>
         IReadOnlyList<PipSpecificPropertyAndValue> PipSpecificPropertyAndValues { get; }
+
+        /// <summary>
+        /// Check that files that reachable via a source directory are also reachable via target directory.
+        /// </summary>
+        bool VerifyJunctionsDoNotConflictWithDirectoryTranslations { get; }
     }
 }

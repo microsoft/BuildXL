@@ -65,7 +65,7 @@ namespace Test.BuildXL.Engine.Cache
         [Fact]
         public async Task DiscoveryTracksFileWithUnknownHashReuseWeakIdentity()
         {
-            var harness = CreateHarness(inCloudBuild: true);
+            var harness = CreateHarness(allowReuseOfWeakIdenityForSourceFiles: true);
 
             AbsolutePath tempPath = harness.GetFullPath("SomeFile");
             FileContentInfo info = harness.WriteFileAndHashContents(tempPath, "Fancy contents");
@@ -903,7 +903,7 @@ namespace Test.BuildXL.Engine.Cache
             DirectoryTranslator directoryTranslator = null,
             bool verifyKnownIdentityOnTrackingFile = true,
             IArtifactContentCacheForTest contentCacheForTest = null,
-            bool inCloudBuild = false,
+            bool allowReuseOfWeakIdenityForSourceFiles = false,
             bool honorDirectoryCasingOnDisk = false)
         {
             return new Harness(
@@ -912,13 +912,13 @@ namespace Test.BuildXL.Engine.Cache
                 directoryTranslator: directoryTranslator,
                 verifyKnownIdentityOnTrackingFile: verifyKnownIdentityOnTrackingFile,
                 contentCacheForTest: contentCacheForTest,
-                inCloudBuild: inCloudBuild,
+                allowReuseOfWeakIdenityForSourceFiles: allowReuseOfWeakIdenityForSourceFiles,
                 honorDirectoryCasingOnDisk: honorDirectoryCasingOnDisk);
         }
 
         private class Harness : IArtifactContentCache
         {
-            private readonly bool m_inCloudBuild;
+            private readonly bool m_allowReuseOfWeakIdenityForSourceFiles;
             private readonly bool m_honorDirectoryCasingOnDisk;
             private readonly AbsolutePath m_outputRoot;
             private readonly DirectoryTranslator m_directoryTranslator;
@@ -937,7 +937,7 @@ namespace Test.BuildXL.Engine.Cache
                         Tracker, 
                         m_directoryTranslator,
                         new TestFileChangeTrackingSelector(this),
-                        inCloudBuild: m_inCloudBuild,
+                        allowReuseOfWeakIdenityForSourceFiles: m_allowReuseOfWeakIdenityForSourceFiles,
                         honorDirectoryCasingOnDisk: m_honorDirectoryCasingOnDisk);
                     return m_store;
                 }
@@ -957,11 +957,11 @@ namespace Test.BuildXL.Engine.Cache
                 DirectoryTranslator directoryTranslator,
                 bool verifyKnownIdentityOnTrackingFile, 
                 IArtifactContentCacheForTest contentCacheForTest,
-                bool inCloudBuild,
+                bool allowReuseOfWeakIdenityForSourceFiles,
                 bool honorDirectoryCasingOnDisk)
             {
                 m_directoryTranslator = directoryTranslator;
-                m_inCloudBuild = inCloudBuild;
+                m_allowReuseOfWeakIdenityForSourceFiles = allowReuseOfWeakIdenityForSourceFiles;
                 m_honorDirectoryCasingOnDisk = honorDirectoryCasingOnDisk;
 
                 // Dummy FCT should always prevent tracking from succeeding.

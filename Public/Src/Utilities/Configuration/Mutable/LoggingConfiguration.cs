@@ -68,6 +68,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PerfCollectorFrequencyMs = 5_000;
             LogToKusto = false;
             LogEventsToConsole = new List<int>();
+            DisplayWarningErrorTime = false;
+            EnableCloudBuildEtwLoggingIntegration = false;
         }
 
         /// <nodoc />
@@ -173,6 +175,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogToKustoBlobUri = template.LogToKustoBlobUri;
             LogToKustoIdentityId = template.LogToKustoIdentityId;
             LogEventsToConsole = new List<int>(template.LogEventsToConsole);
+            RemoteTelemetryFlushTimeout = template.RemoteTelemetryFlushTimeout;
+            DisplayWarningErrorTime = template.DisplayWarningErrorTime;
+            EnableCloudBuildEtwLoggingIntegration = template.EnableCloudBuildEtwLoggingIntegration;
         }
 
         /// <inheritdoc />
@@ -447,5 +452,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         IReadOnlyList<int> ILoggingConfiguration.LogEventsToConsole => LogEventsToConsole;
+
+        /// <inheritdoc/>
+        public TimeSpan? RemoteTelemetryFlushTimeout { get; set; }
+        
+        /// <inheritdoc/>
+        public bool DisplayWarningErrorTime { get; set; }
+
+        /// <inheritdoc/>
+        public bool EnableCloudBuildEtwLoggingIntegration { get; set; }
     }
 }

@@ -176,18 +176,6 @@ namespace BuildXL.Utilities.Configuration
         IIdeConfiguration Ide { get; }
 
         /// <summary>
-        /// Whether this build is running in CloudBuild
-        /// </summary>
-        /// <remarks>
-        /// Q: Isn't that what the telemetry environment is for?
-        /// A: Not exactly. That "environment" has evolved into being more of a customer/application identifier. Where the build is
-        /// running is a different dimension. Otherwise all environments would be duplicated once they move to CloudBuild.
-        /// Also, CloudBuild is a very special environment. So BuildXL may benefit from awareness that it is run in that
-        /// setting in order to enable/disable various features.
-        /// </remarks>
-        bool? InCloudBuild { get; }
-
-        /// <summary>
         /// Whether BuildXL is allowed to interact with the user either via console or popups.
         /// A common use case is to allow front ends like nuget to display authentication prompts in case the user is not authenticated.
         /// This defaults to false, and should never be set to true when running in an unattended lab or cloud environment as it can potentially hang the build.
@@ -198,5 +186,17 @@ namespace BuildXL.Utilities.Configuration
         /// Default configuration parameters for front-end resolvers.
         /// </summary>
         IResolverDefaults ResolverDefaults { get; }
+
+        /// <summary>
+        /// The infrastructure this build is running on.
+        /// </summary>
+        /// <remarks>
+        /// Q: Isn't that what the telemetry environment is for?
+        /// A: Not exactly. That "environment" has evolved into being more of a customer/application identifier. Where the build is
+        /// running is a different dimension. Otherwise all environments would be duplicated once they move to CloudBuild.
+        /// Also, CloudBuild/ADO are a very special environments. So BuildXL may benefit from awareness that it is run in that
+        /// setting in order to enable/disable various features.
+        /// </remarks>
+        Infra Infra { get; }
     }
 }

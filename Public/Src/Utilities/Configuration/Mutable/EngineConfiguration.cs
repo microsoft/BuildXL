@@ -39,6 +39,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             VerifyFileContentOnBuildManifestHashComputation = false;
             VerifyJournalForEngineVolumes = true;
             PipSpecificPropertyAndValues = new List<PipSpecificPropertyAndValue>();
+            VerifyJunctionsDoNotConflictWithDirectoryTranslations = false;
         }
 
         /// <nodoc />
@@ -85,6 +86,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             VerifyJournalForEngineVolumes = template.VerifyJournalForEngineVolumes;
             PipSpecificPropertyAndValues = template.PipSpecificPropertyAndValues.Select(
                                                p => new PipSpecificPropertyAndValue(p.PropertyName, p.PipSemiStableHash, p.PropertyValue)).ToList();
+            VerifyJunctionsDoNotConflictWithDirectoryTranslations = template.VerifyJunctionsDoNotConflictWithDirectoryTranslations;
         }
 
         /// <inheritdoc />
@@ -193,5 +195,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         IReadOnlyList<PipSpecificPropertyAndValue> IEngineConfiguration.PipSpecificPropertyAndValues => PipSpecificPropertyAndValues;
 
+        /// <inheritdoc />
+        public bool VerifyJunctionsDoNotConflictWithDirectoryTranslations { get; set; }
     }
 }

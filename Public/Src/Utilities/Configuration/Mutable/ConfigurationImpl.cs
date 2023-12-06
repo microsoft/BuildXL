@@ -40,6 +40,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CommandLineEnabledUnsafeOptions = new List<string>();
             Ide = new IdeConfiguration();
             ResolverDefaults = new ResolverDefaults();
+            Infra = Infra.Developer;
         }
 
         /// <summary>
@@ -76,9 +77,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FrontEnd = new FrontEndConfiguration(template.FrontEnd, pathRemapper);
             CommandLineEnabledUnsafeOptions = new List<string>(template.CommandLineEnabledUnsafeOptions);
             Ide = new IdeConfiguration(template.Ide, pathRemapper);
-            InCloudBuild = template.InCloudBuild;
             Interactive = template.Interactive;
             ResolverDefaults = new ResolverDefaults(template.ResolverDefaults);
+            Infra = template.Infra;
         }
 
         /// <inheritdoc />
@@ -486,7 +487,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         IIdeConfiguration IConfiguration.Ide => Ide;
 
-        /// <inheritdoc />
+        /// <summary>
+        /// This property is no longer a part of the interface, but it's preserved here for backward compatibility.
+        /// Our logic for parsing configuration specified in the spec files is doing some reflection magic, so if
+        /// a user has 'inCloudBuild' in their specs, that said magic will fail if this property is missing.
+        /// </summary>
+        [ObsoleteAttribute()]
         public bool? InCloudBuild { get; set; }
 
         /// <inheritdoc />
@@ -510,5 +516,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? DisableInBoxSdkSourceResolver { get; set; }
+
+        /// <inheritdoc/>
+        public Infra Infra { get; set; }
     }
 }

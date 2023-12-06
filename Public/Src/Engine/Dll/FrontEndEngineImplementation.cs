@@ -157,7 +157,7 @@ namespace BuildXL.Engine
                 m_inputTracker.FileChangeTracker, 
                 directoryTranslator,
                 vfsCasRoot: configuration.Cache.VfsCasRoot,
-                inCloudBuild: configuration.InCloudBuild());
+                allowReuseOfWeakIdenityForSourceFiles: configuration.Cache.AllowReuseOfWeakIdenityForSourceFiles);
 
             m_localDiskContentStoreConcurrencyLimiter = ActionBlockSlim.CreateWithAsyncAction<MaterializeFileRequest>(
                 Environment.ProcessorCount,

@@ -514,6 +514,7 @@ interface Configuration {
     vsDomino?: IdeConfiguration;
 
     /** Whether this build is running in CloudBuild */
+    @@obsolete("Please use command line argument.")
     inCloudBuild?: boolean;
 
     /** Overrides for defaults by front-end resolver. */

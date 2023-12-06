@@ -136,7 +136,7 @@ namespace BuildXL.Utilities.Configuration
         Osg        = 0x0500,
         VisualCpp  = 0x7C00,
 
-        // Stage 0x__X0
+        // Stage 0x__X_
         NoStage      = 0x0000,
         EnlistBuild  = 0x0010,
         MetaBuild    = 0x0020,

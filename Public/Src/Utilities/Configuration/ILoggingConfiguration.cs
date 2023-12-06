@@ -234,6 +234,11 @@ namespace BuildXL.Utilities.Configuration
         RemoteTelemetry? RemoteTelemetry { get; }
 
         /// <summary>
+        /// When <see cref="RemoteTelemetry"/> is enabled, this value can be used to override telemetry flush timeout.
+        /// </summary>
+        TimeSpan? RemoteTelemetryFlushTimeout { get; }
+
+        /// <summary>
         /// Attaches tracing information to the build. May be specified multiple times. Ex: /TraceInfo:Branch=MyBranch
         /// </summary>
         [NotNull]
@@ -467,5 +472,21 @@ namespace BuildXL.Utilities.Configuration
         /// Collection of log event ids that should be sent to the console
         /// </summary>
         public IReadOnlyList<int> LogEventsToConsole { get; }
+
+        /// <summary>
+        /// Whether to print event time in .err and .wrn logs.
+        /// </summary>
+        /// <remarks>
+        /// False by default
+        /// </remarks>
+        public bool DisplayWarningErrorTime { get; }
+
+        /// <summary>
+        /// Whether to enable CloudBuild specific ETW logging events.
+        /// </summary>
+        /// <remarks>
+        /// False by default
+        /// </remarks>
+        public bool EnableCloudBuildEtwLoggingIntegration { get; }
     }
 }

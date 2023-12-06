@@ -177,8 +177,7 @@ namespace BuildXL
         private BuildViewModel m_buildViewModel;
         private readonly CrashCollectorMacOS m_crashCollector;
 
-        // Allow a longer Aria telemetry flush time in CloudBuild since we're more willing to wait at the tail of builds there
-        private TimeSpan TelemetryFlushTimeout => m_configuration.InCloudBuild() ? TimeSpan.FromMinutes(1) : AriaV2StaticState.DefaultShutdownTimeout;
+        private TimeSpan TelemetryFlushTimeout => m_configuration.Logging.RemoteTelemetryFlushTimeout ?? AriaV2StaticState.DefaultShutdownTimeout;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
@@ -385,35 +384,29 @@ namespace BuildXL
                     // all warning/errors should be included in a dev log
                     EventLevel.Warning));
         }
-
+        
+        // Ideally, these configs should be set in <see cref="ConfigurationProvider.GetMutableDefaultConfig(Infra, PathTable)"/>. However, the values that
+        // are being set here are not visible there and it's not clear how setting them there might affect 'external' users of the config object, e.g.,
+        // BxlPipGraphFragmentGenerator and BxlScriptAnalyzer.
         private static void ConfigureCloudBuildLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
         {
-            if (mutableConfig.InCloudBuild())
+            if (!mutableConfig.InCloudBuild())
             {
-                // Unless explicitly specified, async logging is enabled by default in CloudBuild
-                if (!mutableConfig.Logging.EnableAsyncLogging.HasValue)
-                {
-                    mutableConfig.Logging.EnableAsyncLogging = true;
-                }
-
-                if (!mutableConfig.Logging.SaveFingerprintStoreToLogs.HasValue)
-                {
-                    mutableConfig.Logging.SaveFingerprintStoreToLogs = true;
-                }
-
-                // NOTE: in CB we add duplicate pip outputs to an additional log.
-                mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.PipOutputLog, (new[] { (int)ProcessesLogEventId.PipProcessOutput }, null));
-
-                // Distribution related messages are disabled in default text log and routed to special log file
-                mutableConfig.Logging.NoLog.AddRange(DistributionHelpers.DistributionInfoMessages);
-                mutableConfig.Logging.NoLog.AddRange(DistributionHelpers.DistributionWarnings);
-
-                // Need to route events to ETW from custom log since no log is enabled for text log
-                // Use special distribution log kind in order to have a tag for only searching distribution
-                // log events in Kusto.
-                mutableConfig.Logging.CustomLogEtwKinds[mutableConfig.Logging.PipOutputLog] = "pipoutput";
+                return;
             }
+
+            // NOTE: in CB we add duplicate pip outputs to an additional log.
+            mutableConfig.Logging.CustomLog.Add(
+                mutableConfig.Logging.PipOutputLog, (new[] { (int)ProcessesLogEventId.PipProcessOutput }, null));
+
+            // Distribution related messages are disabled in default text log and routed to special log file
+            mutableConfig.Logging.NoLog.AddRange(DistributionHelpers.DistributionInfoMessages);
+            mutableConfig.Logging.NoLog.AddRange(DistributionHelpers.DistributionWarnings);
+
+            // Need to route events to ETW from custom log since no log is enabled for text log
+            // Use special distribution log kind in order to have a tag for only searching distribution
+            // log events in Kusto.
+            mutableConfig.Logging.CustomLogEtwKinds[mutableConfig.Logging.PipOutputLog] = "pipoutput";
         }
 
         void IDisposable.Dispose()
@@ -448,8 +441,8 @@ namespace BuildXL
                    notWorker: m_configuration.Distribution.BuildRole != DistributedBuildRoles.Worker,
                    buildViewModel: m_buildViewModel,
                    // TODO: Remove this once we can add timestamps for all logs by default
-                   displayWarningErrorTime: m_configuration.InCloudBuild(),
-                   inCloudBuild: m_configuration.InCloudBuild(),
+                   displayWarningErrorTime: m_configuration.Logging.DisplayWarningErrorTime,
+                   enableCloudBuildLogging: m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration,
                    cancellationToken: m_cancellationSource.Token,
                    m_configuration.Layout.ObjectDirectory))
             {
@@ -497,7 +490,7 @@ namespace BuildXL
                     configureLogging: loggingContext =>
                     {
                         appLoggers.ConfigureLogging(loggingContext);
-                        if (m_configuration.InCloudBuild())
+                        if (m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration)
                         {
                             appLoggers.EnableEtwOutputLogging(loggingContext);
                         }
@@ -1017,7 +1010,7 @@ namespace BuildXL
                 relatedActivityId = Guid.NewGuid();
             }
 
-            var sessionId = ComputeSessionId(relatedActivityId);
+            var sessionId = ComputeSessionId(relatedActivityId, m_configuration);
             var currentDirectory = Directory.GetCurrentDirectory();
             LoggingContext topLevelContext = new LoggingContext(
                 relatedActivityId,
@@ -1082,7 +1075,7 @@ namespace BuildXL
                         m_configuration.Logging.Environment,
                         utcNow.Ticks,
                         translatedLogDirectory,
-                        m_configuration.InCloudBuild(),
+                        m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration,
                         currentDirectory,
                         m_initialConfiguration.Startup.ConfigFile.ToString(m_pathTable),
                         m_configuration.Distribution.BuildRole.ToLoggingString(),
@@ -1109,7 +1102,7 @@ namespace BuildXL
                         result.BucketMessage,
                         Convert.ToInt32(utcNow.Subtract(m_startTimeUtc).TotalMilliseconds),
                         utcNow.Ticks,
-                        m_configuration.InCloudBuild());
+                        m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration);
 
                     sendFinalStatistics();
 
@@ -1265,16 +1258,15 @@ namespace BuildXL
         /// Computes session identifier which allows easier searching in Kusto for
         /// builds based traits: Cloudbuild BuildId (i.e. RelatedActivityId), ExecutionEnvironment, Distributed build role
         ///
-        /// Search for orchestrators: '| where sessionId has "0001-FFFF"'
-        /// Search for workers: '| where sessionId has "0002-FFFF"'
+        /// Search for orchestrators: '| where sessionId has "0100-FFFF"'
+        /// Search for workers: '| where sessionId has "0200-FFFF"'
         /// Search for office metabuild: '| where sessionId has "FFFF-0F"'
         /// </summary>
-        private Guid ComputeSessionId(Guid relatedActivityId)
+        internal static Guid ComputeSessionId(Guid relatedActivityId, IConfiguration configuration)
         {
             var bytes = relatedActivityId.ToByteArray();
-            var executionEnvironment = m_configuration.Logging.Environment;
-            var distributedBuildRole = m_configuration.Distribution.BuildRole;
-            var inCloudBuild = m_configuration.InCloudBuild();
+            var executionEnvironment = configuration.Logging.Environment;
+            var distributedBuildRole = configuration.Distribution.BuildRole;
 
             // SessionId:
             // 00-03: 00-03 from random guid
@@ -1285,13 +1277,21 @@ namespace BuildXL
             }
 
             // 04-05: BuildRole
+            // note: these two bytes will be swapped in the guid's string form: AA, BB => BBAA
             bytes[4] = 0;
             bytes[5] = (byte)distributedBuildRole;
 
-            // 06-07: InCloudBuild = FFFF, !InCloudBuild = 0000
-            var inCloudBuildSpecifier = inCloudBuild ? byte.MaxValue : (byte)0;
-            bytes[6] = inCloudBuildSpecifier;
-            bytes[7] = inCloudBuildSpecifier;
+            // 06-07: InCloudBuild = FFFF, InAdo = EEEE, elsewhere = 0000
+            // note: these two bytes will be swapped in the guid's string form: AA, BB => BBAA
+            byte infraMarker = configuration.Infra switch 
+            { 
+                Infra.CloudBuild => 0xFF,
+                Infra.Ado => 0xEE,
+                _ => 0x00
+            };
+
+            bytes[6] = infraMarker;
+            bytes[7] = infraMarker;
 
             // 08-09: executionEnvironment
             bytes[8] = (byte)(((int)executionEnvironment >> 8) & 0xFF);
@@ -1502,7 +1502,7 @@ namespace BuildXL
                 bool notWorker,
                 BuildViewModel buildViewModel,
                 bool displayWarningErrorTime,
-                bool inCloudBuild,
+                bool enableCloudBuildLogging,
                 CancellationToken cancellationToken,
                 AbsolutePath objectDirectory)
             {
@@ -1543,7 +1543,7 @@ namespace BuildXL
                     ConfigureAzureDevOpsLogging(buildViewModel);
                 }
 
-                if (notWorker && inCloudBuild)
+                if (notWorker && enableCloudBuildLogging)
                 {
                     ConfigureCloudBuildLogging();
                 }

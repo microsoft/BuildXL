@@ -19,7 +19,7 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static bool InCloudBuild(this IConfiguration configuration)
         {
-            return configuration.InCloudBuild ?? false;
+            return configuration.Infra == Infra.CloudBuild;
         }
 
         /// <summary>

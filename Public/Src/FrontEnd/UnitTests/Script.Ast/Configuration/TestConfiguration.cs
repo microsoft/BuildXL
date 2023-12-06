@@ -32,14 +32,14 @@ namespace Test.DScript.Ast.Configuration
         {}
 
         [Theory]
-        [InlineData("inCloudBuild: true", /*originalValue*/null, /*expectedValue*/ true)]
-        [InlineData("inCloudBuild: true", /*originalValue*/false, /*expectedValue*/ false)]
-        [InlineData("inCloudBuild: false", /*originalValue*/null, /*expectedValue*/ false)]
+        [InlineData("disableDefaultSourceResolver: true", /*originalValue*/null, /*expectedValue*/ true)]
+        [InlineData("disableDefaultSourceResolver: true", /*originalValue*/false, /*expectedValue*/ false)]
+        [InlineData("disableDefaultSourceResolver: false", /*originalValue*/null, /*expectedValue*/ false)]
 
         // Undefined and missing properties should behave similarly
-        [InlineData("inCloudBuild: undefined", /*originalValue*/true, /*expectedValue*/ true)]
-        [InlineData("inCloudBuild: undefined", /*originalValue*/null, /*expectedValue*/ null)]
-        [InlineData("inCloudBuild: undefined", /*originalValue*/false, /*expectedValue*/ false)]
+        [InlineData("disableDefaultSourceResolver: undefined", /*originalValue*/true, /*expectedValue*/ true)]
+        [InlineData("disableDefaultSourceResolver: undefined", /*originalValue*/null, /*expectedValue*/ null)]
+        [InlineData("disableDefaultSourceResolver: undefined", /*originalValue*/false, /*expectedValue*/ false)]
 
         [InlineData("", /*originalValue*/true, /*expectedValue*/ true)]
         [InlineData("", /*originalValue*/null, /*expectedValue*/ null)]
@@ -52,12 +52,12 @@ config({{
 }});", configurationLiteral);
 
             ICommandLineConfiguration commandLine = originalValue != null
-                ? new CommandLineConfiguration(new CommandLineConfiguration() { InCloudBuild = originalValue.Value })
+                ? new CommandLineConfiguration(new CommandLineConfiguration() { DisableDefaultSourceResolver = originalValue.Value })
                 : null;
 
             IConfiguration configuration = ParseConfigurationSuccessfully(code, commandLine);
 
-            Assert.Equal(expectedValue, configuration.InCloudBuild);
+            Assert.Equal(expectedValue, configuration.DisableDefaultSourceResolver);
         }
 
         [Fact]

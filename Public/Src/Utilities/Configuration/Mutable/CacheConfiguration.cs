@@ -39,6 +39,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AugmentWeakFingerprintRequiredPathCommonalityFactor = 1;
             MonitorAugmentedPathSets = 0;
             HonorDirectoryCasingOnDisk = false;
+            AllowReuseOfWeakIdenityForSourceFiles = false;
         }
 
         /// <nodoc />
@@ -75,6 +76,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxPathSetsOnCacheLookup = template.MaxPathSetsOnCacheLookup;
             UseLocalOnly = template.UseLocalOnly;
             HonorDirectoryCasingOnDisk = template.HonorDirectoryCasingOnDisk;
+            AllowReuseOfWeakIdenityForSourceFiles = template.AllowReuseOfWeakIdenityForSourceFiles;
+            FileContentTableEntryTimeToLive = template.FileContentTableEntryTimeToLive;
         }
 
         /// <nodoc />
@@ -178,5 +181,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool HonorDirectoryCasingOnDisk { get; set; }
+
+        /// <inheritdoc/>
+        public bool AllowReuseOfWeakIdenityForSourceFiles { get; set; }
     }
 }

@@ -13,12 +13,10 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 
-
 namespace Test.BuildXL
 {
     public class CaptureBuildInfoTests
     {
-
         private static readonly string s_specFilePath = A("d", "src", "blahBlah.dsc");
 
         private const string EnvVarExpectedValue = "TestADO";
@@ -33,8 +31,7 @@ namespace Test.BuildXL
         [Fact]
         public static void TestInfraPropertyADO()
         {
-            ICommandLineConfiguration configuration = new CommandLineConfiguration();
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
+            string[] envString = ComputeEnvBlockForTesting(null, CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("infra=ado", envString));
         }
 
@@ -44,7 +41,7 @@ namespace Test.BuildXL
         [Fact]
         public void TestInfraPropertyCloudBuild()
         {
-            ICommandLineConfiguration configuration = new CommandLineConfiguration(new CommandLineConfiguration() { InCloudBuild = true });
+            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments("/inCloudBuild");
             string env1 = BuildXLApp.ComputeEnvironment(configuration);
             string[] envString = env1.Split(';');
             AssertNoDuplicates(envString);
@@ -58,8 +55,7 @@ namespace Test.BuildXL
         [Fact]
         public void TestInfraPropertyForBothADOCB()
         {
-            ICommandLineConfiguration configuration = new CommandLineConfiguration(new CommandLineConfiguration() { InCloudBuild = true });
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
+            string[] envString = ComputeEnvBlockForTesting("/inCloudBuild", CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("infra=cb", envString));
             XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("infra=ado", envString));
         }
@@ -71,8 +67,7 @@ namespace Test.BuildXL
         public void TestInfraPropertyForDuplicates()
         {
             string traceInfoArgs = "/traceInfo:INFRA=test";
-            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
+            string[] envString = ComputeEnvBlockForTesting(traceInfoArgs, CaptureBuildInfo.AdoEnvVariableForInfra, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("INFRA=test", envString));
             XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("INFRA=ado", envString));
         }
@@ -106,8 +101,7 @@ namespace Test.BuildXL
         [InlineData("NotAnEnvVariable", "notAURI_JustaString?//", null)]
         public static void TestOrgProperty(string adoPreDefinedEnvVar, string adoPreDefinedEnvVarTestValue, string expectedValueInEnvString)
         {
-            ICommandLineConfiguration configuration = new CommandLineConfiguration();
-            string[] envString = ComputeEnvBlockForTesting(configuration, adoPreDefinedEnvVar, adoPreDefinedEnvVarTestValue);
+            string[] envString = ComputeEnvBlockForTesting(null, adoPreDefinedEnvVar, adoPreDefinedEnvVarTestValue);
             if (expectedValueInEnvString != null)
             {
                 XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("org=" + expectedValueInEnvString, envString));
@@ -125,8 +119,7 @@ namespace Test.BuildXL
         public void TestOrgPropertyForTraceInfoValue()
         {
             string traceInfoArgs = "/traceInfo:org=test";
-            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.EnvVariableForOrg, OrgURLNewFormatTestValue);
+            string[] envString = ComputeEnvBlockForTesting(traceInfoArgs, CaptureBuildInfo.EnvVariableForOrg, OrgURLNewFormatTestValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("org=test", envString));
             XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("org=bxlTestCheck", envString));
         }
@@ -137,8 +130,7 @@ namespace Test.BuildXL
         [Fact]
         public static void TestCodebasePropertyADO()
         {
-            ICommandLineConfiguration configuration = new CommandLineConfiguration();
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
+            string[] envString = ComputeEnvBlockForTesting(null, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("codebase=TestADO", envString));
         }
 
@@ -151,8 +143,7 @@ namespace Test.BuildXL
         public void TestCodebasePropertyCloudBuild()
         {
             string traceInfoArgs = "/traceInfo:codebase=TestCB";
-            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
+            string[] envString = ComputeEnvBlockForTesting(traceInfoArgs, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("codebase=TestCB", envString));
             XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("codebase=TestADO", envString));
         }
@@ -163,8 +154,7 @@ namespace Test.BuildXL
         [Fact]
         public static void TestPipelineIdPropertyADO()
         {
-            ICommandLineConfiguration configuration = new CommandLineConfiguration();
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForPipelineId, EnvVarExpectedValue);
+            string[] envString = ComputeEnvBlockForTesting(null, CaptureBuildInfo.AdoPreDefinedVariableForPipelineId, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("pipelineid=TestADO", envString));
         }
 
@@ -175,8 +165,7 @@ namespace Test.BuildXL
         [Fact]
         public static void TestBuildIdPropertyADO()
         {
-            ICommandLineConfiguration configuration = new CommandLineConfiguration();
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForBuildId, EnvVarExpectedValue);
+            string[] envString = ComputeEnvBlockForTesting(null, CaptureBuildInfo.AdoPreDefinedVariableForBuildId, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty($"{CaptureBuildProperties.AdoBuildIdKey}={EnvVarExpectedValue}", envString));
         }
 
@@ -189,8 +178,7 @@ namespace Test.BuildXL
         public void TestPipelineIdTraceInfoPropertyADO()
         {
             string traceInfoArgs = "/traceInfo:pipelineid=TestADOTraceInfo";
-            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
+            string[] envString = ComputeEnvBlockForTesting(traceInfoArgs, CaptureBuildInfo.AdoPreDefinedVariableForCodebase, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("pipelineid=TestADOTraceInfo", envString));
             XAssert.IsFalse(AssertEnvStringContainsTelemetryEnvProperty("pipelineid=TestADO", envString));
         }
@@ -204,8 +192,7 @@ namespace Test.BuildXL
         public void TestBuildQueuePropertyCloudBuild()
         {
             string traceInfoArgs = "/traceInfo:cloudBuildQueue=TestCB";
-            ICommandLineConfiguration configuration = AddTraceInfoOrEnvironmentArguments(traceInfoArgs);
-            string[] envString = ComputeEnvBlockForTesting(configuration, CaptureBuildInfo.AdoPreDefinedVariableForPipelineId, EnvVarExpectedValue);
+            string[] envString = ComputeEnvBlockForTesting(traceInfoArgs, CaptureBuildInfo.AdoPreDefinedVariableForPipelineId, EnvVarExpectedValue);
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("cloudBuildQueue=TestCB", envString));
             XAssert.IsTrue(AssertEnvStringContainsTelemetryEnvProperty("pipelineid=TestADO", envString));
         }
@@ -281,19 +268,22 @@ namespace Test.BuildXL
         /// This is a helper method to avoid memory leaks with respect to the environment variables that are tested
         /// Check if there any duplicates are present in the environment string.
         /// </summary>
-        /// <param name="configuration">
-        /// CommandLine configuration object
+        /// <param name="argument">
+        /// Optional command line argument (i.e., a single argument or null).
         /// </param>
         /// <param name="envProperty">
         /// The environment property which is used to add the appropriate properties of build.
         /// Ex: The presence of envProperty "Build_DefinitionName" adds a property called "infra=ado" to the envString.
         /// </param>
-        public static string[] ComputeEnvBlockForTesting(ICommandLineConfiguration configuration, string envProperty, string envPropertyTestValue)
+        public static string[] ComputeEnvBlockForTesting(string argument, string envProperty, string envPropertyTestValue)
         {
             string envPropertyOriginalValue = Environment.GetEnvironmentVariable(envProperty);
             try
             {
                 Environment.SetEnvironmentVariable(envProperty, envPropertyTestValue);
+                // We determine infra during the command line args parsing, so the config object should be constructed
+                // after we set an env var that we are testing.
+                var configuration = AddTraceInfoOrEnvironmentArguments(argument);
                 string env = BuildXLApp.ComputeEnvironment(configuration);
                 string[] envString = env.Split(';');
                 // Adding this test condition to make sure that there are no duplicates.
@@ -307,16 +297,19 @@ namespace Test.BuildXL
         }
 
         /// <summary>
-        /// Helper method to pass traeInfo arguments.
+        /// Helper method to pass additional arguments.
         /// </summary>
-        /// <param name="traceInfoArgs">traceInfo arguments to be passed to the config object</param>
-        /// <returns></returns>
         private static ICommandLineConfiguration AddTraceInfoOrEnvironmentArguments(string traceInfoArgs)
         {
             PathTable pt = new PathTable();
             var argsParser = new Args();
             ICommandLineConfiguration configuration = new CommandLineConfiguration();
-            argsParser.TryParse(new[] { @"/c:" + s_specFilePath, traceInfoArgs }, pt, out configuration);
+            argsParser.TryParse(
+                // If there are no args to add, just create an empty config object.
+                traceInfoArgs == null 
+                    ? new[] { @"/c:" + s_specFilePath }
+                    : new[] { @"/c:" + s_specFilePath, traceInfoArgs }, 
+                pt, out configuration);
             return configuration;
         }
 
@@ -334,7 +327,7 @@ namespace Test.BuildXL
         /// <summary>
         /// Helper method to detect duplicates in the environment string
         /// </summary>
-        /// <param name="envString">Environment string which containes traceInfo and build properties</param>
+        /// <param name="envString">Environment string which contains traceInfo and build properties</param>
         private static void AssertNoDuplicates(string[] envString)
         {
             HashSet<string> envKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

@@ -5,8 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
@@ -50,7 +51,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             : base(args)
         {
             m_pathTable = pathTable;
-            CommandLineConfig = new CommandLineConfiguration();
+            var infra = CaptureBuildInfo.DetermineInfra(this);
+            CommandLineConfig = ConfigurationProvider.GetMutableDefaultConfig(infra);
             Analyzers = new List<Analyzer>();
             Analyzer currentAnalyzer = null;
 
@@ -72,7 +74,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 }
                 else if (opt.Name.Equals("InCloudBuild", StringComparison.OrdinalIgnoreCase))
                 {
-                    CommandLineConfig.InCloudBuild = ParseBooleanOption(opt);
+                    // Do nothing - value has been handled by CaptureBuildInfo.DetermineInfra.
                 }
                 else if (opt.Name.Equals("ComputeStaticFingerprints", StringComparison.OrdinalIgnoreCase))
                 {

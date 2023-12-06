@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using BuildXL.ToolSupport;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 
@@ -125,23 +126,42 @@ namespace BuildXL
             CaptureNewProperty(properties, key, () => Environment.GetEnvironmentVariable(envVariableName));
         }
 
-
         /// <summary>
         /// This method is used to set a build property called infra.
         /// </summary>
-        /// <param name="configuration">Configuration object has the InCloudBuild(), which set returns true only for CB env</param>  
-        private static string GetInfra(IConfiguration configuration)
+        private static string GetInfra(IConfiguration configuration) => configuration.Infra switch
         {
-            if (configuration.InCloudBuild())
+            Infra.Ado => "ado",
+            Infra.CloudBuild => "cb",
+            Infra.Developer => "dev",
+            _ => throw new NotSupportedException($"Not expected infra value: '{configuration.Infra}' ({(byte)configuration.Infra})."),
+        };
+
+        /// <summary>
+        /// Determines the current infrastructure based on the environment and provided command line arguments.
+        /// </summary>
+        public static Infra DetermineInfra(CommandLineUtilities cl)
+        {
+            bool inCb = false;
+            foreach (CommandLineUtilities.Option opt in cl.Options)
             {
-                return "cb";
+                if (string.Equals(opt.Name, "inCloudBuild", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Look through all command line args; the last arg is used (to keep it in line with how we handle args parsing/processing).
+                    inCb = CommandLineUtilities.ParseBooleanOption(opt);
+                }
+            }
+
+            if (inCb)
+            {
+                return Infra.CloudBuild;
             }
             else if (Environment.GetEnvironmentVariables().Contains(AdoEnvVariableForInfra))
             {
-                return "ado";
+                return Infra.Ado;
             }
 
-            return "dev";
+            return Infra.Developer;
         }
 
         /// <summary>

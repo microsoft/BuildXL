@@ -2162,7 +2162,7 @@ namespace BuildXL.Scheduler
 
             m_servicePipTracker?.LogStats(loggingContext);
 
-            if (m_configuration.InCloudBuild())
+            if (m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration)
             {
                 Contract.Assert(m_servicePipTracker != null, "Must use DropPipTracker when running in CloudBuild");
                 CloudBuildEventSource.Log.DominoFinalStatisticsEvent(new DominoFinalStatisticsEvent
@@ -2529,7 +2529,7 @@ namespace BuildXL.Scheduler
                 int pipsWaitingOnResources = m_executionStepTracker.CurrentSnapshot[PipExecutionStep.ChooseWorkerCpu];
 
                 // Log pip statistics to CloudBuild.
-                if (isLoggingEnabled && m_configuration.InCloudBuild())
+                if (isLoggingEnabled && m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration)
                 {
                     CloudBuildEventSource.Log.DominoContinuousStatisticsEvent(new DominoContinuousStatisticsEvent
                     {
@@ -6346,7 +6346,7 @@ namespace BuildXL.Scheduler
                     DirectoryTranslator,
                     fileChangeTrackingSelector,
                     vfsCasRoot: m_configuration.Cache.VfsCasRoot,
-                    inCloudBuild: m_configuration.InCloudBuild(),
+                    allowReuseOfWeakIdenityForSourceFiles: m_configuration.Cache.AllowReuseOfWeakIdenityForSourceFiles,
                     honorDirectoryCasingOnDisk: m_configuration.Cache.HonorDirectoryCasingOnDisk);
                 
                 m_pipOutputMaterializationTracker = new PipOutputMaterializationTracker(this, IncrementalSchedulingState);

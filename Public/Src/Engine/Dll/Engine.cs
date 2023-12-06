@@ -474,24 +474,19 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// Applies directory junctiones and redirection needed for cloudbuild
+        /// Applies directory junctions and redirection needed for cloudbuild
         /// </summary>
         /// <param name="mutableInitialConfig">Initial configuration</param>
         /// <param name="createProfileRedirectionJunctions">If true, create directory junctions on disk for user profile redirection.  If false, just set the variables for redirection, but don't create the directories</param>
         /// <param name="pathTable">Path table</param>
         /// <param name="loggingContext">Logging context</param>
-        /// <returns>True if sucessful</returns>
+        /// <returns>True if successful</returns>
         public static bool ModifyConfigurationForCloudbuild(CommandLineConfiguration mutableInitialConfig, bool createProfileRedirectionJunctions, PathTable pathTable, LoggingContext loggingContext)
         {
             if (mutableInitialConfig.InCloudBuild())
             {
-                mutableInitialConfig.Startup.EnsurePropertiesWhenRunInCloudBuild();
                 ApplyTemporaryHackWhenRunInCloudBuild(pathTable, mutableInitialConfig);
                 InjectDirectoryTranslationValuesIntoEnvironment(pathTable, mutableInitialConfig);
-                if (!mutableInitialConfig.Schedule.StopOnFirstInternalError.HasValue)
-                {
-                    mutableInitialConfig.Schedule.StopOnFirstInternalError = true;
-                }
             }
 
             if (mutableInitialConfig.Layout.RedirectedUserProfileJunctionRoot.IsValid && !OperatingSystemHelper.IsUnixOS)
@@ -888,7 +883,7 @@ namespace BuildXL.Engine
         /// and applies custom defaulting rules and inference for omitted information.
         /// </summary>
         /// <remarks>
-        /// When modifying the config object in this funciton and adding more implicit settings, please review this entire function and PopulateLoggingAndLayoutConfiguration
+        /// When modifying the config object in this function and adding more implicit settings, please review this entire function and PopulateLoggingAndLayoutConfiguration
         /// To make sure that there is no foul interplay between feature A turning feature X on and feature B turning feature X off. I.e., what should happen when A and B are both enabled.
         /// </remarks>
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
@@ -944,8 +939,7 @@ namespace BuildXL.Engine
                     var remoteWorkerCount = mutableConfig.Distribution.RemoteWorkerCount;
 
                     // Enable retries on another worker by default
-                    // CB default is higher, as builds will typically have more workers than on ADO
-                    mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker ??= mutableConfig.InCloudBuild() ? 3 : 1;
+                    mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker ??= 1;
 
                     if (mutableConfig.Distribution.LowWorkersWarningThreshold == null)
                     {
@@ -1138,6 +1132,12 @@ namespace BuildXL.Engine
                     Logger.Log.ConfigIncompatibleIncrementalSchedulingDisabled(loggingContext, "/skipHashSourceFile");
                 }
 
+                if (mutableConfig.InCloudBuild())
+                {
+                    // Need to set it here (and not with other CB overrides below), so ComputePipStaticFingerprints has a proper value.
+                    mutableConfig.Schedule.IncrementalScheduling = false;
+                }
+
                 // If incremental scheduling is still on, then we need to compute the static fingerprints.
                 if (mutableConfig.Schedule.IncrementalScheduling)
                 {
@@ -1182,147 +1182,20 @@ namespace BuildXL.Engine
                 success = false;
             }
 
-            // CloudBuild overrides
+            // Apply required overrides, i.e., regardless of the provided configuration (command line and/or specs), we will be using specific values. 
+            ConfigurationProvider.ApplyRequiredOverrides(mutableConfig);
+            
+            // CloudBuild overrides, i.e., regardless of the provided configuration (command line and/or specs), we are using the following values.
             if (mutableConfig.InCloudBuild())
             {
-                if (mutableConfig.Schedule.MinimumDiskSpaceForPipsGb == null)
-                {
-                    mutableConfig.Schedule.MinimumDiskSpaceForPipsGb = 5;
-                }
-
-                // Enable fail fast for null reference exceptions caught by
-                // ExceptionUtilities.IsUnexpectedException
-                EngineEnvironmentSettings.FailFastOnNullReferenceException.Value = true;
-                EngineEnvironmentSettings.SkipExtraneousPins.TrySet(true);
-
-                mutableConfig.Engine.ScanChangeJournal = false;
-                mutableConfig.Schedule.IncrementalScheduling = false;
-
-                // lazy scrubbing is only meant for speeding up single-machine dev builds
-                mutableConfig.Schedule.UnsafeLazySODeletion = false;
-
-                // Disable viewer
-                mutableConfig.Viewer = ViewerMode.Disable;
-
-                // Enable historic ram and CPU based throttling in CloudBuild by default if it is not explicitly disabled.
-                mutableConfig.Schedule.UseHistoricalRamUsageInfo = initialCommandLineConfiguration.Schedule.UseHistoricalRamUsageInfo ?? true;
-
-                mutableConfig.Schedule.UseHistoricalCpuUsageInfo = initialCommandLineConfiguration.Schedule.UseHistoricalCpuUsageInfo ?? true;
-
-                mutableConfig.Cache.FileContentTableEntryTimeToLive = mutableConfig.Cache.FileContentTableEntryTimeToLive ?? 100;
-
-                // Minimize output materialization in cloudbuild
-                mutableConfig.Schedule.EnableLazyWriteFileMaterialization = true;
-                mutableConfig.Schedule.WriteIpcOutput = false;
-                if (!mutableConfig.Logging.ReplayWarnings.HasValue)
-                {
-                    mutableConfig.Logging.ReplayWarnings = false;
-                }
-
-                // Use compression for graph files to greatly reduce the size
-                mutableConfig.Engine.CompressGraphFiles = true;
-
-                // Ensure that historic perf data is retrieved from cache because engine cache
-                // can be reused for multiple locations
-                mutableConfig.Schedule.ForceUseEngineInfoFromCache = true;
-                mutableConfig.Cache.HistoricMetadataCache = initialCommandLineConfiguration.Cache.HistoricMetadataCache ?? true;
-
-                mutableConfig.Schedule.ScheduleMetaPips = false;
-
-                // In CloudBuild always place EngineCache under object directory
+                // In CloudBuild always place EngineCache under object directory.
+                // Ideally, we'd set this inside of the ApplyRequiredOverrides above, however, the Strings class is not visible there.
                 mutableConfig.Layout.EngineCacheDirectory = mutableConfig.Layout.ObjectDirectory.Combine(pathTable, Strings.Layout_DefaultEngineCacheFolderName);
-
-                // Add additional context to environment fingerprint
-                foreach (var entry in mutableConfig.Logging.TraceInfo)
-                {
-                    if (entry.Key.Equals(TraceInfoExtensions.CustomFingerprint, StringComparison.OrdinalIgnoreCase))
-                    {
-                        mutableConfig.Schedule.EnvironmentFingerprint += I($"|{TraceInfoExtensions.CustomFingerprint}:{entry.Value}");
-                    }
-                    else if (entry.Key.Equals(TraceInfoExtensions.CloudBuildQueue, StringComparison.OrdinalIgnoreCase))
-                    {
-                        mutableConfig.Schedule.EnvironmentFingerprint += I($"|{TraceInfoExtensions.CloudBuildQueue}:{entry.Value}");
-                    }
-                }
-
-                if (mutableConfig.Logging.CacheMissAnalysisOption.Mode == CacheMissMode.Local)
-                {
-                    // BuildXL should not use local fingerprintstore for cache miss analysis.
-                    // Because you do not know how old is that fingerprintstore, the data is not really useful.
-                    mutableConfig.Logging.CacheMissAnalysisOption.Mode = CacheMissMode.Disabled;
-                }
-
-                mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? false;
-                mutableConfig.Sandbox.RetryOnAzureWatsonExitCode = true;
-
-                // Spec cache is disabled as most builds are happening on SSDs.
-                mutableConfig.Cache.CacheSpecs = SpecCachingOption.Disabled;
-
-                if (mutableConfig.Logging.Environment == ExecutionEnvironment.OsgLab)
-                {
-                    // For Cosine builds in CloudBuild, enable delayedCacheLookup by default.
-                    if (mutableConfig.Schedule.DelayedCacheLookupMaxMultiplier == null &&
-                        mutableConfig.Schedule.DelayedCacheLookupMinMultiplier == null)
-                    {
-                        mutableConfig.Schedule.DelayedCacheLookupMaxMultiplier = 2;
-                        mutableConfig.Schedule.DelayedCacheLookupMinMultiplier = 1;
-                    }
-
-                    // For Cosine builds, IsObsoleteCheck is very expensive, so we disable it.
-                    // Cosine specs are automatically generated, so that check was not necessary.
-                    mutableConfig.FrontEnd.DisableIsObsoleteCheckDuringConversion = true;
-                }
-
-                if (mutableConfig.Schedule.ManageMemoryMode == null)
-                {
-                    // If ManageMemoryMode is unset for CB builds, we use EmptyWorkingSet option due to the large page file size in CB machines.
-                    mutableConfig.Schedule.ManageMemoryMode = ManageMemoryMode.EmptyWorkingSet;
-                }
-
-                // Since VFS lives inside BXL process currently. Disallow on office enlist and meta build because
-                // they materialize files which would be needed by subsequent invocations and thus requires VFS to
-                // span multiple invocations. Just starting at Product build is sufficient.
-                if (mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab
-                    || mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeEnlistmentBuildLab)
-                {
-                    mutableConfig.Cache.VfsCasRoot = AbsolutePath.Invalid;
-                }
-
-                // Unless otherwise specified, distributed metabuilds in CloudBuild should replicate outputs to all machines
-                // TODO: Remove this once reduced metabuild materialization is fully tested
-                if (mutableConfig.Distribution.ReplicateOutputsToWorkers == null
-                    && mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab
-                    && mutableConfig.Distribution.BuildRole.IsOrchestrator())
-                {
-                    mutableConfig.Distribution.ReplicateOutputsToWorkers = true;
-                }
-
-                // When running in cloudbuild we want to ignore the user setting the interactive flag
-                // and force it to be false since we never want to pop up UI there.
-                mutableConfig.Interactive = false;
-
-                // Fire forget materialize output is enabled by default in CloudBuild as it improves the perf during meta build.
-                mutableConfig.Distribution.FireForgetMaterializeOutput = initialCommandLineConfiguration.Distribution.FireForgetMaterializeOutput ?? true;
-
-                if (!mutableConfig.Schedule.MaxWorkersPerModule.HasValue)
-                {
-                    // Module affinity is enabled by default in CloudBuild builds.
-                    mutableConfig.Schedule.MaxWorkersPerModule = mutableConfig.Distribution.RemoteWorkerCount + 1;
-                    mutableConfig.Schedule.ModuleAffinityLoadFactor = 1;
-                }
-
-                if (!mutableConfig.Engine.AssumeCleanOutputs.HasValue)
-                {
-                    // We assume clean outputs in CloudBuild builds.
-                    mutableConfig.Engine.AssumeCleanOutputs = true;
-                }
-
             }
             else
             {
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? true;
             }
-
 
             if (mutableConfig.Schedule.MaxWorkersPerModule.HasValue &&
                 !mutableConfig.Schedule.ModuleAffinityLoadFactor.HasValue)
@@ -1568,7 +1441,7 @@ namespace BuildXL.Engine
                 return false;
             }
 
-            if (mutableConfig.InCloudBuild() && !DirectoryTranslator.TestForJunctions(pathTable, translations, out error))
+            if (mutableConfig.Engine.VerifyJunctionsDoNotConflictWithDirectoryTranslations && !DirectoryTranslator.TestForJunctions(pathTable, translations, out error))
             {
                 Logger.Log.DirectoryTranslationsDoNotPassJunctionTest(loggingContext, Environment.NewLine + error);
             }
@@ -1939,7 +1812,6 @@ namespace BuildXL.Engine
                             ConstructScheduleResult constructScheduleResult = ConstructScheduleResult.None;
 
                             if (Configuration.Engine.TrackBuildsInUserFolder &&
-                                !Configuration.InCloudBuild() &&
                                 Configuration.Distribution.BuildRole == DistributedBuildRoles.None)
                             {
                                 using (Context.EngineCounters.StartStopwatch(EngineCounter.RecordingBuildsInUserFolderDuration))

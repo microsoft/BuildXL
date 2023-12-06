@@ -5,8 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.PipGraphFragmentGenerator
@@ -37,7 +38,9 @@ namespace BuildXL.PipGraphFragmentGenerator
             Contract.Requires(pathTable != null);
 
             m_pathTable = pathTable;
-            CommandLineConfig = new CommandLineConfiguration();
+
+            var infra = CaptureBuildInfo.DetermineInfra(this);
+            CommandLineConfig = ConfigurationProvider.GetMutableDefaultConfig(infra);
             PipGraphFragmentGeneratorConfig = new PipGraphFragmentGeneratorConfiguration();
 
             NamedOption[] namedOptions = new[]
@@ -63,7 +66,7 @@ namespace BuildXL.PipGraphFragmentGenerator
                 new NamedOption(
                     "inCloudBuild",
                     description: "Indicate if build will be run in CloudBuild",
-                    action: opt => CommandLineConfig.InCloudBuild = ParseBooleanOption(opt)),
+                    action: opt => { /* Do nothing - value has been handled by CaptureBuildInfo.DetermineInfra */ }),
 
                 new NamedOption(
                     "computeStaticFingerprints",

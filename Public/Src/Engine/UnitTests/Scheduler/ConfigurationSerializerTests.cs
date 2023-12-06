@@ -38,13 +38,13 @@ namespace Test.BuildXL.Scheduler
             // Serialization returns a very, very long string even without indentation and with removed paths,
             // so it's not viable to hardcode the expected value here. Instead, we just set a few values and
             // check that the json contains the same ones.
-            config.InCloudBuild = true;
+            config.DisableInBoxSdkSourceResolver = true;
             config.Engine.ScanChangeJournalTimeLimitInSec = 42;
             config.Cache.CacheSessionName = "test";
 
             var node = await SerializeToJsonNodeAsync(config, pathTable, indent: true, includePaths: false, ignoreNulls: false);
 
-            XAssert.AreEqual(true, node["InCloudBuild"]!.GetValue<bool>());
+            XAssert.AreEqual(true, node["DisableInBoxSdkSourceResolver"]!.GetValue<bool>());
             XAssert.AreEqual(42, node["Engine"]!["ScanChangeJournalTimeLimitInSec"]!.GetValue<int>());
             XAssert.AreEqual("test", node["Cache"]!["CacheSessionName"]!.GetValue<string>());
         }
@@ -274,6 +274,9 @@ namespace Test.BuildXL.Scheduler
 
             [JsonIgnore]
             public LocationData Location => throw new System.NotImplementedException();
+
+            [JsonIgnore]
+            public Infra Infra => throw new System.NotImplementedException();
 
             public void MarkIConfigurationMembersInvalid() => throw new System.NotImplementedException();
 

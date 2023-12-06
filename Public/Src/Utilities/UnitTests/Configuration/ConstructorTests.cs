@@ -133,6 +133,11 @@ namespace Test.BuildXL.Utilities
                 return "nonDefaultString";
             }
 
+            if (type == typeof(TimeSpan))
+            {
+                return TimeSpan.FromSeconds(1);
+            }
+
             if (type == typeof(ModuleId))
             {
                 return ModuleId.UnsafeCreate(123);

@@ -194,15 +194,11 @@ public class EphemeralCacheFactory : ICacheFactory
                 failures.AddFailureIfNullOrWhitespace(
                     cacheConfig.ConnectionStringEnvironmentVariableName,
                     nameof(cacheConfig.ConnectionStringEnvironmentVariableName));
+                failures.AddFailureIfNullOrWhitespace(
+                    cacheConfig.ConnectionStringFileEnvironmentVariableName,
+                    nameof(cacheConfig.ConnectionStringFileEnvironmentVariableName));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.Universe, nameof(cacheConfig.Universe));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.Namespace, nameof(cacheConfig.Namespace));
-
-                if (!string.IsNullOrEmpty(cacheConfig.ConnectionStringEnvironmentVariableName))
-                {
-                    failures.AddFailureIfNullOrWhitespace(
-                        Environment.GetEnvironmentVariable(cacheConfig.ConnectionStringEnvironmentVariableName),
-                        $"GetEnvironmentVariable('{cacheConfig.ConnectionStringEnvironmentVariableName}')");
-                }
 
                 return failures;
             });

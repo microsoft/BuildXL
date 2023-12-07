@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
@@ -40,27 +41,50 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// </summary>
         public abstract class BlobCacheConfig
         {
-            /// <nodoc />
+            /// <summary>
+            /// Authenticate by using a single or an array of connection strings inside of an environment variable.
+            /// </summary>
+            /// <remarks>
+            /// This is not a good authentication method because in many cases environment variables are logged and not
+            /// encrypted.
+            ///
+            /// The preferred authentication method is to use a managed identity (<see cref="StorageAccountEndpoint"/>
+            /// and <see cref="ManagedIdentityId"/>). However, this is unsupported for sharded scenarios and isn't
+            /// available outside of Azure. Use <see cref="ConnectionStringFileEnvironmentVariableName"/> if that's
+            /// your use-case.
+            /// </remarks>
             [DefaultValue("BlobCacheFactoryConnectionString")]
             public string ConnectionStringEnvironmentVariableName { get; set; }
 
             /// <summary>
-            /// URI of the storage account endpoint to be used for this cache (e.g: https://mystorageaccount.blob.core.windows.net)
+            /// Authenticate by using a file that contains a single or an array of connection strings.
             /// </summary>
             /// <remarks>
-            /// This is an alternative to providing the connection string. If a connection string is provided (via <see cref="ConnectionStringEnvironmentVariableName"/>), that will be used for selecting and authenticating to the storage account for this cache.
-            /// If a connection string is not specified in the environment (via <see cref="ConnectionStringEnvironmentVariableName"/>), this configuration is expected to be present.
+            /// The preferred authentication method is to use a managed identity (<see cref="StorageAccountEndpoint"/>
+            /// and <see cref="ManagedIdentityId"/>). However, this is unsupported for sharded scenarios and isn't
+            /// available outside of Azure. Use <see cref="ConnectionStringFileEnvironmentVariableName"/> if that's
+            /// your use-case.
             /// </remarks>
+            [DefaultValue("BlobCacheFactoryConnectionStringFile")]
+            public string ConnectionStringFileEnvironmentVariableName { get; set; }
+
+            /// <summary>
+            /// Whether the connection string file should be considered to be DPAPI encrypted.
+            /// </summary>
+            [DefaultValue(true)]
+            public bool ConnectionStringFileDataProtectionEncrypted { get; set; } = true;
+
+            /// <summary>
+            /// URI of the storage account endpoint to be used for this cache when authenticating using managed
+            /// identities (e.g: https://mystorageaccount.blob.core.windows.net).
+            /// </summary>
             [DefaultValue(null)]
             public string StorageAccountEndpoint { get; set; }
 
             /// <summary>
-            /// The client id for the managed identity that will be used to authenticate against the storage account specified in <see cref="StorageAccountEndpoint"/>.
+            /// The client id for the managed identity that will be used to authenticate against the storage account
+            /// specified in <see cref="StorageAccountEndpoint"/>.
             /// </summary>
-            /// <remarks>
-            /// This is an alternative to providing the connection string. If a connection string is provided (via <see cref="ConnectionStringEnvironmentVariableName"/>), that will be used for selecting and authenticating to the storage account for this cache.
-            /// If a connection string is not specified in the environment (via <see cref="ConnectionStringEnvironmentVariableName"/>), this configuration is expected to be present.
-            /// </remarks>
             [DefaultValue(null)]
             public string ManagedIdentityId { get; set; }
 
@@ -95,7 +119,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue("default")]
             public string Namespace { get; set; }
-
         }
 
         /// <summary>
@@ -212,22 +235,25 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <nodoc />
         internal static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> LoadAzureCredentials(BlobCacheConfig configuration)
         {
-            var credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
-            var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
+            Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> credentials = null;
 
-            if (!string.IsNullOrEmpty(connectionString))
+            var connectionStringFile = Environment.GetEnvironmentVariable(configuration.ConnectionStringFileEnvironmentVariableName);
+            if (!string.IsNullOrEmpty(connectionStringFile))
             {
-                credentials.AddRange(
-                    connectionString.Split(' ')
-                        .Select(
-                            secret =>
-                            {
-                                var credential = new SecretBasedAzureStorageCredentials(secret.Trim());
-                                var accountName = BlobCacheStorageAccountName.Parse(credential.GetAccountName());
-                                return new KeyValuePair<BlobCacheStorageAccountName, IAzureStorageCredentials>(accountName, credential);
-                            }));
+                var encryption = configuration.ConnectionStringFileDataProtectionEncrypted
+                    ? BlobCacheCredentialsHelper.FileEncryption.Dpapi
+                    : BlobCacheCredentialsHelper.FileEncryption.None;
+                credentials = BlobCacheCredentialsHelper.Load(new AbsolutePath(connectionStringFile), encryption);
             }
-            else if (configuration.ManagedIdentityId is not null && configuration.StorageAccountEndpoint is not null)
+
+            var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
+            if (credentials is null && !string.IsNullOrEmpty(connectionString))
+            {
+                credentials = BlobCacheCredentialsHelper.ParseFromEnvironmentFormat(connectionString);
+            }
+
+
+            if (credentials is null && configuration.ManagedIdentityId is not null && configuration.StorageAccountEndpoint is not null)
             {
                 Contract.Requires(!string.IsNullOrEmpty(configuration.ManagedIdentityId));
                 Contract.Requires(!string.IsNullOrEmpty(configuration.StorageAccountEndpoint));
@@ -237,12 +263,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     throw new InvalidOperationException($"'{configuration.StorageAccountEndpoint}' does not represent a valid URI.");
                 }
 
+                credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
                 var credential = new ManagedIdentityAzureStorageCredentials(configuration.ManagedIdentityId, uri);
                 credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
             }
-            else
+
+            if (credentials is null)
             {
-                throw new InvalidOperationException($"Can't find a connection string in environment variable '{configuration.ConnectionStringEnvironmentVariableName}', and the managed identity and/or storage account endpoint are also absent from the configuration");
+                throw new InvalidOperationException($"Can't find credentials to authenticate against the Blob Cache. Please see documentation for the supported authentication methods and how to configure them.");
             }
 
             return credentials;
@@ -257,14 +285,9 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheLogPath, nameof(cacheConfig.CacheLogPath));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.ConnectionStringEnvironmentVariableName, nameof(cacheConfig.ConnectionStringEnvironmentVariableName));
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.ConnectionStringFileEnvironmentVariableName, nameof(cacheConfig.ConnectionStringFileEnvironmentVariableName));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.Universe, nameof(cacheConfig.Universe));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.Namespace, nameof(cacheConfig.Namespace));
-
-                if (!string.IsNullOrEmpty(cacheConfig.ConnectionStringEnvironmentVariableName))
-                {
-                    failures.AddFailureIfNullOrWhitespace(Environment.GetEnvironmentVariable(cacheConfig.ConnectionStringEnvironmentVariableName), $"GetEnvironmentVariable('{cacheConfig.ConnectionStringEnvironmentVariableName}')");
-                }
-
                 return failures;
             });
         }

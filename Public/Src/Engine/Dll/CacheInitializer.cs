@@ -300,15 +300,8 @@ namespace BuildXL.Engine
             cacheConfigContent = cacheConfigContent.Replace("[UseDedupStore]", config.UseDedupStore.ToString());
             cacheConfigContent = cacheConfigContent.Replace("[ReplaceExistingFileOnMaterialization]", config.ReplaceExistingFileOnMaterialization.ToString());
 
-            if (!string.IsNullOrEmpty(EngineEnvironmentSettings.CacheUniverse.Value))
-            {
-                cacheConfigContent = cacheConfigContent.Replace("[BuildXLCacheUniverse]", EngineEnvironmentSettings.CacheUniverse.Value);
-            }
-
-            if (!string.IsNullOrEmpty(EngineEnvironmentSettings.CacheNamespace.Value))
-            {
-                cacheConfigContent = cacheConfigContent.Replace("[BuildXLCacheNamespace]", EngineEnvironmentSettings.CacheNamespace.Value);
-            }
+            cacheConfigContent = cacheConfigContent.Replace("[BuildXLCacheUniverse]", EngineEnvironmentSettings.CacheUniverse.Value ?? string.Empty);
+            cacheConfigContent = cacheConfigContent.Replace("[BuildXLCacheNamespace]", EngineEnvironmentSettings.CacheNamespace.Value ?? string.Empty);
 
             var orchestratorLocation = distributionConfiguration?.OrchestratorLocation?.IpAddress;
             if (string.IsNullOrEmpty(orchestratorLocation))

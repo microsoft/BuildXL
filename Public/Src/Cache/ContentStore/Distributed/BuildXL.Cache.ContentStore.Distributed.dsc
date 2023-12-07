@@ -21,6 +21,7 @@ namespace Distributed {
         importFrom("Azure.Core.Amqp").pkg,
         importFrom("Microsoft.Azure.Amqp").pkg,
         importFrom("System.Memory.Data").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        BuildXLSdk.withWinRuntime(importFrom("System.Security.Cryptography.ProtectedData").pkg, r`runtimes/win/lib/netstandard2.0`),
     ];
 
     @@public

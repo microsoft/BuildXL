@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -196,4 +197,36 @@ public class BlobCacheTests : TestWithOutput
         matrix.Metadata.Should().Be("4752270493");
         containers.Length.Should().Be(2);
     }
+
+    [Fact]
+    public void BlobCacheContructionCanHandleDictionarySecret()
+    {
+        var secrets = new Dictionary<string, string>
+                      {
+                          { "someName", "someSecret" },
+                          { "someName2", "someSecret2" }
+                      };
+
+
+        var secretString = JsonUtilities.JsonSerialize(secrets);
+
+        // As long as this doesn't throw, this is a success.
+        BlobCacheCredentialsHelper.ParseFromFileFormat(secretString);
+    }
+
+    [Fact]
+    public void BlobCacheContructionCanHandleConnectionStringSecret()
+    {
+        var secrets = new List<string>
+                      {
+                          { "someSecret1;https://accountName.domain.blob.storage.azure.net/" },
+                          { "someSecret2;https://accountName2.domain2.blob.storage.azure.net/" },
+                      };
+
+        var secretString = JsonUtilities.JsonSerialize(secrets);
+
+        // As long as this doesn't throw, this is a success.
+        BlobCacheCredentialsHelper.ParseFromFileFormat(secretString);
+    }
+
 }

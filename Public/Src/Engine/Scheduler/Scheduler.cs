@@ -3208,6 +3208,15 @@ namespace BuildXL.Scheduler
         public virtual async Task OnPipCompleted(RunnablePip runnablePip)
         {
             Contract.Requires(runnablePip != null);
+            
+            // Don't perform any completion work or bookkeeping if the scheduler is shutting down and the PipQueue
+            // is Finished (a signal that it too has been cancelled for a more aggressive shutdown). This allows
+            // both a faster shutdown and also prevents interaction with objects that may be torn down.
+            // This also prevents scheduling downstream pips which aids in speeding up shutdown
+            if (IsTerminating && PipQueue.IsFinished)
+            {
+                return;
+            }
 
             runnablePip.Performance.Completed();
             var pipLoggingContext = runnablePip.LoggingContext;
@@ -3252,8 +3261,6 @@ namespace BuildXL.Scheduler
 
                 if (pipType == PipType.Process)
                 {
-                    State.Cache.CompletePip(runnablePip.PipId);
-
                     CleanTempDirs(runnablePip);
 
                     // Don't count service pips in process pip counters

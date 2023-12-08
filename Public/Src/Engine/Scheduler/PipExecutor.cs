@@ -284,7 +284,7 @@ namespace BuildXL.Scheduler
                     }
                     else
                     {
-                        // If the source of the copy file pip is not symlink, then we use the isExecutable property from sourceMaterializationInfo to determine whether it’s an executable or not.
+                        // If the source of the copy file pip is not symlink, then we use the isExecutable property from sourceMaterializationInfo to determine whether itâ€™s an executable or not.
                         isDestinationExecutable = sourceMaterializationInfo.IsExecutable;
                     }
 

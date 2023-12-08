@@ -434,13 +434,6 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <summary>
-        /// Called when a cacheable pip completes so state about the pip can be cleaned up
-        /// </summary>
-        public virtual void CompletePip(PipId pipId)
-        {
-        }
-
-        /// <summary>
         /// Report metadata from workers
         /// </summary>
         public virtual void ReportRemoteMetadata(

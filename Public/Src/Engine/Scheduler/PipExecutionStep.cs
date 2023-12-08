@@ -93,7 +93,9 @@ namespace BuildXL.Scheduler
         Start,
 
         /// <summary>
-        /// Cancel pip
+        /// Run on pips which were cancelled and not allowed to complete normally. This step is intended for the minimal
+        /// cleanup work necessary to ensure correctness/performance of future builds. For example registering shared
+        /// opaque outputs to be scrubbed
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         Cancel,

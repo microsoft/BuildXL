@@ -43,6 +43,10 @@ namespace BuildXL.PipGraphFragmentGenerator
             CommandLineConfig = ConfigurationProvider.GetMutableDefaultConfig(infra);
             PipGraphFragmentGeneratorConfig = new PipGraphFragmentGeneratorConfiguration();
 
+            // Ensure that credscan is disabled (an infra-specific configuration might have it enabled by default).
+            // PipGraphFragmentManager is responsible for credential scanning.
+            CommandLineConfig.FrontEnd.EnableCredScan = false;
+
             NamedOption[] namedOptions = new[]
             {
                 new NamedOption(

@@ -302,16 +302,16 @@ config({
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
                 { id: "Microsoft.Build", version: "17.0.0",
-                    dependentPackageIdsToSkip: ["System.Reflection.Metadata", "System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json", "System.Collections.Immutable"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
+                    dependentPackageIdsToSkip: ["System.Reflection.Metadata", "System.Memory", "System.Text.Json", "System.Collections.Immutable"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
                 },
                 { id: "Microsoft.Build.Runtime", version: "17.0.0",
-                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory"],
+                    dependentPackageIdsToSkip: ["System.Memory"],
                 },
                 { id: "Microsoft.Build.Tasks.Core", version: "17.0.0",
-                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Collections.Immutable"],
+                    dependentPackageIdsToSkip: ["System.Memory", "System.Collections.Immutable"],
                 },
-                { id: "Microsoft.Build.Utilities.Core", version: "17.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json", "System.Collections.Immutable"]},
-                { id: "Microsoft.Build.Framework", version: "17.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory", "System.Text.Json"]},
+                { id: "Microsoft.Build.Utilities.Core", version: "17.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json", "System.Collections.Immutable"]},
+                { id: "Microsoft.Build.Framework", version: "17.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json"]},
                 { id: "Microsoft.NET.StringTools", version: "1.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json"]},
                 { id: "Microsoft.Build.Locator", version: "1.5.5" },
 
@@ -352,6 +352,8 @@ config({
                 { id: "Microsoft.Azure.Kusto.Ingest", version: "11.2.1" },
                 { id: "Microsoft.Azure.Kusto.Tools", version: "7.2.1" },
                 { id: "Azure.ResourceManager.Kusto", version: "1.1.0" },
+                { id: "Azure.Data.Tables", version: "12.8.0" }, // Required by the Kusto SDK
+                { id: "Azure.Storage.Queues", version: "12.11.0" }, // Required by the Kusto SDK
 
                 { id: "Microsoft.Azure.Kusto.Cloud.Platform", version: "11.2.1",  dependentPackageIdsToSkip: [ "System.Security.AccessControl" ] },
                 { id: "Microsoft.Azure.Kusto.Cloud.Platform.Aad", version: "11.2.1" },
@@ -367,13 +369,6 @@ config({
                     dependentPackageIdsToIgnore: ["Microsoft.NETCore.Runtime"],
                 },
                 { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.19" },
-
-                { id: "Azure.Data.Tables", version: "12.8.0" },
-                { id: "Azure.Storage.Queues", version: "12.11.0" },
-
-                // FsCheck
-                { id: "FsCheck", version: "2.14.3" },
-                { id: "FSharp.Core", version: "4.2.3" },
 
                 // ANTLR
                 { id: "Antlr4.Runtime.Standard", version: "4.7.2" },

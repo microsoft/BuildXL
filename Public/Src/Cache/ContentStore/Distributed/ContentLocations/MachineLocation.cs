@@ -127,7 +127,7 @@ public readonly record struct MachineLocation
     /// </remarks>
     internal Uri? Uri { get; private init; }
 
-    private static readonly Regex _hostRegex = new(@"^(?<host>[A-Za-z0-9\.]+)(:(?<port>\d+))?$", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex _hostRegex = new(@"^(?<host>([A-Za-z0-9]+(-|\.))*[A-Za-z0-9]+)(:(?<port>\d+))?$", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     /// <nodoc />
     private MachineLocation(Uri? uri)

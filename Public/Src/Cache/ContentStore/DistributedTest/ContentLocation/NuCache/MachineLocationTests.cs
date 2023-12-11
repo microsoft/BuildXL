@@ -92,4 +92,11 @@ public class MachineLocationTests
         extractedHost.Should().BeEquivalentTo(host, $"expected to extract host {host} from URI {machine.Uri}");
         extractedPort.Should().Be(port);
     }
+
+    [Fact]
+    public void GuidIsValidMachineLocation()
+    {
+        // As long as this doesn't throw, it's a success.
+        MachineLocation.Parse(Guid.NewGuid().ToString());
+    }
 }

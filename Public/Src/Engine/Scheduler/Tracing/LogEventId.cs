@@ -431,6 +431,8 @@ namespace BuildXL.Scheduler.Tracing
         ApiServerReportDaemonTelemetryExecuted = 12109,
         ErrorApiServerGetBuildManifestHashFromLocalFileFailed = 12110,
         DaemonTelemetry = 12111,
+        ApiServerFailedToStartDueToSocketError = 12112,
+        ApiServerFailedToStartDueToIpcError = 12113,
 
         // Copy file cont'd.
         // Elsewhere = 12201,

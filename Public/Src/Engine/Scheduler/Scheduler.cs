@@ -11,6 +11,7 @@ using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -1584,26 +1585,46 @@ namespace BuildXL.Scheduler
 
             if (PipGraph.ApiServerMoniker.IsValid)
             {
-                // To reduce the time between rendering the server moniker and starting a server using that moniker,
-                // we create the server here and not in the Scheduler's ctor.
-                m_apiServer = new ApiServer(
-                    m_ipcProvider,
-                    PipGraph.ApiServerMoniker.ToString(Context.StringTable),
-                    m_fileContentManager,
-                    Context,
-                    new ServerConfig
-                    {
-                        MaxConcurrentClients = 1_000, // not currently based on any science or experimentation
-                        MaxConcurrentRequestsPerClient = 10,
-                        StopOnFirstFailure = false,
-                        Logger = CreateLoggerForApiServer(loggingContext),
-                    },
-                    m_pipTwoPhaseCache,
-                    m_manifestExecutionLog,
-                    m_buildManifestGenerator,
-                    m_serviceManager,
-                    m_configuration.Engine.VerifyFileContentOnBuildManifestHashComputation);
-                m_apiServer.Start(loggingContext);
+                // Add try catch block to catch any exception thrown by new ApiServer()
+                // Possible exception: SocketException. When machine ran out of resouces (ports or some other resouces), 
+                // SocketException will be thrown by socket.bind() in new ApiServer().
+                // Possible exception: IpcException. When all available ports are returned before, we consider there is no free port and return -1 as port number.
+                // new ApiServer() will throw IpcException when parsing -1 as port number.
+                try
+                {
+                    // To reduce the time between rendering the server moniker and starting a server using that moniker,
+                    // we create the server here and not in the Scheduler's ctor.
+                    m_apiServer = new ApiServer(
+                        m_ipcProvider,
+                        PipGraph.ApiServerMoniker.ToString(Context.StringTable),
+                        m_fileContentManager,
+                        Context,
+                        new ServerConfig
+                        {
+                            MaxConcurrentClients = 1_000, // not currently based on any science or experimentation
+                            MaxConcurrentRequestsPerClient = 10,
+                            StopOnFirstFailure = false,
+                            Logger = CreateLoggerForApiServer(loggingContext),
+                        },
+                        m_pipTwoPhaseCache,
+                        m_manifestExecutionLog,
+                        m_buildManifestGenerator,
+                        m_serviceManager,
+                        m_configuration.Engine.VerifyFileContentOnBuildManifestHashComputation);
+                    m_apiServer.Start(loggingContext);
+                }
+                catch (SocketException socketException)
+                {
+                    // Log socket exception and request for termination
+                    Logger.Log.ApiServerFailedToStartDueToSocketError(loggingContext, socketException.GetLogEventMessage());
+                    RequestTermination();
+                }
+                catch (IpcException ipcException)
+                {
+                    // Log ipc exception and request for termination
+                    Logger.Log.ApiServerFailedToStartDueToIpcError(loggingContext, ipcException.GetLogEventMessage());
+                    RequestTermination();
+                }
             }
 
             if (m_configuration.Schedule.EnablePlugin == true)

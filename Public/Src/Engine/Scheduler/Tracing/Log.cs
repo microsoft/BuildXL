@@ -3115,6 +3115,24 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void IpcClientFailed(LoggingContext loggingContext, string exceptionMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ApiServerFailedToStartDueToSocketError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] failed to start because of an socket error: {exceptionMessage}")]
+        internal abstract void ApiServerFailedToStartDueToSocketError(LoggingContext loggingContext, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ApiServerFailedToStartDueToIpcError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] failed to start because of an Ipc error: {exceptionMessage}")]
+        internal abstract void ApiServerFailedToStartDueToIpcError(LoggingContext loggingContext, string exceptionMessage);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ApiServerForwarderIpcServerMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Runtime.CompilerServices;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         public static bool UseHierarchicalIds = false;
 
         private int _currentChildId;
-        
+
         private readonly string _idAsString;
         private const int MaxIdLength = 100;
 
@@ -59,15 +59,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, string? componentName = null, [CallerMemberName]string? caller = null)
+        public Context(Context other, string? componentName = null, [CallerMemberName] string? caller = null)
             : this(other, CreateNestedId(other), componentName, caller)
         {
         }
-        
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, string id, string? componentName, [CallerMemberName]string? caller = null)
+        public Context(Context other, string id, string? componentName, [CallerMemberName] string? caller = null)
             : this(id, other.Logger)
         {
             string prefix = caller!;
@@ -80,13 +80,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <nodoc />
-        public Context CreateNested(string componentName, [CallerMemberName]string? caller = null)
+        public Context CreateNested(string componentName, [CallerMemberName] string? caller = null)
         {
             return new Context(this, componentName, caller);
         }
 
         /// <nodoc />
-        public Context CreateNested(string id, string componentName, [CallerMemberName]string? caller = null)
+        public Context CreateNested(string id, string componentName, [CallerMemberName] string? caller = null)
         {
             return new Context(this, id, componentName, caller);
         }
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                 // Or hierarchical ids are disabled.
                 return Guid.NewGuid().ToString();
             }
-            
+
             return string.Concat(traceId, ".", Interlocked.Increment(ref other._currentChildId).ToString());
         }
 
@@ -227,18 +227,25 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
             else
             {
                 string? provenance;
-                if (string.IsNullOrEmpty(component) || string.IsNullOrEmpty(operation))
+                if ((!string.IsNullOrEmpty(component) && message.StartsWith(component)) || (!string.IsNullOrEmpty(operation) && message.Contains(operation)))
                 {
-                    provenance = $"{component}{operation}: ";
-
-                    if (provenance.Equals(": "))
-                    {
-                        provenance = string.Empty;
-                    }
+                    provenance = string.Empty;
                 }
                 else
                 {
-                    provenance = $"{component}.{operation}: ";
+                    if (string.IsNullOrEmpty(component) || string.IsNullOrEmpty(operation))
+                    {
+                        provenance = $"{component}{operation}: ";
+
+                        if (provenance.Equals(": "))
+                        {
+                            provenance = string.Empty;
+                        }
+                    }
+                    else
+                    {
+                        provenance = $"{component}.{operation}: ";
+                    }
                 }
 
                 if (exception == null)

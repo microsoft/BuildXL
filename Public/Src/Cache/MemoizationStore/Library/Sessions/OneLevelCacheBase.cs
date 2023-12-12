@@ -366,22 +366,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         {
             // Since _pinElisionCache is only not null when the config value is not null, we can assume the config value is not null
             _pinElisionCache?.Add(contentHash, Configuration.MetadataPinElisionDuration!.Value);
-
-            if (_pinElisionCache != null)
-            {
-                Tracer.Info(context, $"Extending pin elision for content hash `{contentHash}` with provenance `{provenance}`");
-            }
         }
 
         internal bool CanElidePin(Context context, ContentHash contentHash)
         {
-            bool elide = _pinElisionCache?.Contains(contentHash) ?? false;
-            if (elide)
-            {
-                Tracer.Info(context, $"Eliding pin for content hash `{contentHash}`");
-            }
-
-            return elide;
+            return _pinElisionCache?.Contains(contentHash) ?? false;
         }
     }
 }

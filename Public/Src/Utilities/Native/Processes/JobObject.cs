@@ -352,27 +352,37 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets accounting information of this job object (aggregate resource usage by all processes ever in the job).
         /// </summary>
+        /// <remarks>
+        /// To get memory usage information, this method uses <see cref="JOBOBJECTINFOCLASS.ExtendedLimitInformation"/>. With this class
+        /// info, the only information about memory usage that can be obtained is the peak memory usage. Other memory usage information
+        /// is set to 0. To get more detailed information. One needs to use an undocumented class info. See #2128700 for more details.
+        /// </remarks>
         [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public AccountingInformation GetAccountingInformation()
         {
             var info = default(JOBOBJECT_BASIC_AND_IO_ACCOUNTING_INFORMATION);
-            if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
+            if (!ProcessUtilities.QueryInformationJobObject(
                 handle,
                 JOBOBJECTINFOCLASS.JobObjectBasicAndIOAccountingInformation,
                 &info,
                 (uint)Marshal.SizeOf(info),
                 out _))
             {
-                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get basic accounting information.");
+                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get job object's basic accounting information");
             }
 
-            var memory = default(JOBOBJECT_MEMORY_USAGE_INFORMATION_V2);
-            var memoryQuerySuccessful = Native.Processes.ProcessUtilities.QueryInformationJobObject(
+            var memoryCounters = default(ProcessMemoryCounters);
+
+            var limitInfo = default(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
+            if (ProcessUtilities.QueryInformationJobObject(
                 handle,
-                JOBOBJECTINFOCLASS.JobObjectMemoryUsageInformation,
-                &memory,
-                (uint)Marshal.SizeOf(memory),
-                out _);
+                JOBOBJECTINFOCLASS.ExtendedLimitInformation,
+                &limitInfo,
+                (uint)Marshal.SizeOf(limitInfo),
+                out _))
+            {
+                memoryCounters = ProcessMemoryCounters.CreateFromBytes((ulong)limitInfo.PeakJobMemoryUsed, 0, 0, 0);
+            }
 
             return new AccountingInformation()
             {
@@ -380,14 +390,8 @@ namespace BuildXL.Processes
                 KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
                 UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
                 NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses,
-                MemoryCounters = memoryQuerySuccessful
-                    ? ProcessMemoryCounters.CreateFromBytes(
-                        memory.BasicInfo.PeakJobMemoryUsed,
-                        memory.BasicInfo.JobMemory,
-                        memory.BasicInfo.PeakJobMemoryUsed + memory.JobSharedMemory,
-                        memory.JobSharedMemory)
-                    : default(ProcessMemoryCounters)
-        };
+                MemoryCounters = memoryCounters
+            };
         }
 
         /// <summary>

@@ -161,8 +161,7 @@ namespace BuildXL.Native.Processes
         EndOfJobTimeInformation = 6,
         ExtendedLimitInformation = 9,
         SecurityLimitInformation = 5,
-        GroupInformation = 11,
-        JobObjectMemoryUsageInformation = 28,
+        GroupInformation = 11
     }
 
     /// <summary>

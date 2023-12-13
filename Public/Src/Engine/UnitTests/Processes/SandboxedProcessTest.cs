@@ -359,14 +359,9 @@ namespace Test.BuildXL.Processes
             return null;
         }
 
-        [Fact(Skip = "Test is flakey TFS 495531")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task JobCounters()
         {
-            if (!OperatingSystemHelper.IsWindowsOS)
-            {
-                return;
-            }
-
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
             {
                 string tempFileName = tempFiles.GetUniqueFileName();
@@ -399,10 +394,11 @@ namespace Test.BuildXL.Processes
                         "Expected a non-zero user+kernel time.");
                 }
 
-                XAssert.AreNotEqual(0, accounting.MemoryCounters.PeakWorkingSetMb, "Expecting non-zero memory usage");
-                XAssert.AreNotEqual(0, accounting.MemoryCounters.AverageCommitSizeMb, "Expecting non-zero memory usage");
-                XAssert.AreNotEqual(0, accounting.MemoryCounters.PeakCommitSizeMb, "Expecting non-zero pagefile usage");
-                XAssert.AreNotEqual(0, accounting.MemoryCounters.AverageCommitSizeMb, "Expecting non-zero pagefile usage");
+                XAssert.AreNotEqual(0UL, accounting.MemoryCounters.PeakWorkingSet, "Expecting non-zero memory usage");
+                XAssert.AreEqual(0UL, accounting.MemoryCounters.AverageWorkingSet, "Expecting zero memory usage");
+                XAssert.AreEqual(0UL, accounting.MemoryCounters.PeakCommitSize, "Expecting zero pagefile usage");
+
+                // AverageCommitSize can be 0, so it's not verified to be non-zero.
 
                 // Prior to Win10, cmd.exe launched within a job but its associated conhost.exe was exempt from the job.
                 // That changed with Bug #633552

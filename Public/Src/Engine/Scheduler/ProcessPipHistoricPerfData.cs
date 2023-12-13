@@ -79,7 +79,7 @@ namespace BuildXL.Scheduler
             RunDurationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, runDurationInMs));
             // For historical ram usage, we record the peak working set instead of the virtual memory due to the precision.
             MemoryCounters = executionPerformance.MemoryCounters;
-            DiskIOInMB = (uint)Math.Min(uint.MaxValue, ByteSizeFormatter.ToMegabytes(executionPerformance.IO.GetAggregateIO().TransferCount));
+            DiskIOInMB = (uint)Math.Min(uint.MaxValue, ByteSizeFormatter.BytesToMegabytes(executionPerformance.IO.GetAggregateIO().TransferCount));
             ProcessorsInPercents = executionPerformance.ProcessorsInPercents;
         }
 

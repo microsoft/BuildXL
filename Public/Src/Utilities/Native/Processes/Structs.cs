@@ -140,26 +140,5 @@ namespace BuildXL.Native.Processes
         public IO_COUNTERS IOCounters;
     }
 
-    /// <summary>
-    /// Contains basic memory information for a job object.
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    public struct JOBOBJECT_MEMORY_USAGE_INFORMATION
-    {
-        public ulong JobMemory;
-        public ulong PeakJobMemoryUsed;
-    }
-
-    /// <summary>
-    /// Contains extended memory information for a job object.
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    public struct JOBOBJECT_MEMORY_USAGE_INFORMATION_V2
-    {
-        public JOBOBJECT_MEMORY_USAGE_INFORMATION BasicInfo;
-        public ulong JobSharedMemory;
-        private ulong Reserved;
-    }
-
 #pragma warning restore CS1591 // Missing XML comment
 }

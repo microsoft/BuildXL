@@ -26,7 +26,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The version for format of <see cref="HistoricPerfDataTable"/>
         /// </summary>
-        public const int FormatVersion = 5;
+        public const int FormatVersion = 6;
 
         private static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "Runtime", version: FormatVersion);
 

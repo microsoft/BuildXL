@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var cfg = new ClusterStateRecomputeConfiguration();
 
             MachineId machineId;
-            (clusterStateMachine, machineId) = clusterStateMachine.RegisterMachine(machineLocation, _clock.UtcNow);
+            (clusterStateMachine, machineId) = clusterStateMachine.RegisterMachineForTests(machineLocation, _clock.UtcNow, false);
 
             var clusterState = new ClusterState(machineId, new[] { new MachineMapping(machineId, machineLocation) });
             clusterState.Update(context, clusterStateMachine, cfg, _clock.UtcNow).ThrowIfFailure();

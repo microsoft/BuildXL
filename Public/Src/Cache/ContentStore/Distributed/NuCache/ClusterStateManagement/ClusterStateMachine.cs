@@ -41,12 +41,13 @@ public static class ClusterStateMachineExtensions
         IReadOnlyList<MachineId> takeover = Array.Empty<MachineId>();
 
         // If we allow takeover, we need to decide which IDs to take over. We pick dead machines that have been dead
-        // the longest.
-        if (state.AllowTakeover(nowUtc, configuration))
+        // the longest. We avoid doing takeover for persistent machines because persistent locations will be around
+        // for a while, so there's no telling what might appear from nowhere.
+        if (!request.Persistent && state.AllowTakeover(nowUtc, configuration))
         {
             var transitioned = state.TransitionInactiveMachines(configuration, nowUtc);
             takeover = transitioned.Records
-                .Where(record => record.State == MachineState.DeadUnavailable)
+                .Where(record => record.State == MachineState.DeadUnavailable && !record.Persistent)
                 .OrderBy(record => record.LastHeartbeatTimeUtc)
                 .Select(record => record.Id)
                 .Take(request.MachineLocations.Count)
@@ -67,7 +68,7 @@ public static class ClusterStateMachineExtensions
             else
             {
                 assignments[index] = taken < takeover.Count ? takeover[taken++] : new MachineId(state.NextMachineId);
-                state = state.ForceRegisterMachine(assignments[index], location, nowUtc);
+                state = state.ForceTakeoverMachine(assignments[index], location, nowUtc, persistent: request.Persistent);
             }
         }
 
@@ -98,20 +99,6 @@ public record ClusterStateMachine
     public IReadOnlyList<MachineRecord> Records { get; init; } = new List<MachineRecord>();
 
     /// <summary>
-    /// Registers a machine.
-    /// </summary>
-    public (ClusterStateMachine Next, MachineId Id) RegisterMachine(MachineLocation location, DateTime nowUtc)
-    {
-        if (TryResolveMachineId(location, out var machineId))
-        {
-            return (this, machineId);
-        }
-        
-        machineId = new MachineId(NextMachineId);
-        return (ForceRegisterMachineWithState(machineId, location, nowUtc, state: InitialState, takeover: false), machineId);
-    }
-
-    /// <summary>
     /// Registers a machine with a specific machine ID.
     /// </summary>
     /// <remarks>
@@ -119,9 +106,23 @@ public record ClusterStateMachine
     /// machine. In both cases, the machine whose ID is being taken over MUST be entirely offline, or things can go
     /// very wrong.
     /// </remarks>
-    public ClusterStateMachine ForceRegisterMachine(MachineId machineId, MachineLocation location, DateTime nowUtc)
+    internal ClusterStateMachine ForceTakeoverMachine(MachineId machineId, MachineLocation location, DateTime nowUtc, bool persistent)
     {
-        return ForceRegisterMachineWithState(machineId, location, nowUtc, state: InitialState, takeover: true);
+        return ForceRegisterMachineWithState(machineId, location, nowUtc, state: InitialState, takeover: true, persistent);
+    }
+
+    /// <summary>
+    /// Registers a machine.
+    /// </summary>
+    internal (ClusterStateMachine Next, MachineId Id) RegisterMachineForTests(MachineLocation location, DateTime nowUtc, bool persistent)
+    {
+        if (TryResolveMachineId(location, out var machineId))
+        {
+            return (this, machineId);
+        }
+
+        machineId = new MachineId(NextMachineId);
+        return (ForceRegisterMachineWithState(machineId, location, nowUtc, state: InitialState, takeover: false, persistent), machineId);
     }
 
     /// <summary>
@@ -130,13 +131,14 @@ public record ClusterStateMachine
     /// <remarks>
     /// Used only for testing.
     /// </remarks>
-    internal (ClusterStateMachine Next, MachineId Id) ForceRegisterMachineWithState(
+    internal (ClusterStateMachine Next, MachineId Id) ForceRegisterMachineWithStateForTests(
         MachineLocation location,
         DateTime nowUtc,
-        MachineState state)
+        MachineState state,
+        bool persistent)
     {
         var machineId = new MachineId(NextMachineId);
-        return (ForceRegisterMachineWithState(machineId, location, nowUtc, state, takeover: false), machineId);
+        return (ForceRegisterMachineWithState(machineId, location, nowUtc, state, takeover: false, persistent), machineId);
     }
 
     private ClusterStateMachine ForceRegisterMachineWithState(
@@ -144,19 +146,26 @@ public record ClusterStateMachine
         MachineLocation location,
         DateTime nowUtc,
         MachineState state,
-        bool takeover)
+        bool takeover,
+        bool persistent)
     {
         Contract.Requires(
             state != MachineState.Unknown,
             $"Can't register machine ID `{machineId}` for location `{location}` with initial state `{state}`");
 
+        if (persistent)
+        {
+            state = MachineState.Open;
+        }
+
         var addition = new MachineRecord
-                       {
-                           Id = machineId,
-                           Location = location,
-                           State = state,
-                           LastHeartbeatTimeUtc = nowUtc,
-                       };
+        {
+            Id = machineId,
+            Location = location,
+            State = state,
+            LastHeartbeatTimeUtc = nowUtc,
+            Persistent = persistent,
+        };
 
         if (machineId.Index < NextMachineId)
         {
@@ -168,7 +177,7 @@ public record ClusterStateMachine
                 {
                     // The record already exists. Update it.
                     Contract.Assert(
-                        record.Location.Equals(location) || takeover,
+                        record.Location.Equals(location) || (takeover && !record.Persistent),
                         $"Machine id `{machineId}` has already been allocated to location `{record}` and so can't be allocated to `{location}`");
                     records.Add(addition);
                     inserted = true;
@@ -195,16 +204,7 @@ public record ClusterStateMachine
         else
         {
             var records = Records.ToList();
-
-            records.Add(
-                new MachineRecord()
-                {
-                    Id = machineId,
-                    Location = location,
-                    State = state,
-                    LastHeartbeatTimeUtc = nowUtc,
-                });
-
+            records.Add(addition);
             return this with { NextMachineId = Math.Max(machineId.Index + 1, NextMachineId + 1), Records = records, };
         }
     }
@@ -340,6 +340,7 @@ public record ClusterStateMachine
         {
             if (record.Id == machineId)
             {
+                Contract.Assert(!record.Persistent || record.State == MachineState.Open);
                 return Result.Success(record);
             }
         }

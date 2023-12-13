@@ -1,13 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Collections;
 using ProtoBuf;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
@@ -15,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
 public interface IClusterStateStorage : IStartupShutdownSlim
 {
     [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-    public record RegisterMachineInput(IReadOnlyList<MachineLocation> MachineLocations)
+    public record RegisterMachineInput(IReadOnlyList<MachineLocation> MachineLocations, bool Persistent = false)
     {
         /// <summary>
         /// This parameterless constructor exists only to allow ProtoBuf.NET initialization
@@ -31,7 +29,7 @@ public interface IClusterStateStorage : IStartupShutdownSlim
         /// <summary>
         /// This parameterless constructor exists only to allow ProtoBuf.NET initialization
         /// </summary>
-        public RegisterMachineOutput() : this(default, new MachineMapping[] {})
+        public RegisterMachineOutput() : this(default, new MachineMapping[] { })
         {
         }
     }
@@ -55,7 +53,7 @@ public interface IClusterStateStorage : IStartupShutdownSlim
         /// <summary>
         /// This parameterless constructor exists only to allow ProtoBuf.NET initialization
         /// </summary>
-        public HeartbeatOutput() : this(default, new MachineRecord[] {})
+        public HeartbeatOutput() : this(default, new MachineRecord[] { })
         {
         }
     }

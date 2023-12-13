@@ -1,18 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
-using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
-using System;
-
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.ClusterStateManagement;
 
 #nullable enable
 
@@ -32,6 +31,8 @@ public class ClusterStateManager : StartupShutdownComponentBase
         public MachineLocation PrimaryLocation { get; set; }
 
         public MachineLocation[] AdditionalMachineLocations { get; set; } = Array.Empty<MachineLocation>();
+
+        public MachineLocation[] PersistentLocations { get; set; } = Array.Empty<MachineLocation>();
 
         public ClusterStateRecomputeConfiguration RecomputeConfiguration { get; set; } = new ClusterStateRecomputeConfiguration();
     }
@@ -78,7 +79,7 @@ public class ClusterStateManager : StartupShutdownComponentBase
         }
         else
         {
-            (currentState, machineMappings) = await RegisterMachinesAsync(context, machineLocations).ThrowIfFailureAsync();
+            (currentState, machineMappings) = await RegisterMachinesAsync(context, machineLocations, persistent: false).ThrowIfFailureAsync();
         }
 
         foreach (var mapping in machineMappings)
@@ -87,6 +88,12 @@ public class ClusterStateManager : StartupShutdownComponentBase
         }
 
         ClusterState.UpdateMachineMappings(machineMappings[0].Id, machineMappings);
+
+        if (_configuration.PersistentLocations.Length > 0)
+        {
+            (currentState, _) = await RegisterMachinesAsync(context, _configuration.PersistentLocations, persistent: true).ThrowIfFailureAsync();
+        }
+
         ClusterState.Update(context, currentState, configuration: _configuration.RecomputeConfiguration, nowUtc: _clock.UtcNow).ThrowIfFailure();
 
         return BoolResult.Success;
@@ -120,30 +127,16 @@ public class ClusterStateManager : StartupShutdownComponentBase
         }
     }
 
-    private Task<Result<(ClusterStateMachine State, MachineMapping[] MachineMappings)>> RegisterMachinesAsync(OperationContext context, IReadOnlyList<MachineLocation> machineLocations)
+    private Task<Result<(ClusterStateMachine State, MachineMapping[] MachineMappings)>> RegisterMachinesAsync(OperationContext context, IReadOnlyList<MachineLocation> machineLocations, bool persistent)
     {
         return context.PerformOperationAsync(
             Tracer,
             async () =>
             {
                 var registerMachinesResponse = await _storage
-                    .RegisterMachinesAsync(context, new IClusterStateStorage.RegisterMachineInput(machineLocations)).ThrowIfFailureAsync();
+                    .RegisterMachinesAsync(context, new IClusterStateStorage.RegisterMachineInput(machineLocations, persistent)).ThrowIfFailureAsync();
 
                 return Result.Success((registerMachinesResponse.State, registerMachinesResponse.MachineMappings));
-            });
-    }
-
-    /// <remarks>
-    /// Used for testing only. DO NOT USE OUTSIDE TESTS.
-    /// </remarks>
-    internal async Task<Result<MachineMapping>> RegisterMachineForTestsAsync(OperationContext context, MachineLocation machineLocation)
-    {
-        return (await RegisterMachinesAsync(context, new[] { machineLocation })).Then(
-            result =>
-            {
-                ClusterState.Update(context, result.State, configuration: _configuration.RecomputeConfiguration, nowUtc: _clock.UtcNow)
-                    .ThrowIfFailure();
-                return Result.Success(result.MachineMappings[0]);
             });
     }
 

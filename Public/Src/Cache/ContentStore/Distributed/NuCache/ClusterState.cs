@@ -201,7 +201,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return locationsResult.Value
-                .Where(machineId => !QueryableClusterState.InactiveMachinesSet[machineId] && !QueryableClusterState.ClosedMachinesSet[machineId])
+                .Where(
+                    machineId => !QueryableClusterState.InactiveMachinesSet[machineId] && !QueryableClusterState.ClosedMachinesSet[machineId] &&
+                                 !QueryableClusterState.RecordsByMachineId[machineId].Persistent)
                 .Select(id => QueryableClusterState.RecordsByMachineId[id].Location)
                 .ToArray();
         }
@@ -317,10 +319,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             foreach (var kvp in nextCache.RecordsByMachineId)
             {
                 var current = kvp.Value;
-                
+
                 if (!prevCache.RecordsByMachineId.TryGetValue(kvp.Key, out var previous))
                 {
-                    Tracer.Debug(context, $"MachineMapping: Found new machine. Id=[{current.Id}] Location=[{current.Location}] State=[{current.State}]");
+                    Tracer.Debug(context, $"MachineMapping: Found new machine. Id=[{current.Id}] Location=[{current.Location}] State=[{current.State}] Persistent=[{current.Persistent}");
                     continue;
                 }
 
@@ -363,7 +365,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         internal void AddMachineForTest(OperationContext context, MachineId machineId, MachineLocation machineLocation)
         {
-            var next = QueryableClusterState.ClusterStateMachine.ForceRegisterMachine(machineId, machineLocation, SystemClock.Instance.UtcNow);
+            var next = QueryableClusterState.ClusterStateMachine.ForceTakeoverMachine(machineId, machineLocation, SystemClock.Instance.UtcNow, persistent: false);
             Update(context, next).ThrowIfFailure();
         }
 

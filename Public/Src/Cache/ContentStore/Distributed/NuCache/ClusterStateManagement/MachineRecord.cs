@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Text;
-using BuildXL.Cache.ContentStore.Utils;
 using ProtoBuf;
 
 #nullable enable
@@ -30,9 +28,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public DateTime LastHeartbeatTimeUtc { get; init; } = DateTime.MinValue;
 
+        public bool Persistent { get; init; } = false;
+
         internal MachineRecord Heartbeat(DateTime nowUtc, MachineState nextState)
         {
-            if (nextState == MachineState.Unknown)
+            if (nextState == MachineState.Unknown || Persistent)
             {
                 return this with { LastHeartbeatTimeUtc = nowUtc, };
             }

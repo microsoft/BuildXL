@@ -1196,7 +1196,7 @@ namespace BuildXL
                             {
                                 if (sign && OperatingSystemHelper.IsUnixOS)
                                 {
-                                    throw CommandLineUtilities.Error("/unsafe_IgnoreReparsePoints not allowed on non-Windows OS");
+                                    throw CommandLineUtilities.Error(Strings.Args_UnsafeOption_IgnoreNonCreateFileReparsePoints_NotAllowed);
                                 }
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreNonCreateFileReparsePoints = sign;
                             },
@@ -1208,7 +1208,7 @@ namespace BuildXL
                                 // is no longer setting this before removing it.
                                 if (sign)
                                 {
-                                    throw CommandLineUtilities.Error("/unsafe_IgnoreNonExistentProbes is deprecated.");
+                                    throw CommandLineUtilities.Error(Strings.Args_UnsafeOption_IgnoreNonExistentProbes_Deprecated);
                                 }
                             },
                             inactive: true),
@@ -1231,7 +1231,7 @@ namespace BuildXL
                             {
                                 if (sign && OperatingSystemHelper.IsUnixOS)
                                 {
-                                    throw CommandLineUtilities.Error("/unsafe_IgnoreReparsePoints not allowed on non-Windows OS");
+                                    throw CommandLineUtilities.Error(Strings.Args_UnsafeOption_IgnoreReparsePoints_NotAllowed);
                                 }
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreReparsePoints = sign;
                             },
@@ -1242,7 +1242,7 @@ namespace BuildXL
                             {
                                 if (sign && OperatingSystemHelper.IsUnixOS)
                                 {
-                                    throw CommandLineUtilities.Error("/unsafe_IgnoreFullReparsePointResolving not allowed on non-Windows OS");
+                                    throw CommandLineUtilities.Error(Strings.Args_UnsafeOption_IgnoreFullReparsePointResolving_NotAllowed);
                                 }
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = sign;
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.EnableFullReparsePointResolving = !sign;
@@ -1493,13 +1493,13 @@ namespace BuildXL
 
                 if (schedulingConfiguration.DelayedCacheLookupMinMultiplier.HasValue ^ schedulingConfiguration.DelayedCacheLookupMaxMultiplier.HasValue)
                 {
-                    throw CommandLineUtilities.Error("Both /delayCacheLookupMin and /delayCacheLookupMax must be specified.");
+                    throw CommandLineUtilities.Error(Strings.Args_DelayedCacheLookup_BothArgsMustBePresent);
                 }
 
                 if (schedulingConfiguration.DelayedCacheLookupMinMultiplier.HasValue
                     && schedulingConfiguration.DelayedCacheLookupMinMultiplier.Value > schedulingConfiguration.DelayedCacheLookupMaxMultiplier.Value)
                 {
-                    throw CommandLineUtilities.Error("Both /delayCacheLookupMin cannot be bigger than /delayCacheLookupMax.");
+                    throw CommandLineUtilities.Error(Strings.Args_DelayedCacheLookup_IncorrectValue);
                 }
 
                 // Validate logging configuration.
@@ -1870,7 +1870,7 @@ namespace BuildXL
                 if (!int.TryParse(item, out int parsed))
                 {
                     throw CommandLineUtilities.Error(
-                        "The /{0} argument contains an item '{1} that could not be converted to an integer event ID.",
+                        Strings.Args_ArgumentValue_CannotBeConvertedToInt,
                         optionName,
                         item);
                 }
@@ -1927,14 +1927,14 @@ namespace BuildXL
             var value = opt.Value;
             if (string.IsNullOrEmpty(value))
             {
-                throw CommandLineUtilities.Error("The value provided for the /{0} argument is invalid.", opt.Name);
+                throw CommandLineUtilities.Error(Strings.Args_ArgumentValue_IsInvalid, opt.Name);
             }
 
             var firstLessThan = value.IndexOf("<", StringComparison.OrdinalIgnoreCase);
             if (firstLessThan == 0)
             {
                 throw CommandLineUtilities.Error(
-                    "The value '{0}' provided for the /{1} argument is invalid. It can't start with a '<' separator",
+                    Strings.Args_ArgumentValue_CannotStartWithSeparator_LessThan,
                     value,
                     opt.Name);
             }
@@ -1947,14 +1947,14 @@ namespace BuildXL
                 if (firstDblColon == 0)
                 {
                     throw CommandLineUtilities.Error(
-                        "The value '{0}' provided for the /{1} argument is invalid. It can't start with a '::' separator",
+                        Strings.Args_ArgumentValue_CannotStartWithSeparator_DoubleColon,
                         value,
                         opt.Name);
                 }
                 else if (firstDblColon < 0)
                 {
                     throw CommandLineUtilities.Error(
-                        "The value '{0}' provided for the /{1} argument is invalid. It should contain a '::' or '<' separator",
+                        Strings.Args_ArgumentValue_MissingSeparator,
                         value,
                         opt.Name);
                 }
@@ -1970,7 +1970,7 @@ namespace BuildXL
             if (firstLessThan >= value.Length - 1)
             {
                 throw CommandLineUtilities.Error(
-                    "The value '{0}' provided for the /{1} argument is invalid. It should have a valid translateTo path",
+                    Strings.Args_ArgumentValue_DirTranslation_InvalidPath_To,
                     value,
                     opt.Name);
             }
@@ -1979,7 +1979,7 @@ namespace BuildXL
             if (!success)
             {
                 throw CommandLineUtilities.Error(
-                    "The value '{0}' provided for the /{1} argument is invalid. It should have a valid translateFrom path",
+                    Strings.Args_ArgumentValue_DirTranslation_InvalidPath_From,
                     key,
                     opt.Name);
             }
@@ -1988,7 +1988,7 @@ namespace BuildXL
             if (!success)
             {
                 throw CommandLineUtilities.Error(
-                    "The value '{0}' provided for the /{1} argument is invalid. It should have a valid translateTo path",
+                    Strings.Args_ArgumentValue_DirTranslation_InvalidPath_To,
                     value.Substring(firstLessThan + 1 + (usingDblColon ? 1 : 0)),
                     opt.Name);
             }
@@ -2054,7 +2054,7 @@ namespace BuildXL
                     // Deprecated option: Nobody should be passing this anymore. Its on by default now. Since some are still passing this variable we don't use ReportObsoleteOption yet.
                     if (!experimentalOptionAndValue.Item2)
                     {
-                        throw CommandLineUtilities.Error("The /exp:useDominoScriptv2 option has been deprecated. Remove any usage of this variable, it has no effect anymore");
+                        throw CommandLineUtilities.Error(Strings.Args_Experimental_useDominoScriptv2_Deprecated);
                     }
                     break;
                 case "AUTOMATICALLYEXPORTNAMESPACES":

@@ -1186,4 +1186,46 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="Args_PipProperty_PipSpecificPropertiesNotFound" xml:space="preserve">
     <value>Failed to parse pip properties passed via /pipProperty argument</value>
   </data>
+  <data name="Args_UnsafeOption_IgnoreNonCreateFileReparsePoints_NotAllowed" xml:space="preserve">
+    <value>/unsafe_IgnoreNonCreateFileReparsePoints not allowed on non-Windows OS.</value>
+  </data>
+  <data name="Args_UnsafeOption_IgnoreNonExistentProbes_Deprecated" xml:space="preserve">
+    <value>/unsafe_IgnoreNonExistentProbes is deprecated.</value>
+  </data>
+  <data name="Args_UnsafeOption_IgnoreReparsePoints_NotAllowed" xml:space="preserve">
+    <value>/unsafe_IgnoreReparsePoints not allowed on non-Windows OS.</value>
+  </data>
+  <data name="Args_UnsafeOption_IgnoreFullReparsePointResolving_NotAllowed" xml:space="preserve">
+    <value>/unsafe_IgnoreFullReparsePointResolving not allowed on non-Windows OS.</value>
+  </data>
+  <data name="Args_DelayedCacheLookup_BothArgsMustBePresent" xml:space="preserve">
+    <value>Both /delayCacheLookupMin and /delayCacheLookupMax must be specified.</value>
+  </data>
+  <data name="Args_DelayedCacheLookup_IncorrectValue" xml:space="preserve">
+    <value>/delayCacheLookupMin cannot be bigger than /delayCacheLookupMax.</value>
+  </data>
+  <data name="Args_ArgumentValue_CannotBeConvertedToInt" xml:space="preserve">
+    <value>The /{0} argument contains an item '{1}' that could not be converted to an integer.</value>
+  </data>
+  <data name="Args_ArgumentValue_IsInvalid" xml:space="preserve">
+    <value>The value provided for the /{0} argument is invalid.</value>
+  </data>
+  <data name="Args_ArgumentValue_CannotStartWithSeparator_LessThan" xml:space="preserve">
+    <value>The value '{0}' provided for the /{1} argument is invalid. It can't start with a '&lt;' separator</value>
+  </data>
+  <data name="Args_ArgumentValue_CannotStartWithSeparator_DoubleColon" xml:space="preserve">
+    <value>The value '{0}' provided for the /{1} argument is invalid. It can't start with a '::' separator</value>
+  </data>
+  <data name="Args_ArgumentValue_MissingSeparator" xml:space="preserve">
+    <value>The value '{0}' provided for the /{1} argument is invalid. It should contain a '::' or '&lt;' separator</value>
+  </data>
+  <data name="Args_ArgumentValue_DirTranslation_InvalidPath_To" xml:space="preserve">
+    <value>The value '{0}' provided for the /{1} argument is invalid. It should have a valid translateTo path</value>
+  </data>
+  <data name="Args_ArgumentValue_DirTranslation_InvalidPath_From" xml:space="preserve">
+    <value>The value '{0}' provided for the /{1} argument is invalid. It should have a valid translateFrom path</value>
+  </data>
+  <data name="Args_Experimental_useDominoScriptv2_Deprecated" xml:space="preserve">
+    <value>The /exp:useDominoScriptv2 option has been deprecated. Remove any usage of this variable, it has no effect anymore</value>
+  </data>
 </root>

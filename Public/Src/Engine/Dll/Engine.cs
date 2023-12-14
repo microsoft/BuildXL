@@ -2406,7 +2406,7 @@ namespace BuildXL.Engine
                     container.CreateRedirection(
                         layout.NormalizedBuildEngineDirectory.ToString(pathTable),
                         Directory.GetParent(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly())).FullName,
-                        deleteOnDispose: false);
+                        deleteOnDispose: true);
                 }
 
                 success = true;

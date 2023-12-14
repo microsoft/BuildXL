@@ -192,18 +192,6 @@ public static class EphemeralCacheFactory
         };
     }
 
-    /// <summary>
-    /// This version can be used to split up the cache into different logical caches after release. This is useful to
-    /// allow backwards-incompatible changes. Essentially, all nodes in a different <see cref="DatacenterCacheVersion"/>
-    /// will only see nodes with the same <see cref="DatacenterCacheVersion"/> as reachable.
-    ///
-    /// Deployment of features that cause backwards-incompatible changes should be done as follows:
-    ///  1. Perform feature changes.
-    ///  2. Modify <see cref="DatacenterCacheVersion"/> to a never-seen-before value (ex: increment it!)
-    ///  3. Deploy new version as usual.
-    /// </summary>
-    private static readonly string DatacenterCacheVersion = "20230919";
-
     private static Task<CreateResult> CreateDatacenterWideCacheAsync(
         OperationContext context,
         DatacenterWideCacheConfiguration configuration,
@@ -224,7 +212,16 @@ public static class EphemeralCacheFactory
             {
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,
             },
-            FileName = $"clusterState-{DatacenterCacheVersion}-{configuration.Universe}.json",
+            // The Ephemeral cache is split on a per-assembly and per-universe basis. This guarantees that there's no
+            // content hits between different assemblies and different universes (simply because the machines can't see
+            // each other).
+            // This matters because:
+            // 1. It simplifies deployment by allowing us to assume that the wire protocol and data representations are
+            // on a per-assembly basis.
+            // 2. Since Universe is the logical division of the cache, merging the content tracking could potentially
+            // cause bugs if we don't contemplate the possibility of two different universes being able to talk to each
+            // other.
+            FileName = $"clusterState-{Branding.Version}-{configuration.Universe}.json",
             RecomputeConfiguration = new ClusterStateRecomputeConfiguration(),
         };
         var clusterStateStorage = new BlobClusterStateStorage(blobClusterStateStorageConfiguration, clock);

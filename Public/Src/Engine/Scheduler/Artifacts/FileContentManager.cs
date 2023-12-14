@@ -4224,10 +4224,7 @@ namespace BuildXL.Scheduler.Artifacts
         {
             private readonly FileContentManager m_manager;
 
-            public PipArtifactsState(FileContentManager manager)
-            {
-                m_manager = manager;
-            }
+            public PipArtifactsState(FileContentManager manager) => m_manager = manager;
 
             /// <summary>
             /// The pip info for the materialization operation
@@ -4272,65 +4269,62 @@ namespace BuildXL.Scheduler.Artifacts
             /// <summary>
             /// The materialized paths (files and directories) in all materialized directories. The boolean represents isDirectory info.
             /// </summary>
-            public readonly Dictionary<AbsolutePath, bool> MaterializedDirectoryContents = new Dictionary<AbsolutePath, bool>();
+            public readonly Dictionary<AbsolutePath, bool> MaterializedDirectoryContents = new();
 
             /// <summary>
             /// All the artifacts to process
             /// </summary>
-            public readonly HashSet<FileOrDirectoryArtifact> PipArtifacts = new HashSet<FileOrDirectoryArtifact>();
+            public readonly HashSet<FileOrDirectoryArtifact> PipArtifacts = new();
 
             /// <summary>
             /// The completion results for directory deletions
             /// </summary>
-            public readonly List<(DirectoryArtifact, bool, TaskSourceSlim<bool>)> DirectoryDeletionCompletions =
-                new List<(DirectoryArtifact, bool, TaskSourceSlim<bool>)>();
+            public readonly List<(DirectoryArtifact, bool, TaskSourceSlim<bool>)> DirectoryDeletionCompletions = new();
 
             /// <summary>
             /// Required directory deletions initiated by other pips which must be awaited
             /// </summary>
-            public readonly List<Task<bool>> PendingDirectoryDeletions = new List<Task<bool>>();
+            public readonly List<Task<bool>> PendingDirectoryDeletions = new();
 
             /// <summary>
             /// The set of files to materialize
             /// </summary>
-            public readonly List<MaterializationFile> MaterializationFiles = new List<MaterializationFile>();
+            public readonly List<MaterializationFile> MaterializationFiles = new();
 
             /// <summary>
             /// The set of virtual files to hydrate
             /// </summary>
-            public readonly List<AbsolutePath> HydrationFiles = new List<AbsolutePath>();
+            public readonly List<AbsolutePath> HydrationFiles = new();
 
             /// <summary>
             /// The paths and content hashes for files in <see cref="MaterializationFiles"/>
             /// </summary>
-            private readonly List<(MaterializationFile, int)> m_filesAndContentHashes =
-                new List<(MaterializationFile, int)>();
+            private readonly List<(MaterializationFile, int)> m_filesAndContentHashes = new();
 
             /// <summary>
             /// The tasks for hashing files
             /// </summary>
-            public readonly List<Task<FileMaterializationInfo?>> HashTasks = new List<Task<FileMaterializationInfo?>>();
+            public readonly List<Task<FileMaterializationInfo?>> HashTasks = new();
 
             /// <summary>
             /// Materialization tasks initiated by other pips which must be awaited
             /// </summary>
-            public readonly List<(FileArtifact fileArtifact, Task<PipOutputOrigin> tasks)> PendingPlacementTasks =
-                new List<(FileArtifact, Task<PipOutputOrigin>)>();
+            public readonly List<(FileArtifact fileArtifact, Task<PipOutputOrigin> tasks)> PendingPlacementTasks = new();
 
             /// <summary>
             /// Materialization tasks initiated by the current pip
             /// </summary>
-            public readonly List<Task> PlacementTasks = new List<Task>();
+            public readonly List<Task> PlacementTasks = new();
 
             /// <summary>
             /// Files which failed to materialize
             /// </summary>
-            public readonly List<(FileArtifact, ContentHash)> FailedFiles = new List<(FileArtifact, ContentHash)>();
+            public readonly List<(FileArtifact, ContentHash)> FailedFiles = new();
 
             /// <summary>
             /// Directories which failed to materialize
             /// </summary>
-            private readonly List<DirectoryArtifact> m_failedDirectories = new List<DirectoryArtifact>();
+            private readonly List<DirectoryArtifact> m_failedDirectories = new();
 
             /// <nodoc />
             public Failure InnerFailure = null;
@@ -4355,19 +4349,23 @@ namespace BuildXL.Scheduler.Artifacts
 
             public void Dispose()
             {
+                PipInfo = null;
+
+                VerifyMaterializationOnly = false;
                 MaterializingOutputs = false;
                 IsDeclaredProducer = false;
-                VerifyMaterializationOnly = false;
-                PipInfo = null;
+                IsApiServerRequest = false;
+                EnforceOutputMaterializationExclusionRootsForDirectoryArtifacts = false;
+                Virtualize = false;
 
                 OverallOutputOrigin = PipOutputOrigin.NotMaterialized;
                 MaterializedDirectoryContents.Clear();
                 PipArtifacts.Clear();
                 DirectoryDeletionCompletions.Clear();
                 PendingDirectoryDeletions.Clear();
+                MaterializationFiles.Clear();
                 HydrationFiles.Clear();
 
-                MaterializationFiles.Clear();
                 m_filesAndContentHashes.Clear();
 
                 HashTasks.Clear();

@@ -21,6 +21,7 @@ using Xunit;
 using Xunit.Abstractions;
 using ArtificialCacheMissConfig = BuildXL.Utilities.Configuration.Mutable.ArtificialCacheMissConfig;
 using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
+using System.Linq;
 
 namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 {
@@ -1304,6 +1305,85 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             RunScheduler().AssertScheduled(pip1.PipId, pip2.PipId).AssertCacheHit(pip2.PipId);
             RunScheduler().AssertNotScheduled(pip1.PipId, pip2.PipId);
         }
+
+
+        [Fact]
+        public void IncrementalSkipProperlyMarkCleanMaterializedSealedDirectory()
+        {
+            // P -> dir/f -> Seal([dir/f]) -> R <--- rInput
+            //                                ^
+            //                                |
+            // Q ----> qOutput ---------------+
+
+            // Enable lazy output materialization to force the scheduler to run input materialization step.
+            Configuration.Schedule.EnableLazyOutputMaterialization = true;
+
+            var dir = CreateUniqueDirectory(root: Path.Combine(ObjectRoot, "fDir"));
+            var f = CreateOutputFileArtifact(root: dir);
+            var p = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(f)
+            });
+
+            var seal = CreateAndScheduleSealDirectory(
+                dir,
+                SealDirectoryKind.Partial,
+                p.ProcessOutputs.GetOutputFiles().ToArray());
+
+            var qSource = CreateSourceFile();
+            var qOutput = CreateOutputFileArtifact();
+            var q = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(qSource),
+                Operation.WriteFile(qOutput)
+            });
+
+            var rInput = CreateSourceFile();
+            var rBuilder = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(rInput),
+                Operation.ReadFile(qOutput),
+                Operation.ReadFile(f, doNotInfer: true), // Dependency through the sealed directory.
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            rBuilder.AddInputDirectory(seal.Directory);
+
+            var r = SchedulePipBuilder(rBuilder);
+
+            // Ensure that Q is scheduled before Seal.
+            // This ensures that in the second run, Q's output materialization happens before scheduler's incremental skip check tries to register Seal to the file content manager.
+            // This exercises bug #2122493 where the incremental skip check doesn't mark Seal as materialized in the file content manager because
+            // it is reusing a pip artifacts state (due to being a pooled object) from other pip that just materialized its outputs. The bug was the pip artifacts state was
+            // not properly reset when it was returned to the pool.
+            var order = new[] { ((Pip)q.Process, (Pip)seal) };
+
+            // Explicitly include Q and R so that they will materialize the outputs even though the lazy materialization is enabled.
+            var filter = new RootFilter(new BinaryFilter(new PipIdFilter(r.Process.SemiStableHash), FilterOperator.Or, new PipIdFilter(q.Process.SemiStableHash)));
+
+            RunScheduler(filter: filter, constraintExecutionOrder: order).AssertSuccess();
+
+            // Delete qOutput to make Q dirty, but because its dependency has not changed, it will have a cache hit.
+            // Because lazy output materialization is disabled, Q is forced to materialize its output.
+            DeleteFile(qOutput);
+
+            // Modify rInput to force it to execute, which also force it to materialize its inputs.
+            ModifyFile(rInput);
+
+            // P should not be scheduled because it is clean and materialized.
+            // Seal is clean and materialized, but should be scheduled because it's a frontier pip. But the scheduler's incremental skip check should tell
+            // the file content manager that the pip is materialized.
+            // Because lazy materialization is enabled, R is forced to run input materialization step. If Seal has not been properly marked materialized,
+            // then the input materialization will try to materialize dir/f (because dir/f is an output file) using dir/f's content hash. But dir/f's content hash has not
+            // been registered with the file content manager, so the materialization will fail.
+            // If Seal has been properly marked materialized, then the input materialization will skip materializing dir/ (and dir/f too).
+            RunScheduler(filter: filter, constraintExecutionOrder: order)
+                .AssertSuccess()
+                .AssertNotScheduled(p.Process.PipId) // P should not be scheduled.
+                .AssertCacheHit(q.Process.PipId)     // Q should have a cache hit.
+                .AssertCacheMiss(r.Process.PipId);   // R should execute.
+        }
+
 
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));
 

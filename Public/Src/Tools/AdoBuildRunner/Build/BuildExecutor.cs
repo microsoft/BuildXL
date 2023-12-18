@@ -148,23 +148,9 @@ namespace BuildXL.AdoBuildRunner.Build
         {
             // The default values are added to the start of command line string.
             // This way, user-provided arguments will be able to override the defaults.
+            // If there is a need for a new default argument that's not specific to ADO-runner,
+            // it should be added to ConfigurationProvider.GetAdoConfig().
             var defaultArguments = new List<string>() {
-                // Out default pip timeout is 10 min; increase it to 30min
-                "/pipTimeoutMultiplier:3",
-                // We are indeed running in ADO
-                "/ado",
-                // Setting this high enough, so the scheduler pausing is only based on MaximumRamUtilizationPercentage.
-                // We check that both conditions (min ram and max utilization %) are met, before pausing the scheduler.
-                "/minAvailableRamMb:100000000",
-                // Both historical perf info and the early release are not working well in ADO environment,
-                // so temporarily disable them. This can be removed once the features are fixed (TODO #2106086)
-                "/useHistoricalRamUsageInfo-",
-                // Releasing the workers when there is not enough work. 
-                "/earlyWorkerRelease+",
-                "/earlyWorkerReleaseMultiplier:1",
-                // This flag could make sense to enable as default across the board (not only for ADO), but for now
-                // let's keep dev builds out of it until we can validate it doesn't introduce a regression.
-                "/useHistoricalCpuUsageInfo+",
                 $"/machineHostName:{buildContext.AgentHostName}"
             };
 

@@ -40,7 +40,6 @@ export namespace DropDaemon {
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
-            importFrom("WindowsAzure.Storage").pkg,
             importFrom("Microsoft.Azure.Storage.Common").pkg,
             importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg,
 

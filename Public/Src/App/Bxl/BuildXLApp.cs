@@ -56,7 +56,6 @@ using Statistic = BuildXL.Tracing.Statistic;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Core.Pipeline;
-using Microsoft.WindowsAzure.Storage.RetryPolicies;
 using BuildXL.ConsoleRedirector;
 
 namespace BuildXL

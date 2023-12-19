@@ -128,7 +128,7 @@ config({{
         {{
             kind: 'Nuget',
             repositories: {{
-                'nuget.org' : 'https://api.nuget.org/v3/index.json',
+                  'packageFeed': '{NuSpecGeneratorTests.RetrieveTestPackageFeed()}',
             }},
             packages: [
                 {{id: 'ILRepack', version: '2.0.16'}},

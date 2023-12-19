@@ -20,7 +20,6 @@ namespace BuildXL.Cache.Logging
 {
     /// <nodoc />
     internal readonly record struct SaveMetricInput(long Metric, string[] Dimensions, bool ReturnDimensionsToPool);
-
     /// <summary>
     /// Implements metric logger on top of the Ifx MeasureMetric.  Logs to MDM.
     /// </summary>
@@ -35,7 +34,7 @@ namespace BuildXL.Cache.Logging
 
         private static readonly Tracer Tracer = new Tracer(nameof(WindowsMetricLogger));
 
-        private readonly INagleQueue<SaveMetricInput>? _metricsSavingQueue;
+        private readonly NagleQueue<SaveMetricInput>? _metricsSavingQueue;
 
         [MemberNotNullWhen(true, nameof(_metricsSavingQueue))]
         private bool SaveMetricsAsynchronously { get; }
@@ -54,7 +53,9 @@ namespace BuildXL.Cache.Logging
             string metricName,
             MeasureMetric? measureMetric,
             MeasureMetric0D? measureMetric0D,
-            bool saveMetricsAsynchronously)
+            bool saveMetricsAsynchronously,
+            int? nagleQueueCapacityLimit,
+            int? nagleQueueBatchSize)
         {
             Contract.Requires(measureMetric is not null || measureMetric0D is not null);
 
@@ -80,7 +81,13 @@ namespace BuildXL.Cache.Logging
                     },
                     maxDegreeOfParallelism: 1,
                     interval: TimeSpan.FromSeconds(1),
-                    batchSize: 1000);
+                    batchSize: nagleQueueBatchSize ?? 1000,
+                    nagleQueueCapacityLimit);
+
+                _metricsSavingQueue.OnFailureToPost += args =>
+                                                       {
+                                                           Tracer.Debug(context, $"Can't post metrics to a queue, since the queue is full. {args}");
+                                                       };
             }
             
         }
@@ -99,7 +106,9 @@ namespace BuildXL.Cache.Logging
             string metricName,
             bool addDefaultDimensions,
             IEnumerable<Dimension> dimensions,
-            bool saveMetricsAsynchronously)
+            bool saveMetricsAsynchronously,
+            int? nagleQueueCapacityLimit,
+            int? nagleBatchSize)
         {
             if (string.IsNullOrEmpty(monitoringAccount))
             {
@@ -109,7 +118,7 @@ namespace BuildXL.Cache.Logging
             // For some reason the generic MeasureMetric class does not work with 0 dimensions.  There is a special
             // class (MeasureMetric0D) that does metrics without any dimensions.
             var dimensionNames = dimensions.Select(d => d.Name).ToArray();
-            Tracer.Debug(context, $"Initializing Mdm logger {logicalNameSpace}:{metricName}. AsyncLogging={saveMetricsAsynchronously}.");
+            Tracer.Debug(context, $"Initializing Mdm logger {logicalNameSpace}:{metricName}. AsyncLogging={saveMetricsAsynchronously}. Capacity: {nagleQueueCapacityLimit}, BatchSize: {nagleBatchSize}.");
             var error = new ErrorContext();
 
             MeasureMetric? measureMetric = null;
@@ -131,7 +140,7 @@ namespace BuildXL.Cache.Logging
                 return NoOpMetricLogger.Instance;
             }
 
-            return new WindowsMetricLogger(context, logicalNameSpace, metricName, measureMetric, measureMetric0D, saveMetricsAsynchronously);
+            return new WindowsMetricLogger(context, logicalNameSpace, metricName, measureMetric, measureMetric0D, saveMetricsAsynchronously, nagleQueueCapacityLimit, nagleBatchSize);
         }
 
         /// <summary>

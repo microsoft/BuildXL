@@ -29,7 +29,7 @@ namespace BuildXL.Cache.Logging.Test
             // but we can check that all the required dependencies are available.
             // And this test just checks that all the managed and native dlls are presented and all the types can be loaded successfully.
             var context = new Context(new Logger());
-            using var logger = MdmOperationLogger.Create(context, "CloudBuildCBTest", new List<DefaultDimension>(), saveMetricsAsynchronously: false);
+            using var logger = MdmOperationLogger.Create(context, "CloudBuildCBTest", new List<DefaultDimension>(), saveMetricsAsynchronously: false, nagleQueueCapacityLimit: null, nagleQueueBatchSize: null);
             logger.OperationFinished(new OperationResult("CustomMessage", "Test OperationName", "TestTracer", OperationStatus.Success, TimeSpan.FromSeconds(42), OperationKind.None, exception: null, operationId: "42", severity: Severity.Debug));
         }
 
@@ -37,7 +37,7 @@ namespace BuildXL.Cache.Logging.Test
         public void MetricOperationsAreNotFailingWhenSavingAsynchronously()
         {
             var context = new Context(new Logger());
-            using var logger = MdmOperationLogger.Create(context, "CloudBuildCBTest", new List<DefaultDimension>(), saveMetricsAsynchronously: true);
+            using var logger = MdmOperationLogger.Create(context, "CloudBuildCBTest", new List<DefaultDimension>(), saveMetricsAsynchronously: true, nagleQueueCapacityLimit: null, nagleQueueBatchSize: null);
             logger.OperationFinished(new OperationResult("CustomMessage", "Test OperationName", "TestTracer", OperationStatus.Success, TimeSpan.FromSeconds(42), OperationKind.None, exception: null, operationId: "42", severity: Severity.Debug));
         }
 
@@ -182,7 +182,7 @@ namespace BuildXL.Cache.Logging.Test
             public Action<(long metricValue, string[] dimensions)>? OnLogCore;
 
             public WindowsMetricLoggerTester(Context context, string logicalNameSpace, string metricName, MeasureMetric? measureMetric, MeasureMetric0D? measureMetric0D, bool saveMetricsAsynchronously)
-                : base(context, logicalNameSpace, metricName, measureMetric, measureMetric0D, saveMetricsAsynchronously)
+                : base(context, logicalNameSpace, metricName, measureMetric, measureMetric0D, saveMetricsAsynchronously, nagleQueueCapacityLimit: null, nagleQueueBatchSize: null)
             {
             }
 

@@ -48,9 +48,9 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Creates a fully functioning nagle queue.
         /// </summary>
-        public static NagleQueue<T> Create<T>(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        public static NagleQueue<T> Create<T>(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize, int? queueCapacityLimit = null)
         {
-            return NagleQueue<T>.Create(processBatch, maxDegreeOfParallelism, interval, batchSize);
+            return NagleQueue<T>.Create(processBatch, maxDegreeOfParallelism, interval, batchSize, queueCapacityLimit);
         }
     }
 
@@ -80,7 +80,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         public int BatchSize => m_batchSize;
 
         /// <nodoc />
-        protected NagleQueue(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        protected NagleQueue(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize, int? queueCapacityLimit = null)
         {
             m_timerInterval = interval;
             m_batchSize = batchSize;
@@ -98,7 +98,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                     {
                         m_itemListPool.PutInstance(items);
                     }
-                });
+                }, capacityLimit: queueCapacityLimit);
 
             // The timer is essentially off until the Start method is called.
             m_intervalTimer = new Timer(SendIncompleteBatch, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
@@ -108,22 +108,23 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Creates a unstarted nagle queue which is not started until <see cref="Start()"/> is called.
         /// </summary>
-        public static NagleQueue<T> CreateUnstarted(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        public static NagleQueue<T> CreateUnstarted(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize, int? queueCapacityLimit = null)
         {
             if (maxDegreeOfParallelism == 1 && batchSize == 1)
             {
+                // Don't have to pass queueCapacityLimit in this case, since this one is used for testing only.
                 return new SynchronousNagleQueue<T>(processBatch, maxDegreeOfParallelism, interval, batchSize);
             }
 
-            return new NagleQueue<T>(processBatch, maxDegreeOfParallelism, interval, batchSize);
+            return new NagleQueue<T>(processBatch, maxDegreeOfParallelism, interval, batchSize, queueCapacityLimit);
         }
 
         /// <summary>
         /// Creates a fully functioning nagle queue.
         /// </summary>
-        public static NagleQueue<T> Create(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
+        public static NagleQueue<T> Create(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize, int? queueCapacityLimit = null)
         {
-            var queue = CreateUnstarted(processBatch, maxDegreeOfParallelism, interval, batchSize);
+            var queue = CreateUnstarted(processBatch, maxDegreeOfParallelism, interval, batchSize, queueCapacityLimit);
             queue.Start();
             return queue;
         }
@@ -135,6 +136,16 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
             ResetTimer();
         }
+
+        /// <summary>
+        /// An event raised when the queue is full and we can't post the batch to an underlying action block.
+        /// </summary>
+        public Action<FailureToPostArgs>? OnFailureToPost;
+
+#pragma warning disable CS1591 // Missing XML comment
+        /// <nodoc />
+        public record struct FailureToPostArgs(long AddedWorkItems, int PendingWorkItems, int ProcessingWorkItems, long ProcessedWorkItems);
+#pragma warning restore CS1591 // Missing XML comment
 
         /// <inheritdoc />
         public void Enqueue(T item)
@@ -168,9 +179,21 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
             if (itemsToProcess != null)
             {
-                // Its possible that the block is completed because the Dispose method was already called.
-                // Ignoring this case here because we know that the block can't be full (its configured to be unbounded).
-                m_actionBlock.Post(itemsToProcess, throwOnFullOrComplete: false);
+                Post(itemsToProcess);
+            }
+        }
+
+        private void Post(List<T> items)
+        {
+            bool postResult = m_actionBlock.TryPost(items, throwOnFullOrComplete: false);
+            if (!postResult)
+            {
+                OnFailureToPost?.Invoke(
+                    new FailureToPostArgs(
+                        m_actionBlock.AddedWorkItems,
+                        m_actionBlock.PendingWorkItems,
+                        m_actionBlock.ProcessingWorkItems,
+                        m_actionBlock.ProcessedWorkItems));
             }
         }
 
@@ -189,7 +212,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
                     if (m_items.Count >= m_batchSize)
                     {
-                        m_actionBlock.Post(m_items);
+                        Post(m_items);
                         m_items = m_itemListPool.GetInstance().Instance;
                     }
                 }
@@ -254,7 +277,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
             if (itemsToProcess.Count != 0)
             {
-                m_actionBlock.Post(itemsToProcess);
+                Post(itemsToProcess);
             }
         }
 

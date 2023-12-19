@@ -26,11 +26,43 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
             _output = output;
         }
 
-        protected virtual INagleQueue<T> CreateNagleQueue<T>(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize, bool start = true)
+        protected virtual NagleQueue<T> CreateNagleQueue<T>(Func<List<T>, Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize, bool start = true, int? capacity = null)
         {
             return start
-                ? NagleQueue<T>.Create(processBatch, maxDegreeOfParallelism, interval, batchSize)
-                : NagleQueue<T>.CreateUnstarted(processBatch, maxDegreeOfParallelism, interval, batchSize);
+                ? NagleQueue<T>.Create(processBatch, maxDegreeOfParallelism, interval, batchSize, capacity)
+                : NagleQueue<T>.CreateUnstarted(processBatch, maxDegreeOfParallelism, interval, batchSize, capacity);
+        }
+
+        [Fact]
+        public async Task EventIsTriggeredWhenQueueIsFull()
+        {
+            await Task.Yield();
+            var tcs = new TaskCompletionSource<object>();
+            bool onFailureToPostIsTrigerred = false;
+            var queue = CreateNagleQueue<int>(
+                processBatch: async data =>
+                              {
+                                  await tcs.Task;
+                              },
+                maxDegreeOfParallelism: 1,
+                interval: TimeSpan.FromMilliseconds(1),
+                batchSize: 2, // can't use 1 as the batch size since we want to process the batch in parallel.
+                capacity: 1);
+
+            queue.OnFailureToPost += args =>
+                                     {
+                                         onFailureToPostIsTrigerred = true;
+                                     };
+
+            // Need to enqueue twice the size of the batch.
+            queue.Enqueue(42);
+            queue.Enqueue(42);
+            queue.Enqueue(42);
+            queue.Enqueue(42);
+            
+            tcs.TrySetResult(null);
+
+            await WaitUntilOrFailAsync(() => onFailureToPostIsTrigerred);
         }
 
         [Fact]

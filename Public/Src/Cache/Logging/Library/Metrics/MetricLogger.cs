@@ -92,10 +92,12 @@ namespace BuildXL.Cache.Logging
             string metricName,
             bool addDefaultDimensions,
             IEnumerable<Dimension> dimensions,
-            bool saveMetricsAsynchronously)
+            bool saveMetricsAsynchronously,
+            int? nagleQueueCapacityLimit,
+            int? nagleBatchSize)
         {
 #if MICROSOFT_INTERNAL
-            return WindowsMetricLogger.Create(context, monitoringAccount, logicalNameSpace, metricName, addDefaultDimensions, dimensions, saveMetricsAsynchronously);
+            return WindowsMetricLogger.Create(context, monitoringAccount, logicalNameSpace, metricName, addDefaultDimensions, dimensions, saveMetricsAsynchronously, nagleQueueCapacityLimit, nagleBatchSize);
 #else
             return NoOpMetricLogger.Instance;
 #endif

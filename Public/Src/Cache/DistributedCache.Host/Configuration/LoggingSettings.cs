@@ -38,6 +38,18 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool SaveMetricsAsynchronously { get; set; }
 
+        /// <summary>
+        /// If <see cref="SaveMetricsAsynchronously"/> is true, then this value specifies the size of the internal buffer. Once the buffer is full, the metrics would be dropped.
+        /// </summary>
+        [DataMember]
+        public int? MetricsNagleQueueCapacityLimit { get; set; }
+
+        /// <summary>
+        /// The batch size of the metrics nagle queue.
+        /// </summary>
+        [DataMember]
+        public int? MetricsNagleQueueBatchSize { get; set; }
+
         public LoggingSettings()
         {
         }

@@ -82,7 +82,13 @@ namespace BuildXL.Cache.Host.Service
                 else if (!string.IsNullOrEmpty(loggingSettings.MdmAccountName))
                 {
                     Tracer.Debug(context, "Creating MetricsLogger with an in-proc MdmOperationLogger.");
-                    operationLogger = MdmOperationLogger.Create(context, loggingSettings.MdmAccountName, GetDefaultDimensions(arguments), loggingSettings.SaveMetricsAsynchronously);
+                    operationLogger = MdmOperationLogger.Create(
+                        context,
+                        loggingSettings.MdmAccountName,
+                        GetDefaultDimensions(arguments),
+                        loggingSettings.SaveMetricsAsynchronously,
+                        loggingSettings.MetricsNagleQueueCapacityLimit,
+                        loggingSettings.MetricsNagleQueueBatchSize);
                     replacementLogger = new MetricsAdapter(nLogAdapter, operationLogger);
                 }
 

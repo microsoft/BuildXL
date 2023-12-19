@@ -54,7 +54,9 @@ namespace BuildXL.Cache.Logging
             Context context,
             string? monitoringAccount,
             List<DefaultDimension> defaultDimensions,
-            bool saveMetricsAsynchronously)
+            bool saveMetricsAsynchronously,
+            int? nagleQueueCapacityLimit,
+            int? nagleQueueBatchSize)
         {
             // Setting the default dimensions once instead of passing them all the time explicitly.
             MetricLogger.InitializeMdmDefaultDimensions(context, defaultDimensions);
@@ -67,7 +69,9 @@ namespace BuildXL.Cache.Logging
                 metricName: "OperationDurationMs",
                 addDefaultDimensions: true,
                 dimensions: OperationDurationDimensions,
-                saveMetricsAsynchronously);
+                saveMetricsAsynchronously,
+                nagleQueueCapacityLimit,
+                nagleQueueBatchSize);
 
             var metricLogger = MetricLogger.CreateLogger(
                 context,
@@ -76,7 +80,9 @@ namespace BuildXL.Cache.Logging
                 metricName: "Metric",
                 addDefaultDimensions: true,
                 dimensions: MetricDimensions,
-                saveMetricsAsynchronously);
+                saveMetricsAsynchronously,
+                nagleQueueCapacityLimit,
+                nagleQueueBatchSize);
 
             return new MdmOperationLogger(context, monitoringAccount, operationFinishedMetricLogger, metricLogger);
         }
@@ -126,7 +132,9 @@ namespace BuildXL.Cache.Logging
                         metricName: statisticName,
                         addDefaultDimensions: true,
                         dimensions: Array.Empty<Dimension>(),
-                        saveMetricsAsynchronously: false); // we should not have too many stats metrics, so its fine to save them synchronously all the time.
+                        saveMetricsAsynchronously: false,
+                        nagleQueueCapacityLimit: null,
+                        nagleBatchSize: null); // we should not have too many stats metrics, so its fine to save them synchronously all the time.
 
                     _statisticLoggers[statisticName] = metricLogger;
                 }

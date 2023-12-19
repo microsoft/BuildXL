@@ -4,18 +4,19 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs.Models;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces;
 using BuildXL.Utilities;
-using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -24,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// </summary>
     public record BlobEventStorageConfiguration
     {
-        public SecretBasedAzureStorageCredentials Credentials { get; init; }
+        public IAzureStorageCredentials Credentials { get; init; }
 
         public string FolderName { get; init; } = "eventlogs";
 
@@ -45,23 +46,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private const long BlockSizeLimit = 4_000_000;
 
-        private readonly CloudBlobContainer _container;
+        private readonly AzureBlobStorageFolder _folder;
 
         protected readonly BlobEventStorageConfiguration Configuration;
-        
-        /// <summary>
-        /// The directory used to store blobs for the event storage
-        /// </summary>
-        protected CloudBlobDirectory BlobDirectory { get; }
 
         public BlobEventStorageBase(BlobEventStorageConfiguration configuration)
         {
             Configuration = configuration;
 
-            var client = Configuration.Credentials.CreateCloudBlobClient();
-            // TODO: perhaps overwrite retry policy?
-            _container = client.GetContainerReference(Configuration.ContainerName);
-            BlobDirectory = _container.GetDirectoryReference(Configuration.FolderName);
+            _folder = (new AzureBlobStorageFolder.Configuration(Configuration.Credentials, Configuration.ContainerName, Configuration.FolderName)).Create();
         }
 
         /// <summary>
@@ -82,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// <summary>
         /// Gets the append blob name from the key
         /// </summary>
-        protected abstract string ToAppendBlobName(TKey cursor);
+        protected abstract BlobPath ToAppendBlobPath(TKey cursor);
 
         /// <summary>
         /// Gets the key from a <see cref="BlockReference"/>
@@ -92,7 +85,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            if (await _container.CreateIfNotExistsAsync())
+            // See: https://learn.microsoft.com/en-us/dotnet/api/azure.storage.blobs.blobcontainerclient.createifnotexists?view=azure-dotnet#returns
+            var response = await _folder.GetContainerClient().CreateIfNotExistsAsync(cancellationToken: context.Token);
+            if (response is not null)
             {
                 Tracer.Info(context, $"Created new blob container `{Configuration.ContainerName}`");
             }
@@ -109,9 +104,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var msg = $"{cursor} Length=[{stream.Length}]";
             return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
             {
-                var name = ToAppendBlobName(ToKey(cursor));
-                var blobReference = BlobDirectory.GetAppendBlobReference(name);
-                bool createNew = _createdBlobs.Add(name, TimeSpan.FromMinutes(5));
+                var blobPath = ToAppendBlobPath(ToKey(cursor));
+                var blobReference = _folder.GetAppendBlobClient(blobPath);
+                bool createNew = _createdBlobs.Add(blobPath.Path, TimeSpan.FromMinutes(5));
 
                 if (!createNew && stream.Length > 0 && stream.Length <= BlockSizeLimit)
                 {
@@ -141,55 +136,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public Task<BoolResult> GarbageCollectAsync(OperationContext context, TKey acknowledgedLogId)
         {
             var msg = $"LogId=[{acknowledgedLogId}]";
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                await foreach (var cloudBlob in listAsync(BlobDirectory))
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
                 {
-                    if (!TryParseName(cloudBlob.Name, out var cursor))
+                    await foreach (var cloudBlob in _folder.GetContainerClient().GetBlobsAsync(
+                                       BlobTraits.None,
+                                       BlobStates.None,
+                                       prefix: _folder.FolderPrefix,
+                                       cancellationToken: context.Token))
                     {
-                        Tracer.Error(context, $"Failed to parse string `{cloudBlob.Name}` into name");
-                        continue;
+                        if (!TryParseName(cloudBlob.Name, out var cursor))
+                        {
+                            Tracer.Error(context, $"Failed to parse string `{cloudBlob.Name}` into name");
+                            continue;
+                        }
+
+                        if (acknowledgedLogId.IsGreaterThan(cursor))
+                        {
+                            await _folder.GetBlobClient(path: new BlobPath(cloudBlob.Name, relative: false))
+                                .DeleteAsync(cancellationToken: context.Token);
+                        }
                     }
 
-                    if (acknowledgedLogId.IsGreaterThan(cursor))
-                    {
-                        await cloudBlob.DeleteAsync();
-                    }
-                }
-
-                return BoolResult.Success;
-            },
-            traceOperationStarted: false,
-            extraStartMessage: msg,
-            extraEndMessage: _ => msg);
-
-            async IAsyncEnumerable<CloudBlob> listAsync(CloudBlobDirectory container)
-            {
-                BlobContinuationToken continuation = null;
-                while (!context.Token.IsCancellationRequested)
-                {
-                    var blobs = await container.ListBlobsSegmentedAsync(
-                        useFlatBlobListing: true,
-                        blobListingDetails: BlobListingDetails.Metadata,
-                        maxResults: null,
-                        currentToken: continuation,
-                        options: null,
-                        operationContext: null);
-                    continuation = blobs.ContinuationToken;
-
-                    foreach (var cloudBlob in blobs.Results.OfType<CloudBlob>())
-                    {
-                        yield return cloudBlob;
-                    }
-
-                    if (continuation == null)
-                    {
-                        break;
-                    }
-                }
-
-                yield break;
-            }
+                    return BoolResult.Success;
+                },
+                traceOperationStarted: false,
+                extraStartMessage: msg,
+                extraEndMessage: _ => msg);
         }
 
         /// <summary>
@@ -201,18 +175,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             long length = -1;
             return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
             {
-                var appendBlob = BlobDirectory.GetAppendBlobReference(ToAppendBlobName(cursor));
+                var appendBlob = _folder.GetAppendBlobClient(ToAppendBlobPath(cursor));
                 if (!await appendBlob.ExistsAsync())
                 {
                     return Result.Success(Optional<TData>.Empty);
                 }
 
-                await appendBlob.FetchAttributesAsync();
-                length = appendBlob.Properties.Length;
-                var memoryStream = new MemoryStream((int)length);
-                await appendBlob.DownloadToStreamAsync(memoryStream);
+                using var memoryStream = new MemoryStream();
+                var response = await appendBlob.DownloadToAsync(memoryStream, cancellationToken: context.Token);
+                if (response.Status == (int)HttpStatusCode.NotFound)
+                {
+                    return Result.Success(Optional<TData>.Empty);
+                }
+
+                length = memoryStream.Length;
+
+                if (response.IsError)
+                {
+                    return Result.FromErrorMessage<Optional<TData>>(message: $"Failed to download {appendBlob.Uri} with status code {response.Status}");
+                }
+
                 memoryStream.Position = 0;
-                return Result.Success(new Optional<TData> (FromStream(memoryStream)));
+                return Result.Success(new Optional<TData>(FromStream(memoryStream)));
             },
             traceOperationStarted: false,
             timeout: Configuration.StorageInteractionTimeout,

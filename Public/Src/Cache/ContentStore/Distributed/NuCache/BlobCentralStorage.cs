@@ -6,9 +6,16 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure;
+using Azure.Storage;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
+using Azure.Storage.Sas;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -21,9 +28,6 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Core.Tasks;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
-using ExponentialRetry = Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -35,8 +39,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public class BlobCentralStorage : CentralStreamStorage
     {
-        private readonly (CloudBlobContainer container, int shardId)[] _containers;
-        private readonly CloudBlobContainer _primaryContainer;
+        private readonly (BlobContainerClient container, int shardId)[] _containers;
+        private readonly BlobContainerClient _primaryContainer;
         private readonly bool[] _containersCreated;
 
         private readonly BlobCentralStoreConfiguration _configuration;
@@ -52,15 +56,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(BlobCentralStorage));
 
-        private static readonly BlobRequestOptions DefaultBlobStorageRequestOptions = new BlobRequestOptions()
-        {
-            // Compute and store the MD5 hash of the stored file, which lets us validate the contents upon download
-            StoreBlobContentMD5 = true,
-            // Ensure content validation is activated client-side
-            DisableContentMD5Validation = false,
-            RetryPolicy = new ExponentialRetry(),
-        };
-
         /// <nodoc />
         public BlobCentralStorage(BlobCentralStoreConfiguration configuration)
         {
@@ -70,9 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 (credentials, index) =>
                 {
                     Contract.Requires(credentials != null);
-                    Contract.Requires(credentials is SecretBasedAzureStorageCredentials);   // TODO: We depend on the old SDK here - we should migrate to the new one. User Story #2098047
-                    var cloudBlobClient = ((SecretBasedAzureStorageCredentials)credentials).CreateCloudBlobClient();
-                    return (cloudBlobClient.GetContainerReference(configuration.ContainerName), shardId: index);
+                    return (credentials.CreateContainerClient(configuration.ContainerName), shardId: index);
                 }).ToArray();
 
             _primaryContainer = _containers[0].container;
@@ -97,27 +90,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             foreach (var (container, shardId) in _containers)
             {
-                var blob = container.GetBlockBlobReference(storageId);
-                var exists = await blob.ExistsAsync(null, null, context.Token);
+                var blob = container.GetBlockBlobClient(storageId);
+                var exists = await blob.ExistsAsync(context.Token);
 
-                if (exists)
+                if (exists.Value)
                 {
-                    var policy = new SharedAccessBlobPolicy()
-                    {
-                        Permissions = SharedAccessBlobPermissions.Read,
-                        SharedAccessExpiryTime = expiry
-                    };
-
-                    var sasUrlQuery = blob.GetSharedAccessSignature(policy);
+                    var policy = blob.GenerateSasUri(BlobSasPermissions.Read, expiresOn: expiry);
 
                     await TouchShardBlobAsync(context, container, shardId, storageId).ThrowIfFailure();
 
-                    return blob.Uri.AbsoluteUri + sasUrlQuery;
+                    return policy.AbsoluteUri;
                 }
-                else
-                {
-                    Tracer.Debug(context, $@"Could not find '{_configuration.ContainerName}\{storageId}' from shard #{shardId}.");
-                }
+
+                Tracer.Debug(context, $@"Could not find '{_configuration.ContainerName}\{storageId}' from shard #{shardId}.");
             }
 
             return new ErrorResult($@"Could not find '{_configuration.ContainerName}\{storageId}'");
@@ -163,7 +148,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private Task<BoolResult> TryGetShardFileAsync(
             OperationContext context,
-            CloudBlobContainer container,
+            BlobContainerClient container,
             int shardId,
             Stream fileStream,
             string blobName,
@@ -171,10 +156,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperationWithTimeoutAsync(Tracer, async nestedContext =>
             {
-                var blob = container.GetBlockBlobReference(blobName);
-                var exists = await blob.ExistsAsync(null, null, nestedContext.Token);
-
-                if (!exists)
+                var blob = container.GetBlockBlobClient(blobName);
+                var exists = await blob.ExistsAsync(nestedContext.Token);
+                if (!exists.Value)
                 {
                     // The blob may be missing, because we could've picked the new shard.
                     return new BoolResult($@"Recoverable error: Checkpoint blob '{_configuration.ContainerName}\{blobName}' does not exist in shard #{shardId}.");
@@ -186,7 +170,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     nestedContext,
                     $@"Downloading blob '{_configuration.ContainerName}\{blobName}' to {targetCheckpointFile} from shard #{shardId}.");
 
-                await blob.DownloadToStreamAsync(fileStream, null, DefaultBlobStorageRequestOptions, null, nestedContext.Token);
+                await blob.DownloadToAsync(
+                    fileStream,
+                    new BlobDownloadToOptions(),
+                    cancellationToken: nestedContext.Token);
 
                 return BoolResult.Success;
             },
@@ -202,7 +189,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             // Check for throttling errors from a storage.
-            if (e is StorageException && e.Message.Contains("503") && e.ToString().Contains("ErrorCode:ServerBusy"))
+            if (e is RequestFailedException rfe && rfe.Status == (int)HttpStatusCode.ServiceUnavailable)
             {
                 return true;
             }
@@ -226,16 +213,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return results.Aggregate(BoolResult.Success, (result, boolResult) => result | boolResult);
         }
 
-        private Task<BoolResult> TouchShardBlobAsync(OperationContext context, CloudBlobContainer container, int shardId, string blobName)
+        private Task<BoolResult> TouchShardBlobAsync(OperationContext context, BlobContainerClient container, int shardId, string blobName)
         {
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 async nestedContext =>
                 {
-                    var blob = await GetBlockBlobReferenceAsync(container, shardId, blobName, nestedContext.Token);
-                    var exists = await blob.ExistsAsync(null, null, nestedContext.Token);
+                    var blob = await GetBlockBlobClientAsync(container, shardId, blobName, nestedContext.Token);
+                    var exists = await blob.ExistsAsync(nestedContext.Token);
 
-                    if (exists)
+                    if (exists.Value)
                     {
                         await TouchShardBlobCoreAsync(shardId, blobName, nestedContext, blob);
                     }
@@ -249,15 +236,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: _configuration.OperationTimeout);
         }
 
-        private Task TouchShardBlobCoreAsync(int shardId, string blobName, OperationContext nestedContext, CloudBlockBlob blob)
+        private Task TouchShardBlobCoreAsync(int shardId, string blobName, OperationContext nestedContext, BlockBlobClient blob)
         {
             var now = DateTime.UtcNow;
             Tracer.Debug(
                 nestedContext,
-                $@"Touching blob '{_configuration.ContainerName}\{blobName}' of size {blob.Properties.Length} with access time {now} for shard #{shardId}.");
-            blob.Metadata[LastAccessedMetadataName] = now.ToReadableString();
+                $@"Touching blob '{_configuration.ContainerName}\{blobName}' of with access time {now} for shard #{shardId}.");
 
-            return blob.SetMetadataAsync(null, null, null, nestedContext.Token);
+            return blob.SetMetadataAsync(
+                new Dictionary<string, string>() { { LastAccessedMetadataName, now.ToReadableString() } },
+                cancellationToken: nestedContext.Token);
         }
 
         /// <inheritdoc />
@@ -277,14 +265,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new Result<string>(failure);
         }
 
-        private Task<BoolResult> UploadShardFileAsync(OperationContext context, CloudBlobContainer container, int shardId, AbsolutePath file, string blobName, bool garbageCollect)
+        private Task<BoolResult> UploadShardFileAsync(OperationContext context, BlobContainerClient container, int shardId, AbsolutePath file, string blobName, bool garbageCollect)
         {
             long fileSize = -1;
             return context.PerformOperationWithTimeoutAsync(Tracer, async nestedContext =>
             {
                 fileSize = new System.IO.FileInfo(file.ToString()).Length;
 
-                var blob = await GetBlockBlobReferenceAsync(container, shardId, blobName, nestedContext.Token);
+                var blob = await GetBlockBlobClientAsync(container, shardId, blobName, nestedContext.Token);
 
                 // WARNING: There is a TOCTOU issue here. If there are multiple concurrent writers to a single blob,
                 // there's no way to tell which upload will win the race. Moreover, it is possible for a blob to be
@@ -292,10 +280,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // Since BlobCentralStorage is meant to upload files with unique names only, we don't care about this
                 // particular use-case: it should basically never happen, and when it does, it shouldn't matter because
                 // the file should be the same.
-                var exists = await blob.ExistsAsync(null, null, context.Token);
+                var exists = await blob.ExistsAsync(nestedContext.Token);
                 if (!exists)
                 {
-                    await blob.UploadFromFileAsync(file.ToString(), null, DefaultBlobStorageRequestOptions, null, nestedContext.Token);
+                    using (var fileStream = await _fileSystem.OpenReadOnlyAsync(file, FileShare.Read | FileShare.Delete))
+                    {
+                        await blob.UploadAsync(
+                            fileStream,
+                            new BlobUploadOptions(),
+                            cancellationToken: nestedContext.Token);
+                    }
                 }
                 else
                 {
@@ -307,7 +301,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Only GC every after retention time.
                     if (!_gcLastRunTime.IsRecent(SystemClock.Instance.UtcNow, _configuration.RetentionTime))
                     {
-                        TriggerGarbageCollection(context, container, shardId);
+                        TriggerGarbageCollection(nestedContext, container, shardId);
                     }
                 }
 
@@ -319,15 +313,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             timeout: _configuration.OperationTimeout);
         }
 
-        private async Task<CloudBlockBlob> GetBlockBlobReferenceAsync(CloudBlobContainer container, int shardId, string blobName, CancellationToken token)
+        private async Task<BlockBlobClient> GetBlockBlobClientAsync(BlobContainerClient container, int shardId, string blobName, CancellationToken token)
         {
             // For newly created stamps container may be missing.
             await CreateContainerIfNeededAsync(container, shardId, token);
 
-            return container.GetBlockBlobReference(blobName);
+            return container.GetBlockBlobClient(blobName);
         }
 
-        private async Task CreateContainerIfNeededAsync(CloudBlobContainer container, int shardId, CancellationToken token)
+        private async Task CreateContainerIfNeededAsync(BlobContainerClient container, int shardId, CancellationToken token)
         {
             if (!_containersCreated[shardId])
             {
@@ -335,84 +329,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     if (!_containersCreated[shardId])
                     {
-                        await container.CreateIfNotExistsAsync(
-                        accessType: BlobContainerPublicAccessType.Off,
-                        options: null,
-                        operationContext: null,
-                        cancellationToken: token);
-
+                        await container.CreateIfNotExistsAsync(cancellationToken: token);
                         _containersCreated[shardId] = true;
                     }
                 }
             }
         }
 
-        /// <nodoc />
-        public struct DerivedCheckpointInformation
-        {
-            /// <nodoc />
-            public string StorageId { get; }
-
-            /// <nodoc />
-            public DateTime? CreationTime { get; }
-
-            /// <nodoc />
-            public DateTime? LastAccessTime { get; }
-
-            /// <nodoc />
-            public DerivedCheckpointInformation(CloudBlockBlob blob)
-            {
-                StorageId = blob.Name;
-                CreationTime = blob.Properties.Created?.DateTime;
-                LastAccessTime = GetLastAccessedTime(blob);
-            }
-        }
-
-        /// <nodoc />
-        public async IAsyncEnumerable<DerivedCheckpointInformation> ListBlobsWithNameMatchingAsync(OperationContext context, Regex regex)
-        {
-            foreach (var (container, shardId) in _containers)
-            {
-                await foreach (var entry in listForContainer(container))
-                {
-                    yield return entry;
-                }
-            }
-
-            async IAsyncEnumerable<DerivedCheckpointInformation> listForContainer(CloudBlobContainer container)
-            {
-                BlobContinuationToken? continuation = null;
-                while (!context.Token.IsCancellationRequested)
-                {
-                    var blobs = await container.ListBlobsSegmentedAsync(
-                        prefix: null,
-                        useFlatBlobListing: true,
-                        blobListingDetails: BlobListingDetails.Metadata,
-                        maxResults: null,
-                        currentToken: continuation,
-                        options: null,
-                        operationContext: null);
-                    continuation = blobs.ContinuationToken;
-
-                    foreach (CloudBlockBlob blob in blobs.Results.OfType<CloudBlockBlob>())
-                    {
-                        if (regex.IsMatch(blob.Name))
-                        {
-                            yield return new DerivedCheckpointInformation(blob);
-                        }
-                    }
-
-                    if (continuation == null)
-                    {
-                        break;
-                    }
-                }
-
-                yield break;
-            }
-        }
-
-        internal void TriggerGarbageCollection(OperationContext context, CloudBlobContainer container, int shardId)
+        internal void TriggerGarbageCollection(OperationContext context, BlobContainerClient container, int shardId)
         {
             context.PerformOperationAsync(Tracer, () =>
             {
@@ -424,7 +348,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             traceOperationStarted: false).FireAndForget(context);
         }
 
-        private async Task<BoolResult> GarbageCollectCoreAsync(OperationContext context, CloudBlobContainer container, int shardId)
+        private async Task<BoolResult> GarbageCollectCoreAsync(OperationContext context, BlobContainerClient container, int shardId)
         {
             var expiredThreshold = DateTime.UtcNow - _configuration.RetentionTime;
             Tracer.Debug(context, $"Collecting blobs with last access time earlier than {expiredThreshold} for shard #{shardId}.");
@@ -433,41 +357,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 int totalNumberOfBlobs = 0;
                 int numberOfDeletedBlobs = 0;
 
-                BlobContinuationToken? continuationToken = null;
-                while (true)
+                await foreach (var item in container.GetBlobsAsync(cancellationToken: context.Token))
                 {
-                    var result = await container.ListBlobsSegmentedAsync(
-                        prefix: null,
-                        useFlatBlobListing: true,
-                        blobListingDetails: BlobListingDetails.Metadata,
-                        maxResults: null,
-                        currentToken: continuationToken,
-                        options: null,
-                        operationContext: null);
+                    totalNumberOfBlobs++;
 
-                    continuationToken = result.ContinuationToken;
-
-                    foreach (CloudBlockBlob block in result.Results.OfType<CloudBlockBlob>())
+                    DateTime? lastAccessTime = null;
+                    if (item.Metadata.TryGetValue(LastAccessedMetadataName, out var lastAccessTimeString))
                     {
-                        totalNumberOfBlobs++;
-                        var lastAccessTime = GetLastAccessedTime(block);
-                        if (lastAccessTime < expiredThreshold)
-                        {
-                            if (await block.DeleteIfExistsAsync())
-                            {
-                                numberOfDeletedBlobs++;
-                                Tracer.Debug(context, $@"Deleted blob '{_configuration.ContainerName}\{block.Name}' for shard #{shardId}. LastAccessTime={lastAccessTime}.");
-                            }
-                            else
-                            {
-                                Tracer.Debug(context, $@"Failed deleting blob '{_configuration.ContainerName}\{block.Name}' for shard #{shardId}. LastAccessTime={lastAccessTime}.");
-                            }
-                        }
+                        lastAccessTime = DateTimeUtilities.FromReadableTimestamp(lastAccessTimeString);
                     }
 
-                    if (continuationToken == null || context.Token.IsCancellationRequested)
+                    lastAccessTime ??= item.Properties.LastAccessedOn?.UtcDateTime;
+                    lastAccessTime ??= item.Properties.LastModified?.UtcDateTime;
+
+                    if (lastAccessTime < expiredThreshold)
                     {
-                        break;
+                        var blob = container.GetBlobClient(item.Name);
+                        if (await blob.DeleteIfExistsAsync(cancellationToken: context.Token))
+                        {
+                            numberOfDeletedBlobs++;
+                            Tracer.Debug(context, $@"Deleted blob '{_configuration.ContainerName}\{item.Name}' for shard #{shardId}. LastAccessTime={lastAccessTime}.");
+                        }
+                        else
+                        {
+                            Tracer.Debug(context, $@"Failed deleting blob '{_configuration.ContainerName}\{item.Name}' for shard #{shardId}. LastAccessTime={lastAccessTime}.");
+                        }
                     }
                 }
 
@@ -482,45 +396,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return BoolResult.Success;
         }
 
-        private static DateTime? GetLastAccessedTime(CloudBlockBlob block)
-        {
-            if (block.Metadata.TryGetValue(LastAccessedMetadataName, out var lastAccessTimeString))
-            {
-                return DateTimeUtilities.FromReadableTimestamp(lastAccessTimeString);
-            }
-
-            // Fall back to last modified time
-            return block.Properties.LastModified?.UtcDateTime;
-        }
-
         /// <inheritdoc />
         public bool IsTransient(Exception ex) => IsRecoverableStorageException(ex);
 
         /// <inheritdoc />
         protected override async Task<TResult> ReadCoreAsync<TResult>(OperationContext context, string storageId, Func<StreamWithLength, Task<TResult>> readStreamAsync)
         {
-            var blob = await GetBlockBlobReferenceAsync(_containers[0].container, _containers[0].shardId, storageId, context.Token);
-            var exists = await blob.ExistsAsync(null, null, context.Token);
-
-            if (!exists)
+            var blob = await GetBlockBlobClientAsync(_containers[0].container, _containers[0].shardId, storageId, context.Token);
+            try
             {
-                // The blob may be missing, because we could've picked the new shard.
-                return new ErrorResult($@"Stream '{_configuration.ContainerName}/{storageId}' does not exist.").AsResult<TResult>();
+                using var stream = await blob.OpenReadAsync(new BlobOpenReadOptions(allowModifications: false), cancellationToken: context.Token);
+                return await readStreamAsync(stream.WithLength(stream.Length));
             }
-
-            await blob.FetchAttributesAsync();
-
-            using (var stream = await blob.OpenReadAsync())
+            catch (RequestFailedException ex)
             {
-                return await readStreamAsync(stream.WithLength(blob.Properties.Length));
+                return new ErrorResult(ex, $@"Failed to read '{_configuration.ContainerName}/{storageId}'").AsResult<TResult>();
             }
         }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> StoreCoreAsync(OperationContext context, string storageId, Stream stream)
         {
-            var blob = await GetBlockBlobReferenceAsync(_containers[0].container, _containers[0].shardId, storageId, context.Token);
-            await blob.UploadFromStreamAsync(stream);
+            var blob = await GetBlockBlobClientAsync(_containers[0].container, _containers[0].shardId, storageId, context.Token);
+            await blob.UploadAsync(stream, new BlobUploadOptions(), cancellationToken: context.Token);
             return BoolResult.Success;
         }
     }

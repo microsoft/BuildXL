@@ -47,12 +47,6 @@ namespace Default {
                     contents: [
                         Vsts.dll
                     ]
-                },
-                {
-                    subfolder: r`VstsApp`,
-                    contents: [
-                        VstsApp.dll
-                    ]
                 }
             ),
         ]

@@ -24,14 +24,6 @@ namespace Cache {
                 ]
             },
             {
-                subfolder: r`Monitor`,
-                contents: [
-                    ...addIfLazy(qualifier.targetFramework === BuildXLSdk.TargetFrameworks.DefaultTargetFramework,
-                        () => [importFrom("BuildXL.Cache.Monitor").Default.deployment]
-                    ),
-                ]
-            },
-            {
                 subfolder: r`DeployServer`,
                 contents: [
                     ...addIfLazy(BuildXLSdk.isDotNetCoreOrStandard,

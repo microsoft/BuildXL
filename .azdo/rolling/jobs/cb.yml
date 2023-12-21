@@ -1,0 +1,80 @@
+jobs:
+- template: cb-rolling.yml
+  parameters:
+    jobName: BuildCandidate
+    displayName: Build candidate BuildXL
+    arguments:
+      uploadDropMetadata: false
+      additionalFlags: >-
+        /f:spec='Public/Src/Deployment/buildXL.dsc'
+        /q:Release
+        /respectWeakFingerprintForNugetUpToDateCheck
+        /p:[BuildXL.Branding]SemanticVersion=0.0.1
+        /p:[BuildXL.Branding]PrereleaseTag=LkgForRolling
+        /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
+        /enableIncrementalFrontEnd-
+        /p:[Sdk.BuildXL]microsoftInternal=1
+        /logoutput:FullOutputAlways
+      genericRunnerOptions: '{ "IsDropEnabled": "true", "DropName": "$(BuildXL.Candidate.DropName)", "ContentWriteMode": "WriteThrough" }'
+      specificRunnerOptions: '{ "EnableComplianceBuild": "true", "GuardianBuildFlags": "/p:[Tool.Guardian]enabledTools=credscan,eslint,policheck,psscriptanalyzer /nowarn:222" }'
+
+- template: cb-rolling.yml
+  parameters: 
+    jobName: CbAllQualifiers
+    displayName: Build all qualifiers with candidate BuildXL
+    dependsOn:
+    - BuildCandidate
+    arguments:
+      dropMetadataContainerName: SecondBuildFull
+      additionalFlags: >-
+        /q:DebugDotNetCoreMac
+        /q:ReleaseDotNetCoreMac
+        /q:ReleaseNet472
+        /q:DebugNet472
+        /q:DebugDotNet6
+        /q:ReleaseDotNet6
+        /q:DebugNet7
+        /q:ReleaseNet7
+        /p:Build.BuildId=$(Build.BuildNumber)
+        /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
+        /p:[Sdk.BuildXL]microsoftInternal=1
+        /p:[Sdk.BuildXL]DoNotForceXUnitFrameworkInVm=1
+        /validateCgManifestForNugets:cg\nuget\cgmanifest.json
+        /p:[Sdk.BuildXL.CBInternal]CodeCoverageOption=DynamicFull
+        /p:[Sdk.BuildXL]enableRoslynAnalyzers=true
+        /logoutput:FullOutputAlways
+      genericRunnerOptions: >-
+        { 
+          "IsDropEnabled": "true", 
+          "ContentWriteMode": "WriteThrough"
+        }
+      toolPaths: '{ "DominoEngine": "https://cloudbuild.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/$(BuildXL.Candidate.DropName)?root=release/win-x64" }'
+
+- template: cb-rolling.yml
+  parameters:
+    jobName: CbPopulateDevCache
+    displayName: Populate Dev Cache
+    dependsOn:
+    - BuildCandidate
+    condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
+    arguments:
+      uploadDropMetadata: false
+      additionalFlags: >-
+        /q:DebugDotNetCoreMac
+        /q:ReleaseDotNetCoreMac
+        /q:DebugNet472
+        /q:ReleaseNet472
+        /q:ReleaseDotNet6
+        /q:DebugDotNet6
+        /p:[Sdk.BuildXL]useManagedSharedCompilation=1
+        /p:[BuildXL.Branding]PrereleaseTag=devBuild
+        /p:[Sdk.BuildXL]microsoftInternal=1
+        /p:[Sdk.BuildXL]DoNotForceXUnitFrameworkInVm=1
+        /cacheMiss:[commit$(Build.SourceVersion)]
+        /historicMetadataCache-
+        /p:ENABLE_ESRP=0
+        /unsafe_AssumeCleanOutputs-
+        /p:BUILDXL_FINGERPRINT_SALT=casingPR
+        /p:BUILDXL_DROP_ENABLED=false
+      genericRunnerOptions: '{ "ContentWriteMode": "WriteThrough" }'
+      toolPaths: '{ "DominoEngine": "https://cloudbuild.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/$(BuildXL.Candidate.DropName)?root=release/win-x64" }'

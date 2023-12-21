@@ -1,0 +1,71 @@
+jobs:
+# There is no private version of the mac interop library - only build the public one
+- job: Mac_Public_Interop
+  displayName: Mac Public Interop Library Package Build
+  timeoutInMinutes: 180  
+  pool:
+    name: Azure Pipelines
+    os: macOs
+    vmImage: macos-latest
+
+  templateContext:
+    sdl:
+      binskim:
+        scanOutputDirectoryOnly: true
+    outputParentDirectory: $(Agent.TempDirectory)/BuildXLMacOS
+    outputs:
+    - output: buildArtifacts
+      displayName: Publish Microsoft.BuildXL.Interop.Runtime.osx-x64 package
+      PathtoPublish: $(Agent.TempDirectory)/BuildXLMacOS/Microsoft.BuildXL.Interop.Runtime.osx-x64.$(Build.BuildNumber).nupkg
+      ArtifactName: Microsoft.BuildXL.Interop.Runtime.osx-x64.$(Build.BuildNumber)
+      sbomEnabled: false
+    
+    - output: pipelineArtifact
+      displayName: '[OnFailure] Publish Logs'
+      condition: failed()
+      path: $(Agent.TempDirectory)/BuildXLMacOS
+      artifact: MacOSBuildLogs.$(Build.BuildNumber)
+      sbomEnabled: false
+
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+
+  - task: Bash@3
+    displayName: Create Intermediate Build Directory
+    inputs:
+      targetType: inline
+      script: |
+        mkdir -p $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary
+        rm -rf $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary/*
+      workingDirectory: $(Agent.TempDirectory)
+  
+  - task: Bash@3
+    displayName: Build Debug libBuildXLInterop.dylib
+    inputs:
+      filePath: $(Build.SourcesDirectory)/Private/macOS/xcodebuild.sh
+      arguments: --projectPath $(Build.SourcesDirectory)/Public/Src/Sandbox/MacOs/Interop/Interop.xcodeproj --scheme InteropLibrary --configuration debug --outputDirectory $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary --bundlePath $(Build.SourcesDirectory)/Public/Src/Sandbox/MacOs/BundleInfo.xcconfig
+      workingDirectory: $(Agent.TempDirectory)/BuildXLMacOS
+  
+  - task: Bash@3
+    displayName: Build Release libBuildXLInterop.dylib
+    inputs:
+      filePath: $(Build.SourcesDirectory)/Private/macOS/xcodebuild.sh
+      arguments: --projectPath $(Build.SourcesDirectory)/Public/Src/Sandbox/MacOs/Interop/Interop.xcodeproj --scheme InteropLibrary --configuration release --outputDirectory $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary --bundlePath $(Build.SourcesDirectory)/Public/Src/Sandbox/MacOs/BundleInfo.xcconfig
+      workingDirectory: $(Agent.TempDirectory)/BuildXLMacOS
+  
+  - task: Bash@3
+    displayName: Prepare Nuget Package
+    inputs:
+      filePath: $(Build.SourcesDirectory)/Private/macOS/prepare-macos-runtime-package.sh
+      arguments: --packageVersion $(Build.BuildNumber) --interopBuildDirectory $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary --outputDirectory $(Agent.TempDirectory)/BuildXLMacOS/nugetpkg
+      workingDirectory: $(Agent.TempDirectory)/BuildXLMacOS
+  
+  - task: NuGetCommand@2
+    displayName: Pack Microsoft.BuildXL.Interop.Runtime.osx-x64
+    inputs:
+      command: pack
+      searchPatternPack: $(Agent.TempDirectory)/BuildXLMacOS/nugetpkg/Microsoft.BuildXL.Interop.Runtime.osx-x64.nuspec
+      configurationToPack: ''
+      outputDir: $(Agent.TempDirectory)/BuildXLMacOS

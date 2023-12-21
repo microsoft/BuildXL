@@ -1,0 +1,108 @@
+jobs:
+- job: RCIT
+  displayName: RunCheckInTests with PAT Part B
+  timeoutInMinutes: 180
+  cancelTimeoutInMinutes: 1
+  condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
+  pool:
+    name: BuildXL-DevOpsAgents-PME
+  templateContext:
+    sdl:
+      binskim:
+        scanOutputDirectoryOnly: true
+    outputParentDirectory: $(Build.StagingDirectory)\Logs
+    outputs:
+    - output: pipelineArtifact
+      displayName: '[OnFailure] Upload logs'
+      artifact: buildxl.logs.$(Build.BuildNumber)
+      path: $(Build.StagingDirectory)\Logs\Bootstrap
+      sbomEnabled: false
+      condition: failed()
+
+    - output: pipelineArtifact
+      displayName: '[OnFailure] Upload DistributedIntegrationTest logs'
+      artifact: DistributedIntegrationTest.buildxl.logs
+      path: $(Build.StagingDirectory)\Logs\DistributedIntegrationTest
+      sbomEnabled: false
+      condition: failed()
+
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+  
+  # Enable journaling
+  - template: ../../common/journaling.yml 
+  
+  - task: CmdLine@2
+    displayName: 'Nuget Hack: Nuget has auth problems and a terrible CLI. Have to kill old nuget.config first'
+    inputs:
+      script: |
+        if EXIST %AppData%\NuGet\NuGet.Config (
+            del %AppData%\NuGet\NuGet.Config
+        )
+
+        if EXIST "$(Build.SourcesDirectory)\Out\Objects" (
+            rmdir /s/q "$(Build.SourcesDirectory)\Out\Objects"
+            echo deleted "$(Build.SourcesDirectory)\Out\Objects"
+        )
+
+        if EXIST "$(Build.SourcesDirectory)\Out\frontend" (
+            rmdir /s/q "$(Build.SourcesDirectory)\Out\frontend"
+            echo deleted "$(Build.SourcesDirectory)\Out\frontend"
+        )
+
+  # Set DotNet SDK version
+  - template: ../../common/use-latest-dotnet-sdk.yml 
+
+  - task: DotNetCoreCLI@2
+    displayName: Build BuildXL.Tools.CredentialProvider
+    enabled: False
+    inputs:
+      projects: Public\Src\Tools\BuildXL.Tools.CredentialProvider\BuildXL.Tools.CredentialProvider.csproj
+      arguments: -r win-x64 --self-contained
+
+  - task: CmdLine@2
+    displayName: Disable CodeQL
+    inputs:
+      script: >-
+        IF NOT EXIST "%~dp0\codeql3000.yml" (
+          echo variables: > "%~dp0\codeql3000.yml"
+          echo.    Codeql.Enabled: false >> "%~dp0\codeql3000.yml"
+        )
+
+  - task: PowerShell@2
+    displayName: Install artifacts credential provider
+    inputs:
+      targetType: inline
+      script: iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx"
+
+  - task: PowerShell@2
+    displayName: RunCheckInTests with PAT
+    inputs:
+      filePath: RunCheckInTestsWithPAT.ps1
+      arguments: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) $(NugetCredentialProviderPath) $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) /partB
+
+  - task: CmdLine@2
+    displayName: Run script RunCheckInTests.cmd
+    enabled: False
+    inputs:
+      script: RunCheckInTests.cmd /lab /partB /internal
+  
+  - template: ../../common/kill-bxl.yml 
+
+  # Stage logs for upload on failure
+  - task: CopyFiles@2
+    displayName: '[OnFailure] Stage logs for upload'
+    inputs:
+      SourceFolder: $(Build.SourcesDirectory)\Out\Logs
+      TargetFolder: $(Build.StagingDirectory)\Logs\Bootstrap
+    condition: failed()
+
+  - task: CopyFiles@2
+    displayName: '[OnFailure] Stage DistributedIntegrationTest logs for upload'
+    inputs:
+      SourceFolder: $(Build.SourcesDirectory)\Private\DistributedIntegrationTest\Out 
+      Contents: "**/Logs/**"
+      TargetFolder: $(Build.StagingDirectory)\Logs\DistributedIntegrationTest
+    condition: failed()

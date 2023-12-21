@@ -1,0 +1,78 @@
+trigger:
+  batch: true
+  branches:
+    include:
+    - main
+  paths:
+    exclude:
+    - Documentation
+    - Examples
+  
+variables:
+  - template: variables.yml
+  - group: "BuildXL Secrets"
+  - group: "BuildXL Common variables"
+
+resources:
+  repositories:
+  - repository: 1ESPipelines
+    type: git
+    name: Domino/1ESPipelines
+    ref: main
+
+extends:
+  template: v1/1ES.Official.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      name: BuildXL-DevOpsAgents-PME
+      os: windows
+    sdl:
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        image: Windows-SDL-Image
+        os: windows
+      spotBugs:
+        enabled: false
+
+    stages:
+    - stage: prepare
+      displayName: Set build number
+      dependsOn: []
+      jobs:
+      - template: .azdo/rolling/jobs/set-build-number.yml@self
+
+    - stage: CB
+      displayName: CB Validation
+      dependsOn: prepare
+      jobs:
+      - template: .azdo/rolling/jobs/cb.yml@self
+
+    - stage: RCIT
+      displayName: RunCheckInTests
+      dependsOn: prepare
+      jobs:
+      - template: .azdo/rolling/jobs/run-checkin-tests.yml@self
+
+    - stage: Linux
+      displayName: Linux
+      dependsOn: prepare
+      jobs:
+      - template: .azdo/rolling/jobs/linux.yml@self
+
+    - stage: PublicWin
+      displayName: Public validations (Windows)
+      dependsOn: prepare
+      jobs:
+      - template: .azdo/rolling/jobs/public.yml@self
+
+    - stage: Mac
+      displayName: Mac
+      dependsOn: prepare
+      jobs:
+      - template: .azdo/rolling/jobs/mac.yml@self
+    
+    - stage: publish
+      displayName: Publish
+      dependsOn: [CB, RCIT, PublicWin, Linux, Mac]
+      jobs:
+      - template: .azdo/rolling/jobs/publish.yml@self

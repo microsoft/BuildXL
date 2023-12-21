@@ -1,0 +1,54 @@
+parameters:
+- name: CacheNamespace
+  type: string
+
+steps:
+  # Set DotNet SDK version
+  - template: ../../common/use-latest-dotnet-sdk.yml 
+
+  # TODO [maly]: Auto cache config via adobuildrunner
+  - task: Bash@3
+    displayName: Write cache config file
+    inputs:
+      targetType: inline
+      script: |
+        set -euo pipefail
+        mkdir -p Out
+        tee Out/CacheConfig.json << EOF
+        {
+        "RemoteIsReadOnly": false,
+        "SkipDeterminismRecovery":  true,
+        "RemoteConstructionTimeoutMilliseconds":  10000,
+        "Assembly":  "BuildXL.Cache.VerticalAggregator",
+        "Type":  "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
+        "RemoteCache":  {
+                            "CacheServiceFingerprintEndpoint":  "https://mseng.artifacts.visualstudio.com/DefaultCollection",
+                            "RequiredContentKeepUntilHours":  1,
+                            "Assembly":  "BuildXL.Cache.BuildCacheAdapter",
+                            "CacheServiceContentEndpoint":  "https://mseng.vsblob.visualstudio.com/DefaultCollection",
+                            "Type":  "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory",
+                            "CacheLogPath":  "[BuildXLSelectedLogPath].Remote.log",
+                            "CacheId":  "L3Cache",
+                            "CacheNamespace":  "${{ parameters.CacheNamespace }}",
+                            "UseBlobContentHashLists":  true
+                        },
+        "LocalCache":  {
+                        "MaxCacheSizeInMB":  20240,
+                        "Assembly":  "BuildXL.Cache.MemoizationStoreAdapter",
+                        "UseStreamCAS":  true,
+                        "Type":  "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
+                        "CacheLogPath":  "[BuildXLSelectedLogPath]",
+                        "CacheRootPath":  "[BuildXLSelectedRootPath]",
+                        "CacheId":  "SelfhostCS2L1",
+                        "UseRocksDbMemoizationStore":  true
+                    }
+        }
+        EOF
+
+  - task: Bash@3
+    displayName: Bind /home/subst to sources directory
+    inputs:
+      targetType: inline
+      script: |
+        sudo mkdir /home/subst
+        sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst

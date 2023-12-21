@@ -1,0 +1,6 @@
+steps:
+- task: BatchScript@1
+  displayName: Kill existing BuildXL processes
+  condition: always()
+  inputs:
+    filename: Shared/Scripts/KillBxlInstancesInRepo.cmd

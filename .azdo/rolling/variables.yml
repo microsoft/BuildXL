@@ -1,0 +1,21 @@
+variables:
+- name: Branding_PrereleaseTag_Initial
+  value: $(Build.BuildNumber)
+- name: Branding_SourceIdentification
+  value: $(Build.SourceBranch):$(Build.SourceVersion)
+- name: BuildXL.Candidate.DropName
+  value: buildxl.candidate.$(Build.BuildId)
+- name: BuildXLDropName
+  value: buildxl.rolling.buildid.$(BuildXL.UniqueBuildId)
+- name: Codeql.Enabled
+  value: false
+- name: NugetCredentialProviderPath
+  value: $(UserProfile)\.nuget\plugins\netfx\CredentialProvider.Microsoft\
+- name: runCodesignValidationInjection 
+  value: false
+# The macOS agents in the Azure Pipelines pool are not Executive Order-compliant by default.
+# However, 1ES has built an Azure DevOps extension that applies changes to macOS agent from the Azure Pipelines pools at runtime to make them compliant. 
+# We need to set this variable to make the agents compliant:
+- name: BUILDSECMON_OPT_IN
+  value: true
+

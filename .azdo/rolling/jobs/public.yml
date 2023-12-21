@@ -1,0 +1,153 @@
+parameters: 
+- name: PublicQualifiersToBuild
+  type: object
+  default:
+    - DebugNet7
+    - ReleaseNet7
+    - DebugDotNetCoreMac
+    - ReleaseDotNetCoreMac
+
+jobs:
+- job: Public_Lkg
+  displayName: 'Public Build 1: Create Lkg'
+  timeoutInMinutes: 180
+  cancelTimeoutInMinutes: 1
+  condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
+  pool:
+    name: BuildXL-DevOpsAgents-PME
+    os: windows
+
+  templateContext:
+    sdl:
+      binskim:
+        scanOutputDirectoryOnly: true
+      spotBugs:
+        enabled: false
+
+    outputs:
+    - output: pipelineArtifact
+      displayName: '[OnFailure] Upload logs'
+      condition: failed()
+      continueOnError: True
+      artifact: buildxl.rolling.public.logs.$(Build.BuildNumber)
+      targetPath: $(Build.SourcesDirectory)\Out\Logs
+  
+    - output: pipelineArtifact
+      displayName: Upload Public packages
+      continueOnError: True
+      artifact: buildxl-public.pkgs.$(Build.BuildNumber)
+      targetPath: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
+
+
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+
+  - template: ../steps/public_prepare.yml
+
+  - task: CmdLine@1
+    displayName: Run bxl.cmd
+    inputs:
+      filename: bxl.cmd
+      arguments: >- 
+        /server-
+        /f:output='out/bin/release/public/pkgs/Microsoft.BuildXL.win-x64.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.win-x64-net7.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Hashing.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Interfaces.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Tools.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Libraries.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Utilities.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Utilities.Core.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Native.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Processes.$(Build.BuildNumber).nupkg'
+        /q:Release
+        /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
+        /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
+        /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
+        /logOutput:FullOutputOnWarningOrError
+        /p:RetryXunitTests=1
+        /p:[Sdk.BuildXL]microsoftInternal=0
+        /processRetries:3
+        /enableGrpc+
+        /traceInfo:selfhostlkgflavor=Public
+        /enableIncrementalFrontEnd-
+        /nowarn:2841 /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
+        /scrubDirectory:$(Build.SourcesDirectory)\Out\bin\release\public\pkgs
+        /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000\d\log
+  
+  - task: msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0
+    displayName: NOTICE File Generator
+    enabled: False
+    inputs:
+      outputfile: Notice.txt
+  
+- job: Public_Build
+  displayName: 'Public Build 2: Build /q:'
+  timeoutInMinutes: 180
+  dependsOn: Public_Lkg
+  condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
+  pool:
+    name: BuildXL-DevOpsAgents-PME
+    os: windows
+
+  # TODO [maly]?: Do we want to switch to a distributed build instead of separating qualifiers? 
+  strategy:
+    matrix:
+      ${{ each qualifier in parameters.PublicQualifiersToBuild }}:
+        ${{ qualifier }}:
+          QualifierToBuild: ${{ qualifier }}
+
+  templateContext:
+    outputs:
+    - output: pipelineArtifact
+      displayName: '[OnFailure] Upload LKG logs'
+      condition: failed()
+      artifact: buildxl.rolling.public-lkg.$(QualifierToBuild).logs.$(Build.BuildNumber)
+      targetPath: $(Build.SourcesDirectory)\Out\Logs
+
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+
+  - template: ../steps/public_prepare.yml
+
+  - task: DownloadPipelineArtifact@2
+    displayName: Download Public packages
+    inputs:
+      artifact: buildxl-public.pkgs.$(Build.BuildNumber)
+      path: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
+  
+  - task: PowerShell@2
+    displayName: Update BootStrap LKG Version
+    inputs:
+      filePath: $(BuildXL.RM.ScriptsFolder)/UpdateBuildXLLKG.ps1
+      arguments: -sourceRoot "$(Build.SourcesDirectory)" -newVersion "$(Build.BuildNumber)" -updatePublicLKG $true -lkgTestFeed "$(Build.SourcesDirectory)\Out\Bin\release\public\pkgs"
+    
+  - task: CmdLine@2
+    displayName: Disable CodeQL
+    inputs:
+      script: >-
+        IF NOT EXIST "%~dp0\codeql3000.yml" (
+          echo variables: > "%~dp0\codeql3000.yml"
+          echo.    Codeql.Enabled: false >> "%~dp0\codeql3000.yml"
+        )
+  
+  - task: CmdLine@1
+    displayName: Run bxl.cmd with new LKG
+    inputs:
+      filename: bxl.cmd
+      arguments: >-
+        /p:[Sdk.BuildXL]microsoftInternal=0
+        /q:$(QualifierToBuild)
+        /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
+        /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
+        /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
+        /server-
+        /logOutput:FullOutputOnWarningOrError
+        /p:RetryXunitTests=1
+        /processRetries:3
+        /enableGrpc+
+        /traceInfo:selfhostlkgflavor=Public
+        /enableIncrementalFrontEnd-
+        /p:xunitSemaphoreCount=16
+        /nowarn:2841
+        /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
+        /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000\d\log
+  
+  - task: msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0
+    displayName: NOTICE File Generator
+    retryCountOnTaskFailure: 3

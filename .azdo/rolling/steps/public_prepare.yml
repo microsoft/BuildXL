@@ -1,0 +1,35 @@
+# Shared tasks for public validation
+steps:
+# Enable journaling
+- template: ../../common/journaling.yml 
+
+# Get RM scripts
+- template: ../../common/get-rm.yml
+
+- task: BatchScript@1
+  displayName: Set Version number based on build settings and semantic version in branding.dsc
+  inputs:
+    filename: $(BuildXL.RM.ScriptsFolder)\SetVersionNumberForRollingBuild.cmd
+    modifyEnvironment: true
+
+- task: CmdLine@2
+  displayName: Remove pkgs folder copy
+  continueOnError: True
+  enabled: False
+  inputs:
+    script: >-
+      if EXIST "$(Build.SourcesDirectory)\Out\Bin\release\public\pkgs" (
+          rmdir /s/q "$(Build.SourcesDirectory)\Out\Bin\release\public\pkgs"
+          echo deleted "$(Build.SourcesDirectory)\Out\Bin\release\public\pkgs"
+      )
+
+      if EXIST "$(Build.SourcesDirectory)\Out\frontend" (
+          rmdir /s/q "$(Build.SourcesDirectory)\Out\frontend"
+          echo deleted "$(Build.SourcesDirectory)\Out\frontend"
+      )
+
+- task: PowerShell@2
+  displayName: Set MSVC Version
+  inputs:
+    filePath: Shared/Scripts/SetMsvcVersion.ps1
+    errorActionPreference: silentlyContinue

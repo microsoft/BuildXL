@@ -1,0 +1,36 @@
+parameters:
+- name: jobName
+  type: string
+- name: displayName
+  type: string
+- name: arguments
+  type: object
+  default: {}
+- name: dependsOn
+  type: object
+  default: []
+- name: condition
+  type: string
+  default: ''
+
+jobs:
+- job: ${{ parameters.jobName }}
+  displayName: ${{ parameters.displayName }}
+  timeoutInMinutes: 180
+  dependsOn: ${{ parameters.dependsOn }}
+  ${{ if parameters.condition }}:
+    condition: ${{ parameters.condition }}
+  templateContext:
+    type: cloudBuildJob
+    arguments:
+      description: ${{ parameters.displayName }}
+      connectedServiceName: 2aef3ce3-3585-4f28-94a9-9b6cf2ff8dfe # CloudBuild Prod
+      buildQueue: BuildXL_Internal_Rolling
+      sendEmail: false
+      ${{ insert }}: ${{ parameters.arguments }}
+  # The CB task itself is agentless: this pool is used for SDL baselining
+  pool:
+    name: Windows-SDL-Agents
+    image: Windows-SDL-Image
+    os: windows
+  

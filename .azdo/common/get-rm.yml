@@ -1,0 +1,8 @@
+# We prefer to check out the repo using git instead of doing multi-checkout
+# in the different jobs to not mess up the directory structure (which happens with multi-checkout)
+# and be consistent with other pipelines
+steps:
+- task: CmdLine@2
+  displayName: Get ReleaseManagementScripts
+  inputs:
+    script: 'git clone https://tsebuild:$(PAT-TseBuild-AzureDevOps-MsEng-ReadCode)@mseng.visualstudio.com/Domino/_git/Domino.ReleaseManagement "$(System.DefaultWorkingDirectory)\BuildXL.ReleaseManagement"'

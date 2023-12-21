@@ -15,8 +15,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Azure.Storage.Blobs.Models;
-using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -26,14 +24,15 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.ParallelAlgorithms;
-using Microsoft.Azure.Storage;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.WebApi;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using ByteArrayPool = Microsoft.VisualStudio.Services.BlobStore.Common.ByteArrayPool;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
@@ -182,7 +181,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <inheritdoc />
         protected async override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            BoolResult result = BoolResult.Success;
+        BoolResult result = BoolResult.Success;
             try
             {
                 await _backgroundPinQueue!.DisposeAsync();
@@ -649,6 +648,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return await GetStreamThroughAzureBlobsAsync(
                     azureBlobUri,
                     offset,
+                    overrideStreamMinimumReadSizeInBytes,
+                    _parallelSegmentDownloadConfig.SegmentDownloadTimeout,
                     context.Token).ConfigureAwait(false);
             }
             catch (Exception e)
@@ -679,14 +680,28 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
         }
 
-        private async Task<StreamWithRange> GetStreamThroughAzureBlobsAsync(
-            Uri azureUri,
-            long offset,
-            CancellationToken cancellationToken)
+        private async Task<StreamWithRange> GetStreamThroughAzureBlobsAsync(Uri azureUri, long offset, int? overrideStreamMinimumReadSizeInBytes, TimeSpan? requestTimeout, CancellationToken cancellationToken)
         {
-            var blob = new BlockBlobClient(blobUri: azureUri);
+            var blob = new CloudBlockBlob(azureUri);
+            if (overrideStreamMinimumReadSizeInBytes.HasValue)
+            {
+                blob.StreamMinimumReadSizeInBytes = overrideStreamMinimumReadSizeInBytes.Value;
+            }
 
-            var stream = await blob.OpenReadAsync(new BlobOpenReadOptions(allowModifications: false), cancellationToken).ConfigureAwait(false);
+            var stream = await blob.OpenReadAsync(
+                null,
+                new BlobRequestOptions()
+                {
+                    MaximumExecutionTime = requestTimeout,
+
+                    // See also:
+                    // ParallelOperationThreadCount
+                    // RetryPolicy
+                    // ServerTimeout
+                },
+                null, cancellationToken).ConfigureAwait(false);
+
+            stream.Position = offset;
 
             var range = new ContentRangeHeaderValue(offset, stream.Length - 1, stream.Length);
 

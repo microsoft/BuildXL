@@ -21,14 +21,14 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ParallelAlgorithms;
-using Microsoft.Azure.Storage;
+using BuildXL.Utilities.Core;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
-using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using Microsoft.WindowsAzure.Storage;
 using FileInfo = System.IO.FileInfo;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Vsts
 {

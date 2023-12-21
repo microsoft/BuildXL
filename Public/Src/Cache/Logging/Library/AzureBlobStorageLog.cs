@@ -11,22 +11,22 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using Azure;
 using Azure.Core;
 using Azure.Core.Pipeline;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ParallelAlgorithms;
+using Microsoft.WindowsAzure.Storage;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
@@ -112,10 +112,8 @@ namespace BuildXL.Cache.Logging
             IReadOnlyDictionary<string, string>? additionalBlobMetadata)
             : this(configuration, context, clock, fileSystem, telemetryFieldsProvider,
                 credentials.CreateBlobServiceClient(
-                    new BlobClientOptions
-                    {
-                        RetryPolicy = new RetryPolicy(delayStrategy: DelayStrategy.CreateExponentialDelayStrategy())
-                    }),
+                    new BlobClientOptions { 
+                        RetryPolicy = new RetryPolicy(delayStrategy: DelayStrategy.CreateExponentialDelayStrategy()) }),
                 additionalBlobMetadata)
         {
         }
@@ -172,15 +170,15 @@ namespace BuildXL.Cache.Logging
 
             _blobUploadRetryPolicy = _configuration.BlobUploadRetryPolicy.AsRetryPolicy(shouldRetry: exception =>
             {
-                if (exception is RequestFailedException storageException)
+                if (exception is StorageException storageException)
                 {
-                    if (storageException.Status == 503)
+                    if (storageException.RequestInformation.HttpStatusCode == 503)
                     {
                         // This happens when storage is overloaded.
                         return true;
                     }
 
-                    if (storageException.Status == 403
+                    if (storageException.RequestInformation.HttpStatusCode == 403
                         && storageException.Message.Contains("Make sure the value of Authorization header is formed correctly including the signature"))
                     {
                         // This happens when SAS tokens aren't refreshed in time. We will retry these operations under
@@ -528,10 +526,10 @@ namespace BuildXL.Cache.Logging
 
                         succeeded = true;
                     }
-                    catch (RequestFailedException exception) when (
-                        exception.Status == (int)HttpStatusCode.PreconditionFailed
+                    catch (StorageException exception) when (
+                        exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed
                         // Used only in the development storage case
-                        || exception.ErrorCode == "BlobAlreadyExists")
+                        || exception.RequestInformation.ErrorCode == "BlobAlreadyExists")
                     {
                         repeated = true;
                     }

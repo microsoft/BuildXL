@@ -6,12 +6,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
-using Azure.Storage.Blobs;
-using Azure.Storage.Sas;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Host.Service.Internal;
+using Microsoft.WindowsAzure.Storage;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 namespace BuildXL.Cache.Host.Service
@@ -62,7 +61,7 @@ namespace BuildXL.Cache.Host.Service
         public virtual void OnTeardownCompleted()
         {
         }
-
+        
         /// <inheritdoc />
         public Task<RetrievedSecrets> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
         {
@@ -176,12 +175,23 @@ namespace BuildXL.Cache.Host.Service
 
         internal static Secret CreateAzureStorageSasTokenSecret(string secretValue)
         {
-            var client = new BlobServiceClient(connectionString: secretValue);
-            var sasToken = client.GenerateAccountSasUri(AccountSasPermissions.All, expiresOn: DateTimeOffset.MaxValue, AccountSasResourceTypes.All);
+            // In this case, the environment variable is expected to hold an Azure Storage connection string
+            var cloudStorageAccount = CloudStorageAccount.Parse(secretValue);
+
+            // Create a godlike SAS token for the account, so that we don't need to reimplement the Central Secrets Service.
+            var sasToken = cloudStorageAccount.GetSharedAccessSignature(new SharedAccessAccountPolicy
+            {
+                SharedAccessExpiryTime = null,
+                Permissions = SharedAccessAccountPermissions.Add | SharedAccessAccountPermissions.Create | SharedAccessAccountPermissions.Delete | SharedAccessAccountPermissions.List | SharedAccessAccountPermissions.ProcessMessages | SharedAccessAccountPermissions.Read | SharedAccessAccountPermissions.Update | SharedAccessAccountPermissions.Write,
+                Services = SharedAccessAccountServices.Blob,
+                ResourceTypes = SharedAccessAccountResourceTypes.Object | SharedAccessAccountResourceTypes.Container | SharedAccessAccountResourceTypes.Service,
+                Protocols = SharedAccessProtocol.HttpsOnly,
+                IPAddressOrRange = null,
+            });
 
             var internalSasToken = new SasToken(
-                                       token: sasToken.AbsoluteUri,
-                                       storageAccount: client.AccountName,
+                                       token: sasToken,
+                                       storageAccount: cloudStorageAccount.Credentials.AccountName,
                                        resourcePath: null);
             return new UpdatingSasToken(internalSasToken);
         }

@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using Azure.Storage.Blobs;
-using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 
 #nullable enable
@@ -53,21 +52,6 @@ public class AzureBlobStorageFolder
     public BlobClient GetBlobClient(BlobPath path)
     {
         return GetBlobClient(GetContainerClient(), path);
-    }
-
-    public AppendBlobClient GetAppendBlobClient(BlobServiceClient client, BlobPath path)
-    {
-        return GetAppendBlobClient(GetContainerClient(client), path);
-    }
-
-    public AppendBlobClient GetAppendBlobClient(BlobContainerClient client, BlobPath path)
-    {
-        return client.GetAppendBlobClient(GetBlobName(path));
-    }
-
-    public AppendBlobClient GetAppendBlobClient(BlobPath path)
-    {
-        return GetAppendBlobClient(GetContainerClient(), path);
     }
 
     private string GetBlobName(BlobPath path)

@@ -1121,6 +1121,33 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Data.Edm",
+          "Version": "5.8.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Data.OData",
+          "Version": "5.8.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Data.Services.Client",
+          "Version": "5.8.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Data.Sqlite",
           "Version": "1.1.1"
         }
@@ -3938,6 +3965,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "System.Spatial",
+          "Version": "5.8.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "System.Text.Encoding",
           "Version": "4.3.0"
         }
@@ -4210,6 +4246,15 @@
         "NuGet": {
           "Name": "VisualCppTools.Internal.VS2017Layout",
           "Version": "14.37.32822"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "WindowsAzure.Storage",
+          "Version": "9.3.3"
         }
       }
     },

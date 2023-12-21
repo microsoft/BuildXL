@@ -9,8 +9,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
@@ -51,6 +51,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             : base(output)
         {
             _fixture = fixture;
+        }
+
+        /// <summary>
+        /// This test is for a bug in Azurite (the Azure storage emulator)
+        /// where creating a snapshot causes PutBlock operations with a lease to fail.
+        /// </summary>
+        [Fact(Skip = "The bug is still there, but we don't actually use snapshots.")]
+        public async Task TestStorage()
+        {
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
+
+            var creds = new SecretBasedAzureStorageCredentials(storage.ConnectionString);
+
+            var client = creds.CreateCloudBlobClient();
+
+            var container = client.GetContainerReference("test");
+
+            await container.CreateIfNotExistsAsync();
+
+            var blob = container.GetBlockBlobReference("test/sub/blob.out.bin");
+
+            var bytes = Encoding.UTF8.GetBytes("hello");
+            await blob.UploadFromByteArrayAsync(bytes, 0, bytes.Length);
+
+            var leaseId = await blob.AcquireLeaseAsync(TimeSpan.FromSeconds(60));
+
+            var snapshot = await blob.SnapshotAsync();
+
+            await blob.PutBlockAsync("0000", new MemoryStream(), null, Microsoft.WindowsAzure.Storage.AccessCondition.GenerateLeaseCondition(leaseId), null, null);
         }
 
         [Fact]

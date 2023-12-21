@@ -490,6 +490,7 @@ namespace NugetPackages {
 
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472packageQualifier).pkg,
             ...BuildXLSdk.withQualifier(net472packageQualifier).bclAsyncPackages,
+            importFrom("WindowsAzure.Storage").withQualifier(net472packageQualifier).pkg,
         ]
     });
 

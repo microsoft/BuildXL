@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -12,23 +11,24 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces;
-using BuildXL.Utilities.Collections;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 using static BuildXL.Cache.Host.Service.DeploymentUtilities;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -393,9 +393,9 @@ namespace BuildXL.Cache.Host.Service
                     }
                     else if (!string.IsNullOrEmpty(fileShare))
                     {
-                        centralStorage = new BlobCentralStorage(new BlobCentralStoreConfiguration(credentials,
-                                 containerName: fileShare,
-                                 checkpointsKey: "N/A"));
+                        centralStorage = new AzureFilesCentralStorage(new BlobCentralStoreConfiguration(credentials,
+                                containerName: fileShare,
+                                checkpointsKey: "N/A"));
                     }
                     else
                     {

@@ -161,6 +161,7 @@ export function getAzureBlobStorageSdkPackages(includeNetStandard: boolean) : (M
 @@public
 export function getAzureBlobStorageSdkPackagesWithoutNetStandard() : (Managed.ManagedNugetPackage)[] {
     return [
+        importFrom("WindowsAzure.Storage").pkg,
         importFrom("Azure.Storage.Blobs").pkg,
         importFrom("Azure.Storage.Common").pkg,
         importFrom("Azure.Core").pkg,

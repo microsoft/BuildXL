@@ -7,15 +7,18 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Azure;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Native.IO;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using ContentStoreTest.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using Microsoft.WindowsAzure.Storage.Blob;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Native.IO;
+using Microsoft.WindowsAzure.Storage;
+using ContentStoreTest.Distributed.Redis;
 
 namespace ContentStoreTest.Distributed.Redis
 {
@@ -38,6 +41,11 @@ namespace ContentStoreTest.Distributed.Redis
         internal bool Closed { get; private set; }
 
         internal bool Initialized => _fileSystem != null;
+
+        private static readonly BlobRequestOptions DefaultBlobStorageRequestOptions = new BlobRequestOptions()
+        {
+            RetryPolicy = new Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry(),
+        };
 
         internal AzuriteStorageProcess()
         {
@@ -142,14 +150,33 @@ namespace ContentStoreTest.Distributed.Redis
         public async Task ClearAsync(string prefix = null)
         {
             var creds = new SecretBasedAzureStorageCredentials(ConnectionString);
-            var blobClient = creds.CreateBlobServiceClient();
+            var blobClient = creds.CreateCloudBlobClient();
             using var cts = new CancellationTokenSource();
             cts.CancelAfter(TimeSpan.FromSeconds(10));
             var token = cts.Token;
 
-            await foreach (var container in blobClient.GetBlobContainersAsync(cancellationToken: token))
+            BlobContinuationToken continuation = null;
+            while (!cts.IsCancellationRequested)
             {
-                await creds.CreateContainerClient(container.Name).DeleteIfExistsAsync(cancellationToken: token);
+                var containers = await blobClient.ListContainersSegmentedAsync(
+                    prefix: prefix,
+                    detailsIncluded: ContainerListingDetails.None,
+                    maxResults: null,
+                    continuation,
+                    options: null,
+                    operationContext: null,
+                    cancellationToken: token);
+                continuation = containers.ContinuationToken;
+
+                foreach (var container in containers.Results)
+                {
+                    await container.DeleteIfExistsAsync(accessCondition: null, options: null, operationContext: null, cancellationToken: token);
+                }
+
+                if (continuation == null)
+                {
+                    break;
+                }
             }
         }
 
@@ -268,12 +295,13 @@ namespace ContentStoreTest.Distributed.Redis
                 ConnectionString = $"DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:{_portNumber}/devstoreaccount1;";
 
                 var creds = new SecretBasedAzureStorageCredentials(ConnectionString);
+                var client = creds.CreateCloudBlobClient();
                 try
                 {
-                    bool exists = creds.CreateContainerClient("test").Exists();
+                    bool exists = client.GetContainerReference("test").ExistsAsync(DefaultBlobStorageRequestOptions, null).GetAwaiter().GetResult();
                     break;
                 }
-                catch (RequestFailedException ex)
+                catch (StorageException ex)
                 {
                     SafeKillProcess();
                     _logger.Debug($"Retrying for exception connecting to storage process {_process.Id} with port {_portNumber}: {ex.ToString()}. Has process exited {_process.HasExited} with output {_process.GetLogs()}");

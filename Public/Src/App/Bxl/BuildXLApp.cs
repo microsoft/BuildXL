@@ -383,7 +383,7 @@ namespace BuildXL
                     // all warning/errors should be included in a dev log
                     EventLevel.Warning));
         }
-
+        
         // Ideally, these configs should be set in <see cref="ConfigurationProvider.GetMutableDefaultConfig(Infra, PathTable)"/>. However, the values that
         // are being set here are not visible there and it's not clear how setting them there might affect 'external' users of the config object, e.g.,
         // BxlPipGraphFragmentGenerator and BxlScriptAnalyzer.
@@ -629,8 +629,7 @@ namespace BuildXL
                     };
 
                 unexpectedExceptionHandler =
-                    (exception) =>
-                    {
+                    (exception) => {
                         if (EngineEnvironmentSettings.FailFastOnNullReferenceException && exception is NullReferenceException)
                         {
                             // Detach unhandled exception handler. Failing fast.
@@ -744,7 +743,7 @@ namespace BuildXL
                             var classification = ClassifyFailureFromLoggedEvents(pm.LoggingContext, appLoggers.TrackingEventListener);
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
 
-                            return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket,
+                            return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, 
                                 bucketMessage: classification.BucketMessage,
                                 // Some L3 cache initialization failures relating to auth are sticky and will not succeed if retried from
                                 // within the same process. Make sure not to reuse the server process when the cache fails to init for safety.
@@ -1283,8 +1282,8 @@ namespace BuildXL
 
             // 06-07: InCloudBuild = FFFF, InAdo = EEEE, elsewhere = 0000
             // note: these two bytes will be swapped in the guid's string form: AA, BB => BBAA
-            byte infraMarker = configuration.Infra switch
-            {
+            byte infraMarker = configuration.Infra switch 
+            { 
                 Infra.CloudBuild => 0xFF,
                 Infra.Ado => 0xEE,
                 _ => 0x00
@@ -2008,7 +2007,7 @@ namespace BuildXL
             private void ConfigureKustoLogging(LoggingContext loggingContext)
             {
                 var eventMask = new EventMask(enabledEvents: null, disabledEvents: m_configuration.NoLog, nonMaskableLevel: EventLevel.Error);
-
+                
                 AddBlobBasedListener(
                     (blobLog) =>
                     {
@@ -2025,7 +2024,7 @@ namespace BuildXL
                             eventMask,
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
                             pathTranslator: PathTranslatorForLogging);
-                    });
+                        });
             }
 
             private void ConfigureConsoleRedirection(LoggingContext loggingContext)
@@ -2623,7 +2622,7 @@ namespace BuildXL
                 var processOutputs = ComputeTimePercentage(
                     // For simplicity, we abstract away details of which phase output processing happens from end users.
                     // Some of it happens in these counters which are in the PipExecutionStep.ExecuteProcess step
-                    schedulerInfo.ProcessOutputsObservedInputValidationDurationMs +
+                    schedulerInfo.ProcessOutputsObservedInputValidationDurationMs + 
                     schedulerInfo.ProcessOutputsStoreContentForProcessAndCreateCacheEntryDurationMs +
                     // And the remainder happens in PipExecutionStep.PostProcess
                     (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.PostProcess).TotalMilliseconds,

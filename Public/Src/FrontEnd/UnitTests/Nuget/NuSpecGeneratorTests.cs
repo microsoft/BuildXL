@@ -49,7 +49,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
 
         public static string RetrieveTestPackageFeed()
         {
-            if (Environment.GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") == "1")
+            var internalVariable = Environment.GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal");
+            if (internalVariable != null && (internalVariable.Equals("1") || internalVariable.Equals("true", StringComparison.OrdinalIgnoreCase)))
             {
                 return @"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json";
             }

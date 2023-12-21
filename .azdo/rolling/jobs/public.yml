@@ -38,7 +38,6 @@ jobs:
       artifact: buildxl-public.pkgs.$(Build.BuildNumber)
       targetPath: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
 
-
   steps:
   - checkout: self
     fetchDepth: 1
@@ -68,11 +67,10 @@ jobs:
         /scrubDirectory:$(Build.SourcesDirectory)\Out\bin\release\public\pkgs
         /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000\d\log
   
-  - task: msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0
-    displayName: NOTICE File Generator
-    enabled: False
-    inputs:
-      outputfile: Notice.txt
+  # - task: msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0
+  #   displayName: NOTICE File Generator
+  #   inputs:
+  #     outputfile: Notice.txt
   
 - job: Public_Build
   displayName: 'Public Build 2: Build /q:'
@@ -147,7 +145,10 @@ jobs:
         /nowarn:2841
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
         /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000\d\log
-  
-  - task: msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0
-    displayName: NOTICE File Generator
-    retryCountOnTaskFailure: 3
+
+  # Work item #2131658 - this file is not actually consumed anywhere
+  # Disable the step for now.
+  # - task: msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0
+  #   displayName: NOTICE File Generator
+  #   retryCountOnTaskFailure: 3
+  #   continueOnError: true

@@ -1001,7 +1001,7 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
     return result;
 })
 
-INTERPOSE(DIR*, opremotendir, const char *name)({
+INTERPOSE(DIR*, opendir, const char *name)({
     AccessReportGroup report;
     auto check = bxl->create_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, name, report);
     DIR *d = bxl->check_fwd_and_report_opendir(report, check, (DIR*)NULL, name);

@@ -2345,7 +2345,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss)]
         [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging)]
-        [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt)]
+        [InlineData(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt)]
         public void ValidateGetPipIdsForProperty(PipSpecificPropertiesConfig.PipSpecificProperty pipSpecificProperty)
         {
             var propertiesAndValues = new List<PipSpecificPropertyAndValue>
@@ -2353,9 +2353,9 @@ namespace IntegrationTest.BuildXL.Scheduler
                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.ForcedCacheMiss, 24 ,null),
                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, 24, null),
                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, 22, null),
-               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, 24 ,"salty"),
-               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, 24, "TooSalty"),
-               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, 22, "saltLess")
+               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, 24 ,"salty"),
+               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, 24, "TooSalty"),
+               new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, 22, "saltLess")
             };
 
             Configuration.Engine.PipSpecificPropertyAndValues.AddRange(propertiesAndValues);
@@ -2387,14 +2387,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
 
             // Obtain pip property value for a given property and semistablehash.
-            if (pipSpecificProperty.ToString().Equals("PipFingerprintingSalt"))
+            if (pipSpecificProperty.ToString().Equals("PipFingerprintSalt"))
             {
                 XAssert.AreEqual(PipSpecificPropertiesConfig.GetPipSpecificPropertyValue(pipSpecificProperty, 24), "TooSalty");
             }
         }
 
         /// <summary>
-        /// Ensure that a pip is salted when the salt value is passed via PipFingerprintingSalt flag.
+        /// Ensure that a pip is salted when the salt value is passed via PipFingerprintSalt flag.
         /// This test also runs with IS feature enabled as well. So it covers the IS feature
         /// </summary>
         [Fact]
@@ -2409,11 +2409,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            // Set the pipFingerprintingSalt property value for this pip in the config object.
+            // Set the pipFingerprintSalt property value for this pip in the config object.
             // Once this is passed we expect the pip to have a cache miss.
             var propertiesAndValues = new List<PipSpecificPropertyAndValue>
              {
-                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, pip.SemiStableHash, "TooSalted"),
+                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, pip.SemiStableHash, "TooSalted"),
              };
             Configuration.Engine.PipSpecificPropertyAndValues.AddRange(propertiesAndValues);
             ResetPipGraphBuilder();
@@ -2431,7 +2431,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Ensure that a pip is salted when the salt value of "*" is passed via PipFingerprintingSalt flag.
+        /// Ensure that a pip is salted when the salt value of "*" is passed via PipFingerprintSalt flag.
         /// This test also runs with IS feature enabled as well. So it covers the IS feature.
         /// </summary>
         [Fact]
@@ -2446,7 +2446,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            // Set the pipFingerprintingSalt property value for this pip in the config object.
+            // Set the pipFingerprintSalt property value for this pip in the config object.
             // Once this is passed we expect the pip to have a cache miss.
             SchedulePipsForSaltValue(pOperations, pip);
             SchedulePipsForSaltValue(pOperations, pip);
@@ -2469,7 +2469,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             var propertiesAndValues = new List<PipSpecificPropertyAndValue>
              {
-                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, pip.SemiStableHash, "*"),
+                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, pip.SemiStableHash, "*"),
              };
             Configuration.Engine.PipSpecificPropertyAndValues.AddRange(propertiesAndValues);
             ResetPipGraphBuilder();

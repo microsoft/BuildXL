@@ -1233,7 +1233,7 @@ namespace BuildXL.Scheduler
                 PipGraph.QueryFileArtifactPipData,
                 process => m_fileContentManager?.SourceChangeAffectedInputs.GetChangeAffectedInputs(process) ?? CollectionUtilities.EmptyArray<AbsolutePath>(),
                 pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default,
-                process => pipSpecificPropertiesConfig?.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash));
+                process => pipSpecificPropertiesConfig?.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, process.SemiStableHash));
             m_historicPerfDataTableTask = runningTimeTable;
 
             // Prepare Root Map redirection table. see m_rootMappings comment on why this is happening here.
@@ -1402,7 +1402,7 @@ namespace BuildXL.Scheduler
                         PipGraph.QueryFileArtifactPipData,
                         process => m_fileContentManager?.SourceChangeAffectedInputs.GetChangeAffectedInputs(process) ?? CollectionUtilities.EmptyArray<AbsolutePath>(),
                         pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default,
-                        process => pipSpecificPropertiesConfig?.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash)),
+                        process => pipSpecificPropertiesConfig?.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, process.SemiStableHash)),
                     cache,
                     DirectedGraph,
                     m_fingerprintStoreCounters,

@@ -88,7 +88,7 @@ namespace BuildXL.Scheduler.Graph
                     directoryProducerFingerprintLookup: null,
                     extraFingerprintSalts: extraFingerprintSalts,
                     pathExpander: pathExpander,
-                    pipFingerprintSaltLookup: process => pipSpecificPropertiesConfig.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash))
+                    pipFingerprintSaltLookup: process => pipSpecificPropertiesConfig.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, process.SemiStableHash))
                 {
                     FingerprintTextEnabled = configuration.Schedule.LogPipStaticFingerprintTexts
                 };

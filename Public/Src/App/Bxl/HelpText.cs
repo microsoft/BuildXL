@@ -923,6 +923,12 @@ namespace BuildXL
                 HelpLevel.Verbose
                 );
 
+            hw.WriteOption(
+                "/PipProperty:[PipId:[PropertyAndValue]]",
+                Strings.HelpText_DisplayHelp_PipProperty,
+                HelpLevel.Verbose
+                );
+
             #endregion
 
             hw.WriteBanner(

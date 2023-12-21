@@ -394,10 +394,10 @@ namespace BuildXL.Pips.Graph
             fingerprinter.Add(nameof(Process.PreserveOutputsTrustLevel), process.PreserveOutputsTrustLevel);
 
             // If the pip has been passed with a specific fingerprinting salt value then we use it in the computation of weak fingerprint.
-            var pipFingerprintingSaltValue = m_pipFingerprintSaltLookup(process);
-            if (!string.IsNullOrEmpty(pipFingerprintingSaltValue))
+            var pipFingerprintSaltValue = m_pipFingerprintSaltLookup(process);
+            if (!string.IsNullOrEmpty(pipFingerprintSaltValue))
             {
-                fingerprinter.Add("PipSpecificFingerprintingSalt", pipFingerprintingSaltValue == "*" ? Guid.NewGuid().ToString() : pipFingerprintingSaltValue);
+                fingerprinter.Add("PipSpecificFingerprintingSalt", pipFingerprintSaltValue == "*" ? Guid.NewGuid().ToString() : pipFingerprintSaltValue);
             }
         }
 

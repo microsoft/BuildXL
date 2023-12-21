@@ -40,9 +40,9 @@ namespace BuildXL.Utilities
 
             /// <summary>
             /// Enables fingerprint salting for specific pips.
-            /// Ex: /pipProperty:Pip00000[PipFingerprintingSalt=tooSalty]
+            /// Ex: /pipProperty:Pip00000[PipFingerprintSalt=tooSalty]
             /// </summary>
-            PipFingerprintingSalt = 3
+            PipFingerprintSalt = 3
         }
 
         /// <summary>

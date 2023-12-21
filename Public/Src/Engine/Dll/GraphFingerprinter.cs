@@ -203,7 +203,7 @@ namespace BuildXL.Engine
                         AddFingerprint(topLevelHasher, "ExtraFingerprintSalts", extraFingerprintSalts.CalculatedSaltsFingerprint);
 
                         // If the pip has been passed with a specific fingerprint salt, those salt values should be used to see if the graph can be invalidated.
-                        var pipSemiStableHashesAndValues = pipSpecificPropertiesConfig?.RetrievePipSemistableHashesWithValues(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt);
+                        var pipSemiStableHashesAndValues = pipSpecificPropertiesConfig?.RetrievePipSemistableHashesWithValues(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt);
                         if (pipSemiStableHashesAndValues?.Any() == true)
                         {
                             var pipSpecificComputedSalt = string.Join(";", pipSemiStableHashesAndValues.OrderBy(pipSemiStableHashesAndValue => pipSemiStableHashesAndValue.Key)

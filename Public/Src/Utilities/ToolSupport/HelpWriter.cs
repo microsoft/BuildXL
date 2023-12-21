@@ -71,7 +71,13 @@ namespace BuildXL.ToolSupport
 
             foreach (string word in words)
             {
-                if (m_builder.Length < wrapColumn)
+                if (word == "\\n")
+                {
+                    m_writer.WriteLine(m_builder.ToString());
+                    m_builder.Length = 0;
+                    continue;
+                }
+                else if (m_builder.Length < wrapColumn)
                 {
                     m_builder.Append(' ', wrapColumn - m_builder.Length);
                 }

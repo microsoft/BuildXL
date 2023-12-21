@@ -47,7 +47,7 @@ foreach ($Data in $HelpText)
     if (Should-Output($Data.Item1))
     {
         $NameStr = $Data.Item1 -replace "HelpText_DisplayHelp_", "";
-        $Output += "| $($NameStr) | $($Data.Item2) |";
+        $Output += "| $($NameStr) | $($Data.Item2 -replace "\\n", "<br>") |";
     }
 }
 

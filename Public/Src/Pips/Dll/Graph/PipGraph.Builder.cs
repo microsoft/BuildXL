@@ -224,7 +224,7 @@ namespace BuildXL.Pips.Graph
                     GetDirectoryProducerFingerprint,
                     extraFingerprintSalts,
                     semanticPathExpander,
-                    process => pipSpecificPropertiesConfig?.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash))
+                    process => pipSpecificPropertiesConfig?.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, process.SemiStableHash))
                 {
                     FingerprintTextEnabled = configuration.Schedule.LogPipStaticFingerprintTexts
                 };

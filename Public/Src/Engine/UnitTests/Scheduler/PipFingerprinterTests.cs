@@ -810,7 +810,7 @@ namespace Test.BuildXL.Scheduler
         {    
             var result = ProcessWeakFingerprintForPipSpecificSalt(pipFingerprinterType, "*");
 
-            // If the pipFingerprintingSaltValue is "*" then we expect the value to be unique everytime.
+            // If the pipFingerprintSaltValue is "*" then we expect the value to be unique everytime.
             var baselineFingerprint1 = result.pipFingerprinter.ComputeWeakFingerprint(result.process, out var fingerprintText1);
             var baselineFingerprint2 = result.pipFingerprinter.ComputeWeakFingerprint(result.process, out var fingerprintText2);
             XAssert.AreNotEqual(fingerprintText1, fingerprintText2);
@@ -825,7 +825,7 @@ namespace Test.BuildXL.Scheduler
             // Pass the pip specific fingerprint salt.
             var propertiesAndValues = new List<PipSpecificPropertyAndValue>
              {
-                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, process.SemiStableHash, pipSaltValue),
+                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, process.SemiStableHash, pipSaltValue),
              };
 
             var pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(propertiesAndValues);
@@ -839,7 +839,7 @@ namespace Test.BuildXL.Scheduler
                     pathTable,
                     GetContentHashLookup(executable),
                     ExtraFingerprintSalts.Default(),
-                    pipFingerprintSaltLookup: p => pipSpecificPropertiesConfig.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, p.SemiStableHash))
+                    pipFingerprintSaltLookup: p => pipSpecificPropertiesConfig.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, p.SemiStableHash))
                 {
                     FingerprintTextEnabled = true
                 };
@@ -850,7 +850,7 @@ namespace Test.BuildXL.Scheduler
                 pipFingerprinter = new PipStaticFingerprinter(
                     pathTable,
                     extraFingerprintSalts: ExtraFingerprintSalts.Default(),
-                    pipFingerprintSaltLookup: p => pipSpecificPropertiesConfig.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, p.SemiStableHash))
+                    pipFingerprintSaltLookup: p => pipSpecificPropertiesConfig.GetPipSpecificPropertyValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, p.SemiStableHash))
                 {
                     FingerprintTextEnabled = true
                 };

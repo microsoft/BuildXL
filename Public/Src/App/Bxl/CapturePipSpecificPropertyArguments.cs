@@ -20,7 +20,7 @@ namespace BuildXL
         /// Parse pipProperty argument and map pipIds with the respective pipProperties.
         /// </summary>
         /// <remarks>
-        /// /pipProperty:Pip232325435435[PipFingerprintingSalt=TooSalty,ForcedCacheMiss,Debug_EnableVerboseProcessLogging]
+        /// /pipProperty:Pip232325435435[PipFingerprintSalt=TooSalty,ForcedCacheMiss,Debug_EnableVerboseProcessLogging]
         /// </remarks>
         public static void ParsePipPropertyArg(CommandLineUtilities.Option opt, EngineConfiguration engineConfiguration)
         {
@@ -73,7 +73,7 @@ namespace BuildXL
                     {
                         throw CommandLineUtilities.Error(Strings.Args_PipProperty_InvalidProperty, pipProperty);
                     }
-                    // Ex: /pipFingerprintingSalt=tooSalty
+                    // Ex: /pipFingerprintSalt=tooSalty
                     // propertyValue captures the tooSalty and pipPropertyToBeChecked captures propertyName
                     pipPropertyToBeChecked = property[0];
                     propertyValue = property[1];

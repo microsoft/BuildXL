@@ -135,5 +135,27 @@ namespace Test.BuildXL.ToolSupport
                 Assert.Equal("Standard"+ Environment.NewLine + "Verbose"+ Environment.NewLine, writer.ToString());
             }
         }
+
+        [Fact]
+        public void HelpWriterNewlines()
+        {
+            // no newline
+            using (var writer = new StringWriter(CultureInfo.InvariantCulture))
+            {
+                HelpWriter hw = new HelpWriter(writer, 50, HelpLevel.Standard);
+                hw.WriteLine("line 1   line 2", HelpLevel.Standard);
+                writer.Flush();
+                XAssert.AreEqual(2, writer.ToString().Split(new[] { Environment.NewLine }, StringSplitOptions.None).Length);
+            }
+
+            // newline is reflected in length of output
+            using (var writer = new StringWriter(CultureInfo.InvariantCulture))
+            {
+                HelpWriter hw = new HelpWriter(writer, 50, HelpLevel.Standard);
+                hw.WriteLine("line 1 \\n line 2", HelpLevel.Standard);
+                writer.Flush();
+                XAssert.AreEqual(3, writer.ToString().Split(new[] { Environment.NewLine }, StringSplitOptions.None).Length);
+            }
+        }
     }
 }

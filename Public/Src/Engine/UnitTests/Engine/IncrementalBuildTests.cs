@@ -174,7 +174,7 @@ const combineCopyAndTwo = Transformer.execute({{
 
             Configuration.Engine.PipSpecificPropertyAndValues = new List<PipSpecificPropertyAndValue>
              {
-                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintingSalt, processPipsInBuild.First().SemiStableHash, "TooSalt"),
+                new PipSpecificPropertyAndValue(PipSpecificPropertiesConfig.PipSpecificProperty.PipFingerprintSalt, processPipsInBuild.First().SemiStableHash, "TooSalt"),
              };
 
             var countersPostSaltingPip = Build("Build after Salting");

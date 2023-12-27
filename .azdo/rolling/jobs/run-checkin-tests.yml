@@ -62,15 +62,6 @@ jobs:
       projects: Public\Src\Tools\BuildXL.Tools.CredentialProvider\BuildXL.Tools.CredentialProvider.csproj
       arguments: -r win-x64 --self-contained
 
-  - task: CmdLine@2
-    displayName: Disable CodeQL
-    inputs:
-      script: >-
-        IF NOT EXIST "%~dp0\codeql3000.yml" (
-          echo variables: > "%~dp0\codeql3000.yml"
-          echo.    Codeql.Enabled: false >> "%~dp0\codeql3000.yml"
-        )
-
   - task: PowerShell@2
     displayName: Install artifacts credential provider
     inputs:

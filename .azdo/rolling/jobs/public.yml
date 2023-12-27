@@ -114,15 +114,6 @@ jobs:
     inputs:
       filePath: $(BuildXL.RM.ScriptsFolder)/UpdateBuildXLLKG.ps1
       arguments: -sourceRoot "$(Build.SourcesDirectory)" -newVersion "$(Build.BuildNumber)" -updatePublicLKG $true -lkgTestFeed "$(Build.SourcesDirectory)\Out\Bin\release\public\pkgs"
-    
-  - task: CmdLine@2
-    displayName: Disable CodeQL
-    inputs:
-      script: >-
-        IF NOT EXIST "%~dp0\codeql3000.yml" (
-          echo variables: > "%~dp0\codeql3000.yml"
-          echo.    Codeql.Enabled: false >> "%~dp0\codeql3000.yml"
-        )
   
   - task: CmdLine@1
     displayName: Run bxl.cmd with new LKG

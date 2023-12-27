@@ -1028,8 +1028,7 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
                     // to make error messages more descriptive.
                     dependencies: args.sources,
                 }
-            },
-            passThroughEnvVars: ["[Sdk.BuildXL]microsoftInternal"]
+            }
         },
         runtimeContentToSkip: [
             // Don't deploy the branding manifest for unittest so that updating the version number does not affect the unittests.

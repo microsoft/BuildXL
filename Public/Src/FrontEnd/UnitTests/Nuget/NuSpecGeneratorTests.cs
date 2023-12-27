@@ -17,7 +17,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 {
     public class NuSpecGeneratorTests
     {
-        private const int CurrentSpecGenVersion = 19;
+        private const int CurrentSpecGenVersion = 18;
 
         private readonly ITestOutputHelper m_output;
         private readonly FrontEndContext m_context;
@@ -44,17 +44,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
             var monikers = new NugetFrameworkMonikers(m_context.StringTable, new NugetResolverSettings());
             m_packageGenerator = new PackageGenerator(m_context, monikers);
 
-            m_repositories = new Dictionary<string, string>() { ["BuildXL"] = RetrieveTestPackageFeed() };
-        }
-
-        public static string RetrieveTestPackageFeed()
-        {
-            var internalVariable = Environment.GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal");
-            if (internalVariable != null && (internalVariable.Equals("1") || internalVariable.Equals("true", StringComparison.OrdinalIgnoreCase)))
-            {
-                return @"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json";
-            }
-            return @"https://api.nuget.org/v3/index.json";
+            m_repositories = new Dictionary<string, string>() { ["BuildXL"] = "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json" };
         }
 
         [Fact]
@@ -83,7 +73,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 </package>",
                 s_packagesOnConfig, new string[] { "lib/net45/my.dll", "lib/net451/my.dll",  "lib/netstandard2.0/my.dll"});
 
-            var spec = new NugetSpecGenerator(m_context.PathTable, pkg, new NugetResolverSettings { Repositories = new Dictionary<string, string>() }, AbsolutePath.Invalid).CreateScriptSourceFile(pkg);
+            var spec = new NugetSpecGenerator(m_context.PathTable, pkg, new NugetResolverSettings { Repositories = m_repositories }, AbsolutePath.Invalid).CreateScriptSourceFile(pkg);
             var text = spec.ToDisplayStringV2();
             m_output.WriteLine(text);
 
@@ -108,7 +98,7 @@ namespace Contents {{
             r`lib/net451/my.dll`,
             r`lib/netstandard2.0/my.dll`,
         ],
-        repositories: [],
+        repositories: [[""BuildXL"", ""https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json""]],
         timeoutInMinutes: 20,
     }});
 }}
@@ -172,7 +162,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
 )();";
             XAssert.AreEqual(expectedSpec.Trim(), text.Trim());
 
-            const string CurrentSpecHash = "19F2CCB8F38AD1EC6774097F3CE210D1D1DDB759";
+            const string CurrentSpecHash = "F6694FF449BFDBF54E9C2E14FEACD2594C978930";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 
@@ -180,39 +170,39 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
         public void GenerateNuSpecForStub()
         {
             var pkg = m_packageGenerator.AnalyzePackageStub(s_packagesOnConfig);
-            var spec = new NugetSpecGenerator(m_context.PathTable, pkg, new NugetResolverSettings { Repositories = new Dictionary<string, string>() }, AbsolutePath.Invalid).CreateScriptSourceFile(pkg);
+            var spec = new NugetSpecGenerator(m_context.PathTable, pkg, new NugetResolverSettings { Repositories = m_repositories }, AbsolutePath.Invalid).CreateScriptSourceFile(pkg);
             var text = spec.ToDisplayStringV2();
             m_output.WriteLine(text);
 
-            string expectedSpec = $@"import * as NugetDownloader from ""BuildXL.Tools.NugetDownloader"";
+            string expectedSpec = @"import * as NugetDownloader from ""BuildXL.Tools.NugetDownloader"";
 
-export declare const qualifier: {{
+export declare const qualifier: {
     targetFramework: ""net10"" | ""net11"" | ""net20"" | ""net35"" | ""net40"" | ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard1.0"" | ""netstandard1.1"" | ""netstandard1.2"" | ""netstandard1.3"" | ""netstandard1.4"" | ""netstandard1.5"" | ""netstandard1.6"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netstandard2.1"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""net5.0"" | ""net6.0"" | ""net7.0"",
     targetRuntime: ""win-x64"" | ""osx-x64"" | ""linux-x64"",
-}};
+};
 
-namespace Contents {{
-    export declare const qualifier: {{
-    }};
+namespace Contents {
+    export declare const qualifier: {
+    };
     @@public
-    export const all: StaticDirectory = NugetDownloader.downloadPackage({{
+    export const all: StaticDirectory = NugetDownloader.downloadPackage({
         id: ""TestPkgStub"",
         version: ""1.999"",
         extractedFiles: [],
-        repositories: [],
+        repositories: [[""BuildXL"", ""https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json""]],
         timeoutInMinutes: 20,
-    }});
-}}
+    });
+}
 
 @@public
-export const pkg: NugetPackage = {{
+export const pkg: NugetPackage = {
     contents: Contents.all,
     dependencies: [],
     version: ""1.999"",
-}};";
+};";
             XAssert.ArrayEqual(SplitToLines(expectedSpec), SplitToLines(text));
 
-            const string CurrentSpecHash = "A3E69D5CE5C9AFF303DC7D0F0E21D6448927B8D6";
+            const string CurrentSpecHash = "814D3EC294A4955616DFEE3EFF197C6612AD33BB";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 

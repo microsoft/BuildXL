@@ -24,7 +24,7 @@ export function test(args: TestArguments) : TestResult {
         args = testFramework.compileArguments(args);
     }
 
-    // If there is additional content to deploy, ensure it is on the arguments
+    // If there is additional content to deploy, ensure it is on the argumetns
     // to compile the test library so that the managed deduplication semantics will apply for runtime binatires
     if (testFramework.additionalRuntimeContent)
     {
@@ -273,9 +273,6 @@ export interface TestRunArguments {
 
     /** Disables code coverage. */
     disableCodeCoverage? : boolean;
-
-    /** Environment variables to be set as pass-through to the underlying test runner */
-    passThroughEnvVars?: string[];
 }
 
 @@public

@@ -31,6 +31,7 @@ jobs:
       continueOnError: True
       artifact: buildxl.rolling.public.logs.$(Build.BuildNumber)
       targetPath: $(Build.SourcesDirectory)\Out\Logs
+      sbomEnabled: false    # SBOM is not needed for logs
   
     - output: pipelineArtifact
       displayName: Upload Public packages
@@ -95,6 +96,7 @@ jobs:
       condition: failed()
       artifact: buildxl.rolling.public-lkg.$(QualifierToBuild).logs.$(Build.BuildNumber)
       targetPath: $(Build.SourcesDirectory)\Out\Logs
+      sbomEnabled: false    # SBOM is not needed for logs
 
   steps:
   - checkout: self

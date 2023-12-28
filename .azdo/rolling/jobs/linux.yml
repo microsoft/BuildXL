@@ -22,6 +22,7 @@ jobs:
         condition: succeededOrFailed()
         PathtoPublish: $(Build.SourcesDirectory)/Out/Logs/Build
         ArtifactName: linuxbuildlogs-internal
+        sbomEnabled: false    # SBOM is not needed for logs
 
   steps:
   - checkout: self
@@ -72,7 +73,7 @@ jobs:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache) # TODO [maly]: do we really need this?
-  
+
   - task: Bash@3
     displayName: Run ReleaseLinux unit tests with LKG
     inputs:
@@ -127,6 +128,7 @@ jobs:
       condition: always()
       PathtoPublish: $(Build.SourcesDirectory)/Out/Logs/Build
       ArtifactName: linuxbuildlogs-public
+      sbomEnabled: false    # SBOM is not needed for logs
     
   steps:
   - checkout: self

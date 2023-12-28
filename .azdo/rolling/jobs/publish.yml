@@ -99,11 +99,6 @@ jobs:
       dropServiceURI: ''
       destinationPath: $(Agent.TempDirectory)/DownloadedDrop
       usePat: false
-    
-  # Set PAT to pull from CB
-  - template: ../../common/set-artifacts-pat.yml
-    parameters:
-      AzDevPAT: $(PAT-TseBuild-AzureDevOps-CloudBuild)
   
 - job: GitHubForcePush
   displayName: Force Push BuildXL.Internal to GitHub Main

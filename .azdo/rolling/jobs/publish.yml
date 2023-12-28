@@ -8,13 +8,13 @@ jobs:
     os: windows
 
   templateContext:
-    outputParentDirectory: $(Agent.TempDirectory)/Drop
+    outputParentDirectory: $(Agent.TempDirectory)/DownloadedDrop
     outputs:
     - output: artifactsDrop
       displayName: Publish BuildXL to mseng Artifact Services Drop (mseng.visualstudio.com)
       dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
       buildNumber: buildxl.dogfood.$(Build.BuildNumber)  
-      sourcePath: $(Agent.TempDirectory)/Drop
+      sourcePath: $(Agent.TempDirectory)/DownloadedDrop
       detailedLog: true
       retentionDays: 180
       dropMetadataContainerName: DropMetadata-mseng
@@ -24,7 +24,7 @@ jobs:
       displayName: Publish BuildXL to CB Artifact Services Drop (cloudbuild.visualstudio.com)
       dropServiceURI: https://cloudbuild.artifacts.visualstudio.com/DefaultCollection
       buildNumber: buildxl.dogfood.$(Build.BuildNumber)
-      sourcePath: $(Agent.TempDirectory)/Drop
+      sourcePath: $(Agent.TempDirectory)/DownloadedDrop
       detailedLog: true
       usePat: false
       retentionDays: 180
@@ -33,8 +33,8 @@ jobs:
 
     - output: nuget
       displayName: Push private nuget packages to feed
-      packageParentPath: $(Agent.TempDirectory)/Drop/release/private/pkgs 
-      packagesToPush: $(Agent.TempDirectory)/Drop/release/private/pkgs/*.nupkg
+      packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/private/pkgs 
+      packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/private/pkgs/*.nupkg
       nuGetFeedType: external
       publishFeedCredentials: 1924030c-ebba-4483-ada7-b3a1aa99ee84 # BuildXL__PAT-TseBuild-AzureDevOps-1EsSharedAssets__BuildXL.Internal @ 1essharedassets
       sbomEnabled: false
@@ -42,8 +42,8 @@ jobs:
     - output: nuget
       displayName: Push public nuget packages to feed
       condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
-      packageParentPath: $(Agent.TempDirectory)/Drop/release/pkgs 
-      packagesToPush: $(Agent.TempDirectory)/Drop/release/pkgs/*.nupkg
+      packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs 
+      packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs/*.nupkg
       nuGetFeedType: external
       publishFeedCredentials: bad95911-cdf1-4bad-9311-99b0848872d4 # BuildXL__PAT-TseBuild-AzureDevOps-1EsSharedAssets__BuildXL 1essharedassets public feed
       sbomEnabled: false
@@ -63,13 +63,13 @@ jobs:
     inputs:
       dropMetadataContainerName: SecondBuildFull
       dropServiceURI: ''
-      destinationPath: $(Agent.TempDirectory)/Drop
+      destinationPath: $(Agent.TempDirectory)/DownloadedDrop
       usePat: false
 
   - task: AzureArtifacts.drop-validator-task.drop-validator-task.DropValidatorTask@0
     displayName: Drop Validator (Build Manifest Validation)
     inputs:
-      BuildDropPath: $(Agent.TempDirectory)/Drop
+      BuildDropPath: $(Agent.TempDirectory)/DownloadedDrop
       OutputPath: $(Agent.TempDirectory)/Output
       ValidateSignature: true
       Verbosity: Verbose
@@ -85,7 +85,7 @@ jobs:
     displayName: SBOM Validation
     inputs:
       filePath: Shared/Scripts/SBOMValidation.ps1
-      arguments: -SBOMManifestFile  $(Agent.TempDirectory)/Drop/_manifest/spdx_2.2/manifest.spdx.json -BcdeOutputFile  $(Agent.TempDirectory)/Drop/_manifest/bcde-output.json
+      arguments: -SBOMManifestFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/spdx_2.2/manifest.spdx.json -BcdeOutputFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/bcde-output.json
   
   # Set PAT to pull from mseng
   - template: ../../common/set-artifacts-pat.yml
@@ -97,7 +97,7 @@ jobs:
     inputs:
       dropMetadataContainerName: DropMetadata-Linux-Intermediate-Internal
       dropServiceURI: ''
-      destinationPath: $(Agent.TempDirectory)/Drop
+      destinationPath: $(Agent.TempDirectory)/DownloadedDrop
       usePat: false
     
   # Set PAT to pull from CB

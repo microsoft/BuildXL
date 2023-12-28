@@ -99,6 +99,11 @@ jobs:
       dropServiceURI: ''
       destinationPath: $(Agent.TempDirectory)/DownloadedDrop
       usePat: false
+
+  # Set PAT to be able to publish to CB artifact feed. That step is injected by 1ESPT
+  - template: ../../common/set-artifacts-pat.yml
+    parameters:
+      AzDevPAT: $(PAT-TseBuild-AzureDevOps-CloudBuild)
   
 - job: GitHubForcePush
   displayName: Force Push BuildXL.Internal to GitHub Main

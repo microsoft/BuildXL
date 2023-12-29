@@ -116,8 +116,7 @@ jobs:
 
   steps:
   - checkout: self
-    fetchDepth: 1
-    fetchTags: false
+    fetchTags: true
   
   - task: DownloadSecureFile@1
     name: File_Known_Hosts

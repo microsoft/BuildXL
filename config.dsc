@@ -210,13 +210,6 @@ config({
                 ...importFile(f`config.nuget.grpc.dsc`).pkgs,
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
-                // Azure Blob Storage SDK V9
-                { id: "WindowsAzure.Storage", version: "9.3.3" },
-                { id: "Microsoft.Data.Services.Client", version: "5.8.4" },
-                { id: "Microsoft.Data.OData", version: "5.8.4" },
-                { id: "Microsoft.Data.Edm", version: "5.8.4" },
-                { id: "System.Spatial", version: "5.8.2" },
-
                 // Azure Blob Storage SDK V12
                 { id: "Azure.Storage.Blobs", version: "12.16.0",
                     dependentPackageIdsToSkip: [ "System.Text.Json" ] },

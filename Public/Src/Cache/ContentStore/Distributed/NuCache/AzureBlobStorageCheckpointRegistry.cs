@@ -14,9 +14,9 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -179,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             TriggerGarbageCollection(context);
 
             var blobPath = GetNewCheckpointBlob();
-            var msg = $"Path=[{blobPath}] LatestBlobPath=[{_latestBlobClient}] CheckpointState=[{checkpointState}]";
+            var msg = $"Path=[{blobPath.ToDisplayName()}] LatestBlobPath=[{_latestBlobClient.ToDisplayName()}] CheckpointState=[{checkpointState}]";
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 async context =>

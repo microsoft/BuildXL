@@ -24,14 +24,6 @@ namespace Cache {
                 ]
             },
             {
-                subfolder: r`MultiTool`,
-                contents: [
-                    ...addIfLazy(BuildXLSdk.isDotNetCoreOrStandard,
-                        () => [importFrom("BuildXL.Cache.MultiTool").Default.deployment]
-                    ),
-                ]
-            },
-            {
                 subfolder: r`DeployServer`,
                 contents: [
                     ...addIfLazy(BuildXLSdk.isDotNetCoreOrStandard,

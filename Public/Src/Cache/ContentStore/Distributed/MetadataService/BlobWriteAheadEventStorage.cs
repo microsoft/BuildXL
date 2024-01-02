@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -109,9 +110,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         }
 
         /// <inheritdoc />
-        protected override string ToAppendBlobName(BlockReference cursor)
+        protected override BlobPath ToAppendBlobPath(BlockReference cursor)
         {
-            return $"{Pad(cursor.LogId.Value)}_{Pad(cursor.LogBlockId)}.bin";
+            return new BlobPath($"{Pad(cursor.LogId.Value)}_{Pad(cursor.LogBlockId)}.bin", relative: true);
         }
     }
 }

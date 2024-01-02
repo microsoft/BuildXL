@@ -6,9 +6,6 @@ using System.Text.RegularExpressions;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.ChangeFeed;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Auth;
-using Microsoft.WindowsAzure.Storage.Blob;
 
 #nullable enable
 
@@ -73,42 +70,6 @@ public class SecretBasedAzureStorageCredentials : IAzureStorageCredentials
                 throw new NotImplementedException($"Unknown secret type `{_secret.GetType()}`");
         }
     }
-
-    #region Blob V11 API
-
-    /// <nodoc />
-    public CloudStorageAccount CreateCloudStorageAccount()
-    {
-        return _secret switch
-        {
-            PlainTextSecret plainText => CloudStorageAccount.Parse(plainText.Secret),
-            UpdatingSasToken updatingSasToken => new CloudStorageAccount(
-                CreateV11StorageCredentialsFromUpdatingSasToken(updatingSasToken),
-                accountName: updatingSasToken.Token.StorageAccount,
-                endpointSuffix: null,
-                useHttps: true),
-            _ => throw new NotImplementedException($"Unknown secret type `{_secret.GetType()}`")
-        };
-    }
-
-    /// <nodoc />
-    public CloudBlobClient CreateCloudBlobClient()
-    {
-        return CreateCloudStorageAccount().CreateCloudBlobClient();
-    }
-
-    private static StorageCredentials CreateV11StorageCredentialsFromUpdatingSasToken(UpdatingSasToken updatingSasToken)
-    {
-        var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
-        updatingSasToken.TokenUpdated += (_, replacementSasToken) =>
-                                         {
-                                             storageCredentials.UpdateSASToken(replacementSasToken.Token);
-                                         };
-
-        return storageCredentials;
-    }
-
-    #endregion
 
     #region Blob V12 API
 

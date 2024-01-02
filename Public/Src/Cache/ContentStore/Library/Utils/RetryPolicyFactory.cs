@@ -157,8 +157,15 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         /// <nodoc />
         Task ExecuteAsync(Func<Task> func, CancellationToken token);
+
+        /// <nodoc />
+        public void Execute(Action func, CancellationToken token);
+
+        /// <nodoc />
+        public T Execute<T>(Func<T> func, CancellationToken token);
     }
 
+    /// <inheritdoc />
     internal class NonRetryingRetryPolicy : IRetryPolicy
     {
         public static NonRetryingRetryPolicy Instance { get; } = new NonRetryingRetryPolicy();
@@ -167,12 +174,26 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
         }
 
+        /// <inheritdoc />
         public Task<T> ExecuteAsync<T>(Func<Task<T>> func, CancellationToken token)
         {
             return func();
         }
 
+        /// <inheritdoc />
         public Task ExecuteAsync(Func<Task> func, CancellationToken token)
+        {
+            return func();
+        }
+
+        /// <inheritdoc />
+        public void Execute(Action func, CancellationToken token)
+        {
+            func();
+        }
+
+        /// <inheritdoc />
+        public T Execute<T>(Func<T> func, CancellationToken token)
         {
             return func();
         }
@@ -207,6 +228,24 @@ namespace BuildXL.Cache.ContentStore.Utils
                 .Handle(_shouldRetry)
                 .WaitAndRetryAsync(_generator())
                 .ExecuteAsync(_ => func(), token);
+        }
+
+        /// <inheritdoc />
+        public T Execute<T>(Func<T> func, CancellationToken token)
+        {
+            return Policy
+                .Handle(_shouldRetry)
+                .WaitAndRetry(_generator())
+                .Execute(func);
+        }
+
+        /// <inheritdoc />
+        public void Execute(Action func, CancellationToken token)
+        {
+            Policy
+                .Handle(_shouldRetry)
+                .WaitAndRetry(_generator())
+                .Execute(func);
         }
     }
 }

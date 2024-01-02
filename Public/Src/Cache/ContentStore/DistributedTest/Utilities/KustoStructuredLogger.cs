@@ -1,26 +1,21 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Logging;
-using BuildXL.Cache.Host.Configuration;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using ContentStoreTest.Test;
-using Microsoft.WindowsAzure.Storage.Blob;
 using Xunit.Abstractions;
 
 namespace BuildXL.Cache.Logging
@@ -59,10 +54,10 @@ namespace BuildXL.Cache.Logging
     public partial class KustoStructuredLogger : Logger, IStructuredLogger
     {
         private NagleQueue<Action> TableUpdateQueue { get; }
-        private Table _table = CreateTable();
+        private readonly Table _table = CreateTable();
 
-        private StreamWriter _sb = new StreamWriter(new MemoryStream());
-        private ITestOutputHelper _output;
+        private readonly StreamWriter _sb = new StreamWriter(new MemoryStream());
+        private readonly ITestOutputHelper _output;
         private static readonly Regex EscapeRegex = new Regex("[\\n\\r\\t\\\\]");
 
         private static KustoStructuredLogger _logger;
@@ -73,10 +68,10 @@ namespace BuildXL.Cache.Logging
             _output = output;
             _logger = this;
             var credentials = new SecretBasedAzureStorageCredentials(connectionString);
-            var client = credentials.CreateCloudBlobClient();
+            var client = credentials.CreateBlobServiceClient();
             var testStartTime = (DateTime)_table.TestStartTime.DefaultValue;
             output.WriteLine($"Test start time: {testStartTime:o}");
-            var blob = client.GetContainerReference(database).GetAppendBlobReference($"{table}/{testStartTime:yyyy/MM/dd/HHmm}/log.tsv");
+            var blob = client.GetBlobContainerClient(database).GetAppendBlobClient($"{table}/{testStartTime:yyyy/MM/dd/HHmm}/log.tsv");
 
             bool created = false;
 
@@ -86,7 +81,7 @@ namespace BuildXL.Cache.Logging
                     if (!created)
                     {
                         created = true;
-                        await blob.CreateOrReplaceAsync();
+                        await blob.CreateIfNotExistsAsync();
 
                         var schema = new StringBuilder();
                         foreach (DataColumn column in _table.DataTable.Columns)
@@ -134,7 +129,7 @@ namespace BuildXL.Cache.Logging
                         _sb.Flush();
                         _sb.BaseStream.Position = 0;
 
-                        await blob.AppendFromStreamAsync(_sb.BaseStream);
+                        await blob.AppendBlockAsync(_sb.BaseStream);
                     }
                     catch (Exception ex)
                     {

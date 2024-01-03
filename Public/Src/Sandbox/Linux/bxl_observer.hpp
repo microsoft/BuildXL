@@ -536,6 +536,11 @@ public:
         return IsEnabled(getpid()) && check.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
     }
 
+    /**
+     * NOTE: when adding new system calls to interpose here, ensure that a matching unit test for that system call
+     * is added to Public/Src/Sandbox/Linux/UnitTests/TestProcesses/TestProcess/main.cpp and Public/Src/Engine/UnitTests/Processes/LinuxSandboxProcessTests.cs
+     */
+
     GEN_FN_DEF(void*, dlopen, const char *filename, int flags);
     GEN_FN_DEF(int, dlclose, void *handle);
 

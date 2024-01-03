@@ -24,15 +24,17 @@ namespace LinuxTestProcess {
         };
         const outDir = Context.getNewOutputDirectory(gxxTool.exe.name);
         const exeFile = p`${outDir}/LinuxTestProcess`;
-        const srcFile = f`main.cpp`;
+        const headerFiles = [ f`syscalltests.hpp` ];
+        const srcFiles = [ f`main.cpp`, f`syscalltests.cpp` ];
 
         const result = Transformer.execute({
             tool: gxxTool,
             workingDirectory: outDir,
-            dependencies: [ srcFile ],
+            dependencies: [...srcFiles, ...headerFiles],
             arguments: [
-                Cmd.argument(Artifact.input(srcFile)),
+                Cmd.args(Artifact.inputs(srcFiles)),
                 Cmd.option("-o ", Artifact.output(exeFile)),
+                Cmd.option("-I ", Artifact.none(d`.`)),
             ]
         });
 

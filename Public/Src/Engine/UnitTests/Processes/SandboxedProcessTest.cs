@@ -11,7 +11,6 @@ using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Pips;
 using BuildXL.Processes;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.Executables.TestProcess;

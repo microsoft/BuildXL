@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using BuildXL.Native.Streams;
@@ -451,6 +452,26 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(requiredLogMessages != null);
             AssertLogWithContainmentExpectation(caseSensitive, true, requiredLogMessages);
+        }
+
+        /// <summary>
+        /// Verifies that the test's event trace matches the given regex.
+        /// </summary>
+        /// <param name="regex">Regex to match to event trace</param>
+        protected void AssertLogContains(Regex regex)
+        {
+            Contract.Requires(regex != null);
+            string originalLog = EventListener.GetLog();
+
+            var matches = regex.Matches(originalLog).Count;
+            if (matches == 0)
+            {
+                AssertTrue(
+                            false,
+                            "Did not find any matches for regex '{0}' in the output log:\n\r----------\n\r{1}\n\r----------\n\r",
+                            regex.ToString(),
+                            originalLog);
+            }
         }
 
         /// <summary>

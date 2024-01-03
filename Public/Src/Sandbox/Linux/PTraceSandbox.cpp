@@ -47,7 +47,12 @@ PTraceSandbox::~PTraceSandbox()
 }
 
 int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, char *const argv[], char *const envp[], const char *fam)
-{    
+{
+    /**
+     * NOTE: when adding new system calls to interpose here, ensure that a matching unit test for that system call
+     * is added to Public/Src/Sandbox/Linux/UnitTests/TestProcesses/TestProcess/main.cpp and Public/Src/Engine/UnitTests/Processes/LinuxSandboxProcessTests.cs
+     */
+
     // Filter for the syscalls that BXL is interested in tracing
     // Only the syscalls in here will be signalled to the main process by seccomp
     // List of available syscalls to ptrace: https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl

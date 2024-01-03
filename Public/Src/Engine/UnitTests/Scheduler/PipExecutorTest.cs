@@ -1325,7 +1325,7 @@ namespace Test.BuildXL.Scheduler
                         new ExecutablePathAllowlistEntry(
                             // On Windows, shell is the one who performs the file accesses.
                             // On a Unix based OS, we ask shell to execute a copy command, that command is a separate process that performs the file accesses.
-                            AbsolutePath.Create(context.PathTable, OperatingSystemHelper.IsUnixOS ? GetFullPath("cp") : CmdHelper.OsShellExe),
+                            AbsolutePath.Create(context.PathTable, OperatingSystemHelper.IsUnixOS ? "/usr/bin/cp" : CmdHelper.OsShellExe),
                             FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName("source"))),
                             allowsCaching: true,
                             name: "allowlist1"));

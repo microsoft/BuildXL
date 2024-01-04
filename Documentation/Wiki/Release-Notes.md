@@ -2,6 +2,18 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20231229.2 (Release [352891](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=352891))
+- [Linux] Report opendir​ in sandbox interpose.
+- Add help text for PipProperties, and rename pip-specific PipFingerprintingSalt property to PipFingerprintSalt.
+- Clean up default arguments from ADOBuildRunner.
+- Fixed memory usage accounting of job object in detoured process.
+
+# 0.1.0-20231208.1 (Release [348223](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=348223))
+- Add a cache miss analysis mode that uses latest git commit hashes as fingerprint store key candidates.
+- Make sure Linux sandbox tear down works properly even when we have missing accesses.
+- Unify handling of default configurations.
+- Bug fixes.
+
 # 0.1.0-20231202.0 (Release [346718](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=346718))
 -	Do not produce a pip dump if a DFA is allow listed.
 -	Add a message counting semaphore for the Linux sandbox as a sanity check.
@@ -15,6 +27,27 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Log the final configuration object used by bxl during a build.
 - Add PublicAPI Analyzers to BXL and enforce the public API for hashing.
 - Fix cancellation crash when HistoricMetadataCache is not initialized.
+
+# 0.1.0-20231110.1 (Release [341167](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=341167))
+- Update various dependencies
+- Use internal feed for npm packages.
+- Remove BuildXL.Tracing assembly reference from BuildXL.Processes.
+- Stop scrubbing source sealed directories.
+- Cache client reliability fix.
+- Include pip outputs in cachedump analyzer.
+- Improve incremental scheduling hit rate for BuildXL.Internal repo.
+- Add ability to generate cache config for 1ES Hosted Pool distributed builds.
+- Improve reliability for internal error build termination.
+- Fix retry logic when worker runs out of disk space (already hotfixed to CloudBuild).
+- Enable early worker release for 1ES Hosted Pool builds by default.
+
+# 0.1.0-20231027.2 (Release [337912](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=337912))
+- Allow BuildXL to use multiple Blob L3 Shards.
+- Use a worker stage in the Linux PR distributed validation.
+- Enabling journaling and publish build logs for dependency update pipeline.
+- Deprecate CloudBuildV1 Build Manifest.
+- Add Result Filter to PipExecutionPerformance Analyzer.
+- Release read lock in ObjectCache only if it was acquired by the thread.
 
 # 0.1.0-20231021.0.1 (Release [337230](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=337230))
 -	Fix the dynamic worker's timeout issue when it is released early
@@ -1213,16 +1246,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add new Dscript Api to Path: Path.createFromAbsolutePathString
 
 # 0.1.0-20200131.5.1 (Release [54373](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=54373)), released on 2/5/2020
- - Re-enable `-TestMethod` and `-TestClass` in BuildXL selfhost
- - Make MSBuild resolver more robust
- - Runtime cache miss analysis fixes
- - Make minimumDiskSpaceForPipsGb feature working with retryOnAnotherWorker feature
- - Fix a crash when processing tool output streams
- - Retry failed pip on different worker
- - [VsCode] Implement CodeLens for module references
- - [QTest] Enable QTest for all module cache test assemblies
- - [QTest] Plumb 'acquireSemaphores' into QTest
- - [QTest] Enable code coverage
+- Re-enable `-TestMethod` and `-TestClass` in BuildXL selfhost
+- Make MSBuild resolver more robust
+- Runtime cache miss analysis fixes
+- Make minimumDiskSpaceForPipsGb feature working with retryOnAnotherWorker feature
+- Fix a crash when processing tool output streams
+- Retry failed pip on different worker
+- [VsCode] Implement CodeLens for module references
+- [QTest] Enable QTest for all module cache test assemblies
+- [QTest] Plumb 'acquireSemaphores' into QTest
+- [QTest] Enable code coverage
 
 # 0.1.0-20200124.5 (Release [53523](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=53523)), released on 1/29/2020
 - Add session ID and session related ID to fingerprint store entry
@@ -1469,7 +1502,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add better support for opaque directories in DependencyAnalyzer 
 
 # 0.1.0-20190615.0 (Release [31601](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=31601)), released on 6/19/2019
-- New arguments - unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes
+- New arguments- unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes
 - Add a way to specify passthrough environment variables for the MSBuild resolver
 - Reduce noise in cachemiss.log (fixed the ordering of elements in a fingerprint)
 - All BuildXL executables are now marked 64-bit
@@ -1489,7 +1522,6 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Misc bug fixes
 
 # 0.1.0-20190525.4.1 (Release [29991](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=29991)), released on 5/29/2019
-
 - Switched BuildXL public LKG to be the DotNetCore one.
 - Report the existence of outputs on workers.
 - Enable preserve outputs mode for dynamic outputs.
@@ -1499,35 +1531,34 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Mac kext is now notarized.
 
 # 0.1.0-20190518.0 (Release [29134](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=29134)), released on 5/22/2019
- - Allowed injection of shim process in lieu of all or some child processes.
- - Added ability to launch pips in VM.
- - Updated Google.Protobuf to 3.7
- - [Mac] Support for Apple kext notarization/staple.
- - [Helium] Added ability to disable WCI and pipe in BindFlt exceptions.
- - [Combined Engine] Added intermediate output path predictor.
- - [QTest] Added qTestRuntimeDependencies for explicit specification of extra run-time dependencies.
-
+- Allowed injection of shim process in lieu of all or some child processes.
+- Added ability to launch pips in VM.
+- Updated Google.Protobuf to 3.7
+- [Mac] Support for Apple kext notarization/staple.
+- [Helium] Added ability to disable WCI and pipe in BindFlt exceptions.
+- [Combined Engine] Added intermediate output path predictor.
+- [QTest] Added qTestRuntimeDependencies for explicit specification of extra run-time dependencies.
 
 # 0.1.0-20190510.8 (Release [28504](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=28504&_a=release-pipeline-progress)), released on 5/15/2019
- - Increase WorkerAttachTimeout to 45min from 30min
- - Fix long path with SetFileAccessControl and HasWritableAccessControl operations
- - Adding qTestContextInfo to upload qtest results to VSTS
- - [macOS] Enable distributed copies on BuildXL builds on macOS 
- - [macOS] CoreRT native compilation for select projects targeting osx
- - [macOS] Use 'dependsOnCurrentHostOSDirectories' for tool definitions 
+- Increase WorkerAttachTimeout to 45min from 30min
+- Fix long path with SetFileAccessControl and HasWritableAccessControl operations
+- Adding qTestContextInfo to upload qtest results to VSTS
+- [macOS] Enable distributed copies on BuildXL builds on macOS 
+- [macOS] CoreRT native compilation for select projects targeting osx
+- [macOS] Use 'dependsOnCurrentHostOSDirectories' for tool definitions 
 
 # 0.1.0-20190503.9 (Release [27992](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=27992&_a=release-pipeline-progress)), released on 5/8/2019
- - Add support for pip priority field and schedule according to pip priority as well as historic data.
- - ExecutionLog events are now processed asynchronously on master
- - Avoid using and killing VBCSCompiler.exe
- - [MacSandbox] skip unnecessarily creating trie nodes on lookups
- - [macOS] Use different BundleIDs for debug and release kexts
- - Add double write policy to allow same content double writes
- - Fix underbuild in incremental scheduling caused by disappearing output directory 
- - Fix for BuildXL hangs in temporary cleaner 
- - [macOS] Handle 'rename directory' operation on macOS
- - Update Microsft.Net.Compilers(Roslyn) to 3.0.0 to enable C#/CSharp 8 features
- - [macOS] Fix pip materialization issues on macOS
+- Add support for pip priority field and schedule according to pip priority as well as historic data.
+- ExecutionLog events are now processed asynchronously on master
+- Avoid using and killing VBCSCompiler.exe
+- [MacSandbox] skip unnecessarily creating trie nodes on lookups
+- [macOS] Use different BundleIDs for debug and release kexts
+- Add double write policy to allow same content double writes
+- Fix underbuild in incremental scheduling caused by disappearing output directory 
+- Fix for BuildXL hangs in temporary cleaner 
+- [macOS] Handle 'rename directory' operation on macOS
+- Update Microsft.Net.Compilers(Roslyn) to 3.0.0 to enable C#/CSharp 8 features
+- [macOS] Fix pip materialization issues on macOS
 
 # 0.1.0-20190426.9 (Release [27516](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=27516)), released on 5/1/2019
 - Fix EventCount telemetry for macOS
@@ -1539,14 +1570,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various bugfixes
 
 # 0.1.0-20190419.5 (Release [26949](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=26949)), released on 4/24/2019
- - Add support for default untracking for MacOs from DScript to match windows
- - Support to parse and merge in additional config files
- - MsBuild supports multi qualifeir builds
- - Update QTest version
- - Make helium sandbox tombstone aware
- - Grpc reliability improvements
- - Handle some new RS6 filesystem behavior changes
- - Various bugfixes
+- Add support for default untracking for MacOs from DScript to match windows
+- Support to parse and merge in additional config files
+- MsBuild supports multi qualifeir builds
+- Update QTest version
+- Make helium sandbox tombstone aware
+- Grpc reliability improvements
+- Handle some new RS6 filesystem behavior changes
+- Various bugfixes
 
 # 0.1.0-20190412.7 (Release [26501](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=26501)), released on 4/17/2019
 - Scrub stray files in QTest deployment directories
@@ -1561,39 +1592,38 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add process ‘weight’ to control scheduling parallel processes
 - Various bug fixes
 
-
 # 0.1.0-20190329.14.1 (Release [25731](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=25731&_a=release-pipeline-progress)), released on 4/4/2019
-  - BuildXL now ships as a net472 instead of net461
-  - Some initial long path support
-  - Stop tracing TaskCanceledException as errors in cache
-  - Fix drop failing to get a producer of a file
-  - Fix reported CPU usage on macOS
-  - Remove named pipes
-  - Attempt to fix failures to delete files before requesting cache materialize
-  - Allow absent path probes of temp files under opaque directories if a pip depends on them
-  - Various fixes
+ - BuildXL now ships as a net472 instead of net461
+ - Some initial long path support
+ - Stop tracing TaskCanceledException as errors in cache
+ - Fix drop failing to get a producer of a file
+ - Fix reported CPU usage on macOS
+ - Remove named pipes
+ - Attempt to fix failures to delete files before requesting cache materialize
+ - Allow absent path probes of temp files under opaque directories if a pip depends on them
+ - Various fixes
 
 # 0.1.0-20190324.0 (Release [24943](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=24943)), released on 3/27/2019
-  - Net472 bits are ready-to-use. 
-  - Delete extra files in fully sealed directories (if scrub flag is set).
-  - Change OutputGraph file system to include dynamic outputs.
-  - Allow default mounts to be respecified.
-  - Various bug fixes.
+ - Net472 bits are ready-to-use. 
+ - Delete extra files in fully sealed directories (if scrub flag is set).
+ - Change OutputGraph file system to include dynamic outputs.
+ - Allow default mounts to be respecified.
+ - Various bug fixes.
 
 # 0.1.0-20190316.0 (Release [24373](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=24373)), released on 3/20/2019
-  - Rename BuildXLScript to DScript.
-  - BuildXL selfhost on Mac.
-  - DScript SDK for managed code contains cross-plat resgen.
-  - DScript has Array.sort method.
-  - Various bug fixes.
+ - Rename BuildXLScript to DScript.
+ - BuildXL selfhost on Mac.
+ - DScript SDK for managed code contains cross-plat resgen.
+ - DScript has Array.sort method.
+ - Various bug fixes.
 
 # 0.1.0-20190309.0.3 (Release [23983](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=23983)), released on 3/13/2019
-  - Fixes for VsCode extensions
-  - Fixes to FileImpactAnalyzer and PipExecutionPerformanceAnalyzer
-  - Support for adding all kinds of artifacts to drop
-  - CMake resolver for Ninja builds
-  - Memory guardrails for p-invoke calls on Mac
-  - Nuget packages for CloudBuild, VSO and cache now contain net472 versions
+ - Fixes for VsCode extensions
+ - Fixes to FileImpactAnalyzer and PipExecutionPerformanceAnalyzer
+ - Support for adding all kinds of artifacts to drop
+ - CMake resolver for Ninja builds
+ - Memory guardrails for p-invoke calls on Mac
+ - Nuget packages for CloudBuild, VSO and cache now contain net472 versions
 
 # 0.1.0-20190302.2 (Release [23179](https://dev.azure.com/mseng/Domino/_release?releaseId=23179&_a=release-summary)), released on 3/6/2019
 - Improved graph cache hits when environment variables or mount accesses are removed
@@ -1601,7 +1631,6 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Update from NetCore2.2.0-preview3 to NetCore2.2.0
 - Graceful handling for ctrl+c cancellation when cache is still being initialized
 - Update QTest version to support qtestVstsContext flag
-
 
 # 0.1.0-20190224.0 (Release [22568](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=22568)), released on 2/27/2019
 - New Download resolver
@@ -1621,7 +1650,6 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Build runtime cache miss analysis improvements
 - Fixed a crash around RocksDB
 - Move telemetry tag statistics to a separate "PipCounters" kusto table and fix bug with tags containing underscores
-
 
 # 0.1.0-20190202.3 (Release [21316](https://dev.azure.com/mseng/Domino/_apps/hub/ms.vss-releaseManagement-web.cd-release-progress?_a=release-pipeline-progress&releaseId=21316)), released on 2/6/2019
 - Domino has been renamed to BuildXL
@@ -1655,7 +1683,6 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Introduce Copy-on-Write for BuildXL Mac
 - Keep RunInSubst.exe alive until child processes exit & reduce the wait time on substed drive from 30 to 5 seconds
 
-
 # 0.20181124.1.0 (Release [18756](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=18756)), released on 11/28/2018
 - Introducing File Content Table to BuildXL Mac
 - Renaming the macOS sandbox to BuildXLSandbox
@@ -1663,7 +1690,6 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Fix graph deserialization issue for the builds that enable on-the-fly cache miss
 - Core dump creation support for abnormal process exits (macOS)
 - Move CloudStoreSDk closer to DominoSdk
-
 
 # 0.20181110.3.0  (Release [18159](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=18159)), released on 11/14/2018
 - Adding option in DScript to glob folders recursively
@@ -1686,14 +1712,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Properly handle non-existent mount for graph reuse
 - Experimental MsBuild resolver based on MsBuild build graph construction API
 
-
 # 0.20181021.2.0 (Release [17290](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=17290)), released on 10/24/2018
 - Fix false absent file probes under opaque directories with lazy materialization
 - Fix directory enumeration filters to handle allowspace file names
 - Detour move/rename directory correctly
 - Multiple fixes around FingerprintStore
 - Fix cache miss diff when UnsafeOptions are cut off
-
 
 # 0.20181012.14.0 (Release [16997](https://dev.azure.com/mseng/domino/_releasereleaseId=16997&_a=release-pipeline-progress)), released on 10/17/2018
 - Fix the deletion of hardlinked source files on Unix
@@ -1704,14 +1728,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add support for opaque directories in Drop
 - Miscellaneous bug fixes and perf improvements
 
-
 # 0.20181005.9.0 (Release [16715](https://dev.azure.com/mseng/domino/_releasereleaseId=16715&_a=release-pipeline-progress)), released on 10/10/2018
 - Opaque directory details exposed in execution analyzers
 - Caching effectiveness improvement around weak fingerprint stability
 - Fix detours file probing hole around CreateFile without any access mode requested
 - BuildXL support for macOS Mojave
 - Misc bug fixes and perf improvements 
-
 
 # 0.20180928.5.0 (Release [16413](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=16413)), released on 10/3/2018
 - Improved incremental scheduling to better handle file-system changes during build
@@ -1732,7 +1754,6 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Improved MacOs
 - Made deleting files by the cache more robust
 - Various bugfixes
-
 
 # 0.20180914.8.2 (Release [15959](https://dev.azure.com/mseng/domino/_releasereleaseId=15959&_a=release-pipeline-progress)), released on 9/19/2018
 - Remove Mono.Posix/Unix dependencies
@@ -1782,7 +1803,6 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various bugfixes
 
 #  0.20180727.13.1 (Release [14122](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=14122)), released on 8/3/2018
-
 - Fix performance regression due to FingerprintStore hitting RocksDB write stalls 
 - Fix graph agnostic incremental scheduling underbuild 
 - Optimizations for graph agnostic incremental scheduling 
@@ -1791,144 +1811,139 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Make ProcessRunScript setlocal and don't print invalid directories 
 
 # 0.20180720.22.1 (Release [13820](https://dev.azure.com/mseng/domino/_releasereleaseId=13820&_a=release-pipeline-progress)), released on 7/25/2018
-* Improved garbage collection in Fingerprint store
-* Rename QuickBuild into MsBuild in DominoScript
-* Add telemetry tags (allowing for aggregating telemetry stats based on special tags assigned to pips)
-* Fix a crash in ObservedInputProcessor
-* Fix underbuild due to File Content Table and File Change Tracker going out of sync
-* Fix number overflow in DScript literals
+- Improved garbage collection in Fingerprint store
+- Rename QuickBuild into MsBuild in DominoScript
+- Add telemetry tags (allowing for aggregating telemetry stats based on special tags assigned to pips)
+- Fix a crash in ObservedInputProcessor
+- Fix underbuild due to File Content Table and File Change Tracker going out of sync
+- Fix number overflow in DScript literals
 
 # 0.20180713.2.0 (Release [13471](https://dev.azure.com/mseng/domino/_releasereleaseId=13471&_a=release-pipeline-progress)), released on 7/18/2018
-* macOS sandbox features and fixes
-* CacheMiss analyzer refinements for uncacheable pips
-* Reliability improvements for shared opaque directories
-* Fix race condition in graph construction validations
-* Fix ram utilization counters in macOS
-* Decrease FingerprintStore’s disk usage
-* Fix effectiveness bug in Graph Agnostic Incremental Scheduling
-
+- macOS sandbox features and fixes
+- CacheMiss analyzer refinements for uncacheable pips
+- Reliability improvements for shared opaque directories
+- Fix race condition in graph construction validations
+- Fix ram utilization counters in macOS
+- Decrease FingerprintStore’s disk usage
+- Fix effectiveness bug in Graph Agnostic Incremental Scheduling
 
 # 0.20180706.11.2 (Release [13360](https://dev.azure.com/mseng/domino/_releasereleaseId=13360&_a=release-pipeline-progress)), released on 7/11/2018
-* Create output file handle with sequential scan based on extension filter
-* Fixes for graph agnostic incremental scheduling
-* Updates to console logging to include copy, IPC, and write file status
-* Per-session cache statistics in CloudBuild
-* Fingerprint store size improvements
-* Observed Input Analyzer output changed to json.
-* Miscellanies bug fixes and perf improvements
-* Added an Api for caching values in DScript in module `Sdk.ValueCache`
+- Create output file handle with sequential scan based on extension filter
+- Fixes for graph agnostic incremental scheduling
+- Updates to console logging to include copy, IPC, and write file status
+- Per-session cache statistics in CloudBuild
+- Fingerprint store size improvements
+- Observed Input Analyzer output changed to json.
+- Miscellanies bug fixes and perf improvements
+- Added an Api for caching values in DScript in module `Sdk.ValueCache`
 
 # 0.20180629.6.0 (Release [13031](https://dev.azure.com/mseng/domino/_releasereleaseId=13031&_a=release-pipeline-progress)), released on 7/5/2018
-* Introduced composite shared opaque directories.
-* Introduced safe handles for Helium containers.
-* Revamped KEXT communication.
-* Deprecated exportFingerprints option.
-* Tokenized paths by mounts in FailedPipInputAnalyzer.
-* Allowed for disabling output replication during distributed builds.
-* Bug fixes:
-   - Fix for crash in ObservedInputProcessor when saving XLG events for failed pips.
-   - Reset engine environment settings for BuildXL server process.
-   - Fix for spec filters that ignore IPC pips.
-
+- Introduced composite shared opaque directories.
+- Introduced safe handles for Helium containers.
+- Revamped KEXT communication.
+- Deprecated exportFingerprints option.
+- Tokenized paths by mounts in FailedPipInputAnalyzer.
+- Allowed for disabling output replication during distributed builds.
+- Bug fixes:
+  - Fix for crash in ObservedInputProcessor when saving XLG events for failed pips.
+  - Reset engine environment settings for BuildXL server process.
+  - Fix for spec filters that ignore IPC pips.
 
 # 0.20180622.13.0 (Release [12817](https://dev.azure.com/mseng/domino/_releasereleaseId=12817&_a=release-pipeline-progress)), released on 6/27/2018
-* Created Build Break Analyzer
-* Experimental Graph Agnostic Incremental Scheduling with improvements
-* Fixed Drop failing in CB for Office
-* Miscellaneous bug fixes and perf improvements
-
+- Created Build Break Analyzer
+- Experimental Graph Agnostic Incremental Scheduling with improvements
+- Fixed Drop failing in CB for Office
+- Miscellaneous bug fixes and perf improvements
 
 # 0.20180615.11.0 (Release [12554](https://dev.azure.com/mseng/domino/_releasereleaseId=12554&_a=release-pipeline-progress)), released on 6/15/2018
-* Output strong fingerprint calculation to XLG for failed pips
-* Enable critical path telemetry event
-* Handle anti dependency validation when file change tracker failed to track non-existent path
-* Add configurable max entry age (TTL) for fingerprint store
-* Turn on fingerprint store by default for desktop builds
-* CacheMissBeta became CacheMiss analyzer. The current CacheMiss analyzer was renamed to CacheMissLegacy
-* Bugfix: Fix OutOfMemoryException when reading large stdout stream
-
+- Output strong fingerprint calculation to XLG for failed pips
+- Enable critical path telemetry event
+- Handle anti dependency validation when file change tracker failed to track non-existent path
+- Add configurable max entry age (TTL) for fingerprint store
+- Turn on fingerprint store by default for desktop builds
+- CacheMissBeta became CacheMiss analyzer. The current CacheMiss analyzer was renamed to CacheMissLegacy
+- Bugfix: Fix OutOfMemoryException when reading large stdout stream
 
 # 0.20180608.12.0 (Release [12344](https://dev.azure.com/mseng/domino/DominoCore/_releasereleaseId=12344&_a=release-pipeline-progress)), released on 6/13/2018
-* Qualifier details are displayed as part of pip progress indicator
-* XML transformers are removed
-* Improved crash telemetry
-* Fixed false positives on cached graph hits
-* Cache miss analyzer improvements
-* Several bug fixes
-
+- Qualifier details are displayed as part of pip progress indicator
+- XML transformers are removed
+- Improved crash telemetry
+- Fixed false positives on cached graph hits
+- Cache miss analyzer improvements
+- Several bug fixes
 
 # 0.20180602.3.2 (Release [12226](https://dev.azure.com/mseng/domino/_releasereleaseId=12226&_a=release-pipeline-progress)), released on 6/6/2018
-* Add per-phase disk active time to stats file
-* Change the default of /escapeIdentifiers to true
-* Exclude spec path from semi-stable hash in DScript V2 builds
-* Build CloudStoreTests with Net461
-* Show qualifiers for each running pip
-* Make DScript not depend on PipBuilder 
-* Detect absent file probes on macOS
-* Add a dynamic interop library for macOS
-* Bugfix: Fix crash when hardlinking fingerprint store log files
-* Bugfix: Handle the case where Journal can go back in time
-* Bugfix: Fix crash in LogStats
+- Add per-phase disk active time to stats file
+- Change the default of /escapeIdentifiers to true
+- Exclude spec path from semi-stable hash in DScript V2 builds
+- Build CloudStoreTests with Net461
+- Show qualifiers for each running pip
+- Make DScript not depend on PipBuilder 
+- Detect absent file probes on macOS
+- Add a dynamic interop library for macOS
+- Bugfix: Fix crash when hardlinking fingerprint store log files
+- Bugfix: Handle the case where Journal can go back in time
+- Bugfix: Fix crash in LogStats
 ## Patches
 1. 0.20180602.3.3 (Release [12283](https://dev.azure.com/mseng/domino/TSE%20Team/_releasereleaseId=12283&_a=release-pipeline-progress)), released on 6/7/2018
-   * Fix counter collection for stopwatches
+   - Fix counter collection for stopwatches
 
 # 0.20180525.3.0 (Release [11939](https://dev.azure.com/mseng/domino/_releasereleaseId=11939&_a=release-pipeline-progress)), released on 5/31/2018
-* Associate FileChangeTracker with BuildXL engine version
-* Tokenize machine specific paths in pathsets to improve x-machine cache hit rate
-* Allow source files to be inputs even if a directory is fully sealed
-* Reduce size of BuildXL binary package
-* Fixes for critical path analyzer
-* IO reduction for FingerprintStore and HistoricMetadataCache
+- Associate FileChangeTracker with BuildXL engine version
+- Tokenize machine specific paths in pathsets to improve x-machine cache hit rate
+- Allow source files to be inputs even if a directory is fully sealed
+- Reduce size of BuildXL binary package
+- Fixes for critical path analyzer
+- IO reduction for FingerprintStore and HistoricMetadataCache
 
 # 0.20180520.2.1 (Release [11913](https://dev.azure.com/mseng/domino/_releasereleaseId=11913&_a=release-pipeline-progress)), released on 5/24/2018
-* Pip data paths should be case insensitive in fingerprints 
+- Pip data paths should be case insensitive in fingerprints 
 
 # 0.20180520.2.0 (Release [11772](https://dev.azure.com/mseng/domino/_releasereleaseId=11772&_a=release-pipeline-progress)), released on 5/24/2018
-* Graph Agnostic Icnremental Scheduling
-* Updated QTest version
-* Starting to collect telemetry on the Cache Miss Analyzer, Viewer and XlgAnalyzer
-* FancyConsole now supported on Mac
-* DScript debugger now works on Mac
-* DScript now exposes host information like OS, cpu type and admin or not on the Context object.
-* Sandbox improvements for Mac
-* Various WDG specific components have moved to their OsgTools repo
-* Various DominoXml tools have been removed in preparation of sunsetting DominoXml
-* BuildXL now runs on Net461, We'll stop building Net451 after 2 releases on June 10th.
-* Various bug fixes
+- Graph Agnostic Icnremental Scheduling
+- Updated QTest version
+- Starting to collect telemetry on the Cache Miss Analyzer, Viewer and XlgAnalyzer
+- FancyConsole now supported on Mac
+- DScript debugger now works on Mac
+- DScript now exposes host information like OS, cpu type and admin or not on the Context object.
+- Sandbox improvements for Mac
+- Various WDG specific components have moved to their OsgTools repo
+- Various DominoXml tools have been removed in preparation of sunsetting DominoXml
+- BuildXL now runs on Net461, We'll stop building Net451 after 2 releases on June 10th.
+- Various bug fixes
 
 # 0.20180512.1.4 (Release [11662](https://dev.azure.com/mseng/domino/_releasereleaseId=11662&_a=release-pipeline-progress)), released on 5/18/2018
-* Patch:  Garbage collect historic metadata cache in background on load rather than waiting till end of build
+- Patch:  Garbage collect historic metadata cache in background on load rather than waiting till end of build
 
 # 0.20180512.1.3 (Release [11610](https://dev.azure.com/mseng/domino/_release?releaseId=11610&_a=release-summary)), released on 5/16/2018
-* /nowarn prints warning to log, but not to console.
-* Fixes for enabling optimized mode of path mappings and journal for probing.
-* Make dpc filter work.
-* Pip static fingerprints.
-* Sending debug messages from KExt to BuildXL.
-* Bug fixes.
-* Patches:
-   * Fix for /nowarn that incorrectly sends warnings to .wrn file.
-   * Fix for stack overflow due to large module filters.
+- /nowarn prints warning to log, but not to console.
+- Fixes for enabling optimized mode of path mappings and journal for probing.
+- Make dpc filter work.
+- Pip static fingerprints.
+- Sending debug messages from KExt to BuildXL.
+- Bug fixes.
+- Patches:
+   - Fix for /nowarn that incorrectly sends warnings to .wrn file.
+   - Fix for stack overflow due to large module filters.
 
 # 0.20180504.4.2 (Release [11609](https://dev.azure.com/mseng/domino/_release?releaseId=11609&_a=release-summary)), released on 5/16/2018
-* Fix for stack overflow due to large module filters.
+- Fix for stack overflow due to large module filters.
 
 # 0.20180504.4.1 (Release [11392](https://dev.azure.com/mseng/domino/_release?releaseId=11392&_a=release-summary)), released on 5/11/2018
-* Extended telemetry for graph cache miss analysis
-* Important perf update for Office
-* Cloud perf fixes for Office
-* Fix drops in Office to contain file length for all files
-* Various bug fixes and error handling
-* Fix incremental scheduling overbuild
-* Patch: Incremental scheduling underbuild due to improperly order drives after deserialization
+- Extended telemetry for graph cache miss analysis
+- Important perf update for Office
+- Cloud perf fixes for Office
+- Fix drops in Office to contain file length for all files
+- Various bug fixes and error handling
+- Fix incremental scheduling overbuild
+- Patch: Incremental scheduling underbuild due to improperly order drives after deserialization
 
 # 0.20180427.9.0 (Release [11050](https://dev.azure.com/mseng/domino/_release?releaseId=11050&_a=release-summary)), released on 5/2/2018
-* Add more glob support to BuildXL. Glob can now skip one directory level via ``glob(d`.`, "*/module.config.dsc")`` ([Documentation](/BuildXL/User-Guide/Script/Globbing))
-* Qualifiers can now be specified as value on the commandline i.e. ``/q:configuration=debug;platform=x64``. ([Documentation](/BuildXL/User-Guide/Script/Qualifiers))
-* Writing out Json files now has a convenience feature for dynamic keys.
-* Reduce frontend memory footprint
-* Various bug fixes
+- Add more glob support to BuildXL. Glob can now skip one directory level via ``glob(d`.`, "*/module.config.dsc")`` ([Documentation](/BuildXL/User-Guide/Script/Globbing))
+- Qualifiers can now be specified as value on the commandline i.e. ``/q:configuration=debug;platform=x64``. ([Documentation](/BuildXL/User-Guide/Script/Qualifiers))
+- Writing out Json files now has a convenience feature for dynamic keys.
+- Reduce frontend memory footprint
+- Various bug fixes
 
 # 0.20180420.10.0 (Release [10854](https://dev.azure.com/mseng/domino/_release?releaseId=10854&_a=release-workitems)), released on 4/25/2018
 
@@ -1938,548 +1953,529 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Misc. bug fixes & performance improvements
 
 # 0.20180413.5.0 (Release [10599](https://dev.azure.com/mseng/domino/_release?releaseId=10599&_a=release-summary)), released on 4/18/2018
-* A built-in DScript prelude is used when not specified
-* Scrubbing phase can now be cancelled
-* Improved help for the execution analyzer
-* An assortment of memory optimizations
-* Policy for controlling directory creation under writable mounts
-* Improved front-end statistics
-
+- A built-in DScript prelude is used when not specified
+- Scrubbing phase can now be cancelled
+- Improved help for the execution analyzer
+- An assortment of memory optimizations
+- Policy for controlling directory creation under writable mounts
+- Improved front-end statistics
 
 # 0.20180405.5.0 (Release [10352](https://dev.azure.com/mseng/domino/_release?releaseId=10352&_a=release-summary)), released on 4/11/2018
-* Various memory optimizations
-* Add StringBuilder as ambient DScript type
-* Address the /forceSkipDeps hang in Office
-* Add Json.write support to DominoScript
-* Fix an underbuild bug involving weird interplay between BuildXL and InputTracker
-* Add support for optional outputs
+- Various memory optimizations
+- Add StringBuilder as ambient DScript type
+- Address the /forceSkipDeps hang in Office
+- Add Json.write support to DominoScript
+- Fix an underbuild bug involving weird interplay between BuildXL and InputTracker
+- Add support for optional outputs
 
 # 0.20180330.2.4 (Release [10310](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=10310&_a=release-summary)), released on 4/4/2018
-* Optimized directory membership fingerprint computation.
-* Fix on the use of OutputDebugString in Detours.
-* Retry when opening files for hashing time out.
-* DScript SDK clean up.
-* Patches: 
-  - Fix non-terminating dirty build. 
-  - Fix for underbuild due to cross-talk between different BuildXL versions through tracker file.
+- Optimized directory membership fingerprint computation.
+- Fix on the use of OutputDebugString in Detours.
+- Retry when opening files for hashing time out.
+- DScript SDK clean up.
+- Patches: 
+ - Fix non-terminating dirty build. 
+ - Fix for underbuild due to cross-talk between different BuildXL versions through tracker file.
 
 # 0.20180316.7.0 (Release [9737](https://dev.azure.com/mseng/domino/_release?releaseId=9737&_a=release-summary)), released on 3/21/2018
-* Add RAM throttling
-* Shrink serialized size for small StringTables
-* Target TLS 1.2 in domino & drop
-* Fix issue with public surface generator required by the incremental front-end
-* Fix underbuild when a new directory is created under read-only mount
-
+- Add RAM throttling
+- Shrink serialized size for small StringTables
+- Target TLS 1.2 in domino & drop
+- Fix issue with public surface generator required by the incremental front-end
+- Fix underbuild when a new directory is created under read-only mount
 
 # 0.20180309.2.0 (Release [9452](https://dev.azure.com/mseng/domino/_release?releaseId=9452&_a=release-summary)), released on 3/14/2018
-* Ability to run journal scan in verify mode for absent file probes
-* Filename filter on Source Seal Directory
-* Historic metadata cache perf improvement
-* Misc. perf and bug fixes
+- Ability to run journal scan in verify mode for absent file probes
+- Filename filter on Source Seal Directory
+- Historic metadata cache perf improvement
+- Misc. perf and bug fixes
 
 # 0.20180303.2.1 
-* Hotfix patched release for adding directory creation of copy file pips under no CAS
+- Hotfix patched release for adding directory creation of copy file pips under no CAS
 
 # 0.20180303.2.0 (Release [9249](https://dev.azure.com/mseng/domino/_release?releaseId=9249&_a=release-summary)), released on 3/7/2018
-* BuildXL now compiles against net461 (next to net451 and netcore2.0)
-* Improve obsolete feature in DominoScript
-* Decrease amount of materialization for office builds
-* Improve local engine cache performance
-* Make allowlist regex matching case insensitive
-* More foundational work for BuildXL on Mac
-* Assorted bug fixes
+- BuildXL now compiles against net461 (next to net451 and netcore2.0)
+- Improve obsolete feature in DominoScript
+- Decrease amount of materialization for office builds
+- Improve local engine cache performance
+- Make allowlist regex matching case insensitive
+- More foundational work for BuildXL on Mac
+- Assorted bug fixes
 
 # 0.20180226.2.1 (Release [9289](https://dev.azure.com/mseng/domino/_release?releaseId=9289&_a=release-summary)), released on 3/5/2018
-* Hotfix patched release for Fix incremental scheduling underbuild by retracking absent paths.
+- Hotfix patched release for Fix incremental scheduling underbuild by retracking absent paths.
 
 # 0.20180226.2.0 (Release [9027](https://dev.azure.com/mseng/domino/_release?releaseId=9027&_a=release-summary)), released on 3/1/2018
-* This release follows a week with no Prod release, so there is rather substantial set of changes.
-* A fix for Office underbuild issue (due to ChangeTracking) is not included in this build, so the same underbuild exists with this build. I’m not aware of any specific issue for WDG
-* Many reliability improvements for caching related issues
-* Many reliability improvements for USN related issues
-* Improvements to fancy Console
-* Assorted bug fixes
+- This release follows a week with no Prod release, so there is rather substantial set of changes.
+- A fix for Office underbuild issue (due to ChangeTracking) is not included in this build, so the same underbuild exists with this build. I’m not aware of any specific issue for WDG
+- Many reliability improvements for caching related issues
+- Many reliability improvements for USN related issues
+- Improvements to fancy Console
+- Assorted bug fixes
 
 # 0.20180209.14.0 (Release [8433](https://dev.azure.com/mseng/domino/_release?releaseId=8433&_a=release-summary?releaseId=8433)), released on 2/14/2018
-* Auto recovery and reliability improvements for caching related issues
-* Nuget improvements
-* VsCode improvements
-* Assorted bug fixes
+- Auto recovery and reliability improvements for caching related issues
+- Nuget improvements
+- VsCode improvements
+- Assorted bug fixes
 
 # 0.20180202.6.2 (Release [8423](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=8423&_a=release-summary)), released on 2/12/2018
-* Hotfix patched release for contract assertion failure in ObservedInputProcessor
+- Hotfix patched release for contract assertion failure in ObservedInputProcessor
 
 # 0.20180202.6.1 (Release [8219](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=8219)), released on 2/7/2018
-* Add support for incremental linker
-* Faster cache lookups
-* Separate existing file probes from file content reads to reduce cache sensitivity
-* Use wildcard pattern when computing the directory fingerprint to reduce cache sensitivity
-* Consolidate missing output log messages
-* Add more details to Performance Summary
-* Add help link when errors or warnings are logged
-* CacheMissAnalyzer for distributed builds
-* Globbing support for DominoXML
-* VsCode plugin bug fixes 
-* Various engine bug fixes 
+- Add support for incremental linker
+- Faster cache lookups
+- Separate existing file probes from file content reads to reduce cache sensitivity
+- Use wildcard pattern when computing the directory fingerprint to reduce cache sensitivity
+- Consolidate missing output log messages
+- Add more details to Performance Summary
+- Add help link when errors or warnings are logged
+- CacheMissAnalyzer for distributed builds
+- Globbing support for DominoXML
+- VsCode plugin bug fixes 
+- Various engine bug fixes 
 
 # 0.20180119.7.0 (Release [7635](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=7635)), released on 1/24/2018
-* Decorator support for string literals in DominoScript
-* TTL support to BFS cache
-* DScript plugin for Visual Studio Code improvements
-* Re-routing all execution logs back to master in distributed builds
-* Dedicated thread logger for CloudBuild
+- Decorator support for string literals in DominoScript
+- TTL support to BFS cache
+- DScript plugin for Visual Studio Code improvements
+- Re-routing all execution logs back to master in distributed builds
+- Dedicated thread logger for CloudBuild
 
 # 0.20180112.9.0 (Release [7383](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=7383)), released on 1/17/2018
-* Add R/W (read/write) to new Disallowed File Access console messages
-* Analog DominoXml simplifications for Xtensa Ipa and Designer workflow.
-* Improve performance of Office Builds
-* Use DScript V2 by default
-* Various memory improvements
-* Perf improvements for Find All References in Language Server
+- Add R/W (read/write) to new Disallowed File Access console messages
+- Analog DominoXml simplifications for Xtensa Ipa and Designer workflow.
+- Improve performance of Office Builds
+- Use DScript V2 by default
+- Various memory improvements
+- Perf improvements for Find All References in Language Server
 
 # 0.20180105.8.2 (Release [7366](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=7366)), released on 1/12/2018
-* Fix under build in incremental scheduling after a cache hit
+- Fix under build in incremental scheduling after a cache hit
 
 # 0.20180105.8.0 (Release [7123](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=7123)), released on 1/10/2018
-* Directory deleting improvements
-* DScript IDE perf improvements
-* Fix for DScript frontend cache corruption
-* Updated WDG LegacyBuilder to support Analog spec simplication
-* BuildXL commandline improvements
-* Added retry logic for nuget download
-* Memory optimizations
-* More code on .NetCore
-* Cache database hardening for malformed image
-* Various bug fixes
+- Directory deleting improvements
+- DScript IDE perf improvements
+- Fix for DScript frontend cache corruption
+- Updated WDG LegacyBuilder to support Analog spec simplication
+- BuildXL commandline improvements
+- Added retry logic for nuget download
+- Memory optimizations
+- More code on .NetCore
+- Cache database hardening for malformed image
+- Various bug fixes
 
 # 0.20171215.8.1 (Release [6740](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=6740)), released on 12/20/2017
-* New cache that can wrap existing cache and expose it through HTTP endpoint
-* Error reclassifying into User, Infrastructure, and Internal
-* Aggregating and simplifying file access violation logging
-* /unsafe_allowMissingOutput without filename will allow all missing outputs
-* DominoScript: Removed the rule enforcing enums to be exported
-* DominoScript: Disallowing nested Any type in top level declarations.
-* Various bug fixes
-
+- New cache that can wrap existing cache and expose it through HTTP endpoint
+- Error reclassifying into User, Infrastructure, and Internal
+- Aggregating and simplifying file access violation logging
+- /unsafe_allowMissingOutput without filename will allow all missing outputs
+- DominoScript: Removed the rule enforcing enums to be exported
+- DominoScript: Disallowing nested Any type in top level declarations.
+- Various bug fixes
 
 # 0.20171207.10.0 (Release [6377](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=6377)), released on 12/12/2017
-* BuildXL Engine: Post graph validation
-* DScript workspace fixes and improvements
-* DominoScript: Allow @@Tool.option on types
-* VS BuildXL: Disable qualifiers in generated .csproj files
-* Directory deletion fixes
-* Various bug fixes
+- BuildXL Engine: Post graph validation
+- DScript workspace fixes and improvements
+- DominoScript: Allow @@Tool.option on types
+- VS BuildXL: Disable qualifiers in generated .csproj files
+- Directory deletion fixes
+- Various bug fixes
 
 # 0.20171203.2.0 (Release [6242](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=6242))
-* Fixes to Directory ASL (to really remove from the WDG build)
-* Different fixes to Cache/Lazy Materialization and Incremental Scheduling/Scrub
-* /warnaserror doesn’t cache pips
-* Add Pip id to the FileAccessManifest payload
-* Fix a very rare deadlock for Office builds (HandleOverlayMap <-----> OS Heap locks)
+- Fixes to Directory ASL (to really remove from the WDG build)
+- Different fixes to Cache/Lazy Materialization and Incremental Scheduling/Scrub
+- /warnaserror doesn’t cache pips
+- Add Pip id to the FileAccessManifest payload
+- Fix a very rare deadlock for Office builds (HandleOverlayMap <-----> OS Heap locks)
 
 # 0.20171128.6.0 (Release [6043](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=6043))
-* Create symlinks inside BuildXL (i.e., symlink definition file)
-* Compress graph files in CB
-* Load balancing for drop pips
-* Fix perf issue when choosing a worker
-* Retry process pips if allowed by specified exit codes
-* Various bug fixes
+- Create symlinks inside BuildXL (i.e., symlink definition file)
+- Compress graph files in CB
+- Load balancing for drop pips
+- Fix perf issue when choosing a worker
+- Retry process pips if allowed by specified exit codes
+- Various bug fixes
 
 # 0.20171111.1.4 (Release [5820](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=5820))
-* Fix under-build problem when DScript configuration files change (fix for #1129847)
-* Fix issue where ChooseWorker is continually active if there are constrained resources (fix for #1124383) 
+- Fix under-build problem when DScript configuration files change (fix for #1129847)
+- Fix issue where ChooseWorker is continually active if there are constrained resources (fix for #1124383) 
 
 # 0.20171111.1.1 (Release [5677](https://dev.azure.com/mseng/domino/_release?definitionId=21&releaseId=5677))
-* Make NtCreateFile return NULL instead of INVALID_HANDLE_VALUE (fix for #1126681)
+- Make NtCreateFile return NULL instead of INVALID_HANDLE_VALUE (fix for #1126681)
 
 # 0.20171111.1.0 (Release [5547](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=5547))
-* Enable DScript workspace by default (former `/exp:UseWorkspace`)
-* Various improvements for DScript language service
-* Analyzer for incremental scheduling
-* Various CloudBuild perf optimizations
-* Improvements for historic metadata cache lookups
-* Add DsDoc tool that generates md files from DScript specs
+- Enable DScript workspace by default (former `/exp:UseWorkspace`)
+- Various improvements for DScript language service
+- Analyzer for incremental scheduling
+- Various CloudBuild perf optimizations
+- Improvements for historic metadata cache lookups
+- Add DsDoc tool that generates md files from DScript specs
 
 
 # 0.20171103.8.2 (Release [5519](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=5519))
-* SSL retries in cache
+- SSL retries in cache
 
 # 0.20171103.8.1 (Release [5458](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=5458))
-* Update incremental scheduling state correctly when pips are clean and materialized (#1119672)
+- Update incremental scheduling state correctly when pips are clean and materialized (#1119672)
 
 # 0.20171103.8.0 (Release [5275](https://dev.azure.com/mseng/domino/_release?definitionId=21&_a=release-summary&releaseId=5275))
-* Graph caching from content cache
-* Memory optimization for tagged template expressions
-* Lazily materialize drop inputs and don't redundantly process service pip
-* Include all seal directories for a path in the filter passing nodes
-* Reduce the size of HistoricMetadataCache
-* Code completion for importing modules
+- Graph caching from content cache
+- Memory optimization for tagged template expressions
+- Lazily materialize drop inputs and don't redundantly process service pip
+- Include all seal directories for a path in the filter passing nodes
+- Reduce the size of HistoricMetadataCache
+- Code completion for importing modules
 
 # 0.20171025.6.1
-* **Breaks Fingerprint**
-* Various performance improvements for Distribution & Caching
-* Determinism probe supports output directories
-* Memory consumption improvements for path/symbol/string tables
-* DScript memory optimizations
-* CopyFile makeOutputsWriteable support
-* Historic Metadata Cache (perf improvement on processing cache hits in larger builds)
-* Misc Bug fixes
-
+- **Breaks Fingerprint**
+- Various performance improvements for Distribution & Caching
+- Determinism probe supports output directories
+- Memory consumption improvements for path/symbol/string tables
+- DScript memory optimizations
+- CopyFile makeOutputsWriteable support
+- Historic Metadata Cache (perf improvement on processing cache hits in larger builds)
+- Misc Bug fixes
 
 # 0.20171019.10.1
-* **Breaks Fingerprint**
-* Patched bug with filtering that can keep all dependencies from being included in the build
+- **Breaks Fingerprint**
+- Patched bug with filtering that can keep all dependencies from being included in the build
 
 # 0.20171019.10.0 
-* Better diagnostics for when files are open externally, preventing BuildXL from performing operations on those files.
-* Introduce /historicalMetadataCache option
-* CloudBuild reliability improvements
-* Various optimizations (engine, fingerprinting and reduced memory dominoscript frontend)
-* Various bugfixes
+- Better diagnostics for when files are open externally, preventing BuildXL from performing operations on those files.
+- Introduce /historicalMetadataCache option
+- CloudBuild reliability improvements
+- Various optimizations (engine, fingerprinting and reduced memory dominoscript frontend)
+- Various bugfixes
 
 # 0.20171013.7.0
-* Introduce /scheduleMetaPips. When false, BuildXL neither creates group meta pip nor schedules any meta pips. Default value is false.
-* Allow forcing using historic perf. data from cache. Default value is true in Cloud build.
-* Copy file pip support “keep writable” destination.
-* Quickbuild resolver (preview).
-* Optimization on the application of filter outputs.
-* Consolidation of integration tests.
-* More statistics on DominoScript.
-* Various optimizations (particularly, memory-wise) on DominoScript
-
+- Introduce /scheduleMetaPips. When false, BuildXL neither creates group meta pip nor schedules any meta pips. Default value is false.
+- Allow forcing using historic perf. data from cache. Default value is true in Cloud build.
+- Copy file pip support “keep writable” destination.
+- Quickbuild resolver (preview).
+- Optimization on the application of filter outputs.
+- Consolidation of integration tests.
+- More statistics on DominoScript.
+- Various optimizations (particularly, memory-wise) on DominoScript
 
 # 0.20171006.10.0 
-* Perf improvements in DominoScipt, Engine, Filters and Cache.
-* Fixes in DScript and Cache.
-* Deleting files with POSICS_SEMANTIC fix. Changes to directory deletions and junctions.
-* Some logging changes for more clarity.
-
+- Perf improvements in DominoScipt, Engine, Filters and Cache.
+- Fixes in DScript and Cache.
+- Deleting files with POSICS_SEMANTIC fix. Changes to directory deletions and junctions.
+- Some logging changes for more clarity.
 
 # 0.20170929.12.0 
-* Telemetry for incremental scheduling
-* Fix for restore cache content from outputs on disk
-* Symlink fixes
-* DScript memory improvements
-* Misc bug fixes
-
+- Telemetry for incremental scheduling
+- Fix for restore cache content from outputs on disk
+- Symlink fixes
+- DScript memory improvements
+- Misc bug fixes
 
 # 0.20170925.1.0 
-* Various scheduler optimizations for distributed builds
-* Performance improvements for IPC pips (service pips)
-* Deprecated ChangeJournalService
-* Frontend optimizations (DominoScript)
-* Misc bug fixes 
-
+- Various scheduler optimizations for distributed builds
+- Performance improvements for IPC pips (service pips)
+- Deprecated ChangeJournalService
+- Frontend optimizations (DominoScript)
+- Misc bug fixes 
 
 # 0.20170911.3.0 
-* Various optimizations for incremental parsing and type checking phases for the front-end
-* Support for importFile function in module configuration files
-* Fix memory leak in the front-end that prevented front-end memory to be released
-* Work in progress for moving BuildXL to CoreCLR
-* Allowed grouping for Sealed Directories.
-* Misc bug fixes
-
+- Various optimizations for incremental parsing and type checking phases for the front-end
+- Support for importFile function in module configuration files
+- Fix memory leak in the front-end that prevented front-end memory to be released
+- Work in progress for moving BuildXL to CoreCLR
+- Allowed grouping for Sealed Directories.
+- Misc bug fixes
 
 # 0.20170830.16.0 
-* Fix small frontend memory leak
-* Better diagnostics for change journal scanning failures
-* Misc bug fixes
-
+- Fix small frontend memory leak
+- Better diagnostics for change journal scanning failures
+- Misc bug fixes
 
 # 0.20170825.10.0 
-* Early termination of evaluator in case of error (controlled by the /stonOnFirstError switch)
-* WDG Analog Rollout Support and OneCoreUAP Component Support
-* Cache with fixed convergence and heartbeats
-* Turn ZwOtherFileInformation by default
-* Remove HashSourceFile pips from execution
-* Compute and save file interaction fingerprint
-* Make evaluation AST serializable
-* Various optimizations/bugfixes: 
-* Directory rename causes underbuild
-* Release worker on failure
-* BTW build running out of space appears to hang - Stop puts when out of space
-* BuildXL produces incorrect input lists corrupting cache
-* Do not materialize outputs when pip failed
-
+- Early termination of evaluator in case of error (controlled by the /stonOnFirstError switch)
+- WDG Analog Rollout Support and OneCoreUAP Component Support
+- Cache with fixed convergence and heartbeats
+- Turn ZwOtherFileInformation by default
+- Remove HashSourceFile pips from execution
+- Compute and save file interaction fingerprint
+- Make evaluation AST serializable
+- Various optimizations/bugfixes: 
+- Directory rename causes underbuild
+- Release worker on failure
+- BTW build running out of space appears to hang- Stop puts when out of space
+- BuildXL produces incorrect input lists corrupting cache
+- Do not materialize outputs when pip failed
 
 # 0.20170810.1.0 
-* Follow symlinks for all detoured APIs.
-* DScript Optimizations: removal of expensive closure allocations from checker.
-* Allow qualifier property types to be aliased.
-* Workspace construction progress reporting.
-* Support for comments on generated AST nodes.
-* Import file.
-* Feature for scrubbing multiple directories under scrubbable mounts.
-* Module dirty builds: /unsafe_forceSkipDeps:module
-
+- Follow symlinks for all detoured APIs.
+- DScript Optimizations: removal of expensive closure allocations from checker.
+- Allow qualifier property types to be aliased.
+- Workspace construction progress reporting.
+- Support for comments on generated AST nodes.
+- Import file.
+- Feature for scrubbing multiple directories under scrubbable mounts.
+- Module dirty builds: /unsafe_forceSkipDeps:module
 
 # 0.20170806.1.0 
-* Vertical Aggregator improperly resolving unbacked values on AddOrGet DScript graph patching compatibility improvements
-* Underbuild on deleting/renaming existing member followed by adding a new member that was probe non-existent previously
-* Fixes to Dirty builds
-* Better graph patching with closure computations
-* Bump up cloudstore package to include hash optimization
-* Catching more exceptions during querying journal to be more fault-tolerant (bugfix #1045996)
-* Introduce ReadThrough Metadata Cache
-* New ZwSetFileInformation sub-routines detoured.
-* Various DS related fixes.
-* Making Detours allocate memory in its own private heap.
-* Numerous bug fixes
-
+- Vertical Aggregator improperly resolving unbacked values on AddOrGet DScript graph patching compatibility improvements
+- Underbuild on deleting/renaming existing member followed by adding a new member that was probe non-existent previously
+- Fixes to Dirty builds
+- Better graph patching with closure computations
+- Bump up cloudstore package to include hash optimization
+- Catching more exceptions during querying journal to be more fault-tolerant (bugfix #1045996)
+- Introduce ReadThrough Metadata Cache
+- New ZwSetFileInformation sub-routines detoured.
+- Various DS related fixes.
+- Making Detours allocate memory in its own private heap.
+- Numerous bug fixes
 
 # 0.20170727.9.0 
-* Improvements to OOM prevention
-* DScript graph patching compatibility improvements
-* DScript tweaks related to v2
-* Numerous bug fixes
-
+- Improvements to OOM prevention
+- DScript graph patching compatibility improvements
+- DScript tweaks related to v2
+- Numerous bug fixes
 
 # 0.20170718.8.0 
-* Pip cancellation to prevent out-of-memory
-* DScript graph patching
-* Perf improvement for incremental scheduling
-* Historical perf data in cache
-* Replicate outputs for distributed metabuild
-* Various bug fixes
-
+- Pip cancellation to prevent out-of-memory
+- DScript graph patching
+- Perf improvement for incremental scheduling
+- Historical perf data in cache
+- Replicate outputs for distributed metabuild
+- Various bug fixes
 
 # 0.20170710.7.0 
-* Fix for cache blob upload
-* Fix for overwritten pip failure error
-* /unsafe_SourceFileCanBeInsideOutputDirectory is now on by default
-* /validateExistingFileAccessesForOutputs is now off by default
-* Distributed output replication to all workers to enable distributing metabuild
-* Force materializing inputs on the worker in case of disabled lazy materialization
-* Other bug fixes
-
+- Fix for cache blob upload
+- Fix for overwritten pip failure error
+- /unsafe_SourceFileCanBeInsideOutputDirectory is now on by default
+- /validateExistingFileAccessesForOutputs is now off by default
+- Distributed output replication to all workers to enable distributing metabuild
+- Force materializing inputs on the worker in case of disabled lazy materialization
+- Other bug fixes
 
 # 0.20170703.10.0 
-* Improved performance for Office builds
-* Two CAS – Metadata, Content
-* Fixed pip execution time shown in the critical path analyzer
-* Removed deny write attribute to clear readonly flag in domino
-* Various bug fixes
-
+- Improved performance for Office builds
+- Two CAS – Metadata, Content
+- Fixed pip execution time shown in the critical path analyzer
+- Removed deny write attribute to clear readonly flag in domino
+- Various bug fixes
 
 # 0.20170623.2.0 
-* Addressed Server Deployment perf issue 
-* Introduced a bug that sometimes throws away the graph cache, that fix went in with: PR: 231258
-* Improve setup, and update more robust.
-* Improved logging for memory usage
-* IPC Pips can be distributed
-* Improve robustness around directory handling
-* DScript perf & memory improvements
-* Updated Cache bits
-* Improvements in Analyzers
-
+- Addressed Server Deployment perf issue 
+- Introduced a bug that sometimes throws away the graph cache, that fix went in with: PR: 231258
+- Improve setup, and update more robust.
+- Improved logging for memory usage
+- IPC Pips can be distributed
+- Improve robustness around directory handling
+- DScript perf & memory improvements
+- Updated Cache bits
+- Improvements in Analyzers
 
 # 0.20170619.4.0 
-* ChangeJournal improvements 
-* Fix ChangeJournal auto-upgrade bug
-* Improve setup, and update more robust.
-* DScript Workspace improvements 
-* Office v2 compat work
-* Some foundational work for incremental dominoscript frontend
-* Release management improvements
+- ChangeJournal improvements 
+- Fix ChangeJournal auto-upgrade bug
+- Improve setup, and update more robust.
+- DScript Workspace improvements 
+- Office v2 compat work
+- Some foundational work for incremental dominoscript frontend
+- Release management improvements
 
 # 20170604.1.0 
-* Various improvements (reporting and performance) on incremental scheduling.
-* Parallel server deployment.
-* Allowed delete files with different ownership or ACLs.
-* Auto-fallback for multi-level caches with vertical aggregator.
-* Added machine-wide network usage telemetry.
-* Revived absent path probe elision.
-* Ctrl-break for ungraceful shutdown.
-* Forced large object heap to compact when server mode process is idle.
-* Enabled masking untracked accesses by default.
-* Added Process creation time to execution log.
-* Revived minimal server mode deployment.
-* Enabled BuildXL to queue requested builds if there is one running.
-* Misc. bug fixes
+- Various improvements (reporting and performance) on incremental scheduling.
+- Parallel server deployment.
+- Allowed delete files with different ownership or ACLs.
+- Auto-fallback for multi-level caches with vertical aggregator.
+- Added machine-wide network usage telemetry.
+- Revived absent path probe elision.
+- Ctrl-break for ungraceful shutdown.
+- Forced large object heap to compact when server mode process is idle.
+- Enabled masking untracked accesses by default.
+- Added Process creation time to execution log.
+- Revived minimal server mode deployment.
+- Enabled BuildXL to queue requested builds if there is one running.
+- Misc. bug fixes
 
 # 20170522.2.0 
-* Added IPC pip support to the viewer.
-* Added more reporting to make analyzers richer.
-* Detoured GetFinalPathNameByHandle API.
-* Fixes and implementations in the Distributed build functionality
-* Using CloudStore 117.1.3
-* DScript parallel checker enabled by default.
-* Fixes for broken bandwidth stats
-* Performance analysis and improvement
-* Misc. bug fixes
+- Added IPC pip support to the viewer.
+- Added more reporting to make analyzers richer.
+- Detoured GetFinalPathNameByHandle API.
+- Fixes and implementations in the Distributed build functionality
+- Using CloudStore 117.1.3
+- DScript parallel checker enabled by default.
+- Fixes for broken bandwidth stats
+- Performance analysis and improvement
+- Misc. bug fixes
 
 # 20170515.3.0 
-* Add feature to use outputs from output directory even when evicted from cache (/reuseOutputsOnDisk)
-* Templates in DominoScript
-* Fix memory leak in server mode
-* Add support for specifying directory translations to BuildXL (for use with directory junctions)
-* Misc. bug fixes
+- Add feature to use outputs from output directory even when evicted from cache (/reuseOutputsOnDisk)
+- Templates in DominoScript
+- Fix memory leak in server mode
+- Add support for specifying directory translations to BuildXL (for use with directory junctions)
+- Misc. bug fixes
 
 # 20170510.1.0 
-* Allow source file materialization on distributed workers 
-* DScript features: initial DScript analyzer framework
-* Misc. DScript perf improvements
-* Misc. bug fixes
+- Allow source file materialization on distributed workers 
+- DScript features: initial DScript analyzer framework
+- Misc. DScript perf improvements
+- Misc. bug fixes
 
 # 20170508.1.0 
-* Resource-aware scheduling
-* Distribution as first-class citizen
-* New DScript lint rule: no logic in project files
+- Resource-aware scheduling
+- Distribution as first-class citizen
+- New DScript lint rule: no logic in project files
 
 # 20170501.2.0 
-* DScript Extensions: initial implementation and updated spec
-* Drop fixes: (1) Implicitly schedule service finalizers in filtered builds, (2) Reload DropServiceClient when VssUnauthorizedException is thrown (due to expired VSS credential manager's session token)
-* /FancyConsole is on by default (breaking change for people relying on BuildXL's stdout)
-* Fixes regarding inconsistent process/cache counters
-* DScript features: (1) support for backslashes in paths, (2) introduce "template" as a weak keyword, (3) initial spec for extensions
-* Incremental scheduling features: better support for opaque directories and directory changes
-* Unify /s and /filter:spec= options
-* Log critical path at the end of the build
+- DScript Extensions: initial implementation and updated spec
+- Drop fixes: (1) Implicitly schedule service finalizers in filtered builds, (2) Reload DropServiceClient when VssUnauthorizedException is thrown (due to expired VSS credential manager's session token)
+- /FancyConsole is on by default (breaking change for people relying on BuildXL's stdout)
+- Fixes regarding inconsistent process/cache counters
+- DScript features: (1) support for backslashes in paths, (2) introduce "template" as a weak keyword, (3) initial spec for extensions
+- Incremental scheduling features: better support for opaque directories and directory changes
+- Unify /s and /filter:spec= options
+- Log critical path at the end of the build
 
 # 20170419.1 
-* Revert logging changes for DX64
-* Better caching for pips using _NTDRIVE and _NTBINDRIVE environment variables
-* Correct perf summary at end of build
-* Misc perf improvements
-* Misc bug fixes
+- Revert logging changes for DX64
+- Better caching for pips using _NTDRIVE and _NTBINDRIVE environment variables
+- Correct perf summary at end of build
+- Misc perf improvements
+- Misc bug fixes
 
 # 20170410.1 
-* Various DScript V2 performance improvements
-* Differentiate between existing directory probes & directory enumerations
-* Fix bug with /warnaserror+ option
-* Various rewording of verbose/warning/error messages
-* Execution log enabled by default
-* Implicit filtering translates to paths instead of values. ex: bxl.exe foo\bar\myBinary.exe
-* Memory usage improvements for idle server mode process
-* Perf improvements for drop integration
-* Dump full process tree when a pip times out
-* Misc bug fixes
+- Various DScript V2 performance improvements
+- Differentiate between existing directory probes & directory enumerations
+- Fix bug with /warnaserror+ option
+- Various rewording of verbose/warning/error messages
+- Execution log enabled by default
+- Implicit filtering translates to paths instead of values. ex: bxl.exe foo\bar\myBinary.exe
+- Memory usage improvements for idle server mode process
+- Perf improvements for drop integration
+- Dump full process tree when a pip times out
+- Misc bug fixes
 
 # 20170321.5 
-* Multiplexing capabilities for IPC
-* Performance improvements for DScript V2
-* XML wrapper spec builder simplifications
-* More message word-crafting changes.
-* Disallow copying symlinks
-* Drop pip performance improvements
+- Multiplexing capabilities for IPC
+- Performance improvements for DScript V2
+- XML wrapper spec builder simplifications
+- More message word-crafting changes.
+- Disallow copying symlinks
+- Drop pip performance improvements
 
 # 20170316.1 
-* Optimization for bulk edge additions to MutableDirectedGraph.
-* Enable DScript V2 and several bug fixes in this area.
-* New CloudStore package included.
-* Invalidating cache when changes in search path.
-* Optimizations in DScript parsing.
-* Preserve file name casing in cache.
-* Various bug fixes.
-* Some message word-crafting changes.
-* Misc crash fixes
+- Optimization for bulk edge additions to MutableDirectedGraph.
+- Enable DScript V2 and several bug fixes in this area.
+- New CloudStore package included.
+- Invalidating cache when changes in search path.
+- Optimizations in DScript parsing.
+- Preserve file name casing in cache.
+- Various bug fixes.
+- Some message word-crafting changes.
+- Misc crash fixes
 
 # 20170308.3 
-* Console changes: more readable errors for DX64 and ability to filter out lines with regular expressions
-* Seal directories work for distributed builds
-* Filtering changes: support for seal directories, ipc, wildcards
-* Determinism probe to test for non-deterministic pips
-* Dependency violations are reported to execution log
-* Better support for CloudBuild events
-* Misc crash fixes
+- Console changes: more readable errors for DX64 and ability to filter out lines with regular expressions
+- Seal directories work for distributed builds
+- Filtering changes: support for seal directories, ipc, wildcards
+- Determinism probe to test for non-deterministic pips
+- Dependency violations are reported to execution log
+- Better support for CloudBuild events
+- Misc crash fixes
 
 # 20170221.1 
-* Allow configurable pass through environment variables
+- Allow configurable pass through environment variables
 
 # 20170215.4 
-* Native SDK authoring (CL Runner, Link runner)
-* CL Runner improvements
-* Unit Testing framework for DominoScript
-* Add diagnostic options for server mode
-* Various perf improvements and bug fixes
-* Enable GC statistics events telemetry
-* KeyForm support for DominoScript
-* Make final pip status message stick on console with fancy console
-* Remove metapips from Json graph
-* SourceSealDirectories don't work with /unsafe_forceSkipDeps (dirty build)
-* Fix crosstalk between architectures when using server mode
-* Fix PipViewer: Can't expand 'Repro' section after collapsing
+- Native SDK authoring (CL Runner, Link runner)
+- CL Runner improvements
+- Unit Testing framework for DominoScript
+- Add diagnostic options for server mode
+- Various perf improvements and bug fixes
+- Enable GC statistics events telemetry
+- KeyForm support for DominoScript
+- Make final pip status message stick on console with fancy console
+- Remove metapips from Json graph
+- SourceSealDirectories don't work with /unsafe_forceSkipDeps (dirty build)
+- Fix crosstalk between architectures when using server mode
+- Fix PipViewer: Can't expand 'Repro' section after collapsing
 
 # 20170127.1 
-* Misc crash fixes
-* Fix precision error in RAM utilization based scheduling
-* Improved CloudBuild reporting integration
+- Misc crash fixes
+- Fix precision error in RAM utilization based scheduling
+- Improved CloudBuild reporting integration
 
 # 20170123.1 
-* Speed up execution log on large builds.
-* Fix race in Hiearachical name table.
-* Fix process counting log so that skip pips are included and "processes that were launched" only include external processes.
-* Optimization for BasicFileSystemCache.
+- Speed up execution log on large builds.
+- Fix race in Hiearachical name table.
+- Fix process counting log so that skip pips are included and "processes that were launched" only include external processes.
+- Optimization for BasicFileSystemCache.
 
 # 20170117.1 
-* RAM availability can be configured for the pip execution phase
-* Filtering by output directories correctly interact with opaque directories
-* Drive mapping synchronization via dominow.exe, so a user can run sequential builds from different repos
-* Seal source directories can be configured to operate recursively or top-level
+- RAM availability can be configured for the pip execution phase
+- Filtering by output directories correctly interact with opaque directories
+- Drive mapping synchronization via dominow.exe, so a user can run sequential builds from different repos
+- Seal source directories can be configured to operate recursively or top-level
 
 # 20170106.4 
-* Sealed source directories
-* Support opaque output directories in distributed build
-* Search path directory enumeration configuration for limiting cache invalidation in sealed directories
-* Disk free percentage configuration for cache
-* Use correct USN for symlinks hashed as target path.
-* Handle probe access to files with wildcard characters in Detours
-* Change default of flushing files to off for performance improvement.
-* Revive /unsafe_MonitorFileAccesses to allow disabling detouring
-* /specrefs feature to build all pips in spec files of pip dependencies
-* Misc. bug fixes and performance improvements
+- Sealed source directories
+- Support opaque output directories in distributed build
+- Search path directory enumeration configuration for limiting cache invalidation in sealed directories
+- Disk free percentage configuration for cache
+- Use correct USN for symlinks hashed as target path.
+- Handle probe access to files with wildcard characters in Detours
+- Change default of flushing files to off for performance improvement.
+- Revive /unsafe_MonitorFileAccesses to allow disabling detouring
+- /specrefs feature to build all pips in spec files of pip dependencies
+- Misc. bug fixes and performance improvements
 
 # 20161102.5 
-* Changes to the Cl Runner (more options and switches supported).
-* Different optimizations in logging and telemetry.
-* Different fixes in the detours implementation and detoured the ZwSetFileInformation to enforce access from "cmd.exe move".
-* Improvements and fixes to the Git Runner.
-* New UixCompiler Runner.
-* Misc. bug fixes
+- Changes to the Cl Runner (more options and switches supported).
+- Different optimizations in logging and telemetry.
+- Different fixes in the detours implementation and detoured the ZwSetFileInformation to enforce access from "cmd.exe move".
+- Improvements and fixes to the Git Runner.
+- New UixCompiler Runner.
+- Misc. bug fixes
 
 # 20161002.4 
-* Performance improvements for up to date checks
-* Optimize creation of response files
-* 2 phase lookup and new cache is default
-* VS integration for native projects
-* Misc. bug fixes
+- Performance improvements for up to date checks
+- Optimize creation of response files
+- 2 phase lookup and new cache is default
+- VS integration for native projects
+- Misc. bug fixes
 
 # 20160920.1 
-* Untracked
+- Untracked
 
 # 20160908.1 
-* /unsafe_forceSkipDeps
-* Monitor NTCreateFile by default
-* Use VSO hashing
-* Deeper Nuget package fetching integration
-* DScript evaluation phase performance improvements
-* Execute phase performance improvements
-* Pip repro script body generated in viewer
-* Many bug fixes
+- /unsafe_forceSkipDeps
+- Monitor NTCreateFile by default
+- Use VSO hashing
+- Deeper Nuget package fetching integration
+- DScript evaluation phase performance improvements
+- Execute phase performance improvements
+- Pip repro script body generated in viewer
+- Many bug fixes
 
 # 20160823.4 
-* Untracked
+- Untracked
 
 # 20160514.1 
-* Prevent computer from sleeping while build is running
+- Prevent computer from sleeping while build is running
 
 # 20160511.1 
-* Experimental console (/exp:fancyconsole)
+- Experimental console (/exp:fancyconsole)
 
 # 20160509.1 
-* Use partial evaluation by default for XML - considerably speeds up evaluation for builds using spec file filters
-* Option to not track AppData directory and exclude it from pip fingerprints
+- Use partial evaluation by default for XML- considerably speeds up evaluation for builds using spec file filters
+- Option to not track AppData directory and exclude it from pip fingerprints
 
 # 20160505.2 
-* Graph and spec caching for DominoScript
+- Graph and spec caching for DominoScript
 
 # 20160429.1 
-* Fix crash around SpecCache file locking
-* Make ctrl-c immediately kill running processes rather than waiting for them to complete
+- Fix crash around SpecCache file locking
+- Make ctrl-c immediately kill running processes rather than waiting for them to complete
 
 # 20160428.1 
-* Perf improvements for graph reloading on cold disk cache
+- Perf improvements for graph reloading on cold disk cache
 
 # 20160421.1 
-* Significant perf improvements for parsing on a cold filesystem cache when using change journal
-
+- Significant perf improvements for parsing on a cold filesystem cache when using change journal

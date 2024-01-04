@@ -10,3 +10,15 @@ pipelines:
           lastModifiedDate: 2023-11-22
         armory:
           lastModifiedDate: 2023-11-22
+  15756:
+    cloudbuild:
+      binskim:
+        lastModifiedDate: 2024-01-04
+      credscan:
+        lastModifiedDate: 2024-01-04
+    retail:
+      binary:
+        credscan:
+          lastModifiedDate: 2023-12-21
+        binskim:
+          lastModifiedDate: 2023-12-21

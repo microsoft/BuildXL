@@ -41,3 +41,6 @@ int CallDeleteOnOpenedHardlink();
 int CallCreateSelfForWrite();
 int CallMoveFileExWWithTrailingBackSlashNtObject();
 int CallMoveFileExWWithTrailingBackSlashNtEscape();
+int CallCreateStreams();
+int CallCreateFileWithNewLineCharacters();
+int CallDeleteFileWithoutClosingHandle();

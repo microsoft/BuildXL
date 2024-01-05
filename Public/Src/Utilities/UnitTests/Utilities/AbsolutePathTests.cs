@@ -99,11 +99,16 @@ namespace Test.BuildXL.Utilities
 
             p = AbsolutePath.Create(pt, @"\\srv\BBB\CCC\..");
             XAssert.AreEqual(@"\\srv\BBB", p.ToString(pt));
+
+            // Try create a stream path.
+            XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C:\foo\bar\filename:stream", out AbsolutePath _));
+            XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C:\foo\bar\filename:stream:$DATA", out AbsolutePath _));
+            XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C:\foo\bar\filename::$DATA", out AbsolutePath _));
         }
 
         [Fact]
         public void TryCreateWithDeviceOrNtPrefix()
-        {            
+        {
             var pt = new PathTable();
             AbsolutePath p;
             XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"\\?\C:\AAA\CCC", out p));

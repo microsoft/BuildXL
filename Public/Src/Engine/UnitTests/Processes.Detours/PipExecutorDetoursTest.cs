@@ -8246,12 +8246,70 @@ namespace Test.BuildXL.Processes.Detours
                 // CODESYNC: Public/Src/Sandbox/Windows/DetoursTests/Main.cpp
                 // Filenames should be the same as the ones created in CallCreateFileWithNewLineCharacters
                 string[] filenames = { "testfile:test\r\nstream", "testfile:test\rstream", "testfile:test\nstream", "testfile:\rteststream\n", "testfile:\r\ntest\r\n\r\n\r\nstream\r\n" };
-                var testPaths = result.AllReportedFileAccesses.Select(access => access.Path).Where(path => path != null && path.Contains("testfile:")).ToList();
 
                 foreach (var filename in filenames)
                 {
-                    XAssert.IsTrue(testPaths.FindIndex(0, path => path != null && path.EndsWith(filename)) != -1, $"Could not find filename '{filename.Replace("\n", "\\n").Replace("\r", "\\r")}' in reported file acesses.");
+                    XAssert.IsTrue(
+                        result.AllReportedFileAccesses.Any(rfa => rfa.GetPath(pathTable).EndsWith(filename)),
+                        $"Could not find any reported file access with filename '{filename.Replace("\n", "\\n").Replace("\r", "\\r")}'");
                 }
+            }
+        }
+
+        [Fact]
+        public async Task CallCreateStreams()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallCreateStreams",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    unexpectedFileAccessesAreErrors: false,
+                    context: context,
+                    pip: process,
+                    errorString: out _);
+
+                VerifyNormalSuccess(context, result);
+
+                // CODESYNC: Public/Src/Sandbox/Windows/DetoursTests/Main.cpp
+                // Filenames should be the same as the ones created in CallCreateStreams
+                (string, RequestedAccess, FileAccessStatus)[] filenamesAndStatus = 
+                {
+                    // Default stream is not treated as a special case by Detours (see IsPathToNamedStream). However, because currently path with stream cannot be added to the manifest (due
+                    // to a limitation in our AbsolutePath structure), accessing this default stream is disallowed.
+                    ("testfile::$DATA", RequestedAccess.Write, FileAccessStatus.Denied),
+
+                    // File name with stream name is treated as a special case by Detours, i.e., Detours gives AllowAll access policy for accesses to such file names.
+                    ("testFile:teststream:$Data", RequestedAccess.Write, FileAccessStatus.Allowed),
+                    ("testfile:teststream", RequestedAccess.Write, FileAccessStatus.Allowed)
+                };
+
+                foreach (var (filename, requestedAccess, status) in filenamesAndStatus)
+                {
+                    ReportedFileAccess rfa = result.AllReportedFileAccesses.FirstOrDefault(rfa => rfa.GetPath(pathTable).EndsWith(filename, OperatingSystemHelper.PathComparison) && rfa.RequestedAccess == requestedAccess);
+                    XAssert.IsTrue(IsValidReportedFileAccess(rfa), $"Could not find any reported file access with file name '{filename}' and requested access '{requestedAccess}'");
+                    XAssert.AreEqual(status, rfa.Status);
+                }
+
+                static bool IsValidReportedFileAccess(ReportedFileAccess rfa) => (rfa.Path != null || rfa.ManifestPath.IsValid) && rfa.RequestedAccess != RequestedAccess.None && rfa.Status != FileAccessStatus.None;
             }
         }
 

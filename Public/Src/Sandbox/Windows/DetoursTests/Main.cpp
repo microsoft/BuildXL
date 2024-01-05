@@ -1140,6 +1140,24 @@ int CreateStream(LPCWSTR fileName)
     return static_cast<int>(GetLastError());
 }
 
+int CallCreateStreams()
+{
+    // CODESYNC: Public/Src/Engine/UnitTests/Processes.Detours/PipExecutorDetoursTest.cs
+    // Filenames should be in sync with SandboxedProcessPipExecutorTest.CallCreateStreams
+    LPCWSTR fileNamesWithStream[] = { L"testfile::$DATA", L"testFile:teststream:$Data", L"testfile:teststream" };
+
+    for (LPCWSTR fileNameWithStream : fileNamesWithStream)
+    {
+        const int result = CreateStream(fileNameWithStream);
+        if (result != 0)
+        {
+            return result;
+        }
+    }
+
+    return 0;
+}
+
 //Tests handling of newline characters in filenames when sending reports.
 int CallCreateFileWithNewLineCharacters()
 {
@@ -1152,7 +1170,6 @@ int CallCreateFileWithNewLineCharacters()
         const int result = CreateStream(filename);
         if (result != 0) 
         {
-            // Error should already be logged
             return result;
         }
     }
@@ -1241,6 +1258,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallCreateSelfForWrite);
     IF_COMMAND(CallMoveFileExWWithTrailingBackSlashNtObject);
     IF_COMMAND(CallMoveFileExWWithTrailingBackSlashNtEscape);
+    IF_COMMAND(CallCreateStreams);
     IF_COMMAND(CallCreateFileWithNewLineCharacters);
     IF_COMMAND(CallDeleteFileWithoutClosingHandle);
 

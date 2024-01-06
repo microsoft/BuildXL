@@ -166,6 +166,8 @@ public class EphemeralContentSession : ContentSessionBase
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
+        Contract.Requires(realizationMode != FileRealizationMode.Move, $"{nameof(EphemeralContentSession)} doesn't support {nameof(PlaceFileCoreAsync)} with {nameof(FileRealizationMode)} = {FileRealizationMode.Move}");
+
         var local = await _local.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, context.Token, urgencyHint);
         if (local.Succeeded)
         {
@@ -225,10 +227,22 @@ public class EphemeralContentSession : ContentSessionBase
         {
             _ephemeralHost.PutElisionCache.TryAdd(contentHash, persistent.FileSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
 
-            // We're inserting into the local fully asynchronously here because we don't need it to succeed at all for
-            // the build to succeed.
-            // TODO: figure out how to deal with local PutFile failign because OpenStream deletes the file too early
-            await _local.PutFileAsync(context, contentHash, path, FileRealizationMode.Any, context.Token, urgencyHint).IgnoreFailure();
+            // We insert into the local cache synchronously. This is required right now because OpenStream can delete
+            // the file too early if we do it asynchronously.
+            //
+            // WARNING: the adjustment in the realization mode here is important. When running QuickBuild without
+            // hardlinks in cache, we need to ensure that the file is copied into the local cache when the realization
+            // mode is Copy. Otherwise, the local cache will replace the incoming path with a hardlink, which will
+            // cause access denied exceptions for any target that overwrites outputs from a previous target.
+            var putRealizationMode = realizationMode switch
+            {
+                FileRealizationMode.Any => FileRealizationMode.Any,
+                FileRealizationMode.Copy => FileRealizationMode.Copy,
+                FileRealizationMode.HardLink => FileRealizationMode.Any,
+                FileRealizationMode.CopyNoVerify => FileRealizationMode.Copy,
+                _ => throw new ArgumentOutOfRangeException(nameof(realizationMode), realizationMode, null)
+            };
+            await _local.PutFileAsync(context, contentHash, path, putRealizationMode, context.Token, urgencyHint).IgnoreFailure();
         }
 
         return persistent.WithMaterializationSource(PlaceFileResult.Source.BackingStore);

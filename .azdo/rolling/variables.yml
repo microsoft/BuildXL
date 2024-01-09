@@ -7,6 +7,8 @@ variables:
   value: buildxl.candidate.$(Build.BuildId)
 - name: BuildXLDropName
   value: buildxl.rolling.buildid.$(BuildXL.UniqueBuildId)
+- name: Codeql.SkipTaskAutoInjection
+  value: true
 - name: NugetCredentialProviderPath
   value: $(UserProfile)\.nuget\plugins\netfx\CredentialProvider.Microsoft\
 - name: runCodesignValidationInjection 

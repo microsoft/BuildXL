@@ -95,6 +95,12 @@ export function runConsoleTest(args: TestRunArguments): Result {
         weight: args.weight,
     };
 
+    if (args.passThroughEnvVars !== undefined) {
+        execArguments = execArguments.merge<Transformer.ExecuteArguments>({
+            environmentVariables: [ ...passThroughEnvVars(args.passThroughEnvVars) ]
+        });
+    }
+
     if (Context.getCurrentHost().os !== "win") {
         execArguments = execArguments.merge<Transformer.ExecuteArguments>({
             environmentVariables: [

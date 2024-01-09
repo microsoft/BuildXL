@@ -46,6 +46,11 @@ namespace Nuget {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
                 runWithUntrackedDependencies: true,
             },
+            passThroughEnvVars: [
+                // CODESYNC: Keep environment variable names in sync with RunBxlWithPAT.ps1
+                "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS",
+                "NUGET_CREDENTIALPROVIDERS_PATH"
+            ]
         }
     });
 }

@@ -1028,7 +1028,12 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
                     // to make error messages more descriptive.
                     dependencies: args.sources,
                 }
-            }
+            },
+            passThroughEnvVars: [
+                // The microsoftInternal variable is used by tests that pull packages during a test (eg: nuget resolver tests)
+                // to determine whether it should use nuget.org (for external builds) or the internal feed (for internal builds).
+                "[Sdk.BuildXL]microsoftInternal"
+            ]
         },
         runtimeContentToSkip: [
             // Don't deploy the branding manifest for unittest so that updating the version number does not affect the unittests.
@@ -1091,7 +1096,7 @@ namespace NpmRc {
             ? f`${Context.getMount("SourceRoot").path}/.npmrc`
             : undefined;
     }
-    
+
     @@public
     export function getUserNpmRc() : File {
         return Flags.isMicrosoftInternal

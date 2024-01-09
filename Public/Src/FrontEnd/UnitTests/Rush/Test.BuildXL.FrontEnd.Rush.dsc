@@ -28,6 +28,9 @@ namespace Test.Rush {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
                 runWithUntrackedDependencies: true,
+                untrackedPaths: [
+                    BuildXLSdk.NpmRc.getUserNpmRc()
+                ]
             },
             parallelGroups: [
                  "BxlRushConfigurationTests",
@@ -46,9 +49,15 @@ namespace Test.Rush {
                 exec: {
                     // Rush tests are IO heavy. Let's limit the concurrency for them to avoid timeouts (default
                     // concurrency for xunit tests is 8).
-                    acquireSemaphores: [{name: "BuildXL.rush_xunit_semaphore", incrementBy: 1, limit: 4}]
+                    acquireSemaphores: [{name: "BuildXL.rush_xunit_semaphore", incrementBy: 1, limit: 4}],
+                    environmentVariables: [
+                        ...(BuildXLSdk.NpmRc.getUserNpmRc() !== undefined ? [ { name: "UserProfileNpmRcLocation", value: BuildXLSdk.NpmRc.getUserNpmRc() } ] : [])
+                    ],
                 }
-            }
+            },
+            passThroughEnvVars: [
+                ...(BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName() !== undefined ? [ BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName() ] : [])
+            ]
         },
         assemblyName: "Test.BuildXL.FrontEnd.Rush",
         sources: globR(d`.`, "*.cs"), 

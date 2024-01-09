@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using BuildXL.Engine;
-using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -63,6 +62,8 @@ namespace Test.BuildXL.FrontEnd.Rush
 
         protected override bool DisableDefaultSourceResolver => true;
 
+        private readonly bool m_isInternalBuild;
+
         protected RushIntegrationTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
@@ -80,6 +81,15 @@ namespace Test.BuildXL.FrontEnd.Rush
             // Make sure the user profile and temp folders exist
             Directory.CreateDirectory(RushUserProfile);
             Directory.CreateDirectory(RushTempFolder);
+
+            // Update npmrc for internal builds.
+            // This variable is only set for internal builds, so we can replace the default npm registry with the internal one here
+            var npmrc = Environment.GetEnvironmentVariable("UserProfileNpmRcLocation");
+            if (npmrc != null)
+            {
+                m_isInternalBuild = true;
+                File.Copy(npmrc, Path.Combine(RushUserProfile, ".npmrc"), overwrite: true);
+            }
         }
 
         protected SpecEvaluationBuilder Build(
@@ -325,6 +335,19 @@ config({{
                     "\"pnpmVersion\": \"5.0.2\"");
 
                 File.WriteAllText(pathToRushJson, updatedRushJson);
+
+                // Update npmrc for internal builds.
+                if (m_isInternalBuild)
+                {
+                    // For more information on where we get this path and what is written to it by rush init see: https://rushjs.io/pages/configs/npmrc/
+                    var defaultNpmRcPath = Path.Combine(config.Layout.SourceDirectory.ToString(PathTable), "common", "config", "rush", ".npmrc");
+                    if (File.Exists(defaultNpmRcPath))
+                    {
+                        File.Delete(defaultNpmRcPath);
+                    }
+
+                    File.WriteAllText(defaultNpmRcPath, $"registry=https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/{Environment.NewLine}always-auth=true");
+                }
             }
 
             return result;
@@ -332,7 +355,7 @@ config({{
 
         private bool RushUpdate(ICommandLineConfiguration config)
         {
-             return RushRun(config, "update");
+            return RushRun(config, "update");
         }
 
         private bool RushRun(ICommandLineConfiguration config, string rushArgs)
@@ -353,7 +376,7 @@ config({{
                 RedirectStandardOutput = false,
                 UseShellExecute = false,
             };
-            
+
             // The default pip on Linux adds some common paths to PATH (e.g. /usr/bin). In some scenarios
             // node can be installed in those folders, so make sure the version we want takes precedence
             startInfo.Environment["PATH"] = $"{PathToNodeFolder}{Path.PathSeparator}{startInfo.Environment["PATH"]}";
@@ -369,6 +392,14 @@ config({{
             startInfo.Environment["APPDATA"] = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             startInfo.Environment["RUSH_TEMP_FOLDER"] = RushTempFolder;
             startInfo.Environment["RUSH_ABSOLUTE_SYMLINKS"] = "1";
+
+            // Passthrough the PAT for internal builds (only set for ADO builds)
+            // CODESYNC: Keep this variable name in sync with RunBxlWithPAT.ps1
+            var npmFeedPat = Environment.GetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64");
+            if (npmFeedPat != null)
+            {
+                startInfo.Environment["CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64"] = npmFeedPat;
+            }
 
             var runRush = Process.Start(startInfo);
             runRush.WaitForExit();

@@ -56,6 +56,7 @@ Param(
 # NPM authentication requires the PAT to be base64 encoded first
 $cbPatBytes = [System.Text.Encoding]::UTF8.GetBytes($CbPat)
 $b64CloudbuildPat = [Convert]::ToBase64String($cbPatBytes)
+# CODESYNC: Keep this variable name in sync with Public/Src/FrontEnd/UnitTests/Rush/IntegrationTests/RushIntegrationTestBase.cs
 [Environment]::SetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64", $b64CloudbuildPat, "Process")
 
 if ($NcPath)
@@ -63,6 +64,7 @@ if ($NcPath)
     [Environment]::SetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH", $NcPath, "Process")
 }
 
+# CODESYNC: Keep this variable name in sync with Public/Src/FrontEnd/UnitTests/Nuget/Test.BuildXL.FrontEnd.Nuget.dsc
 [Environment]::SetEnvironmentVariable("VSS_NUGET_EXTERNAL_FEED_ENDPOINTS", "
 {
     'endpointCredentials': [

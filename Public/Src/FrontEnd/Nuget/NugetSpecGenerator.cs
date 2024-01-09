@@ -18,7 +18,7 @@ using static BuildXL.FrontEnd.Nuget.SyntaxFactoryEx;
 namespace BuildXL.FrontEnd.Nuget
 {
     /// <summary>
-    ///     Helper to generate domionscript specs for nuget packages
+    ///     Helper to generate DScript specs for nuget packages
     /// </summary>
     public sealed class NugetSpecGenerator
     {

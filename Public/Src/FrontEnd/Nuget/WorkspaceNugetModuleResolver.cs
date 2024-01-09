@@ -984,8 +984,7 @@ namespace BuildXL.FrontEnd.Nuget
                 packageOnDisk,
                 m_packageRegistry.AllPackagesById,
                 doNotEnforceDependencyVersions,
-                credentialProviderPath,
-                m_resolverSettings);
+                credentialProviderPath);
 
             if (result == null)
             {

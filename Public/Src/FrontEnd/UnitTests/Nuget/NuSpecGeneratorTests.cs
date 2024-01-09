@@ -17,7 +17,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 {
     public class NuSpecGeneratorTests
     {
-        private const int CurrentSpecGenVersion = 18;
+        private const int CurrentSpecGenVersion = 20;
 
         private readonly ITestOutputHelper m_output;
         private readonly FrontEndContext m_context;
@@ -93,10 +93,10 @@ namespace Contents {{
         id: ""TestPkg"",
         version: ""1.999"",
         extractedFiles: [
-            r`TestPkg.nuspec`,
             r`lib/net45/my.dll`,
             r`lib/net451/my.dll`,
             r`lib/netstandard2.0/my.dll`,
+            r`TestPkg.nuspec`,
         ],
         repositories: [[""BuildXL"", ""https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json""]],
         timeoutInMinutes: 20,
@@ -162,7 +162,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
 )();";
             XAssert.AreEqual(expectedSpec.Trim(), text.Trim());
 
-            const string CurrentSpecHash = "F6694FF449BFDBF54E9C2E14FEACD2594C978930";
+            const string CurrentSpecHash = "656A3F9C23EAD4BCE2A7661AF48A736D14EA510C";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 

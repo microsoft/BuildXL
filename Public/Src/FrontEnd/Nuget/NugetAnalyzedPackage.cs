@@ -133,7 +133,6 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly Dictionary<string, INugetPackage> m_packagesOnConfig;
         private readonly bool m_doNotEnforceDependencyVersions;
         private readonly NugetRelativePathComparer m_nugetRelativePathComparer;
-        private readonly INugetResolverSettings m_nugetResolverSettings;
 
         /// <nodoc/>
         private NugetAnalyzedPackage(
@@ -142,8 +141,7 @@ namespace BuildXL.FrontEnd.Nuget
             PackageOnDisk packageOnDisk,
             Dictionary<string, INugetPackage> packagesOnConfig,
             bool doNotEnforceDependencyVersions,
-            AbsolutePath credentialProviderPath,
-            INugetResolverSettings nugetResolverSettings)
+            AbsolutePath credentialProviderPath)
         {
             m_context = context;
             PackageOnDisk = packageOnDisk;
@@ -158,7 +156,6 @@ namespace BuildXL.FrontEnd.Nuget
             DependenciesPerFramework = new MultiValueDictionary<PathAtom, INugetPackage>();
             CredentialProviderPath = credentialProviderPath;
             m_nugetRelativePathComparer = new NugetRelativePathComparer(m_context.StringTable);
-            m_nugetResolverSettings = nugetResolverSettings;
             FilesToExclude = PackageOnDisk.Package.FilesToExclude.ToReadOnlySet();
         }
 
@@ -175,14 +172,13 @@ namespace BuildXL.FrontEnd.Nuget
             PackageOnDisk packageOnDisk,
             Dictionary<string, INugetPackage> packagesOnConfig,
             bool doNotEnforceDependencyVersions,
-            AbsolutePath credentialProviderPath,
-            INugetResolverSettings nugetResolverSettings)
+            AbsolutePath credentialProviderPath)
         {
             Contract.Requires(context != null);
             Contract.Requires(packageOnDisk != null);
 
             var analyzedPackage = new NugetAnalyzedPackage(context, nugetFrameworkMonikers, packageOnDisk,
-                packagesOnConfig, doNotEnforceDependencyVersions, credentialProviderPath, nugetResolverSettings);
+                packagesOnConfig, doNotEnforceDependencyVersions, credentialProviderPath);
 
             analyzedPackage.ParseManagedSemantics();
             if (nuSpec != null && !analyzedPackage.TryParseDependenciesFromNuSpec(nuSpec))

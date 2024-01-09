@@ -14,8 +14,6 @@ using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using static TypeScript.Net.DScript.SyntaxFactory;
 using static BuildXL.FrontEnd.Nuget.SyntaxFactoryEx;
-using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Script.Literals;
 
 namespace BuildXL.FrontEnd.Nuget
 {
@@ -37,7 +35,12 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly IEsrpSignConfiguration m_esrpSignConfiguration;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 19;
+        /// <remarks>
+        /// 20: Order array literal productions when generating spec.
+        /// </remarks>
+        public const int SpecGenerationFormatVersion = 20;
+
+        private readonly NugetRelativePathComparer m_nugetRelativePathComparer;
 
         /// <nodoc />
         public NugetSpecGenerator(
@@ -57,6 +60,8 @@ namespace BuildXL.FrontEnd.Nuget
             m_xmlExtension = PathAtom.Create(pathTable.StringTable, ".xml");
             m_pdbExtension = PathAtom.Create(pathTable.StringTable, ".pdb");
             m_esrpSignConfiguration = nugetResolverSettings.EsrpSignConfiguration;
+
+            m_nugetRelativePathComparer = new NugetRelativePathComparer(pathTable.StringTable);
         }
 
         /// <summary>
@@ -294,8 +299,30 @@ namespace BuildXL.FrontEnd.Nuget
                     ("version", new LiteralExpression(m_analyzedPackage.Version)),
                     ("extractedFiles", new ArrayLiteralExpression(m_analyzedPackage.PackageOnDisk.Contents
                         .Filter(relativePath => !m_analyzedPackage.FilesToExclude.Contains(relativePath))
+                        .OrderBy(relativePath => relativePath, m_nugetRelativePathComparer)
                         .Select(relativePath => PathLikeLiteral(InterpolationKind.RelativePathInterpolation, relativePath.ToString(m_pathTable.StringTable, PathFormat.Script))))),
-                    ("repositories", new ArrayLiteralExpression(m_repositories.Select(kvp => new ArrayLiteralExpression(new LiteralExpression(kvp.Key), new LiteralExpression(kvp.Value)))))
+                    ("repositories", new ArrayLiteralExpression(m_repositories
+                        // TODO: Fix this potential non-determinism.
+                        //
+                        //       There is a chance that the generated spec is non-deterministic because of the order of the repositories in a dictionary is not guaranteed.
+                        //       The problem is the set of repositories is obtained from the configuration, config.dsc, which essentially is represented as JSON object, where
+                        //       the order of kvp should not be assumed. Unfortunately, the author of config.dsc seems to want to assume the order as they are written.
+                        //
+                        //       For example, config.dsc specifies this:
+                        //       {
+                        //           "buildxl-selfhost" : "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
+                        //           "nuget.org" : "https://api.nuget.org/v3/index.json",
+                        //           "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json",
+                        //       },
+                        //       and the author wants to use the feeds in order. However, if we sort the feeds when we generate package.dsc for downloading the NuGet package,
+                        //       then "dotnet-arcade" will come before "nuget.org" in the generated ArrayLiteral, so BuildXL will use "dotnet-arcade" to download the package if the
+                        //       package does not exist in "buildxl-selfhost". The NuGet resolver itself can use "nuget.org" when generating package.dsc. The issue is, the file table
+                        //       obtained from "nuget.org" may be different from the one from "dotnet-arcade". For example, the file table in "nuget.org" mentions ".signature.7ps" file in the package,
+                        //       but the package downloaded from "dotnet-arcade" does not have it, so we get missing output when we run the NuGet downloader pip.
+                        //
+                        //       The proper way of fixing this issue is to represent repositories as an array of (name, uri) so that the order is explicit, and one doesn't need to call OrderBy below.
+                        // .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
+                        .Select(kvp => new ArrayLiteralExpression(new LiteralExpression(kvp.Key), new LiteralExpression(kvp.Value)))))
             };
 
             // If a credential provider was used to inspect the package, pass it as an argument to be able to retrieve it.
@@ -339,7 +366,9 @@ namespace BuildXL.FrontEnd.Nuget
 
             if (m_analyzedPackage.FilesToExclude.Any())
             {
-                downloadCallArgs.Add(("excludedFiles", new ArrayLiteralExpression(m_analyzedPackage.FilesToExclude.Select(relativePath => PathLikeLiteral(InterpolationKind.RelativePathInterpolation, relativePath.ToString(m_pathTable.StringTable, PathFormat.Script))))));
+                downloadCallArgs.Add(("excludedFiles", new ArrayLiteralExpression(m_analyzedPackage.FilesToExclude
+                    .OrderBy(relativePath => relativePath, m_nugetRelativePathComparer)
+                    .Select(relativePath => PathLikeLiteral(InterpolationKind.RelativePathInterpolation, relativePath.ToString(m_pathTable.StringTable, PathFormat.Script))))));
             }
 
             return new ModuleDeclaration(

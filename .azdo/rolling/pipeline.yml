@@ -32,6 +32,10 @@ extends:
         os: windows
       spotBugs:
         enabled: false
+      codeql:
+        compiled:
+          enabled: false
+          justificationForDisabling: 'CodeQL would not be effective on this pipeline because builds are incremental. We will create a separate clean build pipeline for CodeQL.'
 
     stages:
     - stage: prepare

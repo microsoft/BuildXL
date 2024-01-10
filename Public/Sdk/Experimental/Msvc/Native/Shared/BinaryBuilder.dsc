@@ -120,7 +120,9 @@ namespace Binary {
     const defaultLinkTemplate = <Link.Arguments> {
         programDatabaseAlternatePath: "%_PDB%",
         linkTimeCodeGeneration: Link.LinkTimeCodeGenerationOption.use,
-        generateDebugInformation: true
+        generateDebugInformation: true,
+        // produce profiling file to support APIScan
+        produceProfiler: true
     };
 
     /** The default BuildXL-specific Lib arguments */

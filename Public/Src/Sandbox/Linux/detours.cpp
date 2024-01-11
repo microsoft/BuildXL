@@ -776,14 +776,14 @@ INTERPOSE(int, rmdir, const char *pathname)({
     return bxl->check_fwd_and_report_rmdir(report, check, ERROR_RETURN_VALUE, pathname);
 })
 
-INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const char *newpath)({
+static AccessCheckResult handle_renameat(BxlObserver *bxl, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, std::vector<AccessReportGroup> &accessesToReport)
+{
     string oldStr = bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW);
     string newStr = bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW);
 
     mode_t mode = bxl->get_mode(oldStr.c_str());    
     AccessCheckResult check = AccessCheckResult::Invalid();
     std::vector<std::string> filesAndDirectories;
-    std::vector<AccessReportGroup> accessesToReport;
 
     if (S_ISDIR(mode))
     {
@@ -832,6 +832,12 @@ INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const 
         accessesToReport.emplace_back(destReport);
     }
 
+    return check;
+}
+
+INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const char *newpath)({
+    std::vector<AccessReportGroup> accessesToReport;
+    AccessCheckResult check = handle_renameat(bxl, olddirfd, oldpath, newdirfd, newpath, accessesToReport);
     result_t<int> result(ERROR_RETURN_VALUE, EPERM);;
     
     if (bxl->should_deny(check))
@@ -843,6 +849,30 @@ INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const 
     else 
     {
         result = bxl->fwd_renameat(olddirfd, oldpath, newdirfd, newpath);
+        for (auto access : accessesToReport)
+        {
+            access.SetErrno(get_errno_from_result(result));
+            bxl->SendReport(access);
+        }
+    }
+
+    return result.restore();
+})
+
+INTERPOSE(int, renameat2, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags)({
+    std::vector<AccessReportGroup> accessesToReport;
+    AccessCheckResult check = handle_renameat(bxl, olddirfd, oldpath, newdirfd, newpath, accessesToReport);
+    result_t<int> result(ERROR_RETURN_VALUE, EPERM);;
+    
+    if (bxl->should_deny(check))
+    {
+        // It is enough that we send a single report as a witness for the denial
+        // The last one in the array, in particular, is what should have triggere the denial
+        bxl->SendReport(accessesToReport.back());
+    }
+    else 
+    {
+        result = bxl->fwd_renameat2(olddirfd, oldpath, newdirfd, newpath, flags);
         for (auto access : accessesToReport)
         {
             access.SetErrno(get_errno_from_result(result));

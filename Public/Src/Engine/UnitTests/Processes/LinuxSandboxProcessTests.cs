@@ -491,8 +491,9 @@ namespace Test.BuildXL.Processes
         public void CallTestrename()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
+            AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
             // Rename is redirected to renameat
-            AssertLogContains(GetRegex("renameat", Path.Combine(result.rootDirectory, "testfile")));
+            AssertLogContains(GetRegex("handle_renameat", Path.Combine(result.rootDirectory, "testfile")));
             AssertLogContains(GetRegex("CreateFileOpen", Path.Combine(result.rootDirectory, "testfile2")));
         }
 
@@ -500,7 +501,17 @@ namespace Test.BuildXL.Processes
         public void CallTestrenameat()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex(GetSyscallName(MethodBase.GetCurrentMethod().Name), Path.Combine(result.rootDirectory, "testfile")));
+            AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
+            AssertLogContains(GetRegex("handle_renameat", Path.Combine(result.rootDirectory, "testfile")));
+            AssertLogContains(GetRegex("CreateFileOpen", Path.Combine(result.rootDirectory, "testfile2")));
+        }
+
+        [Fact]
+        public void CallTestrenameat2()
+        {
+            var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
+            AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
+            AssertLogContains(GetRegex("handle_renameat", Path.Combine(result.rootDirectory, "testfile")));
             AssertLogContains(GetRegex("CreateFileOpen", Path.Combine(result.rootDirectory, "testfile2")));
         }
 

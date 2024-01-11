@@ -945,6 +945,18 @@ GEN_TEST_FN(renameat)
     return EXIT_SUCCESS;
 }
 
+GEN_TEST_FN(renameat2)
+{
+    TEMPORARY_FILE
+    int dirfd = opend(cwd);
+    int fd = open(testFile.c_str());
+
+    int result = renameat2(dirfd, fileName, dirfd, "testfile2", /* flags */ 0);
+    CHECK_RESULT(result, renameat2);
+
+    return EXIT_SUCCESS;
+}
+
 GEN_TEST_FN(link)
 {
     WITH_TEMPORARY_FILE

@@ -82,6 +82,7 @@ GEN_TEST_FN(ftruncate64);
 GEN_TEST_FN(rmdir);
 GEN_TEST_FN(rename);
 GEN_TEST_FN(renameat);
+GEN_TEST_FN(renameat2);
 GEN_TEST_FN(link);
 GEN_TEST_FN(linkat);
 GEN_TEST_FN(unlink);

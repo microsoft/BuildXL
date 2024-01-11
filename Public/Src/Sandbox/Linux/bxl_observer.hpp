@@ -605,6 +605,7 @@ public:
     GEN_FN_DEF(int, rmdir, const char *pathname);
     GEN_FN_DEF(int, rename, const char *, const char *);
     GEN_FN_DEF(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const char *newpath);
+    GEN_FN_DEF(int, renameat2, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags);
     GEN_FN_DEF(int, link, const char *, const char *);
     GEN_FN_DEF(int, linkat, int, const char *, int, const char *, int);
     GEN_FN_DEF(int, unlink, const char *pathname);
@@ -674,7 +675,6 @@ public:
 
     /* ============ old/obsolete/unavailable ==========================
     GEN_FN_DEF(int, execveat, int dirfd, const char *pathname, char *const argv[], char *const envp[], int flags);
-    GEN_FN_DEF(int, renameat2, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags);
     GEN_FN_DEF(int, getdents, unsigned int fd, struct linux_dirent *dirp, unsigned int count);
     GEN_FN_DEF(int, getdents64, unsigned int fd, struct linux_dirent64 *dirp, unsigned int count);
     =================================================================== */

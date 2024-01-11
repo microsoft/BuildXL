@@ -112,6 +112,7 @@ int main(int argc, char **argv)
     IF_COMMAND_STR(rmdir);
     IF_COMMAND_STR(rename);
     IF_COMMAND_STR(renameat);
+    IF_COMMAND_STR(renameat2);
     IF_COMMAND_STR(link);
     IF_COMMAND_STR(linkat);
     IF_COMMAND_STR(unlink);

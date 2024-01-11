@@ -84,6 +84,7 @@ int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, char *const argv[]
         TRACE_SYSCALL(rmdir),
         TRACE_SYSCALL(rename),
         TRACE_SYSCALL(renameat),
+        TRACE_SYSCALL(renameat2),
         TRACE_SYSCALL(link),
         TRACE_SYSCALL(linkat),
         TRACE_SYSCALL(unlink),
@@ -726,6 +727,16 @@ HANDLER_FUNCTION(renameat)
     auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat), 4, /*nullTerminated*/ true);
     
     HandleRenameGeneric(SYSCALL_NAME_STRING(renameat), olddirfd, oldpath.c_str(), newdirfd, newpath.c_str());
+}
+
+HANDLER_FUNCTION(renameat2)
+{
+    auto olddirfd = ReadArgumentLong(1);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat2), 2, /*nullTerminated*/ true);
+    auto newdirfd = ReadArgumentLong(3);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat2), 4, /*nullTerminated*/ true);
+    
+    HandleRenameGeneric(SYSCALL_NAME_STRING(renameat2), olddirfd, oldpath.c_str(), newdirfd, newpath.c_str());
 }
 
 void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const char *oldpath, int newdirfd, const char *newpath)

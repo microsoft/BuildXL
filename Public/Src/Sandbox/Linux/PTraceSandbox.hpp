@@ -98,6 +98,7 @@ private:
     MAKE_HANDLER_FN_DEF(rmdir);
     MAKE_HANDLER_FN_DEF(rename);
     MAKE_HANDLER_FN_DEF(renameat);
+    MAKE_HANDLER_FN_DEF(renameat2);
     MAKE_HANDLER_FN_DEF(link);
     MAKE_HANDLER_FN_DEF(linkat);
     MAKE_HANDLER_FN_DEF(unlink);

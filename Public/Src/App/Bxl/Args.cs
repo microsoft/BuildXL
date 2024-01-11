@@ -26,6 +26,7 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
 using System.Text.RegularExpressions;
+using BuildXL.Processes;
 #if PLATFORM_OSX
 using static BuildXL.Interop.Unix.Memory;
 #endif
@@ -382,7 +383,7 @@ namespace BuildXL
                             sign => schedulingConfiguration.EnableProcessRemoting = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableLinuxPTraceSandbox",
-                            sign => sandboxConfiguration.EnableLinuxPTraceSandbox = UnixObjectFileDumpUtils.IsObjDumpInstalled.Value && sign),
+                            sign => sandboxConfiguration.EnableLinuxPTraceSandbox = PtraceSandboxProcessChecker.AreRequiredToolsInstalled(out _) && sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableMemoryMappedBasedFileHashing",
                             sign => {

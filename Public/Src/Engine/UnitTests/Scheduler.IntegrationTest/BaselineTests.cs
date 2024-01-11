@@ -2334,7 +2334,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
-            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedStaticallyLinkedBinary, count: 1);
+            AssertWarningEventLogged(ProcessesLogEventId.LinuxSandboxReportedBinaryRequiringPTrace, count: 1);
         }
 
         /// <summary>

@@ -20,14 +20,15 @@ namespace IntegrationTest.BuildXL.Scheduler
 {
     [Trait("Category", "SharedOpaqueDirectoryTests")]
     [Feature(Features.SharedOpaqueDirectory)]
+    // Breakaway/Augmented accesses feature not supported on Linux yet
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class ProcessBreakawayTests : SchedulerIntegrationTestBase
     {
         public ProcessBreakawayTests(ITestOutputHelper output) : base(output)
         {
         }
 
-        // AugmentedWrite not supported on Linux/macOS
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void BreakawayProcessCompensatesWithAugmentedAccesses()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
@@ -175,10 +176,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             proc.Kill();
         }
 
-        /// <summary>
-        /// File based existence denials are windows only for now
-        /// </summary>
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void AllowedTrustedAccessesTrumpFileBasedExistenceDenials()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");

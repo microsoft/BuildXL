@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Pips.Builders;
 using BuildXL.Processes;
@@ -349,6 +350,46 @@ namespace Test.BuildXL.Processes
                 fa.Error == 0);
 
             AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 2);
+        }
+
+        [FactIfSupported(requiresAdmin: true)]
+        public async Task ProcessWithCapabilitiesIsDetected()
+        {
+            var dummyFile = CreateSourceFileWithPrefix(prefix: "dummy");
+
+            var fam = new FileAccessManifest(Context.PathTable);
+            fam.ReportFileAccesses = true;
+            fam.FailUnexpectedFileAccesses = false;
+            fam.ReportUnexpectedFileAccesses = true;
+            fam.EnableLinuxPTraceSandbox = true;
+
+            // Set an arbitrary capability to the test process executable, so we can validate ptrace
+            // is launched when capabilities are detected and accesses are retrieved
+            // This operation requires sudo, and 'requiresAdmin' in the test attribute makes sure this is
+            // possible
+            // This operation is done during the test execution and not at deployment time (on DScript)
+            // because regular copy operations do not preserve capabilities (xattrs need to be preserved). In
+            // addition to that, we should only set a binary capability when sudo can be made safely
+            FileArtifact testProcessExecutableWithCapabilities = CreateTestProcessWithCapabilities();
+
+            var info = ToProcessInfo(
+                ToProcess(
+                    testProcessExecutableWithCapabilities,
+                    Operation.Spawn(
+                        Context.PathTable, waitToFinish: true,
+                        Operation.WriteFile(dummyFile)
+                    )
+                ),
+                fileAccessManifest: fam);
+
+            var result = await RunProcess(info);
+
+            // We should get a report where we see the write attempt
+            result.FileAccesses.Single(fa =>
+                fa.Operation == ReportedFileOperation.KAuthVNodeWrite &&
+                fa.GetPath(Context.PathTable).Equals(dummyFile.Path.ToString(Context.PathTable), StringComparison.Ordinal));
+
+            AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 1);
         }
 
         private void PrepareStaticallyLinkedProcess(out FileArtifact staticProcessArtifact, out string unlinkedPath, out string writePath, out string rmdirPath, out string renamedDirectoryOld, out string renamedDirectoryNew, out string renamePathOld, out string renamePathNew, out DirectoryArtifact workingDirectory)

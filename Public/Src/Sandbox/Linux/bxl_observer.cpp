@@ -784,9 +784,9 @@ void BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
     AccessCheckResult result(RequestedAccess::Write, fileExists ? ResultAction::Deny : ResultAction::Allow, ReportLevel::Report);
 }
 
-bool BxlObserver::check_and_report_statically_linked_process(int fd)
+bool BxlObserver::check_and_report_process_requires_ptrace(int fd)
 {
-    return check_and_report_statically_linked_process(fd_to_path(fd).c_str());
+    return check_and_report_process_requires_ptrace(fd_to_path(fd).c_str());
 }
 
 bool BxlObserver::IsPTraceForced(const char *path)
@@ -801,7 +801,7 @@ bool BxlObserver::IsPTraceForced(const char *path)
     return std::find(forcedPTraceProcessNames_.begin(), forcedPTraceProcessNames_.end(), std::string(progname)) != forcedPTraceProcessNames_.end();
 }
 
-bool BxlObserver::check_and_report_statically_linked_process(const char *path)
+bool BxlObserver::check_and_report_process_requires_ptrace(const char *path)
 {
     if (!CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
     {
@@ -814,10 +814,10 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
         set_ptrace_permissions();
 
         // We force ptrace for this process. 
-        // Send a "statically linked" report so that the managed side can track it.
+        // Send a "process requires ptrace" report so that the managed side can track it.
         AccessReport report =
         {
-            .operation        = kOpStaticallyLinkedProcess,
+            .operation        = kOpProcessRequiresPtrace,
             .pid              = getpid(),
             .rootPid          = pip_->GetProcessId(),
             .requestedAccess  = (int) RequestedAccess::Read,
@@ -838,7 +838,7 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
 
     // Stat the path to get the last modified time of the path
     // We need to do this because the executable file could be changed in between this stat and the previous stat
-    // If it was changed (has a different modified time), then we should run objdump on it once more
+    // If it was changed (has a different modified time), then we should run the check on it once more
     struct stat statbuf;
 #if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
         real___lxstat(1, path, &statbuf);
@@ -851,31 +851,31 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
     key.append(path);
 
     auto maybeProcess = std::find_if(
-        staticallyLinkedProcessCache_.begin(),
-        staticallyLinkedProcessCache_.end(),
+        ptraceRequiredProcessCache_.begin(),
+        ptraceRequiredProcessCache_.end(),
         [key](const std::pair<std::string, bool>& item) { return item.first == key; }
     );
 
-    bool isStaticallyLinked;
-    if (maybeProcess != staticallyLinkedProcessCache_.end())
+    bool requiresPtrace;
+    if (maybeProcess != ptraceRequiredProcessCache_.end())
     {
         // Already checked this process
-        isStaticallyLinked = maybeProcess->second;
+        requiresPtrace = maybeProcess->second;
     }
     else
     {
-        isStaticallyLinked = is_statically_linked(path);
-        staticallyLinkedProcessCache_.push_back(std::make_pair(key, isStaticallyLinked));
+        requiresPtrace = is_statically_linked(path) || contains_capabilities(path);
+        ptraceRequiredProcessCache_.push_back(std::make_pair(key, requiresPtrace));
     }
 
-    if (isStaticallyLinked)
+    if (requiresPtrace)
     {
         // Allow this process to be traced by the daemon process
         set_ptrace_permissions();
 
         AccessReport report =
         {
-            .operation        = kOpStaticallyLinkedProcess,
+            .operation        = kOpProcessRequiresPtrace,
             .pid              = getpid(),
             .rootPid          = pip_->GetProcessId(),
             .requestedAccess  = (int) RequestedAccess::Read,
@@ -894,12 +894,12 @@ bool BxlObserver::check_and_report_statically_linked_process(const char *path)
         SendReport(report, /* isDebugMessage */ false, /* useSecondaryPipe */ true);
     }
 
-    return isStaticallyLinked;
+    return requiresPtrace;
 }
 
 void BxlObserver::set_ptrace_permissions()
 {
-    // This should happen before sending a kOpStaticallyLinkedProcess report to bxl because it will signal bxl to launch the tracer.
+    // This should happen before sending a kOpProcessRequiresPtrace report to bxl because it will signal bxl to launch the tracer.
     if (prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY) == -1)
     {
         std::cerr << "[BuildXL] Failed to allow ptrace for process " << getpid() << ": " << strerror(errno) << "\n";
@@ -911,6 +911,28 @@ void BxlObserver::set_ptrace_permissions()
 
 // Executes objdump against the provided path to determine whether the binary is statically linked.
 bool BxlObserver::is_statically_linked(const char *path)
+{
+    char *args[] = {"", "-p", (char *)path, NULL};
+    std::string result = execute_and_pipe_stdout(path, "/usr/bin/objdump", args);
+
+    // Objdump should be able to dump the headers for any binary
+    // If it doesn't show this output, then the file does not exist, or is not a binary
+    std::string objDumpExeFound = "Program Header:";
+    // This output confirms that the dynamic section in objdump contains libc
+    std::string objDumpOutput = "NEEDED               libc.so.";
+
+    return result.find(objDumpExeFound) != std::string::npos && result.find(objDumpOutput) == std::string::npos;
+}
+
+bool BxlObserver::contains_capabilities(const char *path)
+{
+    char *args[] = {"", (char *)path, NULL};
+    std::string result = execute_and_pipe_stdout(path, "/usr/sbin/getcap", args);
+
+    return !result.empty();
+}
+
+std::string BxlObserver::execute_and_pipe_stdout(const char *path, const char *process, char *const args[])
 {
     std::string result;
     int pipefd[2];
@@ -928,10 +950,9 @@ bool BxlObserver::is_statically_linked(const char *path)
         real_dup2(pipefd[1], 2);  // send stderr to the pipe
         real_close(pipefd[1]);    // this descriptor is no longer needed
 
-        char *args[] = {"", "-p", (char *)path, NULL};
         char *envp[] = { NULL};
 
-        real_execvpe("/usr/bin/objdump", args, envp);
+        real_execvpe(process, args, envp);
 
         real__exit(1); // If exec was successful then we should never reach this
     }
@@ -958,14 +979,7 @@ bool BxlObserver::is_statically_linked(const char *path)
         waitpid(objDumpChild, &status, 0);
     }
 
-    bool isStaticallyLinked = false;
-    // Objdump should be able to dump the headers for any binary
-    // If it doesn't show this output, then the file does not exist, or is not a binary
-    std::string objDumpExeFound = "Program Header:";
-    // This output confirms that the dynamic section in objdump contains libc
-    std::string objDumpOutput = "NEEDED               libc.so.";
-
-    return result.find(objDumpExeFound) != std::string::npos && result.find(objDumpOutput) == std::string::npos;
+    return result;
 }
 
 void BxlObserver::disable_fd_table()

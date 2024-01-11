@@ -139,7 +139,7 @@ namespace BuildXL.Processes.Tracing
         LogDetoursDebugMessage = 10101,
         LogAppleSandboxPolicyGenerated = 10102,
         LogMacKextFailure = 10103,
-        LinuxSandboxReportedStaticallyLinkedBinary = 10104,
+        LinuxSandboxReportedBinaryRequiringPTrace = 10104,
         PTraceRunnerError = 10105,
         PTraceSandboxLaunchedForPip = 10106,
         ReportArgsMismatch = 10107,

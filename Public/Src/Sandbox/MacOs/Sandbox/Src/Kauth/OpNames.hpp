@@ -12,7 +12,7 @@
   macro_to_apply(OpProcessCommandLine,                  "ProcessCommandLine")             \
   macro_to_apply(OpProcessTreeCompleted,                "ProcessTreeCompletedAck")        \
   macro_to_apply(OpFirstAllowWriteCheckInProcess,       "FirstAllowWriteCheckInProcess")  \
-  macro_to_apply(OpStaticallyLinkedProcess,             "StaticallyLinkedProcess")        \
+  macro_to_apply(OpProcessRequiresPtrace,               "ProcessRequiresPtrace")          \
   macro_to_apply(OpMacLookup,                           "MAC_LOOKUP")                     \
   macro_to_apply(OpMacReadlink,                         "MAC_READLINK")                   \
   macro_to_apply(OpMacVNodeCloneSource,                 "MAC_VNODE_CLONE_SOURCE")         \

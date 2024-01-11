@@ -1226,13 +1226,13 @@ namespace BuildXL.Processes.Tracing
         public abstract void SandboxedProcessResultLogOutputTimeout(LoggingContext context, string pipSemiStableHash, int timeoutInMinutes);
 
         [GeneratedEvent(
-            (int)LogEventId.LinuxSandboxReportedStaticallyLinkedBinary,
+            (int)LogEventId.LinuxSandboxReportedBinaryRequiringPTrace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "[{pipDescription}] The following processes '{exePath}' are statically linked and their file accesses may not be reported by the sandbox.")]
-        public abstract void LinuxSandboxReportedStaticallyLinkedBinary(LoggingContext context, string pipDescription, string exePath);
+            Message = "[{pipDescription}] The following processes '{exePath}' require ptrace and their file accesses may not be reported by the sandbox.")]
+        public abstract void LinuxSandboxReportedBinaryRequiringPTrace(LoggingContext context, string pipDescription, string exePath);
 
         [GeneratedEvent(
             (int)LogEventId.PTraceSandboxLaunchedForPip,

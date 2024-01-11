@@ -120,7 +120,7 @@ namespace BuildXL.Processes
 
         private readonly SandboxedProcessTraceBuilder m_traceBuilder;
 
-        private readonly List<AbsolutePath> m_staticallyLinkedProcesses;
+        private readonly List<AbsolutePath> m_processesRequiringPTrace;
 
         public SandboxedProcessReports(
             FileAccessManifest manifest,
@@ -151,7 +151,7 @@ namespace BuildXL.Processes
             m_traceBuilder = traceBuilder;
             if (OperatingSystemHelper.IsLinuxOS)
             {
-                m_staticallyLinkedProcesses = new List<AbsolutePath>();
+                m_processesRequiringPTrace = new List<AbsolutePath>();
             }
         }
 
@@ -162,10 +162,10 @@ namespace BuildXL.Processes
         {
             Volatile.Write(ref m_isFrozen, true);
 
-            // Dump any detected statically linked processes for this pip
-            if (m_staticallyLinkedProcesses?.Any() == true)
+            // Dump any detected processes requiring ptrace for this pip
+            if (m_processesRequiringPTrace?.Any() == true)
             {
-                var exePath = string.Join(", ", m_staticallyLinkedProcesses.Select(p => p.ToString(m_pathTable)));
+                var exePath = string.Join(", ", m_processesRequiringPTrace.Select(p => p.ToString(m_pathTable)));
 
                 // If the ptrace sandbox is enabled, just log this as a verbose message to facilitate debugging scenarios. Otherwise, print a warning, since this is a case where we could
                 // be missing accesses
@@ -175,7 +175,7 @@ namespace BuildXL.Processes
                 }
                 else
                 {
-                    Tracing.Logger.Log.LinuxSandboxReportedStaticallyLinkedBinary(m_loggingContext, PipDescription, exePath);
+                    Tracing.Logger.Log.LinuxSandboxReportedBinaryRequiringPTrace(m_loggingContext, PipDescription, exePath);
                 }
             }
         }
@@ -899,10 +899,10 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            if (operation == ReportedFileOperation.StaticallyLinkedProcess)
+            if (operation == ReportedFileOperation.ProcessRequiresPTrace)
             {
                 // The sandbox should automatically filter out duplicate process names
-                m_staticallyLinkedProcesses.Add(finalPath);
+                m_processesRequiringPTrace.Add(finalPath);
                 return true;
             }
 

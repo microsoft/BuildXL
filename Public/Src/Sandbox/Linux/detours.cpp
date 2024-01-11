@@ -230,7 +230,7 @@ INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
     // exec* functions start a new instance of the sandbox and therefore the process creation report
     // is sent on __init__
 
-    if (bxl->check_and_report_statically_linked_process(fd))
+    if (bxl->check_and_report_process_requires_ptrace(fd))
     {
         return handle_exec_with_ptrace(fd, argv, bxl->ensureEnvs(envp), bxl);
     }
@@ -247,7 +247,7 @@ INTERPOSE(int, execv, const char *file, char *const argv[])({
     // exec* functions start a new instance of the sandbox and therefore the process creation report
     // is sent on __init__
 
-    if (bxl->check_and_report_statically_linked_process(file))
+    if (bxl->check_and_report_process_requires_ptrace(file))
     {
         return handle_exec_with_ptrace(file, argv, bxl->ensureEnvs(environ), bxl);
     }
@@ -264,7 +264,7 @@ INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])
     // exec* functions start a new instance of the sandbox and therefore the process creation report
     // is sent on __init__
 
-    if (bxl->check_and_report_statically_linked_process(file))
+    if (bxl->check_and_report_process_requires_ptrace(file))
     {
         return handle_exec_with_ptrace(file, argv, bxl->ensureEnvs(envp), bxl);
     }
@@ -287,7 +287,7 @@ INTERPOSE(int, execvp, const char *file, char *const argv[])({
 
     if (path_resolution_result)
     {
-        if (bxl->check_and_report_statically_linked_process(pathname.c_str()))
+        if (bxl->check_and_report_process_requires_ptrace(pathname.c_str()))
         {
             return handle_exec_with_ptrace(pathname.c_str(), argv, bxl->ensureEnvs(environ), bxl);
         }
@@ -317,7 +317,7 @@ INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[]
     // If the path couldn't be resolved, then the exec will likely fail anyways
     if (path_resolution_result)
     {
-        if (bxl->check_and_report_statically_linked_process(pathname.c_str()))
+        if (bxl->check_and_report_process_requires_ptrace(pathname.c_str()))
         {
             return handle_exec_with_ptrace(pathname.c_str(), argv, bxl->ensureEnvs(envp), bxl);
         }
@@ -352,7 +352,7 @@ INTERPOSE(int, execl, const char *pathname, const char *arg, ...)({
     parse_variadic_args(arg, argc, args, argv);
     va_end(args);
 
-    if (bxl->check_and_report_statically_linked_process(pathname))
+    if (bxl->check_and_report_process_requires_ptrace(pathname))
     {
         return handle_exec_with_ptrace(pathname, (char **)argv, bxl->ensureEnvs(environ), bxl);
     }
@@ -384,7 +384,7 @@ INTERPOSE(int, execlp, const char *file, const char *arg, ...)({
 
     if (path_resolution_result)
     {
-        if (bxl->check_and_report_statically_linked_process(pathname.c_str()))
+        if (bxl->check_and_report_process_requires_ptrace(pathname.c_str()))
         {
             return handle_exec_with_ptrace(pathname.c_str(), (char **)argv, bxl->ensureEnvs(environ), bxl);
         }
@@ -419,7 +419,7 @@ INTERPOSE(int, execle, const char *pathname, const char *arg, ...)({
     envp = va_arg(args, char **);
     va_end(args);
 
-    if (bxl->check_and_report_statically_linked_process(pathname))
+    if (bxl->check_and_report_process_requires_ptrace(pathname))
     {
         return handle_exec_with_ptrace(pathname, (char **)argv, bxl->ensureEnvs(envp), bxl);
     }

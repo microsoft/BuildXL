@@ -286,11 +286,11 @@ namespace BuildXL.Processes
                     process.StartInfo.EnvironmentVariables[kvp.Item1] = kvp.Item2;
                 }
 
-                // If the ptrace sandbox is used and the top level process is statically linked or the ptrace sandbox is unconditionally enabled, then it needs to be updated to use bash
+                // If the ptrace sandbox is used and the top level process requires ptrace or the ptrace sandbox is unconditionally enabled, then it needs to be updated to use bash
                 // This allows the interposed sandbox to start up (because bash is known to not be statically linked) and wrap the exec of the real binary with ptrace.
-                var objDump = UnixObjectFileDumpUtils.CreateObjDump();
+                var ptraceChecker = PtraceSandboxProcessChecker.Instance;
                 if (info.FileAccessManifest.EnableLinuxPTraceSandbox && 
-                    (info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox || objDump.IsBinaryStaticallyLinked(info.FileName)))
+                    (info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox || ptraceChecker.BinaryRequiresPTraceSandbox(info.FileName)))
                 {
                     // This is a workaround for an issue that appears on Linux where some executables in the BuildXL
                     // nuget/npm package may not have the execute bit set causing a permission denied error
@@ -916,13 +916,13 @@ namespace BuildXL.Processes
                 }
 
                 // Path cache checks are in here instead of SandboxConnectionLinuxDetours because we need to check the semaphore before discarding reports.
-                // We don't want to check the path cache for statically linked processes
+                // We don't want to check the path cache for processes requiring ptrace
                 // because we rely on this report to start the ptrace sandbox.
                 // OpProcessCommandLine can also be skipped because its not a path, and shouldn't be cached.
                 if (report.Operation != FileOperation.OpProcessStart
                     && report.Operation != FileOperation.OpProcessExit
                     && report.Operation != FileOperation.OpProcessTreeCompleted
-                    && report.Operation != FileOperation.OpStaticallyLinkedProcess
+                    && report.Operation != FileOperation.OpProcessRequiresPtrace
                     && report.Operation != FileOperation.OpProcessCommandLine)
                 {
                     // check the path cache (only when the message is not about process tree)                        
@@ -947,8 +947,8 @@ namespace BuildXL.Processes
                     m_processExitTimeNs = report.Statistics.EnqueueTime;
                 }
 
-                // The process is statically linked, a ptrace runner needs to be started up
-                if (report.Operation == FileOperation.OpStaticallyLinkedProcess)
+                // The process requires ptrace, a ptrace runner needs to be started up
+                if (report.Operation == FileOperation.OpProcessRequiresPtrace)
                 {
                     StartPTraceRunner(report.Pid, reportPath, forceAddExecutionPermission);
                 }

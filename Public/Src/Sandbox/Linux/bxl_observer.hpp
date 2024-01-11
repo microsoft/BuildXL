@@ -272,8 +272,8 @@ private:
     std::shared_ptr<SandboxedProcess> process_;
     Sandbox *sandbox_;
 
-    // Cache for statically linked processes in the form <timestamp>:<path>
-    std::vector<std::pair<std::string, bool>> staticallyLinkedProcessCache_;
+    // Cache for processes requiring ptrace in the form <timestamp>:<path>
+    std::vector<std::pair<std::string, bool>> ptraceRequiredProcessCache_;
     std::vector<std::string> forcedPTraceProcessNames_;
 
     // Message counting
@@ -411,10 +411,12 @@ public:
     // and the write is allowed by policy
     void report_firstAllowWriteCheck(const char *fullPath);
 
-    // Checks and reports when a statically linked binary is about to be executed
-    bool check_and_report_statically_linked_process(const char *path);
-    bool check_and_report_statically_linked_process(int fd);
+    // Checks and reports when a process that requires ptrace is about to be executed
+    bool check_and_report_process_requires_ptrace(const char *path);
+    bool check_and_report_process_requires_ptrace(int fd);
     bool is_statically_linked(const char *path);
+    bool contains_capabilities(const char *path);
+    std::string execute_and_pipe_stdout(const char *path, const char *process, char *const args[]);
     void set_ptrace_permissions();
 
     // Clears the specified entry on the file descriptor table

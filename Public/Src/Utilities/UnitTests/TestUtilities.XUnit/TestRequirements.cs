@@ -20,6 +20,10 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <summary>
         /// Requires Admin priviledges
         /// </summary>
+        /// <remarks>
+        /// For Windows, this means the executing process is running elevated. For Linux, that 'sudo' can be successfully executed
+        /// without user interaction
+        /// </remarks>
         Admin = 1 << 0,
 
         /// <summary>

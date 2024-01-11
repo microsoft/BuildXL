@@ -1246,11 +1246,11 @@ namespace BuildXL.Engine
                 mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.SkipFlaggingSharedOpaqueOutputs = true;
             }
 
-            // On Linux, override ptrace option if objdump is not installed
-            if (OperatingSystemHelper.IsLinuxOS && !UnixObjectFileDumpUtils.IsObjDumpInstalled.Value && mutableConfig.Sandbox.EnableLinuxPTraceSandbox)
+            // On Linux, override ptrace option if the required tools are not installed
+            if (OperatingSystemHelper.IsLinuxOS && !PtraceSandboxProcessChecker.AreRequiredToolsInstalled(out var error) && mutableConfig.Sandbox.EnableLinuxPTraceSandbox)
             {
                 mutableConfig.Sandbox.EnableLinuxPTraceSandbox = false;
-                Logger.Log.ObjDumpNotInstalled(loggingContext);
+                Logger.Log.RequiredToolsNotInstalled(loggingContext, error);
             }
 
             return success;

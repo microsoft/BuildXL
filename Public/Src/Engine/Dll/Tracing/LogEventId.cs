@@ -408,7 +408,7 @@ namespace BuildXL.Engine.Tracing
 
         CacheInitializationTakingTooLong = 7132,
 
-        ObjDumpNotInstalled = 7133,
+        RequiredToolsNotInstalled = 7133,
 
         DistributionStreamingNetworkFailure = 7134,
 

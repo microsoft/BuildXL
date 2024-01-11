@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 using static BuildXL.Interop.Dispatch;
 using static BuildXL.Interop.Unix.Impl_Common;
 
@@ -144,6 +145,37 @@ namespace BuildXL.Interop.Unix
         public static bool IsElevated()
         {
             return geteuid() == 0;
+        }
+
+        /// <summary>
+        /// Whether a sudo command can be issued without requiring user interaction
+        /// </summary>
+        public static bool CanSudoNonInteractive()
+        {
+            var processInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "sudo",
+                // Require sudo to work without user interaction and validate success
+                // without requiring a command afterwards
+                Arguments = "--non-interactive --validate",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+                UseShellExecute = false,
+                ErrorDialog = false,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            };
+
+            using var process = System.Diagnostics.Process.Start(processInfo);
+            if (process == null)
+            {
+                throw new InvalidOperationException("Cannot start process 'sudo'");
+            }
+
+            process.WaitForExit();
+
+            return process.ExitCode == 0;
         }
     }
 }

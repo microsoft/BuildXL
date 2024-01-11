@@ -193,7 +193,7 @@ namespace BuildXL.Processes
         /// This operation used to indicate to the engine by the Linux sandbox that a process being executed statically links libc
         /// and may have missing file observations.
         /// </summary>
-        StaticallyLinkedProcess,
+        ProcessRequiresPTrace,
 
         /// <summary>
         /// Access of reparse point target.

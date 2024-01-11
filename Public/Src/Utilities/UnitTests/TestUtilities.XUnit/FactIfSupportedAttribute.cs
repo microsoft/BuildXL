@@ -81,9 +81,16 @@ namespace Test.BuildXL.TestUtilities.Xunit
 
             CheckRequirement(
                 TestRequirements.Admin,
-                () =>
+                () => 
                 {
-                    return !CurrentProcess.IsElevated ? "Test must be run elevated!" : null;
+                    if (OperatingSystemHelper.IsWindowsOS)
+                    {
+                        return !CurrentProcess.IsElevated ? "Test must be run elevated!" : null;
+                    }
+                    else
+                    {
+                        return !CurrentProcess.CanSudoNonInteractive() ? "Test must be able to do a non-interactive sudo!" : null;
+                    }
                 });
 
             CheckRequirement(

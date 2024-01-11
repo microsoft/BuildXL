@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BuildXL.Engine;
@@ -28,6 +29,7 @@ using BuildXL.Utilities.Core.Qualifier;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
+using Xunit;
 using Xunit.Abstractions;
 
 using Process = BuildXL.Pips.Operations.Process;
@@ -92,6 +94,13 @@ namespace Test.BuildXL.Scheduler
         protected string TestProcessToolName => OperatingSystemHelper.IsUnixOS
             ? TestProcessToolNameWithoutExtension
             : TestProcessToolNameWithoutExtension + ".exe";
+
+        /// <summary>
+        /// Test process tool name with a capability set
+        /// </summary>
+        protected string TestProcessToolNameWithCapabilties => OperatingSystemHelper.IsUnixOS
+            ? $"{TestProcessToolName}WithCapabilities"
+            : $"{TestProcessToolName}WithCapabilities.exe";
 
         /// <summary>
         /// Infinite waiter process tool name
@@ -204,10 +213,11 @@ namespace Test.BuildXL.Scheduler
             string description = null,
             IDictionary<string, string> environmentVariables = null,
             IEnumerable<int> succeedFastExitCodes = null,
-            ProcessBuilder builder = null)
+            ProcessBuilder builder = null,
+            FileArtifact testProcessExecutable = default)
         {
             var envVars = environmentVariables?.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value, false));
-            return CreatePipBuilderWithEnvironment(processOperations, tags, description, envVars, succeedFastExitCodes, builder);
+            return CreatePipBuilderWithEnvironment(processOperations, tags, description, envVars, succeedFastExitCodes, builder, testProcessExecutable);
         }
 
         /// <nodoc />
@@ -217,17 +227,19 @@ namespace Test.BuildXL.Scheduler
             string description = null,
             IDictionary<string, (string, bool)> environmentVariables = null,
             IEnumerable<int> succeedFastExitCodes = null,
-            ProcessBuilder builder = null)
+            ProcessBuilder builder = null,
+            FileArtifact testProcessExecutable = default)
         {
+            testProcessExecutable = testProcessExecutable == default ? TestProcessExecutable : testProcessExecutable;
             builder ??= ProcessBuilder.CreateForTesting(Context.PathTable, FrontEndContext.CredentialScanner, LoggingContext);
-            builder.Executable = TestProcessExecutable;
+            builder.Executable = testProcessExecutable;
             if (succeedFastExitCodes != null)
             {
                 builder.SucceedFastExitCodes = ReadOnlyArray<int>.From(succeedFastExitCodes);
                 builder.SuccessExitCodes = ReadOnlyArray<int>.From(succeedFastExitCodes);
             }
 
-            builder.AddInputFile(TestProcessExecutable);
+            builder.AddInputFile(testProcessExecutable);
             AddUntrackedWindowsDirectories(builder);
 
             // When symlinks are involved, TestProcess.exe can access C:\ProgramData\Microsoft\NetFramework\BreadcrumbStore
@@ -1335,7 +1347,12 @@ namespace Test.BuildXL.Scheduler
 
         protected Process ToProcess(params Operation[] operations)
         {
-            var processBuilder = CreatePipBuilder(operations);
+            return ToProcess(testProcessExecutable: default, operations);
+        }
+
+        protected Process ToProcess(FileArtifact testProcessExecutable, params Operation[] operations)
+        {
+            var processBuilder = CreatePipBuilder(operations, testProcessExecutable: testProcessExecutable);
             AddUntrackedWindowsDirectories(processBuilder);
             var ok = processBuilder.TryFinish(PipConstructionHelper, out var process, out var _);
             XAssert.IsTrue(ok, "Could not finish creating process builder");
@@ -1370,6 +1387,42 @@ namespace Test.BuildXL.Scheduler
             return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName, useTopSort);
         }
 
+        protected FileArtifact CreateTestProcessWithCapabilities()
+        {
+            // Copy the test process and set an arbitrary capability to it
+            var testProcessWithCapabilities = TestProcessExecutable.Path.GetParent(Context.PathTable).Combine(Context.PathTable, TestProcessToolNameWithCapabilties);
+            var testProcessWithCapabilitiesString = testProcessWithCapabilities.ToString(Context.PathTable);
+
+            // This was already created, no need to do it again
+            if (File.Exists(testProcessWithCapabilitiesString))
+            {
+                return FileArtifact.CreateSourceFile(testProcessWithCapabilities);
+            }
+
+            File.Copy(TestProcessExecutable.Path.ToString(Context.PathTable), testProcessWithCapabilitiesString, overwrite: false);
+
+            var processInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "sudo",
+                Arguments = $"setcap cap_dac_override=eip \"{testProcessWithCapabilitiesString}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+                UseShellExecute = false,
+                ErrorDialog = false,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            };
+
+            using var process = System.Diagnostics.Process.Start(processInfo);
+            Assert.True(process != null, "Cannot start process 'sudo'");
+            process.WaitForExit();
+
+            Assert.Equal(0, process.ExitCode);
+
+            return FileArtifact.CreateSourceFile(testProcessWithCapabilities);
+        }
+
         #region IO Helpers
 
         public bool Exists(AbsolutePath path)
@@ -1381,7 +1434,6 @@ namespace Test.BuildXL.Scheduler
         {
             File.Delete(path.ToString(Context.PathTable));
         }
-
         #endregion
     }
 }

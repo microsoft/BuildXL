@@ -77,10 +77,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             _channel = GrpcChannelFactory.CreateChannel(new OperationContext(context), ToChannelCreationOptions(key, configuration), channelType: nameof(GrpcCopyClient));
             _client = new ContentServer.ContentServerClient(_channel);
-            
+
             _bandwidthChecker = new BandwidthChecker(_configuration.BandwidthCheckerConfiguration);
             _pool = sharedBufferPool ?? new ByteArrayPool(_configuration.ClientBufferSizeBytes);
-            
+
         }
 
         private static ChannelCreationOptions ToChannelCreationOptions(GrpcCopyClientKey key, GrpcCopyClientConfiguration configuration)
@@ -88,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var clientOptions = configuration.GrpcCoreClientOptions;
 
             ChannelEncryptionOptions? encryptionOptions = clientOptions?.EncryptionEnabled == true ? GrpcEncryptionUtils.GetChannelEncryptionOptions() : null;
-            
+
             return new ChannelCreationOptions(
                 configuration.UseGrpcDotNetVersion,
                 key.Host,
@@ -131,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             // We had seen case, when the following call was blocked effectively forever.
             // Adding external timeout to force a failure instead of waiting forever.
-            var shutdownTask = _channel.ShutdownAsync();
+            var shutdownTask = _channel.DisconnectAsync();
 
             if (_configuration.DisconnectionTimeout != Timeout.InfiniteTimeSpan)
             {
@@ -179,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 else
                 {
                     return new CopyFileResult(CopyResultCode.RpcError, e);
-                    
+
                 }
             }
 
@@ -223,14 +223,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             try
             {
                 CopyFileRequest request = new CopyFileRequest()
-                                          {
-                                              TraceId = context.TracingContext.TraceId.ToString(),
-                                              HashType = (int)hash.HashType,
-                                              ContentHash = hash.ToByteString(),
-                                              Offset = 0,
-                                              Compression = options.CompressionHint,
-                                              FailFastIfBusy = options.BandwidthConfiguration?.FailFastIfServerIsBusy ?? false,
-                                          };
+                {
+                    TraceId = context.TracingContext.TraceId.ToString(),
+                    HashType = (int)hash.HashType,
+                    ContentHash = hash.ToByteString(),
+                    Offset = 0,
+                    Compression = options.CompressionHint,
+                    FailFastIfBusy = options.BandwidthConfiguration?.FailFastIfServerIsBusy ?? false,
+                };
 
                 using AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request, options: GetDefaultGrpcOptions(token));
                 Metadata headers;

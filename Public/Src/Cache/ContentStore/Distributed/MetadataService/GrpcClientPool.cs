@@ -216,7 +216,7 @@ public class ConnectionHandle : StartupShutdownSlimBase
 
     protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
     {
-        await Channel.ShutdownAsync();
+        await Channel.DisconnectAsync();
         return BoolResult.Success;
     }
 }

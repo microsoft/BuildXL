@@ -300,5 +300,30 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             throw Contract.AssertFailure($"Unknown channel type: {channel?.GetType()}");
         }
+
+        public static async Task DisconnectAsync(this ChannelBase channel)
+        {
+            // GrpcChannelFactory.CreateChannel returns a ChannelBase, which is an abstract class. The actual type is
+            // either a Channel (gRPC Core) or a GrpcChannel (gRPC.NET). We need to dispose the channel in order to
+            // release resources.
+            // ChannelBase exposes a ShutdownAsync method, which is successfully implemented by gRPC Core's Channel,
+            // but not by Grpc.NET's GrpcChannel. Grpc.NET's GrpcChannel implements IDisposable instead.
+            if (channel is Channel channelCore)
+            {
+                await channelCore.ShutdownAsync();
+                return;
+            }
+#if NET6_0_OR_GREATER
+            else if (channel is GrpcChannel channelDotNet)
+            {
+                await Task.Yield();
+                var disposeTask = Task.Run(() => channelDotNet.Dispose());
+                await disposeTask;
+                return;
+            }
+#endif
+
+            throw Contract.AssertFailure($"Unknown channel type: {channel?.GetType()}");
+        }
     }
 }

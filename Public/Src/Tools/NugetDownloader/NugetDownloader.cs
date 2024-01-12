@@ -5,6 +5,9 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,6 +29,18 @@ namespace Tool.Download
     /// </summary>
     internal sealed class NugetDownloader : ToolProgram<NugetDownloaderArgs>
     {
+        /// <summary>
+        /// This failure exit code is used when the NugetDownloader fails to download a package due to auth or network related issues.
+        /// When this exit code is returned, the handler of this tool ensures that the pip is retried.
+        /// </summary>
+        private const int NugetDownloaderFailureExitCodeWithRetry = 2;
+
+        /// <summary>
+        /// This failure exit code is used when the NugetDownloader fails to download a package due to issues which may not be auth/network related.
+        /// Ex: Nuget package not found in the repo.
+        /// In such cases the handler of this tool will not force the pip to be retried.
+        /// </summary>
+        private const int NugetDownloaderFailureExitCodeWithoutRetry = 1;
         private NugetDownloader() : base("NugetDownloader")
         {
         }
@@ -57,28 +72,31 @@ namespace Tool.Download
         {
             try
             {
-                var result = TryDownloadNugetToDiskAsync(arguments, isRetry: false).GetAwaiter().GetResult();
+                var result = DownloadNugetToDiskAsync(arguments, isRetry: false).GetAwaiter().GetResult();
 
                 // If only authentication was required, no retry logic applies
                 if (result == 0 || arguments.OnlyAuthenticate)
                 {
                     return result;
                 }
-            }
-            catch (NuGetProtocolException)
-            { 
-                // Scenarios like a bad gateway during communication throw an exception. Silently catch it here so we can retry below.
-            }
 
-            Console.Write("Failed to download specified package. Retrying.");
+                Console.Write("Failed to download specified package. Retrying.");
 
-            return TryDownloadNugetToDiskAsync(arguments, isRetry: true).GetAwaiter().GetResult();
+                return DownloadNugetToDiskAsync(arguments, isRetry: true).GetAwaiter().GetResult();
+            }
+            // The Nuget downloader uses Azure credential provider to access the credentials required for downloading nuget packages.
+            // The network and authentication related issues which are unhandled in DownloadNugetToDiskAsync, are handled in a generic way.
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed trying to download nuget package '{arguments.Id}' : '{ex}'");
+                return NugetDownloaderFailureExitCodeWithRetry;
+            }
         }
 
         /// <summary>
         /// Attempts to download and extract a NuGet package to disk.
         /// </summary>
-        private async Task<int> TryDownloadNugetToDiskAsync(NugetDownloaderArgs arguments, bool isRetry)
+        private async Task<int> DownloadNugetToDiskAsync(NugetDownloaderArgs arguments, bool isRetry)
         {
             if (arguments.OnlyAuthenticate)
             {
@@ -99,10 +117,11 @@ namespace Tool.Download
             // Informational data
             Console.WriteLine(authLogger.ToString());
 
+            // TryCreateSourceRepositories may fail due to some auth or network related issues(which may not be exceptions) which may be resolved on a retry.
             if (!maybeRepositories.Succeeded)
             {
                 Console.Error.WriteLine($"Failed to access the specified repositories: " + maybeRepositories.Failure.Describe());
-                return 1;
+                return NugetDownloaderFailureExitCodeWithRetry;
             }
 
             if (arguments.OnlyAuthenticate)
@@ -172,7 +191,7 @@ namespace Tool.Download
             if (!found)
             {
                 Console.Error.WriteLine($"Could not find NuGet package '{arguments.Id}' with version '{arguments.Version.ToNormalizedString()}' under any of the provided repositories.");
-                return 1;
+                return NugetDownloaderFailureExitCodeWithoutRetry;
             }
 
             Console.WriteLine($"Finished downloading package '{arguments.Id}' with version '{arguments.Version}' in {stopwatch.ElapsedMilliseconds}ms");

@@ -34,7 +34,8 @@ namespace NugetDownloader {
         sources: globR(d`.`, "*.cs"),
         references:[
             ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.Netstandard.dll
+                NetFx.Netstandard.dll,
+                NetFx.System.Net.Http.dll
             ),
             importFrom("BuildXL.Utilities").VstsAuthentication.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,

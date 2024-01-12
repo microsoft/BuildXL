@@ -130,6 +130,8 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
         // This is to avoid DFAs under the credential provider directory, which is an arbitrarily specified directory that would need to
         // be contained in a statically declared read mount otherwise
         allowUndeclaredSourceReads: true,
+        retryExitCodes: [2],
+        processRetries: 2
     };
 
     const result = Transformer.execute(transformerExecuteArgs);

@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.ConfigurationHelpers;
@@ -263,40 +264,52 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return null;
         }
 
-        public static async Task ConnectAsync(this ChannelBase channel, Interfaces.Time.IClock clock, TimeSpan timeout)
+        public static async Task ConnectAsync(this ChannelBase channel, string host, int port, IClock clock, TimeSpan timeout)
         {
-            if (channel is Channel channelCore)
+            // We have observed cases in production where a GrpcCopyClient instance consistently fails to perform
+            // copies against the destination machine. We are suspicious that no connection is actually being
+            // established. This is meant to ensure that we don't perform copies against uninitialized channels.
+            try
             {
-                if (timeout == Timeout.InfiniteTimeSpan || timeout <= TimeSpan.Zero)
+                if (channel is Channel channelCore)
                 {
-                    await channelCore.ConnectAsync();
-                    return;
+                    if (timeout == Timeout.InfiniteTimeSpan || timeout <= TimeSpan.Zero)
+                    {
+                        await channelCore.ConnectAsync();
+                        return;
+                    }
+                    else
+                    {
+                        var deadline = clock.UtcNow + timeout;
+                        await channelCore.ConnectAsync(deadline);
+                        return;
+                    }
                 }
-                else
-                {
-                    var deadline = clock.UtcNow + timeout;
-                    await channelCore.ConnectAsync(deadline);
-                    return;
-                }
-            }
 #if NET6_0_OR_GREATER
-            else if (channel is GrpcChannel channelDotNet)
-            {
-                // Grpc.Net version of ConnectAsync takes a cancellation token and not a deadline.
-                if (timeout == Timeout.InfiniteTimeSpan || timeout <= TimeSpan.Zero)
+                else if (channel is GrpcChannel channelDotNet)
                 {
-                    await channelDotNet.ConnectAsync();
+                    // Grpc.Net version of ConnectAsync takes a cancellation token and not a deadline.
+                    if (timeout == Timeout.InfiniteTimeSpan || timeout <= TimeSpan.Zero)
+                    {
+                        await channelDotNet.ConnectAsync();
+                        return;
+                    }
+                    else
+                    {
+                        using var cts = new CancellationTokenSource(timeout);
+                        await channelDotNet.ConnectAsync(cts.Token);
+                    }
+
                     return;
                 }
-                else
-                {
-                    using var cts = new CancellationTokenSource(timeout);
-                    await channelDotNet.ConnectAsync(cts.Token);
-                }
-
-                return;
-            }
 #endif
+            }
+            catch (TaskCanceledException)
+            {
+                // If deadline occurs, ConnectAsync fails with TaskCanceledException.
+                // Wrapping it into TimeoutException instead.
+                throw new GrpcConnectionTimeoutException($"Failed to connect to {host}:{port} at {timeout}.");
+            }
 
             throw Contract.AssertFailure($"Unknown channel type: {channel?.GetType()}");
         }

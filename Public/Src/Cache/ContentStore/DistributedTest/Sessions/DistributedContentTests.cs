@@ -928,7 +928,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         var grpcCopyClientCacheConfiguration = new GrpcCopyClientCacheConfiguration()
                         {
-                            ResourcePoolEnabled = true,
                             ResourcePoolConfiguration = new ResourcePoolConfiguration()
                             {
                                 MaximumAge = TimeSpan.FromMinutes(1),
@@ -936,7 +935,6 @@ namespace ContentStoreTest.Distributed.Sessions
                             },
                             GrpcCopyClientConfiguration = new()
                             {
-                                ConnectOnStartup = true
                             }
                         };
 

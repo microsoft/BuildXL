@@ -18,14 +18,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public int ClientBufferSizeBytes { get; set; } = ContentStore.Grpc.GrpcConstants.DefaultBufferSizeBytes;
 
         /// <summary>
-        /// Whether to force connection establishment on startup
-        /// </summary>
-        /// <remarks>
-        /// This does not work with ResourcePool V1
-        /// </remarks>
-        public bool ConnectOnStartup { get; set; }
-
-        /// <summary>
         /// A timeout that Grpc Client is allowed to wait when closing the connection with another side.
         /// </summary>
         /// <remarks>
@@ -46,12 +38,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public TimeSpan OperationDeadline { get; set; } = TimeSpan.FromHours(2);
 
-        /// <summary>
-        /// Whether to send a calling machine name via a message header.
-        /// False by default.
-        /// </summary>
-        public bool PropagateCallingMachineName { get; set; }
-
         /// <nodoc />
         public GrpcCoreClientOptions? GrpcCoreClientOptions { get; set; }
 
@@ -69,7 +55,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             var grpcCopyClientConfiguration = new GrpcCopyClientConfiguration();
             ApplyIfNotNull(dcs.GrpcCopyClientBufferSizeBytes, v => grpcCopyClientConfiguration.ClientBufferSizeBytes = v);
-            ApplyIfNotNull(dcs.GrpcCopyClientConnectOnStartup, v => grpcCopyClientConfiguration.ConnectOnStartup = v);
             ApplyIfNotNull(dcs.GrpcCopyClientDisconnectionTimeoutSeconds, v => grpcCopyClientConfiguration.DisconnectionTimeout = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(dcs.GrpcCopyClientConnectionTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionTimeout = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(dcs.TimeToFirstByteTimeoutInSeconds, v => grpcCopyClientConfiguration.TimeToFirstByteTimeout = TimeSpan.FromSeconds(v));

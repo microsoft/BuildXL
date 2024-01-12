@@ -403,7 +403,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         protected virtual async Task<TObject> CreateInstanceAsync(Context context, TKey key)
         {
             var instance = _factory(key);
-            await instance.StartupAsync(context).ThrowIfFailureAsync();
+            await instance.StartupAsync(context).RethrowIfFailure();
             return instance;
         }
 

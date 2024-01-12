@@ -71,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly GrpcCopyClientCacheConfiguration _configuration;
         private readonly ByteArrayPool _grpcCopyClientBufferPool;
 
-        private readonly ResourcePool<GrpcCopyClientKey, GrpcCopyClient>? _resourcePool;
+        private readonly ResourcePool<GrpcCopyClientKey, GrpcCopyClient> _resourcePool;
 
         /// <summary>
         /// Cache for <see cref="GrpcCopyClient"/>.
@@ -83,53 +83,32 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             _grpcCopyClientBufferPool = new ByteArrayPool(configuration.GrpcCopyClientConfiguration.ClientBufferSizeBytes);
 
-            if (_configuration.ResourcePoolEnabled)
-            {
-                _resourcePool = new ResourcePool<GrpcCopyClientKey, GrpcCopyClient>(
-                    context,
-                    _configuration.ResourcePoolConfiguration,
-                    (key) => new GrpcCopyClient(context, key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
-                    clock);
-            }
+            _resourcePool = new ResourcePool<GrpcCopyClientKey, GrpcCopyClient>(
+                context,
+                _configuration.ResourcePoolConfiguration,
+                (key) => new GrpcCopyClient(context, key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
+                clock);
         }
 
         /// <summary>
         /// Use an existing <see cref="GrpcCopyClient"/> if possible, else create a new one.
         /// </summary>
-        public async Task<TResult> UseWithInvalidationAsync<TResult>(OperationContext context, string host, int grpcPort, Func<OperationContext, IResourceWrapperAdapter<GrpcCopyClient>, Task<TResult>> operation)
+        public Task<TResult> UseWithInvalidationAsync<TResult>(OperationContext context, string host, int grpcPort, Func<OperationContext, IResourceWrapperAdapter<GrpcCopyClient>, Task<TResult>> operation)
         {
             var key = new GrpcCopyClientKey(host, grpcPort);
-            if (_configuration.ResourcePoolEnabled)
-            {
-                Contract.AssertNotNull(_resourcePool);
-
-                return await _resourcePool.UseAsync(
-                    context,
-                    key,
-                    async resourceWrapper =>
-                    {
-                        // This ensures that the operation we want to perform conforms to the cancellation. When the
-                        // resource needs to be removed, the token will be cancelled. Once the operation completes, we
-                        // will be able to proceed with shutdown.
-                        using var cancellationTokenSource =
-                            CancellationTokenSource.CreateLinkedTokenSource(context.Token, resourceWrapper.ShutdownToken);
-                        var nestedContext = new OperationContext(context, cancellationTokenSource.Token);
-                        return await operation(nestedContext, new ResourceWrapperAdapter<GrpcCopyClient>(resourceWrapper));
-                    });
-            }
-            else
-            {
-                var client = new GrpcCopyClient(
-                    context,
-                    key,
-                    _configuration.GrpcCopyClientConfiguration,
-                    sharedBufferPool: _grpcCopyClientBufferPool);
-
-                await client.StartupAsync(context).ThrowIfFailure();
-                var result = await operation(context, new DefaultResourceWrapperAdapter<GrpcCopyClient>(client));
-                await client.ShutdownAsync(context).ThrowIfFailure();
-                return result;
-            }
+            return _resourcePool.UseAsync(
+                context,
+                key,
+                async resourceWrapper =>
+                {
+                    // This ensures that the operation we want to perform conforms to the cancellation. When the
+                    // resource needs to be removed, the token will be cancelled. Once the operation completes, we
+                    // will be able to proceed with shutdown.
+                    using var cancellationTokenSource =
+                        CancellationTokenSource.CreateLinkedTokenSource(context.Token, resourceWrapper.ShutdownToken);
+                    var nestedContext = new OperationContext(context, cancellationTokenSource.Token);
+                    return await operation(nestedContext, new ResourceWrapperAdapter<GrpcCopyClient>(resourceWrapper));
+                });
         }
 
         /// <summary>

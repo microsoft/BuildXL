@@ -104,25 +104,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            // We have observed cases in production where a GrpcCopyClient instance consistently fails to perform
-            // copies against the destination machine. We are suspicious that no connection is actually being
-            // established. This is meant to ensure that we don't perform copies against uninitialized channels.
-            if (!_configuration.ConnectOnStartup)
-            {
-                return BoolResult.Success;
-            }
-
-            try
-            {
-                await _channel.ConnectAsync(_clock, _configuration.ConnectionTimeout);
-            }
-            catch (TaskCanceledException)
-            {
-                // If deadline occurs, ConnectAsync fails with TaskCanceledException.
-                // Wrapping it into TimeoutException instead.
-                throw new GrpcConnectionTimeoutException($"Failed to connect to {Key.Host}:{Key.GrpcPort} at {_configuration.ConnectionTimeout}.");
-            }
-
+            await _channel.ConnectAsync(Key.Host, Key.GrpcPort, _clock, _configuration.ConnectionTimeout);
             return BoolResult.Success;
         }
 
@@ -205,10 +187,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             // Using different configuration if we're connecting on startup.
-            return _configuration.ConnectOnStartup ? _configuration.TimeToFirstByteTimeout : _configuration.ConnectionTimeout;
+            return _configuration.TimeToFirstByteTimeout;
         }
-
-        private CopyResultCode GetCopyResultCodeForGetResponseHeaderTimeout() => _configuration.ConnectOnStartup ? CopyResultCode.TimeToFirstByteTimeoutError : CopyResultCode.ConnectionTimeoutError;
 
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
@@ -237,15 +217,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var stopwatch = StopwatchSlim.Start();
                 try
                 {
-                    var connectionTimeout = GetResponseHeadersTimeout(options);
-                    headers = await response.ResponseHeadersAsync.WithTimeoutAsync(connectionTimeout, token);
+                    var firstByteTimeout = GetResponseHeadersTimeout(options);
+                    headers = await response.ResponseHeadersAsync.WithTimeoutAsync(firstByteTimeout, token);
                     headerResponseTime = stopwatch.Elapsed;
                 }
                 catch (TimeoutException t)
                 {
                     // Trying to cancel the back end operation as well.
                     cts.Cancel();
-                    result = new CopyFileResult(GetCopyResultCodeForGetResponseHeaderTimeout(), t);
+                    result = new CopyFileResult(CopyResultCode.TimeToFirstByteTimeoutError, t);
                     return result;
                 }
 
@@ -448,7 +428,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 catch (TimeoutException t)
                 {
                     cts.Cancel();
-                    result = new PushFileResult(GetCopyResultCodeForGetResponseHeaderTimeout(), t);
+                    result = new PushFileResult(CopyResultCode.TimeToFirstByteTimeoutError, t);
                     return result;
                 }
 

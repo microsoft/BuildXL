@@ -363,9 +363,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         #region Grpc Copy Client Cache
 
-        [DataMember]
-        public bool? GrpcCopyClientResourcePoolEnabled { get; set; }
-
         /// <summary>
         /// Upper bound on number of cached GRPC clients.
         /// </summary>
@@ -394,9 +391,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(0, int.MaxValue)]
         public int? GrpcCopyClientBufferSizeBytes { get; set; }
-
-        [DataMember]
-        public bool? GrpcCopyClientConnectOnStartup { get; set; }
 
         [DataMember]
         [Validation.Range(0, double.MaxValue)]
@@ -1197,7 +1191,7 @@ namespace BuildXL.Cache.Host.Configuration
             {
                 if (double.TryParse(value.Substring(0, value.Length - 1), out var multiplier))
                 {
-                    return new DegreeOfParallelism {ProcessorCountMultiplier = multiplier};
+                    return new DegreeOfParallelism { ProcessorCountMultiplier = multiplier };
                 }
 
                 throw new FormatException($"Can't parse '{value}' into '{nameof(DegreeOfParallelism)}' type.");

@@ -260,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             var stopLatch = TaskUtilities.CreateMutex(taken: true);
             var firstUseIsDone = new TaskCompletionSource<object>();
             Task? outstandingTask = null;
-            
+
             CounterCollection<ResourcePoolCounters>? counters = null;
 
             await RunTest<Key, Resource>(async (context, pool) =>
@@ -585,7 +585,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
 
                 var key = new Key(0);
 
-                _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
+                _ = await Assert.ThrowsAsync<Exception>(() =>
                 {
                     return pool.UseAsync<BoolResult>(context, key, wrapper =>
                     {
@@ -594,7 +594,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 });
 
                 // This is just to ensure that retrying effectively does a retry
-                _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
+                _ = await Assert.ThrowsAsync<Exception>(() =>
                 {
                     return pool.UseAsync<BoolResult>(context, key, wrapper =>
                     {
@@ -621,7 +621,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
 
             return RunTest<Key, FailingResource>(async (context, pool) =>
             {
-                _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
+                _ = await Assert.ThrowsAsync<Exception>(() =>
                 {
                     return pool.UseAsync(context, new Key(0), wrapper => BoolResult.SuccessTask);
                 });

@@ -16,11 +16,11 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Test.MetadataService;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -249,7 +249,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 PinMinUnverifiedCount = 1,
                 // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
                 MachineRisk = 0.0000001,
-                
+
                 ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.ToString() : nameof(ProactiveCopyMode.Disabled),
                 PushProactiveCopies = true,
                 EnableProactiveReplication = EnableProactiveReplication,
@@ -268,9 +268,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 ContentLocationDatabaseOpenReadOnly = true,
                 EnablePublishingCache = EnablePublishingCache,
-
-                GrpcCopyClientConnectOnStartup = true,
-
                 UsePrimaryCasInDcs = true,
             };
 
@@ -334,12 +331,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 keyspace: UniqueTestId,
                 fileSystem: FileSystem
             )
-                            {
-                                // The configuration makes the tests output less readable. Not printing it in tests.
-                                TraceConfiguration = false,
-                                Overrides = TestInfos[index].Overrides,
-                                GrpcHost = GrpcHost
-                            };
+            {
+                // The configuration makes the tests output less readable. Not printing it in tests.
+                TraceConfiguration = false,
+                Overrides = TestInfos[index].Overrides,
+                GrpcHost = GrpcHost
+            };
 
             arguments = ModifyArguments(arguments);
             TestInfos[index].Arguments = arguments;

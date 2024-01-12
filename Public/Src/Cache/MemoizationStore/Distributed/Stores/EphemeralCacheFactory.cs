@@ -592,8 +592,6 @@ public static class EphemeralCacheFactory
                     UseGrpcDotNetVersion = useGrpcDotNet,
                     ConnectionTimeout = configuration.ConnectionTimeout,
                     DisconnectionTimeout = configuration.ConnectionTimeout,
-                    ConnectOnStartup = true,
-                    PropagateCallingMachineName = true,
                     TimeToFirstByteTimeout = configuration.ConnectionTimeout,
                     GrpcCoreClientOptions = new GrpcCoreClientOptions(),
                     GrpcDotNetClientOptions = new GrpcDotNetClientOptions(),

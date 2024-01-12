@@ -210,7 +210,7 @@ public class ConnectionHandle : StartupShutdownSlimBase
 
     protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
     {
-        await Channel.ConnectAsync(SystemClock.Instance, _connectionTimeout);
+        await Channel.ConnectAsync(Host, Port, SystemClock.Instance, _connectionTimeout);
         return BoolResult.Success;
     }
 

@@ -162,6 +162,12 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         Task IOrchestratorService.ReceivedExecutionLog(ExecutionLogInfo executionLog)
         {
+            if (Environment.IsTerminatingWithInternalError)
+            {
+                // If the scheduler is being terminated due to an internal error, do not process any XLG events. It can cause assertion validation errors.
+                return Task.CompletedTask;
+            }
+
             var worker = GetWorkerById(executionLog.WorkerId);
             return worker.ReadExecutionLogAsync(executionLog.Events);
         }
@@ -172,6 +178,12 @@ namespace BuildXL.Engine.Distribution
         [SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid", Justification = "This is eventhandler so fire&forget is understandable")]
         async Task IOrchestratorService.ReceivedPipResults(PipResultsInfo pipResults)
         {
+            if (Environment.IsTerminatingWithInternalError)
+            {
+                // If the scheduler is being terminated due to an internal error, do not process any pip results. It can cause assertion validation errors.
+                return;
+            }
+
             var worker = GetWorkerById(pipResults.WorkerId);
 
             if (pipResults.BuildManifestEvents?.DataBlob.Count() > 0)

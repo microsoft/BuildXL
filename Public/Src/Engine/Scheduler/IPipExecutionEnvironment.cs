@@ -118,6 +118,11 @@ namespace BuildXL.Scheduler
         bool IsTerminating { get; }
 
         /// <summary>
+        /// Returns a Boolean indicating if the scheduler has received a request for immediate cancellation due to an internal error.
+        /// </summary>
+        bool IsTerminatingWithInternalError { get; }
+
+        /// <summary>
         /// CancellationToken which is set when scheduler has received a request for quick termination.
         /// </summary>
         CancellationToken SchedulerCancellationToken { get; }

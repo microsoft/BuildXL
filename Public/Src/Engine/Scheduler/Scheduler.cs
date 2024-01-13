@@ -549,6 +549,15 @@ namespace BuildXL.Scheduler
         private volatile bool m_scheduleTerminating;
 
         /// <summary>
+        /// Set to true when the scheduler is being terminated due to the internal error
+        /// </summary>
+        /// <remarks>
+        /// It is volatile because all threads accessing this variable should read latest values.
+        /// Reading and writing to a boolean are atomic operations.
+        /// </remarks>
+        private volatile bool m_scheduleTerminatingWithInternalError;
+
+        /// <summary>
         /// Number of pips that ran and exited with success fast set, and thus their downstreams were skipped.
         /// </summary>
         /// <remarks>
@@ -3212,7 +3221,7 @@ namespace BuildXL.Scheduler
             if (!IsTerminating && !IsDistributedWorker)
             {
                 Logger.Log.TerminatingDueToInternalError(m_executePhaseLoggingContext);
-
+                m_scheduleTerminatingWithInternalError = true;
                 RequestTermination(cancelQueue: true, cancelRunningPips: true, cancelQueueTimeout: TimeSpan.FromMinutes(2));
             }
         }
@@ -3230,11 +3239,10 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(runnablePip != null);
             
-            // Don't perform any completion work or bookkeeping if the scheduler is shutting down and the PipQueue
-            // is Finished (a signal that it too has been cancelled for a more aggressive shutdown). This allows
-            // both a faster shutdown and also prevents interaction with objects that may be torn down.
+            // Don't perform any completion work or bookkeeping if the scheduler is shutting down aggressively with an internal error.
+            // This allows both a faster shutdown and also prevents interaction with objects that may be torn down.
             // This also prevents scheduling downstream pips which aids in speeding up shutdown
-            if (IsTerminating && PipQueue.IsFinished)
+            if (m_scheduleTerminatingWithInternalError)
             {
                 return;
             }
@@ -4089,6 +4097,13 @@ namespace BuildXL.Scheduler
                 runnablePip.Observer.StartStep(runnablePip);
 
                 nextStep = await ExecutePipStep(runnablePip);
+
+                if (m_scheduleTerminatingWithInternalError)
+                {
+                    // When scheduler is being terminated with an internal error, the state machine for pip executions is terminated immediately.
+                    return;
+                }
+
                 duration = operationContext.Duration.Value;
 
                 if (runnablePip.Worker?.IsLocal ?? true)
@@ -5323,6 +5338,10 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         bool IPipExecutionEnvironment.IsTerminating => IsTerminating;
+
+        /// <inheritdoc />
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IPipExecutionEnvironment.IsTerminatingWithInternalError => m_scheduleTerminatingWithInternalError;
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

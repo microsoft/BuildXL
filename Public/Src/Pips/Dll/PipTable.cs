@@ -438,7 +438,6 @@ namespace BuildXL.Pips
 
         internal ServiceInfo GetServiceInfo(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
 
             var processMutableState = m_mutables[pipId.Value] as ProcessMutablePipState;
@@ -462,7 +461,6 @@ namespace BuildXL.Pips
         /// </summary>
         public PipType GetPipType(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
 
             if (pipId == PipId.DummyHashSourceFilePipId)
@@ -481,7 +479,6 @@ namespace BuildXL.Pips
         /// </remarks>
         public Operations.Process.Options GetProcessOptions(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
 
             var processMutableState = m_mutables[pipId.Value] as ProcessMutablePipState;
@@ -498,7 +495,6 @@ namespace BuildXL.Pips
         /// </remarks>
         public RewritePolicy GetRewritePolicy(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
 
             var processMutableState = m_mutables[pipId.Value] as ProcessMutablePipState;
@@ -515,7 +511,6 @@ namespace BuildXL.Pips
         /// </remarks>
         public AbsolutePath GetProcessExecutablePath(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
 
             var processMutableState = m_mutables[pipId.Value] as ProcessMutablePipState;
@@ -529,7 +524,6 @@ namespace BuildXL.Pips
         /// </summary>
         public SealDirectoryKind GetSealDirectoryKind(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
             var mutable = m_mutables[pipId.Value];
             if (mutable.PipType == PipType.SealDirectory)
@@ -545,7 +539,6 @@ namespace BuildXL.Pips
         /// </summary>
         public bool ShouldScrubFullSealDirectory(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
             var mutable = m_mutables[pipId.Value];
             if (mutable.PipType == PipType.SealDirectory)
@@ -562,7 +555,6 @@ namespace BuildXL.Pips
         /// </summary>
         public bool IsSealDirectoryComposite(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
             var mutable = m_mutables[pipId.Value];
             if (mutable.PipType == PipType.SealDirectory)
@@ -578,7 +570,6 @@ namespace BuildXL.Pips
         /// </summary>
         public ReadOnlyArray<StringId> GetSourceSealDirectoryPatterns(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
             var mutable = m_mutables[pipId.Value];
             if (mutable.PipType == PipType.SealDirectory)
@@ -596,7 +587,6 @@ namespace BuildXL.Pips
         /// </summary>
         public long GetPipSemiStableHash(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
             return m_mutables[pipId.Value].SemiStableHash;
         }
@@ -606,7 +596,6 @@ namespace BuildXL.Pips
         /// </summary>
         public int GetPipPriority(PipId pipId)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
             var mutablePipState = m_mutables[pipId.Value];
             return mutablePipState.PipType == PipType.Process ? ((ProcessMutablePipState)mutablePipState).Priority : 0;
@@ -632,7 +621,6 @@ namespace BuildXL.Pips
         /// </remarks>
         public Pip HydratePip(PipId pipId, PipQueryContext context)
         {
-            Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
 
             if (pipId == PipId.DummyHashSourceFilePipId)

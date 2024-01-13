@@ -435,6 +435,9 @@ namespace Test.BuildXL.Scheduler
             public bool IsTerminating => false;
 
             /// <inheritdoc />
+            public bool IsTerminatingWithInternalError => false;
+
+            /// <inheritdoc />
             public CancellationToken SchedulerCancellationToken => default(CancellationToken);
 
             /// <inheritdoc />

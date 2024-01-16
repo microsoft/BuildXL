@@ -90,6 +90,9 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     let outputFileName = name + targetTypeToFileExtension(targetType, args.deploymentStyle);
 
     let debugType: Csc.DebugType = args.embedPdbs ? "embedded" : (framework.requiresPortablePdb ? "portable" : "full");
+    if (args.cscDebugType) {
+        debugType = args.cscDebugType;
+    }
     let cscArgs : Csc.Arguments = {
         sources: [
             assemblyInfo,
@@ -455,6 +458,12 @@ export interface Arguments {
      * True by default until the project opts out this feature.
      */
     embedPdbs?: boolean;
+
+    /**
+     * Value for csc debugType option.
+     * This will override default embedPdbs and framework setting.
+     */
+    cscDebugType?: Csc.DebugType;
 
     /**
      * Whether to embed sources into pdbs.

@@ -267,6 +267,13 @@ namespace Flags {
     export const embedPdbs = Environment.hasVariable("[Sdk.BuildXL]embedPdbs") ? Environment.getFlag("[Sdk.BuildXL]embedPdbs") : true;
 
     /**
+     * Override csc debugType. DebugType = "full" | "pdbOnly" | "portable" | "embedded"
+     * Set this value will override the debugType setted by embedPdbs and framework.requiresPortablePdb
+     */
+    @@public
+    export const cscDebugType = Environment.getStringValue("[Sdk.BuildXL]cscDebugType");
+
+    /**
      * Gets the default value for whether to embed sources into pdbs.
      * Note, the property can be overriden by the library or executable arguments. This defines the default value only.
      */
@@ -671,6 +678,10 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     if (args.embedPdbs !== false && Flags.embedPdbs === true) {
         args = args.merge<Managed.Arguments>({embedPdbs: true});
+    }
+
+    if (Flags.cscDebugType) {
+        args = args.merge<Managed.Arguments>({cscDebugType: Flags.cscDebugType});
     }
 
     if (Flags.useInProcLogGen && args.generateLogs === true) {

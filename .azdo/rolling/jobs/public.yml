@@ -2,14 +2,12 @@ parameters:
 - name: PublicQualifiersToBuild
   type: object
   default:
-    - DebugNet7
-    - ReleaseNet7
-    - DebugDotNetCoreMac
-    - ReleaseDotNetCoreMac
+    - Debug
+    - Release
 
 jobs:
 - job: Public_Lkg
-  displayName: 'Public Build 1: Create Lkg'
+  displayName: 'Public Build: Create public nuget packages and upload to temporary drop'
   timeoutInMinutes: 180
   cancelTimeoutInMinutes: 1
   condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
@@ -51,22 +49,18 @@ jobs:
     inputs:
       filename: bxl.cmd
       arguments: >- 
-        /server-
         /f:output='out/bin/release/public/pkgs/Microsoft.BuildXL.win-x64.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.win-x64-net7.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Hashing.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Interfaces.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Tools.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Libraries.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Utilities.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Utilities.Core.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Native.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Processes.$(Build.BuildNumber).nupkg'
         /q:Release
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /logOutput:FullOutputOnWarningOrError
-        /p:RetryXunitTests=1
         /p:[Sdk.BuildXL]microsoftInternal=0
         /processRetries:3
         /enableGrpc+
         /traceInfo:selfhostlkgflavor=Public
-        /enableIncrementalFrontEnd-
         /nowarn:2841 /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
-        /scrubDirectory:$(Build.SourcesDirectory)\Out\bin\release\public\pkgs
-        /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000\d\log
+        /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000
   
   # - task: msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0
   #   displayName: NOTICE File Generator
@@ -74,9 +68,8 @@ jobs:
   #     outputfile: Notice.txt
   
 - job: Public_Build
-  displayName: 'Public Build 2: Build /q:'
+  displayName: 'Public Build: Build and test qualifier:'
   timeoutInMinutes: 180
-  dependsOn: Public_Lkg
   condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
   pool:
     name: BuildXL-DevOpsAgents-PME
@@ -105,20 +98,26 @@ jobs:
 
   - template: ../steps/public_prepare.yml
 
-  - task: DownloadPipelineArtifact@2
-    displayName: Download Public packages
+  - task: CmdLine@1
+    displayName: bxl.cmd -deploy dev
     inputs:
-      artifact: buildxl-public.pkgs.$(Build.BuildNumber)
-      path: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
-  
-  - task: PowerShell@2
-    displayName: Update BootStrap LKG Version
-    inputs:
-      filePath: $(BuildXL.RM.ScriptsFolder)/UpdateBuildXLLKG.ps1
-      arguments: -sourceRoot "$(Build.SourcesDirectory)" -newVersion "$(Build.BuildNumber)" -updatePublicLKG $true -lkgTestFeed "$(Build.SourcesDirectory)\Out\Bin\release\public\pkgs"
+      filename: bxl.cmd
+      arguments: >- 
+        -deploy dev
+        -minimal
+        -deployconfig $(QualifierToBuild)
+        /server-
+        /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
+        /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
+        /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
+        /logOutput:FullOutputOnWarningOrError
+        /p:[Sdk.BuildXL]microsoftInternal=0
+        /processRetries:3
+        /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
+        /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000
   
   - task: CmdLine@1
-    displayName: Run bxl.cmd with new LKG
+    displayName: bxl.cmd -use dev
     inputs:
       filename: bxl.cmd
       arguments: >-
@@ -131,11 +130,7 @@ jobs:
         /logOutput:FullOutputOnWarningOrError
         /p:RetryXunitTests=1
         /processRetries:3
-        /enableGrpc+
-        /traceInfo:selfhostlkgflavor=Public
-        /enableIncrementalFrontEnd-
         /p:xunitSemaphoreCount=16
-        /nowarn:2841
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
         /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000\d\log
 

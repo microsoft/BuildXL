@@ -80,5 +80,8 @@ extends:
     - stage: publish
       displayName: Publish
       dependsOn: [CB, RCIT, PublicWin, Linux, Mac]
+      # Only run this stage for main and releases/* branch
+      # This condition is to avoid publishing binaries from test runs of the pipeline from custom branches
+      condition: or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), startsWith(variables['Build.SourceBranch'], 'refs/heads/releases'))
       jobs:
       - template: .azdo/rolling/jobs/publish.yml@self

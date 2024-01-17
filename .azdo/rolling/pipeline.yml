@@ -65,6 +65,9 @@ extends:
     - stage: PublicWin
       displayName: Public validations (Windows)
       dependsOn: prepare
+      variables:
+        BuildXL.SemanticVersion: $[ stageDependencies.prepare.SetBuildNumber.outputs['SetBuildNumber.BuildXLSemanticVersion'] ]
+        BuildXL.PreReleaseTag: $[ stageDependencies.prepare.SetBuildNumber.outputs['SetBuildNumber.BuildXLPreReleaseTag'] ]
       jobs:
       - template: .azdo/rolling/jobs/public.yml@self
 

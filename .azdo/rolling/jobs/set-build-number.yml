@@ -1,17 +1,46 @@
 jobs:
 - job: SetBuildNumber
   displayName: Set build number
-  timeoutInMinutes: 180
-  steps:
-  - checkout: self
-    fetchDepth: 1
-    fetchTags: false
+  steps:  
+  - checkout: none
 
-  - template: ../../common/get-rm.yml
-  
-  - task: BatchScript@1
-    name: Branding_PrereleaseTag
-    displayName: Set Version number based on build settings and semantic version in branding.dsc copy
+  - task: CmdLine@2
+    name: SetBuildNumber
+    displayName: Set version number 
     inputs:
-      filename: $(BuildXL.RM.ScriptsFolder)\SetVersionNumberForRollingBuild.cmd
-      modifyEnvironment: true
+      script: |
+        @echo off
+        if defined Branding_PrereleaseTag (
+          REM Prerelease tag defined at queue-time (e.g, patches)
+          echo Pre-release tag has been defined externally as: '%Branding_PrereleaseTag%'
+          set PrereleaseTag=%Branding_PrereleaseTag%
+        ) else (
+          echo Using ADO build number as prerelease tag
+          set PrereleaseTag=$(Build.BuildNumber)
+        )
+
+        REM Be defensive and remove any semantic version prefix
+        for /F "tokens=1,2 delims=-" %%a in ("%PrereleaseTag%") do (
+            if not "%%b"=="" (
+                echo Inferred Prerelease Tag '%%b'
+                set PrereleaseTag=%%b
+            )
+        )
+        echo Setting 'BuildXLPreReleaseTag' to '%PrereleaseTag%'
+        echo ##vso[task.setvariable variable=BuildXLPreReleaseTag;isOutput=true]%PrereleaseTag%
+
+        REM Semantic version
+        if defined Branding_SemanticVersion (
+          echo Setting BuildXLSemanticVersion to manually defined tag: %Branding_SemanticVersion%
+        ) else (
+          set Branding_SemanticVersion=0.1.0
+        )
+
+        REM Set variable for downstream consumers
+        echo Setting 'BuildXLSemanticVersion' to '%Branding_SemanticVersion%'
+        echo ##vso[task.setvariable variable=BuildXLSemanticVersion;isOutput=true]%Branding_SemanticVersion%
+
+        REM Set the ADO Version number
+        echo ##vso[build.updatebuildnumber]%Branding_SemanticVersion%-%PrereleaseTag%
+
+  

@@ -1,6 +1,4 @@
 variables:
-- name: Branding_PrereleaseTag_Initial
-  value: $(Build.BuildNumber)
 - name: Branding_SourceIdentification
   value: $(Build.SourceBranch):$(Build.SourceVersion)
 - name: BuildXL.Candidate.DropName

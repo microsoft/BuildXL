@@ -802,11 +802,11 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.ProblematicWorkerExit,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "{workerName} exited with a connection issue. Worker was attached and running during some part of the build.",
+            Message = "{workerName} stopped with a failure: {failure}. Is the connection lost sometime after connected: {isConnectionLost}. Is ever connected: {everConnected}. Is early-release initiated: {isEarlyReleaseInitiated}",
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void ProblematicWorkerExit(LoggingContext context, string workerName);
+        public abstract void ProblematicWorkerExit(LoggingContext context, string workerName, string failure, bool isConnectionLost, bool everConnected, bool isEarlyReleaseInitiated);
 
         [GeneratedEvent(
             (ushort)LogEventId.StorageCacheGetContentError,

@@ -386,7 +386,7 @@ namespace BuildXL.Scheduler
                     ExecutionLog?.CreateWorkerTarget((uint)worker.WorkerId);
 
                 worker.TrackStatusOperation(m_workersStatusOperation);
-                worker.InitializeForDistribution(m_configuration, PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs.Task);
+                worker.InitializeForDistribution(m_configuration, PipGraph, workerExecutionLogTarget, m_schedulerCompletion.Task);
                 worker.StatusChanged += OnWorkerStatusChanged;
                 worker.Start();
             }
@@ -1706,6 +1706,7 @@ namespace BuildXL.Scheduler
             MarkPipStartExecuting();
 
             m_schedulerDoneTimeUtc = DateTime.UtcNow;
+            m_schedulerCompletion.TrySetResult(true);
 
             using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.AfterDrainingWhenDoneDuration))
             {
@@ -2724,7 +2725,7 @@ namespace BuildXL.Scheduler
                 if (m_configuration.Distribution.FireForgetMaterializeOutput() &&
                     m_materializeOutputsQueued &&
                     !AnyPendingPipsExceptMaterializeOutputs() &&
-                    m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true))
+                    !m_schedulerCompletionExceptMaterializeOutputsTimeUtc.HasValue)
                 {
                     // There are no pips running anything except materializeOutputs.
                     Logger.Log.SchedulerCompleteExceptMaterializeOutputs(m_loggingContext);
@@ -2735,14 +2736,6 @@ namespace BuildXL.Scheduler
                     }
 
                     m_schedulerCompletionExceptMaterializeOutputsTimeUtc = DateTime.UtcNow;
-                }
-
-                // For the case when FireForgetMaterializeOutput is not enabled,
-                // where there is no active pips, then set the scheduler completion task so that
-                // workers can get disconnected.
-                if (!m_drainThread.IsAlive)
-                {
-                    m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
                 }
 
                 if (m_configuration.Logging.LogTracer && DateTime.UtcNow > m_tracerLastUpdated.AddSeconds(EngineEnvironmentSettings.MinStepDurationSecForTracer))
@@ -5789,7 +5782,7 @@ namespace BuildXL.Scheduler
                 statistics.Add("CriticalPath.ExeDurationMs", exeDurationCriticalPathMs);
                 statistics.Add("CriticalPath.PipDurationMs", totalCriticalPathRunningTime);
 
-                long materializeOutputOverhangMs = m_schedulerCompletionExceptMaterializeOutputsTimeUtc != default ? (long)(m_schedulerDoneTimeUtc - m_schedulerCompletionExceptMaterializeOutputsTimeUtc).TotalMilliseconds : 0;
+                long materializeOutputOverhangMs = m_schedulerCompletionExceptMaterializeOutputsTimeUtc.HasValue ? (long)(m_schedulerDoneTimeUtc - m_schedulerCompletionExceptMaterializeOutputsTimeUtc.Value).TotalMilliseconds : 0;
                 statistics.Add("CriticalPath.MaterializeOutputOverhangMs", materializeOutputOverhangMs);
 
                 builder.AppendLine(hr);
@@ -7945,9 +7938,9 @@ namespace BuildXL.Scheduler
 
         private bool m_materializeOutputsQueued;
 
-        private readonly TaskSourceSlim<bool> m_schedulerCompletionExceptMaterializeOutputs = TaskSourceSlim.Create<bool>();
+        private readonly TaskSourceSlim<bool> m_schedulerCompletion = TaskSourceSlim.Create<bool>();
         private readonly OchestratorSpecificExecutionLogTarget m_orchestratorTarget;
-        private DateTime m_schedulerCompletionExceptMaterializeOutputsTimeUtc;
+        private DateTime? m_schedulerCompletionExceptMaterializeOutputsTimeUtc;
 
         private DateTime m_schedulerDoneTimeUtc;
         private DateTime m_schedulerStartedTimeUtc;
@@ -8192,7 +8185,7 @@ namespace BuildXL.Scheduler
             SandboxConnection?.Dispose();
             RemoteProcessManager?.Dispose();
 
-            LocalWorker.Dispose();
+            m_workers.ForEach(w => w.Dispose());
 
             m_performanceAggregator?.Dispose();
             m_ipcProvider.Dispose();

@@ -196,6 +196,9 @@ namespace BuildXL.Engine.Distribution
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
-        StartPipStepDuration
+        StartPipStepDuration,
+
+        /// <nodoc/>
+        NumProblematicWorkers,
     }
 }

@@ -379,6 +379,7 @@ namespace BuildXL
                         (int)EngineLogEventId.DistributionConnectionTimeout,
                         (int)EngineLogEventId.DistributionConnectionFailure,
                         (int)SharedLogEventId.StoppedDistributionWorkerForwardedError,
+                        (int)SchedulerLogEventId.SchedulerCompleteExceptMaterializeOutputs,
                     },
                     // all warning/errors should be included in a dev log
                     EventLevel.Warning));

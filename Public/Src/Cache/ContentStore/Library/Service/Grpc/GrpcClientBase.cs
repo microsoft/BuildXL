@@ -149,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
                 }
 
-                await Channel.ShutdownAsync();
+                await Channel.DisconnectAsync();
                 return BoolResult.Success;
             }
             catch (Exception ex)
@@ -468,7 +468,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <nodoc />
-        protected async Task<TResult> PerformOperationAsync<TResult>(OperationContext context, Func<SessionContext, Task<TResult>> operation, Func<string>? startMessageFactory = null, [CallerMemberName]string? caller = null) where TResult : ResultBase
+        protected async Task<TResult> PerformOperationAsync<TResult>(OperationContext context, Func<SessionContext, Task<TResult>> operation, Func<string>? startMessageFactory = null, [CallerMemberName] string? caller = null) where TResult : ResultBase
         {
             var stopwatch = StopwatchSlim.Start();
             TraceStartIfEnabled(context, caller!, startMessageFactory);

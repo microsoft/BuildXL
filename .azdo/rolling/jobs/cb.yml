@@ -8,7 +8,6 @@ jobs:
       additionalFlags: >-
         /f:spec='Public/Src/Deployment/buildXL.dsc'
         /q:Release
-        /respectWeakFingerprintForNugetUpToDateCheck
         /p:[BuildXL.Branding]SemanticVersion=0.0.1
         /p:[BuildXL.Branding]PrereleaseTag=LkgForRolling
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)

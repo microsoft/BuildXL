@@ -37,7 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Packages = new List<INugetPackage>(template.Packages.Count);
             foreach (var package in template.Packages)
             {
-                Packages.Add(new NugetPackage(package));
+                Packages.Add(new NugetPackage(package, pathRemapper));
             }
 
             DoNotEnforceDependencyVersions = template.DoNotEnforceDependencyVersions;

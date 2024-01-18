@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
@@ -19,7 +20,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         }
 
         /// <nodoc />
-        public NugetPackage(INugetPackage template)
+        public NugetPackage(INugetPackage template, PathRemapper pathRemapper)
         {
             Id = template.Id;
             Version = template.Version;
@@ -29,7 +30,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DependentPackageIdsToSkip = template.DependentPackageIdsToSkip ?? new List<string>();
             DependentPackageIdsToIgnore = template.DependentPackageIdsToIgnore ?? new List<string>();
             ForceFullFrameworkQualifiersOnly = template.ForceFullFrameworkQualifiersOnly;
-            FilesToExclude = template.FilesToExclude ?? new List<RelativePath>();
+            FilesToExclude = template.FilesToExclude?.Select(relativePath => pathRemapper.Remap(relativePath)).ToList() ?? new List<RelativePath>();
         }
 
         /// <inheritdoc />

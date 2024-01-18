@@ -107,7 +107,7 @@ namespace BuildXL.Processes
         /// </remarks>
         public string UniqueName { get; }
 
-        private int m_uniqueNameCounter;
+        private readonly int m_uniqueNameCounter;
 
         /// <summary>
         /// Returns the path table from the supplied <see cref="SandboxedProcessInfo"/>.
@@ -281,6 +281,9 @@ namespace BuildXL.Processes
 
         /// <inheritdoc />
         public virtual int GetLastMessageCount() => 0;
+
+        /// <inheritdoc />
+        public virtual int GetLastConfirmedMessageCount() => 0;
 
         /// <inheritdoc />
         public async Task<SandboxedProcessResult> GetResultAsync()

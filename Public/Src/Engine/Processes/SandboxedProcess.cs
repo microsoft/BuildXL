@@ -39,11 +39,10 @@ namespace BuildXL.Processes
     /// </remarks>
     public sealed class SandboxedProcess : ISandboxedProcess
     {
-        private const int MaxProcessPathLength = 1024;
         private static BinaryPaths? s_binaryPaths;
         private static bool s_setMaxWorkingSetToPeakBeforeResume = false;
-        private static readonly Guid s_payloadGuid = new Guid("7CFDBB96-C3D6-47CD-9026-8FA863C52FEC");
-        private static readonly UIntPtr s_defaultMin = new UIntPtr(204800);
+        private static readonly Guid s_payloadGuid = new("7CFDBB96-C3D6-47CD-9026-8FA863C52FEC");
+        private static readonly UIntPtr s_defaultMin = new(204800);
 
         private readonly int m_bufferSize;
 
@@ -171,16 +170,13 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public string GetAccessedFileName(ReportedFileAccess reportedFileAccess)
-        {
-            return reportedFileAccess.GetPath(m_pathTable);
-        }
+        public string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => reportedFileAccess.GetPath(m_pathTable);
 
         /// <inheritdoc />
-        public int GetLastMessageCount()
-        {
-            return m_reports.GetLastMessageCount();
-        }
+        public int GetLastMessageCount() => m_reports.GetLastMessageCount();
+
+        /// <inheritdoc />
+        public int GetLastConfirmedMessageCount() => m_reports.GetLastConfirmedMessageCount();
 
         /// <inheritdoc />
         public int ProcessId { get; private set; }
@@ -790,10 +786,7 @@ namespace BuildXL.Processes
             m_resultTaskCompletionSource.SetResult(result);
         }
 
-        internal static void SetMaxWorkingSetToPeakBeforeResume(bool setPeak)
-        {
-            s_setMaxWorkingSetToPeakBeforeResume = setPeak;
-        }
+        internal static void SetMaxWorkingSetToPeakBeforeResume(bool setPeak) => s_setMaxWorkingSetToPeakBeforeResume = setPeak;
 
         /// <summary>
         /// Start a sandboxed process asynchronously. The result will only be available once the process terminates.

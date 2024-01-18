@@ -49,9 +49,14 @@ namespace BuildXL.Processes
         long GetDetoursMaxHeapSize();
 
         /// <summary>
-        /// Gets the difference between sent and received messages from sandboxed process tree to BuildXL.  If no sandboxing is used the return value is 0.
+        /// Differences in the number of messages that were sent (or were about to be sent) and messages that were received by the sandbox after the execution of sandboxed process.
         /// </summary>
         int GetLastMessageCount();
+
+        /// <summary>
+        /// Differences in the number of messages that were successfully sent and messages that were received by the sandbox after the execution of sandboxed process.
+        /// </summary>
+        int GetLastConfirmedMessageCount();
 
         /// <summary>
         /// Asynchronously starts the process.  All the required process start information must be provided prior to calling this method

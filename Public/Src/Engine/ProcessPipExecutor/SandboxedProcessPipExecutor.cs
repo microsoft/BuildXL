@@ -1227,6 +1227,7 @@ namespace BuildXL.ProcessPipExecutor
                 SandboxedProcessResult result;
 
                 int lastMessageCount = 0;
+                int lastConfirmedMessageCount = 0;
                 bool isMessageCountSemaphoreCreated = false;
 
                 try
@@ -1243,6 +1244,8 @@ namespace BuildXL.ProcessPipExecutor
                     }
 
                     lastMessageCount = process.GetLastMessageCount() + result.LastMessageCount;
+                    lastConfirmedMessageCount = process.GetLastConfirmedMessageCount() + result.LastConfirmedMessageCount;
+
                     m_numWarnings += result.WarningCount;
                     isMessageCountSemaphoreCreated = m_fileAccessManifest.MessageCountSemaphore != null || result.MessageCountSemaphoreCreated;
 
@@ -1328,6 +1331,7 @@ namespace BuildXL.ProcessPipExecutor
                 return ValidateDetoursCommunication(
                     executionResult,
                     lastMessageCount,
+                    lastConfirmedMessageCount,
                     isMessageCountSemaphoreCreated);
             }
         }
@@ -1451,6 +1455,7 @@ namespace BuildXL.ProcessPipExecutor
         private SandboxedProcessPipExecutionResult ValidateDetoursCommunication(
             SandboxedProcessPipExecutionResult result,
             int lastMessageCount,
+            int lastConfirmedMessageCount,
             bool isMessageSemaphoreCountCreated)
         {
             // If we have a failure already, that could have cause some of the mismatch in message count of writing the side communication file.
@@ -1493,19 +1498,33 @@ namespace BuildXL.ProcessPipExecutor
                 // Report a counter mismatch only if there are no other errors.
                 if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && isMessageSemaphoreCountCreated)
                 {
-                    if (lastMessageCount != 0)
+                    if (lastMessageCount > 0)
                     {
-                        Logger.Log.LogMismatchedDetoursVerboseCount(
+                        // Some messages were sent (or were about to be sent), but were not received by the sandbox,
+                        // probably because the process terminated before sending the messages or while sending the messages.
+                        if (lastConfirmedMessageCount > 0)
+                        {
+                            // Received messages is less than the successfully sent messages.
+                            Logger.Log.LogMismatchedDetoursCountLostMessages(
+                                m_loggingContext,
+                                m_pip.SemiStableHash,
+                                m_pipDescription,
+                                lastMessageCount,
+                                lastConfirmedMessageCount);
+
+                            // TODO [pgunasekara]: for Linux we want to get more testing with production builds before allowing it to fail builds.
+                            if (OperatingSystemHelper.IsWindowsOS)
+                            {
+                                return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(result);
+                            }
+                        }
+
+                        Logger.Log.LogMismatchedDetoursCount(
                             m_loggingContext,
                             m_pip.SemiStableHash,
                             m_pipDescription,
-                            lastMessageCount);
-
-                        // TODO [pgunasekara]: for Linux we want to get more testing with production builds before allowing it to fail builds.
-                        if (OperatingSystemHelper.IsWindowsOS)
-                        {
-                            return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(result);
-                        }
+                            lastMessageCount,
+                            lastConfirmedMessageCount);
                     }
                 }
             }

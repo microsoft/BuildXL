@@ -237,6 +237,7 @@ PManifestInternalDetoursErrorNotificationFileString g_manifestInternalDetoursErr
 LPCTSTR g_internalDetoursErrorNotificationFile = nullptr;
 
 HANDLE g_messageCountSemaphore = INVALID_HANDLE_VALUE;
+HANDLE g_messageSentCountSemaphore = INVALID_HANDLE_VALUE;
 
 HANDLE g_reportFileHandle;
 

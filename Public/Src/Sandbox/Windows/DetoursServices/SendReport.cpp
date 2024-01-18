@@ -30,7 +30,7 @@ void SendReportString(_In_z_ wchar_t const* dataString)
         return;
     }
 
-    // Increment the message sent counter.
+    // Increment the message sent counter. The managed sandbox will decrement it upon receiving the message.
     if (g_messageCountSemaphore != INVALID_HANDLE_VALUE)
     {
         ReleaseSemaphore(g_messageCountSemaphore, 1, nullptr);
@@ -51,6 +51,14 @@ void SendReportString(_In_z_ wchar_t const* dataString)
         std::wstring errorMsg = DebugStringFormat(L"SendReportString: Failed to write file access report line '%s' (error code: 0x%08X)", dataString, (int)error);
         Dbg(errorMsg.c_str());
         HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_4, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_4);
+    }
+    else
+    {
+        // Increment semaphore indicating that a message was sent successfully. The managed sandbox will not decrement it.
+        if (g_messageSentCountSemaphore != INVALID_HANDLE_VALUE)
+        {
+            ReleaseSemaphore(g_messageSentCountSemaphore, 1, nullptr);
+        }
     }
 
     SetLastError(lastError);

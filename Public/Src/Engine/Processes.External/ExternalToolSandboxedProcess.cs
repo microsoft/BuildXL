@@ -52,10 +52,7 @@ namespace BuildXL.Processes.External
         public override int? ExitCode => m_processExecutor.ExitCompleted ? Process?.ExitCode : default;
 
         /// <inheritdoc />
-        public override void Dispose()
-        {
-            m_processExecutor?.Dispose();
-        }
+        public override void Dispose() => m_processExecutor?.Dispose();
 
         /// <inheritdoc />
         public override ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot() => m_processExecutor?.GetMemoryCountersSnapshot();

@@ -125,7 +125,7 @@ namespace BuildXL.Processes.Tracing
 
         LogMessageCountSemaphoreExists = 2923,
         LogFailedToCreateDirectoryForInternalDetoursFailureFile = 2925,
-        LogMismatchedDetoursVerboseCount = 2927,
+        LogMismatchedDetoursCountLostMessages = 2927,
         LogDetoursMaxHeapSize = 2928,
         // Moved to BuildXL.Native
         // MoreBytesWrittenThanBufferSize = 2930,
@@ -172,5 +172,7 @@ namespace BuildXL.Processes.Tracing
 
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,
+
+        LogMismatchedDetoursCount = 14301,
     }
 }

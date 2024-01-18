@@ -2500,7 +2500,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
 
-            AssertVerboseEventLogged(ProcessesLogEventId.LogMismatchedDetoursVerboseCount, count: 0);
+            AssertVerboseEventLogged(ProcessesLogEventId.LogMismatchedDetoursCountLostMessages, count: 0);
             
             // The Linux sandbox will also log additional messages if the semaphore was not signalled when a message arrives
             if (OperatingSystemHelper.IsLinuxOS)

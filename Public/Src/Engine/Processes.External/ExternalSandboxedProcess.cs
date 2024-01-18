@@ -95,6 +95,9 @@ namespace BuildXL.Processes.External
         public virtual int GetLastMessageCount() => 0;
 
         /// <inheritdoc />
+        public virtual int GetLastConfirmedMessageCount() => 0;
+
+        /// <inheritdoc />
         public abstract Task<SandboxedProcessResult> GetResultAsync();
 
         /// <inheritdoc />

@@ -55,6 +55,7 @@ extern PManifestInternalDetoursErrorNotificationFileString g_manifestInternalDet
 extern LPCTSTR g_internalDetoursErrorNotificationFile;
 
 extern HANDLE g_messageCountSemaphore;
+extern HANDLE g_messageSentCountSemaphore;
 
 extern HANDLE g_reportFileHandle;
 

@@ -566,17 +566,32 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)LogEventId.LogMismatchedDetoursVerboseCount,
+            (int)LogEventId.LogMismatchedDetoursCountLostMessages,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "The number of messages sent by detoured processes did not match the number received by the {MainExecutableName} process. LastMessageCount:{lastMessageCount}")]
-        public abstract void LogMismatchedDetoursVerboseCount(
+            Message = EventConstants.PipPrefix + "The number of messages sent successfully by detoured processes did not match the number received by the {MainExecutableName} process, which indicates lost messages. {MainExecutableName} cannot reliably use the file accesses reported by Detours for caching the process pip. LostMessageCount: {lastConfirmedMessageCount}")]
+        public abstract void LogMismatchedDetoursCountLostMessages(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
-            int lastMessageCount);
+            int lastMessageCount,
+            int lastConfirmedMessageCount);
+
+        [GeneratedEvent(
+            (int)LogEventId.LogMismatchedDetoursCount,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "The number of messages sent by detoured processes did not match the number received by the {MainExecutableName} process, which indicates that calls to detoured APIs terminated abruptly, and indicates that the detoured processes could have a non-deterministic file access behavior. This can cause the process pip to be cached with different sets of file accesses as cache keys. DiffBetweenSendAttemptsAndReceived: {lastMessageCount}. LostMessageCount: {lastConfirmedMessageCount} (<= 0 means no lost message).")]
+        public abstract void LogMismatchedDetoursCount(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            int lastMessageCount,
+            int lastConfirmedMessageCount);
 
         [GeneratedEvent(
             (int)LogEventId.LogMessageCountSemaphoreExists,

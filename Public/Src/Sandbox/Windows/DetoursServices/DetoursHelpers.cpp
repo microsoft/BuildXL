@@ -895,8 +895,8 @@ bool ParseFileAccessManifest(
     // Semaphore names don't allow '\\'
     if (CheckDetoursMessageCount() && g_internalDetoursErrorNotificationFile != nullptr)
     {
-        wchar_t* helperString = new wchar_t[manifestInternalDetoursErrorNotificationFileSize + 1];
-        ZeroMemory((void*)helperString, sizeof(wchar_t) * (manifestInternalDetoursErrorNotificationFileSize + 1));
+        wchar_t* helperString = new wchar_t[manifestInternalDetoursErrorNotificationFileSize + 3];
+        ZeroMemory((void*)helperString, sizeof(wchar_t) * (manifestInternalDetoursErrorNotificationFileSize + 3));
 
         for (uint32_t i = 0; i < manifestInternalDetoursErrorNotificationFileSize; i++)
         {
@@ -910,9 +910,22 @@ bool ParseFileAccessManifest(
             }
         }
 
+        helperString[manifestInternalDetoursErrorNotificationFileSize] = L'_';
+        helperString[manifestInternalDetoursErrorNotificationFileSize + 1] = L'1';
         g_messageCountSemaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, helperString);
 
         if (g_messageCountSemaphore == nullptr || g_messageCountSemaphore == INVALID_HANDLE_VALUE)
+        {
+            DWORD error = GetLastError();
+            std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: Failed to open message-count tracking semaphore '%s' (error code: 0x%0X8)", helperString, (int)error);
+            Dbg(errorMsg.c_str());
+            HandleDetoursInjectionAndCommunicationErrors(DETOURS_SEMAPHOREOPEN_ERROR_6, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_6);
+        }
+
+        helperString[manifestInternalDetoursErrorNotificationFileSize + 1] = L'2';
+        g_messageSentCountSemaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, helperString);
+
+        if (g_messageSentCountSemaphore == nullptr || g_messageSentCountSemaphore == INVALID_HANDLE_VALUE)
         {
             DWORD error = GetLastError();
             std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: Failed to open message-count tracking semaphore '%s' (error code: 0x%0X8)", helperString, (int)error);

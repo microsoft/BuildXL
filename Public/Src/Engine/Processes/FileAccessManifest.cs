@@ -42,7 +42,12 @@ namespace BuildXL.Processes
         private FileAccessManifestExtraFlag m_fileAccessManifestExtraFlag;
 
         /// <summary>
-        /// Name of semaphore for message count.
+        /// Name of semaphore for counting successfully sent messages.
+        /// </summary>
+        private string? m_messageSentCountSemaphoreName;
+
+        /// <summary>
+        /// Name of semaphore for counting messages sent and received.
         /// </summary>
         private string? m_messageCountSemaphoreName;
 
@@ -542,6 +547,11 @@ namespace BuildXL.Processes
         public string? InternalDetoursErrorNotificationFile { get; set; }
 
         /// <summary>
+        /// The semaphore that keeps count the successful sent messages.
+        /// </summary>
+        public INamedSemaphore? MessageSentCountSemaphore { get; private set; }
+
+        /// <summary>
         /// The semaphore that keeps count to the sent and received messages.
         /// </summary>
         public INamedSemaphore? MessageCountSemaphore { get; private set; }
@@ -575,15 +585,32 @@ namespace BuildXL.Processes
             Contract.Requires(semaphoreName.Length > 0);
 
             UnsetMessageCountSemaphore();
-            var maybeSemaphore = SemaphoreFactory.CreateNew(semaphoreName, 0, int.MaxValue);
 
-            if (maybeSemaphore.Succeeded)
+            string messageCountSemaphoreName = OperatingSystemHelper.IsWindowsOS ? semaphoreName + "_1" : semaphoreName;
+            var maybeSemaphore = SemaphoreFactory.CreateNew(messageCountSemaphoreName, 0, int.MaxValue);
+
+            if (!maybeSemaphore.Succeeded)
             {
-                MessageCountSemaphore = maybeSemaphore.Result;
-                m_messageCountSemaphoreName = semaphoreName;
+                return false;
             }
 
-            return maybeSemaphore.Succeeded;
+            MessageCountSemaphore = maybeSemaphore.Result;
+            m_messageCountSemaphoreName = messageCountSemaphoreName;
+
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                string messageSentCountSemaphoreName = semaphoreName + "_2";
+                var maybeMessageSentSemaphore = SemaphoreFactory.CreateNew(messageSentCountSemaphoreName, 0, int.MaxValue);
+                if (!maybeMessageSentSemaphore.Succeeded)
+                { 
+                    return false; 
+                }
+
+                MessageSentCountSemaphore = maybeMessageSentSemaphore.Result;
+                m_messageSentCountSemaphoreName = messageSentCountSemaphoreName;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -591,15 +618,21 @@ namespace BuildXL.Processes
         /// </summary>
         public void UnsetMessageCountSemaphore()
         {
-            if (MessageCountSemaphore is null)
+            if (MessageCountSemaphore is not null)
             {
-                Contract.Assert(m_messageCountSemaphoreName is null);
-                return;
+                Contract.Assert(m_messageCountSemaphoreName is not null);
+                MessageCountSemaphore?.Dispose();
+                MessageCountSemaphore = null;
+                m_messageCountSemaphoreName = null;
             }
 
-            MessageCountSemaphore?.Dispose();
-            MessageCountSemaphore = null;
-            m_messageCountSemaphoreName = null;
+            if (MessageSentCountSemaphore is not null)
+            {
+                Contract.Assert(m_messageSentCountSemaphoreName is not null);
+                MessageSentCountSemaphore?.Dispose();
+                MessageSentCountSemaphore = null;
+                m_messageSentCountSemaphoreName = null;
+            }
         }
 
         /// <summary>
@@ -1143,6 +1176,11 @@ namespace BuildXL.Processes
             WritePipId(writer, PipId);
             WriteChars(writer, m_messageCountSemaphoreName);
 
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                WriteChars(writer, m_messageSentCountSemaphoreName);
+            }
+
             // The manifest tree block has to be serialized the last.
             WriteManifestTreeBlock(writer);
         }
@@ -1164,6 +1202,7 @@ namespace BuildXL.Processes
             FileAccessManifestExtraFlag fileAccessManifestExtraFlag = ReadExtraFlagsBlock(reader);
             long pipId = ReadPipId(reader);
             string? messageCountSemaphoreName = ReadChars(reader);
+            string? messageSentCountSemaphoreName = OperatingSystemHelper.IsWindowsOS ? ReadChars(reader) : null;
 
             byte[] sealedManifestTreeBlock;
 
@@ -1181,7 +1220,8 @@ namespace BuildXL.Processes
                 m_fileAccessManifestFlag = fileAccessManifestFlag,
                 m_fileAccessManifestExtraFlag = fileAccessManifestExtraFlag,
                 m_sealedManifestTreeBlock = sealedManifestTreeBlock,
-                m_messageCountSemaphoreName = messageCountSemaphoreName
+                m_messageCountSemaphoreName = messageCountSemaphoreName,
+                m_messageSentCountSemaphoreName = messageSentCountSemaphoreName,
             };
         }
 

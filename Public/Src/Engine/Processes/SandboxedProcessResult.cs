@@ -142,9 +142,14 @@ namespace BuildXL.Processes
         public long DetoursMaxHeapSize { get; set; }
 
         /// <summary>
-        /// Differences in sent and received messages from sandboxed process.
+        /// Differences in the number of messages that were sent (or were about to be sent) and messages that were received by the sandbox after the execution of sandboxed process.
         /// </summary>
         public int LastMessageCount { get; set; }
+
+        /// <summary>
+        /// Differences in the number of messages that were successfully sent and messages that were received by the sandbox after the execution of sandboxed process.
+        /// </summary>
+        public int LastConfirmedMessageCount { get; set; }
 
         /// <summary>
         /// Flag indicating if a semaphore is created for Detours message.
@@ -201,6 +206,7 @@ namespace BuildXL.Processes
             writer.Write(LastMessageCount);
             writer.Write(MessageCountSemaphoreCreated);
             writer.Write(TraceFile, (w, v) => v.Serialize(w));
+            writer.Write(LastConfirmedMessageCount);
         }
 
         /// <summary>
@@ -244,6 +250,7 @@ namespace BuildXL.Processes
             int lastMessageCount = reader.ReadInt32();
             bool messageCountSemaphoreCreated = reader.ReadBoolean();
             SandboxedProcessOutput trace = reader.ReadNullable(r => SandboxedProcessOutput.Deserialize(r));
+            int lastConfirmedMessageCount = reader.ReadInt32();
 
             return new SandboxedProcessResult()
             {
@@ -271,6 +278,7 @@ namespace BuildXL.Processes
                 WarningCount = warningCount,
                 DetoursMaxHeapSize = detoursMaxHeapSize,
                 LastMessageCount = lastMessageCount,
+                LastConfirmedMessageCount = lastConfirmedMessageCount,
                 MessageCountSemaphoreCreated = messageCountSemaphoreCreated
             };
         }

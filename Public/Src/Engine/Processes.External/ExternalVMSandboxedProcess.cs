@@ -98,10 +98,7 @@ namespace BuildXL.Processes.External
         }
 
         /// <inheritdoc />
-        public override void Dispose()
-        {
-            m_processExecutor?.Dispose();
-        }
+        public override void Dispose() => m_processExecutor?.Dispose();
 
         /// <inheritdoc />
         public override ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot() => m_processExecutor?.GetMemoryCountersSnapshot();

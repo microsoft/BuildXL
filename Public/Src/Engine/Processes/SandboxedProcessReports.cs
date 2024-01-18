@@ -24,6 +24,53 @@ namespace BuildXL.Processes
     /// </summary>
     /// <remarks>
     /// Instance members of this class are not thread-safe.
+    ///
+    /// On Windows, BuildXL uses two semaphores for keeping track of the number of messages (or file access reports) sent by Detours
+    /// and the number of messages received by the sandbox. The first semaphore, <see cref="FileAccessManifest.MessageCountSemaphore"/>,
+    /// is incremented before Detours sends a message, and is decremented by the sandbox upon receiving a message. Thus,
+    /// for correctness, the value of this semaphore should be zero at the end of the detoured process execution.
+    ///
+    /// The second semaphore, <see cref="FileAccessManifest.MessageSentCountSemaphore"/> is incremented by Detours after successfully sending a message.
+    /// This semaphore is never decremented by the sandbox. When the sandbox receives a message, it increments an internal counter, <see cref="m_receivedReportCount"/>.
+    /// Thus, for correctness, the value of the second semaphore should be equal to the value of <see cref="m_receivedReportCount"/> at the end of the detoured process execution.
+    /// If the value of the second semaphore is greater than the value of <see cref="m_receivedReportCount"/>, then there are messages that were successfully sent but not received,
+    /// meaning that there are lost messages. Because BuildXL relies on these messages for caching, having lost messages can result in incorrect caching, which can lead
+    /// to underbuild.
+    /// 
+    /// For example, if a process read file A and B, then the sandbox expects Read(A) and Read(B) messages. Suppose that the sandbox only received Read(A). Then, BuildXL
+    /// will only use the content of A as the cache key. However, if the content of B changes, then we expect the process to re-run (instead of using the cached result).
+    /// But since Read(B) was lost, and the content of A does not change, then BuildXL will use the cached result, which is incorrect (or underbuild).
+    ///
+    /// Thus, when there is a lost message, BuildXL should fail the corresponding process pip.
+    ///
+    /// The logic in sending a message in Detours looks like the following (see Public\Src\Sandbox\Windows\DetoursServices\SendReport.cpp):
+    /// <code>
+    /// void SendReportString(message) {
+    ///   A: ReleaseSemaphore(MessageCountSemaphore, 1, NULL);
+    ///   B:
+    ///   C: bool success = WriteFile(ReportHandle, message);
+    ///   D:
+    ///   E: if (success) { ReleaseSemaphore(MessageSentCountSemaphore, 1, NULL); }
+    ///   F:
+    /// }
+    /// </code>
+    /// During the process execution, the process (or its threads) can terminate at any of these points, A, B, C, D, E, or F. Because this happen during
+    /// the call to a detoured API (e.g., CreateFile for opening a handle), this indicates that (1) the executed tool could have a non-deterministic file-access
+    /// behavior, and (2) the file access may be irrelevant for caching, and can be ignored.
+    /// 
+    /// Assume that <code>ReleaseSemaphore</code> is atomic. If the termination happens at B or during the call to <code>WriteFile</code> at C, then
+    /// <see cref="FileAccessManifest.MessageCountSemaphore"/> has been released, but the message may not have been sent, and the sandbox would not receive
+    /// the message. Thus, at the end of the execution, the value of <see cref="FileAccessManifest.MessageCountSemaphore"/> is greater than 0. This scenario
+    /// is not considered a lost message because the message has not been sent, and BuildXL should not fail the process pip. Note that, by construction, the value
+    /// of <see cref="FileAccessManifest.MessageCountSemaphore"/> cannot be less than 0.
+    /// 
+    /// If the termination happens at D, then the message has been sent and the sandbox received the message, but <see cref="FileAccessManifest.MessageSentCountSemaphore"/>
+    /// has not been released. Thus, at the end of the execution, the value of <see cref="FileAccessManifest.MessageSentCountSemaphore"/> is less than the value
+    /// of <see cref="m_receivedReportCount"/>. This scenario is also not considered a lost message because the sandbox received the message.
+    /// 
+    /// The only error case is if <see cref="FileAccessManifest.MessageSentCountSemaphore"/> has been released, indicating that a message has been successfully sent, but
+    /// the message is not received by the sandbox (message is lost), causing the value of <see cref="m_receivedReportCount"/> to be less than the value
+    /// of <see cref="FileAccessManifest.MessageSentCountSemaphore"/>. In this case, BuildXL should fail the process pip.
     /// </remarks>
     internal sealed class SandboxedProcessReports
     {
@@ -36,11 +83,11 @@ namespace BuildXL.Processes
             .ToDictionary(reportType => ((int)reportType).ToString(), reportType => reportType);
 
         private readonly PathTable m_pathTable;
-        private readonly ConcurrentDictionary<uint, ReportedProcess> m_activeProcesses = new ConcurrentDictionary<uint, ReportedProcess>();
-        private readonly ConcurrentDictionary<uint, ReportedProcess> m_processesExits = new ConcurrentDictionary<uint, ReportedProcess>();
+        private readonly ConcurrentDictionary<uint, ReportedProcess> m_activeProcesses = new();
+        private readonly ConcurrentDictionary<uint, ReportedProcess> m_processesExits = new();
 
-        private readonly Dictionary<string, string> m_pathCache = new Dictionary<string, string>(OperatingSystemHelper.PathComparer);
-        private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new Dictionary<AbsolutePath, bool>();
+        private readonly Dictionary<string, string> m_pathCache = new(OperatingSystemHelper.PathComparer);
+        private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new();
 
         [MaybeNull]
         private readonly IDetoursEventListener m_detoursEventListener;
@@ -48,25 +95,34 @@ namespace BuildXL.Processes
         [MaybeNull]
         private readonly SidebandWriter m_sharedOpaqueOutputLogger;
 
-        public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
+        public readonly List<ReportedProcess> Processes = new();
         public readonly HashSet<ReportedFileAccess> FileUnexpectedAccesses;
         public readonly HashSet<ReportedFileAccess> FileAccesses;
-        public readonly HashSet<ReportedFileAccess> ExplicitlyReportedFileAccesses = new HashSet<ReportedFileAccess>();
+        public readonly HashSet<ReportedFileAccess> ExplicitlyReportedFileAccesses = new();
 
-        public readonly List<ProcessDetouringStatusData> ProcessDetoursStatuses = new List<ProcessDetouringStatusData>();
+        public readonly List<ProcessDetouringStatusData> ProcessDetoursStatuses = new();
         
         /// <summary>
-        /// The last message count in the semaphore.
+        /// The last message count of messages sent and received.
         /// </summary>
-        public int GetLastMessageCount()
-        {
-            return m_manifest.MessageCountSemaphore?.Release() ?? 0;
-        }
+        /// <remarks>
+        /// If the returned value is greater than 0, it means that there are messages that were sent (or were about to be sent) but not received.
+        /// This can happen if the process/thread terminates before sending the messages or while sending the messages. By design, the value
+        /// returned by this method should not be less than 0. For details, see remarks of this class.
+        /// </remarks>
+        public int GetLastMessageCount() => m_manifest.MessageCountSemaphore?.Release() ?? 0;
 
-        public INamedSemaphore GetMessageCountSemaphore()
-        {
-            return m_manifest.MessageCountSemaphore;
-        }
+        /// <summary>
+        /// The difference between the number of messages successfully sent by Detours, and the number of messages received by this instance of sandboxed process reports.
+        /// </summary>
+        /// <remarks>
+        /// If the returned value is greater than 0, then there are lost messages, i.e., there are messages that were successfully sent but not received.
+        /// The returned value can be less than 0 if there are messages successfully sent by Detours, and are received by this instance, but Detours did not
+        /// have a chance to release the counting semaphore. For details, see remarks of this class.
+        /// </remarks>
+        public int GetLastConfirmedMessageCount() => (m_manifest.MessageSentCountSemaphore?.Release() ?? m_receivedReportCount) - m_receivedReportCount;
+
+        public INamedSemaphore GetMessageCountSemaphore() => m_manifest.MessageCountSemaphore;
 
         private bool m_isFrozen;
         
@@ -78,7 +134,7 @@ namespace BuildXL.Processes
         /// <see cref="Freeze"/>.
         /// In this dictionary we store the aforementioned denials to be able to 'retract' them if needed.
         /// </summary>
-        private readonly MultiValueDictionary<AbsolutePath, ReportedFileAccess> m_deniedAccessesBasedOnExistence = new MultiValueDictionary<AbsolutePath, ReportedFileAccess>();
+        private readonly MultiValueDictionary<AbsolutePath, ReportedFileAccess> m_deniedAccessesBasedOnExistence = new();
 
         /// <summary>
         /// Gets whether the report is frozen for modification
@@ -122,6 +178,8 @@ namespace BuildXL.Processes
 
         private readonly List<AbsolutePath> m_processesRequiringPTrace;
 
+        private int m_receivedReportCount = 0;
+
         public SandboxedProcessReports(
             FileAccessManifest manifest,
             PathTable pathTable,
@@ -149,10 +207,7 @@ namespace BuildXL.Processes
             m_loggingContext = loggingContext;
             m_fileSystemView = fileSystemView;
             m_traceBuilder = traceBuilder;
-            if (OperatingSystemHelper.IsLinuxOS)
-            {
-                m_processesRequiringPTrace = new List<AbsolutePath>();
-            }
+            m_processesRequiringPTrace = OperatingSystemHelper.IsLinuxOS ? new List<AbsolutePath>() : null;
         }
 
         /// <summary>ReportArgsMismatch
@@ -278,6 +333,7 @@ namespace BuildXL.Processes
                 try
                 {
                     m_manifest.MessageCountSemaphore.WaitOne(0);
+                    Interlocked.Increment(ref m_receivedReportCount);
                 }
                 catch (Exception ex)
                 {

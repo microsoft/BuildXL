@@ -612,6 +612,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 }
 
                 result.LastMessageCount = process.GetLastMessageCount();
+                result.LastConfirmedMessageCount = process.GetLastConfirmedMessageCount();
                 result.DetoursMaxHeapSize = process.GetDetoursMaxHeapSize();
                 result.MessageCountSemaphoreCreated = fam.MessageCountSemaphore != null;
 

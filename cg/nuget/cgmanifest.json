@@ -2913,7 +2913,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Data.SqlClient",
-          "Version": "4.8.5"
+          "Version": "4.8.6"
         }
       }
     },

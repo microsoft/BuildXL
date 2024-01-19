@@ -558,7 +558,13 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         private void SignalExitCancellation(bool isEarlyRelease)
         {
-            if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !m_attachCompletion.Task.GetAwaiter().GetResult())
+            if (isEarlyRelease && Location == null)
+            {
+                // For the dynamic workers whose locations are still unknown, we should not wait for the attachment period when they get early-released.
+                // Those workers can already terminate after they get the 'earlyReleased' result from their 'Hello' call. 
+                completeTasks();
+            }
+            else if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !m_attachCompletion.Task.GetAwaiter().GetResult())
             {
                 // Normally we only want to wait a short amount of time for exit (15 seconds) if worker is not successfully attached.
                 // If we are early releasing it is possible that we are really early in the build and so we give the worker
@@ -580,12 +586,6 @@ namespace BuildXL.Engine.Distribution
                 {
                     completeTasks();
                 });
-            }
-            else if (isEarlyRelease && Location == null)
-            {
-                // For the dynamic workers whose locations are still unknown, we should not wait for the attachment period when they get early-released.
-                // Those workers can already terminate after they get the 'earlyReleased' result from their 'Hello' call. 
-                completeTasks();
             }
 
             void completeTasks()

@@ -265,6 +265,12 @@ namespace BuildXL.Tracing
         /// Value of Statistic
         /// </summary>
         public long Value { get; set; }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(Name)}: {Value}";
+        }
     }
 
     /// <summary>

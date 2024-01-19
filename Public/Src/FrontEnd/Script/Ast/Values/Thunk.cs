@@ -80,6 +80,12 @@ namespace BuildXL.FrontEnd.Script.Values
             }
         }
 
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(Expression)}: {Expression}";
+        }
+
         /// <nodoc />
         public Thunk(Expression expression, [AllowNull]Expression capturedTemplateReference)
         {

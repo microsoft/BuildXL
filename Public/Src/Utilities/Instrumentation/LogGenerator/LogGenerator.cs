@@ -10,7 +10,6 @@ using Newtonsoft.Json;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using BuildXL.LogGen.Core;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.CodeGenerationHelper;
 
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;

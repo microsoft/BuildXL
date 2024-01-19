@@ -175,7 +175,7 @@ namespace BuildXL.Execution.Analyzer
             return Math.Round(time.TotalSeconds, 3).ToString(CultureInfo.InvariantCulture);
         }
 
-        public struct NodeAndCriticalPath
+        public record struct NodeAndCriticalPath
         {
             public NodeId Next;
             public NodeId Node;

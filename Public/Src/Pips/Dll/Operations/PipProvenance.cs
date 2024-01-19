@@ -13,7 +13,7 @@ namespace BuildXL.Pips.Operations
     /// <remarks>
     /// The provenance data are important for tracing and error logging.
     /// </remarks>
-    public sealed class PipProvenance
+    public sealed record class PipProvenance
     {
         /// <summary>
         /// A string supplied by the tool definition that describes the particular details of this pip.

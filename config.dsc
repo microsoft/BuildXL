@@ -80,8 +80,10 @@ config({
                 { id: "Microsoft.Net.Compilers", version: "4.0.1" }, // Update Public/Src/Engine/UnitTests/Engine/Test.BuildXL.Engine.dsc if you change the version of Microsoft.Net.Compilers.
                 { id: "Microsoft.NETCore.Compilers", version: "4.0.1" },
                 // The package with an actual csc.dll
-                { id: "Microsoft.Net.Compilers.Toolset", version: "4.4.0" },
+                { id: "Microsoft.Net.Compilers.Toolset", version: "4.8.0" },
 
+                // These packages are used by log generators and because they're old
+                // we can't use the latest language features there.
                 { id: "Microsoft.CodeAnalysis.Common", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "3.5.0" },
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.5.0" },
@@ -122,7 +124,7 @@ config({
                 { id: "Microsoft.CodeAnalysis.NetAnalyzers", version: "5.0.3"},
 
                 { id: "AsyncFixer", version: "1.6.0" },
-                { id: "ErrorProne.NET.CoreAnalyzers", version: "0.3.1-beta.2" },
+                { id: "ErrorProne.NET.CoreAnalyzers", version: "0.6.1-beta.1" },
                 { id: "protobuf-net.BuildTools", version: "3.0.101" },
                 { id: "Microsoft.VisualStudio.Threading.Analyzers", version: "17.6.40"},
                 { id: "Text.Analyzers", version: "2.3.0-beta1" },

@@ -2987,6 +2987,12 @@ If you can't update and need this feature after July 2018 please reach out to th
         /// True if the full graph was evaluated
         /// </summary>
         public bool FullEvaluation { get; set; }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(ElapsedMilliseconds)}: {ElapsedMilliseconds}, {nameof(ValueCount)}: {ValueCount}, {nameof(FullEvaluation)}: {FullEvaluation}";
+        }
     }
 
     /// <summary>
@@ -3380,6 +3386,12 @@ If you can't update and need this feature after July 2018 please reach out to th
         /// Used mounts.
         /// </summary>
         public string UsedMountsText;
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(Count)}: {Count}, {nameof(UsedMountsText)}: {UsedMountsText}";
+        }
 
         internal static EffectiveMounts Create(FrontEndEngineImplementation frontEndEngineAbstraction)
         {

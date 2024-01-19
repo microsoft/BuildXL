@@ -1593,7 +1593,7 @@ namespace Test.BuildXL.Processes
             XAssert.Fail(message.ToString());
         }
 
-        private void AssertReportedAccessesContains(PathTable pathTable, ISet<ReportedFileAccess> result, ReportedFileAccess rfa)
+        private void AssertReportedAccessesContains(PathTable pathTable, IEnumerable<ReportedFileAccess> result, ReportedFileAccess rfa)
         {
             IEqualityComparer<ReportedFileAccess> comparer = OperatingSystemHelper.IsUnixOS
                 ? new RelaxedReportedFileAccessComparer(Context.PathTable)

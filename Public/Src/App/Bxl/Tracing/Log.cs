@@ -724,6 +724,12 @@ namespace BuildXL.App.Tracing
         /// Reason
         /// </summary>
         public string Reason { get; set; }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(Kind)}: {Kind}, {nameof(Reason)}: {Reason}";
+        }
     }
 
     /// <summary>
@@ -751,6 +757,12 @@ namespace BuildXL.App.Tracing
         /// Time it takes to create BuildXL deployment cache
         /// </summary>
         public long TimeToCreateServerCacheMilliseconds { get; set; }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(TimeToCreateServerCacheMilliseconds)}: {TimeToCreateServerCacheMilliseconds}";
+        }
     }
 
     /// <summary>

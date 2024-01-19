@@ -46,7 +46,7 @@ namespace Test.BuildXL
             // Reset the environment to its previous state to prevent this test from poisioning other tests
             foreach (DictionaryEntry variable in Environment.GetEnvironmentVariables(EnvironmentVariableTarget.Process))
             {
-                Environment.SetEnvironmentVariable(variable.ToString(), null, EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable(variable.Key.ToString(), null, EnvironmentVariableTarget.Process);
             }
 
             foreach (var variable in m_environment)

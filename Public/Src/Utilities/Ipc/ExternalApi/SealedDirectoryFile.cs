@@ -11,7 +11,7 @@ namespace BuildXL.Ipc.ExternalApi
     /// <summary>
     /// A struct represents a file observed by BuildXL inside a sealed directory
     /// </summary>
-    public readonly struct SealedDirectoryFile
+    public readonly record struct SealedDirectoryFile
     {
         private const string RenderSeparator = "|";
 

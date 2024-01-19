@@ -28,7 +28,7 @@ namespace BuildXL.Processes
         /// </summary>
         private static readonly object s_dumpProcessLock = new object();
 
-        private static readonly HashSet<string> s_skipProcesses = new HashSet<string>() {
+        private static readonly HashSet<string> s_skipProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
             "conhost", // Conhost dump causes native error 0x8007012b (Only part of a ReadProcessMemory or WriteProcessMemory request was completed) - Build 1809
         };
 
@@ -227,7 +227,7 @@ namespace BuildXL.Processes
                     continue;
                 }
 
-                if (s_skipProcesses.Contains(processName, StringComparer.OrdinalIgnoreCase) || processStartTime > treeDumpInitiateTime)
+                if (s_skipProcesses.Contains(processName) || processStartTime > treeDumpInitiateTime)
                 {
                     // Ignore processes explicitly configured to be skipped or 
                     // that were created after the tree dump was initiated in case of the likely rare

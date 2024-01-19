@@ -579,7 +579,7 @@ namespace BuildXL.Cache.BasicFilesystem
                             catch (Exception e)
                             {
                                 // Could not delete it (for what ever reason)
-                                eventing.Write(CacheActivity.CriticalDataOptions, new { FailedToRemovedCorruptedEntry = path, Reason = e.Message });
+                                eventing.Write(CacheActivity.CriticalDataOptions, new { FailedToRemovedCorruptedEntry = path, Reason = e.GetLogEventMessage() });
 
                                 // The file failed to be deleted, so we need to say that it is still there
                                 return eventing.Returns(counter.Invalid());

@@ -58,6 +58,14 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
+        /// Gets the string representation of environment variable.
+        /// </summary>
+        public string ToString(StringTable stringTable, PathTable pathTable)
+        {
+            return $"Name: {Name.ToString(stringTable)}, Value: {Value.ToString(pathTable)}";
+        }
+
+        /// <summary>
         /// Whether this is a pass-through environment variable
         /// </summary>
         public bool IsPassThrough { get; }

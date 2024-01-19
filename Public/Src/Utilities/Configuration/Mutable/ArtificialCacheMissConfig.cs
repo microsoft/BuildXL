@@ -8,7 +8,7 @@ using System.Globalization;
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <nodoc />
-    public sealed class ArtificialCacheMissConfig : IArtificialCacheMissConfig
+    public sealed record ArtificialCacheMissConfig : IArtificialCacheMissConfig
     {
         /// <nodoc />
         public ArtificialCacheMissConfig()

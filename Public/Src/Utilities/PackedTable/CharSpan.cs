@@ -24,7 +24,7 @@ namespace BuildXL.Utilities.PackedTable
     /// are all unused. This is immensely inefficient but the limitations of C# polymorphism don't allow
     /// doing much better. (If you have ideas, please share!)
     /// </remarks>
-    public readonly struct CharSpan
+    public readonly record struct CharSpan
     {
         /// <summary>
         /// The backing string, if any.

@@ -1078,6 +1078,12 @@ namespace BuildXL.FrontEnd.Core.Tracing
     {
         /// <inheritdoc />
         public int ElapsedMilliseconds { get; set; }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(ElapsedMilliseconds)}: {ElapsedMilliseconds}";
+        }
     }
 
     /// <nodoc />
@@ -1089,6 +1095,12 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         /// <nodoc />
         public long ResolverCount { get; set; }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(ElapsedMilliseconds)}: {ElapsedMilliseconds}, {nameof(ResolverCount)}: {ResolverCount}";
+        }
     }
 
     /// <summary>
@@ -1106,6 +1118,12 @@ namespace BuildXL.FrontEnd.Core.Tracing
         /// Available named qualifiers.
         /// </summary>
         public string AvailableNamedQualifiers { get; set; }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(RequestedNamedQualifier)}: {RequestedNamedQualifier}, {nameof(AvailableNamedQualifiers)}: {AvailableNamedQualifiers}";
+        }
     }
 
     /// <summary>
@@ -1116,6 +1134,12 @@ namespace BuildXL.FrontEnd.Core.Tracing
     {
         /// <nodoc />
         public string RequestedNamedQualifier { get; set; }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{nameof(RequestedNamedQualifier)}: {RequestedNamedQualifier}";
+        }
     }
 }
 #pragma warning restore CA1823 // Unused field

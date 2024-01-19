@@ -211,9 +211,9 @@ namespace BuildXL.FrontEnd.Script.Debugger
                    new ObjectInfo("{invalid}");
         }
 
-        private static ObjectInfo EnvironmentVariableInfo(EnvironmentVariable envVar)
+        private ObjectInfo EnvironmentVariableInfo(EnvironmentVariable envVar)
         {
-            return new ObjectInfo(envVar.ToString(), new[] { new Property("Name", envVar.Name), new Property("Value", envVar.Value), new Property("IsPassThrough", envVar.IsPassThrough) });
+            return new ObjectInfo(envVar.ToString(StringTable, PathTable), new[] { new Property("Name", envVar.Name), new Property("Value", envVar.Value), new Property("IsPassThrough", envVar.IsPassThrough) });
         }
 
         private static ObjectInfo ProvenanceInfo(PipProvenance prov)

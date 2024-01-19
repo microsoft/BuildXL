@@ -89,9 +89,16 @@ namespace BuildXL.IDE.CreateZipPackage
 
                 return 0;
             }
+            
+            catch (InvalidOperationException ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                Args.WriteHelp();
+                return 1;
+            }
             catch (Exception ex)
             {
-                string message = ex is InvalidArgumentException ? ex.Message : ex.ToString();
+                string message = ex.ToString();
                 Console.Error.WriteLine(message);
                 Args.WriteHelp();
                 return 1;

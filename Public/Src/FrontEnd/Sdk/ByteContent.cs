@@ -6,12 +6,10 @@ using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.FrontEnd.Sdk
 {
-#pragma warning disable CA1815 // Override equals and operator equals on value types
     /// <summary>
     /// Represents binary content of a file.
     /// </summary>
-    public readonly struct ByteContent
-#pragma warning restore CA1815 // Override equals and operator equals on value types
+    public readonly record struct ByteContent
     {
         /// <summary>
         /// Invalid instance.

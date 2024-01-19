@@ -841,6 +841,12 @@ namespace BuildXL.Utilities.Configuration
                 return false;
             }
 
+            /// <inheritdoc />
+            public override string ToString()
+            {
+                return $"Value: {StringValue}";
+            }
+
             /// <summary>
             /// Implicit conversion of TokenData to LocationData.
             /// </summary>

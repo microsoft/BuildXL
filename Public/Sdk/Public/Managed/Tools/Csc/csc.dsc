@@ -7,7 +7,7 @@ import * as RoslynAnalyzers from "Sdk.Managed.Tools.RoslynAnalyzers";
 
 const pkgContents = importFrom("Microsoft.Net.Compilers.Toolset").Contents.all;
 
-const cscTool = r`tasks/net6.0/bincore/csc.dll`;
+const cscTool = r`tasks/netcore/bincore/csc.dll`;
 
 export const tool: Transformer.ToolDefinition = Shared.Factory.createTool({
     exe: pkgContents.getFile(cscTool),

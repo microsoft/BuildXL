@@ -803,7 +803,7 @@ namespace Test.BuildXL.FrontEnd.Core
 
                 serializer.Write(memoryStream, sharedModuleRegistry);
 
-                var oldUninstantiatedModules = sharedModuleRegistry.UninstantiatedModules.ToDictionary(kvp => kvp);
+                var oldUninstantiatedModules = sharedModuleRegistry.UninstantiatedModules.ToDictionary(kvp => (kvp.Key, kvp.Value));
 
                 sharedModuleRegistry.UninstantiatedModules.Clear();
                 memoryStream.Position = 0;

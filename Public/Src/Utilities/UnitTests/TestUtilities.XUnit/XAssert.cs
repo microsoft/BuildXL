@@ -266,7 +266,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 null;
         }
 
-        private static string CheckIfSetsAreEqual<T>(HashSet<T> expected, HashSet<T> actual, IEqualityComparer<T> comparer = null)
+        private static string CheckIfSetsAreEqual<T>(ICollection<T> expected, ICollection<T> actual, IEqualityComparer<T> comparer = null)
         {
             comparer = comparer ?? EqualityComparer<T>.Default;
             Func<List<T>> missingElems = () => expected.Where(e => !actual.Contains(e, comparer)).ToList();

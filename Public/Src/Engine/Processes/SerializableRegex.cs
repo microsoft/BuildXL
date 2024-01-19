@@ -9,7 +9,7 @@ namespace BuildXL.Processes
     /// <summary>
     /// Serializable representation of a Regex
     /// </summary>
-    public sealed class SerializableRegex
+    public sealed record SerializableRegex
     {
         /// <summary>
         /// The pattern for the Regex

@@ -1278,7 +1278,7 @@ namespace BuildXL.Scheduler.Cache
             return new Expirable<T>(value, timeToLive);
         }
 
-        private readonly struct Expirable<T>
+        private readonly record struct Expirable<T>
         {
             public readonly T Value;
 

@@ -91,7 +91,7 @@ namespace BuildXL.Execution.Analyzer
             var firstGraphPathExpander = m_firstGraphAnalysisInput.CachedGraph.PipGraph.SemanticPathExpander;
             var secondGraphPathExpander = m_secondGraphAnalysisInput.CachedGraph.PipGraph.SemanticPathExpander;
 
-            var matchingPips = new HashSet<KeyValuePair<PipId, PipId>>();
+            var matchingPips = new HashSet<(PipId Key, PipId Value)>();
             var firstGraphMatchedPips = new HashSet<PipId>();
             var secondGraphMatchedPips = new HashSet<PipId>();
 
@@ -118,7 +118,7 @@ namespace BuildXL.Execution.Analyzer
                     continue;
                 }
 
-                matchingPips.Add(new KeyValuePair<PipId, PipId>(firstGraphEntry.Value, secondGraphMatchingPip));
+                matchingPips.Add((firstGraphEntry.Value, secondGraphMatchingPip));
                 firstGraphMatchedPips.Add(firstGraphEntry.Value);
                 secondGraphMatchedPips.Add(secondGraphMatchingPip);
             }
@@ -192,11 +192,11 @@ namespace BuildXL.Execution.Analyzer
         /// for some reason. This implementation ensures that the CPU is fully saturated. On small graphs,
         /// I've noticed a 1.5x speedup. On bigger graphs, there is still some perf benefit but not as much.
         /// </summary>
-        private List<DifferentPipPair> FindDifferentPipPairs(IEnumerable<KeyValuePair<PipId, PipId>> matchingPips)
+        private List<DifferentPipPair> FindDifferentPipPairs(IEnumerable<(PipId Key, PipId Value)> matchingPips)
         {
             var differentPipPairComparer = new DifferentPipPairComparer();
             var result = new ConcurrentBag<DifferentPipPair>();
-            var matchingPipsQueue = new ConcurrentQueue<KeyValuePair<PipId, PipId>>(matchingPips);
+            var matchingPipsQueue = new ConcurrentQueue<(PipId Key, PipId Value)>(matchingPips);
             var threadCount = (int)(Environment.ProcessorCount * 1.25);
 
             var threads = Enumerable.Range(0, threadCount).Select(_ =>
@@ -388,7 +388,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly string m_executable = null;
         private readonly string m_stdInFile = null;
         private readonly string m_stdInData = null;
-        private readonly HashSet<KeyValuePair<string, (string, bool)>> m_envVars = new HashSet<KeyValuePair<string, (string, bool)>>();
+        private readonly HashSet<(string Key, (string, bool) Value)> m_envVars = new HashSet<(string Key, (string, bool) Value)>();
         private readonly string m_workingDir = null;
         private readonly string m_uniqueOutputDir = null;
         private readonly string m_tempDir = null;
@@ -607,7 +607,7 @@ namespace BuildXL.Execution.Analyzer
                 var varName = envVar.Name.ToString(stringTable);
                 var varValue = envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : null;
 
-                m_envVars.Add(new KeyValuePair<string, (string, bool)>(varName, (varValue, envVar.IsPassThrough)));
+                m_envVars.Add((varName, (varValue, envVar.IsPassThrough)));
             }
 
             m_workingDir = processPip.WorkingDirectory.ToString(pathTable);
@@ -758,7 +758,7 @@ namespace BuildXL.Execution.Analyzer
 
     internal class GraphDiffPipDumper
     {
-        private string m_diffDirectoryPath;
+        private readonly string m_diffDirectoryPath;
         private readonly AnalysisInput m_firstAnalysisInput;
         private readonly AnalysisInput m_secondAnalysisInput;
 

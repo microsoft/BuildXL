@@ -78,11 +78,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public GrpcCoreClientOptions? GrpcCoreClientOptions { get; set; }
 
         /// <summary>
-        /// If true, then Grpc.Net version is used.
-        /// </summary>
-        public bool UseGrpcDotNetClient { get; set; }
-
-        /// <summary>
         /// Options used by Grpc.Net client.
         /// </summary>
         public GrpcDotNetClientOptions? GrpcDotNetClientOptions { get; set; }

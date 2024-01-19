@@ -70,11 +70,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _configuration = configuration;
             _clock = clock ?? SystemClock.Instance;
 
-            if (!configuration.UseGrpcDotNetVersion)
-            {
-                GrpcEnvironment.WaitUntilInitialized();
-            }
-
             _channel = GrpcChannelFactory.CreateChannel(new OperationContext(context), ToChannelCreationOptions(key, configuration), channelType: nameof(GrpcCopyClient));
             _client = new ContentServer.ContentServerClient(_channel);
 
@@ -90,11 +85,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ChannelEncryptionOptions? encryptionOptions = clientOptions?.EncryptionEnabled == true ? GrpcEncryptionUtils.GetChannelEncryptionOptions() : null;
 
             return new ChannelCreationOptions(
-                configuration.UseGrpcDotNetVersion,
                 key.Host,
                 key.GrpcPort,
-                GrpcCoreOptions: configuration.UseGrpcDotNetVersion ? null : GrpcEnvironment.GetClientOptions(configuration.GrpcCoreClientOptions),
-                GrpcDotNetOptions: configuration.UseGrpcDotNetVersion ? (configuration.GrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default) : null)
+                GrpcCoreOptions: GrpcEnvironment.GetClientOptions(configuration.GrpcCoreClientOptions),
+                GrpcDotNetOptions: configuration.GrpcDotNetClientOptions)
             {
                 EncryptionEnabled = clientOptions?.EncryptionEnabled == true,
                 EncryptionOptions = encryptionOptions

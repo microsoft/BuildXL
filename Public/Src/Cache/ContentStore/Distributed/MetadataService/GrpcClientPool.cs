@@ -181,26 +181,9 @@ public class ConnectionHandle : StartupShutdownSlimBase
         Host = hostInfo.host;
         Port = hostInfo.port ?? defaultPort;
 
-
-        var useGrpcDotNet = grpcDotNetOptions is not null || grpcCoreOptions is null;
-#if !NET6_0_OR_GREATER
-        useGrpcDotNet = false;
-#endif
-        if (useGrpcDotNet)
-        {
-            grpcDotNetOptions ??= GrpcDotNetClientOptions.Default;
-            grpcCoreOptions = null;
-        }
-        else
-        {
-            grpcCoreOptions ??= ReadOnlyArray<ChannelOption>.Empty;
-            grpcDotNetOptions = null;
-        }
-
         Channel = GrpcChannelFactory.CreateChannel(
             context,
             new ChannelCreationOptions(
-                useGrpcDotNet,
                 Host,
                 Port,
                 grpcCoreOptions,
@@ -226,8 +209,6 @@ public class ConnectionPoolConfiguration : ResourcePoolConfiguration
     public required int DefaultPort { get; init; }
 
     public required TimeSpan ConnectTimeout { get; init; }
-
-    public required bool UseGrpcDotNet { get; init; }
 
     public required GrpcDotNetClientOptions GrpcDotNetOptions { get; init; }
 }

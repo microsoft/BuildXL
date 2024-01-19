@@ -31,8 +31,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// Channel creation options used by <see cref="GrpcChannelFactory"/>.
     /// </summary>
     public record ChannelCreationOptions(
-        bool UseGrpcDotNet,
-
         string Host,
         int GrpcPort,
 
@@ -57,21 +55,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public static ChannelBase CreateChannel(OperationContext context, ChannelCreationOptions channelOptions, string channelType)
         {
-            Tracer.Info(context, $"Grpc Encryption Enabled: {channelOptions.EncryptionEnabled}, GRPC Host: {channelOptions.Host}, GRPC Port: {channelOptions.GrpcPort}, GrpcDotNet: {channelOptions.UseGrpcDotNet}, ChannelType: {channelType}.");
-            if (!channelOptions.UseGrpcDotNet)
-            {
-                return CreateGrpcCoreChannel(context, channelOptions);
-            }
-
-            return CreateGrpcDotNetChannel(context, channelOptions);
+            Tracer.Info(context, $"Grpc Encryption Enabled: {channelOptions.EncryptionEnabled}, GRPC Host: {channelOptions.Host}, GRPC Port: {channelOptions.GrpcPort}, ChannelType: {channelType}.");
+            return CreateGrpcChannel(context, channelOptions);
         }
 
-        private static ChannelBase CreateGrpcDotNetChannel(OperationContext context, ChannelCreationOptions channelOptions)
-        {
-            Contract.Requires(channelOptions.GrpcDotNetOptions != null);
-
 #if NET6_0_OR_GREATER
-            var grpcDotNetSpecificOptions = channelOptions.GrpcDotNetOptions;
+
+        private static ChannelBase CreateGrpcChannel(OperationContext context, ChannelCreationOptions channelOptions)
+        {
+            var grpcDotNetSpecificOptions = channelOptions.GrpcDotNetOptions ?? GrpcDotNetClientOptions.Default;
             var handler = new SocketsHttpHandler
             {
                 UseCookies = false,
@@ -137,12 +129,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             return GrpcChannel.ForAddress(address, options);
-#else
-            throw new InvalidOperationException("Can't create Grpc.Net client on non-net6 platform.");
-#endif
         }
 
-#if NET6_0_OR_GREATER
         private static BoolResult SetupChannelOptionsForEncryption(OperationContext context, GrpcChannelOptions options, ChannelEncryptionOptions encryptionOptions, SocketsHttpHandler httpHandler)
         {
             var (certificateSubjectName, certificateChainsPath, identityTokenPath, storeLocation) = encryptionOptions;
@@ -215,15 +203,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return Task.CompletedTask;
             });
         }
-#endif
 
-        private static ChannelBase CreateGrpcCoreChannel(OperationContext context, ChannelCreationOptions channelOptions)
+#else
+
+        private static ChannelBase CreateGrpcChannel(OperationContext context, ChannelCreationOptions channelOptions)
         {
-            Contract.Requires(channelOptions.GrpcCoreOptions != null);
+            GrpcEnvironment.WaitUntilInitialized();
 
             var channelCreds = ChannelCredentials.Insecure;
 
-            var options = channelOptions.GrpcCoreOptions.ToList();
+            var options = (channelOptions.GrpcCoreOptions ?? Array.Empty<ChannelOption>()).ToList();
 
             if (channelOptions.EncryptionEnabled)
             {
@@ -263,6 +252,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Tracer.Warning(context, $"Failed to get GRPC SSL Credentials: {keyCertPairResult}");
             return null;
         }
+#endif
 
         public static async Task ConnectAsync(this ChannelBase channel, string host, int port, IClock clock, TimeSpan timeout)
         {

@@ -21,9 +21,5 @@ namespace Ipc {
             "Test.BuildXL.Ipc",
             "BuildXL.Ipc.Providers",
         ],
-
-        runtimeContentToSkip : [
-            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg,
-        ],
     });
 }

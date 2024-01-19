@@ -40,8 +40,7 @@ namespace Library {
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             ...getGrpcPackages(true),
             ...getGrpcDotNetPackages(),
-
-            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg, // required by grpc.net packages
+            importFrom("Microsoft.Extensions.Logging.Abstractions").pkg,
             ...BuildXLSdk.bclAsyncPackages,
 
             importFrom("Polly").pkg,
@@ -57,8 +56,6 @@ namespace Library {
         runtimeContent: [
             importFrom("Sdk.Protocols.Grpc").Deployment.runtimeContent,
         ],
-        // Expcluding the following dll from being deployed to avoid double write issues during evaluation.
-        runtimeContentToSkip: [importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg],
         allowUnsafeBlocks: true,
         skipDocumentationGeneration: true,
         nullable: true,

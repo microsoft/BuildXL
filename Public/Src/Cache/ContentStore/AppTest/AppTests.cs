@@ -1,31 +1,31 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
-using Xunit;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using ContentStoreTest.Test;
-using BuildXL.Cache.ContentStore.FileSystem;
-using Xunit.Abstractions;
-using FluentAssertions;
-using System;
-using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.InterfacesTest.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using System.Threading;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Grpc;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Native.IO;
 using ContentStoreTest.Extensions;
+using ContentStoreTest.Test;
+using FluentAssertions;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.App.Test
 {
@@ -72,12 +72,8 @@ namespace BuildXL.Cache.ContentStore.App.Test
             fileSystem.ReadAllText(destination).Should().Be("Foo");
         }
 
-        [Theory]
-#if NET6_0_OR_GREATER // gRPC.NET is only available in .NET Core
-        [InlineData(true)]
-#endif
-        [InlineData(false)]
-        public async Task ServiceTestAsync(bool useGrpcNet)
+        [Fact]
+        public async Task ServiceTestAsync()
         {
             using var fileSystem = new PassThroughFileSystem(Logger);
             using var dir = new DisposableDirectory(fileSystem);
@@ -105,14 +101,14 @@ namespace BuildXL.Cache.ContentStore.App.Test
 
                 var context = new Context(Logger);
 
-                var serviceClientRpcConfiguration = new ServiceClientRpcConfiguration { GrpcPort = port, UseGrpcDotNetClient = useGrpcNet};
+                var serviceClientRpcConfiguration = new ServiceClientRpcConfiguration { GrpcPort = port };
                 var config = new ServiceClientContentStoreConfiguration("Default", serviceClientRpcConfiguration, scenario: "AppTests");
                 config.GrpcEnvironmentOptions = new GrpcEnvironmentOptions()
-                                                {
-                                                    // Uncomment the next lines to enable full gRPC trace.
-                                                    // LoggingVerbosity = GrpcEnvironmentOptions.GrpcVerbosity.Info,
-                                                    // Trace = new List<string>{"all"}
-                                                };
+                {
+                    // Uncomment the next lines to enable full gRPC trace.
+                    // LoggingVerbosity = GrpcEnvironmentOptions.GrpcVerbosity.Info,
+                    // Trace = new List<string>{"all"}
+                };
                 using var store = new ServiceClientContentStore(Logger, fileSystem, config);
                 await store.StartupAsync(context).ShouldBeSuccess();
 
@@ -157,11 +153,11 @@ namespace BuildXL.Cache.ContentStore.App.Test
         public static async Task RunAppAsync(string verb, Dictionary<string, string> args, ILogger logger)
         {
             var permResult = FileUtilities.TrySetExecutePermissionIfNeeded(Path.Combine(Environment.CurrentDirectory, AppExe)).ThrowIfFailure();
-            
+
             var info = new ProcessStartInfo
             {
                 FileName = AppExe,
-                Arguments = $"{verb} {string.Join(" ", args.Select(kvp => $" /{ kvp.Key}:{ kvp.Value}"))}",
+                Arguments = $"{verb} {string.Join(" ", args.Select(kvp => $" /{kvp.Key}:{kvp.Value}"))}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false
@@ -199,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.App.Test
             var info = new ProcessStartInfo
             {
                 FileName = AppExe,
-                Arguments = $"{verb} {string.Join(" ", args.Select(kvp => $" /{ kvp.Key}:{ kvp.Value}"))}",
+                Arguments = $"{verb} {string.Join(" ", args.Select(kvp => $" /{kvp.Key}:{kvp.Value}"))}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 RedirectStandardInput = true,

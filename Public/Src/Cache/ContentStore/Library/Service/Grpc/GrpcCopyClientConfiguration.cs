@@ -45,9 +45,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public GrpcDotNetClientOptions? GrpcDotNetClientOptions { get; set; }
 
         /// <nodoc />
-        public bool UseGrpcDotNetVersion { get; set; }
-
-        /// <nodoc />
         public BandwidthChecker.Configuration BandwidthCheckerConfiguration { get; set; } = BandwidthChecker.Configuration.Disabled;
 
         /// <nodoc />
@@ -62,7 +59,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ApplyIfNotNull(dcs.GrpcCopyClientGrpcCoreClientOptions, v => grpcCopyClientConfiguration.GrpcCoreClientOptions = v);
             ApplyIfNotNull(dcs.GrpcCopyClientGrpcDotNetClientOptions, v => grpcCopyClientConfiguration.GrpcDotNetClientOptions = v);
             grpcCopyClientConfiguration.BandwidthCheckerConfiguration = BandwidthChecker.Configuration.FromDistributedContentSettings(dcs);
-            grpcCopyClientConfiguration.UseGrpcDotNetVersion = dcs.UseGrpcDotNetForCopies();
             return grpcCopyClientConfiguration;
         }
     }

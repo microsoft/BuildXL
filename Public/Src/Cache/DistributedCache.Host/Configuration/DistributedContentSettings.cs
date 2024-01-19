@@ -417,41 +417,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public GrpcDotNetClientOptions GrpcCopyClientGrpcDotNetClientOptions { get; set; }
 
-        [DataMember]
-        public bool? GrpcCopyClientUseGrpcDotNetClient { get; set; }
-
-        /// <summary>
-        /// A single flag that sets both <see cref="GrpcCopyClientUseGrpcDotNetClient"/> and <see cref="ContentMetadataClientUseGrpcDotNet"/>.
-        /// </summary>
-        [DataMember]
-        public bool? UseGrpcDotNetClient { get; set; }
-
-        /// <summary>
-        /// Returns true if gRPC.NET should be used for metadata operations.
-        /// </summary>
-        public bool UseGrpcDotForMetadata()
-        {
-            if (ContentMetadataClientUseGrpcDotNet == false)
-            {
-                return false;
-            }
-
-            return ContentMetadataClientUseGrpcDotNet == true || UseGrpcDotNetClient == true;
-        }
-
-        /// <summary>
-        /// Returns true if gRPC.NET should be used for copies.
-        /// </summary>
-        public bool UseGrpcDotNetForCopies()
-        {
-            if (GrpcCopyClientUseGrpcDotNetClient == false)
-            {
-                return false;
-            }
-
-            return GrpcCopyClientUseGrpcDotNetClient == true || UseGrpcDotNetClient == true;
-        }
-
         #endregion
 
         #region Distributed Eviction
@@ -991,9 +956,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public TimeSpanSetting ContentMetadataClientConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
-
-        [DataMember]
-        public bool? ContentMetadataClientUseGrpcDotNet { get; set; }
 
         [DataMember]
         public GrpcDotNetClientOptions ContentMetadataClientGrpcDotNetClientOptions { get; set; }

@@ -33,18 +33,6 @@ using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Stores
 {
-#if NET6_0_OR_GREATER
-    public class GrpcDotNetContentTests : GrpcCopyContentTests
-    {
-        public GrpcDotNetContentTests(ITestOutputHelper output) : base(output, useGrpcDotNetClient: true)
-        {
-        }
-
-        protected override IGrpcServerHost<LocalServerConfiguration> GrpcHost { get; } = new CacheServiceStartup.LocalContentServerGrpcDotNetHost();
-        protected override bool UseGrpcDotNetServer => true;
-    }
-#endif
-
     public class GrpcCopyContentTests : TestBase
     {
         private const int FileSize = 1000;
@@ -56,17 +44,13 @@ namespace ContentStoreTest.Distributed.Stores
         private int? _copyToLimit = null;
         private int? _proactivePushCountLimit = null;
 
-        private readonly bool _useGrpcDotNetClient;
-
-
         protected virtual IGrpcServerHost<LocalServerConfiguration> GrpcHost => null;
 
         protected virtual bool UseGrpcDotNetServer => false;
 
-        public GrpcCopyContentTests(ITestOutputHelper output, bool useGrpcDotNetClient = false)
+        public GrpcCopyContentTests(ITestOutputHelper output)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)
         {
-            _useGrpcDotNetClient = useGrpcDotNetClient;
             _context = new Context(Logger);
             _clientCache = new GrpcCopyClientCache(_context, new GrpcCopyClientCacheConfiguration()
             {
@@ -76,7 +60,6 @@ namespace ContentStoreTest.Distributed.Stores
                 },
                 GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
                 {
-                    UseGrpcDotNetVersion = useGrpcDotNetClient,
                 }
             });
         }
@@ -95,7 +78,6 @@ namespace ContentStoreTest.Distributed.Stores
                 },
                 GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
                 {
-                    UseGrpcDotNetVersion = _useGrpcDotNetClient,
                 },
             });
 

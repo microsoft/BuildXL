@@ -18,6 +18,9 @@ jobs:
 - job: Selfhost_${{ parameters.validationName }}
   displayName: Build and Validate Selfhost (${{ parameters.validationName }})
 
+  ${{ if eq(parameters.Role, 'Worker') }}:
+    continueOnError: true
+
   pool:
     name: BuildXL-DevOpsAgents-Linux-Stateless-PME
     os: linux

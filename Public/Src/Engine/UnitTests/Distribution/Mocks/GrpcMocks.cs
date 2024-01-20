@@ -21,6 +21,7 @@ using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using BuildXL.Engine.Cache.Fingerprints;
 using Google.Protobuf;
 using BuildXL.Utilities.Core;
+using static BuildXL.Distribution.Grpc.HelloResponse.Types;
 
 namespace Test.BuildXL.Distribution
 {
@@ -134,7 +135,7 @@ namespace Test.BuildXL.Distribution
         public void Exit(BuildEndData message)
         {
             var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
-            WorkerService.ExitRequested(failure);
+            WorkerService.ExitRequested("Exiting worker", failure);
         }
     }
 
@@ -186,9 +187,9 @@ namespace Test.BuildXL.Distribution
             m_fail = true;
         }
 
-        public Task<Possible<bool>> SayHelloAsync(ServiceLocation serviceLocation, CancellationToken cancellationToken = default)
+        public Task<Possible<HelloResponseType>> SayHelloAsync(ServiceLocation serviceLocation, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(new Possible<bool>(true));
+            return Task.FromResult(new Possible<HelloResponseType>(HelloResponseType.Ok));
         }
 
         public bool TryFinalizeStreaming()

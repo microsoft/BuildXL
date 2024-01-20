@@ -21,6 +21,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using PipGraphCacheDescriptor = BuildXL.Engine.Cache.Fingerprints.PipGraphCacheDescriptor;
+using static BuildXL.Distribution.Grpc.HelloResponse.Types;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -30,7 +31,7 @@ namespace BuildXL.Engine.Distribution
     /// <remarks>This interface is marked internal to reduce visibility to the distribution layer only</remarks>
     internal interface IOrchestratorService
     {
-        bool Hello(ServiceLocation workerLocation);
+        HelloResponseType Hello(ServiceLocation workerLocation);
         void AttachCompleted(AttachCompletionInfo attachCompletionInfo);
         Task ReceivedPipResults(PipResultsInfo pipResults);
         Task ReceivedExecutionLog(ExecutionLogInfo executionLog);
@@ -396,7 +397,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// A worker advertises its location during the build
         /// </summary>
-        public bool Hello(ServiceLocation workerLocation)
+        public HelloResponseType Hello(ServiceLocation workerLocation)
         {
             lock (m_remoteWorkers)
             {
@@ -404,7 +405,7 @@ namespace BuildXL.Engine.Distribution
                 {
                     // We already know this worker (presumably, from the command line).
                     // Just acknowledge the RPC.
-                    return true;
+                    return HelloResponseType.Ok;
                 }
 
                 // Choose a "dynamic" slot (with unknown location), if any, and set its service location
@@ -414,14 +415,16 @@ namespace BuildXL.Engine.Distribution
                     availableWorkerSlot.Location = workerLocation;
 
                     Logger.Log.DistributionHelloReceived(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, availableWorkerSlot.WorkerId);
-                    return !availableWorkerSlot.IsEarlyReleaseInitiated; // If it is already released by the scheduler, return false so the worker does not wait for the attachment.
+                    
+                    // Indicate if it is already released by the scheduler so the worker does not wait for the attachment.
+                    return availableWorkerSlot.IsEarlyReleaseInitiated ? HelloResponseType.Released : HelloResponseType.Ok; 
                 }
                 else
                 {
                     // If we receive a worker location and don't have a slot, it means that /dynamicWorkerCount had a wrong value:
                     // this is a configuration error.
                     Logger.Log.DistributionHelloNoSlot(m_loggingContext, workerLocation.IpAddress, workerLocation.Port);
-                    return false;
+                    return HelloResponseType.NoSlots;
                 }
             }
         }

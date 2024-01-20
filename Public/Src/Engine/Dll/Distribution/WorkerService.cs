@@ -20,6 +20,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
+using static BuildXL.Distribution.Grpc.HelloResponse.Types;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using PipGraphCacheDescriptor = BuildXL.Engine.Cache.Fingerprints.PipGraphCacheDescriptor;
 
@@ -51,7 +52,8 @@ namespace BuildXL.Engine.Distribution
         /// Notifies the WorkerService that the orchestrator has issued an exit request
         /// </summary>
         /// <param name="failure">If present, the build will be considered a failure</param>
-        void ExitRequested(Optional<string> failure);
+        /// <param name="exitMessage">Details of the operation to log on exit</param>
+        void ExitRequested(string exitMessage, Optional<string> failure);
     }
 
     /// <summary>
@@ -257,10 +259,10 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <nodoc/>
-        void IWorkerService.ExitRequested(Optional<string> failure)
+        void IWorkerService.ExitRequested(string exitMessage, Optional<string> failure)
         {
             m_isOrchestratorExited = true;
-            Logger.Log.DistributionExitReceived(m_appLoggingContext);
+            Logger.Log.DistributionExitReceived(m_appLoggingContext, exitMessage);
             Exit(failure);
         }
 
@@ -324,6 +326,32 @@ namespace BuildXL.Engine.Distribution
                 // If we can't say hello there is no hope for attachment
                 Exit(failure: $"SayHello call failed. Details: {helloResult.Failure.Describe()}", isUnexpected: true);
             }
+
+            switch (helloResult.Result)
+            {
+                case HelloResponseType.Ok:
+					// Nothing to do, the orchestrator will attach later.
+					break;
+
+				// The orchestrator sends a refusal, either when the worker has been early released
+				// before it had a chance to say Hello, or that there are no slots available for this worker.
+				// We should exit gracefully in these situations - this is basically the orchestrator refusing
+				// attachment, so we treat it the same as an "Exit" call, and we include the reason.
+				case HelloResponseType.Released:
+                    exit("Worker was early released before initiating attachment");
+                    break;
+    
+				case HelloResponseType.NoSlots:
+                    exit("Orchestrator had no slots to allocate to this dynamic worker");
+					break;
+            }
+
+            void exit(string reason)
+            {
+                var thisService = (IWorkerService)this;
+                thisService.ExitRequested(reason, Optional<string>.Empty);
+            }
+
         }
 
         /// <inheritdoc />

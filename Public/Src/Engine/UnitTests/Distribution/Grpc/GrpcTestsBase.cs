@@ -21,6 +21,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using static BuildXL.Engine.Distribution.RemoteWorker;
+using static BuildXL.Distribution.Grpc.HelloResponse.Types;
 
 namespace Test.BuildXL.Distribution
 {
@@ -163,7 +164,7 @@ namespace Test.BuildXL.Distribution
                 return Task.CompletedTask;
             }
 
-            void IWorkerService.ExitRequested(Optional<string> failure)
+            void IWorkerService.ExitRequested(string exitMessage, Optional<string> failure)
             {
                 Delay();
                 ReceivedExitCall = true;
@@ -250,9 +251,9 @@ namespace Test.BuildXL.Distribution
                 return Task.CompletedTask;
             }
 
-            public bool Hello(ServiceLocation workerLocation)
+            public HelloResponseType Hello(ServiceLocation workerLocation)
             {
-                return true;
+                return HelloResponseType.Ok;
             }
 
             #endregion

@@ -5,10 +5,10 @@ import "google/protobuf/wrappers.proto";
 package BuildXL.Distribution.Grpc;
 
 // Defines the service for talking to the builder orchestrator process
-service Orchestrator {
+service Orchestrator {    
     // A worker can advertise its own location dynamically during the build
     // This returns true if the orchestrator accepts this worker
-    rpc Hello(ServiceLocation) returns (BoolResponse) {}
+    rpc Hello(ServiceLocation) returns (HelloResponse) {}
 
     // Signals the completion of the Attach call
     rpc AttachCompleted(AttachCompletionInfo) returns (RpcResponse) {}
@@ -52,10 +52,16 @@ service Worker
 message RpcResponse {}
 
 // True or false response for a rpc method
-message BoolResponse
+message HelloResponse
 {
+    enum HelloResponseType {
+        Ok = 0;
+        Released = 1;
+        NoSlots = 2;
+    }
+
     // Result
-    bool Result = 1;
+    HelloResponseType Message = 1;
 }
 
 // The response from an Attach event

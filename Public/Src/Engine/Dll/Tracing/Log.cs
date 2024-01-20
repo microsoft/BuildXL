@@ -681,11 +681,11 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExitReceived,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
-            Message = "Received exit request from the orchestrator. Shutting down...")]
-        public abstract void DistributionExitReceived(LoggingContext context);
+            Message = "{exitMessage}. Shutting down...")]
+        public abstract void DistributionExitReceived(LoggingContext context, string exitMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerExitFailure,

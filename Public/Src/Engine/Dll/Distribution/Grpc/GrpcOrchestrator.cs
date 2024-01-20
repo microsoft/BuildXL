@@ -28,10 +28,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         /// <inheritdoc/>
-        public override Task<BoolResponse> Hello(ServiceLocation workerLocation, ServerCallContext context)
+        public override Task<HelloResponse> Hello(ServiceLocation workerLocation, ServerCallContext context)
         {
             var result = m_orchestratorService.Hello(workerLocation);
-            return Task.FromResult(new BoolResponse { Result = result });
+            return Task.FromResult(new HelloResponse { Message = result });
         }
 
         /// <inheritdoc/>

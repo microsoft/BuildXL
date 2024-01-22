@@ -121,6 +121,7 @@ jobs:
     inputs:
       filename: bxl.cmd
       arguments: >-
+        -use dev
         /p:[Sdk.BuildXL]microsoftInternal=0
         /q:$(QualifierToBuild)
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)

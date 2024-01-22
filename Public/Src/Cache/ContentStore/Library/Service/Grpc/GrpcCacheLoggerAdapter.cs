@@ -40,6 +40,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <inheritdoc />
         public IDisposable BeginScope<TState>(TState state)
+            where TState : notnull
         {
             return NoOpDisposableInstance;
         }

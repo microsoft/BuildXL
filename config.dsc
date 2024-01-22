@@ -372,7 +372,7 @@ config({
                 { id: "boost", version: "1.71.0.0" },
 
                 // Needed for SBOM Generation
-                { id: "Microsoft.Extensions.Logging.Abstractions", version: "6.0.3", alias: "Microsoft.Extensions.Logging.Abstractions.v6.0.3", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"] },
+                { id: "Microsoft.Extensions.Logging.Abstractions", version: "7.0.0", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"] },
                 { id: "System.Text.Encodings.Web", version: "7.0.0", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"], alias: "System.Text.Encodings.Web.v7.0.0" },
                 { id: "packageurl-dotnet", version: "1.1.0" },
                 { id: "System.Reactive", version: "4.4.1" },

@@ -101,7 +101,7 @@ namespace NugetPackages {
     // External packages
     // The macOS runtime package is only produced publicly, so 'Microsoft.BuildXL' will always be its prefix (ie: instead of using `packageNamePrefix`)
     // To produce a new version of this package please refer to our internal BuildXL OneNote in the macOS section.
-    const buildXLMacOSRuntimeIdentity = { id: `Microsoft.BuildXL.Interop.Runtime.osx-x64`, version: `20230818.1.0` };
+    const buildXLMacOSRuntimeIdentity = { id: `Microsoft.BuildXL.Interop.Runtime.osx-x64`, version: Branding.Nuget.packageVersion };
 
     const packageTargetFolder = BuildXLSdk.Flags.isMicrosoftInternal
         ? r`${qualifier.configuration}/pkgs`

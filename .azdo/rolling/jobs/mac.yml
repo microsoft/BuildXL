@@ -14,12 +14,14 @@ jobs:
         scanOutputDirectoryOnly: true
     outputParentDirectory: $(Agent.TempDirectory)/BuildXLMacOS
     outputs:
-    - output: buildArtifacts
-      displayName: Publish Microsoft.BuildXL.Interop.Runtime.osx-x64 package
-      PathtoPublish: $(Agent.TempDirectory)/BuildXLMacOS/Microsoft.BuildXL.Interop.Runtime.osx-x64.$(Build.BuildNumber).nupkg
-      ArtifactName: Microsoft.BuildXL.Interop.Runtime.osx-x64.$(Build.BuildNumber)
-      sbomEnabled: false
-    
+    - output: artifactsDrop
+      displayName: Publish Microsoft.BuildXL.Interop.Runtime.osx-x64 package to drop
+      dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
+      buildNumber: BuildXL/MacOS/Internal/Intermediate/$(Build.BuildNumber)/$(Build.BuildId)
+      sourcePath: $(Agent.TempDirectory)/BuildXLMacOS/Out
+      retentionDays: 1
+      dropMetadataContainerName: DropMetadata-MacOS-Intermediate
+
     - output: pipelineArtifact
       displayName: '[OnFailure] Publish Logs'
       condition: failed()
@@ -68,4 +70,4 @@ jobs:
       command: pack
       searchPatternPack: $(Agent.TempDirectory)/BuildXLMacOS/nugetpkg/Microsoft.BuildXL.Interop.Runtime.osx-x64.nuspec
       configurationToPack: ''
-      outputDir: $(Agent.TempDirectory)/BuildXLMacOS
+      outputDir: $(Agent.TempDirectory)/BuildXLMacOS/Out/release/pkgs

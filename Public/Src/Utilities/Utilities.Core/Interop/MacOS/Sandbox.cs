@@ -261,6 +261,11 @@ namespace BuildXL.Interop.Unix
 
             public uint IsDirectory;
 
+            /// <summary>
+            /// This report was sent before the sandbox was fully initialized.
+            /// </summary>
+            public uint UnexpectedReport;
+
             public string DecodeOperation() => Operation.GetName();
 
             /// <summary>

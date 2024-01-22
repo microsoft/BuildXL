@@ -634,7 +634,7 @@ namespace BuildXL.Processes
                     var message = messageStr.AsSpan().TrimEnd('\n');
 
                     // parse the message, consuming the span field by field. The format is:
-                    //  "%s|%d|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, isDirectory, reportPath
+                    //  "%s|%d|%d|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, isDirectory, unexpectedReport, reportPath
                     var restOfMessage = message;
                     _ = nextField(restOfMessage, out restOfMessage);  // ignore progname
                     var pid = AssertInt(nextField(restOfMessage, out restOfMessage));
@@ -644,6 +644,7 @@ namespace BuildXL.Processes
                     var err = AssertInt(nextField(restOfMessage, out restOfMessage));
                     var opCode = AssertInt(nextField(restOfMessage, out restOfMessage));
                     var isDirectory = AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var unexpectedReport = AssertInt(nextField(restOfMessage, out restOfMessage));
                     var path = nextField(restOfMessage, out restOfMessage);
                     Contract.Assert(restOfMessage.IsEmpty);  // We should have reached the end of the message
 
@@ -658,6 +659,7 @@ namespace BuildXL.Processes
                         Operation = (FileOperation)opCode,
                         PathOrPipStats = s_encoding.GetBytes(path.ToArray()),
                         IsDirectory = isDirectory,
+                        UnexpectedReport = unexpectedReport,
                     };
 
                     // update active processes

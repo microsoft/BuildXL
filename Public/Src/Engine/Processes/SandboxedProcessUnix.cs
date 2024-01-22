@@ -893,7 +893,7 @@ namespace BuildXL.Processes
                 // TODO: check if the tests are over specified because in practice BuildXL doesn't really rely much on the outcome of this check
                 var reportPath = report.DecodePath();
 
-                if (m_reports.GetMessageCountSemaphore() != null && ShouldCountReportType(report.Operation))
+                if (m_reports.GetMessageCountSemaphore() != null && ShouldCountReportType(report.Operation) && report.UnexpectedReport == 0)
                 {
                     try
                     {
@@ -939,6 +939,13 @@ namespace BuildXL.Processes
                     // We don't want this reported anywhere downstream, just log and return
                     LogDebug(reportPath);
                     return;
+                }
+
+                if (report.UnexpectedReport > 0)
+                {
+                    // The message counting semaphore was not incremented on the native side because this report happened before
+                    // we were able to open the semaphore
+                    Logger.Log.ReceivedFileAccessReportBeforeSemaphoreInit(m_loggingContext, reportPath);
                 }
 
                 // Set the process exit time once we receive it from the sandbox kernel extension report queue

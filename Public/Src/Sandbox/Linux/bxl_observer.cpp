@@ -174,6 +174,8 @@ void BxlObserver::Init()
 
         initializingSemaphore_ = false;
     }
+
+    bxlObserverInitialized_= true;
 }
 
 void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...)
@@ -396,10 +398,12 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bo
         return true;
     }
 
+    // The BxlObserver isn't ready to send reports yet (usually because the message counting semaphore isn't yet initialized)
+    bool unexpectedReport = !bxlObserverInitialized_ && report.operation != FileOperation::kOpDebugMessage;
     const int PrefixLength = sizeof(uint);
     char buffer[PIPE_BUF] = {0};
     int maxMessageLength = PIPE_BUF - PrefixLength;
-    int reportSize = BuildReport(&buffer[PrefixLength], maxMessageLength, report, report.path);
+    int reportSize = BuildReport(&buffer[PrefixLength], maxMessageLength, report, report.path, unexpectedReport);
     // CODESYNC: Public/Src/Engine/Processes/SandboxedProcessUnix.cs
     bool shouldCountReportType = 
         report.operation != FileOperation::kOpProcessStart
@@ -427,7 +431,7 @@ bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bo
             // Let's leave an ending \0
             strncpy(truncatedMessage, report.path, truncatedSize - 1);
 
-            reportSize = BuildReport(&buffer[PrefixLength], maxMessageLength, report, truncatedMessage);
+            reportSize = BuildReport(&buffer[PrefixLength], maxMessageLength, report, truncatedMessage, unexpectedReport);
         }
     }
 

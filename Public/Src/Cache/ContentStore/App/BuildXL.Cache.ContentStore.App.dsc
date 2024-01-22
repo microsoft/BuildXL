@@ -41,6 +41,7 @@ namespace App {
             importFrom("Newtonsoft.Json").pkg,
 
             ...getAzureBlobStorageSdkPackages(true),
+            importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.3").pkg, // required by grpc.net packages
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
         ],

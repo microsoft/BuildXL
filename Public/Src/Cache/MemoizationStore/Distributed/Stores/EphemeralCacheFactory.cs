@@ -318,6 +318,12 @@ public static class EphemeralCacheFactory
         IGrpcServiceEndpoint? grpcClusterStateEndpoint,
         IClock clock)
     {
+#if NETCOREAPP3_1_OR_GREATER
+        var useGrpcDotNet = true;
+#else
+        var useGrpcDotNet = false;
+#endif
+
         var (address, port) = configuration.Location.ExtractHostInfo();
         Contract.Requires(port is not null, $"Port missing from the configured reachable DNS name: {configuration.Location}");
 
@@ -347,6 +353,7 @@ public static class EphemeralCacheFactory
             // Please note, the following parameter is useless because we should be setting up ports on all machine
             // locations, so it should never be used.
             DefaultPort = GrpcConstants.DefaultEphemeralGrpcPort,
+            UseGrpcDotNet = useGrpcDotNet,
             GrpcDotNetOptions = new GrpcDotNetClientOptions()
             {
                 // We explicitly disable gRPC client-side tracing because it's too noisy.
@@ -582,6 +589,7 @@ public static class EphemeralCacheFactory
             {
                 GrpcCopyClientConfiguration = new GrpcCopyClientConfiguration()
                 {
+                    UseGrpcDotNetVersion = useGrpcDotNet,
                     ConnectionTimeout = configuration.ConnectionTimeout,
                     DisconnectionTimeout = configuration.ConnectionTimeout,
                     TimeToFirstByteTimeout = configuration.ConnectionTimeout,

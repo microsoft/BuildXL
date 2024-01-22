@@ -7,29 +7,29 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
-using BuildXL.Cache.ContentStore.Grpc;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using ContentStore.Grpc;
-using static BuildXL.Utilities.ConfigurationHelper;
+using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
+using BuildXL.Cache.ContentStore.Distributed.Services;
+using BuildXL.Cache.ContentStore.Grpc;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
+using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -108,6 +108,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 DefaultPort = (int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort,
                 ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
+                UseGrpcDotNet = _distributedSettings.UseGrpcDotForMetadata(),
                 GrpcDotNetOptions = _distributedSettings.ContentMetadataClientGrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default,
             },
             context: new OperationContext(_arguments.TracingContext.CreateNested(componentName: nameof(GrpcConnectionMap))));
@@ -339,16 +340,16 @@ namespace BuildXL.Cache.Host.Service.Internal
             var distributedSettings = arguments.Configuration.DistributedContentSettings;
 
             return new DistributedContentCopier.Configuration
-            {
-                TrustedHashFileSizeBoundary = distributedSettings.TrustedHashFileSizeBoundary,
-                ParallelHashingFileSizeBoundary = distributedSettings.ParallelHashingFileSizeBoundary,
-                RetryIntervalForCopies = distributedSettings.RetryIntervalForCopies,
-                BandwidthConfigurations = FromDistributedSettings(distributedSettings.BandwidthConfigurations),
-                MaxRetryCount = distributedSettings.MaxRetryCount,
-                RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
-                CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
-                CopyScheduler = CopySchedulerConfiguration.FromDistributedContentSettings(distributedSettings),
-            };
+                   {
+                       TrustedHashFileSizeBoundary = distributedSettings.TrustedHashFileSizeBoundary,
+                       ParallelHashingFileSizeBoundary = distributedSettings.ParallelHashingFileSizeBoundary,
+                       RetryIntervalForCopies = distributedSettings.RetryIntervalForCopies,
+                       BandwidthConfigurations = FromDistributedSettings(distributedSettings.BandwidthConfigurations),
+                       MaxRetryCount = distributedSettings.MaxRetryCount,
+                       RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
+                       CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
+                       CopyScheduler = CopySchedulerConfiguration.FromDistributedContentSettings(distributedSettings),
+                   };
         }
 
         private static DistributedContentStoreSettings CreateDistributedStoreSettings(

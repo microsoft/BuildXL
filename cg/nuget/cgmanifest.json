@@ -1239,6 +1239,15 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Logging.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Logging.Abstractions",
           "Version": "6.0.3"
         }
       }

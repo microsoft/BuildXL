@@ -771,12 +771,12 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.ErrorCacheDisabledDistributedBuild,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "Cache is not enabled. Distributed builds require caching to be enabled.",
+            Message = "Cache is not enabled. Distributed builds require caching to be enabled: {errorMessage}",
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void ErrorCacheDisabledDistributedBuild(LoggingContext context);
+        public abstract void ErrorCacheDisabledDistributedBuild(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(
             (ushort)SharedLogEventId.DistributionWorkerForwardedError,
@@ -1523,7 +1523,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         [GeneratedEvent(
             (int)LogEventId.FailedToAcquireDirectoryLock,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
             EventTask = (int)Tasks.Engine,
             Message = "Failed to acquire a lock to prevent concurrent builds: {0}")]
@@ -1532,7 +1532,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         [GeneratedEvent(
             (int)LogEventId.FailedToAuthorizeVSTSCache,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Engine,
             Message = "Failed to initialize Azure DevOps Artifact cache. Check that your VPN is connected. Error: {0}")]
@@ -2395,7 +2395,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         [GeneratedEvent(
             (int)LogEventId.StorageCacheStartupError,
             EventGenerators = EventGenerators.LocalAndTelemetry,
-            EventLevel = Level.Error,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Storage,
             Message = "Starting up the cache resulted in an error: {0}")]
@@ -2940,6 +2940,16 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "{details}. The '/enableLinuxPTraceSandbox' option will be automatically disabled without the required tools.")]
         public abstract void RequiredToolsNotInstalled(LoggingContext context, string details);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ErrorCacheInitializationForEngineScheduleConstruction,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "Engine schedule cannot be constructed because cache initialization failed: {errorMessage}",
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void ErrorCacheInitializationForEngineScheduleConstruction(LoggingContext context, string errorMessage);
     }
 
     /// <summary>

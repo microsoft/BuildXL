@@ -334,7 +334,7 @@ namespace Test.BuildXL.EngineTests
             AssertSuccess(firstCacheInitializer.Close());
             firstCacheInitializer.Dispose();
 
-            AssertErrorEventLogged(global::BuildXL.Engine.Tracing.LogEventId.FailedToAcquireDirectoryLock);
+            AssertVerboseEventLogged(global::BuildXL.Engine.Tracing.LogEventId.FailedToAcquireDirectoryLock);
             AssertTrue(!possibleSecondCacheInitializer.Succeeded, "Initialization of the second cache should have failed.");
         }
 

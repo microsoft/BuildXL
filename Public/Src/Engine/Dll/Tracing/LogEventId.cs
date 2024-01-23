@@ -413,6 +413,8 @@ namespace BuildXL.Engine.Tracing
         DistributionStreamingNetworkFailure = 7134,
 
         JournalNotEnabledOnVolumeWarning = 7135,
+
+        ErrorCacheInitializationForEngineScheduleConstruction = 7136,
         // max 7200
     }
 }

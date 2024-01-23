@@ -1896,7 +1896,7 @@ namespace BuildXL.Engine
                                     if (!possibleCacheInitializerForDistribution.Succeeded)
                                     {
                                         // StorageCacheStartupError has been logged by CacheInitializer
-                                        Logger.Log.ErrorCacheDisabledDistributedBuild(engineLoggingContext);
+                                        Logger.Log.ErrorCacheDisabledDistributedBuild(engineLoggingContext, possibleCacheInitializerForDistribution.Failure.Describe());
                                         return BuildXLEngineResult.Failed(engineState);
                                     }
                                 }
@@ -1911,6 +1911,7 @@ namespace BuildXL.Engine
                                     out engineSchedule,
                                     out rootFilter);
                                 success &= constructScheduleResult != ConstructScheduleResult.Failure;
+
                                 bool exitOnNewGraph = constructScheduleResult == ConstructScheduleResult.ExitOnNewGraph;
                                 if (exitOnNewGraph)
                                 {
@@ -3030,6 +3031,7 @@ namespace BuildXL.Engine
                         if (!possibleCacheInitializer.Succeeded)
                         {
                             // StorageCacheStartupError has been logged by CacheInitializer
+                            Logger.Log.ErrorCacheInitializationForEngineScheduleConstruction(loggingContext, possibleCacheInitializer.Failure.Describe());
                             return ConstructScheduleResult.Failure;
                         }
 

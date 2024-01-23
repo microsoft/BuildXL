@@ -1650,7 +1650,6 @@ namespace BuildXL.Engine
             // We always need an EngineCache to put together a scheduler; if that fails, we have to give up (unfortunately after waiting on the tasks prior).
             if (!possibleCacheInitializer.Succeeded)
             {
-                // TODO: Expecting an error already logged; should do this with types?
                 return null;
             }
 

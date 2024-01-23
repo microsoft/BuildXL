@@ -708,16 +708,6 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// Returns a task representation
-        /// </summary>
-        public async Task<Possible<CacheInitializer>> AsTask()
-        {
-            // Need to justify using async here to the compiler
-            await BuildXL.Utilities.Core.Tasks.BoolTask.False;
-            return await this;
-        }
-
-        /// <summary>
         /// Gets an awaiter for the underlying initialization task. This is the pattern-based interface as required by the 'await' keyword.
         /// In addition to returning the underlying awaiter, this tracks the first await time for logging (useful to compare with init start time).
         /// </summary>

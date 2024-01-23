@@ -712,8 +712,11 @@ namespace BuildXL.Engine.Distribution
                 m_orchestratorService.Counters.IncrementCounter(DistributionCounter.NumProblematicWorkers);
             }
 
-            await m_buildManifestReader.FinalizeAsync();
-            await m_executionLogReader.FinalizeAsync();
+            if (EverConnected)
+            {
+                await m_buildManifestReader.FinalizeAsync();
+                await m_executionLogReader.FinalizeAsync();
+            }
 
             ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped, callerName);
         }
@@ -830,7 +833,6 @@ namespace BuildXL.Engine.Distribution
 
         public void SendToRemote(OperationContext operationContext, RunnablePip runnable)
         {
-            Contract.Assert(m_workerClient != null, "Calling SendToRemote before the worker is initialized");
             Contract.Assert(runnable.Step == PipExecutionStep.MaterializeOutputs || EverAvailable, "All steps except MaterializeOutput step require available workers.");
 
             var pipId = runnable.PipId;

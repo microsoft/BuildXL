@@ -8,6 +8,7 @@
 #include "DetouredProcessInjector.h"
 #include "UtilityHelpers.h"
 #include <vector>
+#include <TraceLoggingProvider.h>
 
 using std::vector;
 
@@ -18,6 +19,7 @@ using std::vector;
 #define SUPER_VERBOSE 0
 #define MEASURE_DETOURED_NT_CLOSE_IMPACT 0
 #define MEASURE_REPARSEPOINT_RESOLVING_IMPACT 0
+#define ENABLE_TRACE_LOGGING 0
 
 // ----------------------------------------------------------------------------
 // FORWARD DECLARATIONS
@@ -67,6 +69,8 @@ extern LPCSTR g_lpDllNameX86;
 extern LPCSTR g_lpDllNameX64;
 
 extern DetouredProcessInjector* g_pDetouredProcessInjector;
+
+TRACELOGGING_DECLARE_PROVIDER(g_detoursServicesTraceProvider);
 
 // ----------------------------------------------------------------------------
 // Substitute process execution shim.

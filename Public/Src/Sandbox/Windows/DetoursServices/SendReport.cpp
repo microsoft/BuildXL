@@ -14,6 +14,8 @@
 #include "PolicyResult.h"
 #include "buildXL_mem.h"
 
+#include <TraceLoggingProvider.h>
+
 using std::unique_ptr;
 
 extern volatile LONG g_detoursAllocatedNoLockConcurentPoolEntries;
@@ -42,7 +44,19 @@ void SendReportString(_In_z_ wchar_t const* dataString)
     overlapped.Offset = 0xFFFFFFFF;
     overlapped.OffsetHigh = 0xFFFFFFFF;
 
-    size_t reportLineLength = sizeof(wchar_t) * wcslen(dataString);
+    size_t length = wcslen(dataString);
+    size_t reportLineLength = sizeof(wchar_t) * length;
+
+#if ENABLE_TRACE_LOGGING
+    TraceLoggingWrite(
+        g_detoursServicesTraceProvider,
+        "SendReportString",
+        TraceLoggingInt64((int64_t)g_FileAccessManifestPipId, "PipId"),
+        TraceLoggingUInt64(length, "Length"),
+        TraceLoggingCountedWideString(dataString, (ULONG)min((size_t)32, length), "Start")
+    );
+#endif
+
     DWORD bytesWritten;
     DWORD lastError = GetLastError();
     if (!WriteFile(g_reportFileHandle, dataString, (DWORD)reportLineLength, &bytesWritten, &overlapped))
@@ -54,6 +68,10 @@ void SendReportString(_In_z_ wchar_t const* dataString)
     }
     else
     {
+#if ENABLE_TRACE_LOGGING
+        TraceLoggingWrite(g_detoursServicesTraceProvider, "SendReportStringSuccess");
+#endif
+
         // Increment semaphore indicating that a message was sent successfully. The managed sandbox will not decrement it.
         if (g_messageSentCountSemaphore != INVALID_HANDLE_VALUE)
         {

@@ -32,6 +32,7 @@
 #include <Psapi.h>
 #include "FilesCheckedForAccess.h"
 #include "locale.h"
+#include <TraceLoggingProvider.h>
 
 #define BUILDXL_DETOURS_CREATE_PROCESS_RETRY_COUNT 5
 #define BUILDXL_DETOURS_INJECT_PROCESS_RETRY_COUNT 5
@@ -356,6 +357,15 @@ ZwSetInformationFile_t Real_ZwSetInformationFile;
 
 CreatePipe_t Real_CreatePipe;
 DeviceIoControl_t Real_DeviceIoControl;
+
+TRACELOGGING_DEFINE_PROVIDER(
+    g_detoursServicesTraceProvider,
+    "DetoursServicesTraceLogging",
+    // See https://learn.microsoft.com/en-us/windows/win32/api/traceloggingprovider/nf-traceloggingprovider-tracelogging_define_provider
+    // Run the following in PowerShell to get the GUID for the provider: 
+    //     [System.Diagnostics.Tracing.EventSource]::new("DetoursServicesTraceLogging").Guid
+    // {eee7223c-8b2d-5291-43f0-d539ab87e3a8}
+    (0xeee7223c, 0x8b2d, 0x5291, 0x43, 0xf0, 0xd5, 0x39, 0xab, 0x87, 0xe3, 0xa8));
 
 // Value used to signal the the exit code of the current process cannot be retrieved
 #define PROCESS_EXIT_CODE_CANNOT_BE_RETRIEVED 0xFFFFFF9A
@@ -1007,7 +1017,9 @@ static bool DllProcessDetach()
         ReportProcessData(counters, creationTime, exitTime, kernelTime, userTime, exitCode, g_parentProcessId, (LONG64)g_detoursMaxAllocatedMemoryInBytes);
     }
 
-#if MEASURE_DETOURED_NT_CLOSE_IMPACT    
+    TraceLoggingUnregister(g_detoursServicesTraceProvider);
+
+#if MEASURE_DETOURED_NT_CLOSE_IMPACT
     // Do some statistical information logging for different measurements
     Dbg(L"Populate NtClose pool list entries time: %d ms.", g_msTimeToPopulatePoolList);
     Dbg(L"Pip execution time: %d ms.", (LONG)(GetTickCount64() - g_pipExecutionStart));
@@ -1122,6 +1134,8 @@ static bool DllProcessAttach()
         Dbg(L"Failure creating private heap. Last Error: %d", (int)GetLastError());
         return false;
     }
+
+    TraceLoggingRegister(g_detoursServicesTraceProvider);
 
     g_breakawayChildProcesses = new vector<BreakawayChildProcess>();
     g_pManifestTranslatePathTuples = new vector<TranslatePathTuple*>();

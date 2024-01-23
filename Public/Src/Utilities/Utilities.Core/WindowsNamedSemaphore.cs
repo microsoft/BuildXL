@@ -25,10 +25,7 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <nodoc/>
-        ~WindowsNamedSemaphore()
-        {
-            Dispose();
-        }
+        ~WindowsNamedSemaphore() => Dispose(false);
 
         /// <summary>
         /// Try to create a named System.Threading.Semaphore.
@@ -40,13 +37,13 @@ namespace BuildXL.Utilities.Core
         {
             try
             {
-                var sem = new WindowsNamedSemaphore(name, new System.Threading.Semaphore(initialCount, maximumCount, name, out var newlyCreated));
+                var sem = new System.Threading.Semaphore(initialCount, maximumCount, name, out var newlyCreated);
                 if (!newlyCreated)
                 {
                     return new Failure<string>($"Failed to create semaphore with name '{name}' and value {initialCount} because a semaphore with this name already exists.");
                 }
 
-                return sem;
+                return new WindowsNamedSemaphore(name, sem);
             }
             catch (Exception e)
             {
@@ -55,21 +52,16 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <inheritdoc />
-        public int Release()
-        {
-            return m_semaphore.Release();
-        }
+        public int Release() => m_semaphore.Release();
 
         /// <inheritdoc />
-        public bool WaitOne(int timeoutMilliseconds)
-        {
-            return m_semaphore.WaitOne(timeoutMilliseconds);
-        }
+        public bool WaitOne(int timeoutMilliseconds) => m_semaphore.WaitOne(timeoutMilliseconds);
 
         /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <nodoc/>
@@ -77,8 +69,12 @@ namespace BuildXL.Utilities.Core
         {
             if (!m_disposed)
             {
+                if (disposing)
+                {
+                    m_semaphore.Dispose();
+                }
+
                 m_disposed = true;
-                m_semaphore.Close();
             }
         }
     }

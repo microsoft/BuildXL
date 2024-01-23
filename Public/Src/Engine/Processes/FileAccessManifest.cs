@@ -621,7 +621,7 @@ namespace BuildXL.Processes
             if (MessageCountSemaphore is not null)
             {
                 Contract.Assert(m_messageCountSemaphoreName is not null);
-                MessageCountSemaphore?.Dispose();
+                MessageCountSemaphore.Dispose();
                 MessageCountSemaphore = null;
                 m_messageCountSemaphoreName = null;
             }
@@ -629,7 +629,7 @@ namespace BuildXL.Processes
             if (MessageSentCountSemaphore is not null)
             {
                 Contract.Assert(m_messageSentCountSemaphoreName is not null);
-                MessageSentCountSemaphore?.Dispose();
+                MessageSentCountSemaphore.Dispose();
                 MessageSentCountSemaphore = null;
                 m_messageSentCountSemaphoreName = null;
             }

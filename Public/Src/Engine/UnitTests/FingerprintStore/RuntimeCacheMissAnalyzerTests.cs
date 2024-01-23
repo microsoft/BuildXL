@@ -250,6 +250,65 @@ namespace Test.BuildXL.FingerprintStore
             XAssert.ArrayEqual(expectedKeys, keys.ToArray());
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void CacheMissAnalysisOnAdo(bool definePrVariables)
+        {
+            var environmentToRestore = new Dictionary<string, string>();
+            void overrideEnvironment(string var, string value)
+            {
+                environmentToRestore[var] = Environment.GetEnvironmentVariable(var);
+                Environment.SetEnvironmentVariable(var, value);
+            }
+
+            overrideEnvironment("BUILD_SOURCEBRANCH", "refs/heads/BuildSourceBranch");
+            if (definePrVariables) 
+            {
+                overrideEnvironment("SYSTEM_PULLREQUEST_SOURCEBRANCH", "refs/heads/PrSourceBranch");
+                overrideEnvironment("SYSTEM_PULLREQUEST_TARGETBRANCH", "refs/heads/PrTargetBranch");
+            }
+
+            try
+            {
+                EnableFingerprintStore(CacheMissAnalysisOption.AdoMode());
+                Configuration.Infra = Infra.Ado;
+
+                var testHooks = new SchedulerTestHooks()
+                {
+                    FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
+                    {
+                        MaxEntryAge = TimeSpan.FromDays(1),
+                    }
+                };
+
+                var p = CreateAndSchedulePipBuilder(new[]
+                {
+                    Operation.WriteFile(CreateOutputFileArtifact())
+                });
+
+                RunScheduler(testHooks).AssertSuccess();
+                var keys = testHooks.FingerprintStoreTestHooks.CandidateKeys;
+
+                var expectedKeys = definePrVariables ? new string[]
+                {
+                    "refs_heads_BuildSourceBranch",
+                    "refs_heads_PrSourceBranch",
+                    "refs_heads_PrTargetBranch",
+                } :
+                new string[] { "refs_heads_BuildSourceBranch" };
+
+                XAssert.ArrayEqual(expectedKeys, keys.ToArray());
+            }
+            finally
+            {
+                foreach (var kvp in environmentToRestore)
+                {
+                    Environment.SetEnvironmentVariable(kvp.Key, kvp.Value);
+                }
+            }
+        }
+
         [Fact]
         public void CacheMissAnalysisIsPerformedOnNonFrontierPipsIfThereIsUncacheableParent()
         {

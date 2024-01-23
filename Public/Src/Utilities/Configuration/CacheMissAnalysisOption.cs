@@ -25,6 +25,11 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public AbsolutePath CustomPath { get; set; }
 
+        /// <summary>
+        /// If this mode uses a remote fingerprint store, so the engine should publish the fingerprint store to the cache
+        /// </summary>
+        public bool ShouldPublishFingerprintStoreToCache => Mode == CacheMissMode.Remote || Mode == CacheMissMode.AzureDevOps || Mode == CacheMissMode.GitHashes;
+
         /// <nodoc />
         public static CacheMissAnalysisOption Disabled()
         {
@@ -35,6 +40,12 @@ namespace BuildXL.Utilities.Configuration
         public static CacheMissAnalysisOption LocalMode()
         {
             return new CacheMissAnalysisOption(CacheMissMode.Local, new List<string>(), AbsolutePath.Invalid);
+        }
+
+        /// <nodoc />
+        public static CacheMissAnalysisOption AdoMode()
+        {
+            return new CacheMissAnalysisOption(CacheMissMode.AzureDevOps, new List<string>(), AbsolutePath.Invalid);
         }
 
         /// <nodoc />
@@ -94,6 +105,14 @@ namespace BuildXL.Utilities.Configuration
         /// Using the fingerprint store in the given directory
         /// </summary>
         CustomPath,
+
+        /// <summary>
+        /// Look up the fingerprint store in the cache using contextual information available from the environment
+        /// on builds running on Azure DevOps pipelines. 
+        /// The keys used are the names for repository branches that are related to the running build 
+        /// (current branch name, and source and target branches when in a pull request build). 
+        /// </summary>
+        AzureDevOps,
 
         /// <summary>
         /// Look up the fingerprint store in the cache using recent git commit hashes

@@ -64,7 +64,7 @@ namespace BuildXL.Scheduler.Tracing
                 // that were succesful. We'll use this dictionary to assign a provenance to each key. 
                 // The idea is to analyze if this heuristic is actually successful or not, 
                 // TODO [maly] Remove this log-line after analysis
-                var keyOrigin = option.Mode == CacheMissMode.GitHashes
+                var keyOrigin = option.Mode == CacheMissMode.GitHashes || option.Mode == CacheMissMode.AzureDevOps
                     ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     : null;
 
@@ -85,11 +85,22 @@ namespace BuildXL.Scheduler.Tracing
                     else
                     {
                         IReadOnlyList<string> keys = option.Keys;
-                        Contract.Assert(option.Mode == CacheMissMode.Remote || option.Mode == CacheMissMode.GitHashes);
+                        Contract.Assert(option.Mode == CacheMissMode.Remote || option.Mode == CacheMissMode.GitHashes || option.Mode == CacheMissMode.AzureDevOps);
                         if (option.Mode == CacheMissMode.GitHashes)
                         {
                             // turn 'keys' into the final candidate list
                             keys = await SelectKeysFromGitHashes(keys, keyOrigin, testHooks, loggingContext);
+                        }
+                        else if (option.Mode == CacheMissMode.AzureDevOps)
+                        {
+                            Contract.Assert(configuration.Infra == Infra.Ado);
+                            keys = GetKeysFromAdoEnvironment(keyOrigin, loggingContext);
+                        }
+
+                        if (keys == null)
+                        {
+                            // Details have been logged in the methods above
+                            return null;
                         }
 
                         testHooks?.SelectedCandidateKeys(keys);
@@ -142,6 +153,72 @@ namespace BuildXL.Scheduler.Tracing
                 Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Failed to read the fingerprint store to compare. Mode: {option.Mode} Failure: {possibleStore.Failure.DescribeIncludingInnerFailures()}"));
                 return null;
             }
+        }
+
+        private static IReadOnlyList<string> GetKeysFromAdoEnvironment(Dictionary<string, string> keyOrigin, LoggingContext loggingContext)
+        {
+            var candidateList = new List<string>();
+            // Retrieve contextual information about the branch the build is running from the Azure DevOps environment variables, and use those values as keys.
+            // We consider two scenarios: builds running from a PR trigger and builds that don't.
+            // For builds running on a PR, these are the candidate keys we use:
+            //  1. The PR merge-branch name (e.g., /refs/pull/1234/merge)
+            //  2. The source branch for the PR (e.g., /refs/dev/chelo/myFeatureBranch)
+            //  3. The target branch for the PR (e.g., /refs/heads/main)
+            // The rationale is that we want to get the latest fingerprint store pushed by other iterations from 'this' PR,
+            // which will share the PR branch name, and if we can't find that (for example, in the first build for that PR)
+            // we fall back to the closest branches that might have been built before in a non-PR build
+            // (and thus pushed a fingerprint store using their branch names).
+            // For builds triggered outside of PRs, we just use the branch name as the single candidate key.
+            //
+            // This strategy is effective assuming the target branches are built regularly and that FP stores from those branches
+            // will become accessible from the PR builds (e.g., assuming PRs target 'main', we assume that the 'main' branch
+            // is built with a regular cadence, and contributes to the same FP store universe so that the FP store is available
+            // for PRs to consume when resolving the SYSTEM_PULLREQUEST_TARGETBRANCH key below).
+            addCandidateFromAdoVariable("BUILD_SOURCEBRANCH");
+            addCandidateFromAdoVariable("SYSTEM_PULLREQUEST_SOURCEBRANCH");
+            addCandidateFromAdoVariable("SYSTEM_PULLREQUEST_TARGETBRANCH");
+
+            if (candidateList.Count == 0)
+            {
+                Logger.Log.GettingFingerprintStoreTrace(loggingContext, $"Expected ADO predefined variables to be defined to retrieve fingerprint store keys on an ADO Build, but none were.");
+                return null;
+            }
+
+            return candidateList;
+
+            void addCandidateFromAdoVariable(string variableName)
+            {
+				// PR variables are not defined when the build is not triggered by a PR
+				var maybeVariableValue = GetKeyFromAdoEnvironment(variableName);
+                if (maybeVariableValue != null)
+                {
+                    candidateList.Add(maybeVariableValue);
+                    keyOrigin[variableName] = maybeVariableValue;
+                }
+            }
+
+        }
+
+        private static string GetKeyFromAdoEnvironment(string variableName)
+        {
+            var variableValue = Environment.GetEnvironmentVariable(variableName);
+
+			if (string.IsNullOrEmpty(variableValue))
+			{
+				return null;
+			}
+
+            // Sanitize - we need this to be a path atom down the line
+            var chars = variableValue.ToCharArray();
+            for (var i = 0; i < chars.Length; i++)
+            {
+                if (!PathAtom.IsValidPathAtomChar(chars[i]))
+                {
+                    chars[i] = '_';
+                }
+            }
+
+            return new string(chars);
         }
 
         private static async Task<IReadOnlyList<string>> SelectKeysFromGitHashes(IReadOnlyList<string> keys, Dictionary<string, string> keyOrigin, FingerprintStoreTestHooks testHooks, LoggingContext loggingContext)
@@ -659,6 +736,10 @@ namespace BuildXL.Scheduler.Tracing
                 {
                     Logger.Log.MissingKeyWhenSavingFingerprintStore(loggingContext, $"an error was encountered when invoking git for the latest commit hash to be used as a key: {currentCommit.Failure.Describe()}");
                 }
+            }
+            else if (option.Mode == CacheMissMode.AzureDevOps)
+            {
+				return GetKeyFromAdoEnvironment("BUILD_SOURCEBRANCH");
             }
             else
             {

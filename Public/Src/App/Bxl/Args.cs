@@ -194,7 +194,7 @@ namespace BuildXL
                             opt => cacheConfiguration.CacheGraph = opt),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "cacheMiss",
-                            (opt, sign) => ParseCacheMissAnalysisOption(opt, sign, loggingConfiguration, pathTable)),
+                            (opt, sign) => ParseCacheMissAnalysisOption(opt, sign, configuration.Logging, configuration.Infra, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(
                             "cacheMissBatch",
                             sign => loggingConfiguration.CacheMissBatch = sign),
@@ -1753,11 +1753,19 @@ namespace BuildXL
             CommandLineUtilities.Option opt,
             bool sign,
             LoggingConfiguration loggingConfiguration,
+            Infra runningInfra,
             PathTable pathTable)
         {
             if (string.IsNullOrEmpty(opt.Value))
             {
-                loggingConfiguration.CacheMissAnalysisOption = sign ? CacheMissAnalysisOption.LocalMode() : CacheMissAnalysisOption.Disabled();
+                if (sign)
+                {
+                    loggingConfiguration.CacheMissAnalysisOption = runningInfra == Infra.Ado ? CacheMissAnalysisOption.AdoMode() : CacheMissAnalysisOption.LocalMode();
+                }
+                else
+                {
+                    loggingConfiguration.CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
+                }
             }
             else if (s_gitCacheMissFormat.IsMatch(opt.Value))
             {

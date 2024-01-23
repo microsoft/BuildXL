@@ -566,9 +566,11 @@ public:
     GEN_FN_DEF(int, __xstat, int, const char *, struct stat *);
     GEN_FN_DEF(int, __xstat64, int, const char*, struct stat64*);
     GEN_FN_DEF(int, __fxstat, int, int, struct stat*);
-    GEN_FN_DEF(int, __fxstatat, int, int, const char*, struct stat*, int);;
+    GEN_FN_DEF(int, __fxstatat, int, int, const char*, struct stat*, int);
     GEN_FN_DEF(int, __fxstat64, int, int, struct stat64*);
     GEN_FN_DEF(int, __fxstatat64, int, int, const char*, struct stat64*, int);
+    GEN_FN_DEF(int, __xmknod, int, const char*, mode_t, dev_t*);
+    GEN_FN_DEF(int, __xmknodat, int, int, const char*, mode_t, dev_t*);
 #else
     GEN_FN_DEF(int, stat, const char *, struct stat *);
     GEN_FN_DEF(int, stat64, const char *, struct stat64 *);

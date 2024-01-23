@@ -643,18 +643,16 @@ namespace Test.BuildXL.Processes
             AssertLogContains(GetRegex("report_create", Path.Combine(result.rootDirectory, "testdirectory")));
         }
 
-        [Fact(Skip = "Not detected by interpose layer, bug#2132116")]
         public void CallTestmknod()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex(GetSyscallName(MethodBase.GetCurrentMethod().Name), Path.Combine(result.rootDirectory, "testfile")));
+            AssertLogContains(GetRegex("report_create", Path.Combine(result.rootDirectory, "testfile")));
         }
 
-        [Fact(Skip = "Not detected by interpose layer, bug#2132116")]
         public void CallTestmknodat()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex(GetSyscallName(MethodBase.GetCurrentMethod().Name), Path.Combine(result.rootDirectory, "testfile")));
+            AssertLogContains(GetRegex("report_create", Path.Combine(result.rootDirectory, "testfile")));
         }
 
         [Fact]

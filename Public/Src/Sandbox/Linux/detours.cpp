@@ -1107,6 +1107,32 @@ INTERPOSE(int, mknodat, int dirfd, const char *pathname, mode_t mode, dev_t dev)
     return bxl->check_fwd_and_report_mknodat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, mode, dev);
 })
 
+#if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
+INTERPOSE(int, __xmknod, int ver, const char * path, mode_t mode, dev_t * dev)({
+    if (mode == 0 || mode & S_IFREG)
+    {
+        AccessReportGroup report;
+        auto check = report_create(__func__, bxl, AT_FDCWD, path, S_IFREG, report);
+        return bxl->check_fwd_and_report___xmknod(report, check, ERROR_RETURN_VALUE, ver, path, mode, dev);
+    }
+    
+    // the type of block being created is a non-file (eg: fifo, socket, etc.), we don't have to report it
+    return bxl->fwd___xmknod(ver, path, mode, dev).restore();
+})
+
+INTERPOSE(int, __xmknodat, int ver, int dirfd, const char * path, mode_t mode, dev_t * dev)({
+    if (mode == 0 || mode & S_IFREG)
+    {
+        AccessReportGroup report;
+        auto check = report_create(__func__, bxl, dirfd, path, S_IFREG, report);
+        return bxl->check_fwd_and_report___xmknodat(report, check, ERROR_RETURN_VALUE, ver, dirfd, path, mode, dev);
+    }
+
+    // the type of block being created is a non-file (eg: fifo, socket, etc.), we don't have to report it
+    return bxl->fwd___xmknodat(ver, dirfd, path, mode, dev).restore();
+})
+#endif
+
 INTERPOSE(int, vprintf, const char *fmt, va_list args)({
     AccessReportGroup report;
     bxl->create_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, 1, report);

@@ -166,8 +166,9 @@ function parseArgs() {
         --vs)
             arg_Positional+=(
                 "/vs"
-                "/vsTargetFramework:netcoreapp3.0"
-                "/vsTargetFramework:netcoreapp3.1"
+                "/vsNew"
+                "/vsTargetFramework:net6.0"
+                "/vsTargetFramework:net7.0"
                 "/vsTargetFramework:netstandard2.0"
                 "/vsTargetFramework:netstandard2.1")
             shift

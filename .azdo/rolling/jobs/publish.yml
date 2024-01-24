@@ -86,7 +86,12 @@ jobs:
     inputs:
       filePath: Shared/Scripts/SBOMValidation.ps1
       arguments: -SBOMManifestFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/spdx_2.2/manifest.spdx.json -BcdeOutputFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/bcde-output.json
-  
+
+  # Set PAT to pull from mseng
+  - template: ../../common/set-artifacts-pat.yml
+    parameters:
+      AzDevPAT: $(PAT-TseBuild-AzureDevOps-MsEng)
+
   - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@0
     displayName: Download MacOS Runtime Nuget Package
     inputs:
@@ -94,11 +99,6 @@ jobs:
       dropServiceURI: ''
       destinationPath: $(Agent.TempDirectory)/DownloadedDrop
       usePat: false
-
-  # Set PAT to pull from mseng
-  - template: ../../common/set-artifacts-pat.yml
-    parameters:
-      AzDevPAT: $(PAT-TseBuild-AzureDevOps-MsEng)
 
   - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
     displayName: Download Internal Linux Intermediate Artifacts

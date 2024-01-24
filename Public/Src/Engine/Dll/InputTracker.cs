@@ -26,6 +26,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.Core.BuildParameters;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using System.Text.RegularExpressions;
 
 namespace BuildXL.Engine
 {
@@ -118,6 +119,11 @@ namespace BuildXL.Engine
 
         private readonly ConcurrentDictionary<string, DirectoryMembershipTrackingFingerprint> m_directoryFingerprints =
             new ConcurrentDictionary<string, DirectoryMembershipTrackingFingerprint>(OperatingSystemHelper.PathComparer);
+
+        /// <summary>
+        /// Regex to check whether an env value contains a path
+        /// </summary>
+        private static readonly Regex PathRegex = new(@"[a-zA-Z]:\\[^<>:""/\\|?*]*", RegexOptions.Compiled);
 
         private bool m_allDirectoriesEnumerationsAccountedFor = true;
         private bool m_wasAnyDirectoryEnumerated;
@@ -898,7 +904,7 @@ namespace BuildXL.Engine
                 if (availableEnvironmentVariables.ContainsKey(key))
                 {
                     string currentValue = NormalizeEnvironmentVariableValue(availableEnvironmentVariables[key]);
-                    if (!previousValue.Equals(currentValue, StringComparison.OrdinalIgnoreCase))
+                    if (!previousValue.Equals(currentValue, ShouldIgnoreCaseEnvVarValue(currentValue) ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                     {
                         result.MissType = GraphCacheMissReason.EnvironmentVariableChanged;
                         result.FirstMissIdentifier = string.Format(
@@ -1418,6 +1424,16 @@ namespace BuildXL.Engine
         public static string NormalizeEnvironmentVariableValue(string value)
         {
             return value ?? UnsetVariableMarker;
+        }
+
+        /// <summary>
+        /// Should ignore case for the give value.
+        /// On windows, ignore case when value contains path values.
+        /// On linux, always consider case.
+        /// </summary>
+        public static bool ShouldIgnoreCaseEnvVarValue(string value)
+        {
+            return OperatingSystemHelper.IsWindowsOS ? PathRegex.IsMatch(value) : false;
         }
 
         /// <summary>

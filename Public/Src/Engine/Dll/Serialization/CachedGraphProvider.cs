@@ -889,12 +889,19 @@ namespace BuildXL.Engine
             Contract.Requires(!string.IsNullOrWhiteSpace(name));
 
             name = name.ToCanonicalizedEnvVar();
-            comparedValue = InputTracker.NormalizeEnvironmentVariableValue(comparedValue).ToUpperInvariant();
-            string value = InputTracker.NormalizeEnvironmentVariableValue(buildParameters.ContainsKey(name) ? buildParameters[name] : null).ToUpperInvariant();
+            comparedValue = InputTracker.NormalizeEnvironmentVariableValue(comparedValue);
+            string value = InputTracker.NormalizeEnvironmentVariableValue(buildParameters.ContainsKey(name) ? buildParameters[name] : null);
+
+            bool ignoreCase = InputTracker.ShouldIgnoreCaseEnvVarValue(value) || InputTracker.ShouldIgnoreCaseEnvVarValue(comparedValue);
+            if (ignoreCase)
+            {
+                comparedValue = comparedValue.ToUpperInvariant();
+                value = value.ToUpperInvariant();
+            }
 
             hasher.Add(name, value);
 
-            if (!string.Equals(comparedValue, value, StringComparison.OrdinalIgnoreCase) && ++environmentInputDifferenceCount < InputDifferencesLimit)
+            if (!string.Equals(comparedValue, value, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) && ++environmentInputDifferenceCount < InputDifferencesLimit)
             {
                 var mismatch = new MismatchedEnvironmentVariableInput(name, comparedValue, value);
                 possibleMismatchedInputs.Add(mismatch);

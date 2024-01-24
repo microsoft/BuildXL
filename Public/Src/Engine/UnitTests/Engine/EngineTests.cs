@@ -16,12 +16,15 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Engine;
 using Test.BuildXL.TestUtilities.Xunit;
+using Test.BuildXL.EngineTestUtilities;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Engine.Tracing;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using FrontEndLogEventId = BuildXL.FrontEnd.Script.Tracing.LogEventId;
 using FrontEndCoreLogEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
+using FrontEndEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
 
 namespace Test.BuildXL.EngineTests
 {
@@ -590,6 +593,78 @@ const y = Debug.writeLine(T.testValue); ";
             AssertErrorEventLogged(FrontEndCoreLogEventId.CannotBuildWorkspace); // One or more error occurred during workspace analysis
         }
 
+        /// <summary>
+        /// Test the environment variable case sensitivity in graph cache
+        /// On windows, a value contains path is case insensitive.
+        /// On Linux, a value is always case sensitive.
+        /// </summary>
+        public void TestEnvValueCaseInGraphCache()
+        {
+            const string MountName = "MyMountTest";
+            const string ModuleName = nameof(TestEnvValueCaseInGraphCache);
+            const string EnvVarName1 = "TestEnvVar1";
+            const string EnvVarName2 = "TestEnvVar2";
+            const string SourceDir = "Src";
+
+            var sourceRootPath = Configuration.Layout.SourceDirectory.ToString(Context.PathTable);
+            var sourceDirPath = Path.Combine(sourceRootPath, SourceDir);
+            Directory.CreateDirectory(sourceDirPath);
+            File.WriteAllText(Path.Combine(sourceDirPath, "file.txt"), "Test");
+
+            // Setup cache
+            ConfigureInMemoryCache(new TestCache());
+
+            SetupPipsWithEnvironmentAccess(ModuleName, new string[] { EnvVarName1, EnvVarName2 });
+            SetConfigForPipsWithMountAndEnvironmentAccess(MountName, sourceDirPath, ModuleName);
+            
+            Configuration.Cache.CacheGraph = true;
+            Configuration.Cache.AllowFetchingCachedGraphFromContentCache = true;
+            Configuration.Cache.Incremental = true;
+            Configuration.Startup.Properties.Add(EnvVarName1, "Env1");
+            Configuration.Startup.Properties.Add(EnvVarName2, "B:\\TestPath");
+
+            RunEngine("First Build");
+            AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
+            AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+
+            Configuration.Startup.Properties[EnvVarName2] = "B:\\testpath";
+
+            RunEngine("Second Build");
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                // path value is case insensitive on Windows. Cache graph didn't get rebuild
+                AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues, 0);
+                AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor, 0, false);
+            }
+            else
+            {
+                AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
+                AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+                AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor);
+            }
+            
+            Configuration.Startup.Properties[EnvVarName1] = "env1"; 
+
+            RunEngine("Third Build");
+            AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
+            AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+            AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor);
+        }
+
+        private void SetupPipsWithEnvironmentAccess(string moduleName, string[] environmentVarName)
+        {
+            var writenEnvVar = string.Join(",", environmentVarName.Select(e => $@"Environment.getStringValue('{e}')"));
+
+            var spec = I(
+                $@"
+import {{Transformer}} from 'Sdk.Transformers';
+
+const outputDirectory = Context.getNewOutputDirectory('{moduleName}');
+export const writeFile = Transformer.writeAllLines(p`${{outputDirectory}}/write.out`, [{writenEnvVar}]);
+");
+            AddModule(moduleName, ("spec.dsc", spec));
+        }
+
         private void SetupTestData()
         {
             var spec0 = @"
@@ -651,6 +726,24 @@ const pip = Transformer.execute({
         private static void AssertSuccess<T>(Possible<T, Failure> possible)
         {
             Assert.True(possible.Succeeded);
+        }
+
+        private void SetConfigForPipsWithMountAndEnvironmentAccess(string mountName, string mountPath, string moduleName)
+        {
+            SetConfig(I(
+               $@"
+config({{
+    modules: [f`./{moduleName}/module.config.dsc`],
+    mounts: [
+        {{
+            name: a`{mountName}`,
+            path: p`{mountPath}`,
+            trackSourceFileChanges: true,
+            isWritable: true,
+            isReadable: true
+        }},
+     ]
+}});"));
         }
     }
 }

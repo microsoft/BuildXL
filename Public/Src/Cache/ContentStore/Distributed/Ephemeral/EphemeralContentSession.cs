@@ -4,6 +4,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -361,6 +362,10 @@ public class EphemeralContentSession : ContentSessionBase
             // the previous call, and so we don't need to do it ourselves here.
             return local;
         }
+        else if (IsUnrecoverablePutFailure(local))
+        {
+            return local;
+        }
 
         if (_ephemeralHost.PutElisionCache.TryGetValue(local.ContentHash, out var contentSize))
         {
@@ -419,6 +424,10 @@ public class EphemeralContentSession : ContentSessionBase
             // the previous call, and so we don't need to do it ourselves here.
             return local;
         }
+        else if (IsUnrecoverablePutFailure(local))
+        {
+            return local;
+        }
 
         // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
         // it deduplicates requests about the existence of content.
@@ -459,6 +468,10 @@ public class EphemeralContentSession : ContentSessionBase
             // If content already exists locally, then it means that it must have been placed there by a previous call
             // to PutFileAsync. Because the cache gets reset in every build, the content would have been uploaded by
             // the previous call, and so we don't need to do it ourselves here.
+            return local;
+        }
+        else if (IsUnrecoverablePutFailure(local))
+        {
             return local;
         }
 
@@ -511,6 +524,10 @@ public class EphemeralContentSession : ContentSessionBase
         {
             return local;
         }
+        else if (IsUnrecoverablePutFailure(local))
+        {
+            return local;
+        }
 
         // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
         // it deduplicates requests about the existence of content.
@@ -539,6 +556,36 @@ public class EphemeralContentSession : ContentSessionBase
         }
 
         return persistent;
+    }
+
+    /// <summary>
+    /// This function gets called when any Put operation into the local content store fails. It determines whether we
+    /// can recover from the failure to Put into the local or not. If we can't, then we return the failure as is.
+    /// </summary>
+    private bool IsUnrecoverablePutFailure(PutResult local)
+    {
+        if (local.Succeeded)
+        {
+            return false;
+        }
+
+        if (local.IsCancelled)
+        {
+            return true;
+        }
+
+        // This is absolutely horrible, but there's no error classification happening upstream.
+        if (local.ErrorMessage!.Contains("and did not match expected value of"))
+        {
+            return true;
+        }
+
+        if (local.ErrorMessage!.Contains("The process cannot access the file because it is being used by another process"))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     public Task<Result<bool>> AllowPutElisionAsync(OperationContext context, ShortHash contentHash)

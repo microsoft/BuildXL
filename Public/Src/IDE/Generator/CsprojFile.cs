@@ -26,6 +26,8 @@ namespace BuildXL.Ide.Generator
 
         private StringTable StringTable => Context.StringTable;
 
+        private string CurrentHost => GetCurrentHost();
+
         internal CsprojFile(
             Context context,
             AbsolutePath specFilePath)
@@ -42,16 +44,33 @@ namespace BuildXL.Ide.Generator
             Sdk = "Microsoft.NET.Sdk";
         }
 
+        private string GetCurrentHost()
+        {
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                return "win-x64";
+            }
+            else if (OperatingSystemHelper.IsLinuxOS)
+            {
+                return "linux-x64";
+            }
+            else if (OperatingSystemHelper.IsMacOS)
+            {
+                return "osx-x64";
+            }
+
+            throw new BuildXLException("Unsupported platform for Visual Studio solution generation.");
+        }
+
         internal override void VisitProcess(Process process, ProcessType pipCategory)
         {
             var qualifier = Context.QualifierTable.GetQualifier(process.Provenance.QualifierId);
 
             // only consider processes targeting current os;
             // also, additionally exclude projects targeting net451
-            var currentRuntime = OperatingSystemHelper.IsMacOS ? "osx-x64" : "win-x64";
             if (
                 // targetRuntime is defined and is different from current runtime
-                (qualifier.TryGetValue(StringTable, "targetRuntime", out var targetRuntime) && AreNotEqual(targetRuntime, currentRuntime))
+                (qualifier.TryGetValue(StringTable, "targetRuntime", out var targetRuntime) && AreNotEqual(targetRuntime, CurrentHost))
                 // OR, targetFramework is defined and is equal to "net451"
                 || (qualifier.TryGetValue(StringTable, QualifierTargetFrameworkPropertyName, out var targetFramework) && AreEqual(targetFramework, "net451")))
             {

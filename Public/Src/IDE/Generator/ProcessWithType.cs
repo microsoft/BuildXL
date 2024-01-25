@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
@@ -68,6 +69,10 @@ namespace BuildXL.Ide.Generator
             {
                 type = ProcessType.XUnit;
             }
+            else if (IsXUnitWrappedInBash(context, process, toolName))
+            {
+                type = ProcessType.XUnit;
+            }
             else if (toolName.CaseInsensitiveEquals(stringTable, context.VsTestExeName))
             {
                 type = ProcessType.VsTest;
@@ -114,6 +119,36 @@ namespace BuildXL.Ide.Generator
             }
 
             return path.GetName(context.PathTable).CaseInsensitiveEquals(context.StringTable, name);
+        }
+
+        private static bool IsXUnitWrappedInBash(Context context, Process process, PathAtom toolName)
+        {
+            // See Public/Sdk/Public/Managed/Testing/XUnit/xunitframework.dsc on how xunit processes get wrapped in bash
+            // Typically there will be a few arguments before dotnet/xunit as args into bash and to set the executable bit
+            if (toolName == context.BashName)
+            {
+                var arguments = context.GetArgumentsDataFromProcess(process);
+                if (arguments.FragmentCount >= 5)
+                {
+                    for (int i = 0; i < arguments.Count(); i++)
+                    {
+                        if (arguments.ElementAt(i).FragmentType == PipFragmentType.AbsolutePath)
+                        {
+                            var elem = arguments.ElementAt(i).GetPathValue();
+                            if (i < arguments.Count() - 1 && elem.IsValid && IsDotNetTool(elem.GetName(context.PathTable), context))
+                            {
+                                elem = arguments.ElementAt(i).GetPathValue();
+                                return elem.GetName(context.PathTable).CaseInsensitiveEquals(context.StringTable, context.XunitConsoleDllName);
+                            }
+
+                            // If the first path was not dotnet and the second path after that was not xunit, then this is not an xunit pip
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }

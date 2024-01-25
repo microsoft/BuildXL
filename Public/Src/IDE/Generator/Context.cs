@@ -85,6 +85,11 @@ namespace BuildXL.Ide.Generator
         /// </summary>
         internal readonly PathAtom VsTestExeName;
 
+        /// <summary>
+        /// "bash"
+        /// </summary>
+        internal readonly PathAtom BashName;
+
         internal readonly PipGraph PipGraph;
         internal readonly IReadonlyDirectedGraph ScheduledGraph;
         internal readonly PathTable PathTable;
@@ -163,6 +168,7 @@ namespace BuildXL.Ide.Generator
             ClExeName = PathAtom.Create(StringTable, "cl.exe");
             LinkExeName = PathAtom.Create(StringTable, "Link.exe");
             VsTestExeName = PathAtom.Create(StringTable, "vstest.console.exe");
+            BashName = PathAtom.Create(StringTable, "bash");
             AssemblyDeploymentTag = StringId.Create(StringTable, "assemblyDeployment");
             TestDeploymentTag = StringId.Create(StringTable, "testDeployment");
         }

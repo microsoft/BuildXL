@@ -2,6 +2,25 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240121.1.1 (Release [358162](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=358162))
+- Add args to override csc debugType option
+- Address Detours message mismatch failures
+- Use path remapper for nuget package exclusions
+- Improve fire & forget MaterializeOutput feature
+- Early-released dynamic workers don’t wait for orchestrator attachment
+- Exit gracefully when a Hello call is refused from a dynamically-attaching worker
+
+# 0.1.0-20240113.1 (Release [356195](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=356195))
+- Improve the early termination with an internal error.
+- Add Retry for download pips.
+- Simplify GRPC options
+- Launch ptrace sandbox when a binary has capabilities set.
+- Update Rush and Nuget tests to use internal package feeds on internal builds. 
+- Add additional profiling files to support API scan.
+
+# 0.1.0-20240105.3 (Release [354406](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=354406))
+- [Linux] Report full program path on sandbox init
+
 # 0.1.0-20231229.2 (Release [352891](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=352891))
 - [Linux] Report opendir​ in sandbox interpose.
 - Add help text for PipProperties, and rename pip-specific PipFingerprintingSalt property to PipFingerprintSalt.

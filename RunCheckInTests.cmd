@@ -140,7 +140,9 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Building using BuildXL
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /q:Debug /q:DebugNet472 /f:tag='compile' /TraceInfo:RunCheckinTests=RunCodex  /incrementalScheduling- /enableLazyOutputs- -SharedCacheMode disable 
+        REM Need to use /trackBuildsInUserFolder+ so that the build invocation is written to the .tsv file in User Settings folder.
+        REM The subsequent bxlAnalyzer.exe invocation will read this .tsv file to get information about this build for Codex analysis.
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /q:Debug /q:DebugNet472 /f:tag='compile' /TraceInfo:RunCheckinTests=RunCodex /trackBuildsInUserFolder+ /incrementalScheduling- /enableLazyOutputs- -SharedCacheMode disable 
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 

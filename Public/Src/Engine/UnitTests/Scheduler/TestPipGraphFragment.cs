@@ -49,12 +49,19 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public BuildXLContext Context { get; }
 
-        private FrontEndContext m_frontEndContext;
+        private readonly FrontEndContext m_frontEndContext;
 
         /// <summary>
         /// Creates an instance of <see cref="TestPipGraphFragment"/>.
         /// </summary>
-        public TestPipGraphFragment(LoggingContext loggingContext, string sourceRoot, string objectRoot, string redirectedRoot, string moduleName, bool useTopSort = false)
+        public TestPipGraphFragment(
+            LoggingContext loggingContext,
+            string sourceRoot,
+            string objectRoot,
+            string redirectedRoot,
+            string moduleName,
+            bool useTopSort = false,
+            string salt = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(!string.IsNullOrEmpty(sourceRoot));
@@ -73,17 +80,19 @@ namespace Test.BuildXL.Scheduler
                 {
                     UseFixedApiServerMoniker = true,
                     ComputePipStaticFingerprints = true,
+                },
+                Cache =
+                {
+                    CacheSalt = salt,
                 }
             };
 
             m_frontEndContext = FrontEndContext.CreateInstanceForTesting();
             m_useTopSort = useTopSort;
 
-            var pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(configuration.Engine.PipSpecificPropertyAndValues);
-
             PipGraph = m_useTopSort
-                ? new PipGraphFragmentBuilderTopSort(Context, configuration, m_expander, pipSpecificPropertiesConfig)
-                : new PipGraphFragmentBuilder(Context, configuration, m_expander, pipSpecificPropertiesConfig);
+                ? new PipGraphFragmentBuilderTopSort(Context, configuration, m_expander)
+                : new PipGraphFragmentBuilder(Context, configuration, m_expander);
 
             ModuleName = moduleName;
             var specFileName = moduleName + ".dsc";

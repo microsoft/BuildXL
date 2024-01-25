@@ -22,6 +22,9 @@ namespace BuildXL.Pips.Graph
         {
             /// <nodoc/>
             public const string SourceChangeAffectedInputList = nameof(SourceChangeAffectedInputList);
+
+            /// <nodoc/>
+            public const string ProcessSpecificFingerprintSalt = nameof(ProcessSpecificFingerprintSalt);
         }
 
         /// <nodoc/>

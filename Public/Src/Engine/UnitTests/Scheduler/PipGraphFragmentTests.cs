@@ -8,8 +8,9 @@ using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Pips.Graph;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -20,10 +21,16 @@ namespace Test.BuildXL.Scheduler
 {
     public class PipGraphFragmentTests : PipTestBase
     {
-        public PipGraphFragmentTests(ITestOutputHelper output)
-            : base(output)
+        private static readonly IConfiguration s_defaultConfiguration = new ConfigurationImpl
         {
-        }
+            Schedule =
+            {
+                ComputePipStaticFingerprints = true
+            }
+        };
+
+        public PipGraphFragmentTests(ITestOutputHelper output)
+            : base(output) => ResetPipGraphBuilder(s_defaultConfiguration);
 
         [Fact]
         public void TestBasicCreation()
@@ -341,6 +348,58 @@ namespace Test.BuildXL.Scheduler
             VerifyGraphSuccessfullyConstructed(graph);
         }
 
+        [Fact]
+        public void TestConstructionWithDifferentSalts()
+        {
+            var fragment = CreatePipGraphFragmentTest(nameof(TestConstructionWithDifferentSalts), salt: "Salty");
+            var processBuilder = fragment.GetProcessBuilder();
+            var argumentsBuilder = new ArgumentsBuilder(processBuilder);
+            AbsolutePath outputPathToVerify;
+            argumentsBuilder
+                .AddInputFileOption("/input:", fragment.CreateSourceFile("f"))
+                .AddOutputFileOption("/output:", outputPathToVerify = fragment.CreateOutputFile("g").Path)
+                .Finish();
+            (Process process, ProcessOutputs _) = fragment.ScheduleProcessBuilder(processBuilder);
+
+            // Deserialize with a salt.
+            ResetPipGraphBuilder(new ConfigurationImpl
+            {
+                Schedule =
+                {
+                    ComputePipStaticFingerprints = true
+                },
+                Cache =
+                {
+                    CacheSalt = "TooSalty"
+                }
+            });
+
+            SerializeFragments(fragment);
+            var graph1 = DeserializeFragments(true, fragment);
+            VerifyGraphSuccessfullyConstructed(graph1);
+            XAssert.AreEqual(1, graph1.AllPipStaticFingerprints.Count());
+
+            // Modify salt.
+            ResetPipGraphBuilder(new ConfigurationImpl
+            {
+                Schedule =
+                {
+                    ComputePipStaticFingerprints = true
+                },
+                Cache =
+                {
+                    CacheSalt = "NotTooSalty"
+                }
+            });
+
+            var graph2 = DeserializeFragments(true, fragment);
+            VerifyGraphSuccessfullyConstructed(graph2);
+            XAssert.AreEqual(1, graph2.AllPipStaticFingerprints.Count());
+
+            // Verify that pips have different static fingerprints.
+            XAssert.AreNotEqual(graph1.AllPipStaticFingerprints.First().Value, graph2.AllPipStaticFingerprints.First().Value);
+        }
+
         #region Serialization
 
         private string GetFragmentPath(TestPipGraphFragment fragment) => Path.Combine(TemporaryDirectory, fragment.ModuleName);
@@ -496,9 +555,9 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         /// <param name="moduleName">Module name.</param>
         /// <returns>An instance of <see cref="TestPipGraphFragment"/>.</returns>
-        protected virtual TestPipGraphFragment CreatePipGraphFragmentTest(string moduleName)
+        protected virtual TestPipGraphFragment CreatePipGraphFragmentTest(string moduleName, string salt = null)
         {
-            return CreatePipGraphFragment(moduleName, useTopSort: false);
+            return CreatePipGraphFragment(moduleName, useTopSort: false, salt: salt);
         }
     }
 }

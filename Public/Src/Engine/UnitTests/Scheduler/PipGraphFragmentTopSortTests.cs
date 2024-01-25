@@ -5,6 +5,8 @@ using System.Linq;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -16,9 +18,18 @@ namespace Test.BuildXL.Scheduler
 {
     public sealed class PipGraphFragmentTopSortTests : PipTestBase
     {
+        private static readonly IConfiguration s_defaultConfiguration = new ConfigurationImpl
+        {
+            Schedule =
+            {
+                ComputePipStaticFingerprints = true
+            }
+        };
+
         public PipGraphFragmentTopSortTests(ITestOutputHelper output)
             : base(output)
         {
+            ResetPipGraphBuilder(s_defaultConfiguration);
         }
 
         [Fact]

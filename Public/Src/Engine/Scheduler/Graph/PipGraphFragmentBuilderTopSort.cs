@@ -22,12 +22,8 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Creates an instance of <see cref="PipGraphFragmentBuilder"/>.
         /// </summary>
-        public PipGraphFragmentBuilderTopSort(
-            PipExecutionContext pipExecutionContext, 
-            IConfiguration configuration, 
-            PathExpander pathExpander,
-            PipSpecificPropertiesConfig pipSpecificPropertiesConfig) 
-            : base(pipExecutionContext, configuration, pathExpander, pipSpecificPropertiesConfig: pipSpecificPropertiesConfig)
+        public PipGraphFragmentBuilderTopSort(PipExecutionContext pipExecutionContext, IConfiguration configuration, PathExpander pathExpander) 
+            : base(pipExecutionContext, configuration, pathExpander)
         {
         }
 

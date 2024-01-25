@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips.Graph
@@ -65,7 +64,7 @@ namespace BuildXL.Pips.Graph
                 {
                     using (var hasher = CreateHashingHelper(true))
                     {
-                        hasher.Add("IndependentFingerprint", completeFingerprint.Hash);
+                        hasher.Add("IndependentFingerprintWithConfigFingerprint", completeFingerprint.Hash);
                         hasher.AddOrderIndependentCollection(
                             "DirectoryDependencyFingerprints", 
                             process.DirectoryDependencies, 
@@ -122,12 +121,51 @@ namespace BuildXL.Pips.Graph
             return completeFingerprint;
         }
 
+        /// <summary>
+        /// Adds extra fingerprint salts and process-specific fingerprint salts to the independent fingerprint.
+        /// </summary>
+        /// <remarks>
+        /// Independent fingerprint may have been calculated in a different build that has different extra fingerprint salts, or has no
+        /// process-specific fingerprint salts. This can be the result of constructing the graph from graph fragments. The fragments
+        /// themselves may have been constructed by some pips from a different build, and that constructions may have different extra fingerprint salts
+        /// from the current build.
+        ///
+        /// Consider the following scenario where a build session consists of 2 builds, one consisting pips for constructing pip graph fragments, and the other 
+        /// stitches the fragments together and executes the pips in the fragments. In the first build session, the 1st build has a pip that constructs
+        /// a pip P in a graph fragment G with a fingerprint salt A. The fragment is then included in the 2nd build that executes P.
+        ///
+        /// In the next build session, the first build keeps using the fingerprint salt A for constructing the graph fragment G. Thus, in that build,
+        /// the construction of G has a cache hit. In the second build, one changes the fingerprint salt to B, and expects P to have a cache miss. In this build
+        /// we will have a graph cache miss because we have a different fingerprint salt B. However, during the graph construction, we still serialize
+        /// the graph fragments generated in the first build. If we do not include the fingerprint salt B when calculating the pip's static weak fingerprint (when stitching the fragments together),
+        /// then P will have the same static weak fingerprint as the one in the first build session. This can result in a hit in the incremental scheduling
+        /// state and make P get skipped during the execution phase, and thus underbuild.
+        /// </remarks>
+        private ContentFingerprint AddConfigFingerprintToIndependentFingerprint(Pip pip, ContentFingerprint independentFingerprint, out string fingerprintInputText)
+        {
+            fingerprintInputText = string.Empty;
+            using (var hasher = CreateHashingHelper(true))
+            {
+                hasher.Add("IndependentFingerprint", independentFingerprint.Hash);
+                hasher.AddNested(PipFingerprintField.ExecutionAndFingerprintOptions, fp => ExtraFingerprintSalts.AddFingerprint(fp, pip.BypassFingerprintSalt));
+
+                if (pip is Process process)
+                {
+                    AddProcessSpecificFingerprintSalt(hasher, process);
+                }
+
+                fingerprintInputText = FingerprintTextEnabled
+                    ? fingerprintInputText + Environment.NewLine + hasher.FingerprintInputText
+                    : fingerprintInputText;
+
+                return new ContentFingerprint(hasher.GenerateHash());
+            }
+        }
+
         /// <inheritdoc />
         public override ContentFingerprint ComputeWeakFingerprint(Pip pip, out string fingerprintInputText)
         {
             ContentFingerprint fingerprint;
-            fingerprintInputText = string.Empty;
-
             if (FingerprintTextEnabled)
             {
                 // Force compute weak fingerprint if fingerprint text is requested.
@@ -136,6 +174,10 @@ namespace BuildXL.Pips.Graph
             else if (pip.IndependentStaticFingerprint.Length > 0)
             {
                 fingerprint = new ContentFingerprint(pip.IndependentStaticFingerprint);
+
+                // See the remarks in AddConfigFingerprintToIndependentFingerprint for why we need to add the config fingerprint
+                // to the independent fingerprint.
+                fingerprint = AddConfigFingerprintToIndependentFingerprint(pip, fingerprint, out fingerprintInputText);
             }
             else
             {

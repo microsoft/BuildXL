@@ -392,7 +392,7 @@ namespace Test.BuildXL.Scheduler
 
             QualifierTable = new QualifierTable(Context.StringTable);
             Expander = new MountPathExpander(pathTable);
-            configuration = configuration ?? new ConfigurationImpl();
+            configuration ??= new ConfigurationImpl();
 
             // For tests, allow writes outside of mounts unles defined otherwise
             ((EngineConfiguration)configuration.Engine).UnsafeAllowOutOfMountWrites ??= true;
@@ -1381,10 +1381,10 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
-        protected TestPipGraphFragment CreatePipGraphFragment(string moduleName, bool useTopSort = false)
+        protected TestPipGraphFragment CreatePipGraphFragment(string moduleName, bool useTopSort = false, string salt = null)
         {
             Contract.Requires(!string.IsNullOrEmpty(moduleName));
-            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName, useTopSort);
+            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName, useTopSort, salt);
         }
 
         protected FileArtifact CreateTestProcessWithCapabilities()

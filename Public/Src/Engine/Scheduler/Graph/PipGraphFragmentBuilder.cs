@@ -63,8 +63,7 @@ namespace BuildXL.Scheduler.Graph
         public PipGraphFragmentBuilder(
             PipExecutionContext pipExecutionContext, 
             IConfiguration configuration,
-            PathExpander pathExpander,
-            PipSpecificPropertiesConfig pipSpecificPropertiesConfig)
+            PathExpander pathExpander)
         {
             Contract.Requires(pipExecutionContext != null);
 
@@ -81,6 +80,7 @@ namespace BuildXL.Scheduler.Graph
                     configuration,
                     configuration.Cache.CacheSalt,
                     new DirectoryMembershipFingerprinterRuleSet(configuration, pipExecutionContext.StringTable).ComputeSearchPathToolsHash());
+                var pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(configuration.Engine.PipSpecificPropertyAndValues);
 
                 m_pipStaticFingerprinter = new PipStaticFingerprinter(
                     pipExecutionContext.PathTable,

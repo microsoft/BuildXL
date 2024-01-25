@@ -13,9 +13,9 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <inheritdoc />
-        protected override TestPipGraphFragment CreatePipGraphFragmentTest(string moduleName)
+        protected override TestPipGraphFragment CreatePipGraphFragmentTest(string moduleName, string salt = null)
         {
-            return CreatePipGraphFragment(moduleName, useTopSort: true);
+            return CreatePipGraphFragment(moduleName, useTopSort: true, salt: salt);
         }
     }
 }

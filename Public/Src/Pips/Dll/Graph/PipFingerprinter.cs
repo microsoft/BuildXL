@@ -65,7 +65,6 @@ namespace BuildXL.Pips.Graph
         private readonly PipFragmentRenderer.ContentHashLookup m_contentHashLookup;
         private readonly PipDataLookup m_pipDataLookup;
         private readonly SourceChangeAffectedInputsLookup m_sourceChangeAffectedInputsLookup;
-        private ExtraFingerprintSalts m_extraFingerprintSalts;
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
         private readonly Comparer<EnvironmentVariable> m_environmentVariableComparer;
@@ -87,19 +86,19 @@ namespace BuildXL.Pips.Graph
         public bool FingerprintTextEnabled { get; set; }
 
         /// <summary>
+        /// Extra fingerprint salts.
+        /// </summary>
+        protected ExtraFingerprintSalts ExtraFingerprintSalts;
+
+        /// <summary>
         /// The extra, optional fingerprint salt.
         /// Set by the distributed build system later when the fingerprinter was already created.
         /// </summary>
         public string FingerprintSalt
         {
-            get => m_extraFingerprintSalts.FingerprintSalt;
-            set => m_extraFingerprintSalts.FingerprintSalt = value;
+            get => ExtraFingerprintSalts.FingerprintSalt;
+            set => ExtraFingerprintSalts.FingerprintSalt = value;
         }
-
-        /// <summary>
-        /// The extra, optional fingerprint salt text
-        /// </summary>
-        public string CalculatedFingerprintSaltText => m_extraFingerprintSalts.CalculatedSaltsFingerprintText;
 
         private readonly PipFingerprintSaltLookup m_pipFingerprintSaltLookup;
 
@@ -121,7 +120,7 @@ namespace BuildXL.Pips.Graph
 
             m_pathTable = pathTable;
             m_contentHashLookup = contentHashLookup ?? new PipFragmentRenderer.ContentHashLookup(file => FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash));
-            m_extraFingerprintSalts = extraFingerprintSalts ?? ExtraFingerprintSalts.Default();
+            ExtraFingerprintSalts = extraFingerprintSalts ?? ExtraFingerprintSalts.Default();
             m_pipDataLookup = pipDataLookup ?? new PipDataLookup(file => PipData.Invalid);
             PathExpander = pathExpander ?? PathExpander.Default;
             m_expandedPathFileArtifactComparer = new ExpandedPathFileArtifactComparer(m_pathTable.ExpandedPathComparer, pathOnly: false);
@@ -169,7 +168,7 @@ namespace BuildXL.Pips.Graph
                 // Bug #681083 include somehow information about process.ShutdownProcessPipId and process.ServicePipDependencies
                 //               but make sure it doesn't depend on PipIds (because they are not stable between builds)
                 fingerprintInputText = FingerprintTextEnabled
-                    ? (m_extraFingerprintSalts.CalculatedSaltsFingerprintText + Environment.NewLine + hashingHelper.FingerprintInputText)
+                    ? (ExtraFingerprintSalts.CalculatedSaltsFingerprintText + Environment.NewLine + hashingHelper.FingerprintInputText)
                     : string.Empty;
 
                 return new ContentFingerprint(hashingHelper.GenerateHash());
@@ -184,7 +183,7 @@ namespace BuildXL.Pips.Graph
             Contract.Requires(fingerprinter != null);
             Contract.Requires(pip != null);
 
-            fingerprinter.AddNested(PipFingerprintField.ExecutionAndFingerprintOptions, fp => m_extraFingerprintSalts.AddFingerprint(fp, pip.BypassFingerprintSalt));
+            fingerprinter.AddNested(PipFingerprintField.ExecutionAndFingerprintOptions, fp => ExtraFingerprintSalts.AddFingerprint(fp, pip.BypassFingerprintSalt));
 
             // Fingerprints must change when outputs are hashed with a different algorithm.
             fingerprinter.Add(PipFingerprintField.ContentHashAlgorithmName, s_outputContentHashAlgorithmName);
@@ -305,7 +304,7 @@ namespace BuildXL.Pips.Graph
             fingerprinter.Add(nameof(Process.HasUntrackedChildProcesses), process.HasUntrackedChildProcesses ? 1 : 0);
             fingerprinter.Add(nameof(Process.AllowUndeclaredSourceReads), process.AllowUndeclaredSourceReads ? 1 : 0);
             fingerprinter.Add(nameof(Process.ProcessAbsentPathProbeInUndeclaredOpaquesMode), (byte)process.ProcessAbsentPathProbeInUndeclaredOpaquesMode);
-            fingerprinter.Add(nameof(Process.TrustStaticallyDeclaredAccesses), process.TrustStaticallyDeclaredAccesses? 1 : 0);
+            fingerprinter.Add(nameof(Process.TrustStaticallyDeclaredAccesses), process.TrustStaticallyDeclaredAccesses ? 1 : 0);
             fingerprinter.Add(nameof(Process.PreservePathSetCasing), process.PreservePathSetCasing ? 1 : 0);
             fingerprinter.Add(nameof(Process.WritingToStandardErrorFailsExecution), process.WritingToStandardErrorFailsExecution ? 1 : 0);
             fingerprinter.Add(nameof(Process.DisableFullReparsePointResolving), process.DisableFullReparsePointResolving ? 1 : 0);
@@ -382,22 +381,32 @@ namespace BuildXL.Pips.Graph
             }
 
             fingerprinter.AddOrderIndependentCollection<StringId, ReadOnlyArray<StringId>>(
-                nameof(Process.ChildProcessesToBreakawayFromSandbox), 
-                process.ChildProcessesToBreakawayFromSandbox.Select(processName => processName.StringId).ToReadOnlyArray(), 
+                nameof(Process.ChildProcessesToBreakawayFromSandbox),
+                process.ChildProcessesToBreakawayFromSandbox.Select(processName => processName.StringId).ToReadOnlyArray(),
                 (h, p) => h.Add(p),
                 m_pathTable.StringTable.OrdinalComparer);
 
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(
-                nameof(Process.OutputDirectoryExclusions), 
+                nameof(Process.OutputDirectoryExclusions),
                 process.OutputDirectoryExclusions, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
 
             fingerprinter.Add(nameof(Process.PreserveOutputsTrustLevel), process.PreserveOutputsTrustLevel);
 
+            AddProcessSpecificFingerprintSalt(fingerprinter, process);
+        }
+
+        /// <summary>
+        /// Adds process-specific fingerprint salt to the fingerprint stream.
+        /// </summary>
+        protected void AddProcessSpecificFingerprintSalt(IFingerprinter fingerprinter, Process process)
+        {
             // If the pip has been passed with a specific fingerprinting salt value then we use it in the computation of weak fingerprint.
             var pipFingerprintSaltValue = m_pipFingerprintSaltLookup(process);
             if (!string.IsNullOrEmpty(pipFingerprintSaltValue))
             {
-                fingerprinter.Add("PipSpecificFingerprintingSalt", pipFingerprintSaltValue == "*" ? Guid.NewGuid().ToString() : pipFingerprintSaltValue);
+                fingerprinter.Add(
+                    PipFingerprintField.Process.ProcessSpecificFingerprintSalt,
+                    pipFingerprintSaltValue == "*" ? Guid.NewGuid().ToString() : pipFingerprintSaltValue);
             }
         }
 

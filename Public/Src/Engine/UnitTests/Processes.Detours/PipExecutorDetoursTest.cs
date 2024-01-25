@@ -8313,6 +8313,47 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Fact]
+        public async Task CallFindFirstEnumerateRoot()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallFindFirstEnumerateRoot",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    unexpectedFileAccessesAreErrors: false,
+                    context: context,
+                    pip: process,
+                    errorString: out _);
+
+                VerifyNormalSuccess(context, result);
+
+                XAssert.IsTrue(result.AllReportedFileAccesses.Any(r =>
+                    r.GetPath(pathTable).Equals(@"B:\", OperatingSystemHelper.PathComparison)
+                    && r.Operation == ReportedFileOperation.FindFirstFileEx
+                    && r.EnumeratePattern.Equals("*.cpp", OperatingSystemHelper.PathComparison)));
+                XAssert.IsFalse(result.AllReportedFileAccesses.Any(r => r.GetPath(pathTable).Equals("B:", OperatingSystemHelper.PathComparison)));
+            }
+        }
+
         /// <summary>
         /// The test from native side is expected to read a symlink file.lnk via DeviceIoControl and write the retrieved target to an output file out.txt. What we are trying to verify here is that the detoured call applies
         /// a translation to the returned target.
@@ -8467,9 +8508,8 @@ namespace Test.BuildXL.Processes.Detours
 
                 if (!string.IsNullOrWhiteSpace(reportedFileAccess.Path))
                 {
-                    AbsolutePath temp;
 
-                    if (AbsolutePath.TryCreate(pathTable, reportedFileAccess.Path, out temp))
+                    if (AbsolutePath.TryCreate(pathTable, reportedFileAccess.Path, out AbsolutePath temp))
                     {
                         reportedPath = temp;
                     }
@@ -8477,11 +8517,10 @@ namespace Test.BuildXL.Processes.Detours
 
                 if (reportedPath.IsValid)
                 {
-                    List<ReportedFileAccess> list;
 
-                    if (!pathsToReportedFileAccesses.TryGetValue(reportedPath, out list))
+                    if (!pathsToReportedFileAccesses.TryGetValue(reportedPath, out List<ReportedFileAccess> list))
                     {
-                        list = new List<ReportedFileAccess>();
+                        list = [];
                         pathsToReportedFileAccesses.Add(reportedPath, list);
                     }
 
@@ -8489,14 +8528,13 @@ namespace Test.BuildXL.Processes.Detours
                 }
             }
 
-            foreach (var observation in observationsToVerify)
+            foreach (var (absolutePath, requestedAccess, fileAccessStatus, operation) in observationsToVerify)
             {
-                List<ReportedFileAccess> pathSpecificAccesses;
-                bool getFileAccess = pathsToReportedFileAccesses.TryGetValue(observation.absolutePath, out pathSpecificAccesses);
+                bool getFileAccess = pathsToReportedFileAccesses.TryGetValue(absolutePath, out List<ReportedFileAccess> pathSpecificAccesses);
                 XAssert.IsTrue(
                     getFileAccess,
                     "Expected path '{0}' is missing from the reported file accesses; reported accesses are as follows: {1}{2}",
-                    observation.absolutePath.ToString(pathTable),
+                    absolutePath.ToString(pathTable),
                     Environment.NewLine,
                     string.Join(Environment.NewLine, pathsToReportedFileAccesses.Keys.Select(p => "--- " + p.ToString(pathTable))));
 
@@ -8506,12 +8544,12 @@ namespace Test.BuildXL.Processes.Detours
 
                 foreach (var pathSpecificAccess in pathSpecificAccesses)
                 {
-                    if (pathSpecificAccess.RequestedAccess == observation.Item2 && pathSpecificAccess.Status == observation.Item3)
+                    if (pathSpecificAccess.RequestedAccess == requestedAccess && pathSpecificAccess.Status == fileAccessStatus)
                     {
                         bool operationDoesMatch = true;
-                        if (observation.Item4.HasValue)
+                        if (operation.HasValue)
                         {
-                            operationDoesMatch = pathSpecificAccess.Operation == observation.Item4.Value;
+                            operationDoesMatch = pathSpecificAccess.Operation == operation.Value;
                             if (!operationDoesMatch)
                             {
                                 continue; // Look at all available operations to find a match
@@ -8526,10 +8564,10 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.IsTrue(
                     foundExpectedAccess,
                     "Expected access for path '{0}' with requested access '{1}' and access status '{2}' (operation: '{3}') is missing from the reported file accesses; reported accesses are as follows: {4}{5}",
-                    observation.absolutePath.ToString(pathTable),
-                    observation.requestedAccess.ToString(),
-                    observation.fileAccessStatus.ToString(),
-                    observation.operation?.ToString() ?? string.Empty,
+                    absolutePath.ToString(pathTable),
+                    requestedAccess.ToString(),
+                    fileAccessStatus.ToString(),
+                    operation?.ToString() ?? string.Empty,
                     Environment.NewLine,
                     string.Join(
                         Environment.NewLine,

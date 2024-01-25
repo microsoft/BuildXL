@@ -1214,6 +1214,18 @@ int CallDeleteFileWithoutClosingHandle()
     return 0;
 }
 
+int CallFindFirstEnumerateRoot()
+{
+    WIN32_FIND_DATA findFileData;
+    HANDLE handle = FindFirstFileW(L"B:\\*.cpp", &findFileData);
+    if (handle != INVALID_HANDLE_VALUE)
+    {
+        FindClose(handle);
+    }
+
+    return ERROR_SUCCESS;
+}
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1261,6 +1273,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallCreateStreams);
     IF_COMMAND(CallCreateFileWithNewLineCharacters);
     IF_COMMAND(CallDeleteFileWithoutClosingHandle);
+    IF_COMMAND(CallFindFirstEnumerateRoot);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

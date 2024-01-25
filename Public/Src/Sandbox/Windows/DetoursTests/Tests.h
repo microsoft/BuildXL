@@ -44,3 +44,4 @@ int CallMoveFileExWWithTrailingBackSlashNtEscape();
 int CallCreateStreams();
 int CallCreateFileWithNewLineCharacters();
 int CallDeleteFileWithoutClosingHandle();
+int CallFindFirstEnumerateRoot();

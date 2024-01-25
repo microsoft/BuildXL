@@ -133,5 +133,8 @@ CanonicalizedPath CanonicalizedPath::RemoveLastComponent() const {
     // If the last path separator is at zero-based index N, we want the preceding N characters.
     // If there are no path separators (or a path separator at index 0), we want a zero length string.
     size_t lastSeparatorIndex = FindFinalPathSeparator(m_value->c_str());
-    return CanonicalizedPath(Type, m_value->substr(0, lastSeparatorIndex));
+    size_t rootLength = GetRootLength(m_value->c_str());
+    size_t length = lastSeparatorIndex < rootLength ? rootLength : lastSeparatorIndex;
+
+    return CanonicalizedPath(Type, m_value->substr(0, length));
 }

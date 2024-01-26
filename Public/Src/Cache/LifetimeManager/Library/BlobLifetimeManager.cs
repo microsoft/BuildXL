@@ -62,7 +62,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             context = context.WithCancellationToken(cts.Token);
 
             var shardingScheme = new ShardingScheme(ShardingAlgorithm.JumpHash, accountNames);
-            var (metadataMatrix, contentMatrix) = ShardedBlobCacheTopology.GenerateMatrix(shardingScheme);
+            var (metadataMatrix, contentMatrix) = shardingScheme.GenerateMatrix();
 
             var maxSizes = config.Namespaces.ToDictionary(
                 c => new BlobNamespaceId(c.Universe, c.Namespace),

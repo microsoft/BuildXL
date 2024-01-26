@@ -194,7 +194,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds);
                 var cache = new MemoizationStoreAdapterCache(
                     cacheId: configuration.CacheId,
-                    innerCache: CreateCache(logger, configuration),
+                    innerCache: CreateCache(logger, configuration).Cache,
                     logger: logger,
                     statsFile: new AbsolutePath(logPath.Path + ".stats"),
                     implicitPin: ImplicitPin.None,
@@ -214,7 +214,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
         }
 
-        internal static MemoizationStore.Interfaces.Caches.IFullCache CreateCache(ILogger logger, BlobCacheConfig configuration)
+        internal static AzureBlobStorageCacheFactory.CreateResult CreateCache(ILogger logger, BlobCacheConfig configuration)
         {
             var tracingContext = new Context(logger);
             var context = new OperationContext(tracingContext);

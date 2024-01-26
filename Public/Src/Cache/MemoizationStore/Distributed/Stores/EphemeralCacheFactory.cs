@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
@@ -29,6 +30,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -167,39 +169,82 @@ public static class EphemeralCacheFactory
         public TimeSpan ClusterStateConnectionTimeout { get; init; } = Timeout.InfiniteTimeSpan;
     };
 
+    /// <nodoc />
+    public record struct CreateResult
+    {
+        /// <nodoc />
+        public IFullCache Cache { get; init; }
+
+        /// <nodoc />
+        internal EphemeralHost Host { get; init; }
+
+        /// <nodoc />
+        internal CreateResult(EphemeralHost host, IFullCache cache)
+        {
+            Host = host;
+            Cache = cache;
+        }
+    }
+
     /// <summary>
     /// Creates a P2P cache.
     /// </summary>
-    public static async Task<IFullCache> CreateAsync(OperationContext context, Configuration configuration, IFullCache persistentCache)
+    public static Task<CreateResult> CreateAsync(OperationContext context, Configuration configuration, AzureBlobStorageCacheFactory.CreateResult persistentCache, IClock? clock = null)
     {
         context.TracingContext.Warning($"Creating cache with BuildXL version {Branding.Version}", nameof(EphemeralCacheFactory));
 
-        return (await CreateInternalAsync(context, configuration, persistentCache)).Cache;
-    }
-
-    internal static Task<CreateResult> CreateInternalAsync(OperationContext context, Configuration configuration, IFullCache persistentCache)
-    {
         GrpcEnvironment.Initialize(context.TracingContext.Logger, new GrpcEnvironmentOptions()
         {
             LoggingVerbosity = GrpcEnvironmentOptions.GrpcVerbosity.Disabled,
         });
 
+        clock ??= SystemClock.Instance;
         return configuration switch
         {
-            DatacenterWideCacheConfiguration datacenterWideCacheConfiguration => CreateDatacenterWideCacheAsync(context, datacenterWideCacheConfiguration, persistentCache),
-            BuildWideCacheConfiguration buildWideCacheConfiguration => CreateBuildWideCacheAsync(context, buildWideCacheConfiguration, persistentCache),
+            DatacenterWideCacheConfiguration datacenterWideCacheConfiguration => CreateDatacenterWideCacheAsync(context, datacenterWideCacheConfiguration, persistentCache, clock),
+            BuildWideCacheConfiguration buildWideCacheConfiguration => CreateBuildWideCacheAsync(context, buildWideCacheConfiguration, persistentCache, clock),
             _ => throw new NotSupportedException($"Cache type {configuration.GetType().Name} is not supported.")
         };
+    }
+
+    /// <summary>
+    /// The value returned by this function is used to partition the cache into separate logical clusters.
+    /// </summary>
+    /// <remarks>
+    /// We split the ephemeral cache on the following dimensions:
+    ///  - Universe
+    ///  - Namespace
+    ///  - Assembly Version
+    ///  - The persistent cache's sharding matrix (i.e., which specific storage accounts in a specific order and with a
+    ///    given sharding matrix).
+    ///
+    /// This guarantees a series of properties that are very useful to have:
+    /// 1. Splitting on a per-assembly basis simplifies deployment by allowing us to assume that the wire protocol and
+    ///    data representations on a per-assembly basis and deployed atomically (i.e., there's no chance of having
+    ///    backwards or forwards compatibility issues).
+    /// 2. Splitting per universe and namespace guarantees that caches are isolated from each other in the same way the
+    ///    underlying persistent cache does it. This prevents a number of possible bad scenarios from happening, such
+    ///    as getting a file from a build you wouldn't normally have been able to get a cache hit from.
+    /// 3. Splitting on the sharding matrix guarantees that changes in the sharding scheme look like separate caches,
+    ///    which means there's no need to handle migration of data between sharding schemes in the ephemeral, even
+    ///    though the persistent may need to.
+    /// </remarks>
+    private static string GenerateEphemeralPartitionId(DatacenterWideCacheConfiguration configuration, AzureBlobStorageCacheFactory.CreateResult persistentCache)
+    {
+        var universe = HashCodeHelper.GetOrdinalIgnoreCaseHashCode64(configuration.Universe);
+        var @namespace = HashCodeHelper.GetOrdinalIgnoreCaseHashCode64(persistentCache.Configuration.Namespace);
+        var version = HashCodeHelper.GetOrdinalIgnoreCaseHashCode64(Branding.Version);
+        var (metadataSalt, contentSalt) = persistentCache.Configuration.ShardingScheme.GenerateSalt();
+        var hash = HashCodeHelper.Combine(new[] { universe, @namespace, version, metadataSalt, contentSalt });
+        return hash.ToString("X16");
     }
 
     private static Task<CreateResult> CreateDatacenterWideCacheAsync(
         OperationContext context,
         DatacenterWideCacheConfiguration configuration,
-        IFullCache persistentCache,
-        IClock? clock = null)
+        AzureBlobStorageCacheFactory.CreateResult persistentCache,
+        IClock clock)
     {
-        clock ??= SystemClock.Instance;
-
         if (string.IsNullOrEmpty(configuration.Universe))
         {
             configuration = configuration with { Universe = DatacenterWideCacheConfiguration.DefaultUniverse };
@@ -212,16 +257,9 @@ public static class EphemeralCacheFactory
             {
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,
             },
-            // The Ephemeral cache is split on a per-assembly and per-universe basis. This guarantees that there's no
-            // content hits between different assemblies and different universes (simply because the machines can't see
-            // each other).
-            // This matters because:
-            // 1. It simplifies deployment by allowing us to assume that the wire protocol and data representations are
-            // on a per-assembly basis.
-            // 2. Since Universe is the logical division of the cache, merging the content tracking could potentially
-            // cause bugs if we don't contemplate the possibility of two different universes being able to talk to each
-            // other.
-            FileName = $"clusterState-{Branding.Version}-{configuration.Universe}.json",
+            // The following file splits up the Ephemeral cache into separate logical caches that can't communicate
+            // with each other. See documentation on the function below for information.
+            FileName = $"clusterState-{GenerateEphemeralPartitionId(configuration, persistentCache)}.json",
             RecomputeConfiguration = new ClusterStateRecomputeConfiguration(),
         };
         var clusterStateStorage = new BlobClusterStateStorage(blobClusterStateStorageConfiguration, clock);
@@ -234,17 +272,15 @@ public static class EphemeralCacheFactory
             clusterStateStorage,
             persistentCache,
             grpcClusterStateEndpoint: null,
-            clock);
+            clock: clock);
     }
 
     private static Task<CreateResult> CreateBuildWideCacheAsync(
         OperationContext context,
         BuildWideCacheConfiguration configuration,
-        IFullCache persistentCache,
-        IClock? clock = null)
+        AzureBlobStorageCacheFactory.CreateResult persistentCache,
+        IClock clock)
     {
-        clock ??= SystemClock.Instance;
-
         var masterElectionMechanism = CreateMasterElectionMechanism(configuration.Location, configuration.Leader);
 
         IGrpcServiceEndpoint? grpcClusterStateEndpoint = null;
@@ -306,15 +342,13 @@ public static class EphemeralCacheFactory
         return new RiggedMasterElectionMechanism(leader, Role.Worker);
     }
 
-    internal record CreateResult(EphemeralHost Host, IFullCache Cache);
-
     /// <nodoc />
     private static Task<CreateResult> CreateInternalAsync(
         OperationContext context,
         Configuration configuration,
         IMasterElectionMechanism masterElectionMechanism,
         IClusterStateStorage clusterStateStorage,
-        IFullCache persistentCache,
+        AzureBlobStorageCacheFactory.CreateResult persistentCache,
         IGrpcServiceEndpoint? grpcClusterStateEndpoint,
         IClock clock)
     {
@@ -323,12 +357,14 @@ public static class EphemeralCacheFactory
 
         var localContentTracker = new LocalContentTracker();
 
+        var persistentLocations = persistentCache.Topology.EnumerateContainers(context, BlobCacheContainerPurpose.Content)
+            .Select(MachineLocation.FromContainerPath).ToArray();
         var clusterStateManagerConfiguration = new ClusterStateManager.Configuration
         {
             PrimaryLocation = configuration.Location,
             UpdateInterval = configuration.HeartbeatInterval,
+            PersistentLocations = persistentLocations,
         };
-
 
         // TODO: reconfigure configuration here and and above
         var clusterStateManager = new ClusterStateManager(clusterStateManagerConfiguration, clusterStateStorage, clock);
@@ -507,6 +543,14 @@ public static class EphemeralCacheFactory
             throw new ArgumentException($"Expected {nameof(configuration)} to be a handled subtype of {nameof(Configuration)}. Found {configuration.GetType().FullName} instead.");
         }
 
+        var remoteChangeAnnouncer = new RemoteChangeAnnouncer(
+            changeProcessorUpdater,
+            clusterStateManager.ClusterState,
+            inlineProcessing: configuration.TestInlineChangeProcessing,
+            masterElectionMechanism,
+            clock);
+        persistentCache.Announcer.Set(remoteChangeAnnouncer);
+
         var service = new GrpcContentTrackerService(grpcServiceContentResolver, grpcServiceContentUpdater);
         boxedContentTracker.Value = service;
         var contentTrackerEndpoint =
@@ -526,7 +570,7 @@ public static class EphemeralCacheFactory
             distributedStore: null,
             settings: contentStoreSettings);
 
-        var changeProcessor = new ChangeProcessor(
+        var changeProcessor = new LocalChangeProcessor(
             clusterStateManager.ClusterState,
             localContentTracker,
             changeProcessorUpdater,
@@ -556,7 +600,7 @@ public static class EphemeralCacheFactory
                                                   EnableNetworkCopySpeedCalculation = true,
                                                   FailFastIfServerIsBusy = true,
                                                   Interval = TimeSpan.FromMilliseconds(50),
-                                                  InvalidateOnTimeoutError = true,
+                                                  InvalidateOnTimeoutError = false,
                                                   RequiredBytes = "10 MB".ToSize(),
                                               },
                                               new()
@@ -565,7 +609,7 @@ public static class EphemeralCacheFactory
                                                   EnableNetworkCopySpeedCalculation = true,
                                                   FailFastIfServerIsBusy = true,
                                                   Interval = TimeSpan.FromMilliseconds(50),
-                                                  InvalidateOnTimeoutError = true,
+                                                  InvalidateOnTimeoutError = false,
                                                   RequiredBytes = "1 MB".ToSize(),
                                               },
                                           },
@@ -637,11 +681,12 @@ public static class EphemeralCacheFactory
             contentCopier,
             grpcClusterStateEndpoint,
             masterElectionMechanism,
-            sessionContentResolver);
+            sessionContentResolver,
+            remoteChangeAnnouncer);
 
         var ephemeralContentStore = new EphemeralContentStore(
             contentStore,
-            persistentCache,
+            persistentCache.Cache,
             host);
 
         //var cache = new OneLevelCache(
@@ -649,9 +694,9 @@ public static class EphemeralCacheFactory
         //    () => (IMemoizationStore)persistentCache,
         //    new OneLevelCacheBaseConfiguration(Guid.NewGuid(), PassContentToMemoization: false));
 
-        var cc = new PassthroughCache(ephemeralContentStore, persistentCache);
+        var cc = new PassthroughCache(ephemeralContentStore, persistentCache.Cache);
 
-        return Task.FromResult(new CreateResult(Host: host, Cache: cc));
+        return Task.FromResult(new CreateResult(host, cc));
     }
 
     /// <summary>

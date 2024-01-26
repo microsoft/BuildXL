@@ -26,6 +26,8 @@ public sealed record AzureBlobStorageContentStoreConfiguration
 {
     public required IBlobCacheTopology Topology { get; init; }
 
+    public IRemoteContentAnnouncer? Announcer { get; init; } = null;
+
     public TimeSpanSetting StorageInteractionTimeout { get; init; } = TimeSpan.FromMinutes(30);
 }
 
@@ -64,7 +66,8 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
             new AzureBlobStorageContentSession.Configuration(
                 Name: name,
                 ImplicitPin: implicitPin,
-                StorageInteractionTimeout: _configuration.StorageInteractionTimeout),
+                StorageInteractionTimeout: _configuration.StorageInteractionTimeout,
+                Announcer: _configuration.Announcer),
             store: this);
     }
 
@@ -89,7 +92,7 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
         // Unused on purpose
     }
 
-    internal Task<BlobClient> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
+    internal Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
     {
         return _configuration.Topology.GetBlobClientAsync(context, contentHash);
     }

@@ -205,7 +205,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         // If the new reference count for a blob is 0, we also attempt to delete the content.
 
                         var fingerprint = AzureBlobStorageMetadataStore.ExtractStrongFingerprintFromPath(chl.BlobName);
-                        var container = await _topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(fingerprint.WeakFingerprint));
+                        var (container, _) = await _topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(fingerprint.WeakFingerprint));
                         var client = container.GetBlobClient(chl.BlobName);
 
                         if (!await TryDeleteContentHashListAsync(opContext, client, chl, dryRun))
@@ -317,7 +317,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
         private async Task<bool> TryDeleteContentAsync(OperationContext context, ContentHash contentHash, bool dryRun, long contentSize)
         {
-            var client = await _topology.GetBlobClientAsync(context, contentHash);
+            var (client, _) = await _topology.GetBlobClientAsync(context, contentHash);
 
             // It's possible that a fingerprint is currently being created that references this piece of content. This means there's a race condition that we need to account for.
             // Because of this, the current design is that clients will update the last access time of a blob when they get a content cache hit when ulpoading the contents of a new strong fingerprint.

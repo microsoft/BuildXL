@@ -20,6 +20,7 @@ using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Core;
 using ContentStore.Grpc;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -94,8 +95,6 @@ public class EphemeralContentSession : ContentSessionBase
         var local = await _local.OpenStreamAsync(context, contentHash, context.Token, urgencyHint);
         if (local.Succeeded)
         {
-            _ephemeralHost.PutElisionCache.TryAdd(contentHash, local.StreamWithLength!.Value.Length, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
             return local;
         }
 
@@ -108,8 +107,6 @@ public class EphemeralContentSession : ContentSessionBase
             local = await _local.OpenStreamAsync(context, contentHash, context.Token, urgencyHint);
             if (local.Succeeded)
             {
-                _ephemeralHost.PutElisionCache.TryAdd(contentHash, local.StreamWithLength!.Value.Length, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
                 return local;
             }
         }
@@ -120,8 +117,6 @@ public class EphemeralContentSession : ContentSessionBase
             local = await _local.OpenStreamAsync(context, contentHash, context.Token, urgencyHint);
             if (local.Succeeded)
             {
-                _ephemeralHost.PutElisionCache.TryAdd(contentHash, local.StreamWithLength!.Value.Length, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
                 return local;
             }
         }
@@ -172,8 +167,6 @@ public class EphemeralContentSession : ContentSessionBase
         var local = await _local.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, context.Token, urgencyHint);
         if (local.Succeeded)
         {
-            _ephemeralHost.PutElisionCache.TryAdd(contentHash, local.FileSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
             return local.WithMaterializationSource(PlaceFileResult.Source.LocalCache);
         }
 
@@ -186,8 +179,6 @@ public class EphemeralContentSession : ContentSessionBase
             local = await _local.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, context.Token, urgencyHint);
             if (local.Succeeded)
             {
-                _ephemeralHost.PutElisionCache.TryAdd(contentHash, local.FileSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
                 return local.WithMaterializationSource(PlaceFileResult.Source.LocalCache);
             }
         }
@@ -226,10 +217,9 @@ public class EphemeralContentSession : ContentSessionBase
             urgencyHint);
         if (persistent.Succeeded)
         {
-            _ephemeralHost.PutElisionCache.TryAdd(contentHash, persistent.FileSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
             // We insert into the local cache synchronously. This is required right now because OpenStream can delete
             // the file too early if we do it asynchronously.
+            // TODO: figure out a way to do it asynchronously.
             //
             // WARNING: the adjustment in the realization mode here is important. When running QuickBuild without
             // hardlinks in cache, we need to ensure that the file is copied into the local cache when the realization
@@ -273,6 +263,13 @@ public class EphemeralContentSession : ContentSessionBase
                     {
                         if (_ephemeralHost.ClusterStateManager.ClusterState.QueryableClusterState.RecordsByMachineId.TryGetValue(machineId, out var record))
                         {
+                            // Persistent records are not eligible for peer-to-peer fetches, they are assumed to be
+                            // outside of the cluster. These are, for example, Azure Blob Storage accounts.
+                            if (record.Persistent)
+                            {
+                                continue;
+                            }
+
                             if (record.IsInactive())
                             {
                                 inactive.Add(record.Location);
@@ -367,37 +364,31 @@ public class EphemeralContentSession : ContentSessionBase
             return local;
         }
 
-        if (_ephemeralHost.PutElisionCache.TryGetValue(local.ContentHash, out var contentSize))
+        var putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
+        if (putElisionResult.Allow)
         {
-            return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
         }
 
         // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
         // it deduplicates requests about the existence of content.
         using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
-
-        if (!guard.WaitFree && _ephemeralHost.PutElisionCache.TryGetValue(local.ContentHash, out contentSize))
+        if (!guard.WaitFree)
         {
-            return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
+            putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
+            if (putElisionResult.Allow)
+            {
+                return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            }
         }
 
-        var allowPutElision = await AllowPutElisionAsync(context, local.ContentHash);
-        if (allowPutElision.Succeeded && allowPutElision.Value)
+        putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: false);
+        if (putElisionResult.Allow)
         {
-            _ephemeralHost.PutElisionCache.TryAdd(local.ContentHash, local.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
-            // If the content already exists in any machine in the cluster, then it has already been uploaded by a
-            // previous call. Therefore, we also don't need to upload it.
-            return new PutResult(local.ContentHash, local.ContentSize, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
         }
 
-        var persistent = await _persistent.PutFileAsync(context, hashType, path, realizationMode, context.Token, urgencyHint);
-        if (persistent.Succeeded)
-        {
-            _ephemeralHost.PutElisionCache.TryAdd(persistent.ContentHash, persistent.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-        }
-
-        return persistent;
+        return await _persistent.PutFileAsync(context, hashType, path, realizationMode, context.Token, urgencyHint);
     }
 
     protected override async Task<PutResult> PutFileCoreAsync(
@@ -411,9 +402,10 @@ public class EphemeralContentSession : ContentSessionBase
         // We can't move into the persistent store. No one should be doing this anyways, so it's fine to assert that.
         Contract.Requires(realizationMode != FileRealizationMode.Move, $"{nameof(EphemeralContentSession)} doesn't support {nameof(PutFileCoreAsync)} with {nameof(FileRealizationMode)} = {FileRealizationMode.Move}");
 
-        if (_ephemeralHost.PutElisionCache.TryGetValue(contentHash, out var contentSize))
+        var putElisionResult = await AllowPersistentPutElisionAsync(context, contentHash, localOnly: true);
+        if (putElisionResult.Allow)
         {
-            return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache: true);
+            return new PutResult(contentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
         }
 
         var local = await _local.PutFileAsync(context, contentHash, path, realizationMode, context.Token, urgencyHint);
@@ -432,29 +424,22 @@ public class EphemeralContentSession : ContentSessionBase
         // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
         // it deduplicates requests about the existence of content.
         using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
-
-        if (!guard.WaitFree && _ephemeralHost.PutElisionCache.TryGetValue(local.ContentHash, out contentSize))
+        if (!guard.WaitFree)
         {
-            return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
+            putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
+            if (putElisionResult.Allow)
+            {
+                return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            }
         }
 
-        var allowPutElisionAsync = await AllowPutElisionAsync(context, local.ContentHash);
-        if (allowPutElisionAsync.Succeeded && allowPutElisionAsync.Value)
+        putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: false);
+        if (putElisionResult.Allow)
         {
-            _ephemeralHost.PutElisionCache.TryAdd(local.ContentHash, local.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
-            // If the content already exists in any machine in the cluster, then it has already been uploaded by a
-            // previous call. Therefore, we also don't need to upload it.
-            return new PutResult(local.ContentHash, local.ContentSize, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
         }
 
-        var persistent = await _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
-        if (persistent.Succeeded)
-        {
-            _ephemeralHost.PutElisionCache.TryAdd(persistent.ContentHash, persistent.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-        }
-
-        return persistent;
+        return await _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
     }
 
     protected override async Task<PutResult> PutStreamCoreAsync(OperationContext context, HashType hashType, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
@@ -475,47 +460,42 @@ public class EphemeralContentSession : ContentSessionBase
             return local;
         }
 
-        if (_ephemeralHost.PutElisionCache.TryGetValue(local.ContentHash, out var contentSize))
+        var putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
+        if (putElisionResult.Allow)
         {
-            return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
         }
 
         // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
         // it deduplicates requests about the existence of content.
         using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
-
-        if (!guard.WaitFree && _ephemeralHost.PutElisionCache.TryGetValue(local.ContentHash, out contentSize))
+        if (!guard.WaitFree)
         {
-            return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
+            putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
+            if (putElisionResult.Allow)
+            {
+                return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            }
         }
 
-        var allowPutElisionAsync = await AllowPutElisionAsync(context, local.ContentHash);
-        if (allowPutElisionAsync.Succeeded && allowPutElisionAsync.Value)
+        putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: false);
+        if (putElisionResult.Allow)
         {
-            _ephemeralHost.PutElisionCache.TryAdd(local.ContentHash, local.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
-            // If the content already exists in any machine in the cluster, then it has already been uploaded by a
-            // previous call. Therefore, we also don't need to upload it.
-            return new PutResult(local.ContentHash, local.ContentSize, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
         }
 
         stream.Position = position;
-        var persistent = await _persistent.PutStreamAsync(context, hashType, stream, context.Token, urgencyHint);
-        if (persistent.Succeeded)
-        {
-            _ephemeralHost.PutElisionCache.TryAdd(persistent.ContentHash, persistent.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-        }
-
-        return persistent;
+        return await _persistent.PutStreamAsync(context, hashType, stream, context.Token, urgencyHint);
     }
 
     protected override async Task<PutResult> PutStreamCoreAsync(OperationContext context, ContentHash contentHash, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
     {
         Contract.Requires(stream.CanSeek, $"{nameof(EphemeralContentSession)} needs to be able to seek the incoming stream.");
 
-        if (_ephemeralHost.PutElisionCache.TryGetValue(contentHash, out var contentSize))
+        var putElisionResult = await AllowPersistentPutElisionAsync(context, contentHash, localOnly: true);
+        if (putElisionResult.Allow)
         {
-            return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache: true);
+            return new PutResult(contentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
         }
 
         var position = stream.Position;
@@ -532,31 +512,25 @@ public class EphemeralContentSession : ContentSessionBase
         // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
         // it deduplicates requests about the existence of content.
         using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
-
-        if (!guard.WaitFree && _ephemeralHost.PutElisionCache.TryGetValue(local.ContentHash, out contentSize))
+        if (!guard.WaitFree)
         {
-            return new PutResult(local.ContentHash, contentSize, contentAlreadyExistsInCache: true);
+            putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
+            if (putElisionResult.Allow)
+            {
+                return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            }
         }
 
-        var allowPutElisionAsync = await AllowPutElisionAsync(context, local.ContentHash);
-        if (allowPutElisionAsync.Succeeded && allowPutElisionAsync.Value)
+        putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: false);
+        if (putElisionResult.Allow)
         {
-            _ephemeralHost.PutElisionCache.TryAdd(local.ContentHash, local.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-
-            // If the content already exists in any machine in the cluster, then it has already been uploaded by a
-            // previous call. Therefore, we also don't need to upload it.
-            return new PutResult(local.ContentHash, local.ContentSize, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
         }
 
         stream.Position = position;
-        var persistent = await _persistent.PutStreamAsync(context, contentHash, stream, context.Token, urgencyHint);
-        if (persistent.Succeeded)
-        {
-            _ephemeralHost.PutElisionCache.TryAdd(persistent.ContentHash, persistent.ContentSize, _ephemeralHost.Configuration.PutCacheTimeToLive);
-        }
-
-        return persistent;
+        return await _persistent.PutStreamAsync(context, contentHash, stream, context.Token, urgencyHint);
     }
+
 
     /// <summary>
     /// This function gets called when any Put operation into the local content store fails. It determines whether we
@@ -588,14 +562,16 @@ public class EphemeralContentSession : ContentSessionBase
         return false;
     }
 
-    public Task<Result<bool>> AllowPutElisionAsync(OperationContext context, ShortHash contentHash)
+    private readonly record struct PutElisionResult(bool Allow, long Size);
+
+    private async Task<PutElisionResult> AllowPersistentPutElisionAsync(OperationContext context, ShortHash contentHash, bool localOnly = false)
     {
         // This checks for file existence elsewhere in the cluster. The reason for this is that this can and does race
         // with all local PutFile for whether the event about the existence of the content gets processed before we
         // query or not.
 
         // TODO: add timeout here.
-        return context.PerformOperationAsync(
+        return (await context.PerformOperationAsync(
             Tracer,
             async () =>
             {
@@ -603,42 +579,84 @@ public class EphemeralContentSession : ContentSessionBase
                 var local = await _ephemeralHost.LocalContentTracker.GetSingleLocationAsync(context, contentHash).ThrowIfFailureAsync();
                 if (shouldElide(local, now))
                 {
-                    return Result.Success(true);
+                    return Result.Success(new PutElisionResult(Allow: true, Size: local.Size));
+                }
+
+                if (localOnly)
+                {
+                    return Result.Success(new PutElisionResult(Allow: false, Size: -1));
                 }
 
                 var remote = await _ephemeralHost.ContentResolver.GetSingleLocationAsync(context, contentHash).ThrowIfFailureAsync();
                 if (shouldElide(remote, now))
                 {
-                    return Result.Success(true);
+                    return Result.Success(new PutElisionResult(Allow: true, Size: remote.Size));
                 }
 
-                return Result.Success(false);
+                return Result.Success(new PutElisionResult(Allow: false, Size: -1));
             },
-            traceOperationStarted: false);
+            traceOperationStarted: false,
+            traceErrorsOnly: true,
+            extraEndMessage: result =>
+                             {
+                                 if (result.Succeeded)
+                                 {
+                                     return $"ContentHash=[{contentHash}] LocalOnly=[{localOnly}] Allow=[{result.Value.Allow}] Size=[{result.Value.Size}]";
+                                 }
+                                 return $"ContentHash=[{contentHash}] LocalOnly=[{localOnly}] Allow=[false] Size=[-1]";
+                             })).GetValueOrDefault(defaultValue: new PutElisionResult(Allow: false, Size: -1));
 
         bool shouldElide(ContentEntry contentEntry, DateTime nowUtc)
         {
-            // TODO: we should track whether content is in Azure Storage or not instead of doing this. The reason is
-            // that machines can and will race with each other on this check, so we have to have the
-            // "PutElisionRaceTimeout" to prevent those races from causing a CTMIS scenario where:
-            //  - Machines A and B both try to put the same content at roughly the same time
-            //  - They add it locally, asynchronously notify the content tracker, and then query the content tracker
-            //  - They both call this function, and both see that each other has the content
-            //  - Because they both truly do have the content, neither would upload the content to the persistent.
-            //  - If both machines then go away (which they can), then the content is lost forever, and whenever someone
-            //    tries to place it, they'll get a CTMIS error.
-            var satisfying = contentEntry.Operations
-                .Count(operation =>
-                      // The content has been added and never deleted
-                      operation.ChangeStamp.Operation == ChangeStampOperation.Add &&
-                      // The machine that added it isn't the current one
-                      operation.Value != _ephemeralHost.ClusterStateManager.ClusterState.PrimaryMachineId &&
-                      // The call to add the content isn't racing with the current one
-                      (operation.ChangeStamp.TimestampUtc - nowUtc).Duration() >= _ephemeralHost.Configuration.PutElisionRaceTimeout &&
-                      // The machine that added the content is still active (i.e., we can presumably reach it later)
-                      !_ephemeralHost.ClusterStateManager.ClusterState.IsMachineMarkedInactive(operation.Value));
+            DateTime latestPersistentRecord = DateTime.MinValue;
+            var replicas = 0;
+            foreach (var operation in contentEntry.Operations)
+            {
+                if (operation.ChangeStamp.Operation != ChangeStampOperation.Add)
+                {
+                    continue;
+                }
 
-            return satisfying >= _ephemeralHost.Configuration.PutElisionMinimumReplication;
+                if (operation.Value == _ephemeralHost.ClusterStateManager.ClusterState.PrimaryMachineId)
+                {
+                    continue;
+                }
+
+                if (!_ephemeralHost.ClusterStateManager.ClusterState.QueryableClusterState.RecordsByMachineId.TryGetValue(
+                        operation.Value,
+                        out var record))
+                {
+                    // If we couldn't resolve the machine ID, then it simply doesn't exist...
+                    continue;
+                }
+
+                if (record.IsInactive())
+                {
+                    continue;
+                }
+
+                if (record.Persistent)
+                {
+                    latestPersistentRecord = latestPersistentRecord.Max(operation.ChangeStamp.TimestampUtc);
+                    continue;
+                }
+
+                // The call to add the content isn't racing with the current one
+                if ((operation.ChangeStamp.TimestampUtc - nowUtc).Duration() < _ephemeralHost.Configuration.PutElisionRaceTimeout)
+                {
+                    replicas++;
+                }
+            }
+
+            bool elideFromPersistentRecord = false;
+            if (latestPersistentRecord > DateTime.MinValue)
+            {
+                var delta = nowUtc - latestPersistentRecord;
+                elideFromPersistentRecord = delta > TimeSpan.Zero && delta <= _ephemeralHost.Configuration.PutElisionMaximumStaleness;
+            }
+
+            bool elideFromReplicas = replicas >= _ephemeralHost.Configuration.PutElisionMinimumReplication;
+            return elideFromPersistentRecord || elideFromReplicas;
         }
     }
 

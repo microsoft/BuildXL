@@ -60,13 +60,11 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
     private readonly BlobCacheContainerName[] _containers;
     private readonly IShardingScheme<int, BlobCacheStorageAccountName> _scheme;
 
-    private readonly record struct Location(BlobCacheStorageAccountName Account, BlobCacheContainerName Container);
-
     /// <summary>
     /// Used to implement a double-checked locking pattern at the per-container level. Essentially, we don't want to
     /// waste resources by creating clients for the same container at the same time.
     /// </summary>
-    private readonly LockSet<Location> _locks = new();
+    private readonly LockSet<AbsoluteContainerPath> _locks = new();
 
     /// <summary>
     /// We cache the clients because:
@@ -75,7 +73,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
     /// 3. It is possible (although we don't know) that the blob objects have internal state about connections that is
     ///    better to share.
     /// </summary>
-    private readonly ConcurrentDictionary<Location, BlobContainerClient> _clients = new();
+    private readonly ConcurrentDictionary<AbsoluteContainerPath, BlobContainerClient> _clients = new();
 
     public ShardedBlobCacheTopology(Configuration configuration)
     {
@@ -95,7 +93,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
 
     internal static BlobCacheContainerName[] GenerateContainerNames(string universe, string @namespace, ShardingScheme scheme)
     {
-        var matrices = GenerateMatrix(scheme);
+        var matrices = scheme.GenerateMatrix();
         return Enum.GetValues(typeof(BlobCacheContainerPurpose)).Cast<BlobCacheContainerPurpose>().Select(
             purpose =>
             {
@@ -119,33 +117,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             }).ToArray();
     }
 
-    public static (string Metadata, string Content) GenerateMatrix(ShardingScheme scheme)
-    {
-        // The matrix here ensures that metadata does not overlap across sharding schemes. Basically, whenever we add
-        // or remove shards (or change the sharding algorithm), we will get a new salt. This salt will force us to use
-        // a different matrix for metadata.
-        //
-        // Hence, sharding changes imply no metadata hits, but they do not imply no content hits. This is on
-        // purpose because metadata hits guarantee content's existence, so we can't mess around with them.
-
-        // Generate a stable hash out of the sharding scheme.
-        var algorithm = (long)scheme.Scheme;
-        var locations = scheme.Accounts.Select(location => HashCodeHelper.GetOrdinalIgnoreCaseHashCode64(location.AccountName)).ToArray();
-
-        var algorithmSalt = HashCodeHelper.Combine(HashCodeHelper.Fnv1Basis64, algorithm);
-        var locationsSalt = HashCodeHelper.Combine(locations);
-
-        var metadataSalt = Math.Abs(HashCodeHelper.Combine(algorithmSalt, locationsSalt));
-        // TODO: Ideally, we'd like the following to be algorithmSalt, but that would mean that GC needs to track the
-        // salts differently for content and metadata.
-        var contentSalt = metadataSalt;
-
-        return (
-            Metadata: metadataSalt.ToString().Substring(0, 10),
-            Content: contentSalt.ToString().Substring(0, 10));
-    }
-
-    public Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key)
+    public async Task<(BlobContainerClient Client, AbsoluteContainerPath Path)> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key)
     {
         var account = _scheme.Locate(key.Key);
         Contract.Assert(account is not null, $"Attempt to determine account for key `{key}` failed");
@@ -153,53 +125,62 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         // _containers is created with this same enum, so this index access is safe.
         var container = _containers[(int)key.Purpose];
 
-        var location = new Location(account, container);
+        var path = new AbsoluteContainerPath(account, container);
 
-        return GetOrCreateClientAsync(context, location);
+        return (await GetOrCreateClientAsync(context, path), path);
     }
 
     private async Task<BlobContainerClient> GetOrCreateClientAsync(
         OperationContext context,
-        Location location)
+        AbsoluteContainerPath absoluteContainerPath)
     {
         // NOTE: We don't use AddOrGet because CreateClientAsync could fail, in which case we'd have a task that would
         // fail everyone using this.
-        if (_clients.TryGetValue(location, out var client))
+        if (_clients.TryGetValue(absoluteContainerPath, out var client))
         {
             return client;
         }
 
-        using var guard = await _locks.AcquireAsync(location, context.Token);
-        if (_clients.TryGetValue(location, out client))
+        using var guard = await _locks.AcquireAsync(absoluteContainerPath, context.Token);
+        if (_clients.TryGetValue(absoluteContainerPath, out client))
         {
             return client;
         }
 
-        client = await CreateClientAsync(context, location.Account, location.Container).ThrowIfFailureAsync();
+        client = await CreateClientAsync(context, absoluteContainerPath.Account, absoluteContainerPath.Container).ThrowIfFailureAsync();
 
-        var added = _clients.TryAdd(location, client);
+        var added = _clients.TryAdd(absoluteContainerPath, client);
         Contract.Assert(added, "Impossible condition happened: lost TryAdd race under a lock");
 
         return client;
+    }
+
+    public IEnumerable<AbsoluteContainerPath> EnumerateContainers(OperationContext context, BlobCacheContainerPurpose purpose)
+    {
+        var container = _containers[(int)purpose];
+        foreach (var account in _configuration.ShardingScheme.Accounts)
+        {
+            yield return new AbsoluteContainerPath(account, container);
+        }
     }
 
     public async IAsyncEnumerable<BlobContainerClient> EnumerateClientsAsync(
         OperationContext context,
         BlobCacheContainerPurpose purpose)
     {
-        var container = _containers[(int)purpose];
-        foreach (var account in _configuration.ShardingScheme.Accounts)
+        foreach (var absoluteContainerPath in EnumerateContainers(context, purpose))
         {
-            var location = new Location(account, container);
-            var client = await GetOrCreateClientAsync(context, location);
+            var client = await GetOrCreateClientAsync(context, absoluteContainerPath);
             yield return client;
         }
     }
 
-    public async Task<BlobClient> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
+    public async Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
     {
-        var container = await GetContainerClientAsync(context, BlobCacheShardingKey.FromContentHash(contentHash));
-        return container.GetBlobClient($"{contentHash}.blob");
+        var (container, containerPath) = await GetContainerClientAsync(context, BlobCacheShardingKey.FromContentHash(contentHash));
+        var blobPath = BlobPath.CreateAbsolute($"{contentHash}.blob");
+        var client = container.GetBlobClient(blobPath.Path);
+        return new(client, new AbsoluteBlobPath(containerPath, blobPath));
     }
 
     private Task<Result<BlobContainerClient>> CreateClientAsync(OperationContext context, BlobCacheStorageAccountName account, BlobCacheContainerName container)

@@ -371,7 +371,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     var length = 0L;
                     if (!exists)
                     {
-                        BlobClient client = await topology.GetBlobClientAsync(context, contentHash);
+                        var (client, _) = await topology.GetBlobClientAsync(context, contentHash);
 
                         try
                         {

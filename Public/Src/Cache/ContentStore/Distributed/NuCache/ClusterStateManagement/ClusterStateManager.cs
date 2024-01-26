@@ -30,9 +30,9 @@ public class ClusterStateManager : StartupShutdownComponentBase
 
         public MachineLocation PrimaryLocation { get; set; }
 
-        public MachineLocation[] AdditionalMachineLocations { get; set; } = Array.Empty<MachineLocation>();
+        public IReadOnlyList<MachineLocation> AdditionalMachineLocations { get; set; } = Array.Empty<MachineLocation>();
 
-        public MachineLocation[] PersistentLocations { get; set; } = Array.Empty<MachineLocation>();
+        public IReadOnlyList<MachineLocation> PersistentLocations { get; set; } = Array.Empty<MachineLocation>();
 
         public ClusterStateRecomputeConfiguration RecomputeConfiguration { get; set; } = new ClusterStateRecomputeConfiguration();
     }
@@ -89,7 +89,7 @@ public class ClusterStateManager : StartupShutdownComponentBase
 
         ClusterState.UpdateMachineMappings(machineMappings[0].Id, machineMappings);
 
-        if (_configuration.PersistentLocations.Length > 0)
+        if (_configuration.PersistentLocations.Count > 0)
         {
             (currentState, _) = await RegisterMachinesAsync(context, _configuration.PersistentLocations, persistent: true).ThrowIfFailureAsync();
         }

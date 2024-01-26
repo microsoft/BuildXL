@@ -1,8 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -41,7 +39,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
 
                 var content = new ContentHashWithSize(ContentHash.Random(), 100);
 
-                await leader.ChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
+                await leader.LocalChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
                 leader.ContentTracker.GetSequenceNumber(content.Hash, leader.Id).Should().Be(
                     new SequenceNumber(1),
                     "Sequence number must increment when doing a mutation");
@@ -75,7 +73,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
 
                 var content = new ContentHashWithSize(ContentHash.Random(), 100);
 
-                await worker.ChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
+                await worker.LocalChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
                 worker.ContentTracker.GetSequenceNumber(content.Hash, worker.Id).Should().Be(new SequenceNumber(1));
                 leader.ContentTracker.GetSequenceNumber(content.Hash, worker.Id).Should().Be(new SequenceNumber(1));
 
@@ -83,7 +81,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
                 entry.Size.Should().Be(content.Size);
                 entry.Contains(worker.Id).Should().BeTrue("The worker added the content and should have notified the leader");
 
-                await worker.ChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Delete, content);
+                await worker.LocalChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Delete, content);
                 worker.ContentTracker.GetSequenceNumber(content.Hash, worker.Id).Should().Be(new SequenceNumber(2));
                 leader.ContentTracker.GetSequenceNumber(content.Hash, worker.Id).Should().Be(new SequenceNumber(2));
 
@@ -109,7 +107,7 @@ public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
 
                 var content = new ContentHashWithSize(ContentHash.Random(), 100);
 
-                await r1w.ChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
+                await r1w.LocalChangeProcessor.ProcessLocalChangeAsync(context, ChangeStampOperation.Add, content);
 
                 var entry = await r2w.ContentResolver.GetSingleLocationAsync(context, content.Hash).ThrowIfFailureAsync();
                 entry.Size.Should().Be(content.Size);

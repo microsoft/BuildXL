@@ -191,7 +191,7 @@ public class BlobCacheTests : TestWithOutput
         var scheme = new ShardingScheme(
             ShardingAlgorithm.SingleShard,
             new List<BlobCacheStorageAccountName>() { BlobCacheStorageAccountName.Parse(account) });
-        var matrix = ShardedBlobCacheTopology.GenerateMatrix(scheme);
+        var matrix = scheme.GenerateMatrix();
         var containers = ShardedBlobCacheTopology.GenerateContainerNames(universe, @namespace, scheme);
         matrix.Content.Should().Be("4752270493");
         matrix.Metadata.Should().Be("4752270493");

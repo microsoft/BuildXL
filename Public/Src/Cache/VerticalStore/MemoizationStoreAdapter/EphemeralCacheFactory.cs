@@ -178,7 +178,7 @@ public class EphemeralCacheFactory : ICacheFactory
         }
 
         var persistentCache = BlobCacheFactory.CreateCache(logger, configuration);
-        return await ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.CreateAsync(context, factoryConfiguration, persistentCache);
+        return (await ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.CreateAsync(context, factoryConfiguration, persistentCache)).Cache;
     }
 
     /// <inheritdoc />

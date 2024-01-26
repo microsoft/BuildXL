@@ -111,7 +111,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 db.DeleteContentHashList(blobName, oldContentHashList.Hashes);
             }
 
-            var containerClient = await topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(strongFingerprint.WeakFingerprint));
+            var (containerClient, _) = await topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(strongFingerprint.WeakFingerprint));
 
             var tcs = new TaskCompletionSource<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>>();
             var request = new LifetimeDatabaseCreator.ProcessFingerprintRequest(context, containerClient, blobName, blobLength, db, topology);

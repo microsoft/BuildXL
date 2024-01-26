@@ -15,14 +15,12 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Serialization;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -207,7 +205,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     BlobStorageClientAdapter.State<byte[]> state;
 
                     DateTime? lastContentPinnedTime = null;
-                    
+
                     state = await _storageClientAdapter.ReadStateAsync(context, client, static binaryData => new ValueTask<byte[]>(binaryData.ToArray()))
                         .ThrowIfFailureAsync();
 
@@ -216,7 +214,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                         // If the entry is there, then it should be parseable
                         lastContentPinnedTime = DateTime.Parse(lastContentPinnedTimeString!, null, System.Globalization.DateTimeStyles.RoundtripKind);
                     }
-                    
+
                     return Result.Success(new SerializedMetadataEntry() { ReplacementToken = state.ETag, Data = state.Value, LastContentPinnedTime = lastContentPinnedTime });
                 },
                 traceOperationStarted: false);
@@ -247,9 +245,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return weakFingerprint.Serialize();
         }
 
-        private Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, Fingerprint weakFingerprint)
+        private async Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, Fingerprint weakFingerprint)
         {
-            return _blobCacheTopology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(weakFingerprint));
+            return (await _blobCacheTopology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(weakFingerprint))).Client;
         }
 
         private async Task<BlobClient> GetStrongFingerprintClientAsync(OperationContext context, StrongFingerprint strongFingerprint)
@@ -340,6 +338,6 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc/>
-        public Task<GetStatsResult> GetStatsAsync(Context context) =>  Task.FromResult(new GetStatsResult(_tracer.GetCounters()));
+        public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(_tracer.GetCounters()));
     }
 }

@@ -322,7 +322,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 if (!prevCache.RecordsByMachineId.TryGetValue(kvp.Key, out var previous))
                 {
-                    Tracer.Debug(context, $"MachineMapping: Found new machine. Id=[{current.Id}] Location=[{current.Location}] State=[{current.State}] Persistent=[{current.Persistent}");
+                    Tracer.Debug(context, $"MachineMapping: Found new machine. Id=[{current.Id}] Location=[{current.Location}] State=[{current.State}] Persistent=[{current.Persistent}]");
                     continue;
                 }
 

@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
@@ -135,6 +136,7 @@ public readonly record struct MachineLocation
         Uri = uri;
     }
 
+    /// <nodoc />
     public static MachineLocation Create(string machineName, int port)
     {
         if (string.IsNullOrEmpty(machineName))
@@ -145,6 +147,13 @@ public readonly record struct MachineLocation
         return new MachineLocation(new Uri($"grpc://{machineName}:{port}/"));
     }
 
+    /// <nodoc />
+    public static MachineLocation FromContainerPath(AbsoluteContainerPath path)
+    {
+        return new MachineLocation(new Uri($"azs://{path.Account}/{path.Container}"));
+    }
+
+    /// <nodoc />
     public static MachineLocation Parse(string uri)
     {
         if (string.IsNullOrEmpty(uri))
@@ -181,6 +190,7 @@ public readonly record struct MachineLocation
         return Uri?.OriginalString ?? Uri?.ToString() ?? string.Empty;
     }
 
+    /// <nodoc />
     public (string host, int? port) ExtractHostInfo()
     {
         Contract.Requires(IsValid, $"Attempt to obtain Host and Port from invalid {nameof(MachineLocation)}");

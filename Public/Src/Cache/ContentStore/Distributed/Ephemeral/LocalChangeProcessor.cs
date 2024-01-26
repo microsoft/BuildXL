@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 /// This class processes inbound notifications from <see cref="FileSystemContentStore"/> into updates for
 /// <see cref="IContentUpdater"/>. It's the glue logic between FSCS and the Ephemeral cache.
 /// </summary>
-public class ChangeProcessor : StartupShutdownComponentBase, IContentChangeAnnouncer
+public class LocalChangeProcessor : StartupShutdownComponentBase, IContentChangeAnnouncer
 {
     public enum Counter
     {
@@ -33,7 +33,7 @@ public class ChangeProcessor : StartupShutdownComponentBase, IContentChangeAnnou
     }
 
     /// <inheritdoc />
-    protected override Tracer Tracer { get; } = new(nameof(ChangeProcessor));
+    protected override Tracer Tracer { get; } = new(nameof(LocalChangeProcessor));
 
     public CounterCollection<Counter> Counters { get; } = new();
 
@@ -54,7 +54,7 @@ public class ChangeProcessor : StartupShutdownComponentBase, IContentChangeAnnou
     /// </remarks>
     private readonly bool _inlineProcessing;
 
-    public ChangeProcessor(
+    public LocalChangeProcessor(
         ClusterState clusterState,
         ILocalContentTracker localContentTracker,
         IContentUpdater updater,
@@ -100,7 +100,7 @@ public class ChangeProcessor : StartupShutdownComponentBase, IContentChangeAnnou
                                       {
                                           Hash = contentHashWithSize.Hash,
                                           Size = contentHashWithSize.Size,
-                                          Operations = new List<Stamped<MachineId>> { stamped },
+                                          Operations = new List<Stamped<MachineId>>(capacity: 1) { stamped },
                                       }, timeToLive);
 
                 return await _updater.UpdateLocationsAsync(context, request);

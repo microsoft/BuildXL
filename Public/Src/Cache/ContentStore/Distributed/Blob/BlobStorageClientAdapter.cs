@@ -29,7 +29,7 @@ public static class BlobClientExtensions
 {
     public static string ToDisplayName(this BlobClient blob)
     {
-        return $"{blob.BlobContainerName}:{blob.Name}";
+        return $"{blob.AccountName}/{blob.BlobContainerName}/{blob.Name}";
     }
 }
 
@@ -261,7 +261,7 @@ public class BlobStorageClientAdapter
                 {
                     var content = await blob.DownloadContentAsync(context.Token);
                     Response response = content.GetRawResponse();
-                    var metadata = (IReadOnlyDictionary<string, string>) content.Value.Details.Metadata;
+                    var metadata = (IReadOnlyDictionary<string, string>)content.Value.Details.Metadata;
                     etag = response.Headers.ETag.ToString();
                     var value = await readAsync(content.Value.Content);
                     length = content.Value.Details.ContentLength;
@@ -272,7 +272,7 @@ public class BlobStorageClientAdapter
                 {
                     return Result.Success(new State<TState>());
                 }
-           },
+            },
             extraEndMessage: r =>
                              {
                                  if (!r.Succeeded)

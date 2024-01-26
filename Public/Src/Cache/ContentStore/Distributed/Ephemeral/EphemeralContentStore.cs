@@ -32,11 +32,11 @@ public class EphemeralCacheConfiguration
 
     public required AbsolutePath Workspace { get; init; }
 
-    public TimeSpan PutCacheTimeToLive { get; init; } = TimeSpan.FromDays(1);
-
     public TimeSpan PutElisionRaceTimeout { get; init; } = TimeSpan.FromMinutes(1);
 
     public int PutElisionMinimumReplication { get; init; } = 1;
+
+    public TimeSpan PutElisionMaximumStaleness { get; init; } = TimeSpan.FromDays(1);
 }
 
 public class EphemeralHost : StartupShutdownComponentBase
@@ -51,7 +51,7 @@ public class EphemeralHost : StartupShutdownComponentBase
 
     public ILocalContentTracker LocalContentTracker { get; }
 
-    public ChangeProcessor ChangeProcessor { get; }
+    public LocalChangeProcessor LocalChangeProcessor { get; }
 
     public ClusterStateManager ClusterStateManager { get; }
 
@@ -67,30 +67,31 @@ public class EphemeralHost : StartupShutdownComponentBase
 
     public IContentResolver ContentResolver { get; }
 
+    public RemoteChangeAnnouncer RemoteChangeAnnouncer { get; }
+
     private readonly GrpcCoreServerHost _initializer = new();
 
     internal readonly LockSet<ContentHash> RemoteFetchLocks = new();
-
-    internal readonly VolatileMap<ContentHash, long> PutElisionCache = new(SystemClock.Instance);
 
     public EphemeralHost(
         EphemeralCacheConfiguration configuration,
         IClock clock,
         IAbsFileSystem fileSystem,
         ILocalContentTracker localContentTracker,
-        ChangeProcessor changeProcessor,
+        LocalChangeProcessor localChangeProcessor,
         ClusterStateManager clusterStateManager,
         IGrpcServiceEndpoint grpcContentTrackerEndpoint,
         GrpcCopyServer copyServer,
         DistributedContentCopier contentCopier,
         IGrpcServiceEndpoint? grpcClusterStateEndpoint,
         IMasterElectionMechanism masterElectionMechanism,
-        IContentResolver contentResolver)
+        IContentResolver contentResolver,
+        RemoteChangeAnnouncer remoteChangeAnnouncer)
     {
         Configuration = configuration;
         FileSystem = fileSystem;
         LocalContentTracker = localContentTracker;
-        ChangeProcessor = changeProcessor;
+        LocalChangeProcessor = localChangeProcessor;
         ClusterStateManager = clusterStateManager;
         GrpcContentTrackerEndpoint = grpcContentTrackerEndpoint;
         CopyServer = copyServer;
@@ -98,6 +99,7 @@ public class EphemeralHost : StartupShutdownComponentBase
         GrpcClusterStateEndpoint = grpcClusterStateEndpoint;
         MasterElectionMechanism = masterElectionMechanism;
         ContentResolver = contentResolver;
+        RemoteChangeAnnouncer = remoteChangeAnnouncer;
         Clock = clock;
 
         LinkLifetime(MasterElectionMechanism);
@@ -109,7 +111,7 @@ public class EphemeralHost : StartupShutdownComponentBase
         LinkLifetime(ClusterStateManager);
 
         LinkLifetime(LocalContentTracker);
-        LinkLifetime(ChangeProcessor);
+        LinkLifetime(LocalChangeProcessor);
 
         if (GrpcContentTrackerEndpoint is IStartupShutdownSlim grpcContentTrackerEndpointStartupShutdown)
         {
@@ -118,6 +120,8 @@ public class EphemeralHost : StartupShutdownComponentBase
 
         LinkLifetime(CopyServer);
         LinkLifetime(ContentCopier);
+
+        LinkLifetime(RemoteChangeAnnouncer);
     }
 
     protected override async Task<BoolResult> StartupComponentAsync(OperationContext context)

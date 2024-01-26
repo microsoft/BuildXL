@@ -18,9 +18,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// </summary>
 public interface IBlobCacheTopology
 {
-    public Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key);
+    public Task<(BlobContainerClient Client, AbsoluteContainerPath Path)> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key);
 
-    public Task<BlobClient> GetBlobClientAsync(OperationContext context, ContentHash hash);
+    public Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash hash);
+
+    public IEnumerable<AbsoluteContainerPath> EnumerateContainers(OperationContext context, BlobCacheContainerPurpose purpose);
 
     public IAsyncEnumerable<BlobContainerClient> EnumerateClientsAsync(OperationContext context, BlobCacheContainerPurpose purpose);
 }
+

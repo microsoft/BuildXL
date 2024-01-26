@@ -45,6 +45,13 @@ public class ClusterStateShardManager : IShardManager<MachineId>
             var id = entry.Key;
             var record = entry.Value;
 
+            // Persistent records are ignored because they are not machines and therefore not part of the cluster
+            // (i.e., they can't be contacted via gRPC).
+            if (record.Persistent)
+            {
+                continue;
+            }
+
             // This class is meant to be used with the Ephemeral cache. In this scenario, the Open machines are the
             // orchestrators of all running builds. Closed machines are the workers of all running builds, and Inactive
             // machines are machines that are not currently running any builds (as in, they are gone).

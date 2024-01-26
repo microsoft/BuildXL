@@ -114,7 +114,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 var putResult = await session.PutRandomAsync(context, HashType.Vso0, provideHash: false, size: contentSize, CancellationToken.None).ThrowIfFailure();
                 hashes[i] = putResult.ContentHash;
 
-                var blobClient = await topology.GetBlobClientAsync(context, putResult.ContentHash);
+                var (blobClient, _) = await topology.GetBlobClientAsync(context, putResult.ContentHash);
                 var fullName = $"/blobServices/default/containers/{blobClient.BlobContainerName}/blobs/{blobClient.Name}";
 
                 var change = new MockChange()
@@ -133,7 +133,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             var fp = StrongFingerprint.Random();
 
             var r = await session.AddOrGetContentHashListAsync(context, fp, chl, CancellationToken.None).ThrowIfFailure();
-            var containerClient = await topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(fp.WeakFingerprint));
+            var (containerClient, _) = await topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(fp.WeakFingerprint));
             var blobName = AzureBlobStorageMetadataStore.GetBlobPath(fp);
             var size = (await containerClient.GetBlobClient(blobName).GetPropertiesAsync()).Value.ContentLength;
             var fpChange = new MockChange()

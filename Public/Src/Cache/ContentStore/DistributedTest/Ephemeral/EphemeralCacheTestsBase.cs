@@ -41,8 +41,6 @@ using IContentResolver = BuildXL.Cache.ContentStore.Distributed.Ephemeral.IConte
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
 
-// These tests are currently for Cloudbuild-specific scenarios, so they are disabled on macOS for now.
-
 [Collection("Redis-based tests")]
 public abstract class EphemeralCacheTestsBase : TestWithOutput
 {
@@ -101,10 +99,35 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                 placeResult.ShouldBeSuccess();
                 placeResult.MaterializationSource.Should().Be(PlaceFileResult.Source.DatacenterCache);
 
-                r1l.ChangeProcessor.Counters[ChangeProcessor.Counter.ProcessLocalChangeCalls].Value.Should().Be(1);
-                r1l.ChangeProcessor.Counters[ChangeProcessor.Counter.ProcessLocalAdd].Value.Should().Be(1);
-                r1l.ChangeProcessor.Counters[ChangeProcessor.Counter.ProcessLocalDelete].Value.Should().Be(0);
+                r1l.LocalChangeProcessor.Counters[LocalChangeProcessor.Counter.ProcessLocalChangeCalls].Value.Should().Be(1);
+                r1l.LocalChangeProcessor.Counters[LocalChangeProcessor.Counter.ProcessLocalAdd].Value.Should().Be(1);
+                r1l.LocalChangeProcessor.Counters[LocalChangeProcessor.Counter.ProcessLocalDelete].Value.Should().Be(0);
             }, instancesPerRing: 3);
+    }
+
+    [Fact]
+    public Task PersistentLocationIsTracked()
+    {
+        return RunTestAsync(
+            async (context, silentContext, host) =>
+            {
+                var r1 = host.Ring(0);
+                var r1l = host.Instance(r1.Leader);
+                var r1w = host.Instance(r1.Builders[1]);
+
+                var putResult = await r1w.Session!.PutRandomAsync(context, HashType.Vso0, provideHash: true, size: 100, context.Token)
+                    .ThrowIfFailureAsync();
+                putResult.ShouldBeSuccess();
+
+                var locations = await r1l.ContentResolver.GetSingleLocationAsync(context, putResult.ContentHash).ThrowIfFailureAsync();
+                bool hasPersistent = false;
+                foreach (var location in locations.Existing())
+                {
+                    r1l.ClusterStateManager.ClusterState.QueryableClusterState.RecordsByMachineId.TryGetValue(location, out var record).Should().BeTrue();
+                    hasPersistent |= record!.Persistent;
+                }
+                hasPersistent.Should().BeTrue();
+            }, instancesPerRing: 2);
     }
 
     [Fact]
@@ -184,7 +207,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             // Ensure all machines see each other
             await host.HearbeatAsync(silentContext).ThrowIfFailureAsync();
 
-            foreach (var entry in host.Instances.First().ClusterStateManager.ClusterState.QueryableClusterState.RecordsByMachineLocation)
+            foreach (var entry in host.Instances.First().ClusterStateManager.ClusterState.QueryableClusterState.RecordsByMachineLocation.OrderBy(record => record.Value.Id.Index))
             {
                 context.TracingContext.Info($"Machine {entry.Key} maps to {entry.Value}", component: "RunTestContext", operation: "LogMachineMapping");
             }
@@ -217,7 +240,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         public IContentResolver ContentResolver => Host.ContentResolver;
 
-        public ChangeProcessor ChangeProcessor => Host.ChangeProcessor;
+        public LocalChangeProcessor LocalChangeProcessor => Host.LocalChangeProcessor;
 
         public ClusterStateManager ClusterStateManager => Host.ClusterStateManager;
 
@@ -462,7 +485,8 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             MachineLocation leader,
             ConfigurationModifier? modifier)
         {
-            var persistentCache = AzureBlobStorageCacheFactory.Create(context, _blobCacheConfiguration, _secretsProvider) as IFullCache;
+            var persistentResult = AzureBlobStorageCacheFactory.Create(context, _blobCacheConfiguration, _secretsProvider);
+            var persistentCache = persistentResult.Cache;
             Contract.Assert(persistentCache != null);
 
             EphemeralCacheFactory.Configuration? factoryConfiguration;
@@ -513,12 +537,12 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                 factoryConfiguration = modified;
             }
 
-            var (host, cache) = await EphemeralCacheFactory.CreateInternalAsync(
+            var result = await EphemeralCacheFactory.CreateAsync(
                 context,
                 factoryConfiguration,
-                persistentCache);
+                persistentResult);
 
-            return (host, cache);
+            return (result.Host, result.Cache);
         }
     }
 }

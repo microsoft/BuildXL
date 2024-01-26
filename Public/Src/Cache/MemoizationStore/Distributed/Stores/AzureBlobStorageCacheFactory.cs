@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
@@ -68,7 +69,46 @@ public static class AzureBlobStorageCacheFactory
     }
 
     /// <nodoc />
-    public static IFullCache Create(OperationContext context, Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
+    public record struct CreateResult
+    {
+        /// <nodoc />
+        internal Configuration Configuration { get; }
+
+        /// <nodoc />
+        public IFullCache Cache { get; }
+
+        /// <nodoc />
+        internal IBlobCacheTopology Topology { get; }
+
+        /// <nodoc />
+        internal IContentStore ContentStore { get; }
+
+        /// <nodoc />
+        internal IMemoizationStore MemoizationStore { get; }
+
+        /// <nodoc />
+        internal RemoteNotificationDispatch Announcer { get; }
+
+        /// <nodoc />
+        internal CreateResult(
+            Configuration configuration,
+            IFullCache cache,
+            IBlobCacheTopology topology,
+            IContentStore contentStore,
+            IMemoizationStore memoizationStore,
+            RemoteNotificationDispatch announcer)
+        {
+            Configuration = configuration;
+            Cache = cache;
+            Topology = topology;
+            ContentStore = contentStore;
+            MemoizationStore = memoizationStore;
+            Announcer = announcer;
+        }
+    }
+
+    /// <nodoc />
+    public static CreateResult Create(OperationContext context, Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
     {
         context.TracingContext.Warning($"Creating cache with BuildXL version {Branding.Version}", nameof(AzureBlobStorageCacheFactory));
 
@@ -92,10 +132,13 @@ public static class AzureBlobStorageCacheFactory
             ? null
             : TimeSpan.FromDays(configuration.RetentionPolicyInDays.Value);
 
+        var announcer = new RemoteNotificationDispatch();
         IMemoizationStore memoizationStore = CreateMemoizationStore(configuration, topology, retentionPolicyTimeSpan);
-        IContentStore contentStore = CreateContentStore(configuration, topology);
+        IContentStore contentStore = CreateContentStore(configuration, topology, announcer);
 
-        return CreateCache(configuration, contentStore, memoizationStore);
+        var cache = CreateCache(configuration, contentStore, memoizationStore);
+
+        return new CreateResult(configuration, cache, topology, contentStore, memoizationStore, announcer);
     }
 
     private static IFullCache CreateCache(Configuration configuration, IContentStore contentStore, IMemoizationStore memoizationStore)
@@ -121,13 +164,14 @@ public static class AzureBlobStorageCacheFactory
                 BlobRetryPolicy: configuration.BlobRetryPolicy));
     }
 
-    private static AzureBlobStorageContentStore CreateContentStore(Configuration configuration, IBlobCacheTopology topology)
+    private static AzureBlobStorageContentStore CreateContentStore(Configuration configuration, IBlobCacheTopology topology, IRemoteContentAnnouncer? announcer)
     {
         return new AzureBlobStorageContentStore(
             new AzureBlobStorageContentStoreConfiguration()
             {
                 Topology = topology,
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,
+                Announcer = announcer,
             });
     }
 

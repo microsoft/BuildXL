@@ -302,10 +302,13 @@ namespace Test.BuildXL.EngineTests
                 Context.PathTable,
                 cacheDirectory,
                 Path.Combine(TemporaryDirectory, "tmplogdirectory"),
-                new CacheConfiguration
+                new ConfigurationImpl()
                 {
-                    CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache.log"),
-                    CacheConfigFile = cacheConfigPath
+                    Cache = new CacheConfiguration
+                    {
+                        CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache.log"),
+                        CacheConfigFile = cacheConfigPath
+                    }
                 },
                 translator,
                 recoveryStatus: false,
@@ -321,12 +324,15 @@ namespace Test.BuildXL.EngineTests
                 Context.PathTable,
                 cacheDirectory,
                 Path.Combine(TemporaryDirectory, "tmplogdirectory"),
-                new CacheConfiguration
+                new ConfigurationImpl()
                 {
-                    // need a different name for the log file (due to the order in which the things are initialized)
-                    CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache_2.log"),
-                    CacheConfigFile = cacheConfigPath,
+                    Cache = new CacheConfiguration
+                    {
+                        // need a different name for the log file (due to the order in which the things are initialized)
+                        CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache_2.log"),
+                        CacheConfigFile = cacheConfigPath,
 
+                    }
                 },
                 translator,
                 recoveryStatus: false,

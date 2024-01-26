@@ -49,7 +49,7 @@ namespace BuildXL.Cache.InMemory
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null)
         {
             Contract.Requires(cacheData != null);
 

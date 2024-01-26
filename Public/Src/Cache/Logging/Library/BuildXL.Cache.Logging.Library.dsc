@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import * as SdkDeployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed.Shared";
+import { NetFx } from "Sdk.BuildXL";
 
 namespace Library {
     export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472AndNetStandard20;
@@ -22,6 +23,7 @@ namespace Library {
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("System.Threading.Tasks.Extensions").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
@@ -29,6 +31,7 @@ namespace Library {
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
                 importFrom("Microsoft.Cloud.InstrumentationFramework").pkg,
                 ]),
+            ...addIf(BuildXLSdk.isFullFramework, $.withQualifier({targetFramework:"net472"}).NetFx.System.Xml.dll),
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.Logging.Test"

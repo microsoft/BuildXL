@@ -11,6 +11,7 @@ namespace MemoizationStoreAdapter {
         references: [
             Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
@@ -24,9 +25,11 @@ namespace MemoizationStoreAdapter {
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
+            importFrom("BuildXL.Cache.Logging").Library.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Library.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Distributed.dll,
+            importFrom("NLog").pkg,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.MemoizationStoreAdapter.Test",

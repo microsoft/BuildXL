@@ -1879,10 +1879,6 @@ namespace BuildXL
                     return null;
                 }
 
-                // The client id should point to the managed identity that has Contribute permissions to write into the blob storage
-                var credentials = new ManagedIdentityCredential(clientId: m_configuration.LogToKustoIdentityId);
-                var blobServiceClient = new BlobServiceClient(new Uri(uri.GetLeftPart(UriPartial.Authority)), credentials);
-
                 // In case any error happens while uploading messages to Kusto, log those as warnings
                 // To guard for the case where an error manifests on every message that gets uploaded, and in order to not flood the console,
                 // we only log the first error and ignore the rest.
@@ -1891,19 +1887,7 @@ namespace BuildXL
 
                 try
                 {
-                    var blobLog = new AzureBlobStorageLog(
-                        new AzureBlobStorageLogConfiguration(new Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(workspacePath))
-                        {
-                            ContainerName = uri.Segments[1],
-                            // Make sure the upload queue always get drained on shutdown, since after the build is done we won't have the opportunity to do it again
-                            DrainUploadsOnShutdown = true,
-                        },
-                        new Cache.ContentStore.Tracing.Internal.OperationContext(new Cache.ContentStore.Interfaces.Tracing.Context(logger), m_cancellationToken),
-                        SystemClock.Instance,
-                        new Cache.ContentStore.FileSystem.PassThroughFileSystem(),
-                        new BasicTelemetryFieldsProvider(),
-                        blobServiceClient,
-                        additionalBlobMetadata: null);
+                    var blobLog = AzureBlobStorageLog.CreateWithManagedIdentity(logger, m_configuration.LogToKustoIdentityId, uri, workspacePath, m_cancellationToken);
 
                     var blobListener = listenerCreator(blobLog);
                     AddListener(blobListener);

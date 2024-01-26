@@ -320,7 +320,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                 Context.PathTable,
                 cacheDirectory,
                 Path.Combine(TemporaryDirectory, "tmplogdirectory"),
-                Configuration.Cache,
+                Configuration,
                 translator,
                 recoveryStatus: false,
                 cancellationToken: CancellationToken.None).GetAwaiter().GetResult();

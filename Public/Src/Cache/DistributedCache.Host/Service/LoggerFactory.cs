@@ -134,77 +134,16 @@ namespace BuildXL.Cache.Host.Service
 
             try
             {
-                return await createAdapterAsync(operationContext, arguments, log);
+                // Using a custom renderer to make the exceptions stack traces clearer.
+                LayoutRenderer.Register<DemystifiedExceptionLayoutRenderer>("exception");
+
+                return await NLogAdapterHelper.CreateAdapterAsync(
+                    operationContext.TracingContext.Logger, arguments.TelemetryFieldsProvider, arguments.LoggingSettings!.NLogConfigurationPath!, arguments.LoggingSettings.NLogConfigurationReplacements, log);
             }
             catch (Exception)
             {
                 await log.ShutdownAsync().IgnoreFailure();
                 throw;
-            }
-
-            static Task<IStructuredLogger> createAdapterAsync(OperationContext operationContext, LoggerFactoryArguments arguments, AzureBlobStorageLog log)
-            {
-                // This is done for performance. See: https://github.com/NLog/NLog/wiki/performance#configure-nlog-to-not-scan-for-assemblies
-                NLog.Config.ConfigurationItemFactory.Default = new NLog.Config.ConfigurationItemFactory(typeof(NLog.ILogger).GetTypeInfo().Assembly);
-
-                // This is needed for dependency injection. See: https://github.com/NLog/NLog/wiki/Dependency-injection-with-NLog
-                // The issue is that we need to construct a log, which requires access to both our config and the host. It
-                // seems too much to put it into the AzureBlobStorageLogTarget itself, so we do it here.
-                var defaultConstructor = NLog.Config.ConfigurationItemFactory.Default.CreateInstance;
-                NLog.Config.ConfigurationItemFactory.Default.CreateInstance = type =>
-                {
-                    if (type == typeof(AzureBlobStorageLogTarget))
-                    {
-                        return new AzureBlobStorageLogTarget(log);
-                    }
-
-                    return defaultConstructor(type);
-                };
-
-                NLog.Targets.Target.Register<AzureBlobStorageLogTarget>(nameof(AzureBlobStorageLogTarget));
-
-                // Using a custom renderer to make the exceptions stack traces clearer.
-                LayoutRenderer.Register<DemystifiedExceptionLayoutRenderer>("exception");
-
-                // This is done in order to allow our logging configuration to access key telemetry information.
-                var telemetryFieldsProvider = arguments.TelemetryFieldsProvider;
-
-                LayoutRenderer.Register("APEnvironment", _ => telemetryFieldsProvider.APEnvironment);
-                LayoutRenderer.Register("APCluster", _ => telemetryFieldsProvider.APCluster);
-                LayoutRenderer.Register("APMachineFunction", _ => telemetryFieldsProvider.APMachineFunction);
-                LayoutRenderer.Register("MachineName", _ => telemetryFieldsProvider.MachineName);
-                LayoutRenderer.Register("ServiceName", _ => telemetryFieldsProvider.ServiceName);
-                LayoutRenderer.Register("ServiceVersion", _ => telemetryFieldsProvider.ServiceVersion);
-                LayoutRenderer.Register("Stamp", _ => telemetryFieldsProvider.Stamp);
-                LayoutRenderer.Register("Ring", _ => telemetryFieldsProvider.Ring);
-                LayoutRenderer.Register("ConfigurationId", _ => telemetryFieldsProvider.ConfigurationId);
-                LayoutRenderer.Register("CacheVersion", _ => Utilities.Branding.Version);
-
-                LayoutRenderer.Register("Role", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole));
-                LayoutRenderer.Register("BuildId", _ => GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.BuildId));
-
-                // Follows ISO8601 without timezone specification.
-                // See: https://kusto.azurewebsites.net/docs/query/scalar-data-types/datetime.html
-                // See: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings?view=netframework-4.8#the-round-trip-o-o-format-specifier
-                var processStartTimeUtc = SystemClock.Instance.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
-                NLog.LayoutRenderers.LayoutRenderer.Register("ProcessStartTimeUtc", _ => processStartTimeUtc);
-
-#pragma warning disable AsyncFixer02 // Long-running or blocking operations inside an async method
-                // We don't use ReadAllTextAsync here because net472 doesn't allow us to do so
-                var configurationContent = File.ReadAllText(arguments.LoggingSettings!.NLogConfigurationPath!);
-#pragma warning restore AsyncFixer02 // Long-running or blocking operations inside an async method
-
-                foreach (var replacement in arguments.LoggingSettings.NLogConfigurationReplacements)
-                {
-                    configurationContent = configurationContent.Replace(replacement.Key, replacement.Value);
-                }
-
-                // The following are not disposed becaue NLog takes ownership of them
-                var textReader = new StringReader(configurationContent);
-                var reader = XmlReader.Create(textReader);
-                var configuration = new NLog.Config.XmlLoggingConfiguration(reader, arguments.LoggingSettings.NLogConfigurationPath);
-
-                return Task.FromResult((IStructuredLogger)new NLogAdapter(operationContext.TracingContext.Logger, configuration, log));
             }
         }
 

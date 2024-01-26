@@ -97,7 +97,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <inheritdoc />
-        public async Task<Possible<Interfaces.ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
+        public async Task<Possible<Interfaces.ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null)
         {
             Contract.Requires(cacheData != null);
 

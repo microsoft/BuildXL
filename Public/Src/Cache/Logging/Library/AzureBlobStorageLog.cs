@@ -10,10 +10,12 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Core;
 using Azure.Core.Pipeline;
+using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
@@ -100,6 +102,34 @@ namespace BuildXL.Cache.Logging
         /// because all the traces goes through this instance and the shutdown itself cleans up the resources.
         /// </summary>
         public override bool TraceShutdown => false;
+
+        /// <summary>
+        /// Creates an instance of this class using the provided managed identity as the authentication mechanism
+        /// and the given Uri as the storage account endpoint.
+        /// </summary>
+        public static AzureBlobStorageLog CreateWithManagedIdentity(ILogger logger, string managedIdentityId, Uri uri, string uploadWorkspacePath, CancellationToken cancellationToken)
+        {
+            // The client id should point to the managed identity that has Contribute permissions to write into the blob storage
+            TokenCredential credentials;
+
+            credentials = new ManagedIdentityCredential(clientId: managedIdentityId);
+
+            var blobServiceClient = new BlobServiceClient(new Uri(uri.GetLeftPart(UriPartial.Authority)), credentials);
+
+            return new AzureBlobStorageLog(
+                new AzureBlobStorageLogConfiguration(new AbsolutePath(uploadWorkspacePath))
+                {
+                    ContainerName = uri.Segments[1],
+                    // Make sure the upload queue always get drained on shutdown, since after the build is done we won't have the opportunity to do it again
+                    DrainUploadsOnShutdown = true,
+                },
+                new OperationContext(new ContentStore.Interfaces.Tracing.Context(logger), cancellationToken),
+                SystemClock.Instance,
+                new ContentStore.FileSystem.PassThroughFileSystem(),
+                new BasicTelemetryFieldsProvider(),
+                blobServiceClient,
+                additionalBlobMetadata: null);
+        }
 
         /// <nodoc />
         public AzureBlobStorageLog(

@@ -1877,12 +1877,11 @@ namespace BuildXL.Engine
                                     Context.PathTable,
                                     Configuration.Layout.CacheDirectory.ToString(Context.PathTable),
                                     Configuration.Logging.LogsDirectory.ToString(Context.PathTable),
-                                    Configuration.Cache,
+                                    Configuration,
                                     rootTranslator: m_rootTranslator,
                                     recoveryStatus: recoveryStatus,
                                     cancellationToken: Context.CancellationToken,
-                                    testHookCacheFactory: TestHooks?.CacheFactory,
-                                    distributionConfiguration: Configuration.Distribution);
+                                    testHookCacheFactory: TestHooks?.CacheFactory);
 
                                 // When distribution is on, we have to finish initializing the EngineCache right away.
                                 // (rather than trying to defer waiting as much as possible).

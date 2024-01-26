@@ -24,7 +24,7 @@ namespace BuildXL.Cache.Interfaces.Test
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null)
         {
             Contract.Requires(cacheData != null);
 
@@ -36,7 +36,7 @@ namespace BuildXL.Cache.Interfaces.Test
 
             Config cacheConfig = possibleCacheConfig.Result;
 
-            var cache = await CacheFactory.InitializeCacheAsync(cacheConfig.EncapsulatedCache, activityId, cacheConfiguration);
+            var cache = await CacheFactory.InitializeCacheAsync(cacheConfig.EncapsulatedCache, activityId, configuration);
 
             if (!cache.Succeeded)
             {

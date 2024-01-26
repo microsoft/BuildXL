@@ -62,8 +62,8 @@ namespace BuildXL.Cache.Interfaces
         /// </summary>
         /// <param name="config">Json cache configuration data string</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
-        /// <param name="cacheConfiguration">Cache configuration object, which may influence how the cache is configured</param>
-        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(string config, Guid activityId, ICacheConfiguration cacheConfiguration = null)
+        /// <param name="configuration">Configuration object, which may influence how the cache is configured</param>
+        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(string config, Guid activityId, IConfiguration configuration = null)
         {
             ICacheConfigData cacheData;
             Exception exception;
@@ -73,7 +73,7 @@ namespace BuildXL.Cache.Interfaces
             }
 
             // create cache instance
-            return await InitializeCacheAsync(cacheData, activityId, cacheConfiguration);
+            return await InitializeCacheAsync(cacheData, activityId, configuration);
         }
 
         /// <summary>
@@ -117,8 +117,8 @@ namespace BuildXL.Cache.Interfaces
         /// </summary>
         /// <param name="cacheData">The cache config data to be passed to the factory</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
-        /// <param name="cacheConfiguration">Cache configuration object, which may influence how the cache is configured</param>
-        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration)
+        /// <param name="configuration">Configuration object, which may influence how the cache is configured</param>
+        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration)
         {
             Contract.Requires(cacheData != null);
 
@@ -171,7 +171,7 @@ namespace BuildXL.Cache.Interfaces
             }
 
             // call the loaded cache factory and create new cache object
-            return await factoryObject.InitializeCacheAsync(cacheData, activityId, cacheConfiguration);
+            return await factoryObject.InitializeCacheAsync(cacheData, activityId, configuration);
         }
 
         /// <summary>
@@ -242,12 +242,15 @@ namespace BuildXL.Cache.Interfaces
         /// </summary>
         /// <typeparam name="T">Type of the data object to construct</typeparam>
         /// <param name="cacheData">The ICache data object to use</param>
+        /// <param name="activityId">Identifier for the corresponding build</param>
+        /// <param name="configuration">Engine-side configuration, from which some settings may be relevant to the object being created</param>
         /// <returns>A new data object already filled in or a failure due to missing or invalid values</returns>
         /// <remarks>
         /// Enforces the contract that all given config items map to the T (no unknown values) other than the two factory values
         /// Enforces the contract that CacheId field both exists and that its value is constrained to a valid cache ID.
+        /// If T is a data object that needs settings coming from the engine, please <see cref="IEngineDependentSettingsConfiguration"/>.
         /// </remarks>
-        public static Possible<T, Failure> Create<T>(this ICacheConfigData cacheData) where T : class, new()
+        public static Possible<T, Failure> Create<T>(this ICacheConfigData cacheData, Guid? activityId = null, IConfiguration configuration = null) where T : class, new()
         {
             Contract.Requires(cacheData != null);
 
@@ -284,6 +287,17 @@ namespace BuildXL.Cache.Interfaces
                             cacheIdProperty.Name,
                             cacheId,
                             CacheIdRegex);
+                }
+            }
+
+            // Check whether the configuration object needs data from the engine configuration
+            if (cacheConfig is IEngineDependentSettingsConfiguration engineDependentSettingsConfiguration)
+            {
+                Contract.Requires(configuration != null);
+                Contract.Requires(activityId != null);
+                if (!engineDependentSettingsConfiguration.TryPopulateFrom(activityId.Value, configuration, out var failure))
+                {
+                    return failure;
                 }
             }
 

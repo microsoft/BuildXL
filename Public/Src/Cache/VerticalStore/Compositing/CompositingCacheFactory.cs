@@ -53,7 +53,7 @@ namespace BuildXL.Cache.Compositing
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null)
         {
             Contract.Requires(cacheData != null);
 
@@ -66,7 +66,7 @@ namespace BuildXL.Cache.Compositing
             Config compositingConfig = possibleCacheConfig.Result;
 
             // initialize local cache
-            var maybeCache = await CacheFactory.InitializeCacheAsync(compositingConfig.MetadataCache, activityId, cacheConfiguration);
+            var maybeCache = await CacheFactory.InitializeCacheAsync(compositingConfig.MetadataCache, activityId, configuration);
             if (!maybeCache.Succeeded)
             {
                 return maybeCache.Failure;
@@ -80,7 +80,7 @@ namespace BuildXL.Cache.Compositing
                 return new InconsistentCacheStateFailure("Must specify a non-strict metadata cache when compositing caches.");
             }
 
-            maybeCache = await CacheFactory.InitializeCacheAsync(compositingConfig.CasCache, activityId, cacheConfiguration);
+            maybeCache = await CacheFactory.InitializeCacheAsync(compositingConfig.CasCache, activityId, configuration);
             if (!maybeCache.Succeeded)
             {
                 Analysis.IgnoreResult(await metadata.ShutdownAsync(), justification: "Okay to ignore shutdown status");

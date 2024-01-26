@@ -40,6 +40,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MonitorAugmentedPathSets = 0;
             HonorDirectoryCasingOnDisk = false;
             AllowReuseOfWeakIdenityForSourceFiles = false;
+            CacheLogToKusto = false;
         }
 
         /// <nodoc />
@@ -78,6 +79,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             HonorDirectoryCasingOnDisk = template.HonorDirectoryCasingOnDisk;
             AllowReuseOfWeakIdenityForSourceFiles = template.AllowReuseOfWeakIdenityForSourceFiles;
             FileContentTableEntryTimeToLive = template.FileContentTableEntryTimeToLive;
+            CacheLogToKusto = template.CacheLogToKusto;
         }
 
         /// <nodoc />
@@ -98,7 +100,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool AllowFetchingCachedGraphFromContentCache { get; set; }
-        
+
         /// <inheritdoc />
         public bool CacheGraph { get; set; }
 
@@ -119,7 +121,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <nodoc />
         public ArtificialCacheMissConfig ArtificialCacheMissOptions { get; set; }
-       
+
         /// <inheritdoc />
         IArtificialCacheMissConfig ICacheConfiguration.ArtificialCacheMissConfig => ArtificialCacheMissOptions;
 
@@ -184,5 +186,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool AllowReuseOfWeakIdenityForSourceFiles { get; set; }
+
+        /// <inheritdoc/>
+        public bool CacheLogToKusto { get; set; }
     }
 }

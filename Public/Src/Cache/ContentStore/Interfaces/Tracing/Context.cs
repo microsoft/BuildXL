@@ -226,43 +226,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
             }
             else
             {
-                string? provenance;
-                if ((!string.IsNullOrEmpty(component) && message.StartsWith(component)) || (!string.IsNullOrEmpty(operation) && message.Contains(operation)))
-                {
-                    provenance = string.Empty;
-                }
-                else
-                {
-                    if (string.IsNullOrEmpty(component) || string.IsNullOrEmpty(operation))
-                    {
-                        provenance = $"{component}{operation}: ";
-
-                        if (provenance.Equals(": "))
-                        {
-                            provenance = string.Empty;
-                        }
-                    }
-                    else
-                    {
-                        provenance = $"{component}.{operation}: ";
-                    }
-                }
-
-                if (exception == null)
-                {
-                    Logger.Log(severity, $"{_idAsString} {provenance}{message}");
-                }
-                else
-                {
-                    if (severity == Severity.Error)
-                    {
-                        Logger.Error(exception, $"{_idAsString} {provenance}{message}");
-                    }
-                    else
-                    {
-                        Logger.Log(severity, $"{_idAsString} {provenance}{message} {exception}");
-                    }
-                }
+                Logger.TraceMessage(_idAsString, severity, message, exception, component, operation);
             }
         }
 

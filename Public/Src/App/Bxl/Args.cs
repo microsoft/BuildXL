@@ -676,13 +676,16 @@ namespace BuildXL
                             opt => {
                                 // Events that are selected to log to the console are always forwarded
                                 // from workers to the orchestrator to be displayed on the "main" console.
-                                ParseInt32ListOption(opt, loggingConfiguration.LogEventsToConsole); 
-                                ParseInt32ListOption(opt, loggingConfiguration.ForwardableWorkerEvents); 
+                                ParseInt32ListOption(opt, loggingConfiguration.LogEventsToConsole);
+                                ParseInt32ListOption(opt, loggingConfiguration.ForwardableWorkerEvents);
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "logToKusto",
                             opt => loggingConfiguration.LogToKusto = opt),
-                        OptionHandlerFactory.CreateOption(
+                        OptionHandlerFactory.CreateBoolOption(
+                            "cacheLogToKusto",
+                            opt => cacheConfiguration.CacheLogToKusto = opt),
+                         OptionHandlerFactory.CreateOption(
                             "logToKustoBlobUri",
                             opt => loggingConfiguration.LogToKustoBlobUri = opt.Value),
                         OptionHandlerFactory.CreateOption(

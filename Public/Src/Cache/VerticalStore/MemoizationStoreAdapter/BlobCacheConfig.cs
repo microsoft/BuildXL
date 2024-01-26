@@ -1,0 +1,193 @@
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
+using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using BuildXL.Cache.Interfaces;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
+
+namespace BuildXL.Cache.MemoizationStoreAdapter
+{
+    /// <summary>
+    /// Inheritable configuration settings for cache factories that wish to configure a connection to a blob cache
+    /// </summary>
+    public class BlobCacheConfig : IEngineDependentSettingsConfiguration
+    {
+        /// <nodoc />
+        public BlobCacheConfig()
+        {
+            CacheId = new CacheId("BlobCache");
+        }
+
+        /// <summary>
+        /// The Id of the cache instance
+        /// </summary>
+        [DefaultValue(typeof(CacheId))]
+        public CacheId CacheId { get; set; }
+
+        /// <summary>
+        /// Path to the log file for the cache.
+        /// </summary>
+        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+        public string CacheLogPath { get; set; }
+
+        /// <summary>
+        /// Duration to wait for exclusive access to the cache directory before timing out.
+        /// </summary>
+        [DefaultValue(0)]
+        public uint LogFlushIntervalSeconds { get; set; }
+
+        /// <summary>
+        /// Authenticate by using a single or an array of connection strings inside of an environment variable.
+        /// </summary>
+        /// <remarks>
+        /// This is not a good authentication method because in many cases environment variables are logged and not
+        /// encrypted.
+        ///
+        /// The preferred authentication method is to use a managed identity (<see cref="StorageAccountEndpoint"/>
+        /// and <see cref="ManagedIdentityId"/>). However, this is unsupported for sharded scenarios and isn't
+        /// available outside of Azure. Use <see cref="ConnectionStringFileEnvironmentVariableName"/> if that's
+        /// your use-case.
+        /// </remarks>
+        [DefaultValue("BlobCacheFactoryConnectionString")]
+        public string ConnectionStringEnvironmentVariableName { get; set; }
+
+        /// <summary>
+        /// Authenticate by using a file that contains a single or an array of connection strings.
+        /// </summary>
+        /// <remarks>
+        /// The preferred authentication method is to use a managed identity (<see cref="StorageAccountEndpoint"/>
+        /// and <see cref="ManagedIdentityId"/>). However, this is unsupported for sharded scenarios and isn't
+        /// available outside of Azure. Use <see cref="ConnectionStringFileEnvironmentVariableName"/> if that's
+        /// your use-case.
+        /// </remarks>
+        [DefaultValue("BlobCacheFactoryConnectionStringFile")]
+        public string ConnectionStringFileEnvironmentVariableName { get; set; }
+
+        /// <summary>
+        /// Whether the connection string file should be considered to be DPAPI encrypted.
+        /// </summary>
+        [DefaultValue(true)]
+        public bool ConnectionStringFileDataProtectionEncrypted { get; set; } = true;
+
+        /// <summary>
+        /// URI of the storage account endpoint to be used for this cache when authenticating using managed
+        /// identities (e.g: https://mystorageaccount.blob.core.windows.net).
+        /// </summary>
+        [DefaultValue(null)]
+        public string StorageAccountEndpoint { get; set; }
+
+        /// <summary>
+        /// The client id for the managed identity that will be used to authenticate against the storage account
+        /// specified in <see cref="StorageAccountEndpoint"/>.
+        /// </summary>
+        [DefaultValue(null)]
+        public string ManagedIdentityId { get; set; }
+
+        /// <summary>
+        /// The configured number of days the storage account will retain blobs before deleting (or soft deleting)
+        /// them based on last access time. If content and metadata have different retention policies, the shortest
+        /// retention period is expected here.
+        /// </summary>
+        /// <remarks>
+        /// This setting should only be used when utilizing service-less GC (i.e., GC is performed via Azure
+        /// Storage's lifecycle management feature).
+        /// 
+        /// By setting this value to reflect the storage account life management configuration policy, pin
+        /// operations can be elided if we know a fingerprint got a cache hit within the retention policy period.
+        /// 
+        /// When enabled (a positive value), every time that a content hash list is stored, a last upload time is
+        /// associated to it and stored as well.
+        /// This last upload time is deemed very close to the one used for storing all the corresponding content
+        /// for that content hash (since typically that's the immediate step prior to storing the fingerprint).
+        /// Whenever a content hash list is retrieved and has a last upload time associated to it, the metadata
+        /// store notifies the cache of it. The cache then uses that information to determine whether the content
+        /// associated to that fingerprint can be elided, based on the provided configured blob retention policy of
+        /// the blob storage account.
+        /// </remarks>
+        [DefaultValue(-1)]
+        public int RetentionPolicyInDays { get; set; } = -1;
+
+        /// <nodoc />
+        [DefaultValue("default")]
+        public string Universe { get; set; }
+
+        /// <nodoc />
+        [DefaultValue("default")]
+        public string Namespace { get; set; }
+
+        /// <summary>
+        /// The endpoint URI to use when uploading cache logs to a storage account
+        /// </summary>
+        /// <remarks>
+        /// Null when no upload has to be performed
+        /// </remarks>
+        [DefaultValue(null)]
+        public Uri LogToKustoBlobUri { get; set; }
+
+        /// <summary>
+        /// The managed identity to use when authenticating against the URI specified in <see cref="LogToKustoBlobUri"/>
+        /// </summary>
+        [DefaultValue(null)]
+        public string LogToKustoIdentityId { get; set; }
+
+        /// <summary>
+        /// Whether to upload cache logs to Kusto
+        /// </summary>
+        [DefaultValue(false)]
+        public bool LogToKusto { get; set; }
+
+        /// <summary>
+        /// The role this machine has in the build (Coordinator/Worker)
+        /// </summary>
+        [DefaultValue(null)]
+        public string Role { get; set; }
+
+        /// <summary>
+        /// Unique identifier of the build
+        /// </summary>
+        [DefaultValue(null)]
+        public string BuildId { get; set; }
+
+        /// <summary>
+        /// This configuration needs the role, activity id and the kusto logging info coming from the engine configuration object
+        /// </summary>
+        public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, out Failure failure)
+        {
+            LogToKusto = configuration.Cache.CacheLogToKusto;
+            // For legacy reasons, cache logs require 'Master' when the build role is orchestrator
+            Role = configuration.Distribution.BuildRole.IsOrchestrator() ? "Master" : configuration.Distribution.BuildRole.ToString();
+            BuildId = activityId.ToString();
+
+            if (!LogToKusto)
+            {
+                failure = null;
+                return true;
+            }
+
+            if (!Uri.TryCreate(configuration.Logging.LogToKustoBlobUri, UriKind.Absolute, out var uri))
+            {
+                failure = new CacheFailure($"Log upload endpoint '{configuration.Logging.LogToKustoBlobUri}' is not a valid URI");
+                return false;
+            }
+
+            if (uri.Segments.Length != 2)
+            {
+                failure = new CacheFailure($"Uri expected format is 'https://<storage-account-name>.blob.core.windows.net/<container-name>'.");
+                return false;
+            }
+
+            // The contract is that the user-specified container name is appended a 'cache' suffix to represent the container where cache logs go to
+            var containerName = $"{uri.Segments[1]}cache";
+
+            LogToKustoBlobUri = new Uri($"https://{uri.Host}/{containerName}");
+            LogToKustoIdentityId = configuration.Logging.LogToKustoIdentityId;
+
+            failure = null;
+
+            return true;
+        }
+    }
+}

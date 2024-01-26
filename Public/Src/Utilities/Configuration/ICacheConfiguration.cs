@@ -178,5 +178,14 @@ namespace BuildXL.Utilities.Configuration
         /// For source files, allow reusing file's weak identity when recording a new content hash.
         /// </summary>
         bool AllowReuseOfWeakIdenityForSourceFiles { get; }
+
+        /// <summary>
+        /// Whether to send cache log events to Kusto.
+        /// </summary>
+        /// <remarks>
+        /// False by default. This is a temporary flag to control the deployment of the cache log Kusto upload feature feature.
+        /// TODO: This should be removed once the feature has been validated, and <see cref="ILoggingConfiguration.LogToKusto"/> should drive that decision
+        /// </remarks>
+        public bool CacheLogToKusto { get; }
     }
 }

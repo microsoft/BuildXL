@@ -74,14 +74,13 @@ namespace BuildXL.Engine
             PathTable pathTable,
             string cacheDirectory,
             string logDirectory,
-            ICacheConfiguration config,
+            IConfiguration config,
             RootTranslator rootTranslator,
             bool? recoveryStatus,
             CancellationToken cancellationToken,
 
             // Only used for testing purposes to inject cache.
-            Func<EngineCache> testHookCacheFactory = null,
-            IDistributionConfiguration distributionConfiguration = null)
+            Func<EngineCache> testHookCacheFactory = null)
         {
             Contract.Requires(recoveryStatus.HasValue, "Recovery attempt should have been done before initializing the cache");
             DateTime startTime = DateTime.UtcNow;
@@ -101,7 +100,7 @@ namespace BuildXL.Engine
                                 testHookCacheFactory,
                                 loggingContext,
                                 new List<IDisposable>(),
-                                enableFingerprintLookup: config.Incremental);
+                                enableFingerprintLookup: config.Cache.Incremental);
                         }
 
                         Possible<CacheCoreCacheInitializer> maybeCacheCoreEngineCache =
@@ -110,9 +109,8 @@ namespace BuildXL.Engine
                                 pathTable,
                                 cacheDirectory,
                                 config,
-                                enableFingerprintLookup: config.Incremental,
-                                rootTranslator,
-                                distributionConfiguration);
+                                enableFingerprintLookup: config.Cache.Incremental,
+                                rootTranslator);
 
                         if (!maybeCacheCoreEngineCache.Succeeded)
                         {
@@ -346,16 +344,15 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             PathTable pathTable,
             string cacheDirectory,
-            ICacheConfiguration config,
+            IConfiguration config,
             bool enableFingerprintLookup,
-            RootTranslator rootTranslator,
-            IDistributionConfiguration distributionConfiguration = null)
+            RootTranslator rootTranslator)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(pathTable.IsValid);
             Contract.Requires(config != null);
-            Contract.Requires(config.CacheLogFilePath.IsValid);
-            Contract.Requires(config.CacheConfigFile.IsValid);
+            Contract.Requires(config.Cache.CacheLogFilePath.IsValid);
+            Contract.Requires(config.Cache.CacheConfigFile.IsValid);
             Contract.Requires(!string.IsNullOrWhiteSpace(cacheDirectory));
 
             bool succeeded = false;
@@ -363,7 +360,7 @@ namespace BuildXL.Engine
             ICacheCoreSession session = null;
             try
             {
-                Possible<ICacheConfigData> cacheConfigData = TryGetCacheConfigData(pathTable, cacheDirectory, config, rootTranslator, distributionConfiguration);
+                Possible<ICacheConfigData> cacheConfigData = TryGetCacheConfigData(pathTable, cacheDirectory, config.Cache, rootTranslator, config.Distribution);
                 if (!cacheConfigData.Succeeded)
                 {
                     return cacheConfigData.Failure;
@@ -388,9 +385,9 @@ namespace BuildXL.Engine
                 Tracing.Logger.Log.CacheInitialized(loggingContext, cache.CacheId);
 
                 Possible<ICacheCoreSession> maybeSession =
-                    string.IsNullOrWhiteSpace(config.CacheSessionName)
+                    string.IsNullOrWhiteSpace(config.Cache.CacheSessionName)
                         ? await cache.CreateSessionAsync()
-                        : await cache.CreateSessionAsync(config.CacheSessionName);
+                        : await cache.CreateSessionAsync(config.Cache.CacheSessionName);
 
                 if (!maybeSession.Succeeded)
                 {
@@ -407,7 +404,7 @@ namespace BuildXL.Engine
                     new List<IDisposable>(),
                     enableFingerprintLookup: enableFingerprintLookup,
                     rootTranslator: rootTranslator,
-                    replaceExistingFileOnMaterialization: config.ReplaceExistingFileOnMaterialization);
+                    replaceExistingFileOnMaterialization: config.Cache.ReplaceExistingFileOnMaterialization);
             }
             finally
             {

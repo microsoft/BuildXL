@@ -6,7 +6,7 @@ Consumption is divided into 2 categories:
 1. Child Processes (Pips)
 
 
-### Passing variables to BuildXL
+## Passing variables to BuildXL
 Environment variables can be set prior to launching bxl.exe or be specified on the command-line using the `/p` option:
 
 `bxl.exe /p:x=1`

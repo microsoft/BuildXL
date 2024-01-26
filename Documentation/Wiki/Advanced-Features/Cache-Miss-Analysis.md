@@ -1,4 +1,6 @@
-## Background
+# Cache miss analysis
+
+## Cache lookup
 A simplified explanation of BuildXL's cache lookup algorithm is:
 1. Collect inputs of a process pips. This can be file content, whether files exist, directory enumeration listings, process command lines, environment variables, the identity of the process itself (e.g. the hash of the executable), and other BuildXL settings that influence how a process is run (e.g. which file accesses are untracked).
 1. Create a "fingerprint" which is a hash of all of those inputs and query the cache to see if it has a record from a previous invocation.

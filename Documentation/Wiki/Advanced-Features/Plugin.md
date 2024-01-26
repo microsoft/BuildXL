@@ -1,4 +1,4 @@
-# Plugin Mode
+# Plugin mode
 
 Plugin mode is a way of providing the extensibilty of changing the default behavior in BuildXL. Plugin is running in a separate process. BuildXL commnuicate with plugin over grpc thus user can define rpc methods for their own plugins. 
 
@@ -10,7 +10,7 @@ Plugin mode is a way of providing the extensibilty of changing the default behav
 * BuildXL will choose the first plugin that can handle the request
 * BuildXL will have plugin client to commnuicate with each plugin over grpc(one client per plugin)
 
-## Required Operations
+## Required operations
 Plugin implementation should conform a set of rpc operations:
 1. `Start`: instruct plugin to start and load any necessary resources
 1. `Stop`:  instruct plugin to stop and clean up

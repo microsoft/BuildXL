@@ -1,4 +1,7 @@
-## BuildXL Process Timeouts
+# BuildXL process timeouts
+
+## Process timeouts
+
 Process pips launched by BuildXL have configurable timeouts.
 The overall timeout will cause a pip to be terminated and considered a failure if exceeded.
 There is also a warning timeout that will be printed as a hint to users, to indicate that they are reaching a time limit.
@@ -38,5 +41,5 @@ The following happens when the timeout is reached:
 
 To aid in discovering when pips are at the brink of the failure threshold, there is a second warning threshold that can be configured at a global and per-pip level similar to what is described above.
 
-## Other Timeouts
+## Process injection timeouts
 There is also a "process injection" timeout. This is the amount of time BuildXL allows for spawning a process and the process sandboxing injecting itself into the running process. Generally this happens on the order of milliseconds, but on a very heavily loaded computer it may take much longer. The timeout for this is set to 10 minutes but this timeout is not user configurable.

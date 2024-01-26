@@ -1,3 +1,5 @@
+# Schedule prioritization
+
 BuildXL aims to prioritize the critical path of a build to get the shortest end to end build time.
 
 After BuildXL constructs or loads a build graph, it makes a pass across all pips that are filtered in and uses a heuristic for how long it expects the pip to run. With no additional information, that heuristic is based on the count of declared input and output files. The expected runtime for a pip will contain the expected runtime for all downstream pips. This expected runtime becomes the priority. It is static once assigned at the beginning of the execute phase.

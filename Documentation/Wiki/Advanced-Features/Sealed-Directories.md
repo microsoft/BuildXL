@@ -1,4 +1,5 @@
-# Introduction
+# Sealed directories
+
 Sealed Directories provide a way to treat a set of files under the same directory root as a single build artifact.  This feature is extremely convenient since in BuildXL all process dependencies are defined in terms of build artifacts.  
 
 For example, it is not uncommon that many processes depend on a set of standard header files; instead of declaring a dependency for each process on each header file, it is much less verbose, hence more manageable, to define a single sealed directory containing all the header files, and then for each process declare that it depends on the sealed directory.

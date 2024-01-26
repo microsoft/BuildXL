@@ -1,3 +1,5 @@
+# Incremental scheduling
+
 Incremental scheduling in BuildXL is a feature that allows BuildXL to avoid processing pips based on the filesystem's change (or USN) journal records tracked from the previous builds. Incremental scheduling can also be viewed as a technique to prune the pip graph on up-to-date pips. Incremental scheduling can be enabled by passing `/incrementalScheduling+`.
 
 ## Pip processing
@@ -20,7 +22,7 @@ Suppose that we have the following pip dependency graph:
 Assume that our cache is empty at the beginning. The first build of the above graph, which is a clean build, performs steps 1, 3, 4 for every process pip in the graph.
 Now, before we do the next build, we modify `fileD`. Without incremental scheduling, in the next build, BuildXL performs steps 1, 3, 4 for `Process3` and `Process4` (assuming `fileE` changes after `Process3` execution), and performs step 1 and 2 for `Process1` and `Process2`. That is, without incremental scheduling, BuildXL computes pip fingerprints and performs cache look-up's, even though the outputs of `Process1` and `Process2` exist and do not change from the previous build.
 
-## Incremental scheduling
+## How it works?
 With incremental scheduling, during the build, BuildXL tracks the filesystem journal USN records of input and output files. When a file is modified, BuildXL is able to compare the recorded USN with the current one, and if the USNs are different, then BuildXL marks the consuming/producing pips dirty, i.e., the pips need to be processed. (Invariant: If a pip is marked dirty, all its transitive dependents are marked dirty.)
 
 In the above example, BuildXL is able to mark that `Process1` and `Process2` are clean, and thus it can avoid scheduling those process pips. In essence, BuildXL will only see the following pip graph:
@@ -53,7 +55,7 @@ Incremental scheduling is incompatible with distributed builds because pips buil
 
 BuildXL disables incremental scheduling completely when distributed build is requested.
 
-## Uncachable allowlist
+### Uncachable allowlist
 BuildXL allows users to specify files in the configuration file that are allowlisted on checking access violation. Some pips may produce or consume files in that allowlist. If those files are in so-called uncacheable allowlist, then those pips will not be cached, and so they are expected to be executed in every build. For example, suppose that `fileX` below is in the uncacheable
 allowlist, (e.g. `Process42` outputs its date/time of execution to `fileX`): 
 ```
@@ -65,10 +67,7 @@ allowlist, (e.g. `Process42` outputs its date/time of execution to `fileX`):
 
 Incremental scheduling marks such a pip perpetually dirty, and so BuildXL will keep processing the pip. This essentially makes incremental scheduling feature sub-optimal.
 
-## Anti-dependency
-Anti-dependencies are caused by probing non-existent files, such as a search for a C++ header file in an ordered list of search directories. BuildXL observes anti-dependencies during pip executions. However, incremental scheduling does not use the result of such observations. Currently, when a user introduces a file that was probed absent in the prior builds, then incremental scheduling will simply assume that all nodes in the graph are dirty.
-
-## Lazy output materialization
+### Lazy output materialization
 BuildXL has a feature that lazily materializes outputs when a pip can be run from the cache (`/enableLazyOutputs`). Let's consider the following example:
 ```
     Process1 <-- fileX <-- Process2 <-- fileY <-- Process3
@@ -81,18 +80,18 @@ In the above scenario, incremental scheduling will mark `Process2` and `Process3
 
 If we do another build without changing anything, then at the beginning of the build, before processing the pips, incremental scheduling will change the marker of `Process1` to dirty, which in turn makes `Process2` and `Process3` dirty as well. Thus, in this case incremental scheduling cannot prune the graph. Suppose that incremental scheduling did not change the marker of `Process1` to dirty. If now the user modifies `fileZ` and requests to build `Process2`, then `Process2` needs to execute, but since `Process1` is clean, `Process2` simply assumes that `fileX` is on disk, but it is not. This is the rationale of having clean and materialized markers for pips.
 
-## Shared opaque directory
+### Shared opaque directory
 Process pips can produce output directories. The content of those directories are unknown until the pips produce them. The output directories can be consumed directly by pips, without the consuming pips know the contents of the directories. Such output directories can also be shared by more than one process pip. Such directories are called shared opaque directories. 
 
 For correctness, the contents of shared opaque directories are deleted before BuildXL begins pip processing. Thus, in principle, pips that produce shared opaque directories need to always be processed. Incremental scheduling marks such pips perpetually dirty.
 
-## Unflushed page cache
+### Unflushed page cache
 Incremental scheduling tracks input and output files by recording their USN records. To get a stable record for an output file, BuildXL flushes the page cache to the file-system.
 Unfortunately, on spinning disks, page cache flushes can be expensive. If we turn off page cache flush, then in the next build BuildXL detects that the USN records of some output files may have changed because the OS flushed the page cache after the output file was tracked. Thus, BuildXL marks the pips that produced those output files dirty.
 
 To keep flushing page cache on tracking or storing outputs to cache, one can pass `/flushPageCacheToFileSystemOnStoringOutputsToCache+`.
 
-## Drops
+### Drops
 BuildXL has a distinct kind of pip, called an IPC pip, that is used to drop files to some artifact store. If a user modifies some input files, and re-runs the build that drops the produced output files, then we have the following issues:
 
 1. If the drop name used by the current build is the same as that of the previous builds, then the file cannot be dropped because the previous build has already finalized the drop name.

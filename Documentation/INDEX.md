@@ -68,6 +68,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [Server Mode](Wiki/Advanced-Features/Server-Mode.md)
 * [Source Change Affected Inputs](Wiki/Advanced-Features/Source-Change-Affected-Inputs.md)
 * [Symlinks and Junctions](Wiki/Advanced-Features/Symlinks-and-Junctions.md)
+* [File streams](Wiki/Advanced-Features/File-Streams.md)
 * [Timestamp Faking](Wiki/Advanced-Features/Timestamp-Faking.md)
 * [Unsafe Flags](Wiki/How-To-Run-BuildXL/Unsafe-flags.md)
 * [BuildXL Command line Flags](Wiki/Flags.md)

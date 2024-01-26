@@ -1,47 +1,48 @@
-# Support Summary
+# Symlinks and junctions
+
 |               | Windows | macOS |
 |-----------|:-----------:|-----------|
 | File symlinks | Fully supported | Fully supported |
 | Directory symlinks | Partially supported; treated like junctions. See details below | Fully supported |
 | Directory junctions | Partially supported. See details below| N/A|
 
-# File Symlinks
+## File Symlinks
 BuildXL supports file symlinks. A process pip can safely (a) consume file symlinks, including the files the symlinks point to, and (b) produce file symlinks. A copy-file pip has a limited support for copying symlinks, in the sense that the symlink to be copied should only point to a "read-only" target, i.e., the target should not be produced during the build.
 
-## Specification
+### Specification
 
-### Input symlinks
+#### Input symlinks
 When a process pip wants to access a file via a file symlink or a chain of file symlinks, then all symlinks in the chain and the target file itself must be specified as dependencies. BuildXL enforces this requirement using its sandbox. BuildXL imposes this requirement to ease file change tracking.
 
-### Output symlinks
+#### Output symlinks
 A process pip can produces a file symlink, and that file symlink may point to non-existent target.
 
-### Copying symlinks using copy-file pip
+#### Copying symlinks using copy-file pip
 Copying a symlink using a copy-file pip means copying the final target file of that symlink. This semantics requires that the final target file must exist, otherwise the copy-file pip fails. Since the copy-file pip only has a single dependency, on copying a symlink, BuildXL also requires that the target file and all symlinks in the chain to the target file, except the symlink to be copied itself, must be read-only, i.e., they are not produced during the build. 
 
 BuildXL imposes these requirements to avoid a race condition, which can then lead to unreliable and unpredictable builds. Suppose that BuildXL allowed the source of a copy-file to be a symlink that points to a file that is produced by another pip P. Since the copy-file pip only has a single dependency, the dependency between the copy-file pip and pip P cannot be established. If the copy-file pip executes first, then it will fail because the target file has not been produced yet.
 
-## Hashing and tracking 
+### Hashing and tracking 
 
-### Input symlinks
+#### Input symlinks
 For normal files, BuildXL uses content hashes of those files to perform up-to-date checks. If the content hashes change, then the consuming and the producing pips need to execute. Because file symlinks can point to non-existent targets, BuildXL instead hashes the paths to the immediate target files, but not the final target files. If the targets of symlinks change, then the consuming pips need to execute.
 
 With a similar reason, on tracking file symlinks, BuildXL tracks the symlinks themselves, and not the target files. Note that, since we require the chain of symlinks to be specified as dependencies, any change to one of the symlink in the chain can be detected by our file change tracker. Such a detection is important for our [Incremental Scheduling](./Incremental-Scheduling.md) feature. In the future, we may want to relax this condition by only requiring users to specify the symlink and its final target as dependencies.
 
-### Output symlinks
+#### Output symlinks
 Output symlinks are hashed and tracked in the same way as input symlinks. That is, BuildXL hashes the path to the immediate target of the output symlink and tracks the output symlink itself. 
 
 Currently our cache's content addressable store does not support storing file symlinks. To replay output symlinks from cache, we include the information indicating whether a file is a symlink file as well as the path to the immediate target, if symlink, into the pip metadata. This metadata is stored in the cache, and, with this metadata, BuildXL can replay output symlinks by re-creating them using this new information.
 
-### Copying symlinks
+#### Copying symlinks
 Before copying a symlink, BuildXL validates that the symlink does not point to a file that is produced during the build. BuildXL then discovers and track the chain of symlinks as well as the target file itself. 
 
-## Command line configuration 
+### Command line configuration 
 BuildXL enforces chains of symlinks, as described above, by default. One can pass the unsafe flag '/unsafe_IgnoreReparsePoints` to disable this enforcement. This flag is unsafe because BuildXL may not be able to detect any change on the middle symlink of a chain of symlinks. This issue can result in an underbuild.
 
-# Directory symlinks
+## Directory symlinks
 
-## Complications introduced by directory symlinks
+### Complications introduced by directory symlinks
 
 Without directory symlinks, file system hierarchy is *tree*-shaped: every node (file or directory) except the root has exactly one parent node.  In presence of directory symlinks, file hierarchy becomes a *directed graph* - and not necessarily acyclic either!
 
@@ -69,7 +70,7 @@ If BuildXL were oblivious to this and tracked all those paths, that could lead t
   - **Redundant file materialization**: if BuildXL were to restore the `PluginManager.framework` directory layout from the example above, and in its "Path Set" it contained all 3 different paths to file `Versions/B/Resources/Info.plist` (e.g., because that file was accesses via all those paths), BuildXL could end up materializing the same file 3 different times. 
   - **Order constraints during file materialization**: to materialize Resources/Info.plist, BuildXL would have to make sure that it first materialized both Resources and Current symlinks. 
 
-## Solution
+### Solution
 All the problems identified in the previous section can be mitigated by following this principle:
 
 > BuildXL should never observe or track any paths that go through any intermediate directory symlinks. 
@@ -84,13 +85,13 @@ In other words, instead of observing path lookups requested by the process at th
 ```
 BuildXL captures each of the "readlink" and "stat" operations above and treats them as "read" dependencies.
 
-## Prototypical use case
+### Prototypical use case
 
 The most user-friendly way to use this feature is to have a *producer* pip that creates a directory layout with arbitrary symlinks inside, and declares the root of that directory as an opaque directory output. The consumer pips can then specify a single dependency on that opaque directory artifact which allows them to perform arbitrary path lookups within that directory. This use case is supported by BuildXL's ability to use dynamically observed file accesses as the real pip dependencies, so that the user doesn't have to explicitly specify them all.
 
 In other cases, it is incumbent upon the user to specify file dependencies exactly how BuildXL will observe them, meaning declaring read access on all symlinks that may be resolved during path lookups as well as declaring permissions for the final file in terms of its physical path (one that doesn't contain any intermediate symlinks).
 
-## Summary
+### Summary
   - Symlinks are treated as files (regardless of what they point to)
   - Paths observed and tracked by BuildXL never contain any intermediate directory symlinks
   - During pip process execution, every time a directory symlink is resolved, BuildXL detects that and captures the path to that directory symlink as a read dependency
@@ -104,21 +105,21 @@ In other cases, it is incumbent upon the user to specify file dependencies exact
       - BuildXL observes that the process read `Versions/Current`: that path is not specified by the user so BuildXL reports it as a read violation
       - BuildXL observes that the process read `Versions/B/Resources/Info.plist`: that path is not specified by the user so BuildXL reports it as a read violation.
 
-# Junctions
+## Junctions
 In builds, particularly BuildXL builds, junctions are mostly used to avoid changing specification files and, in turn, make a previously built pip graph reusable. For example, one can create a junction from a NuGet package directory `NuGetCache\PackageX` to a directory `NuGetCache\PackageX-1.0` where all files of `PackageX` version `1.0` are located. All paths referring to `PackageX` in the spec files are in terms of the unversioned path `NuGetCache\PackageX`. If the user wants to test a new version of `PackageX-2.0`, then the user simply re-routes the junction from `NuGetCache\PackageX` to `NuGetCache\PackageX-2.0` without changing the spec files.
 
-## Supported scenarios
+### Supported scenarios
 BuildXL has limited support for junctions. BuildXL currently only supports input file accesses via junctions. BuildXL does not support junction productions. 
 For input file accesses via junctions, BuildXL handles junctions that cross volume boundaries, e.g., a junction from `X:\A\B` to `Y:\A\B`. However, BuildXL does not infer and track all incarnations of paths that are caused by junctions. For example, given a junction `D` to `D'`, where `D'` can also be a junction, if BuildXL is requested to track a file `D\f.txt`, then it just tracks `D\f.txt` and not `D'\f.txt`. Thus, any change to `D'`, like re-routing junction target if `D'` is a junction, will not be detected by BuildXL.
 
-## Directory translations
+### Directory translations
 Accessing files via junctions can cause file access violations. Let's consider again the junction from `NuGetCache\PackageX` to a directory `NuGetCache\PackageX-1.0`. The tool that accesses files in that package executes may open a file by specifying a path containing `NuGetCache\PackageX-1.0` (e.g., the tool calls `GetFinalPathByHandle`). However, because the spec file do not contain paths containing `NuGetCache\PackageX-1.0`, BuildXL will report a file access violation.
 
 To resolve this issue, BuildXL provides a directory translation feature. In the above case, the user specifies `/translateDirectory:NuGetCache\PackageX-1.0<NuGetCache\PackageX` in the command line. With this directory translation, whenever BuildXL sees a path containing `NuGetCache\PackageX-1.0`, like `NuGetCache\PackageX-1.0\f.txt`, it modifies it into `NuGetCache\PackageX\f.txt`. Now, since `NuGetCache\PackageX\f.txt` is specified in the spec file, BuildXL will no longer see file access violations.
 
 One can create a chain of directory translations, and BuildXL will validate that the translations are acyclic. For example, suppose that `D` is a junction to `D'`, which in turn a junction to `D''`, and all paths in the spec file are in term of `D`.  One can then have the directory translations `/translateDirectory:D''<D'` and `/translateDirectory:D'<D` to resolve file access violations. Given a path, if two directory translations are possible, BuildXL respect the order as these translations are specified in the command line argument.
 
-## Junction tracking implementation
+### Junction tracking implementation
 Internally BuildXL maintains a map from `FileID` to `(Path, USN)` for tracking existing files and directories. In tracking a file `A\B\C\f.txt`, BuildXL tracks the file as well as its parent directories. That is, the tracker will have the following mappings:
 ```
 FileID(A) -> (A, USN(A))

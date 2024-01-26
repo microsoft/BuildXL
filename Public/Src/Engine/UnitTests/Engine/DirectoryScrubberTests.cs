@@ -64,7 +64,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(File.Exists(a));
         }
 
-        [Fact(Skip = "Investigate why this test fails randomly in the OssRename branch")]
+        [Fact]
         public void ScrubFilesAndDirectories()
         {
             // Create a layout with various paths. We will clean at the root dir.

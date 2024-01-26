@@ -12,7 +12,7 @@ namespace Test.BuildXL.Utilities
 {
     public sealed class PerformanceCollectorTests
     {
-        [Fact(Skip = "Test is flaky - Bug #1243987")]
+        [Fact]
         public void NestedCollectorTest()
         {
             using (PerformanceCollector collector = new PerformanceCollector(TimeSpan.FromMilliseconds(10)))

@@ -342,22 +342,6 @@ config({
                 // Ninja JSON Linux Text
                 { id: "BuildXL.Tools.Ninjson.linux-x64", version: "1.11.2", osSkip: [ "macOS" ] },
 
-                // Kusto SDK
-                { id: "Microsoft.Azure.Kusto.Data", version: "11.2.1" },
-                { id: "Microsoft.Azure.Kusto.Ingest", version: "11.2.1" },
-                { id: "Microsoft.Azure.Kusto.Tools", version: "7.2.1" },
-                { id: "Azure.ResourceManager.Kusto", version: "1.1.0" },
-                { id: "Azure.Data.Tables", version: "12.8.0" }, // Required by the Kusto SDK
-                { id: "Azure.Storage.Queues", version: "12.11.0" }, // Required by the Kusto SDK
-
-                { id: "Microsoft.Azure.Kusto.Cloud.Platform", version: "11.2.1",  dependentPackageIdsToSkip: [ "System.Security.AccessControl" ] },
-                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Aad", version: "11.2.1" },
-
-                { id: "Azure.ResourceManager", version: "1.3.2" },
-
-                { id: "Microsoft.IO.RecyclableMemoryStream", version: "2.2.0",
-                    dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"] }, // Used by Microsoft.Azure.Kusto.Cloud.Platform
-
                 // Azure Communication
                 { id: "Microsoft.Rest.ClientRuntime", version: "2.3.24",
                     dependentPackageIdsToSkip: ["Microsoft.NETCore.Runtime"],

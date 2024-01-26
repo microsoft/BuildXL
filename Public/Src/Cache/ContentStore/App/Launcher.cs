@@ -41,8 +41,6 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                Validate();
-
                 var configJson = File.ReadAllText(settingsPath);
 
                 var settings = JsonSerializer.Deserialize<LauncherApplicationSettings>(configJson, DeploymentUtilities.ConfigurationSerializationOptions);

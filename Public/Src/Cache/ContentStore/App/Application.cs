@@ -6,8 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
@@ -29,7 +27,6 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using CLAP;
-using Kusto.Data.Common;
 
 // ReSharper disable UnusedMember.Global
 namespace BuildXL.Cache.ContentStore.App
@@ -41,47 +38,6 @@ namespace BuildXL.Cache.ContentStore.App
     {
         private const string HashTypeDescription = "Content hash type (SHA1/SHA256/MD5/Vso0/DedupChunk/DedupNode/Dedup64K/Dedup1024K/MurMur)";
 
-        /// <summary>
-        ///     The name of this service (sent to Kusto as the value of the 
-        ///     <see cref="CsvFileLog.ColumnKind.Service"/> column)
-        /// </summary>
-        private const string ServiceName = "ContentAddressableStoreService";
-
-        private const string CsvLogFileExt = ".csv";
-        private const string TmpCsvLogFileExt = ".csvtmp";
-
-        /// <summary>
-        ///     Path of the environment variable in which to look for a Kusto connection string.
-        /// </summary>
-        private const string KustoConnectionStringEnvVarName = "KustoConnectionString";
-
-        /// <summary>
-        ///     Target Kusto database for remote telemetry
-        /// </summary>
-        private const string KustoDatabase = "CloudBuildCBTest";
-
-        /// <summary>
-        ///     Target Kusto table for remote telemetry
-        /// </summary>
-        private const string KustoTable = "ContentStoreAppMessage";
-
-        /// <summary>
-        ///     CSV file schema to be produced by <see cref="CsvFileLog"/>.
-        /// </summary>
-        private static readonly CsvFileLog.ColumnKind[] KustoTableCsvSchema = new CsvFileLog.ColumnKind[]
-        {
-            CsvFileLog.ColumnKind.PreciseTimeStamp,
-            CsvFileLog.ColumnKind.LogLevel,
-            CsvFileLog.ColumnKind.LogLevelFriendly,
-            CsvFileLog.ColumnKind.Message,
-            CsvFileLog.ColumnKind.ProcessId,
-            CsvFileLog.ColumnKind.ThreadId,
-            CsvFileLog.ColumnKind.env_os,
-            CsvFileLog.ColumnKind.env_osVer,
-            CsvFileLog.ColumnKind.BuildId,
-            CsvFileLog.ColumnKind.Machine,
-        };
-
         private readonly CancellationToken _cancellationToken;
         private readonly IAbsFileSystem _fileSystem;
         private readonly ConsoleLog _consoleLog;
@@ -90,19 +46,15 @@ namespace BuildXL.Cache.ContentStore.App
         private bool _waitForDebugger;
         private bool _debug;
         private FileLog _fileLog;
-        private CsvFileLog _csvFileLog;
-        private KustoUploader _kustoUploader;
         private Severity _fileLogSeverity = Severity.Diagnostic;
         private bool _logAutoFlush;
         private string _logDirectoryPath;
         private long _logMaxFileSize;
-        private long _csvLogMaxFileSize = 100 * 1024 * 1024; // 100 MB
         private int _logMaxFileCount;
         private bool _pause;
         private string _scenario;
         private uint _retryIntervalSeconds;
         private uint _retryCount;
-        private bool _enableRemoteTelemetry;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Application"/> class.
@@ -120,16 +72,8 @@ namespace BuildXL.Cache.ContentStore.App
         [SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "_fileLog")]
         public void Dispose()
         {
-            // 1. it's important to dispose _logger before log objects
-            //    because _logger.Dispose() calls Flush() on its log objects
-            // 2. it's important to dispose _csvFileLogger before _kustoUploader because
-            //    csvFileLogger.Dispose() can post one last file to be uploaded to Kusto
-            // 3. it's important to dispose _kustoUploader before _consoleLog because
-            //    _kustoUploader uses _consoleLog
             _logger.Dispose();
             _fileLog?.Dispose();
-            _csvFileLog?.Dispose();
-            _kustoUploader?.Dispose(); 
             _consoleLog.Dispose();
             _fileSystem.Dispose();
         }
@@ -244,15 +188,6 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         /// <summary>
-        ///     Set CSV log rolling max file size.
-        /// </summary>
-        [Global("CsvLogMaxFileSizeMB", Description = "Set CSV log (used only when remote telemetry is enabled) rolling max file size in MB")]
-        public void SetCsvLogMaxFileSizeMB(long value)
-        {
-            _csvLogMaxFileSize = value * 1024 * 1024;
-        }
-
-        /// <summary>
         ///     Set log rolling max file count.
         /// </summary>
         [Global("LogMaxFileCount", Description = "Set log rolling max file count")]
@@ -304,15 +239,6 @@ namespace BuildXL.Cache.ContentStore.App
         public void RetryCount(uint value)
         {
             _retryCount = value;
-        }
-
-        /// <summary>
-        ///     Whether or not to enable remote telemetry.
-        /// </summary>
-        [Global("RemoteTelemetry", Description = "Enable remote telemetry")]
-        public void EnableRemoteTelemetry(bool enableRemoteTelemetry)
-        {
-            _enableRemoteTelemetry = enableRemoteTelemetry;
         }
 
         private static void SetThreadPoolSizes()
@@ -371,102 +297,6 @@ namespace BuildXL.Cache.ContentStore.App
                 _fileLog = new FileLog(logFilePath, _fileLogSeverity, _logAutoFlush, _logMaxFileSize, _logMaxFileCount);
                 _logger.AddLog(_fileLog);
             }
-
-            EnableRemoteTelemetryIfNeeded(logFilePath);
-        }
-
-        private void Validate()
-        {
-            if (_enableRemoteTelemetry && _kustoUploader == null)
-            {
-                throw new CacheException("Remote telemetry is enabled but Kusto uploader was not created");
-            }
-        }
-
-        private void EnableRemoteTelemetryIfNeeded(string logFilePath)
-        {
-            if (!_enableRemoteTelemetry)
-            {
-                return;
-            }
-
-            var kustoConnectionString = Environment.GetEnvironmentVariable(KustoConnectionStringEnvVarName);
-            if (string.IsNullOrWhiteSpace(kustoConnectionString))
-            {
-                _logger.Warning
-                    (
-                    "Remote telemetry flag is enabled but no Kusto connection string was found in environment variable '{0}'",
-                    KustoConnectionStringEnvVarName
-                    );
-                return;
-            }
-
-            _csvFileLog = new CsvFileLog
-                (
-                logFilePath: logFilePath + TmpCsvLogFileExt,
-                serviceName: ServiceName,
-                schema: KustoTableCsvSchema,
-                renderConstColums: false,
-                severity: _fileLogSeverity,
-                maxFileSize: _csvLogMaxFileSize
-                );
-
-            var indexedColumns = _csvFileLog.FileSchema.Select((col, idx) => CreateOrdinalColumn(col.ToString(), idx));
-            var constColumns = _csvFileLog.ConstSchema.Select(col => CreateConstColumn(col.ToString(), _csvFileLog.RenderConstColumn(col)));
-            var csvMapping = indexedColumns.Concat(constColumns).ToArray();
-
-            var csvMappingStr = string.Join("", csvMapping.Select(col => $"{Environment.NewLine}  Name: '{col.ColumnName}', ConstValue: '{GetConstValueOrDefault(col) ?? "null"}', Ordinal: {GetOrdinalOrDefault(col) ?? "N/A"}"));
-            _logger.Always("Using csv mapping:{0}", csvMappingStr);
-
-            _kustoUploader = new KustoUploader
-                (
-                kustoConnectionString,
-                database: KustoDatabase,
-                table: KustoTable,
-                csvMapping: csvMapping,
-                deleteFilesOnSuccess: true,
-                checkForIngestionErrors: true,
-                log: _consoleLog
-                );
-
-            // Every time a log file written to disk and closed, we rename it and upload it to Kusto.
-            // The last log file will be produced when _csvFileLog is disposed, so _kustUploader better
-            // not be disposed before _csvFileLog.
-            _csvFileLog.OnLogFileProduced += (path) =>
-            {
-                string newPath = Path.ChangeExtension(path, CsvLogFileExt);
-                File.Move(path, newPath);
-                _kustoUploader.PostFileForUpload(newPath, _csvFileLog.BuildId);
-            };
-
-            _logger.AddLog(_csvFileLog);
-            _logger.Always("Remote telemetry enabled");
-        }
-
-        private static ColumnMapping CreateOrdinalColumn(string columnName, int ordinal)
-        {
-            var result = new ColumnMapping() {ColumnName = columnName};
-            result.Properties["Ordinal"] = ordinal.ToString();
-            return result;
-        }
-
-        private static ColumnMapping CreateConstColumn(string columnName, string constValue)
-        {
-            var result = new ColumnMapping() {ColumnName = columnName};
-            result.Properties["ConstValue"] = constValue;
-            return result;
-        }
-
-        private static string GetConstValueOrDefault(ColumnMapping mapping)
-        {
-            mapping.Properties.TryGetValue("ConstValue", out var result);
-            return result;
-        }
-
-        private static string GetOrdinalOrDefault(ColumnMapping mapping)
-        {
-            mapping.Properties.TryGetValue("Ordinal", out var result);
-            return result;
         }
 
         private void RunFileSystemContentStoreInternal(AbsolutePath rootPath, System.Func<Context, FileSystemContentStoreInternal, Task> funcAsync)
@@ -476,9 +306,6 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                
-                Validate();
-
                 using (var store = CreateInternal(rootPath))
                 {
                     try
@@ -557,8 +384,6 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                Validate();
-
                 using (var store = createStoreFunc())
                 {
                     try

@@ -38,8 +38,6 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                Validate();
-
                 var ht = GetHashTypeByNameOrDefault(hashType);
                 var contentHash = new ContentHash(ht, HexUtilities.HexToBytes(hash));
 

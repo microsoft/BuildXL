@@ -13,16 +13,6 @@ export {BuildXLSdk};
 
 export const NetFx = BuildXLSdk.NetFx;
 
-@@public
-export const kustoPackages = [
-    importFrom("Microsoft.Azure.Kusto.Data").pkg,
-    importFrom("Microsoft.Azure.Kusto.Cloud.Platform").pkg,
-    ...addIf(!BuildXLSdk.isDotNetCore, importFrom("System.Security.AccessControl").pkg),
-    importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
-    importFrom("Azure.ResourceManager.Kusto").pkg,
-    ...getAzureBlobStorageSdkPackages(true),
-];
-
 // Need to exclude netstandard.dll reference when calling this function for creating a nuget package.
 @@public
 export function getSerializationPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {

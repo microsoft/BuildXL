@@ -54,8 +54,6 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                Validate();
-
                 CacheServiceRunner.RunCacheServiceAsync(
                     new OperationContext(new Context(_logger), _cancellationToken),
                     configurationPath,

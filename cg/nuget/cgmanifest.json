@@ -77,15 +77,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Azure.Data.Tables",
-          "Version": "12.8.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Azure.Identity",
           "Version": "1.10.4"
         }
@@ -97,24 +88,6 @@
         "NuGet": {
           "Name": "Azure.Messaging.EventHubs",
           "Version": "5.9.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Azure.ResourceManager",
-          "Version": "1.3.2"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Azure.ResourceManager.Kusto",
-          "Version": "1.1.0"
         }
       }
     },
@@ -169,15 +142,6 @@
         "NuGet": {
           "Name": "Azure.Storage.Common",
           "Version": "12.15.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Azure.Storage.Queues",
-          "Version": "12.11.0"
         }
       }
     },
@@ -725,51 +689,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Azure.Kusto.Cloud.Platform",
-          "Version": "11.2.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Azure.Kusto.Cloud.Platform.Aad",
-          "Version": "11.2.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Azure.Kusto.Data",
-          "Version": "11.2.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Azure.Kusto.Ingest",
-          "Version": "11.2.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Azure.Kusto.Tools",
-          "Version": "7.2.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Azure.Storage.Common",
           "Version": "11.2.2"
         }
@@ -1284,15 +1203,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Primitives",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.IO.RecyclableMemoryStream",
           "Version": "2.2.0"
         }
       }

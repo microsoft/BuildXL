@@ -61,8 +61,6 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                Validate();
-
                 var dcs = JsonConvert.DeserializeObject<DistributedContentSettings>(File.ReadAllText(settingsPath));
                 dcs.IsMasterEligible = masterEligible;
                 if (!string.IsNullOrEmpty(cacheUniverseAndBuildId))

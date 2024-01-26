@@ -23,7 +23,6 @@ namespace App {
                 importFrom("CLAP").pkg,
             ]
             ),
-            ...kustoPackages,
             ...getSerializationPackages(true),
             ...getGrpcPackages(true),
             UtilitiesCore.dll,

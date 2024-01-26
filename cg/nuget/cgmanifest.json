@@ -1257,7 +1257,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Abstractions",
-          "Version": "6.32.1"
+          "Version": "7.2.0"
         }
       }
     },
@@ -1266,7 +1266,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.JsonWebTokens",
-          "Version": "5.4.0"
+          "Version": "7.2.0"
         }
       }
     },
@@ -1275,7 +1275,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Logging",
-          "Version": "5.4.0"
+          "Version": "7.2.0"
         }
       }
     },
@@ -1284,7 +1284,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Tokens",
-          "Version": "5.4.0"
+          "Version": "7.2.0"
         }
       }
     },
@@ -3111,7 +3111,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IdentityModel.Tokens.Jwt",
-          "Version": "5.4.0"
+          "Version": "7.2.0"
         }
       }
     },

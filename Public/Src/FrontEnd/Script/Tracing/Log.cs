@@ -330,9 +330,9 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
-            Message = "{mesage}",
+            Message = "{message}. Existing manifest content: '{existingManifest}'. Generated manifest content: '{generatedManifest}'",
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
-        public abstract void ReportComponentGovernanceValidationError(LoggingContext loggingContext, string mesage);
+        public abstract void ReportComponentGovernanceValidationError(LoggingContext loggingContext, string message, string existingManifest, string generatedManifest);
 
         [GeneratedEvent(
             (ushort)LogEventId.CGManifestGenerationException,

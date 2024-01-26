@@ -119,7 +119,7 @@ namespace BuildXL.FrontEnd.Script
                     string cgManifestPath = Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable);
                     Logger.ReportComponentGovernanceValidationError(
                         Context.LoggingContext,
-                        $"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:{cgManifestPath}");
+                        $"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:{cgManifestPath}", existingCgManifest, generatedCgManifest);
                     return false;
                 }
             }
@@ -128,14 +128,14 @@ namespace BuildXL.FrontEnd.Script
             {
                 Logger.ReportComponentGovernanceValidationError(
                     Context.LoggingContext,
-                    $"Cannot read Component Governance Manifest file from disk{Environment.NewLine}{e}");
+                    $"Cannot read Component Governance Manifest file from disk{Environment.NewLine}{e}", string.Empty, string.Empty);
                 return false;
             }
             catch (FileNotFoundException e)
             {
                 Logger.ReportComponentGovernanceValidationError(
                     Context.LoggingContext,
-                    $"Cannot read Component Governance Manifest file from disk{Environment.NewLine}{e}");
+                    $"Cannot read Component Governance Manifest file from disk{Environment.NewLine}{e}", string.Empty, string.Empty);
                 return false;
             }
 

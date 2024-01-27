@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using BuildXL.Utilities;
+using Microsoft.VisualStudio.TestPlatform.CrossPlatEngine.DataCollection.Interfaces;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -40,6 +41,15 @@ namespace Test.BuildXL.Utilities
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// This test checks whether TryGetMachineActiveTcpConnections method returns active tcp connections established on the machine.
+        /// </summary>
+        [Fact]
+        public void VerifyMachineActiveTcpConnectionsCount()
+        {
+             XAssert.IsTrue(PerformanceCollector.GetMachineActiveTcpConnections() > 0, "TryGetMachineActiveTcpConnections method has failed to return a valid, non-negative TCP connection count.");
         }
 
         /// <summary>

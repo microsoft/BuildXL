@@ -330,4 +330,7 @@
   <data name="GetGitRepoInfoTime" xml:space="preserve">
     <value>GetGitRepoInfoTime</value>
   </data>
+  <data name="MachineActiveTcpConnections" xml:space="preserve">
+    <value>MachineActiveTcpConnections</value>
+  </data>
 </root>

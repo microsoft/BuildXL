@@ -38,6 +38,8 @@ namespace BuildXL.Tracing
 
                 int machineMinimumAvailableMemoryMegabytes = ConvertToInt(aggregator.MachineAvailablePhysicalMB.Minimum);
 
+                int machineActiveTcpConnections = ConvertToInt(aggregator.MachineActiveTcpConnections.Latest);
+
                 Dictionary<string, long> dict = new Dictionary<string, long>(8 + aggregator.DiskStats.Count);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessAverageThreadCount), processAverageThreadCount);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessMaximumPrivateMB), processMaximumPrivateMegaBytes);
@@ -65,6 +67,7 @@ namespace BuildXL.Tracing
                     var activeTime = diskStat.CalculateActiveTime(lastOnly: false);
                     dict.Add(GetCategorizedStatisticName(GetCategorizedStatisticName(description, Statistics.MachineAverageDiskActiveTime), diskStat.Drive), activeTime);
                 }
+                dict.Add(GetCategorizedStatisticName(description, Statistics.MachineActiveTcpConnections), machineActiveTcpConnections);
 
                 Logger.Log.BulkStatistic(loggingContext, dict);
             }

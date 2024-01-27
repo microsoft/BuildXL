@@ -11,6 +11,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Management;
+using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -368,7 +369,8 @@ namespace BuildXL.Utilities
                             contextSwitchesPerSec: m_contextSwitchesPerSec,
                             processes: m_processes,
                             cpuQueueLength: m_cpuQueueLength,
-                            threads: m_threads);
+                            threads: m_threads,
+                            machineActiveTcpConnections: GetMachineActiveTcpConnections());
                     }
                 }
 
@@ -463,6 +465,26 @@ namespace BuildXL.Utilities
 #pragma warning disable ERP022 // It is OK for WMI to fail sometimes
             catch (Exception)
             {
+            }
+#pragma warning restore ERP022
+        }
+
+        /// <summary>
+        /// Obtains the number of active TCP connections which are established on the machine.
+        /// </summary>
+        internal static int GetMachineActiveTcpConnections()
+        {
+            try
+            {
+                IPGlobalProperties properties = IPGlobalProperties.GetIPGlobalProperties();
+                // GetActiveTcpConnections() - Obtains a list of all active TCP connections on the local machine.
+                // These connections are established between remote and local endpoints.
+                return properties.GetActiveTcpConnections().Length;
+            }
+#pragma warning disable ERP022 // Do not log an error in case of failure.
+            catch (Exception)
+            {
+                return -1;
             }
 #pragma warning restore ERP022
         }
@@ -948,6 +970,11 @@ namespace BuildXL.Utilities
 
             /// <nodoc/>
             public int CpuQueueLength;
+
+            /// <summary>
+            /// Count of all the TCP active connections which are listening and established.
+            /// </summary>
+            public int MachineActiveTcpConnections;
         }
 
         /// <summary>
@@ -1052,6 +1079,9 @@ namespace BuildXL.Utilities
             /// <nodoc />
             public readonly Aggregation Threads;
 
+            /// <nodoc />
+            public readonly Aggregation MachineActiveTcpConnections;
+
             /// <summary>
             /// Stats about disk usage. This is guarenteed to be in the same order as <see cref="GetDrives"/>
             /// </summary>
@@ -1151,6 +1181,7 @@ namespace BuildXL.Utilities
                 }
 
                 m_diskStats = diskStats.ToArray();
+                MachineActiveTcpConnections = new Aggregation();
             }
 
             /// <summary>
@@ -1237,6 +1268,7 @@ namespace BuildXL.Utilities
                         perfInfo.ContextSwitchesPerSec = SafeConvert.ToInt32(ContextSwitchesPerSec.Latest);
                         perfInfo.Processes = SafeConvert.ToInt32(Processes.Latest);
                         perfInfo.CpuQueueLength = SafeConvert.ToInt32(CpuQueueLength.Latest);
+                        perfInfo.MachineActiveTcpConnections = SafeConvert.ToInt32(MachineActiveTcpConnections.Latest);
 
                         int diskIndex = 0;
                         perfInfo.DiskAvailableSpaceGb = new int[DiskStats.Count];
@@ -1335,7 +1367,8 @@ namespace BuildXL.Utilities
                 int? contextSwitchesPerSec,
                 int? processes,
                 int? cpuQueueLength,
-                int? threads)
+                int? threads,
+                int? machineActiveTcpConnections)
             {
                 Interlocked.Increment(ref m_sampleCount);
 
@@ -1364,6 +1397,7 @@ namespace BuildXL.Utilities
                 Threads.RegisterSample(threads);
                 Processes.RegisterSample(processes);
                 CpuQueueLength.RegisterSample(cpuQueueLength);
+                MachineActiveTcpConnections.RegisterSample(machineActiveTcpConnections);
 
                 Contract.Assert(m_diskStats.Length == machineDiskStats.Length);
                 for (int i = 0; i < machineDiskStats.Length; i++)

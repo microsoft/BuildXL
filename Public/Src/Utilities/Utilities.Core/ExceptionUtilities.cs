@@ -64,6 +64,8 @@ namespace BuildXL.Utilities.Core
             "An existing connection was forcibly closed by the remote host",
             // The Redis library has a lot of unobserved exceptions happening for unknown reasons
             "StackExchange.Redis.Redis",
+            // Protocol errors from gRPC operations that are left unobserved
+            "The HTTP/2 server sent invalid data on the connection. HTTP/2 error code 'PROTOCOL_ERROR' (0x1).",
         };
 
         private static bool ContainsAllowedException(Exception exception)

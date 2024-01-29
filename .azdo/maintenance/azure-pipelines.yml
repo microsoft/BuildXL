@@ -27,7 +27,7 @@ stages:
       - task: UseDotNet@2
         inputs:
           packageType: 'sdk'
-          version: '7.x'
+          version: '8.x'
       # Nuget authenticate is required for package restore to work even though the feed is under the same organization as the pipeline
       - task: NuGetAuthenticate@1
       - task: DotNetCoreCLI@2

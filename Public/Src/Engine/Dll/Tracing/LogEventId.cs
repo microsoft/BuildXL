@@ -246,8 +246,8 @@ namespace BuildXL.Engine.Tracing
         FailedToWriteBuildInvocationToUserFolder = 2893,
         FailedToReadBuildInvocationToUserFolder = 2894,
 
-        FailureLaunchingBuildExplorerFileNotFound = 2895,
-        FailureLaunchingBuildExplorerException = 2896,
+        // was FailureLaunchingBuildExplorerFileNotFound = 2895,
+        // was FailureLaunchingBuildExplorerException = 2896,
 
         FailedToResolveHistoricMetadataCacheFileName = 2940,
         LoadingHistoricMetadataCacheFailed = 2941,

@@ -1837,11 +1837,6 @@ namespace BuildXL.Engine
                                             binDirectory,
                                             m_commitId
                                         ));
-
-                                    if (Configuration.Viewer == ViewerMode.Show)
-                                    {
-                                        LaunchBuildExplorer(loggingContext, binDirectory);
-                                    }
                                 }
                             }
 
@@ -2258,40 +2253,6 @@ namespace BuildXL.Engine
             if (directories.Count() > 0)
             {
                 Logger.Log.EmitSpotlightIndexingWarningForArtifactDirectory(loggingContext, string.Join(", ", directories));
-            }
-        }
-
-        private static void LaunchBuildExplorer(LoggingContext loggingContext, string engineBinDirectory)
-        {
-            var bxpExe = Path.Combine(engineBinDirectory, "tools", "bxp", "bxp.exe");
-            if (!File.Exists(bxpExe))
-            {
-                Logger.Log.FailureLaunchingBuildExplorerFileNotFound(loggingContext, bxpExe);
-                return;
-            }
-
-            try
-            {
-                System.Diagnostics.Process.Start(
-                    new ProcessStartInfo()
-                    {
-                        FileName = bxpExe,
-                        Arguments = loggingContext.Session.Id,
-                        ErrorDialog = false, // Dont show error if something goes wrong
-                        UseShellExecute = true, // Launch through shell to trampoline process tree
-                    });
-            }
-            catch (Win32Exception e)
-            {
-                Logger.Log.FailureLaunchingBuildExplorerException(loggingContext, e.Message);
-            }
-            catch (ObjectDisposedException e)
-            {
-                Logger.Log.FailureLaunchingBuildExplorerException(loggingContext, e.Message);
-            }
-            catch (FileNotFoundException e)
-            {
-                Logger.Log.FailureLaunchingBuildExplorerException(loggingContext, e.Message);
             }
         }
 

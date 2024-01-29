@@ -204,9 +204,6 @@ namespace Test.BuildXL.Scheduler
             public IDistributionConfiguration Distribution => throw new System.NotImplementedException();
 
             [JsonIgnore]
-            public ViewerMode Viewer => throw new System.NotImplementedException();
-
-            [JsonIgnore]
             public IReadOnlyList<AbsolutePath> Projects => throw new System.NotImplementedException();
 
             [JsonIgnore]

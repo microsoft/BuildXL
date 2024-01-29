@@ -1406,10 +1406,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "vfsCasRoot",
                             opt => cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
-                        /* The viewer is currently broken. Leaving the code around so we can dust it off at some point. AB#1609082
-                        OptionHandlerFactory.CreateOption(
-                            "viewer",
-                            opt => configuration.Viewer = CommandLineUtilities.ParseEnumOption<ViewerMode>(opt)),*/
                         OptionHandlerFactory.CreateOption(
                             "vmConcurrencyLimit",
                             opt => sandboxConfiguration.VmConcurrencyLimit = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),

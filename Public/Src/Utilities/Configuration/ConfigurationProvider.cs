@@ -144,9 +144,6 @@ namespace BuildXL.Utilities.Configuration
             // lazy scrubbing is only meant for speeding up single-machine dev builds
             mutableConfig.Schedule.UnsafeLazySODeletion = false;
 
-            // Disable viewer
-            mutableConfig.Viewer = ViewerMode.Disable;
-
             // Minimize output materialization in cloudbuild
             mutableConfig.Schedule.EnableLazyWriteFileMaterialization = true;
             mutableConfig.Schedule.WriteIpcOutput = false;

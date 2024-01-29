@@ -32,7 +32,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Export = new ExportConfiguration();
             Experiment = new ExperimentalConfiguration();
             Distribution = new DistributionConfiguration();
-            Viewer = ViewerMode.Hide;
             Projects = null; // Deliberate null, here as magic indication that none has been defined. All consumers are aware and deal with it.
             Packages = null; // Deliberate null, here as magic indication that none has been defined. All consumers are aware and deal with it.
             Modules = null; // Deliberate null, here as magic indication that none has been defined. All consumers are aware and deal with it.
@@ -68,7 +67,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Export = new ExportConfiguration(template.Export, pathRemapper);
             Experiment = new ExperimentalConfiguration(template.Experiment);
             Distribution = new DistributionConfiguration(template.Distribution);
-            Viewer = template.Viewer;
             Projects = template.Projects?.Select(p => pathRemapper.Remap(p)).ToList();
             Packages = template.Packages?.Select(p => pathRemapper.Remap(p)).ToList();
             Modules = template.Modules?.Select(m => pathRemapper.Remap(m)).ToList();
@@ -374,9 +372,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inhertidoc />
         IDistributionConfiguration IConfiguration.Distribution => Distribution;
-
-        /// <inhertidoc />
-        public ViewerMode Viewer { get; set; }
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]

@@ -360,12 +360,6 @@
   <data name="App_HandleUnhandledFailure_UnknownException" xml:space="preserve">
     <value>Unknown exception</value>
   </data>
-  <data name="HelpText_DisplayHelp_ViewerOptions" xml:space="preserve">
-    <value>Controls viewer behavior. Allowed values are Show, Hide, and Disable. Defaults to Hide.</value>
-  </data>
-  <data name="Args_Error_ViewModeUnrecognized" xml:space="preserve">
-    <value>Unsupported viewer mode value {0}, should be one of Show, Hide, or Disable.</value>
-  </data>
   <data name="Program_ConfigureFileLogging_Can_t_get_directory_name" xml:space="preserve">
     <value>Can't get directory name</value>
   </data>
@@ -377,9 +371,6 @@
   </data>
   <data name="HelpText_DisplayHelp_Diagnostic" xml:space="preserve">
     <value>Enables diagnostic logging for a functional area. This option may be specified multiple times. Areas: Scheduler, Parser, Storage, Transformers, Engine, Viewer, PipExecutor, PipInputAssertions, ChangeJournalService, HostApplication, CommonInfrastructure, CacheInteraction, HybridInterop. (short form: /diag)</value>
-  </data>
-  <data name="App_ViewMode_Hold" xml:space="preserve">
-    <value>Viewer connected. Holding process until the viewer exits.</value>
   </data>
   <data name="HelpText_DisplayHelp_PipTimeoutMultiplier" xml:space="preserve">
     <value>Multiplier applied to the final timeout for individual processes. Setting a multiplier greater than one will increase the timeout accordingly for all pips, even those with an explicit non-default timeout set.</value>
@@ -815,7 +806,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Destination file of the profiling report. Default is '{0}' and it is generated in the current directory. Only considered if /profileScript is specified.</value>
   </data>
   <data name="HelpText_DisplayHelp_TrackBuildsInUserFolder" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will log every build invocation in the users folder so the viewer and analyzers can use that to figure out what to use. Defaults to on.</value>
+    <value>When enabled, {ShortProductName} will log every build invocation in the users folder so analyzers can use that to figure out what to use. Defaults to on.</value>
   </data>
   <data name="HelpText_DisplayHelp_TrackGvfsProjections" xml:space="preserve">
     <value>When enabled, {ShortProductName} will track every .gvfs/GVFS_projection file found in any readable mount and disable features that depend on USN journal scanning whenever any of those files change. Defaults to off.</value>

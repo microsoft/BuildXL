@@ -1296,11 +1296,6 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_SnapshotMode,
                 HelpLevel.Verbose);
 
-            /* The viewer is currently broken. Leaving the code around so we can dust it off at some point. AB#1609082
-            hw.WriteOption(
-                "/viewer:<mode>",
-                Strings.HelpText_DisplayHelp_ViewerOptions);*/
-
             hw.WriteOption(
                 "/relatedActivityId:<guid>",
                 Strings.HelpText_DisplayHelp_RelatedActivityId,

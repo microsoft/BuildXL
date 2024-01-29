@@ -2661,26 +2661,6 @@ If you can't update and need this feature after July 2018 please reach out to th
         internal abstract void FailedToReadBuildInvocationToUserFolder(LoggingContext loggingContext, string path, string error);
 
         [GeneratedEvent(
-            (ushort)LogEventId.FailureLaunchingBuildExplorerFileNotFound,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Scheduler,
-            Message = "Failed to launch build explorer. File '{bxpPath}' does not exist.")]
-        internal abstract void FailureLaunchingBuildExplorerFileNotFound(LoggingContext loggingContext, string bxpPath);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.FailureLaunchingBuildExplorerException,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Scheduler,
-            Message = "Failed to launch build explorer. {error}")]
-        internal abstract void FailureLaunchingBuildExplorerException(LoggingContext loggingContext, string error);
-
-
-
-        [GeneratedEvent(
             (ushort)LogEventId.FailedToInitalizeFileAccessAllowlist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

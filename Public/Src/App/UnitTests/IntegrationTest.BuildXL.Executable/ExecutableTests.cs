@@ -21,7 +21,7 @@ namespace IntegrationTest.BuildXL.Executable
         [Fact]
         public void CleanOnlyBuild()
         {
-            RunBuild("/cleanonly /viewer:disable /TraceInfo:RunCheckInTests=CleanOnly").AssertSuccess();
+            RunBuild("/cleanonly /TraceInfo:RunCheckInTests=CleanOnly").AssertSuccess();
         }
 
         [Fact]

@@ -98,11 +98,6 @@ namespace BuildXL.Utilities.Configuration
         IDistributionConfiguration Distribution { get; }
 
         /// <summary>
-        /// Controls viewer behavior. Allowed values are 'Show', 'Hide', and 'Disable'. Default is 'Hide'.
-        /// </summary>
-        ViewerMode Viewer { get; }
-
-        /// <summary>
         /// Projects in this build organization that are not owned by any package.
         /// </summary>
         /// <remarks>

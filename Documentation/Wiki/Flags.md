@@ -231,7 +231,7 @@ This page lists flags that can be used to configure BuildXL.
 | TelemetryTagPrefix | Prefix of tag considered for sending aggregate statistics to telemetry |
 | TempDirectory | Specifies the root directory for per-pip temp directories. When unspecified, temp directories will be created under the per-pip object directories. |
 | TraceInfo | Attaches tracing information to the build. May be specified multiple times. Ex: /TraceInfo:Branch=MyBranch |
-| TrackBuildsInUserFolder | When enabled, {ShortProductName} will log every build invocation in the users folder so the viewer and analyzers can use that to figure out what to use. Defaults to on. |
+| TrackBuildsInUserFolder | When enabled, {ShortProductName} will log every build invocation in the users folder so analyzers can use that to figure out what to use. Defaults to on. |
 | TrackGvfsProjections | When enabled, {ShortProductName} will track every .gvfs/GVFS_projection file found in any readable mount and disable features that depend on USN journal scanning whenever any of those files change. Defaults to off. |
 | TrackMethodInvocations | When enabled, {ShortProductName} captures most frequently invoked {ShortScriptName} methods. Defaults to off. |
 | TranslateDirectory | Specify translation of directories before access policy is applied - the fromPath is replaced with toPath in the names of paths accessed. Make sure to add the trailing path separators. Valid from/to path separators are '<' and ' and '::'. Recommended separator is '::'. Defaults to no directory translation is done. |
@@ -251,7 +251,6 @@ This page lists flags that can be used to configure BuildXL.
 | VerifyCacheLookupPin | Verifies pins for cache lookup output content by attempting to materialize the content. Defaults to off. |
 | VerifyJournalForEngineVolumes | Verifies that change journal is available for engine volumes (source/object/cache directories). Defaults to on. |
 | VfsCasRoot | Specifies the root of the virtualized CAS directory. This should be the same as the root passed to bvfs.exe. |
-| ViewerOptions | Controls viewer behavior. Allowed values are Show, Hide, and Disable. Defaults to Hide. |
 | VmConcurrencyLimit | Max number of processes executed in VM. Value 0 means unbounded. Defaults to 0. |
 | VS | Generates a VS solution file and MSBuild files for C# and C++ projects. Defaults to off. |
 | VsOutputSrc | MSBuild project files are written under the source tree. Defaults to off. |

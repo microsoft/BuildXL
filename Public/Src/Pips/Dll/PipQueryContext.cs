@@ -72,7 +72,6 @@ namespace BuildXL.Pips
         SchedulerPartialGraphReload,
         SchedulerExecuteSealDirectoryPip,
         SealedDirectoryTableTryFindDirectoryArtifactContainingFileArtifact,
-        PipViewerRequest,
         ViewerAnalyzer,
         LoggingUncacheableProcessImpact,
         HandlePipStepOnWorker,

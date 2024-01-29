@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
@@ -78,6 +78,10 @@ public readonly record struct MachineLocation
 {
     public static MachineLocation Invalid { get; } = new(null);
 
+    public static MachineLocation UnencryptedLocalCacheService { get; } = Create(GrpcConstants.LocalHost, GrpcConstants.DefaultGrpcPort);
+
+    public static MachineLocation EncryptedLocalCacheService { get; } = Create(GrpcConstants.LocalHost, GrpcConstants.DefaultEncryptedGrpcPort);
+
     /// <summary>
     /// Gets whether the current machine location represents valid data
     /// </summary>
@@ -131,7 +135,7 @@ public readonly record struct MachineLocation
     private static readonly Regex _hostRegex = new(@"^(?<host>([A-Za-z0-9]+(-|\.))*[A-Za-z0-9]+)(:(?<port>\d+))?$", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     /// <nodoc />
-    private MachineLocation(Uri? uri)
+    public MachineLocation(Uri? uri)
     {
         Uri = uri;
     }
@@ -148,9 +152,16 @@ public readonly record struct MachineLocation
     }
 
     /// <nodoc />
-    public static MachineLocation FromContainerPath(AbsoluteContainerPath path)
+    public MachineLocation WithPort(int port)
     {
-        return new MachineLocation(new Uri($"azs://{path.Account}/{path.Container}"));
+        if (Uri is null)
+        {
+            return Invalid;
+        }
+
+        var builder = new UriBuilder(Uri);
+        builder.Port = port;
+        return new MachineLocation(builder.Uri);
     }
 
     /// <nodoc />
@@ -191,7 +202,43 @@ public readonly record struct MachineLocation
     }
 
     /// <nodoc />
-    public (string host, int? port) ExtractHostInfo()
+    public Uri ToGrpcUri()
+    {
+        return ToGrpcHost().ToGrpcUri();
+    }
+
+    /// <nodoc />
+    public record struct HostInfo(string Host, int Port, bool Encrypted)
+    {
+        /// <nodoc />
+        public static HostInfo Create(string host, int? port, bool? encrypted = null)
+        {
+            port ??= GrpcConstants.DefaultGrpcPort;
+            encrypted ??= port == GrpcConstants.DefaultEncryptedGrpcPort || port == GrpcConstants.DefaultEphemeralEncryptedGrpcPort || port == GrpcConstants.DefaultEphemeralLeaderEncryptedGrpcPort;
+            return new HostInfo(host, port.Value, encrypted!.Value);
+        }
+
+        /// <nodoc />
+        public Uri ToGrpcUri()
+        {
+            var builder = new UriBuilder();
+            if (Encrypted)
+            {
+                builder.Scheme = "https";
+            }
+            else
+            {
+                builder.Scheme = "http";
+            }
+
+            builder.Host = Host;
+            builder.Port = Port;
+            return builder.Uri;
+        }
+    }
+
+    /// <nodoc />
+    public HostInfo ToGrpcHost()
     {
         Contract.Requires(IsValid, $"Attempt to obtain Host and Port from invalid {nameof(MachineLocation)}");
 
@@ -207,10 +254,10 @@ public readonly record struct MachineLocation
                 var segments = path.GetSegments();
                 Contract.Assert(segments.Count >= 1);
 
-                return (segments[0], null);
+                return HostInfo.Create(segments[0], port: null);
             }
 
-            return ("localhost", null);
+            return HostInfo.Create("localhost", port: null);
         }
 
         // Port is reported as -1 when unavailable. We prefer to use null for historical reasons. This code-path should
@@ -221,6 +268,30 @@ public readonly record struct MachineLocation
             port = null;
         }
 
-        return (Uri.Host, port);
+        if (Uri.IsUnc)
+        {
+            port ??= GrpcConstants.DefaultGrpcPort;
+            return HostInfo.Create(Uri.Host, port, encrypted: false);
+        }
+
+        bool encrypted = Uri.Scheme switch
+        {
+            "grpc" => false,
+            "grpcs" => true,
+            "http" => false,
+            "https" => true,
+            "" => false,
+            null => false,
+            _ => throw new ArgumentException($"Unknown scheme {Uri.Scheme}"),
+        };
+
+        return HostInfo.Create(Uri.Host, port, encrypted);
+    }
+
+    /// <nodoc />
+    public (string host, int? port) ExtractHostPort()
+    {
+        var info = ToGrpcHost();
+        return (info.Host, info.Port);
     }
 }

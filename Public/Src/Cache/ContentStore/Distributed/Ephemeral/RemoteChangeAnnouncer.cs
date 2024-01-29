@@ -93,7 +93,7 @@ public class RemoteChangeAnnouncer : StartupShutdownComponentBase, IRemoteConten
                         return new BoolResult(errorMessage: $"Unknown event type: {@event.GetType()}");
                 }
 
-                var location = MachineLocation.FromContainerPath(@event.Path.ContainerPath);
+                var location = @event.Path.ContainerPath.ToMachineLocation();
                 if (!_clusterState.TryResolveMachineId(location, out var machineId))
                 {
                     return new BoolResult(errorMessage: $"Could not find a machine ID for {@event.Path.ContainerPath}");

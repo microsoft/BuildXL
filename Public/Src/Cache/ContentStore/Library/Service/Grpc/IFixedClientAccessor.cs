@@ -31,7 +31,8 @@ public interface IClientAccessor<TKey, out TService> : IStartupShutdownSlim
     Task<TResult> UseAsync<TResult>(OperationContext context, TKey key, Func<TService, Task<TResult>> operation);
 }
 
-public static class ClientAccessorExtensions {
+public static class ClientAccessorExtensions
+{
     public static async Task<TResult> WithClientAsync<TKey, TService, TRequest, TResult>(
         this IClientAccessor<TKey, TService> clients,
         OperationContext context,
@@ -139,7 +140,7 @@ public class FixedClientAccessor<TService> : StartupShutdownComponentBase, IFixe
     /// <inheritdoc />
     public Task<TResult> UseAsync<TResult>(OperationContext context, Func<TService, Task<TResult>> operation)
     {
-        return operation?.Invoke(_service);
+        return operation.Invoke(_service);
     }
 }
 

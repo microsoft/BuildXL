@@ -75,10 +75,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Scenario = scenario;
             _clientCapabilities = clientCapabilities;
 
-            var port = configuration.EncryptionEnabled ? configuration.EncryptedGrpcPort : configuration.GrpcPort;
             var channelCreationOptions = new ChannelCreationOptions(
-                configuration.GrpcHost,
-                port,
+                configuration.Location,
                 GrpcEnvironment.GetClientOptions(configuration.GrpcCoreClientOptions),
                 configuration.GrpcDotNetClientOptions);
             Channel = GrpcChannelFactory.CreateChannel(context, channelCreationOptions, channelType: GetType().Name);
@@ -278,8 +276,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             try
             {
-                var targetMachine = Configuration.GrpcHost;
-                Tracer.Info(context, $"Starting up GRPC client against service on '{targetMachine}' on port {Configuration.GrpcPort} with timeout {waitMs}.");
+                Tracer.Info(context, $"Starting up GRPC client against service on {Configuration.Location} with timeout {waitMs}.");
 
                 HelloResponse helloResponse;
                 using (var ct = new CancellationTokenSource(waitMs > 0 ? waitMs : Timeout.Infinite))

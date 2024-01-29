@@ -99,16 +99,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             Stream destinationStream,
             CopyOptions options)
         {
-            // Extract host and port from machine location
-            (string host, int port) = ExtractHostInfo(sourceLocation.Machine);
-
             // Contact hard-coded port on source
             try
             {
                 // ResourcePool may throw TimeoutException if the connection fails.
                 // Wrapping this error and converting it to an "error code".
 
-                return await _clientCache.UseWithInvalidationAsync(context, host, port, async (nestedContext, clientWrapper) =>
+                return await _clientCache.UseWithInvalidationAsync(context, sourceLocation.Machine, async (nestedContext, clientWrapper) =>
                 {
                     var result = await clientWrapper.Value.CopyToAsync(nestedContext, sourceLocation.Hash, destinationStream, options);
                     InvalidateResourceIfNeeded(nestedContext, options, result, clientWrapper);
@@ -130,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
         }
 
-        private void InvalidateResourceIfNeeded(Context context, CopyOptions options, CopyFileResult result, IResourceWrapperAdapter<GrpcCopyClient> clientWrapper)
+        private void InvalidateResourceIfNeeded(Context context, CopyOptions options, CopyFileResult result, ResourceWrapperAdapter<GrpcCopyClient> clientWrapper)
         {
             if (!result)
             {
@@ -159,17 +156,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <inheritdoc />
         public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine, CopyOptions options)
         {
-            (string host, int port) = ExtractHostInfo(targetMachine);
-
-            return _clientCache.UseAsync(context, host, port, (nestedContext, client) => client.PushFileAsync(nestedContext, hash, stream, options));
+            return _clientCache.UseAsync(context, targetMachine, (nestedContext, client) => client.PushFileAsync(nestedContext, hash, stream, options));
         }
 
         /// <inheritdoc />
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
-            (string host, int port) = ExtractHostInfo(targetMachine);
-
-            return _clientCache.UseAsync(context, host, port, (nestedContext, client) => client.RequestCopyFileAsync(nestedContext, hash));
+            return _clientCache.UseAsync(context, targetMachine, (nestedContext, client) => client.RequestCopyFileAsync(nestedContext, hash));
         }
 
         /// <inheritdoc />
@@ -181,7 +174,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 context,
                 new ServiceClientContentSessionTracer(nameof(ServiceClientContentSessionTracer)),
                 new PassThroughFileSystem(),
-                new ServiceClientRpcConfiguration(port) { GrpcHost = host },
+                new ServiceClientRpcConfiguration(port) { Location = targetMachine },
                 scenario: string.Empty))
             {
                 return await client.DeleteContentAsync(context, hash, deleteLocalOnly: true);
@@ -190,15 +183,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
         private (string host, int port) ExtractHostInfo(MachineLocation machineLocation)
         {
-            var info = machineLocation.ExtractHostInfo();
-            bool? encryptionEnabled = _configuration.GrpcCopyClientCacheConfiguration?.GrpcCopyClientConfiguration?.GrpcCoreClientOptions?.EncryptionEnabled;
-
-            if (encryptionEnabled == true)
-            {
-                return (info.host, _configuration.EncryptedGrpcPort);
-            }
-
-            return (info.host, info.port ?? _configuration.GrpcPort);
+            var (host, port) = machineLocation.ExtractHostPort();
+            port ??= _configuration.GrpcPort;
+            return (host, port!.Value);
         }
 
         /// <inheritdoc />

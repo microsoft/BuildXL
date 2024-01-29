@@ -365,8 +365,8 @@ namespace ContentStoreTest.Distributed.Stores
 
                  try
                  {
-
-                     await _clientCache.UseAsync(new OperationContext(_context), LocalHost, bogusPort, async (nestedContext, client) =>
+                     var location = MachineLocation.Create(LocalHost, bogusPort);
+                     await _clientCache.UseAsync(new OperationContext(_context), location, async (nestedContext, client) =>
                      {
                          var copyFileResult = await client.CopyFileAsync(nestedContext, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), new CopyOptions(bandwidthConfiguration: null));
                          Assert.Equal(CopyResultCode.ServerUnavailable, copyFileResult.Code);
@@ -437,7 +437,8 @@ namespace ContentStoreTest.Distributed.Stores
 
                 // Create a GRPC client to connect to the server
                 var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                await _clientCache.UseAsync(new OperationContext(_context), LocalHost, port, async (nestedContext, grpcCopyClient) =>
+                var location = MachineLocation.Create(LocalHost, port);
+                await _clientCache.UseAsync(new OperationContext(_context), location, async (nestedContext, grpcCopyClient) =>
                 {
                     await testAct(server, rootPath, session, grpcCopyClient);
                     return Unit.Void;

@@ -66,11 +66,6 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// </summary>
         public int? KeepalivePermitWithoutCalls { get; set; }
 
-        /// <summary>
-        /// Enable SSL encryption on GRPC
-        /// </summary>
-        public bool EncryptionEnabled { get; set; } = false;
-
         #region POSIX Only
 
         /// <summary>

@@ -6,7 +6,7 @@ using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
-    internal static class GrpcConstants
+    internal static class GrpcMetadataConstants
     {
         /// <summary>
         /// Name of the field that has a calling machine name passed via grpc layer.
@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             foreach (var entry in metadata)
             {
                 // Grpc sends the metadata in lower case.
-                if (string.Equals(entry.Key, GrpcConstants.MachineMetadataFieldName, StringComparison.InvariantCultureIgnoreCase))
+                if (string.Equals(entry.Key, GrpcMetadataConstants.MachineMetadataFieldName, StringComparison.InvariantCultureIgnoreCase))
                 {
                     machineName = entry.Value;
                     return true;

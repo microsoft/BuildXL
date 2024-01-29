@@ -106,7 +106,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var connectionPool = new GrpcConnectionMap(new ConnectionPoolConfiguration()
             {
-                DefaultPort = (int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort,
                 ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
                 GrpcDotNetOptions = _distributedSettings.ContentMetadataClientGrpcDotNetClientOptions ?? GrpcDotNetClientOptions.Default,
             },

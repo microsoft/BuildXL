@@ -50,7 +50,7 @@ public class GrpcClusterStateStorageTests
         // Setup client-side
         var location = MachineLocation.Create(Environment.MachineName, port);
 
-        var connectionHandle = new ConnectionHandle(context, location, port);
+        var connectionHandle = new ConnectionHandle(context, location);
         await connectionHandle.StartupAsync(context).ThrowIfFailureAsync();
 
         var clusterStateManager = new ClusterStateManager(

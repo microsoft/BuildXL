@@ -351,24 +351,6 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         private class GrpcCoreHost : GrpcCoreServerHost, IGrpcServerHost<LocalServerConfiguration>
         {
-            protected override ServerCredentials? TryGetEncryptedCredentials(OperationContext context)
-            {
-                var encryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
-                var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionOptions.CertificateSubjectName, encryptionOptions.StoreLocation, out _);
-
-                if (keyCertPairResult.Succeeded)
-                {
-                    Tracer.Debug(context, $"Found Grpc Encryption Certificate.");
-                    return new SslServerCredentials(
-                        new List<KeyCertificatePair> { new KeyCertificatePair(keyCertPairResult.Value.CertificateChain, keyCertPairResult.Value.PrivateKey) },
-                        null,
-                        SslClientCertificateRequestType.DontRequest); //Since this is an internal channel, client certificate is not requested or verified.
-                }
-
-                Tracer.Error(context, message: $"Failed to get GRPC SSL Credentials: {keyCertPairResult}");
-                return null;
-            }
-
             public Task<BoolResult> StartAsync(OperationContext context, LocalServerConfiguration configuration, IEnumerable<IGrpcServiceEndpoint> endpoints)
             {
                 return StartAsync(context, Transform(configuration), endpoints);

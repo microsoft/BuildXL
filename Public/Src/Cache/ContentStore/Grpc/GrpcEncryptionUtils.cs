@@ -6,10 +6,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.IO;
 using System.Security.Cryptography;
-using System.Diagnostics.ContractsLight;
 using Grpc.Core;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using System.Net.Security;
 using Newtonsoft.Json;
 
 #nullable enable
@@ -40,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
 
             if (encryptionCertificateName is null)
             {
-                throw Contract.AssertFailure($"EncryptionCertificateName is null. The environment variable '{CertSubjectEnvironmentVariable}' is not set.");
+                throw new InvalidOperationException($"EncryptionCertificateName is null. The environment variable '{CertSubjectEnvironmentVariable}' is not set.");
             }
 
             return new ChannelEncryptionOptions(encryptionCertificateName, certificateChainsPath, identityTokenPath, storeLocation);

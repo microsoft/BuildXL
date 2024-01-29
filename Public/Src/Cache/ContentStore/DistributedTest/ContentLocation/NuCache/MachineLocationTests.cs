@@ -52,7 +52,7 @@ public class MachineLocationTests
 
     private string GetHostFromAbsolutePath(AbsolutePath path)
     {
-        return MachineLocation.Parse(path.Path).ExtractHostInfo().host;
+        return MachineLocation.Parse(path.Path).ExtractHostPort().host;
     }
 
     [Theory]
@@ -82,13 +82,13 @@ public class MachineLocationTests
 
     [Theory]
     [InlineData("grpc://a.com:123", "a.com", 123)]
-    [InlineData(@"\\DS4PNPF000066FA\D$\DBS\CACHE\CONTENTADDRESSABLESTORE\SHARED", "DS4PNPF000066FA", null)]
+    [InlineData(@"\\DS4PNPF000066FA\D$\DBS\CACHE\CONTENTADDRESSABLESTORE\SHARED", "DS4PNPF000066FA", 7089)]
     [InlineData(@"node1:1234", "node1", 1234)]
-    [InlineData(@"node1", "node1", null)]
+    [InlineData(@"node1", "node1", 7089)]
     public void MachineLocationGrpcExtractionWorks(string location, string host, int? port)
     {
         var machine = MachineLocation.Parse(location);
-        var (extractedHost, extractedPort) = machine.ExtractHostInfo();
+        var (extractedHost, extractedPort) = machine.ExtractHostPort();
         extractedHost.Should().BeEquivalentTo(host, $"expected to extract host {host} from URI {machine.Uri}");
         extractedPort.Should().Be(port);
     }

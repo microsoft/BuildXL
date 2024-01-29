@@ -357,7 +357,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             };
             if (config.GrpcPort > 0)
             {
-                serviceClientRpcConfiguration.GrpcPort = config.GrpcPort;
+                serviceClientRpcConfiguration.Location = serviceClientRpcConfiguration.Location.WithPort(config.GrpcPort);
             }
 
             ServiceClientContentStoreConfiguration serviceClientContentStoreConfiguration = null;

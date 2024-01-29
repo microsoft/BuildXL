@@ -4,11 +4,9 @@
 // ReSharper disable once UnusedMember.Global
 
 using System;
-using System.Linq;
 using System.Runtime.InteropServices;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
@@ -24,8 +22,7 @@ namespace BuildXL.Cache.ContentStore.App
             (
             [Required, Description(HashTypeDescription)] string hashType,
             [Required, Description("Content hash value of referenced content to place")] string hash,
-            [Optional, Description(GrpcPortDescription), DefaultValue(GrpcConstants.DefaultEncryptedGrpcPort)] int grpcPort,
-            [Optional, Description("Whether to enable encryption"), DefaultValue(true)] bool encrypt
+            [Optional, Description(GrpcPortDescription), DefaultValue(GrpcConstants.DefaultEncryptedGrpcPort)] int grpcPort
             )
         {
             Initialize();
@@ -49,7 +46,6 @@ namespace BuildXL.Cache.ContentStore.App
                     {
                         GrpcCoreClientOptions = new()
                         {
-                            EncryptionEnabled = encrypt,
                         }
                     },
                     _scenario);

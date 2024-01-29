@@ -157,9 +157,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 grpcPort = portReader.ReadPort();
             }
 
-            var rpcConfiguration = new ServiceClientRpcConfiguration()
+            var rpcConfiguration = new ServiceClientRpcConfiguration(grpcPort)
             {
-                GrpcPort = grpcPort,
                 GrpcCoreClientOptions = configuration.GrpcCoreClientOptions,
             };
 

@@ -3,8 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Grpc;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 
 #nullable enable
 
@@ -20,22 +20,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// 
         /// Defaults to localhost
         /// </summary>
-        public string GrpcHost { get; set; } = GrpcEnvironment.LocalHost;
-
-        /// <summary>
-        /// Port bound by the gRPC cache service.
-        /// </summary>
-        public int GrpcPort { get; set; } = Grpc.GrpcConstants.DefaultGrpcPort;
-
-        /// <summary>
-        /// Port bound by the SSL secured gRPC cache service.
-        /// </summary>
-        public int EncryptedGrpcPort { get; set; } = Grpc.GrpcConstants.DefaultEncryptedGrpcPort;
-
-        /// <summary>
-        /// If true then a secure channel is used.
-        /// </summary>
-        public bool EncryptionEnabled { get; set; }
+        public MachineLocation Location { get; set; } = MachineLocation.UnencryptedLocalCacheService;
 
         /// <summary>
         /// The period of time between heartbeats.
@@ -98,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         {
             Contract.Requires(grpcPort > 0, $"Local server must have a positive GRPC port. Found {grpcPort}.");
 
-            GrpcPort = grpcPort;
+            Location = Location.WithPort(grpcPort);
 
             if (heartbeatInterval != null)
             {

@@ -3,6 +3,7 @@
 
 using System;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -27,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public GrpcRepairClient(uint grpcPort)
         {
-            _channel = new Channel(GrpcEnvironment.LocalHost, (int)grpcPort, ChannelCredentials.Insecure, GrpcEnvironment.GetClientOptions());
+            _channel = new Channel(GrpcConstants.LocalHost, (int)grpcPort, ChannelCredentials.Insecure, GrpcEnvironment.GetClientOptions());
             _client = new ContentServer.ContentServerClient(_channel);
         }
 

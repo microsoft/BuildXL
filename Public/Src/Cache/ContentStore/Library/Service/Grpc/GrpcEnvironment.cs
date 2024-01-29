@@ -46,9 +46,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private static readonly string GrpcOperationId = "62447f16-eea2-411c-af0d-c5a2e6661da3";
 
-        /// <nodoc />
-        public const string LocalHost = "localhost";
-
         private static bool IsInitialized;
 
         private static readonly object InitializationLock = new object();

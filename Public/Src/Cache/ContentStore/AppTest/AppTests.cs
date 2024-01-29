@@ -101,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.App.Test
 
                 var context = new Context(Logger);
 
-                var serviceClientRpcConfiguration = new ServiceClientRpcConfiguration { GrpcPort = port };
+                var serviceClientRpcConfiguration = new ServiceClientRpcConfiguration(port);
                 var config = new ServiceClientContentStoreConfiguration("Default", serviceClientRpcConfiguration, scenario: "AppTests");
                 config.GrpcEnvironmentOptions = new GrpcEnvironmentOptions()
                 {

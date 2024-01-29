@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Grpc;
@@ -16,8 +17,8 @@ using Grpc.Core;
 namespace BuildXL.Cache.ContentStore.Service.Grpc;
 
 public record GrpcCoreServerHostConfiguration(
-    int GrpcPort = ContentStore.Grpc.GrpcConstants.DefaultGrpcPort,
-    int EncryptedGrpcPort = ContentStore.Grpc.GrpcConstants.DefaultEncryptedGrpcPort,
+    int? GrpcPort = null,
+    int? EncryptedGrpcPort = null,
     int RequestCallTokensPerCompletionQueue = 7000,
     GrpcCoreServerOptions? GrpcCoreServerOptions = null);
 
@@ -41,35 +42,45 @@ public class GrpcCoreServerHost : IGrpcServerHost<GrpcCoreServerHostConfiguratio
                 GrpcEnvironment.WaitUntilInitialized();
 
                 GrpcCoreServerOptions? grpcCoreServerOptions = configuration.GrpcCoreServerOptions;
-                bool? encryptionEnabled = grpcCoreServerOptions?.EncryptionEnabled;
-                Tracer.Info(
-                    context,
-                    $"Grpc Encryption Enabled = {encryptionEnabled == true}, Encrypted GRPC Port: {configuration.EncryptedGrpcPort}, Unencrypted GRPC Port: {configuration.GrpcPort}");
 
                 _grpcServer = new Server(GrpcEnvironment.GetServerOptions(grpcCoreServerOptions))
                 {
-                    Ports = { new ServerPort(IPAddress.Any.ToString(), configuration.GrpcPort, ServerCredentials.Insecure) },
+                    Ports = { },
                     RequestCallTokensPerCompletionQueue = configuration.RequestCallTokensPerCompletionQueue,
                 };
 
-                if (encryptionEnabled == true)
+                Contract.Assert(configuration.GrpcPort != configuration.EncryptedGrpcPort, "GrpcPort and EncryptedGrpcPort cannot be the same");
+                if (configuration.GrpcPort is not null)
+                {
+                    _grpcServer.Ports.Add(new ServerPort(IPAddress.Any.ToString(), configuration.GrpcPort!.Value, ServerCredentials.Insecure));
+                }
+
+                if (configuration.EncryptedGrpcPort is not null)
                 {
                     try
                     {
-                        ServerCredentials? serverSSLCreds = TryGetEncryptedCredentials(context);
-                        if (serverSSLCreds != null)
+                        ServerCredentials? credentials = TryGetEncryptedCredentials(context);
+                        if (credentials != null)
                         {
-                            _grpcServer.Ports.Add(new ServerPort(IPAddress.Any.ToString(), configuration.EncryptedGrpcPort, serverSSLCreds));
+                            _grpcServer.Ports.Add(new ServerPort(IPAddress.Any.ToString(), configuration.EncryptedGrpcPort!.Value, credentials));
                             Tracer.Debug(context, $"Server creating Encrypted Grpc channel on port {configuration.EncryptedGrpcPort}");
                         }
                         else
                         {
                             Tracer.Error(context, message: "Failed to get SSL Credentials. Not creating encrypted Grpc channel.");
+                            if (configuration.GrpcPort is null)
+                            {
+                                throw new InvalidOperationException("Failed to get SSL credentials for establishing gRPC server. There is no unencrypted port for this, so the service can't be started up.");
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
                         Tracer.Error(context, ex, "Creating SSL Secured Grpc Channel Failed.");
+                        if (configuration.GrpcPort is null)
+                        {
+                            throw;
+                        }
                     }
                 }
 
@@ -105,7 +116,30 @@ public class GrpcCoreServerHost : IGrpcServerHost<GrpcCoreServerHostConfiguratio
     /// </summary>
     protected virtual ServerCredentials? TryGetEncryptedCredentials(OperationContext context)
     {
-        return null;
+        try
+        {
+            var encryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
+            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionOptions.CertificateSubjectName, encryptionOptions.StoreLocation, out _);
+
+            if (keyCertPairResult.Succeeded)
+            {
+                Tracer.Debug(context, $"Found gRPC Encryption Certificate.");
+                return new SslServerCredentials(
+                    new List<KeyCertificatePair> { new KeyCertificatePair(keyCertPairResult.Value.CertificateChain, keyCertPairResult.Value.PrivateKey) },
+                    null,
+                    SslClientCertificateRequestType.DontRequest); //Since this is an internal channel, client certificate is not requested or verified.
+            }
+            else
+            {
+                Tracer.Error(context, message: $"Failed to get gRPC SSL credentials: {keyCertPairResult}");
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Tracer.Error(context, ex, message: $"Failed to get gRPC SSL credentials");
+            return null;
+        }
     }
 }
 

@@ -190,7 +190,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     ? new FixedClientAccessor<IGlobalCacheService>(localService, Configuration.PrimaryMachineLocation)
                     : null;
 
-                clientAccessor = new GrpcDotNetClientAccessor<IGlobalCacheService, IGlobalCacheService>(Arguments.ConnectionMap, (location, service) => service, localClient);
+                clientAccessor = new GrpcDotNetClientAccessor<IGlobalCacheService, IGlobalCacheService>(Arguments.ConnectionMap, (location, service) => service, localClient, MetadataServiceSerializer.ClientFactory);
             }
 
             return new MasterClientFactory<IGlobalCacheService>(clientAccessor, MasterElectionMechanism.Instance);

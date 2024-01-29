@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Net.Http;
@@ -15,8 +14,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.ConfigurationHelpers;
 using Grpc.Core;
+using BuildXL.Cache.ContentStore.Distributed;
 
 #if NET6_0_OR_GREATER
 using System.Net;
@@ -31,23 +30,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// Channel creation options used by <see cref="GrpcChannelFactory"/>.
     /// </summary>
     public record ChannelCreationOptions(
-        string Host,
-        int GrpcPort,
-
-        // Only one of those properties must be non-null.
-        IEnumerable<ChannelOption>? GrpcCoreOptions, // Applicable only for Grcp.Core version.
-        GrpcDotNetClientOptions? GrpcDotNetOptions // Applicable for Grpc.Net version.
-        )
-    {
-        // Have to use an explicit property becuase MemberNotNullWhen attribute can't be applied to a "property" declared with primary constructors.
-        [MemberNotNullWhen(true, nameof(EncryptionOptions))]
-        public bool EncryptionEnabled { get; init; }
-
-        public ChannelEncryptionOptions? EncryptionOptions { get; init; } // Null if encryption if disabled
-    }
+        MachineLocation Location,
+        IEnumerable<ChannelOption>? GrpcCoreOptions,
+        GrpcDotNetClientOptions? GrpcDotNetOptions
+        );
 
     /// <summary>
-    /// A helper factory for creating grpc channels (Grpc.Core or Grpc.Net once) based on configuration.
+    /// A helper factory for creating gRPC channels (gRPC.Core or gRPC.NET)
     /// </summary>
     public static class GrpcChannelFactory
     {
@@ -55,46 +44,114 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public static ChannelBase CreateChannel(OperationContext context, ChannelCreationOptions channelOptions, string channelType)
         {
-            Tracer.Info(context, $"Grpc Encryption Enabled: {channelOptions.EncryptionEnabled}, GRPC Host: {channelOptions.Host}, GRPC Port: {channelOptions.GrpcPort}, ChannelType: {channelType}.");
+            Tracer.Info(context, $"Location: {channelOptions.Location}. ChannelType: {channelType}.");
             return CreateGrpcChannel(context, channelOptions);
         }
 
 #if NET6_0_OR_GREATER
 
+        /// <summary>
+        /// The <see cref="SocketsHttpHandler"/> is used by the <see cref="HttpClient"/>, which is shared by all
+        /// <see cref="GrpcChannel"/>. created by <see cref="CreateChannel(OperationContext, ChannelCreationOptions, string)"/>.
+        ///
+        /// It is shared across all channels, because inside it contains a connection pool. Using separate handlers for
+        /// each channel creates problems because the connection pool is not shared, and therefore an outsized number
+        /// of connections are created, which causes socket exhaustion.
+        /// 
+        /// See: https://learn.microsoft.com/en-us/dotnet/fundamentals/networking/http/httpclient-guidelines
+        /// </summary>
+        private readonly static SocketsHttpHandler SocketsHttpHandler = new SocketsHttpHandler
+        {
+            EnableMultipleHttp2Connections = true,
+
+            AutomaticDecompression = DecompressionMethods.All,
+            MaxConnectionsPerServer = 5,
+
+            PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
+
+            KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
+            KeepAlivePingDelay = TimeSpan.FromSeconds(30),
+            KeepAlivePingTimeout = TimeSpan.FromMinutes(1),
+
+            // In CASaaS, the connection timeout is controlled by the caller of the GrpcChannelFactory by
+            // explicitly asking for the connection to be established and awaiting. This value is here to ensure
+            // there is a maximum timeout in the worst case.
+            ConnectTimeout = TimeSpan.FromMinutes(5),
+        };
+
+        private static bool HttpsInterceptComplete = false;
+
+        private static void InterceptHttpsValidation(OperationContext context, SocketsHttpHandler httpHandler)
+        {
+            if (HttpsInterceptComplete)
+            {
+                return;
+            }
+
+            lock (SocketsHttpHandler)
+            {
+                if (HttpsInterceptComplete)
+                {
+                    return;
+                }
+
+                context.PerformOperation(
+                    Tracer,
+                    () =>
+                    {
+                        var (certificateSubjectName, certificateChainsPath, identityTokenPath, storeLocation) = GrpcEncryptionUtils.GetChannelEncryptionOptions();
+                        X509Certificate2? certificate = null;
+                        string error = string.Empty;
+
+                        certificate = GrpcEncryptionUtils.TryGetEncryptionCertificate(certificateSubjectName, storeLocation, out error);
+                        if (certificate == null)
+                        {
+                            return new BoolResult($"No certificate found that matches subject name: '{certificateSubjectName}'. Error={error}");
+                        }
+
+                        httpHandler.SslOptions.ClientCertificates = new X509CertificateCollection { certificate };
+
+                        httpHandler.SslOptions.RemoteCertificateValidationCallback =
+                            (requestMessage, certificate, chain, errors) =>
+                            {
+                                if (certificateChainsPath != null)
+                                {
+                                    if (!GrpcEncryptionUtils.TryValidateCertificate(certificateChainsPath, chain, out string errorMessage))
+                                    {
+                                        Tracer.Error(context, $"Certificate is not validated: '{errorMessage}'.");
+                                        return false;
+                                    }
+                                }
+
+                                // If the path for the chains is not provided, we will not validate the certificate.
+                                return true;
+                            };
+
+
+                        return BoolResult.Success;
+                    }).IgnoreFailure();
+
+                HttpsInterceptComplete = true;
+            }
+        }
+
         private static ChannelBase CreateGrpcChannel(OperationContext context, ChannelCreationOptions channelOptions)
         {
+            AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+
             var grpcDotNetSpecificOptions = channelOptions.GrpcDotNetOptions ?? GrpcDotNetClientOptions.Default;
-            var handler = new SocketsHttpHandler
-            {
-                UseCookies = false,
-                Expect100ContinueTimeout = TimeSpan.Zero,
-                PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
-                EnableMultipleHttp2Connections = true,
-            };
-
-            grpcDotNetSpecificOptions.ConnectionTimeout.ApplyIfNotNull(v => handler.ConnectTimeout = v);
-            grpcDotNetSpecificOptions.PooledConnectionLifetime.ApplyIfNotNull(v => handler.PooledConnectionIdleTimeout = v);
-            grpcDotNetSpecificOptions.PooledConnectionLifetime.ApplyIfNotNull(v => handler.PooledConnectionLifetime = v);
-
-            if (grpcDotNetSpecificOptions.KeepAliveEnabled)
-            {
-                handler.KeepAlivePingDelay = grpcDotNetSpecificOptions.KeepAlivePingDelay;
-                handler.KeepAlivePingTimeout = grpcDotNetSpecificOptions.KeepAlivePingTimeout;
-                handler.KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always;
-            }
-
-            if (!string.IsNullOrEmpty(grpcDotNetSpecificOptions.DecompressionMethods)
-                && Enum.TryParse<DecompressionMethods>(grpcDotNetSpecificOptions.DecompressionMethods, out var decompressionMethods))
-            {
-                handler.AutomaticDecompression = decompressionMethods;
-            }
 
             var options = new GrpcChannelOptions
             {
-                MaxSendMessageSize = grpcDotNetSpecificOptions.MaxSendMessageSize,
-                MaxReceiveMessageSize = grpcDotNetSpecificOptions.MaxReceiveMessageSize,
-                HttpHandler = handler,
-                DisposeHttpClient = true,
+                // The options below are important to ensure that requests don't fail when they have large payloads.
+                // This happens often during copies in the datacenter.
+                MaxSendMessageSize = int.MaxValue,
+                MaxReceiveMessageSize = int.MaxValue,
+
+                // The options below are important to prevent port exhaustion by sharing a single connection pool.
+                HttpHandler = SocketsHttpHandler,
+                DisposeHttpClient = false,
             };
 
             string grpcMinVerbosity = grpcDotNetSpecificOptions.MinLogLevelVerbosity != null
@@ -107,101 +164,42 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 options.LoggerFactory = new GrpcCacheLoggerAdapter(Tracer, context.TracingContext.CreateNested(Tracer.Name), (Microsoft.Extensions.Logging.LogLevel)grpcDotNetSpecificOptions.MinLogLevelVerbosity.Value);
             }
 
-            string httpOrHttps = channelOptions.EncryptionEnabled ? "https" : "http";
-            string address = $"{httpOrHttps}://{channelOptions.Host}:{channelOptions.GrpcPort}";
-
-            bool encryptionSetupCompleted = false;
-            if (channelOptions.EncryptionEnabled)
+            var target = channelOptions.Location.ToGrpcHost();
+            if (target.Encrypted)
             {
-                // CertificateSubjectName, CertificateChainPath, IdentityTokenLocation
-                var setupResult = SetupChannelOptionsForEncryption(context, options, channelOptions.EncryptionOptions, handler);
-                if (setupResult)
+                var channelEncryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
+
+                if (string.IsNullOrEmpty(channelEncryptionOptions.IdentityTokenPath))
                 {
-                    // The error is already traced.
-                    encryptionSetupCompleted = true;
-                    Tracer.Info(context, "Grpc.NET auth is enabled.");
+                    Tracer.Error(context, $"Identity token path hasn't been set by host system. Establishing encrypted connections is unsupported.");
                 }
-            }
-
-            if (!encryptionSetupCompleted)
-            {
-                AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-            }
-
-            return GrpcChannel.ForAddress(address, options);
-        }
-
-        private static BoolResult SetupChannelOptionsForEncryption(OperationContext context, GrpcChannelOptions options, ChannelEncryptionOptions encryptionOptions, SocketsHttpHandler httpHandler)
-        {
-            var (certificateSubjectName, certificateChainsPath, identityTokenPath, storeLocation) = encryptionOptions;
-            X509Certificate2? certificate = null;
-            string error = string.Empty;
-
-            return context.PerformOperation(
-                Tracer,
-                () =>
+                else
                 {
-                    certificate = GrpcEncryptionUtils.TryGetEncryptionCertificate(certificateSubjectName, storeLocation, out error);
+                    string? token = GrpcEncryptionUtils.TryGetTokenBuildIdentityToken(channelEncryptionOptions.IdentityTokenPath);
 
-                    if (certificate == null)
+                    if (token == null)
                     {
-                        return new BoolResult($"No certificate found that matches subject name: '{certificateSubjectName}'. Error={error}");
+                        Tracer.Error(context, $"Can't obtain build identity token from identity token path '{channelEncryptionOptions.IdentityTokenPath}'.");
                     }
-
-                    httpHandler.SslOptions.ClientCertificates = new X509CertificateCollection { certificate };
-
-                    httpHandler.SslOptions.RemoteCertificateValidationCallback =
-                        (requestMessage, certificate, chain, errors) =>
+                    else
+                    {
+                        InterceptHttpsValidation(context, SocketsHttpHandler);
+                        var credentials = CallCredentials.FromInterceptor((context, metadata) =>
                         {
-                            if (certificateChainsPath != null)
+                            if (!string.IsNullOrEmpty(token))
                             {
-                                if (!GrpcEncryptionUtils.TryValidateCertificate(certificateChainsPath, chain, out string errorMessage))
-                                {
-                                    Tracer.Warning(context, $"Certificate is not validated: '{errorMessage}'.");
-                                    return false;
-                                }
+                                metadata.Add("Authorization", token);
                             }
 
-                            // If the path for the chains is not provided, we will not validate the certificate.
-                            return true;
-                        };
-
-                    if (string.IsNullOrEmpty(identityTokenPath))
-                    {
-                        return new BoolResult("Identity token path is not set.");
+                            return Task.CompletedTask;
+                        });
+                        options.Credentials = ChannelCredentials.Create(new SslCredentials(), credentials);
+                        Tracer.Info(context, $"gRPC.NET authentication enabled");
                     }
-
-                    var credentials = GetCallCredentialsWithToken(identityTokenPath);
-
-                    if (credentials is null)
-                    {
-                        return new BoolResult($"Can't obtain build identity token from identity token path '{identityTokenPath}'.");
-                    }
-
-                    options.Credentials = ChannelCredentials.Create(new SslCredentials(), credentials);
-                    return BoolResult.Success;
-                });
-        }
-
-        private static CallCredentials? GetCallCredentialsWithToken(string buildIdentityTokenPath)
-        {
-            string? token = GrpcEncryptionUtils.TryGetTokenBuildIdentityToken(buildIdentityTokenPath);
-
-            if (token == null)
-            {
-                // The error will be traced outside of this method.
-                return null;
+                }
             }
 
-            return CallCredentials.FromInterceptor((context, metadata) =>
-            {
-                if (!string.IsNullOrEmpty(token))
-                {
-                    metadata.Add("Authorization", token);
-                }
-
-                return Task.CompletedTask;
-            });
+            return GrpcChannel.ForAddress(target.ToGrpcUri(), options);
         }
 
 #else
@@ -214,11 +212,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             var options = (channelOptions.GrpcCoreOptions ?? Array.Empty<ChannelOption>()).ToList();
 
-            if (channelOptions.EncryptionEnabled)
+            var info = channelOptions.Location.ToGrpcHost();
+            if (info.Encrypted)
             {
+                var encryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
                 try
                 {
-                    channelCreds = TryGetSecureChannelCredentials(context, channelOptions.EncryptionOptions.CertificateSubjectName, channelOptions.EncryptionOptions.StoreLocation, out var hostName) ?? ChannelCredentials.Insecure;
+                    channelCreds = TryGetSecureChannelCredentials(context, encryptionOptions.CertificateSubjectName, encryptionOptions.StoreLocation, out var hostName) ?? ChannelCredentials.Insecure;
                     if (channelCreds != ChannelCredentials.Insecure)
                     {
                         options.Add(new ChannelOption(ChannelOptions.SslTargetNameOverride, hostName));
@@ -230,9 +230,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
             }
 
-            Tracer.Debug(context, $"Client connecting to {channelOptions.Host}:{channelOptions.GrpcPort}. Channel Encrypted: {channelCreds != ChannelCredentials.Insecure}");
-
-            var channel = new Channel(channelOptions.Host, channelOptions.GrpcPort, channelCreds, options: options);
+            var channel = new Channel(info.Host, info.Port, channelCreds, options: options);
             return channel;
         }
 
@@ -254,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 #endif
 
-        public static async Task ConnectAsync(this ChannelBase channel, string host, int port, IClock clock, TimeSpan timeout)
+        public static async Task ConnectAsync(this ChannelBase channel, MachineLocation location, IClock clock, TimeSpan timeout)
         {
             // We have observed cases in production where a GrpcCopyClient instance consistently fails to perform
             // copies against the destination machine. We are suspicious that no connection is actually being
@@ -298,7 +296,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 // If deadline occurs, ConnectAsync fails with TaskCanceledException.
                 // Wrapping it into TimeoutException instead.
-                throw new GrpcConnectionTimeoutException($"Failed to connect to {host}:{port} at {timeout}.");
+                throw new GrpcConnectionTimeoutException($"Failed to connect to {location} at {timeout}.");
             }
 
             throw Contract.AssertFailure($"Unknown channel type: {channel?.GetType()}");

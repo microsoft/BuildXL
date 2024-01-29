@@ -17,6 +17,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
 using ProtoBuf.Grpc.Client;
+using ProtoBuf.Grpc.Configuration;
 
 #nullable enable
 
@@ -37,6 +38,7 @@ public class GrpcDotNetClientAccessor<TService, TClient> : StartupShutdownCompon
     private readonly IClientAccessor<MachineLocation, ConnectionHandle> _connectionAccessor;
     private readonly Func<MachineLocation, TService, TClient> _factory;
     private readonly IFixedClientAccessor<TClient>? _localClient;
+    private readonly ClientFactory? _clientFactory;
 
     /// <summary>
     /// 
@@ -51,14 +53,19 @@ public class GrpcDotNetClientAccessor<TService, TClient> : StartupShutdownCompon
     ///     useful for preventing unnecessary network traffic or breaking dependencies (the process initialization
     ///     depends on gRPC communication to the current machine).
     /// </param>
+    /// <param name="clientFactory">
+    ///     ProtoBuf.NET ClientFactory used to enable custom serialization of types that will be sent over the wire.
+    /// </param>
     public GrpcDotNetClientAccessor(
         IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor,
         Func<MachineLocation, TService, TClient> factory,
-        IFixedClientAccessor<TClient>? localClient = null)
+        IFixedClientAccessor<TClient>? localClient,
+        ClientFactory? clientFactory)
     {
         _connectionAccessor = connectionAccessor;
         _factory = factory;
         _localClient = localClient;
+        _clientFactory = clientFactory;
         LinkLifetime(connectionAccessor);
 
         if (_localClient != null)
@@ -84,7 +91,7 @@ public class GrpcDotNetClientAccessor<TService, TClient> : StartupShutdownCompon
                     connectionHandle,
                     h =>
                     {
-                        var service = h.Channel.CreateGrpcService<TService>(MetadataServiceSerializer.ClientFactory);
+                        var service = h.Channel.CreateGrpcService<TService>(_clientFactory);
                         return _factory.Invoke(key, service);
                     });
                 return operation(client);
@@ -122,7 +129,6 @@ public class GrpcConnectionMap : StartupShutdownComponentBase, IClientAccessor<M
             location => new ConnectionHandle(
                 context,
                 location,
-                configuration.DefaultPort,
                 grpcDotNetOptions: configuration.GrpcDotNetOptions,
                 connectionTimeout: configuration.ConnectTimeout),
             clock);
@@ -157,35 +163,28 @@ public class ConnectionHandle : StartupShutdownSlimBase
     /// <inheritdoc />
     protected override Tracer Tracer { get; } = new Tracer(nameof(ConnectionHandle));
 
-    public string Host { get; }
+    public MachineLocation Location { get; }
 
-    public int Port { get; }
+    public ChannelBase Channel { get; }
 
-    internal ChannelBase Channel { get; }
-
-    protected override string GetArgumentsMessage() => $"{Host}:{Port}";
+    protected override string GetArgumentsMessage() => $"{Location}";
 
     private readonly TimeSpan _connectionTimeout;
 
     public ConnectionHandle(
         OperationContext context,
         MachineLocation location,
-        int defaultPort,
         IEnumerable<ChannelOption>? grpcCoreOptions = null,
         GrpcDotNetClientOptions? grpcDotNetOptions = null,
         TimeSpan? connectionTimeout = null)
     {
         _connectionTimeout = connectionTimeout ?? Timeout.InfiniteTimeSpan;
 
-        var hostInfo = location.ExtractHostInfo();
-        Host = hostInfo.host;
-        Port = hostInfo.port ?? defaultPort;
-
+        Location = location;
         Channel = GrpcChannelFactory.CreateChannel(
             context,
             new ChannelCreationOptions(
-                Host,
-                Port,
+                location,
                 grpcCoreOptions,
                 grpcDotNetOptions),
             channelType: nameof(ConnectionHandle));
@@ -193,7 +192,7 @@ public class ConnectionHandle : StartupShutdownSlimBase
 
     protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
     {
-        await Channel.ConnectAsync(Host, Port, SystemClock.Instance, _connectionTimeout);
+        await Channel.ConnectAsync(Location, SystemClock.Instance, _connectionTimeout);
         return BoolResult.Success;
     }
 
@@ -206,8 +205,6 @@ public class ConnectionHandle : StartupShutdownSlimBase
 
 public class ConnectionPoolConfiguration : ResourcePoolConfiguration
 {
-    public required int DefaultPort { get; init; }
-
     public required TimeSpan ConnectTimeout { get; init; }
 
     public required GrpcDotNetClientOptions GrpcDotNetOptions { get; init; }

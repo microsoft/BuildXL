@@ -308,9 +308,6 @@ public static class EphemeralCacheFactory
                         var connectionHandle = new ConnectionHandle(
                             context,
                             configuration.Leader,
-                            // Please note, the following parameter is useless because we should be setting up ports on
-                            // all machine locations, so it should never be used.
-                            GrpcConstants.DefaultEphemeralLeaderGrpcPort,
                             // Allow waiting for the leader to setup for up to 30m
                             connectionTimeout: configuration.ClusterStateConnectionTimeout);
                         await connectionHandle.StartupAsync(context).ThrowIfFailureAsync();
@@ -352,13 +349,13 @@ public static class EphemeralCacheFactory
         IGrpcServiceEndpoint? grpcClusterStateEndpoint,
         IClock clock)
     {
-        var (address, port) = configuration.Location.ExtractHostInfo();
+        var (address, port) = configuration.Location.ExtractHostPort();
         Contract.Requires(port is not null, $"Port missing from the configured reachable DNS name: {configuration.Location}");
 
         var localContentTracker = new LocalContentTracker();
 
         var persistentLocations = persistentCache.Topology.EnumerateContainers(context, BlobCacheContainerPurpose.Content)
-            .Select(MachineLocation.FromContainerPath).ToArray();
+            .Select(path => path.ToMachineLocation()).ToArray();
         var clusterStateManagerConfiguration = new ClusterStateManager.Configuration
         {
             PrimaryLocation = configuration.Location,
@@ -380,9 +377,6 @@ public static class EphemeralCacheFactory
         var grpcConnectionPoolConfiguration = new ConnectionPoolConfiguration
         {
             ConnectTimeout = configuration.ConnectionTimeout,
-            // Please note, the following parameter is useless because we should be setting up ports on all machine
-            // locations, so it should never be used.
-            DefaultPort = GrpcConstants.DefaultEphemeralGrpcPort,
             GrpcDotNetOptions = new GrpcDotNetClientOptions()
             {
                 // We explicitly disable gRPC client-side tracing because it's too noisy.
@@ -412,7 +406,8 @@ public static class EphemeralCacheFactory
             (location, service) => new GrpcContentTrackerClient(
                 grpcContentTrackerClientConfiguration,
                 new FixedClientAccessor<IGrpcContentTracker>(service, location)),
-            localClient);
+            localClient,
+            MetadataServiceSerializer.ClientFactory);
 
         var masterContentResolver = new MasterContentResolver(
             new MasterContentResolver.Configuration()
@@ -651,23 +646,26 @@ public static class EphemeralCacheFactory
             clock,
             context.TracingContext.Logger);
 
+        var localHostInfo = configuration.Location.ToGrpcHost();
+        var grpcPort = -1;
+        var encryptedGrpcPort = -1;
+        if (localHostInfo.Encrypted)
+        {
+            encryptedGrpcPort = localHostInfo.Port;
+        }
+        else
+        {
+            grpcPort = localHostInfo.Port;
+        }
+
         var host = new EphemeralHost(
             new EphemeralCacheConfiguration
             {
                 // We use gRPC.Core for the server because we have observed issues with gRPC.NET in practice.
-                GrpcConfiguration = new GrpcCoreServerHostConfiguration(GrpcPort: port!.Value, GrpcCoreServerOptions: new GrpcCoreServerOptions()
+                GrpcConfiguration = new GrpcCoreServerHostConfiguration(GrpcPort: grpcPort, EncryptedGrpcPort: encryptedGrpcPort, GrpcCoreServerOptions: new GrpcCoreServerOptions()
                 {
                     // We have connection pools that we self-manage, so no need for the server to do it.
                     MaxConcurrentStreams = int.MaxValue,
-                    MaxConnectionIdleMs = int.MaxValue,
-                    MaxConnectionAgeMs = int.MaxValue,
-                    KeepaliveTimeMs = (int)Math.Floor(TimeSpan.FromMinutes(5).TotalMilliseconds),
-                    KeepaliveTimeoutMs = (int)Math.Floor(TimeSpan.FromSeconds(10).TotalMilliseconds),
-                    KeepalivePermitWithoutCalls = 1,
-                    Http2MinPingIntervalWithoutDataMs = 0,
-                    Http2MaxPingStrikes = 0,
-                    Http2MaxPingsWithoutData = 0,
-                    ServerHandshakeTimeoutMs = (int)Math.Floor(TimeSpan.FromSeconds(10).TotalMilliseconds),
                 }),
                 Workspace = configuration.RootPath / "workspace",
             },
@@ -689,14 +687,9 @@ public static class EphemeralCacheFactory
             persistentCache.Cache,
             host);
 
-        //var cache = new OneLevelCache(
-        //    () => ephemeralContentStore,
-        //    () => (IMemoizationStore)persistentCache,
-        //    new OneLevelCacheBaseConfiguration(Guid.NewGuid(), PassContentToMemoization: false));
+        var passthroughCache = new PassthroughCache(ephemeralContentStore, persistentCache.Cache);
 
-        var cc = new PassthroughCache(ephemeralContentStore, persistentCache.Cache);
-
-        return Task.FromResult(new CreateResult(host, cc));
+        return Task.FromResult(new CreateResult(host, passthroughCache));
     }
 
     /// <summary>

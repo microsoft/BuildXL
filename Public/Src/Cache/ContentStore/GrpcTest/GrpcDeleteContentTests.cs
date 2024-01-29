@@ -134,8 +134,7 @@ namespace ContentStoreTest.Grpc
                 {
                     BoolResult r = await server.StartupAsync(context).ConfigureAwait(false);
                     r.ShouldBeSuccess();
-                    var configuration = new ServiceClientRpcConfiguration() {
-                        GrpcPort = (int)serviceConfig.GrpcPort,
+                    var configuration = new ServiceClientRpcConfiguration((int)serviceConfig.GrpcPort) {
                     };
 
                     using (var rpcClient = new GrpcContentClient(new OperationContext(context), new ServiceClientContentSessionTracer(scenario), FileSystem, configuration, scenario))

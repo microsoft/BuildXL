@@ -325,6 +325,7 @@ namespace BuildXL.Engine.Distribution
             {
                 // If we can't say hello there is no hope for attachment
                 Exit(failure: $"SayHello call failed. Details: {helloResult.Failure.Describe()}", isUnexpected: true);
+                return;
             }
 
             switch (helloResult.Result)

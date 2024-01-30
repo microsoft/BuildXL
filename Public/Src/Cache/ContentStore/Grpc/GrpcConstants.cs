@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// <summary>
         /// Default minimal logging verbosity. Error by default.
         /// </summary>
-        public const int DefaultGrpcDotNetMinLogLevel = 2;
+        public const int DefaultGrpcDotNetMinLogLevel = 4;
 
         /// <nodoc />
         public const string LocalHost = "localhost";

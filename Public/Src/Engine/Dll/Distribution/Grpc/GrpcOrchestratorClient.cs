@@ -88,13 +88,14 @@ namespace BuildXL.Engine.Distribution.Grpc
             return m_connectionManager.CloseAsync();
         }
 
-        public async Task<RpcCallResult<Unit>> AttachCompletedAsync(AttachCompletionInfo message)
+        public async Task<RpcCallResult<Unit>> AttachCompletedAsync(AttachCompletionInfo message, CancellationToken cancellationToken = default)
         {
             Contract.Assert(m_initialized);
 
             var attachmentCompletion = await m_connectionManager.CallAsync(
                 async (callOptions) => await m_client.AttachCompletedAsync(message, options: callOptions),
                 "AttachCompleted",
+                cancellationToken: cancellationToken,
                 waitForConnection: true);
 
             if (attachmentCompletion.Succeeded)

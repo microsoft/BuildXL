@@ -369,8 +369,9 @@ namespace BuildXL
                         (int)EngineLogEventId.GrpcSettings,
                         (int)EngineLogEventId.ChosenABTesting,
                         (int)EngineLogEventId.SynchronouslyWaitedForCache,
-                        (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
-                        (int)Scheduler.Tracing.LogEventId.WorkerReleasedEarly,
+                        (int)SchedulerLogEventId.PipFingerprintData,
+                        (int)SchedulerLogEventId.InitiateWorkerRelease,
+                        (int)SchedulerLogEventId.WorkerReleasedEarly,
                         (int)AppLogEventId.CbTimeoutReached,
                         (int)AppLogEventId.CbTimeoutInfo,
                         (int)EngineLogEventId.DistributionWorkerChangedState,
@@ -380,6 +381,7 @@ namespace BuildXL
                         (int)EngineLogEventId.DistributionConnectionFailure,
                         (int)SharedLogEventId.StoppedDistributionWorkerForwardedError,
                         (int)SchedulerLogEventId.SchedulerCompleteExceptMaterializeOutputs,
+                        (int)SchedulerLogEventId.SchedulerComplete,
                     },
                     // all warning/errors should be included in a dev log
                     EventLevel.Warning));

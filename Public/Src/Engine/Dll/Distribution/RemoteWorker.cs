@@ -55,56 +55,48 @@ namespace BuildXL.Engine.Distribution
         private int m_nextSequenceNumber;
         private PipGraph m_pipGraph;
         private CancellationTokenRegistration m_cancellationTokenRegistration;
-
-        /// <summary>
-        /// Indicates failure which should cause the worker build to fail. NOTE: This may not correspond to the
-        /// entire distributed build failing. Namely, connection failures for operations materialize outputs
-        /// will not fail the build but will fail the worker to ensure following steps on workers do not continue.
-        /// </summary>
-        private string m_exitFailure;
-
+        private bool m_isInitialized;
         private volatile bool m_isConnectionLost;
+
+        private bool m_isEarlyReleaseInitiated;
+
+        /// <inheritdoc />
+        public override bool IsEarlyReleaseInitiated => Volatile.Read(ref m_isEarlyReleaseInitiated);
 
         /// <summary>
         /// Possible scenarios of connection failure
         /// </summary>
-        public enum ConnectionFailureType { CallDeadlineExceeded, ReconnectionTimeout, UnrecoverableFailure, AttachmentTimeout, RemotePipTimeout, HeartbeatFailure }
+        public enum ConnectionFailureType { CallDeadlineExceeded, ReconnectionTimeout, UnrecoverableFailure, RemotePipTimeout, HeartbeatFailure }
 
         private int m_connectionClosedFlag = 0;     // Used to prevent double shutdowns upon connection failures
 
         /// <inheritdoc />
-        public override Task<bool> SetupCompletionTask => m_setupCompletion.Task;
-        private readonly TaskSourceSlim<bool> m_setupCompletion;
+        public override Task<bool> AttachCompletionTask => m_attachCompletion.Task;
 
-        // Before we send the build request to the worker, we need to make sure that the worker is attached.
-        // For all steps except materializeoutputs, we already send the build requests to available (running) workers;
-        // so waiting for this task might seem redundant. However, for distributed metabuild, we materialize outputs 
-        // on all workers and send the materializeoutput request to all workers, even the ones that are not available.
-        // That's why, the orchestrator now waits for the workers to be available until it is done executing all pips.
-        private Task m_beforeSendingToRemoteTask;
+        /// <inheritdoc />
+        public override bool IsUnknownDynamic => Location == null;
 
-        private readonly TaskSourceSlim<bool> m_attachCompletion;
-        private readonly CancellationTokenSource m_exitCancellation = new CancellationTokenSource();
-
+        /// <summary>
+        /// The completion source to be completed after the first successful gRPC call to the worker.
+        /// This task can be used to indicate whether there is a connection with the worker.
+        /// </summary>
+        private readonly TaskSourceSlim<bool> m_firstCallCompletion = TaskSourceSlim.Create<bool>();
+        private readonly TaskSourceSlim<bool> m_attachCompletion = TaskSourceSlim.Create<bool>();
+        private readonly CancellationTokenSource m_attachCancellation = new CancellationTokenSource();
+        private readonly BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequests = new BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
         private readonly Thread m_sendThread;
-        private readonly BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequests;
-
         private readonly IWorkerClient m_workerClient;
-        private DateTime m_initializationTime;
-        private Task m_schedulerCompletionWithMinimumWait;
         private readonly object m_hashListLock = new object();
+        private Task m_attachOrSchedulerCompletionTask;
 
         private int m_status;
         public override WorkerNodeStatus Status => (WorkerNodeStatus)Volatile.Read(ref m_status);
 
-        private bool m_everAvailable;
-        private bool m_everConnected;
+        /// <inheritdoc/>
+        public override bool EverAvailable => AttachCompletionTask.Status == TaskStatus.RanToCompletion && AttachCompletionTask.GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        public override bool EverAvailable => Volatile.Read(ref m_everAvailable);
-
-        /// <inheritdoc/>
-        public override bool EverConnected => Volatile.Read(ref m_everConnected);
+        public override bool EverConnected => m_firstCallCompletion.Task.Status == TaskStatus.RanToCompletion && m_firstCallCompletion.Task.GetAwaiter().GetResult();  
 
         /// <inheritdoc/>
         public override int WaitingBuildRequestsCount => m_buildRequests.Count;
@@ -156,9 +148,6 @@ namespace BuildXL.Engine.Distribution
         {
             m_appLoggingContext = appLoggingContext;
             m_orchestratorService = orchestratorService;
-            m_buildRequests = new BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
-            m_attachCompletion = TaskSourceSlim.Create<bool>();
-            m_setupCompletion = TaskSourceSlim.Create<bool>();
             m_workerClient = new Grpc.GrpcWorkerClient(
                 m_appLoggingContext,
                 orchestratorService.InvocationId,
@@ -180,36 +169,14 @@ namespace BuildXL.Engine.Distribution
             m_sendThread = new Thread(SendBuildRequests);
         }
 
-        public override void InitializeForDistribution(IConfiguration config, PipGraph pipGraph, IExecutionLogTarget executionLogTarget, Task schedulerCompletion)
-        {
-            m_pipGraph = pipGraph;
-
-            // For manifest events, we wait for the messages to be processed before we send an ack to the worker. 
-            m_buildManifestReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name, asyncProcessing: false);
-
-            // For manifest events, we wait for the messages to be added to the queue before we send an ack to the worker. 
-            m_executionLogReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name, asyncProcessing: true);
-
-            m_initializationTime = DateTime.UtcNow;
-
-            // If there is a minimum waiting time to wait for attachment, we don't want to signal the scheduler is completed until this waiting period is over.
-            // Minimum waiting time is only for builds where we replicate outputs to workers such as metabuilds.
-            // This is to prevent workers from disconnected from very fast metabuilds taking less than 1 minute. 
-            m_schedulerCompletionWithMinimumWait = Task.WhenAll(Task.Delay(config.Distribution.ReplicateOutputsToWorkers() ? (int)EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMilliseconds : 0),
-                                                                                    schedulerCompletion);
-
-#pragma warning disable AsyncFixer05 // Downcasting from a nested task to an outer task.
-            m_beforeSendingToRemoteTask = Task.WhenAny(m_attachCompletion.Task, m_schedulerCompletionWithMinimumWait);
-#pragma warning restore AsyncFixer05 // Downcasting from a nested task to an outer task.
-
-            m_sendThread.Start();
-
-            base.InitializeForDistribution(config, pipGraph, executionLogTarget, schedulerCompletion);
-        }
-
         private void SendBuildRequests()
         {
-            m_beforeSendingToRemoteTask.Wait();
+            // Before we send the build request to the worker, we need to make sure that the worker is attached.
+            // For all steps except materializeoutputs, we already send the build requests to available (running) workers;
+            // so waiting for this task might seem redundant. However, for distributed metabuild, we materialize outputs 
+            // on all workers and send the materializeoutput request to all workers, even the ones that are not available.
+            // That's why, the orchestrator waits for the workers to be available until it is done executing all pips.
+            m_attachOrSchedulerCompletionTask.Wait();
 
             ValueTuple<PipCompletionTask, SinglePipBuildRequest> firstItem;
             while (!m_buildRequests.IsCompleted)
@@ -249,11 +216,9 @@ namespace BuildXL.Engine.Distribution
 
                     m_currentBatchSize = m_pipCompletionTaskList.Count;
 
-                    if (m_isConnectionLost || m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !m_attachCompletion.Task.GetAwaiter().GetResult())
+                    if (!EverAvailable || m_isConnectionLost)
                     {
-                        // If attachment is still in-progress after we wait for m_beforeSendingToRemoteTask or it already failed, 
-                        // we will fail the pips.
-                        failRemotePips();
+                        failRemotePips($"No connection to the worker. Ever available: {EverAvailable}");
                         continue;
                     }
 
@@ -283,7 +248,7 @@ namespace BuildXL.Engine.Distribution
 
                     if (!callResult.Succeeded)
                     {
-                        failRemotePips(callResult?.LastFailure?.DescribeIncludingInnerFailures());
+                        failRemotePips(callResult?.LastFailure?.DescribeIncludingInnerFailures() ?? "gRPC call failed");
                     }
                     else
                     {
@@ -299,24 +264,8 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-            void failRemotePips(string failureMessage = null)
+            void failRemotePips(string failureMessage)
             {
-                if (failureMessage == null)
-                {
-                    if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion)
-                    {
-                        failureMessage = $"Worker did not get attached until Scheduler was completed and the given timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} min) expired";
-                    }
-                    else if (!m_attachCompletion.Task.Result)
-                    {
-                        failureMessage = "Worker attachment failed";
-                    }
-                    else
-                    {
-                        failureMessage = "Connection was lost";
-                    }
-                }
-
                 foreach (var task in m_pipCompletionTaskList)
                 {
                     FailRemotePip(task, failureMessage);
@@ -373,15 +322,8 @@ namespace BuildXL.Engine.Distribution
             }
 
             e?.Log(m_appLoggingContext, machineName: $"Worker#{WorkerId} - {Name}");
-            await LostConnectionAsync(e.Type);
-        }
 
-        public async Task LostConnectionAsync(ConnectionFailureType failureType)
-        {
-            // Unblock the caller to make it a fire&forget event handler.
-            await Task.Yield();
-
-            CountConnectionFailure(failureType);
+            CountConnectionFailure(e.Type);
             m_isConnectionLost = true;
 
             // Connection is lost. As the worker might have pending tasks, 
@@ -389,7 +331,11 @@ namespace BuildXL.Engine.Distribution
             // In that case, we wait for DrainCompletion task source when releasing the worker.
             // We need to finish DrainCompletion task here to prevent hanging.
             DrainCompletion.TrySetResult(false);
-            await FinishAsync(null);
+
+            // Unblock the caller to make it a fire&forget event handler.
+            await Task.Yield();
+
+            await FinishAsync();
         }
 
         private void CountConnectionFailure(ConnectionFailureType failureType)
@@ -401,7 +347,6 @@ namespace BuildXL.Engine.Distribution
                 ConnectionFailureType.CallDeadlineExceeded => DistributionCounter.LostClientConnectionsDeadlineExceeded,
                 ConnectionFailureType.ReconnectionTimeout => DistributionCounter.LostClientConnectionsReconnectionTimeout,
                 ConnectionFailureType.UnrecoverableFailure => DistributionCounter.LostClientUnrecoverableFailure,
-                ConnectionFailureType.AttachmentTimeout => DistributionCounter.LostClientAttachmentTimeout,
                 ConnectionFailureType.RemotePipTimeout => DistributionCounter.LostClientRemotePipTimeout,
                 ConnectionFailureType.HeartbeatFailure => DistributionCounter.LostClientHeartbeatFailure,
                 _ => null
@@ -425,29 +370,78 @@ namespace BuildXL.Engine.Distribution
             base.Dispose();
         }
 
+        public override void InitializeForDistribution(
+            OperationContext parent,
+            IConfiguration config,
+            PipGraph pipGraph,
+            IExecutionLogTarget executionLogTarget,
+            Task schedulerCompletion,
+            Action<Scheduler.Distribution.Worker> statusChangedAction)
+        {
+            m_pipGraph = pipGraph;
+
+            // For manifest events, we wait for the messages to be processed before we send an ack to the worker. 
+            m_buildManifestReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name, asyncProcessing: false);
+
+            // For xlg/non-manifest events, we wait for the messages to be added to the queue before we send an ack to the worker. 
+            m_executionLogReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name, asyncProcessing: true);
+
+            // If there is a minimum waiting time to wait for attachment, we don't want to signal the scheduler is completed until this waiting period is over.
+            // Minimum waiting time is only for builds where we replicate outputs to workers such as metabuilds.
+            // This is to prevent workers from getting dropped from very fast metabuilds taking less than 1 minute. 
+            var schedulerCompletionWithExtraWait = Task.WhenAll(Task.Delay(config.Distribution.ReplicateOutputsToWorkers() ? (int)EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMilliseconds : 0),
+                                                                                    schedulerCompletion);
+
+            // This task is awaited for two purposes: (i) before sending build requests to the worker, and (ii) before stopping the worker.
+            // The condition for proceeding is either the completion of the scheduler (with an extra wait for metabuild), or the completion of the attachment process.
+            m_attachOrSchedulerCompletionTask = Task.WhenAny(schedulerCompletionWithExtraWait, AttachCompletionTask).Unwrap();
+
+            m_cancellationTokenRegistration = m_orchestratorService.Environment.Context.CancellationToken.Register(() => m_attachCompletion.TrySetResult(false));
+
+            base.InitializeForDistribution(parent, config, pipGraph, executionLogTarget, schedulerCompletion, statusChangedAction);
+            m_isInitialized = true; 
+        }
+
         /// <inheritdoc />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
         public override async void Start()
         {
-            m_cancellationTokenRegistration = m_orchestratorService.Environment.Context.CancellationToken.Register(() => m_setupCompletion.TrySetResult(false));
+            Contract.Requires(m_isInitialized, "The remote worker needs to be initialized before getting started.");
+
+            await Task.Yield(); // Unblock the scheduler.
+
+            m_sendThread.Start();
 
             if (ChangeStatus(WorkerNodeStatus.NotStarted, WorkerNodeStatus.Starting))
             {
                 if (await TryAttachAsync())
                 {
+                    // We successfully sent the attachment request to the worker. 
+                    // It means that the worker is connected. 
+                    m_firstCallCompletion.TrySetResult(true);
+
                     // Change to started state so we know the worker is connected
                     ChangeStatus(WorkerNodeStatus.Starting, WorkerNodeStatus.Started);
+                    return;
                 }
-                else if (!IsEarlyReleaseInitiated)
-                {
-                    await LostConnectionAsync(ConnectionFailureType.AttachmentTimeout);
-                }
+
+                // The attach call was unsuccessful. 
+                m_firstCallCompletion.TrySetResult(false);
             }
         }
 
         private async Task<bool> TryAttachAsync()
         {
-            await WaitForServiceLocationTask;
+#if NET_FRAMEWORK
+            WaitForServiceLocationTask.Wait(m_attachCancellation.Token);
+#else
+            await WaitForServiceLocationTask.WaitAsync(m_attachCancellation.Token);
+#endif
+
+            if (m_attachCancellation.IsCancellationRequested)
+            {
+                return false;
+            }
 
             var startData = new BuildStartData
             {
@@ -474,23 +468,22 @@ namespace BuildXL.Engine.Distribution
                                                                                 PropertyValue = pipSpecificPropertyAndValue.PropertyValue
                                                                             }));
 
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            while (sw.Elapsed < EngineEnvironmentSettings.WorkerAttachTimeout && !m_schedulerCompletionWithMinimumWait.IsCompleted)
+            while (!m_attachOrSchedulerCompletionTask.IsCompleted)
             {
                 WorkerNodeStatus status = Status;
-                if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
+                if (status.IsStoppingOrStopped())
                 {
                     // Stop initiated: stop trying to attach
                     return false;
                 }
 
-                var callResult = await m_workerClient.AttachAsync(startData, m_exitCancellation.Token);
+                var callResult = await m_workerClient.AttachAsync(startData, m_attachCancellation.Token);
                 if (callResult.State == RpcCallResultState.Succeeded)
                 {
                     // Successfully attached
                     return true;
                 }
-                else if (m_exitCancellation.IsCancellationRequested)
+                else if (m_attachCancellation.IsCancellationRequested)
                 {
                     // We might cancel Attach call due to the followings:
                     // (i) Scheduler early-released the worker.
@@ -501,8 +494,8 @@ namespace BuildXL.Engine.Distribution
 
                 try
                 {
-                    // We failed: let's try again after a while (as long as we don't exceed WorkerAttachTimeout)
-                    await Task.Delay(TimeSpan.FromSeconds(30), m_exitCancellation.Token);
+                    // We failed: let's try again after a minute.
+                    await Task.Delay(TimeSpan.FromSeconds(60), m_attachCancellation.Token);
                 }
                 catch (TaskCanceledException)
                 {
@@ -510,21 +503,38 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-            // Timed out
             return false;
         }
 
-        private bool TryInitiateStop(bool isEarlyRelease, [CallerMemberName] string callerName = null)
+        private async Task<bool> TryInitiateStop([CallerMemberName] string callerName = null)
         {
-            // This is called even if this call is not the one initiating the stop (as checked below)
-            // to possibly override a longer waiting period before cancellation that may be active from
-            // an early release. Note the reentrancy of SignalExitCancellation.
-            SignalExitCancellation(isEarlyRelease);
+            if (IsUnknownDynamic && IsEarlyReleaseInitiated)
+            {
+                // For the dynamic workers whose locations are still unknown, we should not wait for the attachment period when they early-released.
+                // Those workers can already terminate after they get 'Released' result from their 'Hello' call. 
+
+                m_attachCancellation.Cancel(); // This will complete m_firstCallCompletion
+            }
+            else if (!m_isConnectionLost)
+            {
+                // If we haven't completed the attachment with the worker, we want to give the worker more time to attach 
+                // so we don't unnecesarily make workers be idle until their timeout and ultimately fail with "Orchestrator didn't attach".
+                // That's why, we wait till the scheduler completion or the attachment.
+                // If the connection is lost due to an unrecoverable failure, there is no need to give a chance to the worker for attachment.
+                await m_attachOrSchedulerCompletionTask;
+            }
+
+            if (m_firstCallCompletion.Task.Status != TaskStatus.RanToCompletion)
+            {
+                // If the scheduler is completed before Attach call gets completed, we cancel it and we do not wait more.
+                // In CloudBuild, when the orchestrator is terminated, all workers will be terminated as well even if their bxl process is still alive.
+                m_attachCancellation.Cancel();
+            }
 
             while (true)
             {
                 WorkerNodeStatus status = Status;
-                if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
+                if (status.IsStoppingOrStopped())
                 {
                     // We already initiated the stop for the worker.
                     return false;
@@ -541,8 +551,13 @@ namespace BuildXL.Engine.Distribution
 
         public override async Task FinishAsync(string buildFailure = null, [CallerMemberName] string callerName = null)
         {
-            if (TryInitiateStop(isEarlyRelease: false))
+            if (await TryInitiateStop())
             {
+                if (IsEarlyReleaseInitiated)
+                {
+                    await DrainRemainingPips();
+                }
+
                 Logger.Log.DistributionWorkerFinish(
                     m_appLoggingContext,
                     Name,
@@ -552,64 +567,8 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        /// <summary>
-        /// Called by any codepath that is shutting communication from the worker (regular exit, disconnections, early release)
-        /// Should be reentrant: note that signalling the cancellation token multiple times is not a problem and the first one wins.
-        /// </summary>
-        private void SignalExitCancellation(bool isEarlyRelease)
+        private async Task DrainRemainingPips()
         {
-            if (isEarlyRelease && Location == null)
-            {
-                // For the dynamic workers whose locations are still unknown, we should not wait for the attachment period when they get early-released.
-                // Those workers can already terminate after they get the 'earlyReleased' result from their 'Hello' call. 
-                completeTasks();
-            }
-            else if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !m_attachCompletion.Task.GetAwaiter().GetResult())
-            {
-                // Normally we only want to wait a short amount of time for exit (15 seconds) if worker is not successfully attached.
-                // If we are early releasing it is possible that we are really early in the build and so we give the worker
-                // some more time (up to 5min since initialization) to attach so we don't unnecesarily make workers be idle
-                // until their timeout and ultimately fail with "Orchestrator didn't attach".
-                var timeSinceInitialization = DateTime.UtcNow - m_initializationTime;
-                TimeSpan attachmentTolerance;
-                if (isEarlyRelease && timeSinceInitialization < TimeSpan.FromMinutes(5) && timeSinceInitialization > TimeSpan.Zero)
-                {
-                    attachmentTolerance = TimeSpan.FromMinutes(5) - timeSinceInitialization;
-                }
-                else
-                {
-                    attachmentTolerance = TimeSpan.FromSeconds(15);
-                }
-
-                // Give some extra time for the worker to attach so it can exit gracefully
-                Task.Delay(attachmentTolerance).ContinueWith(_ =>
-                {
-                    completeTasks();
-                });
-            }
-
-            void completeTasks()
-            {
-                m_attachCompletion.TrySetResult(false);
-                m_setupCompletion.TrySetResult(false);
-                m_exitCancellation.Cancel();
-            }
-        }
-
-        /// <inheritdoc />
-        public override async Task EarlyReleaseAsync()
-        {
-            IsEarlyReleaseInitiated = true;
-            
-            // Unblock scheduler
-            await Task.Yield();
-
-            if (!TryInitiateStop(isEarlyRelease: true))
-            {
-                // Already stopped, no need to continue.
-                return;
-            }
-            
             var drainStopwatch = new StopwatchVar();
             bool isDrainedWithSuccess = true;
 
@@ -631,30 +590,26 @@ namespace BuildXL.Engine.Distribution
             }
 
             m_orchestratorService.Counters.AddToCounter(DistributionCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
+        }
 
-            var disconnectStopwatch = new StopwatchVar();
-            using (disconnectStopwatch.Start())
-            {
-                Logger.Log.DistributionWorkerFinish(
-                    m_appLoggingContext,
-                    Name,
-                    "EarlyReleaseAsync");
+        /// <inheritdoc />
+        public override async Task EarlyReleaseAsync()
+        {
+            m_isEarlyReleaseInitiated = true;
+            
+            // Unblock scheduler
+            await Task.Yield();
 
-                await DisconnectAsync();
-            }
+            await FinishAsync();
 
             WorkerEarlyReleasedTime = DateTime.UtcNow;
-            Scheduler.Tracing.Logger.Log.WorkerReleasedEarly(
-                m_appLoggingContext,
-                Name,
-                (long)drainStopwatch.TotalElapsed.TotalMilliseconds,
-                (long)disconnectStopwatch.TotalElapsed.TotalMilliseconds,
-                isDrainedWithSuccess);
+            Scheduler.Tracing.Logger.Log.WorkerReleasedEarly(m_appLoggingContext, Name);
         }
 
         private async Task DisconnectAsync(string buildFailure = null, [CallerMemberName] string callerName = null)
         {
-            Contract.Assert(Status == WorkerNodeStatus.Stopping, $"Disconnect cannot be called for {Status} status");
+            Contract.Requires(AttachCompletionTask.IsCompleted, "AttachCompletionTask needs to be completed before we disconnect the worker");
+            Contract.Requires(Status == WorkerNodeStatus.Stopping, $"Disconnect cannot be called for {Status} status");
 
             // Before we disconnect the worker, we mark it as 'stopping'; 
             // so it does not accept any requests. We can safely close the 
@@ -674,41 +629,25 @@ namespace BuildXL.Engine.Distribution
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
             if (!m_isConnectionLost && EverConnected)
             {
-                // We wait until this task is completed to give the worker
-                // a chance to attach and then respond gracefully to the exit.
-                // Note that by virtue of transitioning to Stopping via TryInitiateStop
-                // this task will be completed eventually (see SignalExitCancellation)
-                await m_attachCompletion.Task;
-
                 var buildEndData = new BuildEndData();
 
-                var failure = buildFailure ?? m_exitFailure; 
-                if (failure is not null)    // Don't set the protobuf field to null
+                string failureMessage = string.Empty;
+                if (!EverAvailable && !IsEarlyReleaseInitiated)
                 {
-                    buildEndData.Failure = failure;
+                    failureMessage = $"Worker did not get attached until Scheduler was completed and the given timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} min) expired";
                 }
 
-                var cancellationToken = m_exitCancellation.Token;
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    // if the token is already cancelled and we have a connection with the worker,
-                    // we should send the Exit message to the worker, so that it can exit without waiting for the timeout. 
-                    cancellationToken = CancellationToken.None;
-                }
-
-                var callResult = await m_workerClient.ExitAsync(buildEndData, cancellationToken);
+                buildEndData.Failure = buildFailure ?? failureMessage;
+                var callResult = await m_workerClient.ExitAsync(buildEndData);
                 m_isConnectionLost = !callResult.Succeeded;
             }
 
-            if ((!EverConnected && !IsEarlyReleaseInitiated) || 
-                m_isConnectionLost || 
-                m_exitFailure != null)
+            if ((!EverAvailable && !IsEarlyReleaseInitiated) || m_isConnectionLost)
             {
                 // We log the following message for each worker if any of these occurs:
-                // (i) The worker has not been ever connected to the orchestrator at any part of the build and the early release has not been initiated for this worker.
+                // (i) The worker has not been ever attached to the orchestrator at any part of the build and the early release has not been initiated for this worker.
                 // (ii) The worker has been connected to the orchestrator at one point, but then we lost the connection with the worker.
-                // (iii) If the exitFailure is populated for this worker.
-                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, Name, m_exitFailure ?? string.Empty, m_isConnectionLost, EverConnected, IsEarlyReleaseInitiated);
+                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, Name, m_isConnectionLost, EverConnected, EverAvailable, IsEarlyReleaseInitiated);
                 m_orchestratorService.Counters.IncrementCounter(DistributionCounter.NumProblematicWorkers);
             }
 
@@ -833,7 +772,7 @@ namespace BuildXL.Engine.Distribution
 
         public void SendToRemote(OperationContext operationContext, RunnablePip runnable)
         {
-            Contract.Assert(runnable.Step == PipExecutionStep.MaterializeOutputs || EverAvailable, "All steps except MaterializeOutput step require available workers.");
+            Contract.Assert(runnable.Step == PipExecutionStep.MaterializeOutputs || EverConnected, "All steps except MaterializeOutput step require available workers.");
 
             var pipId = runnable.PipId;
             var processRunnable = runnable as ProcessRunnablePip;
@@ -1027,12 +966,6 @@ namespace BuildXL.Engine.Distribution
 
             var runnablePip = pipCompletionTask.RunnablePip;
             var operationContext = runnablePip.OperationContext;
-
-            if (m_exitFailure == null)
-            {
-                // Fill out the exit failure, so when we send an Exit message to the worker, the build will fail in that worker.
-                m_exitFailure = errorMessage;
-            }
 
             ExecutionResult result;
             if (pipCompletionTask.Step == PipExecutionStep.MaterializeOutputs)
@@ -1253,10 +1186,6 @@ namespace BuildXL.Engine.Distribution
             // from Starting AND Started
             ChangeStatus(WorkerNodeStatus.Starting, WorkerNodeStatus.Running);
             ChangeStatus(WorkerNodeStatus.Started, WorkerNodeStatus.Running);
-
-            // Complete this task regardless of the success in the transition above:
-            // we want to signal that the handshake with the worker was successful.
-            m_attachCompletion.TrySetResult(true);
         }
 
         /// <summary>
@@ -1354,19 +1283,22 @@ namespace BuildXL.Engine.Distribution
                 return false;
             }
 
+            switch (toStatus)
+            {
+                case WorkerNodeStatus.Stopping:
+                case WorkerNodeStatus.Stopped:
+                    // If the worker hasn't attached yet, cancel it.
+                    m_attachCompletion.TrySetResult(false);
+                    break;
+                case WorkerNodeStatus.Running:
+                    m_attachCompletion.TrySetResult(true);
+                    break;
+            }
+
             if (toStatus == WorkerNodeStatus.Stopped)
             {
-                m_attachCompletion.TrySetResult(false);
-                m_setupCompletion.TrySetResult(false);
-            }
-            else if (toStatus == WorkerNodeStatus.Running)
-            {
-                Volatile.Write(ref m_everAvailable, true);
-                m_setupCompletion.TrySetResult(true);
-            }
-            else if (toStatus == WorkerNodeStatus.Started)
-            {
-                Volatile.Write(ref m_everConnected, true);
+                // In the case of a stop fail all pending pips and stop the timer.
+                Stop();
             }
 
             Logger.Log.DistributionWorkerChangedState(
@@ -1375,12 +1307,6 @@ namespace BuildXL.Engine.Distribution
                 fromStatus.ToString(),
                 toStatus.ToString(),
                 callerName);
-
-            // In the case of a stop fail all pending pips and stop the timer.
-            if (toStatus == WorkerNodeStatus.Stopped)
-            {
-                Stop();
-            }
 
             OnStatusChanged();
             return true;

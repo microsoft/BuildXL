@@ -59,7 +59,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     case ConnectionFailureType.CallDeadlineExceeded:
                     case ConnectionFailureType.ReconnectionTimeout:
-                    case ConnectionFailureType.AttachmentTimeout:
                     case ConnectionFailureType.RemotePipTimeout:
                     case ConnectionFailureType.HeartbeatFailure:
                         Logger.Log.DistributionConnectionTimeout(loggingContext, machineName, details);
@@ -472,16 +471,20 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
         }
 
-        private async Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, StopwatchSlim? watch = null)
+        private async Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, StopwatchSlim? watch = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             watch = watch ?? StopwatchSlim.Start();
             try
             {
                 Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, $"Connecting by {operation}");
+
                 CancellationTokenSource source = new CancellationTokenSource();
                 source.CancelAfter(timeout);
 
-                await Channel.ConnectAsync(source.Token);
+                using (CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, source.Token))
+                {
+                    await Channel.ConnectAsync(linkedCts.Token);
+                }
 
                 Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, $"Connected in {(long)watch.Value.Elapsed.TotalMilliseconds}ms");
             }
@@ -497,7 +500,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             return true;
         }
 #else
-        private Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, StopwatchSlim? watch = null) => Task.FromResult(false);
+        private Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, StopwatchSlim? watch = null, CancellationToken cancellationToken = default(CancellationToken)) => Task.FromResult(false);
 #endif
 
         /// <summary>
@@ -550,7 +553,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (waitForConnection)
             {
-                bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.WorkerAttachTimeout, operation, watch);
+                bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.WorkerAttachTimeout, operation, watch, cancellationToken);
                 waitForConnectionDuration = watch.Elapsed;
 
                 if (!connectionSucceeded)
@@ -606,18 +609,6 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                         // Unrecoverable failure - do not retry
                         break;
-                    }
-
-                    if (e.Status.StatusCode == StatusCode.InvalidArgument)
-                    {
-                        if (e.Trailers.Get(GrpcMetadata.InvocationIdMismatch)?.Value == GrpcMetadata.True)
-                        {
-                            // The invocation ids don't match but it's not an unrecoverable error
-                            // Do not retry this call because it is doomed to fail
-                            state = RpcCallResultState.Failed;
-                            failure = new RecoverableExceptionFailure(new BuildXLException(e.Message));
-                            break;
-                        }
                     }
 
                     // If the call is cancelled or channel is shutdown, then do not retry the call.

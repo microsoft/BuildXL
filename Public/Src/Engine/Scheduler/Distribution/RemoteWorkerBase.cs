@@ -25,7 +25,7 @@ namespace BuildXL.Scheduler.Distribution
         /// (if successful, the worker is in the Running state after this completes)
         /// true indicates success, false indicates failure at some step (either attachment or validation of cache connection)
         /// </summary>
-        public abstract Task<bool> SetupCompletionTask { get; }
+        public abstract Task<bool> AttachCompletionTask { get; }
 
         /// <summary>
         /// Maximum amount of messages per batch in an RPC call
@@ -37,5 +37,9 @@ namespace BuildXL.Scheduler.Distribution
         }
         private volatile int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
+        /// <summary>
+        /// Whether this is a dynamic worker whose location is unknown at this moment.
+        /// </summary>
+        public abstract bool IsUnknownDynamic { get; }
     }
 }

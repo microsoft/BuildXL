@@ -150,7 +150,7 @@ namespace Test.BuildXL.Distribution
         // If true, calls will fail
         private bool m_fail = false;
         
-        Task<RpcCallResult<Unit>> IOrchestratorClient.AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo)
+        Task<RpcCallResult<Unit>> IOrchestratorClient.AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo, CancellationToken cancellationToken)
         {
             if (m_fail)
             {

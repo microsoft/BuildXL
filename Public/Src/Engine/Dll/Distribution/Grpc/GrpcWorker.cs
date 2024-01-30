@@ -67,7 +67,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public override Task<RpcResponse> Exit(BuildEndData message, ServerCallContext context)
         {
             var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
-            m_workerService.ExitRequested("Received exit call from the orchestrator", failure);
+            m_workerService.ExitRequested($"Received exit call from the orchestrator: {message.Failure}", failure);
             return GrpcUtils.EmptyResponseTask;
         }
     }

@@ -479,7 +479,6 @@ namespace BuildXL.Scheduler.Tracing
         TopPipsPerformanceInfo = 14508,
 
         CompositeSharedOpaqueContentDetermined = 14509,
-        CompositeSharedOpaqueRegexTimeout = 14539,
         PipRetryDueToLowMemory = 14510,
         EmptyWorkingSet = 14511,
         ResumeProcess = 14512,
@@ -518,6 +517,8 @@ namespace BuildXL.Scheduler.Tracing
 
         CreationTimeNotSupported = 14537,
         FailedLoggingExecutionLogEventData = 14538,
+        CompositeSharedOpaqueRegexTimeout = 14539,
+        SchedulerComplete = 14540,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

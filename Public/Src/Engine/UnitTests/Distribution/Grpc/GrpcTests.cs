@@ -169,35 +169,5 @@ namespace Test.BuildXL.Distribution
 
             Assert.False(workerHarness.ClientConnectionFailure.HasValue);
         }
-
-        [Fact]
-        public async Task InvocationIdTolerableMismatch()
-        {
-            var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
-
-            // Use an invocation id that only differs in the environment 
-            var mismatchedId = new DistributedInvocationId(s_defaultDistributedInvocationId.RelatedActivityId, s_defaultDistributedInvocationId.Environment + "Junk", s_defaultDistributedInvocationId.EngineVersion);
-
-            var workerHarness = new WorkerHarness(LoggingContext, mismatchedId);
-            var workerServicePort = workerHarness.StartServer();
-
-            var remoteWorkerHarness = orchestratorHarness.AddWorker();
-            remoteWorkerHarness.StartClient(workerServicePort);
-
-            var attachResult = await remoteWorkerHarness.AttachAsync();
-
-            Assert.False(attachResult.Succeeded);
-            Assert.Equal(1, (int)attachResult.Attempts);    // the call shouldn't be retried
-
-            attachResult = await remoteWorkerHarness.AttachAsync();
-
-            // Logged id mismatch
-            AssertLogContains(true, "The receiver and sender distributed invocation ids do not match");
-
-            // The id mismatch should cause a recoverable failure, so we shouldn't have connection errors
-            await StopServicesAsync(orchestratorHarness, workerHarness);
-            Assert.False(workerHarness.ClientConnectionFailure.HasValue);
-            Assert.False(remoteWorkerHarness.ClientConnectionFailure.HasValue);
-        }
     }
 }

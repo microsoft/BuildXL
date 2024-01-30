@@ -347,28 +347,19 @@ namespace BuildXL.Engine.Distribution
         public override void Dispose() => DisposeAsync().GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        public async Task DisposeAsync()
+        public Task DisposeAsync()
         {
             LogStatistics(m_loggingContext);
 
             if (m_remoteWorkers != null)
             {
-                var tasks = m_remoteWorkers
-                    .Select(
-                        static async w =>
-                        {
-                            using (w)
-                            {
-                                // Disposing the workers once FinishAsync is done.
-                                await w.FinishAsync(null);
-                            }
-                        })
-                    .ToArray();
-
-                await TaskUtilities.SafeWhenAll(tasks);
+                foreach (var remoteWorker in m_remoteWorkers)
+                {
+                    remoteWorker.Dispose();
+                }
             }
 
-            await m_orchestratorServer.DisposeAsync();
+            return m_orchestratorServer.DisposeAsync();
         }
 
         /// <inheritdoc />
@@ -416,8 +407,8 @@ namespace BuildXL.Engine.Distribution
 
                     Logger.Log.DistributionHelloReceived(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, availableWorkerSlot.WorkerId);
                     
-                    // Indicate if it is already released by the scheduler so the worker does not wait for the attachment.
-                    return availableWorkerSlot.IsEarlyReleaseInitiated ? HelloResponseType.Released : HelloResponseType.Ok; 
+                    // Indicate if it is already stopped by the scheduler due to the early worker release or scheduler completion, so the worker does not wait for the attachment.
+                    return availableWorkerSlot.Status.IsStoppingOrStopped() ? HelloResponseType.Released : HelloResponseType.Ok; 
                 }
                 else
                 {

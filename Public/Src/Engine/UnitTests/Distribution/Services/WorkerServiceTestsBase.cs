@@ -81,7 +81,7 @@ namespace Test.BuildXL.Distribution
                 WorkerService.Initialize();
 
                 // Orchestrator attaches to worker
-                bool attached = await WorkerService.AttachCompletion;
+                bool attached = await WorkerService.AttachCallTask;
                 Assert.True(attached);
 
                 // EngineSchedule starts the service (EngineSchedule.ExecuteScheduledPips)

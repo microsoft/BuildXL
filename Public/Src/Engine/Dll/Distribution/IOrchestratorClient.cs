@@ -17,7 +17,7 @@ namespace BuildXL.Engine.Distribution
     {
         Task<Possible<HelloResponseType>> SayHelloAsync(ServiceLocation serviceLocation, CancellationToken cancellationToken = default);
         void Initialize(string ipAddress, int port, EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync);
-        Task<RpcCallResult<Unit>> AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo);
+        Task<RpcCallResult<Unit>> AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo, CancellationToken cancellationToken = default);
         Task<RpcCallResult<Unit>> ReportPipResultsAsync(PipResultsInfo message, string description, CancellationToken cancellationToken = default);
         Task<RpcCallResult<Unit>> ReportExecutionLogAsync(ExecutionLogInfo message, CancellationToken cancellationToken = default);
         Task CloseAsync();

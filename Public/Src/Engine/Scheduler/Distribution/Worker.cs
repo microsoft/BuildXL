@@ -79,7 +79,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Whether scheduler decided to release this worker early.
         /// </summary>
-        public bool IsEarlyReleaseInitiated { get; protected set; }
+        public virtual bool IsEarlyReleaseInitiated => false;
 
         /// <summary>
         /// If the worker is released early, we record the datetime.
@@ -372,6 +372,31 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <summary>
+        /// Initializes the worker for the distribution
+        /// </summary>
+        public virtual void InitializeForDistribution(
+            OperationContext parent,
+            IConfiguration config,
+            PipGraph pipGraph,
+            IExecutionLogTarget executionLogTarget,
+            Task schedulerCompletion,
+            Action<Worker> statusChangedAction)
+        {
+            m_isDistributedBuild = true;
+
+            // Track Status  Operation
+            m_workerStatusOperation = parent.StartAsyncOperation(m_workerOperationKind);
+
+            StatusChanged += statusChangedAction;
+
+            // Content tracking is needed when calculating setup cost per pip on each worker.
+            // That's an expensive calculation, so it is disabled by default.
+            m_isContentTrackingEnabled = config.Schedule.EnableSetupCostWhenChoosingWorker;
+            m_availableContent = new ContentTrackingSet(pipGraph);
+            m_availableHashes = new ContentTrackingSet(pipGraph);
+        }
+
+        /// <summary>
         /// Initializes the worker
         /// </summary>
         public virtual void Start()
@@ -474,11 +499,6 @@ namespace BuildXL.Scheduler.Distribution
         internal void SyncResourceMappings(Worker worker)
         {
             m_workerSemaphores = worker.m_workerSemaphores.CreateSharingCopy();
-        }
-
-        internal void TrackStatusOperation(OperationContext parent)
-        {
-            m_workerStatusOperation = parent.StartAsyncOperation(m_workerOperationKind);
         }
 
         internal void UpdateStatusOperation()
@@ -808,7 +828,7 @@ namespace BuildXL.Scheduler.Distribution
                 }
             }
 
-            if (AcquiredSlots == 0 && Status == WorkerNodeStatus.Stopping)
+            if (AcquiredSlots == 0 && Status.IsStoppingOrStopped())
             {
                 DrainCompletion.TrySetResult(true);
             }
@@ -908,20 +928,6 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         #region Content Tracking
-
-        /// <summary>
-        /// Initializes the worker
-        /// </summary>
-        public virtual void InitializeForDistribution(IConfiguration config, PipGraph pipGraph, IExecutionLogTarget executionLogTarget, Task schedulerCompletionExceptMaterializeOutputs)
-        {
-            m_isDistributedBuild = true;
-
-            // Content tracking is needed when calculating setup cost per pip on each worker.
-            // That's an expensive calculation, so it is disabled by default.
-            m_isContentTrackingEnabled = config.Schedule.EnableSetupCostWhenChoosingWorker;
-            m_availableContent = new ContentTrackingSet(pipGraph);
-            m_availableHashes = new ContentTrackingSet(pipGraph);
-        }
 
         /// <summary>
         /// In case of a failed build request call after many retries, we reset available hashes 

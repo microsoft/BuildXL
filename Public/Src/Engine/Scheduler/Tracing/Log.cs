@@ -793,20 +793,20 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.WorkerReleasedEarly,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "{workerName} is released. Drain duration: {drainDurationMs}ms. Disconnect duration: {disconnectDurationMs}ms. Is drain successful: {isDrainedWithSuccess}",
-            EventLevel = Level.Verbose,
+            Message = "{workerName} is early-released.",
+            EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs, bool isDrainedWithSuccess);
+        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProblematicWorkerExit,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "{workerName} stopped with a failure: {failure}. Is the connection lost sometime after connected: {isConnectionLost}. Is ever connected: {everConnected}. Is early-release initiated: {isEarlyReleaseInitiated}",
+            Message = "{workerName} stopped with a failure. Is the connection lost sometime after connected: {isConnectionLost}. Is ever connected: {everConnected}. Is ever available: {everAvailable}. Is early-release initiated: {isEarlyReleaseInitiated}",
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void ProblematicWorkerExit(LoggingContext context, string workerName, string failure, bool isConnectionLost, bool everConnected, bool isEarlyReleaseInitiated);
+        public abstract void ProblematicWorkerExit(LoggingContext context, string workerName, bool isConnectionLost, bool everConnected, bool everAvailable, bool isEarlyReleaseInitiated);
 
         [GeneratedEvent(
             (ushort)LogEventId.StorageCacheGetContentError,
@@ -4005,8 +4005,17 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "The scheduler has been marked completed except for MaterializeOutput pip steps")]
+            Message = "The scheduler has been marked as completed, except for the MaterializeOutput pipeline steps")]
         internal abstract void SchedulerCompleteExceptMaterializeOutputs(LoggingContext loggingContext);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.SchedulerComplete,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "The scheduler has been marked as completed")]
+        internal abstract void SchedulerComplete(LoggingContext loggingContext);
 
         [GeneratedEvent(
             (ushort)LogEventId.CreationTimeNotSupported,

@@ -69,14 +69,15 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Returns a task representing the completion of the exit operation
         /// </summary>
-        internal Task<bool> ExitCompletion => m_exitCompletionSource.Task;
-        private readonly TaskSourceSlim<bool> m_exitCompletionSource;
+        internal Task<bool> ExitCompletion => m_exitCompletion.Task;
+        private readonly TaskSourceSlim<bool> m_exitCompletion;
 
         /// <summary>
         /// Returns a task representing the completion of the attach operation
         /// </summary>
-        internal Task<bool> AttachCompletion => m_attachCompletionSource.Task;
-        private readonly TaskSourceSlim<bool> m_attachCompletionSource;
+        internal Task<bool> AttachCallTask => m_attachCallCompletion.Task;
+        private readonly TaskSourceSlim<bool> m_attachCallCompletion;
+        private readonly CancellationTokenSource m_cancellationOnExit = new CancellationTokenSource();
 
         private readonly ConcurrentDictionary<(PipId, PipExecutionStep), SinglePipBuildRequest> m_pendingBuildRequests = new();
 
@@ -94,6 +95,7 @@ namespace BuildXL.Engine.Distribution
         private volatile bool m_hasFailures;
         private volatile string m_failureMessage;
         private int m_connectionClosedFlag = 0;
+        private volatile bool m_exitStarted;
 
         /// <summary>
         /// Whether orchestrator is done with the worker by sending a message to worker.
@@ -155,8 +157,8 @@ namespace BuildXL.Engine.Distribution
             m_appLoggingContext = appLoggingContext;
             m_port = config.Distribution.BuildServicePort;
             m_config = config;
-            m_attachCompletionSource = TaskSourceSlim.Create<bool>();
-            m_exitCompletionSource = TaskSourceSlim.Create<bool>();
+            m_attachCallCompletion = TaskSourceSlim.Create<bool>();
+            m_exitCompletion = TaskSourceSlim.Create<bool>();
 
             m_workerServer = workerServer;
             m_pipExecutionService = executionService;
@@ -166,7 +168,7 @@ namespace BuildXL.Engine.Distribution
 
         internal void Start(EngineSchedule schedule, ExecutionResultSerializer resultSerializer)
         {
-            Contract.Assert(AttachCompletion.IsCompleted && AttachCompletion.GetAwaiter().GetResult(), "Start called before finishing attach on worker");
+            Contract.Assert(AttachCallTask.IsCompleted && AttachCallTask.GetAwaiter().GetResult(), "Start called before finishing attach on worker");
             m_pipExecutionService.Start(schedule, BuildStartData);
             m_notificationManager.Start(m_orchestratorClient, schedule, new PipResultSerializer(resultSerializer), m_config.Logging);
         }
@@ -176,7 +178,7 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         internal async Task<bool> WhenDoneAsync()
         {
-            Contract.Assert(AttachCompletion.IsCompleted && AttachCompletion.GetAwaiter().GetResult(), "ProcessBuildRequests called before finishing attach on worker");
+            Contract.Assert(AttachCallTask.IsCompleted && AttachCallTask.GetAwaiter().GetResult(), "ProcessBuildRequests called before finishing attach on worker");
 
             bool success = await CompleteAttachmentAfterProcessBuildRequestStartedAsync();
 
@@ -231,14 +233,14 @@ namespace BuildXL.Engine.Distribution
             
             var timeout = GrpcSettings.WorkerAttachTimeout;
             var sw = Stopwatch.StartNew();
-            if (!AttachCompletion.Wait(timeout))
+            if (!AttachCallTask.Wait(timeout))
             {
                 Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext, "waiting for attach request from orchestrator");
                 Exit(failure: $"Timed out waiting for attach request from orchestrator. Timeout: {timeout.TotalMinutes} min", isUnexpected: true);
                 return false;
             }
 
-            if (!AttachCompletion.Result)
+            if (!AttachCallTask.Result)
             {
                 if (m_isOrchestratorExited)
                 {
@@ -269,12 +271,20 @@ namespace BuildXL.Engine.Distribution
         /// <nodoc/>
         public void Exit(Optional<string> failure = default, bool isUnexpected = false)
         {
+            if (m_exitStarted)
+            {
+                // We already initiated the stop for the worker.
+                return;
+            }
+
+            m_exitStarted = true;
+            m_cancellationOnExit.Cancel();
             var reportSuccess = !failure.HasValue;
 
             m_notificationManager.Exit(isClean: reportSuccess && !isUnexpected);
             m_orchestratorClient.CloseAsync().GetAwaiter().GetResult();
 
-            m_attachCompletionSource.TrySetResult(false);
+            m_attachCallCompletion.TrySetResult(false);
             
             if (!reportSuccess)
             {
@@ -295,7 +305,7 @@ namespace BuildXL.Engine.Distribution
             // Do not await, as this call to Exit may have been made as part of the exit RPC and we need to finish it.
             m_workerServer.ShutdownAsync().Forget();
 
-            m_exitCompletionSource.TrySetResult(reportSuccess);
+            m_exitCompletion.TrySetResult(reportSuccess);
         }
 
         /// <summary>
@@ -305,7 +315,7 @@ namespace BuildXL.Engine.Distribution
         internal bool TryGetBuildScheduleDescriptor(out PipGraphCacheDescriptor descriptor)
         {
             descriptor = null;
-            if (!AttachCompletion.Result)
+            if (!AttachCallTask.Result)
             {
                 return false;
             }
@@ -320,7 +330,7 @@ namespace BuildXL.Engine.Distribution
             m_orchestratorInitialized = true;
             m_orchestratorClient.Initialize(orchestratorLocation.IpAddress, orchestratorLocation.BuildServicePort, OnConnectionFailureAsync);
 
-            var helloResult = await m_orchestratorClient.SayHelloAsync(new ServiceLocation() { IpAddress = m_config.Distribution.MachineHostName, Port = m_port });
+            var helloResult = await m_orchestratorClient.SayHelloAsync(new ServiceLocation() { IpAddress = m_config.Distribution.MachineHostName, Port = m_port }, m_cancellationOnExit.Token);
             if (!helloResult.Succeeded)
             {
                 // If we can't say hello there is no hope for attachment
@@ -376,14 +386,14 @@ namespace BuildXL.Engine.Distribution
             }
 
             WorkerId = BuildStartData.WorkerId;
-            m_attachCompletionSource.TrySetResult(true);
+            m_attachCallCompletion.TrySetResult(true);
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         private async Task<bool> CompleteAttachmentAfterProcessBuildRequestStartedAsync()
         {
             var attachCompletionInfo = m_pipExecutionService.ConstructAttachCompletionInfo();
-            var attachCompletionResult = await m_orchestratorClient.AttachCompletedAsync(attachCompletionInfo);
+            var attachCompletionResult = await m_orchestratorClient.AttachCompletedAsync(attachCompletionInfo, m_cancellationOnExit.Token);
 
             if (!attachCompletionResult.Succeeded)
             {

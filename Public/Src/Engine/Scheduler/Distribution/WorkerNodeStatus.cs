@@ -61,4 +61,13 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         Stopping,
     }
+
+    /// <summary>
+    /// Extensions for <see cref="WorkerNodeStatus"/>
+    /// </summary>
+    public static class WorkerNodeStatusUtils
+    {
+        /// <nodoc/>
+        public static bool IsStoppingOrStopped(this WorkerNodeStatus status) => status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped;
+    }
 }

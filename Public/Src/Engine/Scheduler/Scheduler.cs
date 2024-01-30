@@ -279,9 +279,9 @@ namespace BuildXL.Scheduler
         public int AvailableRemoteWorkersCount => Workers.Count(a => a.IsAvailable && a.IsRemote);
 
         /// <summary>
-        /// Contains set up tasks for remote workers in a distributed build. (see <see cref="RemoteWorkerBase.SetupCompletionTask"/>)
+        /// Contains set up tasks for remote workers in a distributed build. (see <see cref="RemoteWorkerBase.AttachCompletionTask"/>)
         /// </summary>
-        private List<Task<bool>> m_workersSetupResultsTasks;
+        private List<Task<bool>> m_workersAttachmentTasks;
 
         /// <summary>
         /// Cached delegate for the main method which executes the pips
@@ -385,13 +385,18 @@ namespace BuildXL.Scheduler
                     ExecutionLog :
                     ExecutionLog?.CreateWorkerTarget((uint)worker.WorkerId);
 
-                worker.TrackStatusOperation(m_workersStatusOperation);
-                worker.InitializeForDistribution(m_configuration, PipGraph, workerExecutionLogTarget, m_schedulerCompletion.Task);
-                worker.StatusChanged += OnWorkerStatusChanged;
+                worker.InitializeForDistribution(
+                    m_workersStatusOperation,
+                    m_configuration,
+                    PipGraph,
+                    workerExecutionLogTarget,
+                    m_schedulerCompletion.Task,
+                    OnWorkerStatusChanged);
+
                 worker.Start();
             }
 
-            m_workersSetupResultsTasks = m_remoteWorkers.Select(static w => w.SetupCompletionTask).ToList();
+            m_workersAttachmentTasks = m_remoteWorkers.Select(static w => w.AttachCompletionTask).ToList();
 
             ExecutionLog?.WorkerList(new WorkerListEventData { Workers = m_workers.SelectArray(w => w.Name) });
         }
@@ -1707,6 +1712,7 @@ namespace BuildXL.Scheduler
 
             m_schedulerDoneTimeUtc = DateTime.UtcNow;
             m_schedulerCompletion.TrySetResult(true);
+            Logger.Log.SchedulerComplete(m_loggingContext);
 
             using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.AfterDrainingWhenDoneDuration))
             {
@@ -1845,9 +1851,9 @@ namespace BuildXL.Scheduler
 
         private async Task EnsureMinimumWorkersAsync(int minimumWorkers, int warningThreshold)
         {
-            Contract.Assert(m_workersSetupResultsTasks is not null, "Worker set up tasks shouldn't be null");
+            Contract.Assert(m_workersAttachmentTasks is not null, "Worker attachment tasks shouldn't be null");
 
-            var allSetupTasksCompletion = TaskUtilities.SafeWhenAll(m_workersSetupResultsTasks);
+            var allAttachmentTasks = TaskUtilities.SafeWhenAll(m_workersAttachmentTasks);
 
             while (true)
             {
@@ -1858,9 +1864,9 @@ namespace BuildXL.Scheduler
                 }
 
                 // Wait for all attachment requests to complete
-                bool allWorkerSetupsCompleted = allSetupTasksCompletion.IsCompleted;
+                bool allWorkerAttachmentCompleted = allAttachmentTasks.IsCompleted;
 
-                var succesfullyAttachedSoFar = m_workersSetupResultsTasks
+                var succesfullyAttachedSoFar = m_workersAttachmentTasks
                     .Where(t => t.IsCompleted)
                     .Select(t => t.GetAwaiter().GetResult())
                     .Count(b => b);
@@ -1874,7 +1880,7 @@ namespace BuildXL.Scheduler
                     break;
                 }
 
-                if (allWorkerSetupsCompleted)
+                if (allWorkerAttachmentCompleted)
                 {
                     // All workers completed their attachment processes (either sucessfully or otherwise)
                     if (everAvailableWorkers < minimumWorkers)
@@ -1895,7 +1901,7 @@ namespace BuildXL.Scheduler
                 }
 
                 // Wait for a few seconds before checking again, but short-circuit if all attachments are completed
-                _ = await Task.WhenAny(allSetupTasksCompletion, Task.Delay(15_000));
+                _ = await Task.WhenAny(allAttachmentTasks, Task.Delay(15_000));
             }
         }
 
@@ -2885,7 +2891,7 @@ namespace BuildXL.Scheduler
 
             // Try releasing the remote worker which has the lowest acquired slots for process execution.
             // It is intentional that we do not include cachelookup slots here as cachelookup step is a lot faster than execute step.
-            var workerToReleaseCandidate = Workers.Where(workerIsReleasable).OrderBy(a => a.AcquiredProcessSlots).FirstOrDefault();
+            var workerToReleaseCandidate = m_remoteWorkers.Where(workerIsReleasable).OrderBy(a => a.AcquiredProcessSlots).FirstOrDefault();
             if (workerToReleaseCandidate == null)
             {
                 return;
@@ -2893,7 +2899,7 @@ namespace BuildXL.Scheduler
 
             // If the available remote workers perform at that multiplier capacity in future, how many process pips we can concurrently execute:
             int totalProcessSlots = LocalWorker.TotalProcessSlots +
-               (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
+               (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * m_remoteWorkers.Where(a => a.IsAvailable).Sum(a => a.TotalProcessSlots));
 
             // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
             if (numProcessPipsWaiting >= 0 && numProcessPipsWaiting < totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots)
@@ -2911,13 +2917,15 @@ namespace BuildXL.Scheduler
                 Analysis.IgnoreResult(task);
             }
 
-            bool workerIsReleasable(Worker w)
+            bool workerIsReleasable(RemoteWorkerBase w)
             {
                 // Candidates for early release are remote workers that
-                //   a. Are available, or
-                //   b. were never available in the first place (i.e. they never attached)
+                //   1. Are available, or
+                //   2. Dynamic unknown workers (never connected, attached)
                 // We also filter out the ones that were already picked for early release
-                return w.IsRemote && !w.IsEarlyReleaseInitiated && (w.IsAvailable || !w.EverAvailable);
+                return w.IsRemote && !w.IsEarlyReleaseInitiated && 
+                    (w.IsAvailable || 
+                     w.IsUnknownDynamic);
             }
         }
 
@@ -6154,7 +6162,7 @@ namespace BuildXL.Scheduler
                     else
                     {
                         // No remote workers to wait for
-                        m_workersSetupResultsTasks = new();
+                        m_workersAttachmentTasks = new();
                     }
                 }
 

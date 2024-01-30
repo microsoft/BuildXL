@@ -48,7 +48,7 @@ namespace BuildXL.Engine.Distribution
                 var trailers = new Metadata
                 {
                     { GrpcMetadata.InvocationIdMismatch, GrpcMetadata.True },
-                    { GrpcMetadata.IsUnrecoverableError, IsUnrecoverableMismatch(senderInvocationId) ? GrpcMetadata.True : GrpcMetadata.False }
+                    { GrpcMetadata.IsUnrecoverableError, GrpcMetadata.True }
                 };
 
                 throw new RpcException(
@@ -71,12 +71,6 @@ namespace BuildXL.Engine.Distribution
             }
 
             Logger.Log.GrpcTrace(m_loggingContext, sender, $"Recv {traceId} {method}");
-        }
-
-        private bool IsUnrecoverableMismatch(DistributedInvocationId senderInvocationId)
-        {
-            // If the build ids match, we don't want to signal an unrecoverable state
-            return senderInvocationId.RelatedActivityId != m_invocationId.RelatedActivityId || senderInvocationId.EngineVersion != m_invocationId.EngineVersion;
         }
 
         public override Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)

@@ -358,27 +358,6 @@ if ($Deploy -eq "LKG") {
     throw "The LKG deployment is special since it comes from a published NuGet package. It cannot be re-deployed in this selfhost wrapper.";
 }
 
-function Get-CacheMissArgs {
-    # Adds arguments to reference fingerprintstores corresponding to the last 3 commits.
-    # Argument is of the form: /cachemiss:[commit123456:commit0abcdef:commit044839]
-    # This ideally allows retrieval of the fingerprint store for the most recent close build to the current
-    # state of the repo.
-    $cacheMissArgs = "";
-    $output = git log --first-parent -n 3 --pretty=format:%H
-    
-    $cacheMissArgs += "/CacheMiss:[";
-    foreach ($item in $output.Split(" ")) {
-        $cacheMissArgs += "commit";
-        $cacheMissArgs += $item;
-        $cacheMissArgs += ":";
-    }
-
-    $cacheMissArgs = $cacheMissArgs.TrimEnd(":");
-    $cacheMissArgs += "]";
-
-    return $cacheMissArgs;
-}
-
 function New-Deployment {
     param([string]$Root, [string]$Name, [string]$Description, [string]$TelemetryEnvironment, [string]$dir = $null, [bool]$enableServerMode = $false, [string]$DeploymentRoot);
 
@@ -645,7 +624,7 @@ $AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironme
 
 $GenerateCgManifestFilePath = "$enlistmentRoot\cg\nuget\cgmanifest.json";
 $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifestFilePath";
-$AdditionalBuildXLArguments += Get-CacheMissArgs;
+$AdditionalBuildXLArguments += "/cacheMiss+";
 
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 

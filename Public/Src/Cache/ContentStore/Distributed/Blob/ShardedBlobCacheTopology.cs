@@ -15,7 +15,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Utilities.Core;
 
 #nullable enable
 
@@ -175,6 +174,42 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         }
     }
 
+    public Task<BoolResult> EnsureContainersExistAsync(OperationContext context)
+    {
+        return context.PerformOperationAsync(
+            Tracer,
+            async () =>
+            {
+                await foreach (var containerClient in EnumerateClientsAsync(context))
+                {
+                    try
+                    {
+                        await containerClient.CreateIfNotExistsAsync(
+                                Azure.Storage.Blobs.Models.PublicAccessType.None,
+                                null,
+                                null,
+                                cancellationToken: context.Token);
+                    }
+                    catch (RequestFailedException exception)
+                    {
+                        // It's possible that we failed because we have read-only permissions. If container already exists, we shouldn't fail.
+                        if (!await containerClient.ExistsAsync(context.Token))
+                        {
+                            return new BoolResult(exception, $"Container `{containerClient.Name}` does not exist in account `{containerClient.AccountName}` and could not be created");
+                        }
+                    }
+                }
+
+                return BoolResult.Success;
+            });
+    }
+
+    private IAsyncEnumerable<BlobContainerClient> EnumerateClientsAsync(OperationContext context)
+    {
+        return EnumerateClientsAsync(context, BlobCacheContainerPurpose.Content)
+            .Concat(EnumerateClientsAsync(context, BlobCacheContainerPurpose.Metadata));
+    }
+
     public async Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
     {
         var (container, containerPath) = await GetContainerClientAsync(context, BlobCacheShardingKey.FromContentHash(contentHash));
@@ -192,19 +227,6 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             {
                 var credentials = await _configuration.SecretsProvider.RetrieveBlobCredentialsAsync(context, account);
                 var containerClient = credentials.CreateContainerClient(container.ContainerName, _blobClientOptions);
-
-                try
-                {
-                    await containerClient.CreateIfNotExistsAsync(
-                        Azure.Storage.Blobs.Models.PublicAccessType.None,
-                        null,
-                        null,
-                        cancellationToken: context.Token);
-                }
-                catch (RequestFailedException exception)
-                {
-                    throw new InvalidOperationException(message: $"Container `{container}` does not exist in account `{account}` and could not be created", innerException: exception);
-                }
 
                 return Result.Success(containerClient);
             },

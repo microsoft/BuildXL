@@ -97,6 +97,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 Topology = topology,
             };
 
+            topology.EnsureContainersExistAsync(new OperationContext(new Context(Logger), CancellationToken.None)).GetAwaiter().GetResult().ShouldBeSuccess();
+
             return new AzureBlobStorageMetadataStore(configuration: config);
         }
 

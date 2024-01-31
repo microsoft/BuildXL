@@ -80,6 +80,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         n.Namespace,
                         config.BlobRetryPolicy)));
 
+            foreach (var topology in topologies.Values)
+            {
+                await topology.EnsureContainersExistAsync(context).ThrowIfFailureAsync();
+            }
+
             // Using the 0th shard of the cache, so that checkpoint data is preserved between re-sharding.
             // However, the container needs to be differentiated between reshardings.
             var checkpointContainerName = $"checkpoints-{metadataMatrix}";

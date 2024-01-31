@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 #nullable enable
@@ -25,5 +26,7 @@ public interface IBlobCacheTopology
     public IEnumerable<AbsoluteContainerPath> EnumerateContainers(OperationContext context, BlobCacheContainerPurpose purpose);
 
     public IAsyncEnumerable<BlobContainerClient> EnumerateClientsAsync(OperationContext context, BlobCacheContainerPurpose purpose);
+
+    public Task<BoolResult> EnsureContainersExistAsync(OperationContext context);
 }
 

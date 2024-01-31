@@ -47,6 +47,11 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
         _configuration = configuration;
     }
 
+    protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
+    {
+        return _configuration.Topology.EnsureContainersExistAsync(context);
+    }
+
     /// <inheritdoc />
     public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
     {

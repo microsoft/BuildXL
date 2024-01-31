@@ -432,13 +432,15 @@ namespace BuildXL.Engine.Distribution
 
         private async Task<bool> TryAttachAsync()
         {
+            try
+            {
 #if NET_FRAMEWORK
-            WaitForServiceLocationTask.Wait(m_attachCancellation.Token);
+                WaitForServiceLocationTask.Wait(m_attachCancellation.Token);
 #else
-            await WaitForServiceLocationTask.WaitAsync(m_attachCancellation.Token);
+                await WaitForServiceLocationTask.WaitAsync(m_attachCancellation.Token);
 #endif
-
-            if (m_attachCancellation.IsCancellationRequested)
+            }
+            catch (TaskCanceledException)
             {
                 return false;
             }

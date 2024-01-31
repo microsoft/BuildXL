@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 /// </summary>
 public class RemoteNotificationDispatch : IRemoteContentAnnouncer
 {
-    protected Tracer Tracer { get; } = new(nameof(RemoteChangeAnnouncer));
+    protected Tracer Tracer { get; } = new(nameof(RemoteNotificationDispatch));
 
     private readonly BoxRef<IRemoteContentAnnouncer?> _inner = new();
 
@@ -29,12 +29,9 @@ public class RemoteNotificationDispatch : IRemoteContentAnnouncer
 
     public async Task Notify(OperationContext context, RemoteContentEvent @event)
     {
-        if (_inner.Value is null)
+        if (_inner.Value is not null)
         {
-            Tracer.Warning(context, $"Attempt to dispatch event {@event} failed because there's no target");
-            return;
+            await _inner.Value.Notify(context, @event);
         }
-
-        await _inner.Value.Notify(context, @event);
     }
 }

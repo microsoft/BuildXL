@@ -8,6 +8,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs;
+using Azure.Storage.Sas;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -16,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
@@ -39,6 +42,8 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
 {
     private readonly string _runId = ThreadSafeRandom.LowercaseAlphanumeric(10);
     private readonly LocalRedisFixture _fixture;
+
+    protected virtual bool UsePreauthenticatedUris => false;
 
     protected override bool RunEvictionBasedTests { get; } = false;
 
@@ -355,7 +360,7 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
         // Force it to use a non-sharding account
         shards.Add(new BlobCacheStorageNonShardingAccountName("devstoreaccount1"));
 
-        var (process, secretsProvider) = CreateTestTopology(_fixture, shards);
+        var (process, secretsProvider) = CreateTestTopology(_fixture, shards, UsePreauthenticatedUris);
 
         var configuration = new AzureBlobStorageContentStoreConfiguration()
         {
@@ -373,7 +378,7 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
         return process;
     }
 
-    public static (AzuriteStorageProcess Process, IBlobCacheSecretsProvider secretsProvider) CreateTestTopology(LocalRedisFixture fixture, IReadOnlyList<BlobCacheStorageAccountName> accounts)
+    public static (AzuriteStorageProcess Process, IBlobCacheSecretsProvider secretsProvider) CreateTestTopology(LocalRedisFixture fixture, IReadOnlyList<BlobCacheStorageAccountName> accounts, bool usePreauthenticatedUris = false)
     {
         var process = AzuriteStorageProcess.CreateAndStart(
             fixture,
@@ -384,12 +389,39 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
             account =>
             {
                 var connectionString = process.ConnectionString.Replace("devstoreaccount1", account.AccountName);
-                IAzureStorageCredentials credentials = new SecretBasedAzureStorageCredentials(connectionString);
+
+                IAzureStorageCredentials credentials;
+                if (usePreauthenticatedUris)
+                {
+                    var client = new BlobServiceClient(connectionString);
+
+                    var uri = client.GenerateAccountSasUri(
+                        AccountSasPermissions.All,
+                        DateTimeOffset.UtcNow.AddDays(1),
+                        AccountSasResourceTypes.All);
+
+                    credentials = new PreauthenticatedUriStorageCredentials(uri);
+                }
+                else
+                {
+                    credentials = new SecretBasedAzureStorageCredentials(connectionString);
+                }
+
                 Contract.Assert(credentials.GetAccountName() == account.AccountName);
                 return (Account: account, Credentials: credentials);
             }).ToDictionary(kvp => kvp.Account, kvp => kvp.Credentials);
 
         var secretsProvider = new StaticBlobCacheSecretsProvider(credentials);
         return (process, secretsProvider);
+    }
+}
+
+public class AzureBlobStorageContentSessionSasUriTests : AzureBlobStorageContentSessionTests
+{
+    protected override bool UsePreauthenticatedUris => true;
+
+    public AzureBlobStorageContentSessionSasUriTests(LocalRedisFixture fixture, ITestOutputHelper output)
+        : base(fixture, output)
+    {
     }
 }

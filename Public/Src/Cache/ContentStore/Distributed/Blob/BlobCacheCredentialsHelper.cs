@@ -75,6 +75,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
             return credentials;
         }
 
+        public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> FromPreauthenticatedUris(IEnumerable<Uri> preauthenticatedUris)
+        {
+            var credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
+            foreach (var uri in preauthenticatedUris)
+            {
+                var credential = new PreauthenticatedUriStorageCredentials(uri);
+                var accountName = BlobCacheStorageAccountName.Parse(credential.GetAccountName());
+                credentials.Add(accountName, credential);
+            }
+
+            return credentials;
+        }
+
 
         /// <summary>
         /// This method supports two formats:

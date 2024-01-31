@@ -9,12 +9,12 @@ using System.Linq;
 using System.Xml.Linq;
 using BuildXL.FrontEnd.Nuget.Tracing;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using NuGet.Versioning;
-using Moniker = BuildXL.Utilities.Core.PathAtom;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using Moniker = BuildXL.Utilities.Core.PathAtom;
 
 namespace BuildXL.FrontEnd.Nuget
 {
@@ -195,7 +195,23 @@ namespace BuildXL.FrontEnd.Nuget
             var magicNugetMarker = PathAtom.Create(stringTable, "_._");
             var dllExtension = PathAtom.Create(stringTable, ".dll");
 
-            foreach (var relativePath in PackageOnDisk.Contents.OrderBy(path => path, m_nugetRelativePathComparer))
+            bool isRuntimeLayoutAssembly;
+            using var pickedFromRuntimesWrapper = Pools.RelativePathSetPool.GetInstance();
+            var pickedFromRuntimeFolder = pickedFromRuntimesWrapper.Instance;
+
+            bool isRelativePathUnderRuntimesFolder(RelativePath path) => 
+                path.GetAtoms() is var atoms && 
+                atoms.Length > 0 && 
+                NugetFrameworkMonikers.RuntimesFolderName.CaseInsensitiveEquals(stringTable, atoms[0]);
+
+            // We want to be sure all paths under 'runtimes' folder get processed first
+            var sortedAssemblies = PackageOnDisk.Contents
+                // First order by whether the path is *not* under the runtimes folder (because False values go first).
+                .OrderBy(path => !isRelativePathUnderRuntimesFolder(path))
+                // Then use the regular relative path sorting
+                .ThenBy(path => path, m_nugetRelativePathComparer);
+
+            foreach (var relativePath in sortedAssemblies)
             {
                 // This is a dll. Check if it is in a lib folder or ref folder.
 
@@ -208,16 +224,25 @@ namespace BuildXL.FrontEnd.Nuget
                 // Case 2 treats files under 'lib' folder as runtime dependencies (and optionally compile-time
                 // references if missing a corresponding set of compile-time references for the target framework
                 // under the 'ref' folder). Files under 'ref' folder are treated strictly as compile-time only references.
+                // If an assembly is picked from the 'runtimes/...' directory, then it should override the same assembly coming from libs or refs
+                // See https://learn.microsoft.com/en-us/nuget/create-packages/supporting-multiple-target-frameworks#architecture-specific-folders
+                // The way in which sortedAssemblies is sorted guarantees we see paths under 'runtimes' first, so we don't add those again
+
+                isRuntimeLayoutAssembly = false;
 
                 var atoms = new ReadOnlySpan<PathAtom>(relativePath.GetAtoms());
                 if (atoms.Length == 5)
                 {
                     var isRuntime = NugetFrameworkMonikers.RuntimesFolderName.CaseInsensitiveEquals(stringTable, atoms[0])
-                        && NugetFrameworkMonikers.SupportedTargetRuntimeAtoms.Contains(atoms[1].StringId);
+                        && NugetFrameworkMonikers.KnownTargetRuntimeAtoms.Contains(atoms[1].StringId);
 
                     if (isRuntime)
                     {
                         atoms = atoms.Slice(2);
+                        // This path is a candidate to be picked from the runtimes folder. Add it to the set so we can avoid
+                        // adding the same assembly again if it happens to be present under refs/libs
+                        pickedFromRuntimeFolder.Add(RelativePath.Create(atoms.ToArray()));
+                        isRuntimeLayoutAssembly = true;
                     }
                 }
 
@@ -230,7 +255,11 @@ namespace BuildXL.FrontEnd.Nuget
                     var isLib = NugetFrameworkMonikers.LibFolderName.CaseInsensitiveEquals(stringTable, libOrRef);
                     var isRef = NugetFrameworkMonikers.RefFolderName.CaseInsensitiveEquals(stringTable, libOrRef);
 
-                    if (isLib || isRef)
+                    // Only consider adding the assembly if it was not picked from the runtime folder already (and we are not considering a path
+                    // that just came from the runtime layout check above)
+                    var wasAlreadyPickedFromRuntimeFolder = !isRuntimeLayoutAssembly && pickedFromRuntimeFolder.Contains(RelativePath.Create(atoms.ToArray()));
+
+                    if (!wasAlreadyPickedFromRuntimeFolder && (isLib || isRef))
                     {
                         if (!TryGetKnownTargetFramework(targetFrameworkFolder, out NugetTargetFramework targetFramework))
                         {

@@ -35,10 +35,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly IEsrpSignConfiguration m_esrpSignConfiguration;
 
         /// <summary>Current spec generation format version</summary>
-        /// <remarks>
-        /// 20: Order array literal productions when generating spec.
-        /// </remarks>
-        public const int SpecGenerationFormatVersion = 20;
+        public const int SpecGenerationFormatVersion = 21;
 
         private readonly NugetRelativePathComparer m_nugetRelativePathComparer;
 

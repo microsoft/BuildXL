@@ -136,11 +136,16 @@ namespace BuildXL.FrontEnd.Nuget
         /// <nodoc />
         public bool IsFullFrameworkMoniker(PathAtom moniker) => FullFrameworkVersionHistory.Contains(moniker);
 
-        /// <nodoc />
+        /// <summary>
+        /// These map to the 'targetRuntime' entry for the generated qualifier
+        /// </summary>
         public string[] SupportedTargetRuntimes { get; }
 
-        /// <nodoc />
-        public HashSet<StringId> SupportedTargetRuntimeAtoms { get; }
+        /// <summary>
+        /// These are all the target runtimes we understand (e.g. both 'win' and 'win-x64' are understood, but for simplicity we only generate 'win-x64'
+        /// as part of the 'targetRuntime' qualifier. <see cref="SupportedTargetRuntimes"/>
+        /// </summary>
+        public HashSet<StringId> KnownTargetRuntimeAtoms { get; }
 
         /// <nodoc />
         public NugetFrameworkMonikers(StringTable stringTable, INugetResolverSettings nugetResolverSettings)
@@ -202,7 +207,8 @@ namespace BuildXL.FrontEnd.Nuget
                 "linux-x64"
             };
 
-            SupportedTargetRuntimeAtoms = new HashSet<StringId>(SupportedTargetRuntimes.Select(s => PathAtom.Create(stringTable, s).StringId));
+            // In addition to the supported target runtimes (which reflect on the generated qualifier), we also understand the simplified 'bit-less' architecture nomenclature
+            KnownTargetRuntimeAtoms = new HashSet<StringId>(SupportedTargetRuntimes.Union(new string[] { "win", "osx", "linux" }).Select(s => PathAtom.Create(stringTable, s).StringId));
         }
 
         private PathAtom Register(StringTable stringTable, string smallMoniker, string largeMoniker, List<PathAtom> versions)

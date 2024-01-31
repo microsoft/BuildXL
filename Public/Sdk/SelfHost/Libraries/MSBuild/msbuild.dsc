@@ -27,7 +27,7 @@ export const msbuildRuntimeContent = [
     importFrom("System.Threading.Tasks.Dataflow").pkg,
     
     ...BuildXLSdk.isDotNetCoreOrStandard ? [
-        importFrom("System.Text.Encoding.CodePages").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Text.Encoding.CodePages").pkg,
         importFrom("Microsoft.Build.Tasks.Core").pkg,
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net6.0/MSBuild.dll`),
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net6.0/MSBuild.runtimeconfig.json`),

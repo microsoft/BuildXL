@@ -17,7 +17,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 {
     public class NuSpecGeneratorTests
     {
-        private const int CurrentSpecGenVersion = 20;
+        private const int CurrentSpecGenVersion = 21;
 
         private readonly ITestOutputHelper m_output;
         private readonly FrontEndContext m_context;
@@ -211,6 +211,90 @@ export const pkg: NugetPackage = {{
             XAssert.ArrayEqual(SplitToLines(expectedSpec), SplitToLines(text));
 
             const string CurrentSpecHash = "A3E69D5CE5C9AFF303DC7D0F0E21D6448927B8D6";
+            ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
+        }
+
+        [Fact]
+        public void RuntimesBinariesShouldTakePrecedence()
+        {
+            var pkg = m_packageGenerator.AnalyzePackage(
+                @"<?xml version='1.0' encoding='utf-8'?>
+<package xmlns='http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd'>
+  <metadata>
+    <id>MyPkg</id>
+    <version>1.999</version>
+    <dependencies>
+      <group targetFramework='.NETCore6.0'>
+        <dependency id='System.Collections' version='4.0.11' />
+        <dependency id='System.Collections.Concurrent' version='4.0.12' />
+      </group>
+      <group targetFramework='.NETCore7.0'>
+        <dependency id='System.Collections' version='4.0.11' />
+        <dependency id='System.Collections.Concurrent' version='4.0.12' />
+      </group>
+    </dependencies>
+  </metadata>
+</package>",
+                s_packagesOnConfig, new string[] { "lib/net6.0/my.dll", "lib/net7.0/my.dll", "runtimes/win/lib/net6.0/my.dll" });
+
+            var spec = new NugetSpecGenerator(m_context.PathTable, pkg, new NugetResolverSettings { Repositories = new Dictionary<string, string>() }, AbsolutePath.Invalid).CreateScriptSourceFile(pkg);
+            var text = spec.ToDisplayStringV2();
+            m_output.WriteLine(text);
+
+            string expectedSpec = $@"import * as NugetDownloader from ""BuildXL.Tools.NugetDownloader"";
+import * as Managed from ""Sdk.Managed"";
+
+export declare const qualifier: {{targetFramework: ""net6.0"" | ""net7.0"", targetRuntime: ""win-x64"" | ""osx-x64"" | ""linux-x64""}};
+
+namespace Contents {{
+    export declare const qualifier: {{
+    }};
+    @@public
+    export const all: StaticDirectory = NugetDownloader.downloadPackage({{
+        id: ""TestPkg"",
+        version: ""1.999"",
+        extractedFiles: [
+            r`lib/net6.0/my.dll`,
+            r`lib/net7.0/my.dll`,
+            r`runtimes/win/lib/net6.0/my.dll`,
+            r`TestPkg.nuspec`,
+        ],
+        repositories: [],
+        timeoutInMinutes: 20,
+    }});
+}}
+
+@@public
+export const pkg: Managed.ManagedNugetPackage = (() => {{
+    switch (qualifier.targetFramework) {{
+        case ""net6.0"":
+            return Managed.Factory.createNugetPackage(
+                ""TestPkg"",
+                ""1.999"",
+                Contents.all,
+                [Managed.Factory.createBinaryFromFiles(Contents.all.getFile(r`runtimes/win/lib/net6.0/my.dll`))],
+                [
+                    Managed.Factory.createBinaryFromFiles(Contents.all.getFile(r`runtimes/win/lib/net6.0/my.dll`)),
+                ],
+                [...addIfLazy(qualifier.targetFramework === ""net6.0"", () => [])]
+            );
+        case ""net7.0"":
+            return Managed.Factory.createNugetPackage(
+                ""TestPkg"",
+                ""1.999"",
+                Contents.all,
+                [Managed.Factory.createBinaryFromFiles(Contents.all.getFile(r`lib/net7.0/my.dll`))],
+                [Managed.Factory.createBinaryFromFiles(Contents.all.getFile(r`lib/net7.0/my.dll`))],
+                [...addIfLazy(qualifier.targetFramework === ""net7.0"", () => [])]
+            );
+        default:
+            Contract.fail(""Unsupported target framework"");
+    }};
+}}
+)();";
+            XAssert.AreEqual(expectedSpec.Trim(), text.Trim());
+
+            const string CurrentSpecHash = "B0CDEC1C3BA64FA64D5AB91DD65FC90345737933";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 

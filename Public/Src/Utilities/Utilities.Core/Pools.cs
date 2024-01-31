@@ -187,6 +187,11 @@ namespace BuildXL.Utilities.Core
         public static ObjectPool<HashSet<AbsolutePath>> AbsolutePathSetPool { get; } = CreateSetPool<AbsolutePath>();
 
         /// <summary>
+        /// Global pool of HashSet&lt;RelativePath&gt; instances.
+        /// </summary>
+        public static ObjectPool<HashSet<RelativePath>> RelativePathSetPool { get; } = CreateSetPool<RelativePath>();
+
+        /// <summary>
         /// Global pool of HashSet&lt;(AbsolutePath, string)&gt; instances.
         /// </summary>
         public static ObjectPool<HashSet<(AbsolutePath, string)>> DirectoryMemberEntrySetPool { get; } = CreateSetPool<(AbsolutePath, string)>();

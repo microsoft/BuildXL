@@ -63,8 +63,8 @@ jobs:
         /q:ReleaseDotNetCoreMac
         /q:DebugNet472
         /q:ReleaseNet472
-        /q:ReleaseDotNet6
-        /q:DebugDotNet6
+        /q:ReleaseNet7
+        /q:DebugNet7
         /p:[Sdk.BuildXL]useManagedSharedCompilation=1
         /p:[BuildXL.Branding]PrereleaseTag=devBuild
         /p:[Sdk.BuildXL]microsoftInternal=1

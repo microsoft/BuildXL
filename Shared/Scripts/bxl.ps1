@@ -42,9 +42,9 @@ Uses the LKG deployment to update the Dev deployment with Debug binaries
 .EXAMPLE
 
 
-.\bxl -DeployDev -DeployConfig "release" -DeployRuntime "net6.0"
+.\bxl -DeployDev -DeployConfig "release" -DeployRuntime "net7.0"
 
-Uses the LKG deployment to update the Dev deployment with net6.0 release binaries 
+Uses the LKG deployment to update the Dev deployment with net7.0 release binaries 
 
 .EXAMPLE
 
@@ -72,7 +72,7 @@ param(
     [ValidateSet("Release", "Debug")]
     [string]$DeployConfig = "Debug", # must match defaultQualifier.configuration in config.dsc 
 
-    [ValidateSet("net472", "net7.0", "win-x64", "osx-x64")]
+    [ValidateSet("net472", "net6.0", "win-x64", "osx-x64")]
     [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
     [Parameter(Mandatory = $false)]
@@ -315,7 +315,7 @@ if ($Vs -or $VsAll) {
     }
     else {
         # by default (-vs) we build only .NET Core and only projects targeting one of the .NET Core frameworks
-        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net6.0";
+        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net7.0";
     }
 }
 
@@ -369,7 +369,7 @@ function New-Deployment {
 
     $buildRelativeDir = [io.path]::combine($DeploymentRoot, $DeployConfig, $DeployRuntime)
     if ($DeployRuntime -ne "win-x64") {
-        # Handling .net 5 differently, because the old scheme is not suitable for having dev deployments with different qualifiers.
+        # If it's not a default runtime, we handle it differently because the old scheme is not suitable for having dev deployments with different qualifiers.
         $framework = $DeployRuntime;
         $DeployRuntime = "win-x64";
         $buildRelativeDir = [io.path]::combine($DeploymentRoot, $DeployConfig, $framework, $DeployRuntime)
@@ -584,8 +584,8 @@ if ($DeployConfig -eq "Release") {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:ReleaseNet472"
     }
-    if ($DeployRuntime -eq "net7.0") {
-        $AdditionalBuildXLArguments += "/q:ReleaseNet7"
+    if ($DeployRuntime -eq "net6.0") {
+        $AdditionalBuildXLArguments += "/q:ReleaseDotNet6"
     }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
@@ -601,8 +601,8 @@ else {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:DebugNet472"
     }
-    if ($DeployRuntime -eq "net7.0") {
-        $AdditionalBuildXLArguments += "/q:DebugNet7"
+    if ($DeployRuntime -eq "net6.0") {
+        $AdditionalBuildXLArguments += "/q:DebugDotNet6"
     }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"

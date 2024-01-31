@@ -154,7 +154,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./RunBxlWithPat.ps1
-      arguments: -minimal -deploy Dev -deployconfig Release -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache) -CacheNamespace BuildXL.Public -SharedCacheMode ConsumeAndPublish /p:[Sdk.BuildXL]microsoftInternal=1 /q:ReleaseDotNet6 /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /server- /logOutput:FullOutputOnWarningOrError /traceInfo:prvalidation=Public /ado /scrubDirectory:Out\objects /logsDirectory:$(BuildXL.LogsDirectory.LKG) /cachemiss:[BxlPublicValidation]
+      arguments: -minimal -deploy Dev -deployconfig Release -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache) -CacheNamespace BuildXL.Public -SharedCacheMode ConsumeAndPublish /p:[Sdk.BuildXL]microsoftInternal=1 /q:ReleaseNet7 /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /server- /logOutput:FullOutputOnWarningOrError /traceInfo:prvalidation=Public /ado /scrubDirectory:Out\objects /logsDirectory:$(BuildXL.LogsDirectory.LKG) /cachemiss:[BxlPublicValidation]
 
   - task: PublishPipelineArtifact@1
     displayName: Upload -Deploy Dev logs
@@ -170,7 +170,7 @@ jobs:
   - task: CmdLine@2
     displayName: BuildXL -Use Dev (microsoftInternal=0) 
     inputs:
-      script: 'bxl.cmd -Use Dev -UseBlobL3 -SharedCacheMode ConsumeAndPublish -CacheNamespace BuildXL.Public.Validation /p:[Sdk.BuildXL]microsoftInternal=0 /server- /ado /q:$(BuildXL.Configuration)DotNet6 /q:$(BuildXL.Configuration)DotNetCoreMac /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceInfo:prvalidation=PublicLKG /p:xunitSemaphoreCount=12 /logsDirectory:$(BuildXL.LogsDirectory) /scrubDirectory:Out\objects /pipTimeoutMultiplier:2'
+      script: 'bxl.cmd -Use Dev -UseBlobL3 -SharedCacheMode ConsumeAndPublish -CacheNamespace BuildXL.Public.Validation /p:[Sdk.BuildXL]microsoftInternal=0 /server- /ado /q:$(BuildXL.Configuration)Net7 /q:$(BuildXL.Configuration)DotNetCoreMac /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceInfo:prvalidation=PublicLKG /p:xunitSemaphoreCount=12 /logsDirectory:$(BuildXL.LogsDirectory) /scrubDirectory:Out\objects /pipTimeoutMultiplier:2'
 
   - task: PublishPipelineArtifact@1
     displayName: Upload -Use Dev logs

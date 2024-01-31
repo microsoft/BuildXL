@@ -86,7 +86,7 @@ namespace Tools {
 
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: (qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework) // If targetFramework is not a default one (net6.0), then we put it in a separate directory.
+            targetLocation: (qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework) // If targetFramework is not a default one (net7.0), then we put it in a separate directory.
             ? r`${qualifier.configuration}/tools/DistributedBuildRunner/${frameworkSpecificPart}` 
             : r`${qualifier.targetFramework}/${qualifier.configuration}/tools/DistributedBuildRunner/${qualifier.targetRuntime}`    
         });

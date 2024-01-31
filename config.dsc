@@ -520,7 +520,7 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            targetFramework: "net6.0",
+            targetFramework: "net7.0",
             targetRuntime:
                 Context.getCurrentHost().os === "win" ? "win-x64" :
                 Context.getCurrentHost().os === "macOS" ? "osx-x64" : "linux-x64",
@@ -528,7 +528,7 @@ config({
         namedQualifiers: {
             Debug: {
                 configuration: "debug",
-                targetFramework: "net6.0",
+                targetFramework: "net7.0",
                 targetRuntime: "win-x64",
             },
             DebugNet472: {
@@ -548,18 +548,18 @@ config({
             },
             DebugDotNetCoreMac: {
                 configuration: "debug",
-                targetFramework: "net6.0",
+                targetFramework: "net7.0",
                 targetRuntime: "osx-x64",
             },
             DebugLinux: {
                 configuration: "debug",
-                targetFramework: "net6.0",
+                targetFramework: "net7.0",
                 targetRuntime: "linux-x64",
             },
             // Release
             Release: {
                 configuration: "release",
-                targetFramework: "net6.0",
+                targetFramework: "net7.0",
                 targetRuntime: "win-x64",
             },
             ReleaseNet472: {
@@ -572,7 +572,6 @@ config({
                 targetFramework: "net7.0",
                 targetRuntime: "win-x64",
             },
-
             ReleaseDotNet6: {
                 configuration: "release",
                 targetFramework: "net6.0",
@@ -580,12 +579,12 @@ config({
             },
             ReleaseDotNetCoreMac: {
                 configuration: "release",
-                targetFramework: "net6.0",
+                targetFramework: "net7.0",
                 targetRuntime: "osx-x64",
             },
             ReleaseLinux: {
                 configuration: "release",
-                targetFramework: "net6.0",
+                targetFramework: "net7.0",
                 targetRuntime: "linux-x64",
             },
         }

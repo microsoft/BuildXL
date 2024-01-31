@@ -5,7 +5,7 @@
 ```bash
 # install packages
 sudo apt-get update 
-sudo apt-get install –y git build-essential mono-devel mono-complete libc6-dev openssh-server curl dotnet6
+sudo apt-get install –y git build-essential mono-devel mono-complete libc6-dev openssh-server curl dotnet7
 
 # link libdl.so
 sudo ln -vs /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so

@@ -4,7 +4,7 @@
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 
-export declare const qualifier : BuildXLSdk.Net6Qualifier;
+export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
 export {BuildXLSdk};
 

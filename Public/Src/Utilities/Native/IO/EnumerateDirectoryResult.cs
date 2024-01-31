@@ -126,6 +126,13 @@ namespace BuildXL.Native.IO
             var findHandleOpenStatus = ex switch
             {
                 UnauthorizedAccessException _ => EnumerateDirectoryStatus.AccessDenied,
+#if NET7_0_OR_GREATER
+                // On Unix, starting with net7, FileSystemEnumerable throws DirectoryNotFoundException instead of IOException
+                // when asked to enumerate a path that exists as a file.
+                System.IO.DirectoryNotFoundException _ 
+                    when OperatingSystemHelper.IsUnixOS 
+                      && FileUtilities.FileExistsNoFollow(directoryPath) => EnumerateDirectoryStatus.CannotEnumerateFile,
+#endif
                 System.IO.DirectoryNotFoundException _ => EnumerateDirectoryStatus.SearchDirectoryNotFound,
                 System.IO.IOException _ => EnumerateDirectoryStatus.CannotEnumerateFile,
                 _ => EnumerateDirectoryStatus.UnknownError,

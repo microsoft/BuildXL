@@ -124,15 +124,6 @@ namespace NugetPackages {
         filterFiles: [a`DetoursServices.pdb`, a`BuildXLAria.pdb`, a`BuildXLNatives.pdb`]
     });
     
-    const winX64Net7 = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: `${packageNamePrefix}.win-x64-net7`,
-        deployment: BuildXL.withQualifier(net7PackageQualifier).deployment,
-        deploymentOptions: reducedDeploymentOptions,
-        // The following PDBs are quite big and copied many times. Remove them from the nuget
-        // package to save some space.
-        filterFiles: [a`DetoursServices.pdb`, a`BuildXLAria.pdb`, a`BuildXLNatives.pdb`]
-    });
-
     const osxX64 = pack({
         id: `${packageNamePrefix}.osx-x64`,
         deployment: BuildXL.withQualifier({
@@ -151,12 +142,6 @@ namespace NugetPackages {
         deploymentOptions: reducedDeploymentOptions
     });
     
-    const linuxX64Net7 = pack({
-        id: `${packageNamePrefix}.linux-x64-net7`,
-        deployment: BuildXL.withQualifier(net7LinuxPackageQualifier).deployment,
-        deploymentOptions: reducedDeploymentOptions
-    });
-
     const sdks = pack({
         id: `${packageNamePrefix}.Sdks`,
         deployment: Sdks.deployment,
@@ -732,7 +717,7 @@ namespace NugetPackages {
         contents: [
             ...addIfLazy(canBuildAllPackagesOnThisHost, () => [
                 ...addIf(!BuildXLSdk.Flags.genVSSolution,
-                    winX64, winX64Net7
+                    winX64
                 ),
                 cacheTools,
                 cacheLibraries,
@@ -758,7 +743,6 @@ namespace NugetPackages {
             ]),
             ...addIfLazy(!BuildXLSdk.Flags.genVSSolution && Context.getCurrentHost().os === "unix", () => [
                 linuxX64,
-                linuxX64Net7,
                 processesLinux
             ]),
         ]

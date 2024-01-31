@@ -47,7 +47,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(process.Process.PipId);
         }
 
-        [Fact]
+        [FactIfSupported(TestRequirements.WindowsOs)] // The test is not working properly on Linux (#2145450).
         public void RunSingleProcessWithSharedOpaqueOutputLogging()
         {
             Configuration.Schedule.UnsafeLazySODeletion = true;

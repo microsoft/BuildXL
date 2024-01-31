@@ -42,7 +42,7 @@ export const defaultArgs: Arguments = {
     outputFile: undefined,
     references: [],
     sources: [],
-    targetFramework: "net6.0",
+    targetFramework: "net7.0",
     targetRuntime: "win-x64",
 };
 

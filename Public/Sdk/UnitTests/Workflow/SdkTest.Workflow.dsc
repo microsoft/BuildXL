@@ -23,7 +23,7 @@ namespace StandardSdk.Workflow {
     // task. The absolute path is sensitive to the qualifier used to run the test.
     const shouldRunNuGetTest = Context.getCurrentHost().os === "win"
         && qualifier.targetRuntime === "win-x64"
-        && qualifier.targetFramework === "net6.0"
+        && qualifier.targetFramework === "net7.0"
         && qualifier.configuration === "debug";
 
     export const nugetTest = shouldRunNuGetTest && BuildXLSdk.sdkTest({

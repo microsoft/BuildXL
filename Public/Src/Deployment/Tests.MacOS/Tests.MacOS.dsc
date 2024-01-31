@@ -10,38 +10,39 @@ namespace Tests.MacOS {
 
     const sharedBinFolderName = a`sharedbin`;
     const tests = createAllDefs();
+    const defaultTargetFramework = "net7.0";
 
     function createAllDefs() : TestDeploymentDefinition[] {
         return [
             // Utilities
-            createDef(importFrom("BuildXL.Utilities.Instrumentation.UnitTests").Core.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Utilities.UnitTests").Collections.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Utilities.UnitTests").Configuration.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Utilities.UnitTests").Ipc.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Utilities.UnitTests").KeyValueStoreTests.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Utilities.UnitTests").Storage.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Utilities.UnitTests").Storage.Untracked.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Utilities.UnitTests").ToolSupport.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Utilities.UnitTests").Core.withQualifier({ targetFramework: "net6.0" }).dll, true),
+            createDef(importFrom("BuildXL.Utilities.Instrumentation.UnitTests").Core.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Utilities.UnitTests").Collections.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Utilities.UnitTests").Configuration.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Utilities.UnitTests").Ipc.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Utilities.UnitTests").KeyValueStoreTests.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Utilities.UnitTests").Storage.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Utilities.UnitTests").Storage.Untracked.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Utilities.UnitTests").ToolSupport.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Utilities.UnitTests").Core.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
 
             // Cache
-            createDef(importFrom("BuildXL.Cache.ContentStore").Test.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.ContentStore").GrpcTest.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.ContentStore").InterfacesTest.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.ContentStore").DistributedTest.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.MemoizationStore").InterfacesTest.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.DistributedCache.Host").Test.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.Core.UnitTests").Analyzer.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.Core.UnitTests").BasicFilesystem.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.Core.UnitTests").InputListFilter.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.Core.UnitTests").Interfaces.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.Core.UnitTests").MemoizationStoreAdapter.withQualifier({ targetFramework: "net6.0" }).dll, true),
-            createDef(importFrom("BuildXL.Cache.Core.UnitTests").VerticalAggregator.withQualifier({ targetFramework: "net6.0" }).dll, true),
+            createDef(importFrom("BuildXL.Cache.ContentStore").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.ContentStore").GrpcTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.ContentStore").InterfacesTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.ContentStore").DistributedTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.MemoizationStore").InterfacesTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.DistributedCache.Host").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").Analyzer.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").BasicFilesystem.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").InputListFilter.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").Interfaces.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").MemoizationStoreAdapter.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").VerticalAggregator.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
-                createDef(importFrom("BuildXL.Cache.Logging").Test.withQualifier({ targetFramework: "net6.0" }).dll, true) 
+                createDef(importFrom("BuildXL.Cache.Logging").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true) 
             ]),
-            createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.withQualifier({ targetFramework: "net6.0" }).dll, true)
+            createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true)
         ];
     }
 

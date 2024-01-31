@@ -59,7 +59,7 @@ sudo apt install -y git build-essential mono-devel mono-complete libc6-dev opens
 if [[ "$DISTRIB_RELEASE" == "22.04" ]]; then
     debugprint "Attempting to symlink libdl.so"
     sudo ln -vs /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
-    sudo apt install -y dotnet6
+    sudo apt install -y dotnet7
 fi
 
 if [[ "$DISTRIB_RELEASE" == "20.04" ]]; then

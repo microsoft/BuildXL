@@ -25,6 +25,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 {
     [Trait("Category", "SharedOpaqueDirectoryTests")]
     [Feature(Features.SharedOpaqueDirectory)]
+    [TestClassIfSupported(TestRequirements.WindowsOs)] // These tests are not working properly on Linux (#2145450).
     public class LazySharedOpaqueOutputDeletionTests : SchedulerIntegrationTestBase
     {
         public LazySharedOpaqueOutputDeletionTests(ITestOutputHelper output) : base(output)

@@ -176,10 +176,11 @@ namespace Test.BuildXL.Processes
                 fileAccessManifest: fam);
 
             var result = await RunProcess(info);
-           
+
             // We should get a report where we see the creation attempt that results in a file exists error
             result.AllUnexpectedFileAccesses.Single(fa =>
                 fa.Operation == ReportedFileOperation.KAuthCreateDir &&
+                fa.ManifestPath == existentFile &&
                 fa.Error != 0);
 
             // Now perform the same operation but in a way it should succeed
@@ -331,6 +332,7 @@ namespace Test.BuildXL.Processes
             // We should get a report where we see the deletion attempt that results in an absent dir error
             result.FileAccesses.Single(fa =>
                 fa.Operation == ReportedFileOperation.KAuthDeleteDir &&
+                fa.ManifestPath == directory &&
                 fa.Error != 0);
 
             // Now perform the same operation but in a way it should succeed
@@ -347,6 +349,7 @@ namespace Test.BuildXL.Processes
             // We should get a report where we see the deletion attempt with a successful error code
             result.FileAccesses.Single(fa =>
                 fa.Operation == ReportedFileOperation.KAuthDeleteDir &&
+                fa.ManifestPath == directory &&
                 fa.Error == 0);
 
             AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 2);

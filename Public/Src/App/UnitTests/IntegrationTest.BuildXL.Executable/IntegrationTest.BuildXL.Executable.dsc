@@ -11,7 +11,7 @@ namespace IntegrationTest.BuildXL.Executable {
 
     export declare const qualifier : {
         configuration: "debug" | "release",
-        targetFramework: "net6.0",
+        targetFramework: "net7.0",
         targetRuntime: "win-x64"
     };
 

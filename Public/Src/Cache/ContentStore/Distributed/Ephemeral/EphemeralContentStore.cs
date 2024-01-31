@@ -32,11 +32,7 @@ public class EphemeralCacheConfiguration
 
     public required AbsolutePath Workspace { get; init; }
 
-    public TimeSpan PutElisionRaceTimeout { get; init; } = TimeSpan.FromMinutes(1);
-
-    public int PutElisionMinimumReplication { get; init; } = 1;
-
-    public TimeSpan PutElisionMaximumStaleness { get; init; } = TimeSpan.FromDays(1);
+    public TimeSpan PersistentElisionMaximumStaleness { get; init; } = TimeSpan.FromHours(16);
 }
 
 public class EphemeralHost : StartupShutdownComponentBase

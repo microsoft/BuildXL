@@ -4,7 +4,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -69,25 +68,17 @@ public class EphemeralContentSession : ContentSessionBase
         _contentCopierAdapter = new DistributedContentCopierAdapter { WorkingFolder = _ephemeralHost.Configuration.Workspace };
     }
 
-    protected override Task<PinResult> PinCoreAsync(OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
+    protected override async Task<PinResult> PinCoreAsync(OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
     {
-        // Pins are sent directly to the persistent store because the local store is expected to be too small to hold
-        // the entire content of the build.
-        return _persistent.PinAsync(context, contentHash, context.Token, urgencyHint);
-    }
+        var elision = await CheckPersistentExistanceAsync(context, contentHash, localOnly: false);
+        if (elision.Allow)
+        {
+            return new PinResult(contentSize: elision.Size, lastAccessTime: elision.LatestPersistentTouchTime, code: PinResult.ResultCode.Success);
+        }
 
-    protected override Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
-    {
         // Pins are sent directly to the persistent store because the local store is expected to be too small to hold
         // the entire content of the build.
-        return _persistent.PinAsync(context, contentHashes, context.Token, urgencyHint);
-    }
-
-    public override Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration configuration)
-    {
-        // Pins are sent directly to the persistent store because the local store is expected to be too small to hold
-        // the entire content of the build.
-        return _persistent.PinAsync(context, contentHashes, configuration);
+        return await _persistent.PinAsync(context, contentHash, context.Token, urgencyHint);
     }
 
     protected override async Task<OpenStreamResult> OpenStreamCoreAsync(OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
@@ -357,10 +348,10 @@ public class EphemeralContentSession : ContentSessionBase
             return local;
         }
 
-        var putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
-        if (putElisionResult.Allow)
+        var elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
+        if (elision.Allow)
         {
-            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
         // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
@@ -368,17 +359,17 @@ public class EphemeralContentSession : ContentSessionBase
         using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
         if (!guard.WaitFree)
         {
-            putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
-            if (putElisionResult.Allow)
+            elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
+            if (elision.Allow)
             {
-                return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+                return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
             }
         }
 
-        putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: false);
-        if (putElisionResult.Allow)
+        elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: false);
+        if (elision.Allow)
         {
-            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
         return await _persistent.PutFileAsync(context, hashType, path, realizationMode, context.Token, urgencyHint);
@@ -395,10 +386,10 @@ public class EphemeralContentSession : ContentSessionBase
         // We can't move into the persistent store. No one should be doing this anyways, so it's fine to assert that.
         Contract.Requires(realizationMode != FileRealizationMode.Move, $"{nameof(EphemeralContentSession)} doesn't support {nameof(PutFileCoreAsync)} with {nameof(FileRealizationMode)} = {FileRealizationMode.Move}");
 
-        var putElisionResult = await AllowPersistentPutElisionAsync(context, contentHash, localOnly: true);
-        if (putElisionResult.Allow)
+        var elision = await CheckPersistentExistanceAsync(context, contentHash, localOnly: true);
+        if (elision.Allow)
         {
-            return new PutResult(contentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            return new PutResult(contentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
         var local = await _local.PutFileAsync(context, contentHash, path, realizationMode, context.Token, urgencyHint);
@@ -412,17 +403,17 @@ public class EphemeralContentSession : ContentSessionBase
         using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
         if (!guard.WaitFree)
         {
-            putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
-            if (putElisionResult.Allow)
+            elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
+            if (elision.Allow)
             {
-                return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+                return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
             }
         }
 
-        putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: false);
-        if (putElisionResult.Allow)
+        elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: false);
+        if (elision.Allow)
         {
-            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
         return await _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
@@ -439,10 +430,10 @@ public class EphemeralContentSession : ContentSessionBase
             return local;
         }
 
-        var putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
-        if (putElisionResult.Allow)
+        var elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
+        if (elision.Allow)
         {
-            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
         // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
@@ -450,17 +441,17 @@ public class EphemeralContentSession : ContentSessionBase
         using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
         if (!guard.WaitFree)
         {
-            putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
-            if (putElisionResult.Allow)
+            elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
+            if (elision.Allow)
             {
-                return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+                return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
             }
         }
 
-        putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: false);
-        if (putElisionResult.Allow)
+        elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: false);
+        if (elision.Allow)
         {
-            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
         stream.Position = position;
@@ -471,10 +462,10 @@ public class EphemeralContentSession : ContentSessionBase
     {
         Contract.Requires(stream.CanSeek, $"{nameof(EphemeralContentSession)} needs to be able to seek the incoming stream.");
 
-        var putElisionResult = await AllowPersistentPutElisionAsync(context, contentHash, localOnly: true);
-        if (putElisionResult.Allow)
+        var elision = await CheckPersistentExistanceAsync(context, contentHash, localOnly: true);
+        if (elision.Allow)
         {
-            return new PutResult(contentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            return new PutResult(contentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
         var position = stream.Position;
@@ -489,17 +480,17 @@ public class EphemeralContentSession : ContentSessionBase
         using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
         if (!guard.WaitFree)
         {
-            putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: true);
-            if (putElisionResult.Allow)
+            elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
+            if (elision.Allow)
             {
-                return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+                return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
             }
         }
 
-        putElisionResult = await AllowPersistentPutElisionAsync(context, local.ContentHash, localOnly: false);
-        if (putElisionResult.Allow)
+        elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: false);
+        if (elision.Allow)
         {
-            return new PutResult(local.ContentHash, putElisionResult.Size, contentAlreadyExistsInCache: true);
+            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
         stream.Position = position;
@@ -537,14 +528,18 @@ public class EphemeralContentSession : ContentSessionBase
         return false;
     }
 
-    private readonly record struct PutElisionResult(bool Allow, long Size);
+    private readonly record struct ElisionResult(bool Allow, long Size, DateTime? LatestPersistentTouchTime);
 
-    private async Task<PutElisionResult> AllowPersistentPutElisionAsync(OperationContext context, ShortHash contentHash, bool localOnly = false)
+    /// <summary>
+    /// This checks for file existence in the persistent cache. This method is used to decide whether we can avoid
+    /// contacting the persistent cache (i.e., save API calls).
+    /// </summary>
+    /// <param name="localOnly">
+    /// Setting this to true means only the local content tracker will be checked. When false, the distributed content
+    /// tracker will also be looked at, which involves a gRPC call to one or more hosts.
+    /// </param>
+    private async Task<ElisionResult> CheckPersistentExistanceAsync(OperationContext context, ShortHash contentHash, bool localOnly)
     {
-        // This checks for file existence elsewhere in the cluster. The reason for this is that this can and does race
-        // with all local PutFile for whether the event about the existence of the content gets processed before we
-        // query or not.
-
         // TODO: add timeout here.
         return (await context.PerformOperationAsync(
             Tracer,
@@ -552,23 +547,23 @@ public class EphemeralContentSession : ContentSessionBase
             {
                 var now = _ephemeralHost.Clock.UtcNow;
                 var local = await _ephemeralHost.LocalContentTracker.GetSingleLocationAsync(context, contentHash).ThrowIfFailureAsync();
-                if (shouldElide(local, now))
+                if (shouldElide(local, now, out var latestPersistentTouchTime))
                 {
-                    return Result.Success(new PutElisionResult(Allow: true, Size: local.Size));
+                    return Result.Success(new ElisionResult(Allow: true, Size: local.Size, LatestPersistentTouchTime: latestPersistentTouchTime));
                 }
 
                 if (localOnly)
                 {
-                    return Result.Success(new PutElisionResult(Allow: false, Size: -1));
+                    return Result.Success(new ElisionResult(Allow: false, Size: -1, LatestPersistentTouchTime: null));
                 }
 
                 var remote = await _ephemeralHost.ContentResolver.GetSingleLocationAsync(context, contentHash).ThrowIfFailureAsync();
-                if (shouldElide(remote, now))
+                if (shouldElide(remote, now, out latestPersistentTouchTime))
                 {
-                    return Result.Success(new PutElisionResult(Allow: true, Size: remote.Size));
+                    return Result.Success(new ElisionResult(Allow: true, Size: remote.Size, LatestPersistentTouchTime: latestPersistentTouchTime));
                 }
 
-                return Result.Success(new PutElisionResult(Allow: false, Size: -1));
+                return Result.Success(new ElisionResult(Allow: false, Size: -1, LatestPersistentTouchTime: null));
             },
             traceOperationStarted: false,
             traceErrorsOnly: true,
@@ -579,12 +574,11 @@ public class EphemeralContentSession : ContentSessionBase
                                      return $"ContentHash=[{contentHash}] LocalOnly=[{localOnly}] Allow=[{result.Value.Allow}] Size=[{result.Value.Size}]";
                                  }
                                  return $"ContentHash=[{contentHash}] LocalOnly=[{localOnly}] Allow=[false] Size=[-1]";
-                             })).GetValueOrDefault(defaultValue: new PutElisionResult(Allow: false, Size: -1));
+                             })).GetValueOrDefault(defaultValue: new ElisionResult(Allow: false, Size: -1, LatestPersistentTouchTime: null));
 
-        bool shouldElide(ContentEntry contentEntry, DateTime nowUtc)
+        bool shouldElide(ContentEntry contentEntry, DateTime nowUtc, out DateTime? latestPersistentTouchTime)
         {
-            DateTime latestPersistentRecord = DateTime.MinValue;
-            var replicas = 0;
+            latestPersistentTouchTime = null;
             foreach (var operation in contentEntry.Operations)
             {
                 if (operation.ChangeStamp.Operation != ChangeStampOperation.Add)
@@ -612,26 +606,20 @@ public class EphemeralContentSession : ContentSessionBase
 
                 if (record.Persistent)
                 {
-                    latestPersistentRecord = latestPersistentRecord.Max(operation.ChangeStamp.TimestampUtc);
+                    latestPersistentTouchTime = operation.ChangeStamp.TimestampUtc.Max(latestPersistentTouchTime ?? DateTime.MinValue);
                     continue;
                 }
-
-                // The call to add the content isn't racing with the current one
-                if ((operation.ChangeStamp.TimestampUtc - nowUtc).Duration() < _ephemeralHost.Configuration.PutElisionRaceTimeout)
-                {
-                    replicas++;
-                }
             }
 
-            bool elideFromPersistentRecord = false;
-            if (latestPersistentRecord > DateTime.MinValue)
+            if (latestPersistentTouchTime is not null)
             {
-                var delta = nowUtc - latestPersistentRecord;
-                elideFromPersistentRecord = delta > TimeSpan.Zero && delta <= _ephemeralHost.Configuration.PutElisionMaximumStaleness;
+                // We allow non-positive values (i.e., nowUtc <= latestPersistentTouchTime) because the clock on the
+                // machine may be behind w.r.t. others, or the requests may race with eachother at different timestamps
+                // even within the same machine.
+                return nowUtc - latestPersistentTouchTime <= _ephemeralHost.Configuration.PersistentElisionMaximumStaleness;
             }
 
-            bool elideFromReplicas = replicas >= _ephemeralHost.Configuration.PutElisionMinimumReplication;
-            return elideFromPersistentRecord || elideFromReplicas;
+            return false;
         }
     }
 

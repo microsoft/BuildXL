@@ -352,14 +352,7 @@ public class EphemeralContentSession : ContentSessionBase
         Contract.Requires(realizationMode != FileRealizationMode.Move, $"{nameof(EphemeralContentSession)} doesn't support {nameof(PutFileCoreAsync)} with {nameof(FileRealizationMode)} = {FileRealizationMode.Move}");
 
         var local = await _local.PutFileAsync(context, hashType, path, realizationMode, context.Token, urgencyHint);
-        if (local.Succeeded && local.ContentAlreadyExistsInCache)
-        {
-            // If content already exists locally, then it means that it must have been placed there by a previous call
-            // to PutFileAsync. Because the cache gets reset in every build, the content would have been uploaded by
-            // the previous call, and so we don't need to do it ourselves here.
-            return local;
-        }
-        else if (IsUnrecoverablePutFailure(local))
+        if (IsUnrecoverablePutFailure(local))
         {
             return local;
         }
@@ -409,14 +402,7 @@ public class EphemeralContentSession : ContentSessionBase
         }
 
         var local = await _local.PutFileAsync(context, contentHash, path, realizationMode, context.Token, urgencyHint);
-        if (local.Succeeded && local.ContentAlreadyExistsInCache)
-        {
-            // If content already exists locally, then it means that it must have been placed there by a previous call
-            // to PutFileAsync. Because the cache gets reset in every build, the content would have been uploaded by
-            // the previous call, and so we don't need to do it ourselves here.
-            return local;
-        }
-        else if (IsUnrecoverablePutFailure(local))
+        if (IsUnrecoverablePutFailure(local))
         {
             return local;
         }
@@ -448,14 +434,7 @@ public class EphemeralContentSession : ContentSessionBase
 
         var position = stream.Position;
         var local = await _local.PutStreamAsync(context, hashType, stream, context.Token, urgencyHint);
-        if (local.Succeeded && local.ContentAlreadyExistsInCache)
-        {
-            // If content already exists locally, then it means that it must have been placed there by a previous call
-            // to PutFileAsync. Because the cache gets reset in every build, the content would have been uploaded by
-            // the previous call, and so we don't need to do it ourselves here.
-            return local;
-        }
-        else if (IsUnrecoverablePutFailure(local))
+        if (IsUnrecoverablePutFailure(local))
         {
             return local;
         }
@@ -500,11 +479,7 @@ public class EphemeralContentSession : ContentSessionBase
 
         var position = stream.Position;
         var local = await _local.PutStreamAsync(context, contentHash, stream, context.Token, urgencyHint);
-        if (local.Succeeded && local.ContentAlreadyExistsInCache)
-        {
-            return local;
-        }
-        else if (IsUnrecoverablePutFailure(local))
+        if (IsUnrecoverablePutFailure(local))
         {
             return local;
         }

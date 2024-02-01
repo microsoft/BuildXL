@@ -44,10 +44,10 @@ export function getSystemMemoryPackages(includeNetStandard: boolean) : (Managed.
 export function getSystemMemoryPackagesWithoutNetStandard() : Managed.ManagedNugetPackage[] {
     return [
         ...(isDotNetCore ? [] : [
-            importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("System.Buffers").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Memory").pkg,
+            importFrom("System.Buffers").pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+            importFrom("System.Numerics.Vectors").pkg,
         ]
         ),
     ];

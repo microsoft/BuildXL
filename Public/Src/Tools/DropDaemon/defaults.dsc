@@ -26,11 +26,6 @@ export function dropDaemonBindingRedirects() {
 } 
 
 @@public
-export function dropDaemonRuntimeContentToSkip() {
-    return BuildXLSdk.isDropToolingEnabled ? DropDaemon.dropDaemonRuntimeContentToSkip() : undefined;
-} 
-
-@@public
 export function dropDaemonSbomPackages() {
     return BuildXLSdk.isDropToolingEnabled ? DropDaemon.dropDaemonSbomPackages() : undefined;
 } 

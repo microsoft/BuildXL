@@ -101,6 +101,18 @@ export interface Net7Qualifier extends Qualifier {
 }
 
 /**
+ * Having a net7 specific qualifier (without net 6) for some specific tests that only
+ * work in net 7.
+ * TODO: This should be consolidated with DefaultQualifier when we stop compiling for net6
+ */
+@@public
+export interface Net7QualifierWithNet472 extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net7.0" | "net472";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+}
+
+/**
  * LatestFullFrameworkQualifier, used to pin tool execution to a specific .NET Framework version
  */
 @@public

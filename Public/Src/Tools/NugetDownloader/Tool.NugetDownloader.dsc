@@ -43,15 +43,13 @@ namespace NugetDownloader {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
-            importFrom("NuGet.Versioning").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Protocol").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Configuration").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Common").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Frameworks").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Packaging").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        ],
-        runtimeContentToSkip:[
-            importFrom("Newtonsoft.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("NuGet.Versioning").pkg,
+            importFrom("NuGet.Protocol").pkg,
+            importFrom("NuGet.Configuration").pkg,
+            importFrom("NuGet.Common").pkg,
+            importFrom("NuGet.Frameworks").pkg,
+            importFrom("NuGet.Packaging").pkg,
+            importFrom("System.Security.Cryptography.Pkcs").pkg
         ],
         runtimeContent: [
             f`App.config`,

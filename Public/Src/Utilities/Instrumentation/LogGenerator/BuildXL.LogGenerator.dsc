@@ -19,7 +19,7 @@ namespace LogGenerator {
 
             importFrom("Microsoft.CodeAnalysis.Common.ForVBCS").pkg,
             importFrom("Microsoft.CodeAnalysis.CSharp.ForVBCS").pkg,
-            importFrom("System.Collections.Immutable.ForVBCS").pkg,
+            importFrom("System.Collections.Immutable").pkg,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,
         ],
         analyzers: [importFrom("Microsoft.CodeAnalysis.Analyzers").pkg]

@@ -150,13 +150,12 @@ config({
                 { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
                 { id: "Newtonsoft.Json", version: "13.0.1" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
-                { id: "System.Reflection.Metadata", version: "1.6.0" },
-                { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS", dependentPackageIdsToSkip: ["System.Collections.Immutable"] },
-                { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
+                { id: "System.Reflection.Metadata", version: "7.0.0" },
+                { id: "System.Threading.Tasks.Dataflow", version: "7.0.0" },
 
                 // Nuget
-                { id: "NuGet.Packaging", version: "5.11.5", dependentPackageIdsToSkip: ["System.Security.Cryptography.ProtectedData", "System.Security.Cryptography.Pkcs"] },
-                { id: "NuGet.Configuration", version: "5.11.5", dependentPackageIdsToSkip: ["System.Security.Cryptography.ProtectedData"] },
+                { id: "NuGet.Packaging", version: "5.11.5" },
+                { id: "NuGet.Configuration", version: "5.11.5" },
                 { id: "NuGet.Common", version: "5.11.5" },
                 { id: "NuGet.Protocol", version: "5.11.5" },
                 { id: "NuGet.Versioning", version: "5.11.5" }, 
@@ -246,7 +245,7 @@ config({
                 { id: "DeduplicationSigned", version: "1.0.14" },
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "6.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "7.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0",
@@ -264,8 +263,9 @@ config({
                 { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20230614-171424" },
 
                 // Testing
-                { id: "System.Security.Cryptography.ProtectedData", version: "5.0.0"},
-                { id: "System.Configuration.ConfigurationManager", version: "4.4.0"},
+                { id: "System.Security.Cryptography.ProtectedData", version: "7.0.0"},
+                { id: "System.Configuration.ConfigurationManager", version: "7.0.0"},
+                { id: "System.Diagnostics.EventLog", version: "7.0.0" },
                 { id: "FluentAssertions", version: "5.3.0",
                     dependentPackageIdsToSkip: ["System.Reflection.Emit", "System.Reflection.Emit.Lightweight"] },
 
@@ -278,9 +278,12 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
                 { id: "System.Security.Cryptography.Xml", version: "4.7.1" },
-                { id: "System.Text.Encodings.Web", version: "4.7.2" },
-                { id: "System.Security.Permissions", version: "4.5.0" },
-                { id: "System.Security.Cryptography.Pkcs", version: "4.5.0" },
+                { id: "System.Text.Encodings.Web", version: "7.0.0" },
+                { id: "System.Security.Permissions", version: "7.0.0" },
+                { id: "System.Windows.Extensions", version: "7.0.0" },
+                { id: "System.Drawing.Common", version: "7.0.0" },
+                { id: "Microsoft.Win32.SystemEvents", version: "7.0.0" },
+                { id: "System.Security.Cryptography.Pkcs", version: "7.0.2" },
 
                 { id: "ILRepack", version: "2.0.16" },
 
@@ -297,37 +300,32 @@ config({
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.170.0"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build", version: "17.0.0",
-                    dependentPackageIdsToSkip: ["System.Reflection.Metadata", "System.Memory", "System.Text.Json", "System.Collections.Immutable"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
+                { id: "Microsoft.Build", version: "17.7.2",
+                    dependentPackageIdsToSkip: ["System.Reflection.Metadata", "System.Text.Json", "System.Collections.Immutable"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
                 },
-                { id: "Microsoft.Build.Runtime", version: "17.0.0",
-                    dependentPackageIdsToSkip: ["System.Memory"],
-                },
-                { id: "Microsoft.Build.Tasks.Core", version: "17.0.0",
-                    dependentPackageIdsToSkip: ["System.Memory", "System.Collections.Immutable"],
-                },
+                { id: "Microsoft.Build.Runtime", version: "17.7.2" },
+                { id: "Microsoft.Build.Tasks.Core", version: "17.7.2" },
                 { id: "Microsoft.Build.Utilities.Core", version: "17.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json", "System.Collections.Immutable"]},
-                { id: "Microsoft.Build.Framework", version: "17.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json"]},
+                { id: "Microsoft.Build.Framework", version: "17.7.2", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json"]},
                 { id: "Microsoft.NET.StringTools", version: "1.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json"]},
                 { id: "Microsoft.Build.Locator", version: "1.5.5" },
+                { id: "System.Reflection.MetadataLoadContext", version: "7.0.0"},    
 
                 { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4",
                     dependentPackageIdsToSkip: ["System.Memory"]},
 
                 // Buffers and Memory
                 { id: "System.Buffers", version: "4.5.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
-                { id: "System.Memory", version: "4.5.5", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.Memory", version: "4.5.4", alias: "System.MemoryForVBCS", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
-                { id: "System.Runtime.CompilerServices.Unsafe", version: "5.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
+                { id: "System.Memory", version: "4.5.5" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
+                { id: "System.Runtime.CompilerServices.Unsafe", version: "6.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.IO.Pipelines", version: "7.0.0-rc.1.22426.10", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work
-                { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
+                { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "3.2.2146"},
                 { id: "System.CodeDom", version: "4.4.0"},
                 { id: "System.Text.Encoding.CodePages", version: "4.5.1",
                     dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
-                { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },
@@ -358,7 +356,6 @@ config({
 
                 // Needed for SBOM Generation
                 { id: "Microsoft.Extensions.Logging.Abstractions", version: "7.0.0", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"] },
-                { id: "System.Text.Encodings.Web", version: "7.0.0", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"], alias: "System.Text.Encodings.Web.v7.0.0" },
                 { id: "packageurl-dotnet", version: "1.1.0" },
                 { id: "System.Reactive", version: "4.4.1" },
 

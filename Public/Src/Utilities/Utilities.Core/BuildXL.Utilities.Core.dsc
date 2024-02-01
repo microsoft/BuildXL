@@ -19,7 +19,7 @@ namespace Utilities.Core {
                 NetFx.System.Xml.dll,
                 NetFx.Netstandard.dll,
                 importFrom("System.Threading.Channels").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+                importFrom("System.Memory").pkg,
                 importFrom("System.Threading.Tasks.Extensions").pkg,
             ]),
         ],

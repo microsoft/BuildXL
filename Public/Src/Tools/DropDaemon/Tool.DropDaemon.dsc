@@ -54,8 +54,8 @@ export namespace DropDaemon {
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",
         ],
+        // TODO: The SBOM package expects a netcore 7 JSON package, even for netcore 6. Remove when we stop supporting net6
         deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Text.Encodings.Web.dll`, a`System.Text.Json.dll`] },
-        runtimeContentToSkip: dropDaemonRuntimeContentToSkip()
     });
 
     const temporarySdkDropNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/bin`;
@@ -149,14 +149,6 @@ export namespace DropDaemon {
     }
 
     @@public
-    export function dropDaemonRuntimeContentToSkip() {
-        return [
-            importFrom("System.Text.Json").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-            importFrom("System.Text.Encodings.Web").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-        ];
-    }
-
-    @@public
     export function dropDaemonSbomPackages() {
         // Any package needed for SBOM generation should
         // be specified here, as the test module uses this function
@@ -170,9 +162,9 @@ export namespace DropDaemon {
             importFrom("Microsoft.ComponentDetection.Contracts").pkg,
             importFrom("Microsoft.Sbom.Adapters").pkg,
             importFrom("packageurl-dotnet").pkg,
-            importFrom("System.Text.Json.v7.0.0").pkg,
+            importFrom("System.Text.Json").pkg,
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("System.Text.Encodings.Web.v7.0.0").pkg,
+            importFrom("System.Text.Encodings.Web").pkg,
         ];
     }
 

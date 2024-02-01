@@ -17,7 +17,7 @@ export const NetFx = BuildXLSdk.NetFx;
 @@public
 export function getSerializationPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
-        importFrom("System.Memory.Data").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Memory.Data").pkg,
         ...getSystemTextJson(includeNetStandard),
         ...getSerializationPackagesWithoutNetStandard()
     ];
@@ -27,13 +27,13 @@ export function getSerializationPackages(includeNetStandard: boolean) : (Managed
 export function getSerializationPackagesWithoutNetStandard() : (Managed.ManagedNugetPackage)[] {
     return [
         ...(BuildXLSdk.isFullFramework ? [
-            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
         ] : []),
         ...(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ? [
-            importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Memory").pkg,
         ] : []),
-        importFrom("System.Text.Encodings.Web").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Text.Encodings.Web").pkg,
+        importFrom("System.Numerics.Vectors").pkg,
     ];
 }
 
@@ -53,20 +53,15 @@ export function getSystemTextJsonWithoutNetStandard() : Managed.ManagedNugetPack
     return [
         ...addIf(
             !BuildXLSdk.isDotNetCore,
-            importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg),
+            importFrom("System.Text.Json").pkg),
     ];
 }
 
 @@public
 export function getProtobufPackages() : Managed.ManagedNugetPackage[] {
     return [
-       BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ?
-            importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg 
-            : importFrom("System.Memory").pkg,
-        BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ?
-            importFrom("System.Buffers").withQualifier({ targetFramework: "netstandard2.0" }).pkg 
-            : importFrom("System.Buffers").pkg,
-
+        importFrom("System.Buffers").pkg,
+        importFrom("System.Memory").pkg,
         importFrom("Google.Protobuf").pkg, 
     ];
 }
@@ -118,11 +113,14 @@ export function getGrpcAspNetCorePackages() : (Managed.ManagedNugetPackage | Man
                   importFrom("Grpc.AspNetCore.Server.ClientFactory").pkg,
                   importFrom("Grpc.AspNetCore.Server").pkg,
                   
-                  BuildXLSdk.withWinRuntime(importFrom("System.Security.Cryptography.ProtectedData").pkg, r`runtimes/win/lib/netstandard2.0`),
-                  
+                  importFrom("System.Security.Cryptography.ProtectedData").pkg,
+
                   // AspNetCore assemblies
                   Managed.Factory.filterRuntimeSpecificBinaries(BuildXLSdk.WebFramework.getFrameworkPackage(), [
-                    importFrom("System.IO.Pipelines").pkg
+                    importFrom("System.IO.Pipelines").pkg,
+                    importFrom("System.Diagnostics.EventLog").pkg,
+                    importFrom("System.Security.Cryptography.Pkcs").pkg,
+                    importFrom("System.Security.Cryptography.Xml").pkg,
                   ])
         ])
     ];

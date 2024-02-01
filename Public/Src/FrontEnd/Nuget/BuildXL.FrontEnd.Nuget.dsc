@@ -22,7 +22,7 @@ namespace Nuget {
                 NetFx.System.Net.Http.dll
             ),
             ...addIf(BuildXLSdk.isFullFramework,
-                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg
+                importFrom("System.Memory").pkg
             ),
 
             Sdk.dll,
@@ -45,12 +45,12 @@ namespace Nuget {
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
 
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("NuGet.Versioning").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Protocol").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Configuration").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Common").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Frameworks").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("NuGet.Packaging").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("NuGet.Versioning").pkg,
+            importFrom("NuGet.Protocol").pkg,
+            importFrom("NuGet.Configuration").pkg,
+            importFrom("NuGet.Common").pkg,
+            importFrom("NuGet.Frameworks").pkg,
+            importFrom("NuGet.Packaging").pkg,
 
             ...BuildXLSdk.tplPackages,
         ],

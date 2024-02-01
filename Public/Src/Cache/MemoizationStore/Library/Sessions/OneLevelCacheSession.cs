@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Sessions;
 
@@ -25,7 +26,7 @@ using BuildXL.Cache.MemoizationStore.Sessions;
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
     /// <nodoc />
-    public class OneLevelCacheSession : ICacheSessionWithLevelSelectors, IHibernateCacheSession
+    public class OneLevelCacheSession : ICacheSessionWithLevelSelectors, IHibernateCacheSession, ITrustedContentSession
     {
         /// <summary>
         ///     Auto-pinning behavior configuration.
@@ -484,6 +485,28 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             UrgencyHint urgencyHint)
         {
             return ContentSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint);
+        }
+
+        /// <inheritdoc />
+        public Task<PutResult> PutTrustedFileAsync(Context context, ContentHashWithSize contentHashWithSize, AbsolutePath path, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint)
+        {
+            if (ContentSession is ITrustedContentSession session)
+            {
+                return session.PutTrustedFileAsync(context, contentHashWithSize, path, realizationMode, cts, urgencyHint);
+            }
+
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public AbsolutePath? TryGetWorkingDirectory(AbsolutePath? pathHint)
+        {
+            if (ContentSession is ITrustedContentSession session)
+            {
+                return session.TryGetWorkingDirectory(pathHint);
+            }
+
+            throw new NotImplementedException();
         }
     }
 }

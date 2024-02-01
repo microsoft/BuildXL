@@ -30,8 +30,8 @@ public class EphemeralContentSession : ContentSessionBase
 {
     protected override Tracer Tracer { get; } = new(nameof(EphemeralContentSession));
 
-    private readonly IContentSession _local;
-    private readonly IContentSession _persistent;
+    private readonly ITrustedContentSession _local;
+    private readonly ITrustedContentSession _persistent;
 
     private readonly EphemeralHost _ephemeralHost;
     private readonly IDistributedContentCopierHost2 _contentCopierAdapter;
@@ -55,11 +55,7 @@ public class EphemeralContentSession : ContentSessionBase
         }
     }
 
-    // TODO: when we confirm existence (or lack of) of content in the persistent session, it'd be ideal to add that
-    // fact to the ephemeral cache as a "permanent fact". This would allow us to avoid the existence check in the
-    // future.
-
-    public EphemeralContentSession(string name, IContentSession local, IContentSession persistent, EphemeralHost ephemeralHost)
+    public EphemeralContentSession(string name, ITrustedContentSession local, ITrustedContentSession persistent, EphemeralHost ephemeralHost)
         : base(name, counterTracker: null)
     {
         _local = local;
@@ -112,9 +108,6 @@ public class EphemeralContentSession : ContentSessionBase
             }
         }
 
-        var session = _local as ITrustedContentSession;
-        Contract.AssertNotNull(session, "The local content session was expected to be a trusted session, but failed to cast.");
-
         var tempLocation = AbsolutePath.CreateRandomFileName(_ephemeralHost.Configuration.Workspace);
         var persistent = await _persistent.PlaceFileAsync(
             context,
@@ -126,7 +119,7 @@ public class EphemeralContentSession : ContentSessionBase
             context.Token,
             urgencyHint).ThrowIfFailureAsync();
 
-        await session.PutTrustedFileAsync(
+        await _local.PutTrustedFileAsync(
             context,
             new ContentHashWithSize(contentHash, persistent.FileSize),
             tempLocation,
@@ -224,7 +217,8 @@ public class EphemeralContentSession : ContentSessionBase
                 FileRealizationMode.CopyNoVerify => FileRealizationMode.Copy,
                 _ => throw new ArgumentOutOfRangeException(nameof(realizationMode), realizationMode, null)
             };
-            await _local.PutFileAsync(context, contentHash, path, putRealizationMode, context.Token, urgencyHint).IgnoreFailure();
+
+            await _local.PutTrustedFileAsync(context, new ContentHashWithSize(contentHash, persistent.FileSize), path, putRealizationMode, context.Token, urgencyHint).IgnoreFailure();
         }
 
         return persistent.WithMaterializationSource(PlaceFileResult.Source.BackingStore);
@@ -300,9 +294,7 @@ public class EphemeralContentSession : ContentSessionBase
                                 copyInfo =>
                                 {
                                     var (copyResult, tempLocation, attemptCount) = copyInfo;
-                                    var local = _local as ITrustedContentSession;
-                                    Contract.AssertNotNull(local, "The local content session was expected to be a trusted session, but failed to cast.");
-                                    return local.PutTrustedFileAsync(context, new ContentHashWithSize(contentHash, contentEntry.Size), tempLocation, FileRealizationMode.Move, context.Token, urgencyHint);
+                                    return _local.PutTrustedFileAsync(context, new ContentHashWithSize(contentHash, contentEntry.Size), tempLocation, FileRealizationMode.Move, context.Token, urgencyHint);
                                 },
                                 CopyCompression.None,
                                 null,
@@ -372,7 +364,17 @@ public class EphemeralContentSession : ContentSessionBase
             return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
-        return await _persistent.PutFileAsync(context, hashType, path, realizationMode, context.Token, urgencyHint);
+
+        if (local.Succeeded)
+        {
+            // If the insertion into the local cache succeeded, we know the true hash of the file matches what the
+            // caller provided. We can use this to avoid a rehashing in the persistent cache.
+            return await _persistent.PutTrustedFileAsync(context, new ContentHashWithSize(local.ContentHash, local.ContentSize), path, realizationMode, context.Token, urgencyHint);
+        }
+        else
+        {
+            return await _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
+        }
     }
 
     protected override async Task<PutResult> PutFileCoreAsync(
@@ -416,7 +418,16 @@ public class EphemeralContentSession : ContentSessionBase
             return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
         }
 
-        return await _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
+        if (local.Succeeded)
+        {
+            // If the insertion into the local cache succeeded, we know the true hash of the file matches what the
+            // caller provided. We can use this to avoid a rehashing in the persistent cache.
+            return await _persistent.PutTrustedFileAsync(context, new ContentHashWithSize(contentHash, local.ContentSize), path, realizationMode, context.Token, urgencyHint);
+        }
+        else
+        {
+            return await _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
+        }
     }
 
     protected override async Task<PutResult> PutStreamCoreAsync(OperationContext context, HashType hashType, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)

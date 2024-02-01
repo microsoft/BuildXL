@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
@@ -14,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -194,9 +196,11 @@ public class EphemeralContentStore : StartupShutdownComponentBase, IContentStore
     {
         // We never enable implicit pinning for the local cache, because the local cache is expected to be ephemeral
         // and very small.
-        var localResult = _local.CreateSession(context, $"EphemeralCache({name}/Local)", ImplicitPin.None).ThrowIfFailure();
-        var remoteResult = _persistent.CreateSession(context, $"EphemeralCache({name}/Persistent)", implicitPin).ThrowIfFailure();
-        return new CreateSessionResult<IContentSession>(new EphemeralContentSession($"EphemeralCache({name}/Datacenter)", localResult.Session!, remoteResult.Session!, _ephemeralHost));
+        var localResult = _local.CreateSession(context, $"EphemeralCache({name}/Local)", ImplicitPin.None).ThrowIfFailure().Session as ITrustedContentSession;
+        Contract.AssertNotNull(localResult, $"{nameof(localResult)} is supposed to implement {nameof(ITrustedContentSession)}");
+        var remoteResult = _persistent.CreateSession(context, $"EphemeralCache({name}/Persistent)", implicitPin).ThrowIfFailure().Session as ITrustedContentSession;
+        Contract.AssertNotNull(remoteResult, $"{nameof(remoteResult)} is supposed to implement {nameof(ITrustedContentSession)}");
+        return new CreateSessionResult<IContentSession>(new EphemeralContentSession($"EphemeralCache({name}/Datacenter)", localResult, remoteResult, _ephemeralHost));
     }
 
     public async Task<GetStatsResult> GetStatsAsync(Context context)

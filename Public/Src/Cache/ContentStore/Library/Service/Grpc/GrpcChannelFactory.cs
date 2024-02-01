@@ -65,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             EnableMultipleHttp2Connections = true,
 
             AutomaticDecompression = DecompressionMethods.All,
-            MaxConnectionsPerServer = 5,
+            MaxConnectionsPerServer = 100,
 
             PooledConnectionLifetime = TimeSpan.FromMinutes(10),
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),

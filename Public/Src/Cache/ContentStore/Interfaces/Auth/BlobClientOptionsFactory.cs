@@ -29,7 +29,7 @@ internal static class BlobClientOptionsFactory
         // Performance testing has been done with the below value and we have determined it basically doesn't matter
         // what this value is. The intent behind setting it low is to avoid too many outbound connections being
         // created.
-        var maxConnectionsPerServer = 5;
+        var maxConnectionsPerServer = 100;
 #if NETCOREAPP2_1_OR_GREATER
         // See: https://learn.microsoft.com/en-us/dotnet/api/system.net.http.socketshttphandler?view=net-7.0
         var handler = new SocketsHttpHandler()

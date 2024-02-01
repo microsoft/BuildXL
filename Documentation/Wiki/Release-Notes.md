@@ -2,6 +2,18 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240126.13.1 (Release [359923](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=359923))
+- Add active TCP connections statistics to status.csv.
+- Enable uploading cache logs to Kusto.
+- Interpose __xmknod/__xmknodat in Linux Sandbox.
+- Environment variable values are case sensitive when computing cache fingerprints.
+- Include current fingerprint salt when calculating static fingerprint during graph construction from graph fragments.
+- Fixes to VS solution generation in Linux.
+- Fixes path canonicalization for near-root paths.
+- Add ETW trace logging to Windows Detours sandbox.
+- Use ADO environment variables to infer cache miss analysis keys based on branches related to the build.
+- Log files accesses that happen before Linux sandbox initialization is complete.
+
 # 0.1.0-20240121.1.1 (Release [358162](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=358162))
 - Add args to override csc debugType option
 - Address Detours message mismatch failures

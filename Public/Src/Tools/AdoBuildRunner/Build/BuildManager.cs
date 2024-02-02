@@ -81,16 +81,13 @@ namespace BuildXL.AdoBuildRunner.Build
             return returnCode;
         }
 
+        /// <summary>
+        /// Log the exit code as an error on the ADO console if it's non-zero, as informational otherwise
+        /// </summary>
         private void LogExitCode(int returnCode)
         {
-            if (returnCode != 0)
-            {
-                m_logger.Error(($"ExitCode: {returnCode}"));
-            }
-            else
-            {
-                m_logger.Info($"ExitCode: {returnCode}");
-            }
+            Action<string> logAction = returnCode != 0 ? m_logger.Error : m_logger.Info;
+            logAction.Invoke($"The BuildXL process completed with exit code {returnCode}");
         }
     }
 }

@@ -319,17 +319,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
             return null;
         }
 
-        /// <inheritdoc />
-        public Task QueueBuildAsync(int pipelineId, 
-            string sourceBranch, 
-            string sourceVersion, 
-            Dictionary<string, string>? parameters = null, 
-            Dictionary<string, string>? templateParameters = null,
-            Dictionary<string, string>? triggerInfo = null)
-        {
-            return m_http.QueuePipelineAsync(pipelineId, sourceBranch, sourceVersion, parameters, templateParameters, triggerInfo);
-        }
-
         [DoesNotReturn]
         private void LogAndThrow(string error)
         {

@@ -45,59 +45,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <summary>
-        /// Queue a build - see https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/queue?view=azure-devops-rest-7.1
-        /// The pipeline is assumed to be in the same project and organization that the one running this build
-        /// </summary>
-        /// <param name="pipelineId">The pipeline id to queue</param>
-        /// <param name="parameters">These correspond to variables that can be set at queue time</param>
-        /// <param name="templateParameters">These correspond to template parameters that can be set at queue time</param>
-        /// <param name="sourceBranch">Source branch for the triggered build</param>
-        /// <param name="sourceVersion">Source verson for the triggered build</param>
-        /// <param name="triggerInfo">Arbitrary key-value pairs that will be available in the triggered build data. Use this for payloads</param>
-        public async Task QueuePipelineAsync(int pipelineId, 
-            string sourceBranch, 
-            string sourceVersion, Dictionary<string, string>? parameters,
-            Dictionary<string, string>? templateParameters,
-            Dictionary<string, string>? triggerInfo)
-        {
-            const string Endpoint = $"build/builds";
-
-            var payload = new QueueBuildRequest
-            {
-                Definition = new QueueBuildDefinition() { Id = pipelineId },
-                Parameters = parameters == null ? null : System.Text.Json.JsonSerializer.Serialize(parameters),
-                TemplateParameters = templateParameters,
-                TriggerInfo = triggerInfo,
-                SourceBranch = sourceBranch,
-                SourceVersion = sourceVersion
-            };
-
-            try
-            {
-                var vstsUri = GetVstsCollectionUri();
-
-                var uri = $"{vstsUri}{GetProject()}/_apis/{Endpoint}?api-version=7.1-preview.7";
-                m_logger?.Info($"[QueuePipelineAsync] Queuing build: {Environment.NewLine}{Newtonsoft.Json.JsonConvert.SerializeObject(payload)}");
-
-                var res = await Client.PostAsJsonAsync(uri, payload);
-                if (!res.IsSuccessStatusCode)
-                {
-                    var responseStr = await res.Content.ReadAsStringAsync();
-                    throw new Exception($"QueuePipelineAsync failed: {responseStr}");
-                }
-                else
-                {
-                    var build = await res.Content.ReadFromJsonAsync<BuildData>(s_jsonSerializerOptions);
-                    m_logger?.Info($"[QueuePipelineAsync] Queued build: {build?.Links.Web.Href}");
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new CoordinationException(ex);
-            }
-        }
-
-        /// <summary>
         /// Extracts the trigger info from the build information. We use this to communicate information from
         /// the triggering orchestrator to the worker pipeline.
         /// https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/get?view=azure-devops-rest-7.1
@@ -126,7 +73,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 throw new CoordinationException(ex);
             }
         }
-
 
         private HttpClient GetClient()
         {

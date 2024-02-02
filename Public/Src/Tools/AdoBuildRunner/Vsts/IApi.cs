@@ -91,10 +91,5 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// </summary>
         /// <returns></returns>
         Task PublishBuildInfo(BuildContext buildContext, BuildInfo buildInfo);
-
-        /// <summary>
-        /// Queue a build
-        /// </summary>
-        Task QueueBuildAsync(int pipelineId, string sourceBranch, string sourceVersion, Dictionary<string, string>? parameters = null, Dictionary<string, string>? templateParameters = null, Dictionary<string, string>? triggerInfo = null);
     }
 }

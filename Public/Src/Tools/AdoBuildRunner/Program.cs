@@ -20,33 +20,13 @@ namespace BuildXL.AdoBuildRunner
     class Program
     {
         /// <summary>
-        /// The AdoBuildRunner supports two modes of operation (apart from a ping mode only used for debugging)
-        ///   
-        /// (1) launchworkers mode. This is used to trigger a distributed worker pipeline.
-        ///     This mode is chosen if the first argument to the program is exactly "launchworkers".
-        ///     It is important that this invocation is made from the same job that will run the build:
-        ///     this is both because we communicate the agent's IP address at this stage and also calculate
-        ///     the related session ID as a hash of job-specific values.
-        ///
-        ///     The command line should look like this:
-        ///         AdoBuildRunner.exe launchworkers 12345 [/param:key1=value1 /var:key2=value2 ...]
-        ///     Where:
-        ///         12345 is is the pipeline id that we are about to queue. This should always be the second argument.
-        ///         After that, a number of /param or /var options can be passed. A /param option specifies a
-        ///         template parameter, and a /var option a build variable, that we will send along with the build request.
-        ///         All of these parameters should be settable at queue time or the build trigger will fail
-        ///
-        /// (2) build mode. 
-        ///       If the first argument is neither "ping" or "launchworkers", the AdoBuildRunner will try to run 
-        ///       a BuildXL build. 
-        ///       To run a distributed build, the AdoBuildRunnerWorkerPipelineRole environment variable should
-        ///       be set to either "Orchestrator" or "Worker". An unset or different value will result in a single-machine build. 
+        ///  To run a distributed build, the AdoBuildRunnerWorkerPipelineRole environment variable should
+        ///  be set to either "Orchestrator" or "Worker". An unset or different value will result in a single-machine build. 
         ///      
-        ///       All of the arguments passed to the AdoBuildRunner will be used as arguments for the BuildXL invocation.
-        ///       For the orchestrator build, the /dynamicBuildWorkerSlots argument should be passed with the number of
-        ///       remote workers that this build expects. The rest of the arguments for distributed builds are chosen
-        ///       by the build runner (see <see cref="BuildExecutor"/>).
-        ///       
+        ///  All of the arguments passed to the AdoBuildRunner will be used as arguments for the BuildXL invocation.
+        ///  For the orchestrator build, the /dynamicBuildWorkerSlots argument should be passed with the number of
+        ///  remote workers that this build expects. The rest of the arguments for distributed builds are chosen
+        ///  by the build runner (see <see cref="BuildExecutor"/>).
         /// </summary>
         public static async Task<int> Main(string[] args)
         {
@@ -84,17 +64,6 @@ namespace BuildXL.AdoBuildRunner
                     executor = new PingExecutor(logger, api);
                     var buildManager = new BuildManager(api, executor, buildContext, args, logger);
                     return await buildManager.BuildAsync(isOrchestrator: Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerPipelineRole) == "Orchestrator");
-                }
-                else if (args[0] == "launchworkers")
-                {
-                    if (args.Length < 2 || !int.TryParse(args[1], out var pipelineId))
-                    {
-                        throw new CoordinationException("launchworkers mode's first argument must be an integer representing the worker pipeline id");
-                    }
-
-                    var wq = new WorkerQueuer(logger, api);
-                    await wq.QueueWorkerPipelineAsync(pipelineId, args.Skip(2).ToArray());
-                    return 0;
                 }
                 else
                 {

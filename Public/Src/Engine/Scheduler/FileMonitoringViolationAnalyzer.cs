@@ -673,7 +673,9 @@ namespace BuildXL.Scheduler
 
                         if (!printedProcessHeaderRow)
                         {
-                            builder.AppendLine($"Disallowed file accesses performed by: {processPath.ToString(pathTable)}");
+                            // We don't always have the path of the process that caused the file access violation: in those cases the best we can do
+                            // is report the root process for the pip. Print a message that conforms to both situations.
+                            builder.AppendLine($"Disallowed file accesses observed in process tree with root: {processPath.ToString(pathTable)}");
                             printedProcessHeaderRow = true;
                         }
 

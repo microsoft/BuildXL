@@ -632,7 +632,7 @@ namespace Test.BuildXL.Scheduler
             StringBuilder expectedLog = new StringBuilder();
             expectedLog.AppendLine("- Disallowed file accesses were detected (R = read, W = write):");
             // process that 'caused' the violations
-            expectedLog.AppendLine($"Disallowed file accesses performed by: {ReportedExecutablePath}");
+            expectedLog.AppendLine($"Disallowed file accesses observed in process tree with root: {ReportedExecutablePath}");
             // aggregated paths
             expectedLog.AppendLine(ReportedFileAccess.ReadDescriptionPrefix + undeclaredRead.ToString(context.PathTable));
             expectedLog.AppendLine(ReportedFileAccess.WriteDescriptionPrefix + undeclaredReadWrite.ToString(context.PathTable));

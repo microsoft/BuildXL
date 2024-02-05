@@ -12,12 +12,17 @@ namespace Core {
         assemblyName: "Test.BuildXL.Utilities",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
-        runTestArgs: {
-            // These tests require Detours to run itself, so we won't detour the test runner process itself
-            unsafeTestRunArguments: {
-                runWithUntrackedDependencies: true
-            }
-        },
+		runTestArgs: {
+			unsafeTestRunArguments: {
+				untrackedScopes: [
+					 ...addIfLazy(Context.getCurrentHost().os === "win", () => [
+						   d`${Context.getMount("ProgramFiles").path}/Git/etc/gitconfig`,
+						   d`${Context.getMount("SourceRoot").path}/.git`,
+					 ]),
+					 ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp/.dotnet/shm`])
+				]
+			},
+		},
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Utilities").dll,

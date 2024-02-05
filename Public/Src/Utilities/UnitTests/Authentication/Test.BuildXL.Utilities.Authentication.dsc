@@ -9,12 +9,6 @@ namespace Authentication {
         assemblyName: "Test.BuildXL.Utilities.Authentication",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
-        runTestArgs: {
-            // These tests require Detours to run itself, so we won't detour the test runner process itself
-            unsafeTestRunArguments: {
-                runWithUntrackedDependencies: true
-            },
-        },
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Authentication.dll,

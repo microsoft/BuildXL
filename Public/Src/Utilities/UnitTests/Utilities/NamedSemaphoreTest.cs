@@ -38,7 +38,7 @@ namespace Test.BuildXL.Utilities
         [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
         public void TestAlreadyExists()
         {
-            var semaphoreName = "/sem";
+            var semaphoreName = "/" + Guid.NewGuid().ToString().Replace("-", "");
 
             var sem1 = SemaphoreFactory.CreateNew(semaphoreName, 1, 2);
             Assert.True(sem1.Succeeded);

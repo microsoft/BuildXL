@@ -36,11 +36,5 @@ namespace PackedExecution {
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
         ],
-        runTestArgs: { 
-            unsafeTestRunArguments: {
-                // runs TestProcess with sandboxing
-                runWithUntrackedDependencies: true
-            }
-        }
     });
 }

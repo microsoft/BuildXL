@@ -21,11 +21,7 @@ namespace Distribution {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            Managed.Factory.filterRuntimeSpecificBinaries(BuildXLSdk.WebFramework.getFrameworkPackage(), [
-                importFrom("System.IO.Pipelines").pkg,
-                importFrom("System.Diagnostics.EventLog").pkg,
-                importFrom("System.Security.Cryptography.Pkcs").pkg
-            ]),
+            ...importFrom("BuildXL.Cache.ContentStore").getAsptNetCoreAssemblies(),
         ],
     });
 }

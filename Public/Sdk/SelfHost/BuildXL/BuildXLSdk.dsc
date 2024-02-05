@@ -590,7 +590,7 @@ export function cacheBindingRedirects() {
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-4.0.1.2",
-                newVersion: "4.0.1.2", // Corresponds to: { id: "System.Memory", version: "4.5.5", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
+                newVersion: "4.0.1.2", // Corresponds to: { id: "System.Memory", version: "4.5.5" },
             },
             {
                 name: "System.Interactive.Async",

@@ -55,7 +55,6 @@ namespace NugetDownloader {
             f`App.config`,
             specDeployment
         ],
-        deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Collections.Immutable.dll`] }, 
     });
 }
 

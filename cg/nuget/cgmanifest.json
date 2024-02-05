@@ -1077,7 +1077,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Configuration",
-          "Version": "2.2.0"
+          "Version": "7.0.0"
         }
       }
     },
@@ -1086,7 +1086,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Configuration.Abstractions",
-          "Version": "2.2.0"
+          "Version": "7.0.0"
         }
       }
     },
@@ -1095,7 +1095,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Configuration.Binder",
-          "Version": "2.2.0"
+          "Version": "7.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.DependencyInjection",
+          "Version": "7.0.0"
         }
       }
     },
@@ -1104,7 +1113,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.DependencyInjection.Abstractions",
-          "Version": "2.2.0"
+          "Version": "7.0.0"
         }
       }
     },
@@ -1149,7 +1158,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Logging",
-          "Version": "2.2.0"
+          "Version": "7.0.0"
         }
       }
     },
@@ -1185,7 +1194,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Options",
-          "Version": "2.2.0"
+          "Version": "7.0.0"
         }
       }
     },
@@ -1203,7 +1212,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Primitives",
-          "Version": "2.2.0"
+          "Version": "7.0.0"
         }
       }
     },
@@ -3022,15 +3031,6 @@
         "NuGet": {
           "Name": "System.IO.FileSystem.AccessControl",
           "Version": "4.7.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.IO.FileSystem.AccessControl",
-          "Version": "6.0.0-preview.5.21301.5"
         }
       }
     },

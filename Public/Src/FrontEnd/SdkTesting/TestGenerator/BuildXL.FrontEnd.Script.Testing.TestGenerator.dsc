@@ -56,11 +56,14 @@ namespace TestGenerator {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,
         ],
+        runtimeContent:
+        [
+            Helper.dll,
+        ]
     });
 
     @@public
     export const deploymentContents: Deployment.DeployableItem[] = [
         exe,
-        Helper.dll,
     ];
 }

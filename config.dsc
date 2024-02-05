@@ -72,7 +72,8 @@ config({
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "7.0.2" },
+                { id: "System.Diagnostics.DiagnosticSource", version: "7.0.2",
+                    dependentPackageIdsToSkip: ["System.Memory"] },
 
                 // Roslyn
                 // The old compiler used by integration tests only.
@@ -142,7 +143,7 @@ config({
                 { id: "Microsoft.Extensions.Globalization.CultureInfoCache", version: "1.0.0-rc1-final" },
                 { id: "Microsoft.Extensions.MemoryPool", version: "1.0.0-rc1-final" },
                 { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.1.0" },
-                { id: "Microsoft.Extensions.Http", version: "7.0.0" },
+                { id: "Microsoft.Extensions.Http", version: "7.0.0", dependentPackageIdsToSkip: ["Microsoft.Extensions.DependencyInjection.Abstractions"]},
 
                 { id: "Microsoft.Tpl.Dataflow", version: "4.5.24" },
                 { id: "Microsoft.TypeScript.Compiler", version: "1.8" },
@@ -165,7 +166,10 @@ config({
                 { id: "Microsoft.Windows.ProjFS", version: "1.2.19351.1" },
 
                 // RocksDb
-                { id: "RocksDbSharp", version: "8.1.1-20230829.3", alias: "RocksDbSharpSigned" },
+                { id: "RocksDbSharp", version: "8.1.1-20230829.3", alias: "RocksDbSharpSigned", 
+                    dependentPackageIdsToSkip: [ "System.Memory" ],
+                    dependentPackageIdsToIgnore: [ "System.Memory" ]
+                },
                 { id: "RocksDbNative", version: "8.1.1-20230829.3" },
 
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
@@ -173,12 +177,17 @@ config({
                 // Event hubs
                 { id: "Microsoft.Azure.Amqp", version: "2.6.1" },
                 { id: "Azure.Core.Amqp", version: "1.3.0"},
-                { id: "Azure.Messaging.EventHubs", version: "5.9.0" },
+                { id: "Azure.Messaging.EventHubs", version: "5.9.0",
+                    dependentPackageIdsToSkip: ["System.Net.Http", "System.Reflection.TypeExtensions", "System.Runtime.Serialization.Primitives", "Newtonsoft.Json", "System.Diagnostics.DiagnosticSource"],
+                },
                 { id: "Microsoft.Azure.KeyVault.Core", version: "1.0.0" },
                 { id: "Microsoft.IdentityModel.Logging", version: "7.2.0" },
-                { id: "Microsoft.IdentityModel.Tokens", version: "7.2.0" },
+                { id: "Microsoft.IdentityModel.Tokens", version: "7.2.0",
+                    dependentPackageIdsToSkip: ["System.Memory", "System.Text.Encodings.Web", "System.Text.Json"] },
                 { id: "System.IdentityModel.Tokens.Jwt", version: "7.2.0"},
-                { id: "Microsoft.IdentityModel.JsonWebTokens", version: "7.2.0" },
+                    //dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
+                { id: "Microsoft.IdentityModel.JsonWebTokens", version: "7.2.0",
+                    dependentPackageIdsToSkip: ["System.Text.Encodings.Web", "System.Text.Json"] },
 
                 // Key Vault
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.5.0" },
@@ -187,8 +196,10 @@ config({
                 { id: "Microsoft.Identity.Client", version: "4.56.0" },
                 { id: "Microsoft.IdentityModel.Abstractions", version: "7.2.0" },
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "4.56.0" },
-                { id: "Azure.Core", version: "1.36.0" },
-                { id: "System.Memory.Data", version: "1.0.2" },
+                { id: "Azure.Core", version: "1.36.0", 
+                    dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors", "Microsoft.Bcl.AsyncInterfaces" ] },
+                { id: "System.Memory.Data", version: "1.0.2",
+                    dependentPackageIdsToSkip: [ "System.Memory", "System.Text.Json" ] },
 
                 // Authentication
                 { id: "Microsoft.Identity.Client.Broker", version: "4.55.0" },
@@ -202,11 +213,14 @@ config({
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
                 // Azure Blob Storage SDK V12
-                { id: "Azure.Storage.Blobs", version: "12.16.0" },
+                { id: "Azure.Storage.Blobs", version: "12.16.0",
+                    dependentPackageIdsToSkip: [ "System.Text.Json" ] },
                 { id: "Azure.Storage.Common", version: "12.15.0" },
-                { id: "System.IO.Hashing", version: "6.0.0" },
+                { id: "System.IO.Hashing", version: "6.0.0",
+                    dependentPackageIdsToSkip: [ "System.Buffers", "System.Memory" ] },
                 { id: "Azure.Storage.Blobs.Batch", version: "12.10.0" },
-                { id: "Azure.Storage.Blobs.ChangeFeed", version: "12.0.0-preview.34" },
+                { id: "Azure.Storage.Blobs.ChangeFeed", version: "12.0.0-preview.34",
+                    dependentPackageIdsToSkip: [ "System.Text.Json" ] },
 
                 // xUnit
                 { id: "xunit.abstractions", version: "2.0.3" },
@@ -231,12 +245,13 @@ config({
                 { id: "DeduplicationSigned", version: "1.0.14" },
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "7.0.0" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "7.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 
-                { id: "Pipelines.Sockets.Unofficial", version: "2.2.0" },
+                { id: "Pipelines.Sockets.Unofficial", version: "2.2.0",
+                    dependentPackageIdsToSkip: ["System.IO.Pipelines", "System.Runtime.CompilerServices.Unsafe", "Microsoft.Bcl.AsyncInterfaces"] },
                 { id: "System.Diagnostics.PerformanceCounter", version: "5.0.0" },
-                { id: "System.Threading.Channels", version: "7.0.0" },
+                { id: "System.Threading.Channels", version: "7.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
 
                 { id: "System.Linq.Async", version: "4.0.0"},
                 { id: "Polly", version: "7.2.1" },
@@ -251,7 +266,8 @@ config({
                 { id: "System.Security.Cryptography.ProtectedData", version: "7.0.0"},
                 { id: "System.Configuration.ConfigurationManager", version: "7.0.0"},
                 { id: "System.Diagnostics.EventLog", version: "7.0.0" },
-                { id: "FluentAssertions", version: "5.3.0" },
+                { id: "FluentAssertions", version: "5.3.0",
+                    dependentPackageIdsToSkip: ["System.Reflection.Emit", "System.Reflection.Emit.Lightweight"] },
 
                 { id: "DotNet.Glob", version: "2.0.3" },
                 { id: "Minimatch", version: "1.1.0.0" },
@@ -284,12 +300,14 @@ config({
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.170.0"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build", version: "17.7.2" },
+                { id: "Microsoft.Build", version: "17.7.2",
+                    dependentPackageIdsToSkip: ["System.Reflection.Metadata", "System.Text.Json", "System.Collections.Immutable"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
+                },
                 { id: "Microsoft.Build.Runtime", version: "17.7.2" },
                 { id: "Microsoft.Build.Tasks.Core", version: "17.7.2" },
-                { id: "Microsoft.Build.Utilities.Core", version: "17.0.0" },
-                { id: "Microsoft.Build.Framework", version: "17.7.2" },
-                { id: "Microsoft.NET.StringTools", version: "1.0.0" },
+                { id: "Microsoft.Build.Utilities.Core", version: "17.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json", "System.Collections.Immutable"]},
+                { id: "Microsoft.Build.Framework", version: "17.7.2", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json"]},
+                { id: "Microsoft.NET.StringTools", version: "1.0.0", dependentPackageIdsToSkip: ["System.Memory", "System.Text.Json"]},
                 { id: "Microsoft.Build.Locator", version: "1.5.5" },
                 { id: "System.Reflection.MetadataLoadContext", version: "7.0.0"},    
 
@@ -300,13 +318,14 @@ config({
                 { id: "System.Buffers", version: "4.5.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.5.5" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "6.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "7.0.0-rc.1.22426.10" },
+                { id: "System.IO.Pipelines", version: "7.0.0-rc.1.22426.10", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "3.2.2146"},
                 { id: "System.CodeDom", version: "4.4.0"},
-                { id: "System.Text.Encoding.CodePages", version: "4.5.1" },
+                { id: "System.Text.Encoding.CodePages", version: "4.5.1",
+                    dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },
@@ -336,7 +355,7 @@ config({
                 { id: "boost", version: "1.71.0.0" },
 
                 // Needed for SBOM Generation
-                { id: "Microsoft.Extensions.Logging.Abstractions", version: "7.0.0" },
+                { id: "Microsoft.Extensions.Logging.Abstractions", version: "7.0.0", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"] },
                 { id: "packageurl-dotnet", version: "1.1.0" },
                 { id: "System.Reactive", version: "4.4.1" },
 

@@ -106,9 +106,10 @@ namespace DistributedTest {
 
             ...(BuildXLSdk.isFullFramework 
                 ? [ 
+                    // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.
                     importFrom("System.IO.Pipelines").pkg,
                     importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
-                    importFrom("Pipelines.Sockets.Unofficial").pkg,
+                    importFrom("Pipelines.Sockets.Unofficial").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
                 ] 
                 : [
                     importFrom("System.IO.Pipelines").pkg,            

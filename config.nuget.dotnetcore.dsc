@@ -242,10 +242,16 @@ export const pkgs = [
     { id: "System.Text.Json", version: "7.0.0" },
     { id: "System.Threading.AccessControl", version: pkgVersionNext },
 
+    { id: "System.IO.FileSystem.AccessControl", version: pkgVersion6Preview, alias: "System.IO.FileSystem.AccessControl.v6.0.0" },
+
     // Non-standard version ones
     { id: "Microsoft.NETCore.Targets", version: "2.0.0" },
     
-    { id: "System.Threading.Tasks.Extensions", version: "4.5.4" }, // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
+    // NOTE(jubayard): If you depend on this package and need to build for Net472, you will need to add the
+    // dependency manually, using netstandard2.0 targetFramework qualifier. Dependency clipped because it 
+    // causes a deployment conflict for the cache.
+    { id: "System.Threading.Tasks.Extensions", version: "4.5.4", // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
+        dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"] },
 
     { id: "System.Security.Cryptography.OpenSsl", version: "4.4.0" },
     { id: "System.Collections.Immutable", version: "7.0.0" },

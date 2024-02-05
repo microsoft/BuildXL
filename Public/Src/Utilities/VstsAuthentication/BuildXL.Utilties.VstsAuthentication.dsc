@@ -10,7 +10,7 @@ namespace VstsAuthentication {
             $.dll,
             Native.dll,
             Utilities.Core.dll,
-            importFrom("Newtonsoft.Json").pkg,
+            importFrom("Newtonsoft.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("NuGet.Versioning").pkg,
             importFrom("NuGet.Protocol").pkg,
             importFrom("NuGet.Configuration").pkg,

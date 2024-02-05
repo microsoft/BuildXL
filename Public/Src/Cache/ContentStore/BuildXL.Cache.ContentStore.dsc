@@ -114,39 +114,15 @@ export function getGrpcAspNetCorePackages() : (Managed.ManagedNugetPackage | Man
                   importFrom("Grpc.AspNetCore.Server").pkg,
                   
                   importFrom("System.Security.Cryptography.ProtectedData").pkg,
-                  
-                  ...getAsptNetCoreAssemblies(),
+
+                  // AspNetCore assemblies
+                  Managed.Factory.filterRuntimeSpecificBinaries(BuildXLSdk.WebFramework.getFrameworkPackage(), [
+                    importFrom("System.IO.Pipelines").pkg,
+                    importFrom("System.Diagnostics.EventLog").pkg,
+                    importFrom("System.Security.Cryptography.Pkcs").pkg,
+                    importFrom("System.Security.Cryptography.Xml").pkg,
+                  ])
         ])
-    ];
-}
-
-@@public
-export function getAsptNetCoreAssemblies() : Managed.ManagedNugetPackage[] {
-    return [
-        // The ASPNet web framework package comes with some DLLs that we also import individually.
-        // We prefer the one individually imported, so remove the overlapping DLLs from the web framework
-        // package and add the individually imported ones.
-        // If you ever get a double deployment issue coming from this package, just add the conflicting DLL
-        // under getWebFrameworkExclusions()
-        Managed.Factory.filterRuntimeSpecificBinaries(
-                BuildXLSdk.WebFramework.getFrameworkPackage(), 
-                getWebFrameworkExclusions()),
-            ...getWebFrameworkExclusions()
-    ];
-}
-
-function getWebFrameworkExclusions(): Managed.ManagedNugetPackage[] {
-    return [
-        importFrom("System.IO.Pipelines").pkg,
-        importFrom("System.Diagnostics.EventLog").pkg,
-        importFrom("System.Security.Cryptography.Pkcs").pkg,
-        importFrom("System.Security.Cryptography.Xml").pkg,
-        importFrom("Microsoft.Extensions.DependencyInjection").pkg,
-        importFrom("Microsoft.Extensions.DependencyInjection.Abstractions").pkg,
-        importFrom("Microsoft.Extensions.Http").pkg,
-        importFrom("Microsoft.Extensions.Logging").pkg,
-        importFrom("Microsoft.Extensions.Options").pkg,
-        importFrom("Microsoft.Extensions.Primitives").pkg
     ];
 }
 

@@ -129,7 +129,7 @@ export namespace DropDaemon {
                 publicKeyToken: "30ad4fe6b2a6aeed",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-13.0.0.0",
-                newVersion: "13.0.0.0", // Corresponds to { id: "Newtonsoft.Json", version: "13.0.1" }
+                newVersion: "13.0.0.0", // Corresponds to { id: "Newtonsoft.Json", version: "13.0.1", alias: "Newtonsoft.Json.v13.0.1" }
             },
             {
                 name: "System.Text.Json",

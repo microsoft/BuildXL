@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-const aspVersion = "7.0.0";
+const aspVersion = "2.2.0";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
@@ -23,7 +23,6 @@ export const pkgs = [
     { id: "Microsoft.Extensions.Configuration", version: aspVersion },
     { id: "Microsoft.Extensions.DependencyInjection.Abstractions", version: aspVersion },
     { id: "Microsoft.Extensions.Logging", version: aspVersion },
-    { id: "Microsoft.Extensions.DependencyInjection", version: aspVersion },
     { id: "Microsoft.Extensions.Options", version: aspVersion },
     { id: "Microsoft.Extensions.Primitives", version: aspVersion },
 

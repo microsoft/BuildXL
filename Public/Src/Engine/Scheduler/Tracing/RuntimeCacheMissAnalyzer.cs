@@ -193,7 +193,7 @@ namespace BuildXL.Scheduler.Tracing
                 if (maybeVariableValue != null)
                 {
                     candidateList.Add(maybeVariableValue);
-                    keyOrigin[variableName] = maybeVariableValue;
+                    keyOrigin[maybeVariableValue] = variableName;   // 'The key comes from this environment variable'
                 }
             }
 

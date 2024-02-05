@@ -73,11 +73,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
             KeepAlivePingDelay = TimeSpan.FromSeconds(30),
             KeepAlivePingTimeout = TimeSpan.FromMinutes(1),
-
-            // In CASaaS, the connection timeout is controlled by the caller of the GrpcChannelFactory by
-            // explicitly asking for the connection to be established and awaiting. This value is here to ensure
-            // there is a maximum timeout in the worst case.
-            ConnectTimeout = TimeSpan.FromMinutes(5),
         };
 
         private static bool HttpsInterceptComplete = false;

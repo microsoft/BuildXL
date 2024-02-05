@@ -1,13 +1,13 @@
 parameters: 
-- name: PublicQualifiersToBuild
+- name: QualifiersToBuild
   type: object
   default:
     - Debug
     - Release
 
 jobs:
-- job: Public_Lkg
-  displayName: 'Public Build: Create public nuget packages and upload to temporary drop'
+- job: External_Lkg
+  displayName: 'External Build: Create external nuget packages'
   timeoutInMinutes: 180
   cancelTimeoutInMinutes: 1
   condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
@@ -27,14 +27,14 @@ jobs:
       displayName: '[OnFailure] Upload logs'
       condition: failed()
       continueOnError: True
-      artifact: buildxl.rolling.public.logs.$(Build.BuildNumber)
+      artifact: buildxl.rolling.external.logs.$(Build.BuildNumber)
       targetPath: $(Build.SourcesDirectory)\Out\Logs
       sbomEnabled: false    # SBOM is not needed for logs
   
     - output: pipelineArtifact
-      displayName: Upload Public packages
+      displayName: Upload external packages
       continueOnError: True
-      artifact: buildxl-public.pkgs.$(Build.BuildNumber)
+      artifact: buildxl-external.pkgs.$(Build.BuildNumber)
       targetPath: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
 
   steps:
@@ -42,7 +42,7 @@ jobs:
     fetchDepth: 1
     fetchTags: false
 
-  - template: ../steps/public_prepare.yml
+  - template: ../steps/external_prepare.yml
 
   - task: CmdLine@1
     displayName: Run bxl.cmd
@@ -57,28 +57,20 @@ jobs:
         /logOutput:FullOutputOnWarningOrError
         /p:[Sdk.BuildXL]microsoftInternal=0
         /processRetries:3
-        /enableGrpc+
-        /traceInfo:selfhostlkgflavor=Public
         /nowarn:2841 /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
-        /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000
-  
-  # - task: msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0
-  #   displayName: NOTICE File Generator
-  #   inputs:
-  #     outputfile: Notice.txt
-  
-- job: Public_Build
-  displayName: 'Public Build: Build and test qualifier:'
+
+    
+- job: External_Build
+  displayName: 'Build and test qualifier:'
   timeoutInMinutes: 180
   condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
   pool:
     name: BuildXL-DevOpsAgents-PME
     os: windows
 
-  # TODO [maly]?: Do we want to switch to a distributed build instead of separating qualifiers? 
   strategy:
     matrix:
-      ${{ each qualifier in parameters.PublicQualifiersToBuild }}:
+      ${{ each qualifier in parameters.QualifiersToBuild }}:
         ${{ qualifier }}:
           QualifierToBuild: ${{ qualifier }}
 
@@ -87,7 +79,7 @@ jobs:
     - output: pipelineArtifact
       displayName: '[OnFailure] Upload LKG logs'
       condition: failed()
-      artifact: buildxl.rolling.public-lkg.$(QualifierToBuild).logs.$(Build.BuildNumber)
+      artifact: buildxl.rolling.external-lkg.$(QualifierToBuild).logs.$(Build.BuildNumber)
       targetPath: $(Build.SourcesDirectory)\Out\Logs
       sbomEnabled: false    # SBOM is not needed for logs
 
@@ -96,7 +88,7 @@ jobs:
     fetchDepth: 1
     fetchTags: false
 
-  - template: ../steps/public_prepare.yml
+  - template: ../steps/external_prepare.yml
 
   - task: CmdLine@1
     displayName: bxl.cmd -deploy dev
@@ -114,7 +106,6 @@ jobs:
         /p:[Sdk.BuildXL]microsoftInternal=0
         /processRetries:3
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
-        /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000
   
   - task: CmdLine@1
     displayName: bxl.cmd -use dev
@@ -133,11 +124,67 @@ jobs:
         /processRetries:3
         /p:xunitSemaphoreCount=16
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
-        /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000\d\log
 
-  # Work item #2131658 - this file is not actually consumed anywhere
-  # Disable the step for now.
-  # - task: msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0
-  #   displayName: NOTICE File Generator
-  #   retryCountOnTaskFailure: 3
-  #   continueOnError: true
+- job: Linux_External
+  displayName: Linux External Build
+  timeoutInMinutes: 180
+  condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
+  pool:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+  
+  templateContext:
+    outputs:
+    - output: artifactsDrop
+      displayName: Publish Packages to Intermediate Drop
+      dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
+      buildNumber: BuildXL/Linux/External/Intermediate/$(Build.BuildNumber)/$(Build.BuildId)
+      sourcePath: $(Build.SourcesDirectory)/Out/Bin/release/public/pkgs
+      retentionDays: 5
+      dropMetadataContainerName: DropMetadata-Linux-Intermediate-External
+  
+    - output: buildArtifacts 
+      displayName: Publish build logs
+      condition: always()
+      PathtoPublish: $(Build.SourcesDirectory)/Out/Logs/Build
+      ArtifactName: linuxbuildlogs-external
+      sbomEnabled: false    # SBOM is not needed for logs
+    
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+
+  - template: ../steps/linux_prepare.yml
+    parameters:
+      CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
+
+  - task: Bash@3
+    displayName: Build LKG
+    inputs:
+      targetType: inline
+      script: >-
+        set -eu
+
+        bash bxl.sh --shared-comp --minimal --deploy-dev --release
+        /cacheMiss:"[Bxl.Selfhost.Linux.External]"
+        /logoutput:FullOutputOnError
+        /logsDirectory:"Out/Logs/Build"
+      workingDirectory: /home/subst
+  
+  - task: Bash@3
+    displayName: Build Packages with LKG
+    inputs:
+      targetType: inline
+      script: >-
+        set -eu
+
+        bash bxl.sh --use-dev --shared-comp
+        /cacheMiss:"[Bxl.Linux.External.Rolling]"
+        /logoutput:FullOutputOnError
+        /logsDirectory:"Out/Logs/Build"
+        /p:Build.BuildId=$(Build.BuildNumber)
+        /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
+        /q:ReleaseLinux
+        "/f:output='/home/subst/Out/Bin/release/public/pkgs/*'"
+      workingDirectory: /home/subst

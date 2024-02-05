@@ -8,12 +8,15 @@ trigger:
     - Examples
   
 variables:
-- template: variables.yml
-- group: "BuildXL Secrets"
+# [NOTE]: We intentionally not include the "BuildXL Secrets" variable group here,
+#         and rather do it individually for every job that actually requires it:
+#         we especially want to avoid the external validations to access those secrets,
+#         which give access to internal resources.
 - group: "BuildXL Common variables"
-# We only want to run the publishing stage for main and releases/* branch
-# This condition is to avoid publishing binaries from test runs of the pipeline from custom branches
+- template: variables.yml
 - name: isPublishingBranch
+  # We only want to run the publishing stage for main and releases/* branch
+  # This condition is to avoid publishing binaries from test runs of the pipeline from custom branches
   value: $[ or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), startsWith(variables['Build.SourceBranch'], 'refs/heads/releases')) ]
 
 resources:
@@ -56,24 +59,28 @@ extends:
 
     - stage: RCIT
       displayName: RunCheckInTests
+      variables:
+      - group: "BuildXL Secrets"
       dependsOn: prepare
       jobs:
       - template: .azdo/rolling/jobs/run-checkin-tests.yml@self
 
     - stage: Linux
       displayName: Linux
+      variables:
+       - group: "BuildXL Secrets"
       dependsOn: prepare
       jobs:
       - template: .azdo/rolling/jobs/linux.yml@self
 
-    - stage: PublicWin
-      displayName: Public validations (Windows)
+    - stage: External
+      displayName: Build and validate external bits
       dependsOn: prepare
       variables:
         BuildXL.SemanticVersion: $[ stageDependencies.prepare.SetBuildNumber.outputs['SetBuildNumber.BuildXLSemanticVersion'] ]
         BuildXL.PreReleaseTag: $[ stageDependencies.prepare.SetBuildNumber.outputs['SetBuildNumber.BuildXLPreReleaseTag'] ]
       jobs:
-      - template: .azdo/rolling/jobs/public.yml@self
+      - template: .azdo/rolling/jobs/external.yml@self
 
     - stage: Mac
       displayName: Mac
@@ -83,7 +90,9 @@ extends:
     
     - stage: publish
       displayName: Publish
-      dependsOn: [CB, RCIT, PublicWin, Linux, Mac]
+      variables:
+      - group: "BuildXL Secrets"
+      dependsOn: [CB, RCIT, External, Linux, Mac]
       condition: and(succeeded(), eq(variables.isPublishingBranch, true))
       jobs:
       - template: .azdo/rolling/jobs/publish.yml@self

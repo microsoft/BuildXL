@@ -1,10 +1,7 @@
-# Shared tasks for public validation
+# Shared tasks for external validation
 steps:
 # Enable journaling
 - template: ../../common/journaling.yml 
-
-# Get RM scripts
-- template: ../../common/get-rm.yml
 
 - task: CmdLine@2
   displayName: Remove pkgs folder copy

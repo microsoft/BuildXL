@@ -12,12 +12,16 @@ parameters:
 - name: condition
   type: string
   default: ''
+- name: continueOnError
+  type: boolean
+  default: false
 
 jobs:
 - job: ${{ parameters.jobName }}
   displayName: ${{ parameters.displayName }}
   timeoutInMinutes: 180
   dependsOn: ${{ parameters.dependsOn }}
+  continueOnError: ${{ parameters.continueOnError }}
   ${{ if parameters.condition }}:
     condition: ${{ parameters.condition }}
   templateContext:

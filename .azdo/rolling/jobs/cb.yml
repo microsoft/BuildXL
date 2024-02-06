@@ -56,6 +56,7 @@ jobs:
     dependsOn:
     - BuildCandidate
     condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
+    continueOnError: true
     arguments:
       uploadDropMetadata: false
       additionalFlags: >-

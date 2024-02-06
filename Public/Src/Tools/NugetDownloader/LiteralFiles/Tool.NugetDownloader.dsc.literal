@@ -21,7 +21,7 @@ const downloaderDefinition: Transformer.ToolDefinition = {
         ...addIfLazy(Context.getCurrentHost().os === "macOS", () => [d`/dev/dtracehelper`, d`/private/var/run/mDNSResponder`, d`/private/var/folders`, d`/dev/tty`, d`/usr/share/zoneinfo`, d`/usr/share/icu`]),
         // For non-windows OS we use a named mutex to control the credential provider concurrency. The mutex translates into a file created under /tmp.
         ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp/.dotnet/shm`]),
-        d`${Context.getMount("UserProfile").path}/.dotnet/corefx/cryptography`,
+        d`${Context.getMount("UserProfile").path}/.dotnet/corefx/cryptography`
     ],
     untrackedFiles: [
         nugetDownloaderExe,
@@ -113,8 +113,7 @@ export function downloadPackage(args: Arguments) : PartialStaticContentDirectory
                 "__CLOUDBUILD_AUTH_HELPER_ROOT__",
                 "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
             ],
-            // Enable globalUntrackedScopes for nugetdownloader to untrack codeql temp dir
-            requireGlobalDependencies: true,
+            requireGlobalDependencies: false,
             // The only child process this tool spawns is the credential provider process. This process may write log files that are hard to predict upfront.
             hasUntrackedChildProcesses: true,
             // This is to avoid a cache miss on a NuGet download due to changes on the nuget download tool (changes in downtream dependencies for the 

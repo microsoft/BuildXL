@@ -211,7 +211,7 @@ namespace Tool.Download
 
             if (File.Exists(fullPathForExecutableFile))
             {
-                _ = FileUtilities.TrySetExecutePermissionIfNeeded(fullPathForExecutableFile);
+                _ = FileUtilities.SetExecutePermissionIfNeeded(fullPathForExecutableFile);
             }
 
             return true;

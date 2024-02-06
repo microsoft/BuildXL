@@ -24,7 +24,6 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using BuildXL.Utilities.Collections;
 
 namespace Test.BuildXL.Engine.Cache
 {

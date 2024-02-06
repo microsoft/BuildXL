@@ -46,10 +46,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
 
             // Both files should have the execution permission set
-            var result = FileUtilities.TryGetIsExecutableIfNeeded(outFile.Path.ToString(Context.PathTable));
+            var result = FileUtilities.CheckForExecutePermission(outFile.Path.ToString(Context.PathTable));
             XAssert.IsTrue(result.Succeeded && result.Result);
 
-            result = FileUtilities.TryGetIsExecutableIfNeeded(outCopyFile.Path.ToString(Context.PathTable));
+            result = FileUtilities.CheckForExecutePermission(outCopyFile.Path.ToString(Context.PathTable));
             XAssert.IsTrue(result.Succeeded && result.Result);
         }
 
@@ -82,10 +82,10 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertCacheHit(pip.Process.PipId);
 
-            var result = FileUtilities.TryGetIsExecutableIfNeeded(outFile.Path.ToString(Context.PathTable));
+            var result = FileUtilities.CheckForExecutePermission(outFile.Path.ToString(Context.PathTable));
             XAssert.IsTrue(result.Succeeded && result.Result);
 
-            result = FileUtilities.TryGetIsExecutableIfNeeded(outCopyFile.Path.ToString(Context.PathTable));
+            result = FileUtilities.CheckForExecutePermission(outCopyFile.Path.ToString(Context.PathTable));
             XAssert.IsTrue(result.Succeeded && result.Result);
         }
 
@@ -105,7 +105,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var sourceFileForCopyPip = CreateSourceFile();
             // Path to copy to
             AbsolutePath destinationPath = CreateUniqueObjPath("destinationCopyFile");
-            _ = FileUtilities.TrySetExecutePermissionIfNeeded(sourceFileForCopyPip.Path.ToString(Context.PathTable));
+            _ = FileUtilities.SetExecutePermissionIfNeeded(sourceFileForCopyPip.Path.ToString(Context.PathTable));
 
             // Create copy file pip and adds it to the graph
             var copiedFileA = CopyFile(sourceFileForCopyPip, destinationPath);
@@ -139,7 +139,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // First run should be a cache miss, second one a cache hit.
             RunScheduler().AssertCacheMiss(scheduledProcessA.Process.PipId);
             // Check to ensure that the destination file also has the execute permission bit set.
-            XAssert.IsTrue(FileUtilities.TryGetIsExecutableIfNeeded(destinationPath.ToString(Context.PathTable)).Result,
+            XAssert.IsTrue(FileUtilities.CheckForExecutePermission(destinationPath.ToString(Context.PathTable)).Result,
                            "Execute permission not set on destination of copy file!");
             // Delete the destination file and run the scheduler again.
             Delete(sourceFileForCopyPip);
@@ -149,7 +149,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             string actualContent = File.ReadAllText(copiedFileA.Path.ToString(Context.PathTable));
             XAssert.AreEqual(TextToCopied, actualContent);
             // Check to ensure that the destination file also has the execute permission bit set.
-            XAssert.IsTrue(FileUtilities.TryGetIsExecutableIfNeeded(destinationPath.ToString(Context.PathTable)).Result,
+            XAssert.IsTrue(FileUtilities.CheckForExecutePermission(destinationPath.ToString(Context.PathTable)).Result,
                            "Execute permission not set on destination of copy file!");
         }
 
@@ -172,7 +172,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact destination = CreateOutputFileArtifact();
             // only the head of the symlink chain is created during the build -> valid chain
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(symlinkFile2), ArtifactToString(targetFile), isTargetFile: true));
-            _ = FileUtilities.TrySetExecutePermissionIfNeeded(targetFile.Path.ToString(Context.PathTable));
+            _ = FileUtilities.SetExecutePermissionIfNeeded(targetFile.Path.ToString(Context.PathTable));
 
             CreateAndSchedulePipBuilder(new Operation[]
             {
@@ -189,13 +189,13 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             RunScheduler().AssertSuccess();
             // Check to ensure that the destination file also has the execute permission bit set.
-            XAssert.IsTrue(FileUtilities.TryGetIsExecutableIfNeeded(destination.ToString(Context.PathTable)).Result,
+            XAssert.IsTrue(FileUtilities.CheckForExecutePermission(destination.ToString(Context.PathTable)).Result,
                            "Execute permission not set on destination of copy file!");
             // Delete the destination before running the build again.
             Delete(destination);
             RunScheduler().AssertSuccess();
             // Check to ensure that the destination file also has the execute permission bit set.
-            XAssert.IsTrue(FileUtilities.TryGetIsExecutableIfNeeded(destination.ToString(Context.PathTable)).Result,
+            XAssert.IsTrue(FileUtilities.CheckForExecutePermission(destination.ToString(Context.PathTable)).Result,
                            "Execute permission not set on destination of copy file!");
         }
     }

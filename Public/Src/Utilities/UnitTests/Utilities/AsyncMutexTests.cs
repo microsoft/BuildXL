@@ -28,7 +28,7 @@ namespace Test.BuildXL.Utilities
             if (OperatingSystemHelper.IsUnixOS)
             {
                 // TODO: remove after honoring execution permissions become part of the LKG
-                var result = FileUtilities.TrySetExecutePermissionIfNeeded(m_asyncMutexClient);
+                var result = FileUtilities.SetExecutePermissionIfNeeded(m_asyncMutexClient);
                 if (!result.Succeeded)
                 {
                     result.Failure.Throw();

@@ -226,7 +226,7 @@ namespace ContentStoreTest.Distributed.Redis
                 throw new InvalidOperationException($"Could not find {storageName} at {storageServerPath}");
             }
 
-            _ = FileUtilities.TrySetExecutePermissionIfNeeded(storageServerPath);
+            _ = FileUtilities.SetExecutePermissionIfNeeded(storageServerPath);
 
             _portNumber = 0;
 

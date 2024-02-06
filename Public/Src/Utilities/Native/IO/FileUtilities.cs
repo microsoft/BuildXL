@@ -1363,56 +1363,50 @@ namespace BuildXL.Native.IO
         /// Unix only (no-op on windows): sets u+x on <paramref name="fileName"/>.
         /// </summary>
         /// <returns>
-        /// true if file exists and already has execute permissions or execute permissions were set. Otherwise, false.
+        /// success with true value iff the file execute permission is set successfully,
+        /// or with false value if the file execute permission has already been set; otherwise failure.
         /// </returns>
-        public static Possible<bool> TrySetExecutePermissionIfNeeded(string fileName)
+        public static Possible<bool> SetExecutePermissionIfNeeded(string fileName)
         {
-            if (OperatingSystemHelper.IsUnixOS)
+            if (!OperatingSystemHelper.IsUnixOS)
             {
-                var maybePermissions = TryGetPermissions(fileName);
+                return false;
+            }
 
-                if (!maybePermissions.Succeeded)
+            var maybePermissions = GetFilePermissionsForFile(fileName);
+
+            if (!maybePermissions.Succeeded)
+            {
+                return maybePermissions.Failure;
+            }
+
+            var filePermissions = maybePermissions.Result;
+
+            if (!filePermissions.HasFlag(UnixIO.FilePermissions.S_IXUSR))
+            {
+                var result = UnixIO.SetFilePermissionsForFilePath(fileName, (filePermissions | UnixIO.FilePermissions.S_IXUSR));
+
+                if (result < 0)
                 {
-                    return maybePermissions.Failure;
-                }
-
-                var filePermissions = maybePermissions.Result;
-
-                if (!filePermissions.HasFlag(UnixIO.FilePermissions.S_IXUSR))
-                {
-                    var result = UnixIO.SetFilePermissionsForFilePath(fileName, (filePermissions | UnixIO.FilePermissions.S_IXUSR));
-
-                    if (result < 0)
-                    {
-                        return new NativeFailure(result, $"Could not set file permissions: File '{fileName}'.");
-                    }
-
-                    return false;
+                    return new NativeFailure(result, $"Could not set file permissions: File '{fileName}'.");
                 }
 
                 return true;
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Unix only (always false on Windows): gets S_IXUSR on <paramref name="filename"/>.  Returns a failure on error.
-        /// </summary>
-        public static Possible<bool> TryGetIsExecutableIfNeeded(string filename)
-        {
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                return TryGetPermissions(filename).Then(permissions => permissions.HasFlag(UnixIO.FilePermissions.S_IXUSR));
             }
 
             return false;
         }
 
         /// <summary>
+        /// Unix only (always false on Windows): gets S_IXUSR on <paramref name="filename"/>.  Returns a failure on error.
+        /// </summary>
+        public static Possible<bool> CheckForExecutePermission(string filename) => 
+            GetFilePermissionsForFile(filename).Then(permissions => permissions.HasFlag(UnixIO.FilePermissions.S_IXUSR));
+
+        /// <summary>
         /// Unix only (always 0x0 on Windows): gets file permissions on <paramref name="filename"/>.  Returns a failure on error.
         /// </summary>
-        public static Possible<UnixIO.FilePermissions> TryGetPermissions(string filename)
+        public static Possible<UnixIO.FilePermissions> GetFilePermissionsForFile(string filename)
         {
             if (OperatingSystemHelper.IsUnixOS)
             {

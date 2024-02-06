@@ -125,7 +125,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// Note that the containing directory for <paramref name="path"/> is assumed to be created already.
         /// The materialized file is tracked for changes and added to the file content table.
         /// </summary>
-        public async Task<Possible<ContentMaterializationResult, Failure>> TryMaterializeAsync(
+        public async Task<Possible<ContentMaterializationResult>> TryMaterializeAsync(
             IArtifactContentCache cache,
             FileRealizationMode fileRealizationModes,
             AbsolutePath path,
@@ -135,8 +135,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             ReparsePointInfo? reparsePointInfo = null,
             bool trackPath = true,
             bool recordPathInFileContentTable = true,
-            CancellationToken cancellationToken = default,
-            AbsolutePath outputDirectoryRoot = default)
+            AbsolutePath outputDirectoryRoot = default,
+            CancellationToken cancellationToken = default)
         {
             // If the case sensitivity is specified for the relative directory, then it needs to be specified for the file atom
             Contract.Requires(!caseSensitiveRelativeDirectory.IsValid || fileName.IsValid);
@@ -239,7 +239,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     expandedPath = expandedPath.WithTrailingRelativePath(m_pathTable, relativePath);
                 }
 
-                Possible<Unit, Failure> possibleMaterialization;
+                Possible<Unit> possibleMaterialization;
                 if (reparsePointInfo == null || !reparsePointInfo.Value.IsActionableReparsePoint)
                 {
                     possibleMaterialization = await cache.TryMaterializeAsync(
@@ -262,7 +262,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
                 bool isReparsePoint = reparsePointInfo != null && reparsePointInfo.Value.IsActionableReparsePoint;
 
-                Possible<TrackedFileContentInfo, Failure> possibleTrackedFile = await possibleMaterialization
+                Possible<TrackedFileContentInfo> possibleTrackedFile = await possibleMaterialization
                     .ThenAsync(p => TryOpenAndTrackPathAsync(
                         expandedPath,
                         contentHash,
@@ -871,7 +871,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             {
                 // Applies only to CopyFile & rewritten files where we have already hashed the inputs to see if we should rerun the pip,
                 // We may revisit this code if we ever want to completely get rid of all double hashing by having the cache not hash on ingress.
-                Possible<Unit, Failure> possiblyStored = await cache.TryStoreAsync(
+                Possible<Unit> possiblyStored = await cache.TryStoreAsync(
                     fileRealizationModes,
                     expandedPath,
                     knownContentHash.Value,
@@ -881,32 +881,40 @@ namespace BuildXL.Engine.Cache.Artifacts
                 // So, we only track the file after TryStoreAsync is done (not earlier when we hashed it).
                 // We also make sure execution permissions are honored if needed, since TryStoreAsync may have replaced the file
                 return await possiblyStored
-                    .Then(p => TrySetExecutePermissionIfNeeded(expandedPath.ExpandedPath, isExecutable))
+                    .Then(p => isExecutable ? FileUtilities.SetExecutePermissionIfNeeded(expandedPath.ExpandedPath) : false)
                     .ThenAsync(
-                        p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, dynamicOutputCaseSensitiveRelativeDirectory, isReparsePoint.Value, outputDirectoryRoot, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable));
+                        p => TryOpenAndTrackPathAsync(
+                            expandedPath,
+                            knownContentHash.Value,
+                            fileName,
+                            dynamicOutputCaseSensitiveRelativeDirectory,
+                            isReparsePoint.Value,
+                            outputDirectoryRoot,
+                            trackPath: trackPath,
+                            isUndeclaredFileRewrite: isUndeclaredFileRewrite,
+                            isExecutable: isExecutable));
             }
             else
             {
-                Possible<ContentHash, Failure> possiblyStored = await cache.TryStoreAsync(
+                Possible<ContentHash> possiblyStored = await cache.TryStoreAsync(
                     fileRealizationModes,
                     expandedPath,
                     storeOptions);
 
                 return await possiblyStored
-                    .Then(contentHash => TrySetExecutePermissionIfNeeded(expandedPath.ExpandedPath, isExecutable).Then(unit => contentHash))
+                    .Then(contentHash => (isExecutable ? FileUtilities.SetExecutePermissionIfNeeded(expandedPath.ExpandedPath) : false).Then(b => contentHash))
                     .ThenAsync(
-                        contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, dynamicOutputCaseSensitiveRelativeDirectory, isReparsePoint.Value, outputDirectoryRoot, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite, isExecutable: isExecutable));
+                        contentHash => TryOpenAndTrackPathAsync(
+                            expandedPath,
+                            contentHash,
+                            fileName,
+                            dynamicOutputCaseSensitiveRelativeDirectory,
+                            isReparsePoint.Value,
+                            outputDirectoryRoot,
+                            trackPath: trackPath,
+                            isUndeclaredFileRewrite: isUndeclaredFileRewrite,
+                            isExecutable: isExecutable));
             }
-        }
-
-        private static Possible<Unit, Failure> TrySetExecutePermissionIfNeeded(string path, bool isExecutable)
-        {
-            if (isExecutable)
-            {
-                return FileUtilities.TrySetExecutePermissionIfNeeded(path).Then(b => Unit.Void);
-            }
-
-            return Unit.Void;
         }
 
 
@@ -1087,7 +1095,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             }
         }
 
-        private async Task<Possible<TrackedFileContentInfo, Failure>> TryOpenAndTrackPathAsync(
+        private async Task<Possible<TrackedFileContentInfo>> TryOpenAndTrackPathAsync(
             ExpandedAbsolutePath path,
             ContentHash hash,
             PathAtom fileName,
@@ -1102,7 +1110,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             bool isExecutable = false)
         {
             // If path needs to be tracked, then path needs to be recorded in the file content table.
-            recordPathInFileContentTable = trackPath ? true : recordPathInFileContentTable;
+            recordPathInFileContentTable = trackPath || recordPathInFileContentTable;
 
             var possibleEnsureFileName = await EnsureFileNameCasingMatchAsync(path, fileName);
             if (!possibleEnsureFileName.Succeeded)

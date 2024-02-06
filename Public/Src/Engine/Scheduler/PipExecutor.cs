@@ -252,7 +252,7 @@ namespace BuildXL.Scheduler
                         // We assume that source files cannot be made read-only so we use copy file materialization
                         // rather than hardlinking
                         // If the source of the CopyFile pip is a symlink then we check if the symlink target file is an executable or not.
-                        isDestinationExecutable = FileUtilities.TryGetIsExecutableIfNeeded(symlinkTarget.ToString(pathTable)).Result;
+                        isDestinationExecutable = FileUtilities.CheckForExecutePermission(symlinkTarget.ToString(pathTable)).Result;
                         var maybeStored = await environment.LocalDiskContentStore.TryStoreAsync(
                             environment.Cache.ArtifactContentCache,
                             fileRealizationModes: FileRealizationMode.Copy,
@@ -5127,7 +5127,7 @@ namespace BuildXL.Scheduler
                 // If on non-Windows OS, retrieve the owner execution permission bit so it can be stored as part of the cache metadata
                 // TODO: on Linux/macOS, both TryGetIsExecutableIfNeeded and TryGetReparsePointType can be obtained with a single stat system call, whereas here stat will be done twice.
                 // Presumably it won't make a big difference, but if there is an easy way to optimize this, then maybe we can just as well do it (e.g., we could call FileSystem.GetFilePermission() once and extract both from the result)
-                var isExecutable = FileUtilities.TryGetIsExecutableIfNeeded(pathAsString);
+                var isExecutable = FileUtilities.CheckForExecutePermission(pathAsString);
                 if (!isExecutable.Succeeded)
                 {
                     return isExecutable.Failure;

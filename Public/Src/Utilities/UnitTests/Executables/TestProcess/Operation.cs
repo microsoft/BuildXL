@@ -1364,7 +1364,7 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             path = path ?? PathAsString;
 
-            var result = FileUtilities.TrySetExecutePermissionIfNeeded(path);
+            var result = FileUtilities.SetExecutePermissionIfNeeded(path);
             if (!result.Succeeded)
             {
                 result.Failure.Throw();
@@ -1633,7 +1633,7 @@ namespace Test.BuildXL.Executables.TestProcess
                 }
             }
 
-            var result = FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName);
+            var result = FileUtilities.SetExecutePermissionIfNeeded(process.StartInfo.FileName);
             if (!result.Succeeded)
             {
                 result.Failure.Throw();
@@ -1686,7 +1686,7 @@ namespace Test.BuildXL.Executables.TestProcess
                 CreateNoWindow = true,
             };
 
-            var result = FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName);
+            var result = FileUtilities.SetExecutePermissionIfNeeded(process.StartInfo.FileName);
             if (!result.Succeeded)
             {
                 result.Failure.Throw();

@@ -148,7 +148,7 @@ namespace BuildXL.Processes
 
             if (setExecuteBit)
             {
-                _ = FileUtilities.TrySetExecutePermissionIfNeeded(fullPath).ThrowIfFailure();
+                _ = FileUtilities.SetExecutePermissionIfNeeded(fullPath).ThrowIfFailure();
             }
 
             return fullPath;
@@ -296,7 +296,7 @@ namespace BuildXL.Processes
                     // nuget/npm package may not have the execute bit set causing a permission denied error
                     if (info.ForceAddExecutionPermission)
                     {
-                        _ = FileUtilities.TrySetExecutePermissionIfNeeded(process.StartInfo.FileName);
+                        _ = FileUtilities.SetExecutePermissionIfNeeded(process.StartInfo.FileName);
                     }
 
                     process.StartInfo.Arguments = $"{process.StartInfo.FileName} {process.StartInfo.Arguments}";

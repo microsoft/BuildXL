@@ -3515,7 +3515,7 @@ namespace BuildXL.Scheduler.Artifacts
                     // Need to pass the executable bit for the fileArtifact.
                     // This code path can be invoked when we try to hash the dependencies of the source files during the start step of the pip.
                     // In such cases we are yet to hash the source files. Hence it is not possible to get the right results using the TryGetInputContent method.
-                    var isExecutable = FileUtilities.TryGetIsExecutableIfNeeded(fileArtifact.Path.ToString(Context.PathTable));
+                    var isExecutable = FileUtilities.CheckForExecutePermission(fileArtifact.Path.ToString(Context.PathTable));
                     Possible<ContentDiscoveryResult> possiblyDiscovered =
                         await LocalDiskContentStore.TryDiscoverAsync(fileArtifact, artifactExpandedPath, outputDirectoryRoot: outputDirectoryRoot, isExecutable: isExecutable.Result);
 

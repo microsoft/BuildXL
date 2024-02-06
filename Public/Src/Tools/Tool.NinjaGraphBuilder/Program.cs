@@ -114,9 +114,8 @@ namespace NinjaGraphBuilderTool
             {
                 return false;
             }
-            var result = FileUtilities.TrySetExecutePermissionIfNeeded(path).ThrowIfFailure();
 
-            return result.Succeeded; // If this is false something is wrong in BXL's deployment and we can't continue
+            return FileUtilities.SetExecutePermissionIfNeeded(path).ThrowIfFailure().Succeeded; // If this is false something is wrong in BXL's deployment and we can't continue
         }
 
         private static void GenerateErrorResult(Process process, NinjaGraphToolArguments args)

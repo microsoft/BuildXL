@@ -7256,13 +7256,13 @@ namespace BuildXL.Scheduler
             // If the file has execution permissions set, make sure we honor that when the file is placed
             if (fileMaterializationInfo.IsExecutable)
             {
-                var result = FileUtilities.TrySetExecutePermissionIfNeeded(pathAsString);
+                var result = FileUtilities.SetExecutePermissionIfNeeded(pathAsString);
                 if (!result.Succeeded)
                 {
                     return result.Failure;
                 }
 
-                artifactIsModified |= !result.Result;
+                artifactIsModified |= result.Result;
             }
 
             // If the file was modified after being placed, make sure we update the file content table

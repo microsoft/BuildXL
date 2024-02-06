@@ -38,7 +38,10 @@ namespace LauncherServer {
             ...importFrom("BuildXL.Cache.ContentStore").getProtobufNetPackages(true),
             importFrom("protobuf-net.Grpc.AspNetCore").pkg,
 
-            ...importFrom("BuildXL.Cache.ContentStore").getAsptNetCoreAssemblies(),
+            // AspNetCore assemblies
+            Managed.Factory.filterRuntimeSpecificBinaries(BuildXLSdk.WebFramework.getFrameworkPackage(), [
+                importFrom("System.IO.Pipelines").pkg
+            ])
         ],
         assemblyBindingRedirects: [
             {

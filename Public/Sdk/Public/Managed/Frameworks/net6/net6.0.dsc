@@ -102,5 +102,5 @@ export const framework : Shared.Framework = {
 
 function createDefaultAssemblies() : Shared.Assembly[] {
     const pkgContents = importFrom("Microsoft.NETCore.App.Ref60").Contents.all;
-    return Helpers.createDefaultAssemblies(pkgContents, "net6.0", /*includeAllAssemblies*/ true);
+    return Helpers.createDefaultAssemblies(pkgContents, "net6.0", /*includeAllAssemblies*/ false);
 }

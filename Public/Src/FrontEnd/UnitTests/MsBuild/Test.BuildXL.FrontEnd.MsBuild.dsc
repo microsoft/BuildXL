@@ -49,18 +49,14 @@ namespace Test.MsBuild {
         runtimeContent: [
             // We need both the full framework and dotnet core versions of MSBuild, plus dotnet.exe for the dotnet core case
             ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "net472"}).deployment,
-            ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: Managed.TargetFrameworks.DefaultTargetFramework}).deployment,
+            ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "net6.0"}).deployment,
             {
                 subfolder: "dotnet",
-                contents: Frameworks.Helpers.getDotNetToolTemplate('net7.0').dependencies
+                contents: Frameworks.Helpers.getDotNetToolTemplate('net6.0').dependencies
             },
             {
                 subfolder: a`tools`,
-                // For the dotnet case, we are only deploying the tool for net7
-                // TODO: Remove condition when we stop building for net6.0
-                contents: [qualifier.targetFramework === "net6.0"
-                    ? importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier({targetFramework: Managed.TargetFrameworks.DefaultTargetFramework}).deployment
-                    : importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment]
+                contents: [importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment]
             },
             {
                 subfolder: r`Sdk/Sdk.Managed.Tools.BinarySigner`,

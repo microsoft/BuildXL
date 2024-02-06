@@ -5,7 +5,8 @@ import * as Branding from "BuildXL.Branding";
 import * as Contracts from "Tse.RuntimeContracts";
 
 namespace BuildXLVsPackage {
-    const dll = BuildXLSdk.library({
+    @@public
+    export const dll = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.library({
         assemblyName: "BuildXLVsPackage",
         rootNamespace: "BuildXL.VsPackage",
         skipDocumentationGeneration: false,
@@ -47,7 +48,7 @@ namespace BuildXLVsPackage {
             importFrom("Microsoft.VisualStudio.Threading").pkg,
             importFrom("Microsoft.VisualStudio.ProjectSystem").pkg,
             importFrom("Microsoft.VisualStudio.Composition").pkg,
-            importFrom("System.Collections.Immutable").pkg,
+            importFrom("System.Collections.Immutable.ForVBCS").pkg,
         ],
     });
 
@@ -65,7 +66,7 @@ namespace BuildXLVsPackage {
     };
 
     @@public
-    export const vsix = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : CreateZipPackage.zip({
+    export const vsix = CreateZipPackage.zip({
         outputFileName: "BuildXL.vs.vsix",
         useUriEncoding: true,
         inputDirectory: Deployment.deployToDisk({

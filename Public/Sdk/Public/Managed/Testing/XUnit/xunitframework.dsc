@@ -69,7 +69,7 @@ const additionalNetCoreRuntimeContent = isDotNetCore(qualifier.targetFramework)
         // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
         ...(getXunitConsoleRuntimeConfigNetCoreAppFiles()),
         xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
-        
+
         // Note that below we are using different console runner due to this bug https://github.com/xunit/xunit/pull/1846
         // that the xunit maintainer does not want to fix. Let's consider removing this patch when we upgrade to xunit 3.0.
         xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)

@@ -10,7 +10,7 @@ namespace ProcessPipExecutor {
         allowUnsafeBlocks: true,
         references: [
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
-                importFrom("System.Memory").pkg,
+                importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             ]),
 
             Processes.dll,

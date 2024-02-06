@@ -60,7 +60,7 @@ namespace LanguageService.Server {
         runtimeReferences: [
             importFrom("Nerdbank.Streams").pkg,
             importFrom("System.IO.Pipelines").pkg, 
-            importFrom("System.Collections.Immutable").pkg, 
+            importFrom("System.Collections.Immutable.ForVBCS").pkg, 
         ],
     });
 

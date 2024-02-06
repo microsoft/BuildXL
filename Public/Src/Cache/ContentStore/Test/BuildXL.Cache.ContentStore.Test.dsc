@@ -21,7 +21,7 @@ namespace Test {
             ),
 
             ...addIf(BuildXLSdk.isFullFramework,
-                importFrom("System.Memory").pkg
+                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg
             ),
             // TODO: This needs to be renamed to just utilities... but it is in a package in public/src
             importFrom("BuildXL.Utilities").dll,

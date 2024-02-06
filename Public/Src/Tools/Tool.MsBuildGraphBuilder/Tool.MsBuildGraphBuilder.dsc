@@ -11,8 +11,6 @@ import * as Shared from "Sdk.Managed.Shared";
 
 namespace MsBuildGraphBuilder {
 
-    export declare const qualifier: BuildXLSdk.Net7QualifierWithNet472;
-
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "ProjectGraphBuilder",
@@ -25,7 +23,7 @@ namespace MsBuildGraphBuilder {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").Native.dll,
-            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable.ForVBCS").pkg),
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Threading.Tasks.Dataflow").pkg),
             importFrom("Microsoft.Build.Prediction").pkg,
             importFrom("Microsoft.Build.Locator").pkg,
@@ -39,8 +37,8 @@ namespace MsBuildGraphBuilder {
             // don't add msbuild dlls because assembly resolvers will resolve msbuild from other MSBuild installations
             ...MSBuild.msbuildReferences,
             importFrom("System.Collections.Immutable").pkg,
-            importFrom("System.Collections.Immutable").pkg,
-            importFrom("System.Memory").pkg,
+            importFrom("System.Collections.Immutable.ForVBCS").pkg,
+            importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             importFrom("System.Memory").pkg,
         ],
         internalsVisibleTo: [
@@ -65,7 +63,7 @@ namespace MsBuildGraphBuilder {
             {
                 subfolder: r`dotnetcore`,
                 contents: [
-                        $.withQualifier({ targetFramework: Managed.TargetFrameworks.DefaultTargetFramework })
+                        $.withQualifier({ targetFramework: "net6.0" })
                         .MsBuildGraphBuilder.exe
                     ]
             }

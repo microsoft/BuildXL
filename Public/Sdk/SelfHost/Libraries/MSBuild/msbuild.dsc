@@ -4,7 +4,7 @@
 import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
-export declare const qualifier: BuildXLSdk.Net7QualifierWithNet472;
+export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
 @@public
 export const msbuildReferences: Managed.ManagedNugetPackage[] = [
@@ -13,28 +13,24 @@ export const msbuildReferences: Managed.ManagedNugetPackage[] = [
     importFrom("Microsoft.Build").pkg,
     importFrom("Microsoft.Build.Tasks.Core").pkg,
     importFrom("Microsoft.NET.StringTools").pkg,
-    ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Runtime.CompilerServices.Unsafe").pkg),
+    ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg),
 ];
 
-/** 
- * Runtime content for tests 
- * Observe that we use a net7-specific version of msbuild.
- **/
+/** Runtime content for tests */
 @@public
 export const msbuildRuntimeContent = [
-    importFrom("System.Memory").pkg,
-    importFrom("System.Numerics.Vectors").pkg,
-    importFrom("System.Collections.Immutable").pkg,
+    importFrom("Microsoft.Build.Runtime").pkg,
+    importFrom("System.MemoryForVBCS").pkg,
+    importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+    importFrom("System.Collections.Immutable.ForVBCS").pkg,
     importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
     importFrom("System.Threading.Tasks.Dataflow").pkg,
-    importFrom("System.Threading.Tasks.Extensions").pkg,
-    importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
-
+    
     ...BuildXLSdk.isDotNetCoreOrStandard ? [
         importFrom("System.Text.Encoding.CodePages").pkg,
         importFrom("Microsoft.Build.Tasks.Core").pkg,
-        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net7.0/MSBuild.dll`),
-        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net7.0/MSBuild.runtimeconfig.json`),
+        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net6.0/MSBuild.dll`),
+        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net6.0/MSBuild.runtimeconfig.json`),
         importFrom("Microsoft.NET.StringTools").pkg
     ]
     : [

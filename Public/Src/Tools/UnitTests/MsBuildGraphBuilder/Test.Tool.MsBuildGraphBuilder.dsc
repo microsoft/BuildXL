@@ -6,7 +6,7 @@ import * as MSBuild from "Sdk.Selfhost.MSBuild";
 
 namespace Test.Tool.MsBuildGraphBuilder {
 
-    export declare const qualifier: BuildXLSdk.Net7QualifierWithNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     @@public
     export const dll = BuildXLSdk.test({
@@ -28,5 +28,10 @@ namespace Test.Tool.MsBuildGraphBuilder {
                     dep.name !== "System.Collections.Immutable.dll")),
             ...MSBuild.msbuildReferences,
         ],
+        runtimeContentToSkip: [
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Buffers").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Memory").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.MemoryForVBCS").pkg)
+        ]
     });
 }

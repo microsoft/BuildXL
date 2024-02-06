@@ -38,7 +38,7 @@ namespace Test.Tool.DropDaemon {
             ...importFrom("BuildXL.Tools.DropDaemon").dropDaemonSbomPackages(),
         ],
 
-        // TODO: The SBOM package expects a netcore 7 JSON package, even for netcore 6. Remove when we stop supporting net6
         deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Text.Encodings.Web.dll`, a`System.Text.Json.dll`] },
+        runtimeContentToSkip: importFrom("BuildXL.Tools.DropDaemon").dropDaemonRuntimeContentToSkip(),
     });
 }

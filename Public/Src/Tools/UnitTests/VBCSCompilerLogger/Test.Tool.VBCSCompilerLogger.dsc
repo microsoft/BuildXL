@@ -6,7 +6,7 @@ import * as MSBuild from "Sdk.Selfhost.MSBuild";
 
 namespace Test.Tool.VBCSCompilerLogger {
 
-    export declare const qualifier: BuildXLSdk.Net7Qualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.test({

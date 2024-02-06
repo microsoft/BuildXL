@@ -28,7 +28,7 @@ namespace Execution.Analyzer {
                 NetFx.System.IO.Compression.dll,
                 NetFx.System.Net.Http.dll,
                 NetFx.System.Runtime.Serialization.dll,
-                importFrom("System.Memory").pkg
+                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg
             ]),
             VSCode.DebugAdapter.dll,
             VSCode.DebugProtocol.dll,

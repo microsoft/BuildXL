@@ -14,11 +14,13 @@ namespace Grpc {
         references: [
             ...getGrpcPackages(true),
             ...BuildXLSdk.bclAsyncPackages,
-            importFrom("System.Security.Cryptography.ProtectedData").pkg,
+            ...addIfLazy(BuildXLSdk.isDotNetCoreOrStandard, () => [
+                  BuildXLSdk.withWinRuntime(importFrom("System.Security.Cryptography.ProtectedData").pkg, r`runtimes/win/lib/netstandard2.0`),
+            ]),
 
             ...addIfLazy(qualifier.targetFramework === "netstandard2.0", () => [
                 // Don't need adding the following package for net6+
-                importFrom("System.Security.Cryptography.Cng").pkg
+                BuildXLSdk.withWinRuntime(importFrom("System.Security.Cryptography.Cng").pkg, r`runtimes/win/lib/netstandard2.0`),
           ]),
 
             ...addIf(!BuildXLSdk.isDotNetCoreOrStandard, NetFx.System.Security.dll),

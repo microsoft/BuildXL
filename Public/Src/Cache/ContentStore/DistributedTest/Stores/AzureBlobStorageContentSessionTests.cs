@@ -197,6 +197,24 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
             });
     }
 
+
+    [Fact]
+    public Task PutBigFileShouldSucceed()
+    {
+        return RunTestAsync(
+            ImplicitPin.None,
+            null,
+            async (context, session) =>
+            {
+                var putResult = await session.PutRandomFileAsync(context, FileSystem, HashType.Vso0, provideHash: false, size: "100 MB".ToSize(), default);
+                putResult.ShouldBeSuccess();
+
+                using var placeDirectory = new DisposableDirectory(FileSystem);
+                var placeResult = await session.PlaceFileAsync(context, putResult.ContentHash, placeDirectory.Path / "bigfile.dat", FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists, FileRealizationMode.Any, Token);
+                placeResult.ShouldBeSuccess();
+            });
+    }
+
     [Fact]
     public Task PutAndPlaceLotsOfRandomFilesShouldSucceed()
     {

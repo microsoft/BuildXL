@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
+using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -21,6 +22,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tracing;
@@ -41,7 +43,20 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         ImplicitPin ImplicitPin,
         TimeSpan StorageInteractionTimeout,
         IRemoteContentAnnouncer? Announcer,
-        int FileDownloadBufferSize = 81920);
+        int? ParallelHashingFileSizeBoundary = null,
+        int? InitialTransferSize = null,
+        int? MaximumTransferSize = null,
+        int? MaximumConcurrency = null
+        )
+    {
+        public int ParallelHashingFileSizeBoundarySetting => ParallelHashingFileSizeBoundary ?? (int)"4 MB".ToSize();
+
+        public int InitialTransferSizeSetting => InitialTransferSize ?? (int)"4 MB".ToSize();
+
+        public int MaximumTransferSizeSetting => MaximumTransferSize ?? (int)"200 MB".ToSize();
+
+        public int MaximumConcurrencySetting => MaximumConcurrency ?? Environment.ProcessorCount;
+    }
 
     /// <inheritdoc />
     protected override Tracer Tracer { get; } = new(nameof(AzureBlobStorageContentSession));
@@ -128,6 +143,9 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
+        // TODO: OpenStream is kind of problematic, because we have no way to guarantee the information being read
+        // matches the hash while we're reading it. Therefore, we are forced to download into a temporary folder before
+        // downloading, and then open a stream to the resulting file. This is not ideal, but it's the best we can do.
         var stream = await TryOpenRemoteStreamAsync(context, contentHash).ThrowIfFailureAsync();
         return new OpenStreamResult(stream);
     }
@@ -230,9 +248,9 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         _contentNotFoundListeners.Add(listener);
     }
 
-    private FileStream OpenFileStream(AbsolutePath path, long length, bool randomAccess)
+    private FileStream OpenFileStream(AbsolutePath path, long? length, bool randomAccess)
     {
-        Contract.Requires(length >= 0);
+        Contract.Requires(length is null or >= 0);
 
         var flags = FileOptions.Asynchronous;
         if (randomAccess)
@@ -251,7 +269,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                 path,
                 length,
                 FileMode.Create,
-                FileShare.ReadWrite,
+                FileShare.None,
                 flags).Stream;
         }
         catch (DirectoryNotFoundException)
@@ -262,7 +280,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                 path,
                 length,
                 FileMode.Create,
-                FileShare.ReadWrite,
+                FileShare.None,
                 flags).Stream;
         }
 
@@ -281,35 +299,64 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             Tracer,
             async context =>
             {
+                var statistics = new DownloadStatistics();
+                long fileSize;
+                ContentHash observedContentHash;
+
                 var stopwatch = StopwatchSlim.Start();
-                (var stream, blobPath) = await TryOpenReadAsync(context, contentHash);
-                if (stream == null)
+                BlobClient client;
+                try
                 {
-                    return Result.Success(new RemoteDownloadResult()
+                    (client, blobPath) = await GetBlobClientAsync(context, contentHash);
+                    stopwatch.ElapsedAndReset();
+
+                    using var fileStream = OpenFileStream(path, length: null, randomAccess: false);
+                    statistics.OpenFileStreamDuration = stopwatch.ElapsedAndReset();
+
+                    await using (var hashingStream = HashInfoLookup
+                                     .GetContentHasher(contentHash.HashType)
+                                     .CreateWriteHashingStream(
+                                         fileStream,
+                                         parallelHashingFileSizeBoundary: _configuration.ParallelHashingFileSizeBoundarySetting))
+                    {
+                        var blobDownloadToOptions = new BlobDownloadToOptions()
+                        {
+                            TransferOptions = new StorageTransferOptions()
+                            {
+                                InitialTransferSize = _configuration.InitialTransferSizeSetting,
+                                MaximumTransferSize = _configuration.MaximumTransferSizeSetting,
+                                MaximumConcurrency = _configuration.MaximumConcurrencySetting,
+                            },
+                        };
+
+                        // The following download is done in parallel onto the hashing stream. The hashing stream will
+                        // itself run the hashing of the input in parallel as well.
+                        await client.DownloadToAsync(
+                            hashingStream,
+                            blobDownloadToOptions,
+                            cancellationToken: context.Token);
+                        statistics.DownloadDuration = stopwatch.ElapsedAndReset();
+
+                        observedContentHash = await hashingStream.GetContentHashAsync();
+                        statistics.HashingDuration = hashingStream.TimeSpentHashing;
+                    }
+
+                    statistics.WriteDuration = fileStream.GetWriteDurationIfAvailable() ?? TimeSpan.MinValue;
+                    fileSize = fileStream.Length;
+                }
+                // This exception will be thrown whenever storage tries to do the first operation on the blob, which
+                // should be in the DownloadToAsync.
+                catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
+                {
+                    statistics.DownloadDuration ??= stopwatch.ElapsedAndReset();
+
+                    return Result.Success(new RemoteDownloadResult
                     {
                         ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                        DownloadResult = new DownloadResult() { DownloadDuration = stopwatch.Elapsed, },
+                        FileSize = null,
+                        DownloadResult = statistics
                     });
                 }
-
-                var timeToFirstByteDuration = stopwatch.ElapsedAndReset();
-
-                using var remoteStream = stream.Value.Stream;
-
-                using var fileStream = OpenFileStream(path, stream.Value.Length, randomAccess: false);
-                var openFileStreamDuration = stopwatch.ElapsedAndReset();
-
-                ContentHash observedContentHash;
-                await using (var hashingStream = HashInfoLookup
-                                 .GetContentHasher(contentHash.HashType)
-                                 .CreateWriteHashingStream(
-                                     fileStream,
-                                     parallelHashingFileSizeBoundary: _configuration.FileDownloadBufferSize))
-                {
-                    await remoteStream.CopyToAsync(hashingStream, _configuration.FileDownloadBufferSize, context.Token);
-                    observedContentHash = await hashingStream.GetContentHashAsync();
-                }
-                var downloadDuration = stopwatch.ElapsedAndReset();
 
                 if (observedContentHash != contentHash)
                 {
@@ -330,12 +377,8 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                         new RemoteDownloadResult()
                         {
                             ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                            DownloadResult = new DownloadResult()
-                            {
-                                OpenFileStreamDuration = openFileStreamDuration,
-                                DownloadDuration = downloadDuration,
-                                WriteDuration = fileStream.GetWriteDurationIfAvailable()
-                            },
+                            FileSize = fileSize,
+                            DownloadResult = statistics,
                         });
                 }
 
@@ -343,14 +386,8 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                     new RemoteDownloadResult
                     {
                         ResultCode = PlaceFileResult.ResultCode.PlacedWithCopy,
-                        FileSize = remoteStream.Length,
-                        TimeToFirstByteDuration = timeToFirstByteDuration,
-                        DownloadResult = new DownloadResult()
-                        {
-                            OpenFileStreamDuration = openFileStreamDuration,
-                            DownloadDuration = downloadDuration,
-                            WriteDuration = fileStream.GetWriteDurationIfAvailable(),
-                        },
+                        FileSize = fileSize,
+                        DownloadResult = statistics,
                     });
             },
             traceOperationStarted: false,
@@ -488,6 +525,15 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                 // TODO: bandwidth checking?
                 // TODO: timeouts
                 var contentAlreadyExistsInCache = false;
+
+                // The Storage service can only reply existence after the entire blob has been uploaded. Unfortunately
+                // for us, the larger the file is the more likely that it is also unique, so it doesn't make sense for
+                // us to pre-check existence _before_ doing the upload.
+                //
+                // The ONLY exception to this are deterministic large files (i.e., there's a large file that's always
+                // the same and always uploaded). For that specific case, it would make sense to perform a parallel
+                // existence check while we upload the file, and cancel the upload if the file already exists.
+                // TODO: implement this.
                 try
                 {
                     // TODO: setup parallel upload by using storage options (ParallelOperationThreadCount)
@@ -495,11 +541,28 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                     // TODO: ideally here we'd also hash in the bg and cancel the op if it turns out the hash
                     // doesn't match as a protective measure against trusted puts with the wrong hash.
 
+                    var blobUploadOptions = new BlobUploadOptions()
+                    {
+                        Conditions = new BlobRequestConditions { IfNoneMatch = new ETag("*") },
+                    };
+
+                    // Setting transfer options will more likely than not mean that the SDK will enter a code path
+                    // where uploads can be chunked. The issue is that chunking uploads are much slower for very small
+                    // files. Therefore, we only set the transfer options if the file is larger than the initial window.
+                    if (contentSize >= 0 && contentSize > _configuration.InitialTransferSize)
+                    {
+                        blobUploadOptions.TransferOptions = new StorageTransferOptions
+                        {
+                            InitialTransferSize = _configuration.InitialTransferSize,
+                            MaximumTransferSize = _configuration.MaximumTransferSize,
+                            MaximumConcurrency = _configuration.MaximumConcurrency,
+                        };
+                    }
+
                     await client.UploadAsync(
                         stream,
-                        overwrite: false,
-                        cancellationToken: context.Token
-                    );
+                        blobUploadOptions,
+                        cancellationToken: context.Token);
                 }
                 catch (RequestFailedException e) when (e.Status is PreconditionFailed or BlobAlreadyExists)
                 {
@@ -547,33 +610,35 @@ public readonly record struct RemoteDownloadResult
 
     public long? FileSize { get; init; }
 
-    public TimeSpan? TimeToFirstByteDuration { get; init; }
-
-    public required DownloadResult DownloadResult { get; init; }
+    public required DownloadStatistics DownloadResult { get; init; }
 
     /// <inheritdoc />
     public override string ToString()
     {
         return $"{nameof(ResultCode)}=[{ResultCode}] " +
                $"{nameof(FileSize)}=[{FileSize ?? -1}] " +
-               $"{nameof(TimeToFirstByteDuration)}=[{TimeToFirstByteDuration ?? TimeSpan.Zero}] " +
                $"{DownloadResult.ToString() ?? ""}";
     }
 }
 
-public readonly record struct DownloadResult
+public record DownloadStatistics
 {
-    public required TimeSpan DownloadDuration { get; init; }
+    public TimeSpan? OpenFileStreamDuration { get; set; } = null;
 
-    public TimeSpan? OpenFileStreamDuration { get; init; }
+    public TimeSpan? DownloadDuration { get; set; } = null;
 
-    public TimeSpan? WriteDuration { get; init; }
+    public TimeSpan? WriteDuration { get; set; } = null;
+
+    public TimeSpan? HashingDuration { get; set; } = null;
 
     /// <inheritdoc />
     public override string ToString()
     {
-        return $"OpenFileStreamDurationMs=[{OpenFileStreamDuration?.TotalMilliseconds ?? -1}] " +
-               $"DownloadDurationMs=[{DownloadDuration.TotalMilliseconds}]" +
-               $"WriteDuration=[{WriteDuration?.TotalMilliseconds ?? -1}]";
+        return
+           $"OpenFileStreamDurationMs=[{OpenFileStreamDuration?.TotalMilliseconds ?? -1}] " +
+           $"DownloadDurationMs=[{DownloadDuration?.TotalMilliseconds ?? -1}] " +
+           $"WriteDuration=[{WriteDuration?.TotalMilliseconds ?? -1}] " +
+           $"HashingDuration=[{HashingDuration?.TotalMilliseconds ?? -1}]"
+           ;
     }
 }

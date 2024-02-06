@@ -282,7 +282,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         {
             return RunReadOnlyTestAsync(ImplicitPin.None, async (context, session) =>
             {
-                var path = new AbsolutePath(PathGeneratorUtilities.GetAbsolutePath("Z", "nonexist", "file.dat"));
+                using var placeDirectory = new DisposableDirectory(FileSystem);
+                var path = placeDirectory.Path / "this" / "is" / "too" / "deep.dat";
                 var result = await session.PlaceFileAsync(
                     context,
                     ContentHash.Random(),

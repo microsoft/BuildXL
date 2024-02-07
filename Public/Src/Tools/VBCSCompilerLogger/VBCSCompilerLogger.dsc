@@ -6,6 +6,8 @@ import * as MSBuild from "Sdk.Selfhost.MSBuild";
 
 namespace VBCSCompilerLogger {
 
+    export declare const qualifier: BuildXLSdk.Net7QualifierWithNet472;
+
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "VBCSCompilerLogger",
@@ -17,7 +19,7 @@ namespace VBCSCompilerLogger {
             importFrom("Microsoft.CodeAnalysis.CSharp.ForVBCS").pkg,
             importFrom("Microsoft.CodeAnalysis.VisualBasic.ForVBCS").pkg,
             importFrom("Microsoft.CodeAnalysis.Common.ForVBCS").pkg,
-            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable.ForVBCS").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Engine").Processes.dll,
@@ -25,13 +27,15 @@ namespace VBCSCompilerLogger {
         ],
         runtimeContent:[
             importFrom("System.Reflection.Metadata.ForVBCS").pkg,
-            importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Memory").pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+            importFrom("System.Numerics.Vectors").pkg,
         ],
         runtimeContentToSkip: [
-            importFrom("System.Collections.Immutable").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Collections.Immutable").pkg,
             importFrom("System.Memory").pkg,
+            // Avoid deploying the standard reference in favor of the old one
+            importFrom("System.Reflection.Metadata").pkg,
         ],
         internalsVisibleTo: ["Test.Tool.VBCSCompilerLogger"]
     });
@@ -55,7 +59,11 @@ namespace VBCSCompilerLogger {
             importFrom("BuildXL.Engine").Processes.dll,
         ],
         runtimeContent:[
-            importFrom("System.Reflection.Metadata").pkg
+            importFrom("System.Reflection.Metadata.ForVBCS").pkg,
+        ],
+        runtimeContentToSkip: [
+            // Avoid deploying the standard reference in favor of the old one
+            importFrom("System.Reflection.Metadata").pkg,
         ],
         defineConstants: ["TEST"]
     });

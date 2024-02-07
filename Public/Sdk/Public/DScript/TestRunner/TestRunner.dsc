@@ -85,7 +85,7 @@ export function test(args: TestArguments): Managed.TestResult {
         skipTestRun: !BuildXLSdk.targetFrameworkMatchesCurrentHost,
         references: [
             SdkTesting.Helper.dll,
-            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
             ...importFrom("Sdk.Managed.Testing.XUnit").xunitReferences
         ],
         tools: {

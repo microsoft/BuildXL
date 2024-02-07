@@ -14,7 +14,7 @@ namespace Core {
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
             importFrom("Microsoft.CodeAnalysis.Common").pkg,
-            importFrom("System.Collections.Immutable.ForVBCS").pkg,
+            importFrom("System.Collections.Immutable").pkg,
         ],
     });
 }

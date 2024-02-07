@@ -17,7 +17,7 @@ export const NetFx = BuildXLSdk.NetFx;
 @@public
 export function getSerializationPackages(includeNetStandard: boolean) : (Managed.ManagedNugetPackage | Managed.Assembly)[] {
     return [
-        importFrom("System.Memory.Data").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Memory.Data").pkg,
         ...getSystemTextJson(includeNetStandard),
         ...getSerializationPackagesWithoutNetStandard()
     ];
@@ -27,13 +27,13 @@ export function getSerializationPackages(includeNetStandard: boolean) : (Managed
 export function getSerializationPackagesWithoutNetStandard() : (Managed.ManagedNugetPackage)[] {
     return [
         ...(BuildXLSdk.isFullFramework ? [
-            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
         ] : []),
         ...(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ? [
-            importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Memory").pkg,
         ] : []),
-        importFrom("System.Text.Encodings.Web").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Text.Encodings.Web").pkg,
+        importFrom("System.Numerics.Vectors").pkg,
     ];
 }
 
@@ -53,20 +53,15 @@ export function getSystemTextJsonWithoutNetStandard() : Managed.ManagedNugetPack
     return [
         ...addIf(
             !BuildXLSdk.isDotNetCore,
-            importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg),
+            importFrom("System.Text.Json").pkg),
     ];
 }
 
 @@public
 export function getProtobufPackages() : Managed.ManagedNugetPackage[] {
     return [
-       BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ?
-            importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg 
-            : importFrom("System.Memory").pkg,
-        BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ?
-            importFrom("System.Buffers").withQualifier({ targetFramework: "netstandard2.0" }).pkg 
-            : importFrom("System.Buffers").pkg,
-
+        importFrom("System.Buffers").pkg,
+        importFrom("System.Memory").pkg,
         importFrom("Google.Protobuf").pkg, 
     ];
 }
@@ -118,13 +113,39 @@ export function getGrpcAspNetCorePackages() : (Managed.ManagedNugetPackage | Man
                   importFrom("Grpc.AspNetCore.Server.ClientFactory").pkg,
                   importFrom("Grpc.AspNetCore.Server").pkg,
                   
-                  BuildXLSdk.withWinRuntime(importFrom("System.Security.Cryptography.ProtectedData").pkg, r`runtimes/win/lib/netstandard2.0`),
+                  importFrom("System.Security.Cryptography.ProtectedData").pkg,
                   
-                  // AspNetCore assemblies
-                  Managed.Factory.filterRuntimeSpecificBinaries(BuildXLSdk.WebFramework.getFrameworkPackage(), [
-                    importFrom("System.IO.Pipelines").pkg
-                  ])
+                  ...getAsptNetCoreAssemblies(),
         ])
+    ];
+}
+
+@@public
+export function getAsptNetCoreAssemblies() : Managed.ManagedNugetPackage[] {
+    return [
+        // The ASPNet web framework package comes with some DLLs that we also import individually.
+        // We prefer the one individually imported, so remove the overlapping DLLs from the web framework
+        // package and add the individually imported ones.
+        // If you ever get a double deployment issue coming from this package, just add the conflicting DLL
+        // under getWebFrameworkExclusions()
+        Managed.Factory.filterSpecificBinaries(
+                BuildXLSdk.WebFramework.getFrameworkPackage(), 
+                getWebFrameworkExclusions()),
+            ...getWebFrameworkExclusions()
+    ];
+}
+
+function getWebFrameworkExclusions(): Managed.ManagedNugetPackage[] {
+    return [
+        importFrom("System.IO.Pipelines").pkg,
+        importFrom("System.Diagnostics.EventLog").pkg,
+        importFrom("System.Security.Cryptography.Pkcs").pkg,
+        importFrom("System.Security.Cryptography.Xml").pkg,
+        importFrom("Microsoft.Extensions.DependencyInjection").pkg,
+        importFrom("Microsoft.Extensions.DependencyInjection.Abstractions").pkg,
+        importFrom("Microsoft.Extensions.Http").pkg,
+        importFrom("Microsoft.Extensions.Options").pkg,
+        importFrom("Microsoft.Extensions.Primitives").pkg
     ];
 }
 

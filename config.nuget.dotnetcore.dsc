@@ -24,7 +24,7 @@ export const pkgs = [
     { id: "Microsoft.NETCore.App.Ref", version: coreVersion },
 
     { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
-    { id: "Microsoft.NETCore.Platforms", version: coreVersion },
+    { id: "Microsoft.NETCore.Platforms", version: core50Version },
     
     // .NET Core Self-Contained Deployment
     { id: "Microsoft.NETCore.DotNetHostResolver", version: coreVersion },
@@ -38,8 +38,7 @@ export const pkgs = [
     // .NET Core 6.0 Dependencies
     { id: "Microsoft.NETCore.App.Ref", version: core60Version, alias: "Microsoft.NETCore.App.Ref60" },
 
-    { id: "Microsoft.NETCore.Platforms", version: core60VersionPlatforms, alias: "Microsoft.NETCore.Platforms.6.0" },
-    
+   
     // .NET Core Self-Contained Deployment
     { id: "Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "Microsoft.NETCore.DotNetHostResolver.6.0" },
 
@@ -205,7 +204,7 @@ export const pkgs = [
     { id: "System.Runtime.Serialization.Xml", version: pkgVersion },
     { id: "System.Runtime.WindowsRuntime", version: pkgVersion },
     { id: "System.Security.Cryptography.Algorithms", version: pkgVersion },
-    { id: "System.Security.Cryptography.Cng", version: pkgVersion },
+    { id: "System.Security.Cryptography.Cng", version: pkgVersion5 },
     { id: "System.Security.Cryptography.Csp", version: pkgVersion },
     { id: "System.Security.Cryptography.Encoding", version: pkgVersion },
     { id: "System.Security.Cryptography.Primitives", version: pkgVersion },
@@ -219,7 +218,8 @@ export const pkgs = [
     { id: "System.Threading", version: pkgVersion },
     { id: "System.Threading.Overlapped", version: pkgVersion },
     { id: "System.Threading.Tasks", version: pkgVersion },
-
+    { id: "System.Formats.Asn1", version: "7.0.0"},
+    
     { id: "System.Threading.Tasks.Parallel", version: pkgVersion },
     { id: "System.Threading.Thread", version: pkgVersion },
     { id: "System.Threading.ThreadPool", version: pkgVersion },
@@ -236,38 +236,19 @@ export const pkgs = [
     // Bumped version numbers
     { id: "System.IO.FileSystem.AccessControl", version: pkgVersionNext },
     { id: "System.Management", version: pkgVersionNext },
-    { id: "System.Security.AccessControl", version: pkgVersionNext,
-        dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
-    { id: "System.Security.Principal.Windows", version: pkgVersionNext },
+    { id: "System.Security.AccessControl", version: pkgVersion6 },
+    { id: "System.Security.Principal.Windows", version: pkgVersion6Preview },
     
-    { id: "System.Security.Principal.Windows", version: pkgVersion5, alias: "System.Security.Principal.Windows.v5.0.0" },
-    { id: "System.Text.Json", version: "4.7.2",
-        dependentPackageIdsToSkip: ["System.Memory", "System.ValueTuple", "System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors", "System.Threading.Tasks.Extensions", "Microsoft.Bcl.AsyncInterfaces"],
-    },
-    { id: "System.Text.Json", version: pkgVersion7,
-        dependentPackageIdsToSkip: ["System.Memory", "System.Buffers", "System.ValueTuple", "System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors", "System.Threading.Tasks.Extensions", "Microsoft.Bcl.AsyncInterfaces", "System.Text.Encodings.Web"],
-        alias: "System.Text.Json.v7.0.0"
-    },
+    { id: "System.Text.Json", version: "7.0.0" },
     { id: "System.Threading.AccessControl", version: pkgVersionNext },
-
-    { id: "System.IO.FileSystem.AccessControl", version: pkgVersion6Preview, alias: "System.IO.FileSystem.AccessControl.v6.0.0" },
-    { id: "System.Security.AccessControl", version: pkgVersion6, alias: "System.Security.AccessControl.v6.0.0" },
-    { id: "System.Security.Principal.Windows", version: pkgVersion6Preview, alias: "System.Security.Principal.Windows.v6.0.0" },
 
     // Non-standard version ones
     { id: "Microsoft.NETCore.Targets", version: "2.0.0" },
     
-    // NOTE(jubayard): If you depend on this package and need to build for Net472, you will need to add the
-    // dependency manually, using netstandard2.0 targetFramework qualifier. Dependency clipped because it 
-    // causes a deployment conflict for the cache.
-    { id: "System.Threading.Tasks.Extensions", version: "4.5.4", // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
-        dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"] },
+    { id: "System.Threading.Tasks.Extensions", version: "4.5.4" }, // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
 
     { id: "System.Security.Cryptography.OpenSsl", version: "4.4.0" },
-    { id: "System.Collections.Immutable", version: "1.5.0" },
-    // The next one is used only to run some tests in the IDE.
-    // { id: "System.Collections.Immutable", version: "1.7.1", dependentPackageIdsToSkip: ["System.Memory"] },
-    { id: "System.Collections.Immutable", version: "5.0.0", alias: "System.Collections.Immutable.ForVBCS", dependentPackageIdsToSkip: ["System.Memory"] },
+    { id: "System.Collections.Immutable", version: "7.0.0" },
 ];
 
 

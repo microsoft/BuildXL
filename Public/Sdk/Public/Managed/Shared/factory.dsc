@@ -104,15 +104,17 @@ namespace Factory {
     }
 
     @@public
-    export function filterRuntimeSpecificBinaries(nuget: ManagedNugetPackage, exclusions: ManagedNugetPackage[]): ManagedNugetPackage {
-        const oldRuntimeBinaries: Binary[] = nuget.runtime;
-        const runtimeSpecificBinaries: Binary[] = exclusions.mapMany(exclusion => exclusion.runtime);
-        const runtimeSpecificFileNames: PathAtom[] = runtimeSpecificBinaries.mapMany(binaryFileNames);
+    export function filterSpecificBinaries(nuget: ManagedNugetPackage, exclusions: ManagedNugetPackage[]): ManagedNugetPackage {
+        const excludedBinaries: File[] = exclusions.mapMany(exclusion => exclusion.contents.contents);
+        const excludedBinaryNames: PathAtom[] = excludedBinaries.map(file => file.name);
+
+        // filter out specified binaries
         return nuget.override<ManagedNugetPackage>({
             runtime: [
-                // filter out old binaries that clash with the runtime specific ones
-                ...oldRuntimeBinaries.filter(b => intersect(binaryFileNames(b), runtimeSpecificFileNames).length === 0),
-                // add runtime specific ones
+                ...nuget.runtime.filter(b => intersect(binaryFileNames(b), excludedBinaryNames).length === 0),
+            ],
+            compile: [
+                ...nuget.compile.filter(b => intersect(binaryFileNames(b), excludedBinaryNames).length === 0),
             ]
         });
     }

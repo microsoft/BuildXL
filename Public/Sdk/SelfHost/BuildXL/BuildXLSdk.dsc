@@ -539,8 +539,8 @@ export function bxlBindingRedirects() {
                 name: "System.Runtime.CompilerServices.Unsafe",
                 publicKeyToken: "b03f5f7f11d50a3a",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "5.0.0.0",  // Corresponds to: { id: "System.Runtime.CompilerServices.Unsafe", version: "5.0.0" },
+                oldVersion: "0.0.0.0-6.0.0.0",
+                newVersion: "6.0.0.0",  // Corresponds to: { id: "System.Runtime.CompilerServices.Unsafe", version: "6.0.0" },
             },
         ];
 }
@@ -590,7 +590,7 @@ export function cacheBindingRedirects() {
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-4.0.1.2",
-                newVersion: "4.0.1.2", // Corresponds to: { id: "System.Memory", version: "4.5.5", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
+                newVersion: "4.0.1.2", // Corresponds to: { id: "System.Memory", version: "4.5.5" },
             },
             {
                 name: "System.Interactive.Async",

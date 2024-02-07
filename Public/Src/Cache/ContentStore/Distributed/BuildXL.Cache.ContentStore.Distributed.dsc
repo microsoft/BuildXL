@@ -20,8 +20,8 @@ namespace Distributed {
             : []),
         importFrom("Azure.Core.Amqp").pkg,
         importFrom("Microsoft.Azure.Amqp").pkg,
-        importFrom("System.Memory.Data").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        BuildXLSdk.withWinRuntime(importFrom("System.Security.Cryptography.ProtectedData").pkg, r`runtimes/win/lib/netstandard2.0`),
+        importFrom("System.Memory.Data").pkg,
+        importFrom("System.Security.Cryptography.ProtectedData").pkg,
     ];
 
     @@public
@@ -73,10 +73,9 @@ namespace Distributed {
 
             ...(BuildXLSdk.isFullFramework 
                 ? [ 
-                    // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.
-                    importFrom("System.IO.Pipelines").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-                    importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-                    importFrom("Pipelines.Sockets.Unofficial").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+                    importFrom("System.IO.Pipelines").pkg,
+                    importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+                    importFrom("Pipelines.Sockets.Unofficial").pkg,
                 ] 
                 : [
                     importFrom("System.IO.Pipelines").pkg,            

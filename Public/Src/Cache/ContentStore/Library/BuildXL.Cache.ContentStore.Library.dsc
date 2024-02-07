@@ -6,10 +6,6 @@ namespace Library {
     export declare const qualifier : BuildXLSdk.AllSupportedQualifiers;
 
     @@public
-    export const systemMemoryPackage = 
-        BuildXLSdk.isFullFramework  ? importFrom("System.Memory").withQualifier({ targetFramework: "netstandard2.0" }).pkg : importFrom("System.Memory").pkg;
-
-    @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.ContentStore",
         sources: globR(d`.`,"*.cs"),
@@ -22,7 +18,7 @@ namespace Library {
             ),
 
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
-            systemMemoryPackage,
+            importFrom("System.Memory").pkg,
             
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             UtilitiesCore.dll,

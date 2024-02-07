@@ -4,10 +4,9 @@ import {DotNetCoreVersion, Assembly, Factory} from "Sdk.Managed.Shared";
 namespace Helpers {
     export declare const qualifier : {};
 
+    // For now there are no assemblies to skip, leave this infra in place just in case we need
+    // this again.
     const assemblyNamesToExclude = Set.create(
-        a`System.IO.FileSystem.AccessControl`,
-        a`System.Security.AccessControl`,
-        a`System.Security.Principal.Windows`
     );
 
     // We skip deploying those files from the .NET Core package as we need those very assemblies from their dedicated package

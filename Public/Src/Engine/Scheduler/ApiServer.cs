@@ -293,7 +293,10 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(op != null);
 
-            Tracing.Logger.Log.ApiServerOperationReceived(m_loggingContext, op.Payload);
+            // The payload can be quite big, so we log up to 100 characters. It starts with the command name, so 100 chars will fit
+            // the name as well as the first bits of data. If we fail to parse the payload, TryDeserialize will log the complete string.
+            string payloadPreview = op.Payload == null ? "null" : op.Payload.Substring(0, Math.Min(op.Payload.Length, 100));
+            Tracing.Logger.Log.ApiServerOperationReceived(m_loggingContext, payloadPreview);
             var maybeIpcResult = await TryDeserialize(op.Payload)
                 .ThenAsync(cmd => TryExecuteCommandAsync(cmd));
 

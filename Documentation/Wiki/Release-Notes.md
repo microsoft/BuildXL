@@ -2,6 +2,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240202.1.1 (Release [361581](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=361581))
+- BXL bits are now using Net 7
+- Improved worker attachment logic
+- Improved handling of dynamic workers
+
 # 0.1.0-20240126.13.1 (Release [359923](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=359923))
 - Add active TCP connections statistics to status.csv.
 - Enable uploading cache logs to Kusto.

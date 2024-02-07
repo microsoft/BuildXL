@@ -1340,13 +1340,6 @@ namespace Tool.DropDaemon
             return status.ToString();
         }
 
-        private static IpcResultStatus ParseIpcStatus(string statusString, IpcResultStatus defaultValue = IpcResultStatus.ExecutionError)
-        {
-            return Enum.TryParse<IpcResultStatus>(statusString, out var value)
-                ? value
-                : defaultValue;
-        }
-
         /// <summary>
         /// BuildXL's classification of different <see cref="IpcResultStatus"/> values:
         ///   - <see cref="IpcResultStatus.InvalidInput"/>      --> <see cref="Keywords.UserError"/>

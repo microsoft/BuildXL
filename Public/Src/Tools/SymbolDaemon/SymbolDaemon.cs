@@ -24,6 +24,7 @@ using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Symbol.App.Core.Tracing;
 using Microsoft.VisualStudio.Services.Symbol.Common;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
+using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
 using Tool.ServicePipDaemon;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -757,7 +758,7 @@ namespace Tool.SymbolDaemon
 
             return dropCreationEvent.Succeeded
                 ? IpcResult.Success(I($"Symbol request '{RequestName}' created (url: '{dropCreationEvent.DropUrl}')."))
-                : new IpcResult(IpcResultStatus.GenericError, dropCreationEvent.ErrorMessage);
+                : new IpcResult(ParseIpcStatus(dropCreationEvent.AdditionalInformation), dropCreationEvent.ErrorMessage);
         }
 
         /// <summary>
@@ -795,7 +796,7 @@ namespace Tool.SymbolDaemon
 
             return dropFinalizationEvent.Succeeded
                ? IpcResult.Success(I($"Symbol request '{RequestName}' finalized."))
-               : new IpcResult(IpcResultStatus.GenericError, dropFinalizationEvent.ErrorMessage);
+               : new IpcResult(ParseIpcStatus(dropFinalizationEvent.AdditionalInformation), dropFinalizationEvent.ErrorMessage);
         }
 
         /// <nodoc />
@@ -906,10 +907,10 @@ namespace Tool.SymbolDaemon
             {
                 dropEvent = Activator.CreateInstance<T>();
                 dropEvent.Succeeded = false;
-                dropEvent.ErrorMessage = e.DemystifyToString();
                 // For symbols, url is something that is only defined for successful operations
                 // (it's based on a requestId which is not available until successful execution of 'symbol create').
                 dropEvent.DropUrl = null;
+                classifyException(e, dropEvent);
             }
 
             // common properties: execution time, drop type
@@ -920,6 +921,32 @@ namespace Tool.SymbolDaemon
             m_etwLogger.Log(dropEvent);
 
             return dropEvent;
+
+            static void classifyException(Exception e, T dropEvent)
+            {
+                // Classify both auth and 'request already exists' errors as InvalidInput, so BuildXL would
+                // treat them as user errors.
+                if (e is VssUnauthorizedException)
+                {
+                    dropEvent.ErrorMessage = $"[SYMBOL AUTH ERROR] {e.Message}";
+                    dropEvent.AdditionalInformation = IpcResultStatus.InvalidInput.ToString();
+                }
+                else if (e is RequestExistsException)
+                {
+                    dropEvent.ErrorMessage = $"[SYMBOL SERVICE ERROR] {e.Message}";
+                    dropEvent.AdditionalInformation = IpcResultStatus.InvalidInput.ToString();
+                }
+                else if (e is VssResourceNotFoundException)
+                {
+                    dropEvent.ErrorMessage = $"[SYMBOL SERVICE ERROR] {e.Message}";
+                    dropEvent.AdditionalInformation = IpcResultStatus.TransmissionError.ToString();
+                }
+                else
+                {
+                    dropEvent.ErrorMessage = e.DemystifyToString();
+                    dropEvent.AdditionalInformation = IpcResultStatus.GenericError.ToString();
+                }
+            }
         }
 
         private static string SymbolRequesToString(Request request)

@@ -759,5 +759,13 @@ namespace Tool.ServicePipDaemon
                     return false;
             }
         }
+
+        /// <nodoc />
+        protected static IpcResultStatus ParseIpcStatus(string statusString, IpcResultStatus defaultValue = IpcResultStatus.ExecutionError)
+        {
+            return Enum.TryParse<IpcResultStatus>(statusString, out var value)
+                ? value
+                : defaultValue;
+        }
     }
 }

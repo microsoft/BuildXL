@@ -698,7 +698,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Whether this process consumes /unsafe_GlobalPassthroughEnvVars and /unsafe_GlobalUntrackedScopes passed from the command line
         /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public bool RequireGlobalDependencies => (ProcessOptions & Options.RequireGlobalDependencies) == Options.RequireGlobalDependencies;
 
         /// <summary>

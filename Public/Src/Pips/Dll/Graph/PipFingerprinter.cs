@@ -392,6 +392,13 @@ namespace BuildXL.Pips.Graph
 
             fingerprinter.Add(nameof(Process.PreserveOutputsTrustLevel), process.PreserveOutputsTrustLevel);
 
+            // By default RequireGlobalDependencies is on, and we historically don't track what global passthrough env vars/untracked directories
+            // get included as part of it. But whenever this flag is explicitly turned off, make that part of the weak fingerprint.
+            if (!process.RequireGlobalDependencies)
+            {
+                fingerprinter.Add(nameof(Process.RequireGlobalDependencies), 0);
+            }
+
             AddProcessSpecificFingerprintSalt(fingerprinter, process);
         }
 

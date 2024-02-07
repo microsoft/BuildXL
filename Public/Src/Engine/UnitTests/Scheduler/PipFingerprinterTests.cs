@@ -963,6 +963,7 @@ namespace Test.BuildXL.Scheduler
             bool writingToStandardErrorFailsExecution = source.Vary(p => p.WritingToStandardErrorFailsExecution);
             bool disableFullReparsePointResolving = source.Vary(p => p.DisableFullReparsePointResolving);
             bool bypassFingerprintSalt = source.Vary(p => p.BypassFingerprintSalt);
+            bool requireGlobalDependencies = source.Vary(p => p.RequireGlobalDependencies);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -1013,6 +1014,11 @@ namespace Test.BuildXL.Scheduler
             if (bypassFingerprintSalt)
             {
                 options |= Process.Options.BypassFingerprintSalt;
+            }
+
+            if (requireGlobalDependencies)
+            {
+                options |= Process.Options.RequireGlobalDependencies;
             }
 
             return new Process(

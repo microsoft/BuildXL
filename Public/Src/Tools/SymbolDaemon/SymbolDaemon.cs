@@ -15,6 +15,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Core;
@@ -416,8 +417,13 @@ namespace Tool.SymbolDaemon
                     symbolsMetadata.Add(hashes[i], symbols);
                 }
 
-                // Index the file. It might not contain any symbol data. In this case, we will have an empty set.
-                symbols.UnionWith(indexer.GetDebugEntries(new System.IO.FileInfo(files[i]), calculateBlobId: false));
+                // SharedOpaque directories might contain absent files (these are so called temporary files, and we keep track
+                // of them mainly for DFA purposes). Since there is no actual file, there is nothing for us to index.
+                if (!WellKnownContentHashUtilities.IsAbsentFileHash(hashes[i]))
+                {
+                    // Index the file. It might not contain any symbol data. In this case, we will have an empty set.
+                    symbols.UnionWith(indexer.GetDebugEntries(new System.IO.FileInfo(files[i]), calculateBlobId: false));
+                }
             }
 
             SerializeSymbolsMetadata(symbolsMetadata, outputFile);

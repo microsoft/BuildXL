@@ -406,7 +406,7 @@ namespace NugetPackages {
                 contents: [
                     {
                         subfolder: r`net6.0`,
-                        contents: [importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: defaultTargetFramework, targetRuntime: "win-x64" }).LauncherServer.exe]
+                        contents: [importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net6.0", targetRuntime: "win-x64" }).LauncherServer.exe]
                     },
                     {
                         subfolder: r`net7.0`,

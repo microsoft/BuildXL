@@ -21,7 +21,9 @@ const downloaderDefinition: Transformer.ToolDefinition = {
         ...addIfLazy(Context.getCurrentHost().os === "macOS", () => [d`/dev/dtracehelper`, d`/private/var/run/mDNSResponder`, d`/private/var/folders`, d`/dev/tty`, d`/usr/share/zoneinfo`, d`/usr/share/icu`]),
         // For non-windows OS we use a named mutex to control the credential provider concurrency. The mutex translates into a file created under /tmp.
         ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp/.dotnet/shm`]),
-        d`${Context.getMount("UserProfile").path}/.dotnet/corefx/cryptography`
+        d`${Context.getMount("UserProfile").path}/.dotnet/corefx/cryptography`,
+        // use passed environment variable to untrack codeql temp directory. globalUntrackedScope causes rolling build failed.
+        ...addIfLazy(Environment.hasVariable("CODEQL_TEMP_DIR"), () => [ d`${Environment.getDirectoryValue("CODEQL_TEMP_DIR")}`])
     ],
     untrackedFiles: [
         nugetDownloaderExe,

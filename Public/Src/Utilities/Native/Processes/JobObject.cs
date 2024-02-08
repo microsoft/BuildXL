@@ -327,9 +327,14 @@ namespace BuildXL.Processes
                     return false;
                 }
 
-                if (processIdListPtr->NumberOfAssignedProcesses > processIdListPtr->NumberOfProcessIdsInList)
+                var lastError = Marshal.GetLastWin32Error();
+                if (processIdListPtr->NumberOfAssignedProcesses > processIdListPtr->NumberOfProcessIdsInList 
+                    && lastError == NativeIOConstants.ErrorMoreData)
                 {
-                    // This means "provided list too small"
+                    // This means "provided list too small":
+                    // Note: just checking NumberOfAssignedProcesses > NumberOfProcessIdsInList would be consistent with the documented behavior (https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_process_id_list)
+                    // but it turns out the actual implementation of the function and how it populates these fields might make this true
+                    // when the list is complete. Checking the last error for ErrorMoreData completes the check reliably.
                     requiredLength = processIdListPtr->NumberOfAssignedProcesses;
                     processIds = null;
                     return false;

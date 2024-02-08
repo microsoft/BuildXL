@@ -921,14 +921,14 @@ namespace BuildXL.Processes.Internal
 
                     Exception dumpCreationException;
 
-                    if (!string.IsNullOrEmpty(DumpFileDirectory)
-                        && DumpCreationException == null)
+                    if (!string.IsNullOrEmpty(DumpFileDirectory) && DumpCreationException == null)
                     {
                         var survivingProcesses = JobObjectProcessDumper.GetAndOptionallyDumpProcesses(
                             jobObject: m_job,
                             loggingContext: m_loggingContext,
                             survivingPipProcessDumpDirectory: DumpFileDirectory,
                             dumpProcess: true,
+                            excludedDumpProcessNames: [],
                             dumpException: out dumpCreationException);
                         if (dumpCreationException != null)
                         {

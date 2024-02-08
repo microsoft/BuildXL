@@ -20,7 +20,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Windows.Memory;
-using static BuildXL.Utilities.Core.OperatingSystemHelper;
+
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
@@ -72,11 +72,10 @@ namespace BuildXL.Processes
         private readonly string? m_survivingPipProcessChildrenDumpDirectory;
         private readonly int m_numRetriesPipeReadOnCancel;
 
-        private readonly Aggregation m_peakWorkingSet = new Aggregation();
-        private readonly Aggregation m_workingSet = new Aggregation();
-
-        private readonly Aggregation m_peakCommitSize = new Aggregation();
-        private readonly Aggregation m_commitSize = new Aggregation();
+        private readonly Aggregation m_peakWorkingSet = new();
+        private readonly Aggregation m_workingSet = new();
+        private readonly Aggregation m_peakCommitSize = new();
+        private readonly Aggregation m_commitSize = new();
 
         internal SandboxedProcess(SandboxedProcessInfo info)
         {
@@ -86,10 +85,7 @@ namespace BuildXL.Processes
                 "Trace file is enabled, but some of the required options in the file access manifest are not.");
 
             // there could be a race here, but it just doesn't matter
-            if (s_binaryPaths == null)
-            {
-                s_binaryPaths = new BinaryPaths(); // this can take a while; performs I/O
-            }
+            s_binaryPaths ??= new BinaryPaths(); // this can take a while; performs I/O
 
             // If unspecified make the injection timeout the DefaultProcessTimeoutInMinutes. Also, make it no less than DefaultProcessTimeoutInMinutes.
             m_timeoutMins = info.Timeout.HasValue ? ((uint)info.Timeout.Value.TotalMinutes) : Defaults.ProcessTimeoutInMinutes;
@@ -480,7 +476,7 @@ namespace BuildXL.Processes
                     };
 
                     bool debugFlagsMatch = true;
-                    ArraySegment<byte> manifestBytes = new ArraySegment<byte>();
+                    var manifestBytes = new ArraySegment<byte>();
                     manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_loggingContext, setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
                     if (!debugFlagsMatch)
                     {
@@ -506,13 +502,13 @@ namespace BuildXL.Processes
                 {
                     int ramPercent = 0, availableRamMb = 0, availablePageFileMb = 0, totalPageFileMb = 0;
 
-                    MEMORYSTATUSEX memoryStatusEx = new MEMORYSTATUSEX();
+                    var memoryStatusEx = new MEMORYSTATUSEX();
                     if (GlobalMemoryStatusEx(memoryStatusEx))
                     {
                         ramPercent = (int)memoryStatusEx.dwMemoryLoad;
-                        availableRamMb = new FileSize(memoryStatusEx.ullAvailPhys).MB;
-                        availablePageFileMb = new FileSize(memoryStatusEx.ullAvailPageFile).MB;
-                        totalPageFileMb = new FileSize(memoryStatusEx.ullTotalPageFile).MB;
+                        availableRamMb = new OperatingSystemHelper.FileSize(memoryStatusEx.ullAvailPhys).MB;
+                        availablePageFileMb = new OperatingSystemHelper.FileSize(memoryStatusEx.ullAvailPageFile).MB;
+                        totalPageFileMb = new OperatingSystemHelper.FileSize(memoryStatusEx.ullTotalPageFile).MB;
                     }
 
                     string memUsage = $"RamPercent: {ramPercent}, AvailableRamMb: {availableRamMb}, AvailablePageFileMb: {availablePageFileMb}, TotalPageFileMb: {totalPageFileMb}";
@@ -681,7 +677,7 @@ namespace BuildXL.Processes
 
             // Construct result; note that the process is expected to have exited at this point, even if we decided to forcefully kill it
             // (this callback is always a result of the process handle being signaled).
-            int exitCode = 0;
+            int exitCode;
             if (m_reports.MessageProcessingFailure != null && !m_fileAccessManifest.DisableDetours)
             {
                 exitCode = ExitCodes.MessageProcessingFailure;
@@ -692,33 +688,32 @@ namespace BuildXL.Processes
                 exitCode = m_detouredProcess.GetExitCode();
             }
 
-            SandboxedProcessResult result =
-                new SandboxedProcessResult
-                {
-                    // If there is a message parsing failure, fail the pip.
-                    ExitCode = exitCode,
-                    Killed = m_detouredProcess.Killed,
-                    TimedOut = m_detouredProcess.TimedOut,
-                    HasDetoursInjectionFailures = m_detouredProcess.HasDetoursInjectionFailures,
-                    SurvivingChildProcesses = m_survivingChildProcesses?.Values.ToArray(),
-                    PrimaryProcessTimes = primaryProcessTimes,
-                    JobAccountingInformation = jobAccountingInformation,
-                    StandardOutput = m_output.Freeze(),
-                    StandardError = m_error.Freeze(),
-                    TraceFile = m_traceBuilder?.Freeze(),
-                    AllUnexpectedFileAccesses = m_reports.FileUnexpectedAccesses,
-                    FileAccesses = m_reports.FileAccesses,
-                    DetouringStatuses = m_reports.ProcessDetoursStatuses,
-                    ExplicitlyReportedFileAccesses = m_reports.ExplicitlyReportedFileAccesses,
-                    Processes = m_reports.Processes,
-                    DumpFileDirectory = m_detouredProcess.DumpFileDirectory,
-                    DumpCreationException = m_detouredProcess.DumpCreationException,
-                    StandardInputException = standardInputException,
-                    MessageProcessingFailure = m_reports.MessageProcessingFailure,
-                    ProcessStartTime = m_detouredProcess.StartTime,
-                    HasReadWriteToReadFileAccessRequest = m_reports.HasReadWriteToReadFileAccessRequest,
-                    DiagnosticMessage = m_detouredProcess.Diagnostics
-                };
+            var result = new SandboxedProcessResult
+            {
+                // If there is a message parsing failure, fail the pip.
+                ExitCode = exitCode,
+                Killed = m_detouredProcess.Killed,
+                TimedOut = m_detouredProcess.TimedOut,
+                HasDetoursInjectionFailures = m_detouredProcess.HasDetoursInjectionFailures,
+                SurvivingChildProcesses = m_survivingChildProcesses?.Values.ToArray(),
+                PrimaryProcessTimes = primaryProcessTimes,
+                JobAccountingInformation = jobAccountingInformation,
+                StandardOutput = m_output.Freeze(),
+                StandardError = m_error.Freeze(),
+                TraceFile = m_traceBuilder?.Freeze(),
+                AllUnexpectedFileAccesses = m_reports.FileUnexpectedAccesses,
+                FileAccesses = m_reports.FileAccesses,
+                DetouringStatuses = m_reports.ProcessDetoursStatuses,
+                ExplicitlyReportedFileAccesses = m_reports.ExplicitlyReportedFileAccesses,
+                Processes = m_reports.Processes,
+                DumpFileDirectory = m_detouredProcess.DumpFileDirectory,
+                DumpCreationException = m_detouredProcess.DumpCreationException,
+                StandardInputException = standardInputException,
+                MessageProcessingFailure = m_reports.MessageProcessingFailure,
+                ProcessStartTime = m_detouredProcess.StartTime,
+                HasReadWriteToReadFileAccessRequest = m_reports.HasReadWriteToReadFileAccessRequest,
+                DiagnosticMessage = m_detouredProcess.Diagnostics
+            };
 
             SetResult(result);
         }
@@ -731,11 +726,8 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            Dictionary<uint, ReportedProcess>? survivingChildProcesses = JobObjectProcessDumper.GetAndOptionallyDumpProcesses(jobObject: jobObject,
-                                                                               loggingContext: m_loggingContext, 
-                                                                               survivingPipProcessDumpDirectory: m_survivingPipProcessChildrenDumpDirectory, 
-                                                                               dumpProcess: false,
-                                                                               out Exception? dumpException);
+            Dictionary<uint, ReportedProcess>? survivingChildProcesses = GetSurvivingChildProcesses(jobObject, shouldDumpProcess: false);
+
             if (survivingChildProcesses != null && survivingChildProcesses.Count > 0)
             {
                 foreach (string processPath in survivingChildProcesses.Select(kvp => kvp.Value.Path))
@@ -762,11 +754,12 @@ namespace BuildXL.Processes
         }
 
         private Dictionary<uint, ReportedProcess>? GetSurvivingChildProcesses(JobObject jobObject, bool shouldDumpProcess = false) =>
-        JobObjectProcessDumper.GetAndOptionallyDumpProcesses(
+            JobObjectProcessDumper.GetAndOptionallyDumpProcesses(
                 jobObject: jobObject,
                 loggingContext: m_loggingContext,
                 survivingPipProcessDumpDirectory: m_survivingPipProcessChildrenDumpDirectory,
                 dumpProcess: shouldDumpProcess,
+                excludedDumpProcessNames: m_allowedSurvivingChildProcessNames ?? [],
                 out Exception? _);
 
         private void HandleSurvivingChildProcesses(JobObject jobObject)

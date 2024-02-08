@@ -5,10 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -31,7 +31,13 @@ namespace BuildXL.Processes
         /// <summary>
         /// Attempts to obtain a collection of surviving processes and dump all processes in a process tree if required. Any files existing in the dump directory will be deleted.
         /// </summary>
-        public static Dictionary<uint, ReportedProcess>? GetAndOptionallyDumpProcesses(JobObject jobObject, LoggingContext loggingContext, string? survivingPipProcessDumpDirectory, bool dumpProcess, out Exception? dumpException)
+        public static Dictionary<uint, ReportedProcess>? GetAndOptionallyDumpProcesses(
+            JobObject jobObject,
+            LoggingContext loggingContext,
+            string? survivingPipProcessDumpDirectory,
+            bool dumpProcess,
+            string[] excludedDumpProcessNames,
+            out Exception? dumpException)
         {
             dumpException = null;
 
@@ -120,7 +126,7 @@ namespace BuildXL.Processes
                         var reportedProcess = new ReportedProcess(processId, path, processArgs) { ParentProcessId = survivingChildParentProcessId };
                         survivingChildProcesses.Add(processId, reportedProcess);
                         // Providing an option to not dump process if not required
-                        if (dumpProcess)
+                        if (dumpProcess && !excludedDumpProcessNames.Any(procName => string.Equals(Path.GetFileName(reportedProcess.Path), procName, OperatingSystemHelper.PathComparison)))
                         {
                             if (!string.IsNullOrEmpty(survivingPipProcessDumpDirectory))
                             {
@@ -145,7 +151,7 @@ namespace BuildXL.Processes
 
             if (TryGetProcessById((int)reportedProcess.ProcessId, out var processToBeDumped, loggingContext, out Exception? getProcessIdException))
             {
-                string dumpPath = System.IO.Path.Combine(survivingPipProcessDumpDirectory, $"Dump_{reportedProcess.ParentProcessId}_{reportedProcess.ProcessId}_{processToBeDumped?.ProcessName}.zip");
+                string dumpPath = Path.Combine(survivingPipProcessDumpDirectory, $"Dump_{reportedProcess.ParentProcessId}_{reportedProcess.ProcessId}_{processToBeDumped?.ProcessName}.zip");
                 if (!ProcessDumper.TryDumpProcess(processToBeDumped!, dumpPath, out Exception dumpException, compress: true))
                 {
                     Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, processToBeDumped!.ProcessName, $"Failed with exception: {dumpException?.Message}");
@@ -160,18 +166,18 @@ namespace BuildXL.Processes
             childDumpException ??= getProcessIdException;
         }
 
-        private static bool TryGetProcessById(int pid, out System.Diagnostics.Process? process, LoggingContext loggingContext, out Exception? childDumpException)
+        private static bool TryGetProcessById(int pid, out Process? process, LoggingContext loggingContext, out Exception? childDumpException)
         {
             process = null;
             childDumpException = null;
             try
             {
-                process = System.Diagnostics.Process.GetProcessById(pid);
+                process = Process.GetProcessById(pid);
                 // Process.GetProcessById returns an object that is not fully initialized. Instead, the fields are populated the first time they are accessed.
                 // Because of that if a process exits before the object is initialized, reading any of the properties will result in an InvalidOperationException
                 // exception. Force initialization be querying the process name. Local function is used here just to make sure that the compiler does not
                 // optimize away the property access.
-                doNothing(process.ProcessName);
+                Analysis.IgnoreResult(process.ProcessName);
                 return true;
             }
             catch (ArgumentException aEx)
@@ -184,12 +190,8 @@ namespace BuildXL.Processes
                 Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, pid.ToString(), $"Failed with Exception: {ioEx.Message}");
                 childDumpException = ioEx;
             }
-            return false;
 
-            void doNothing(string _)
-            {
-                // no-op
-            }
+            return false;
         }
     }
 }

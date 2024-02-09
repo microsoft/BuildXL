@@ -212,6 +212,14 @@ namespace BuildXL.Processes
             /// </summary>
             [CounterType(CounterType.Stopwatch)]
             SandboxedPipExecutorRemoteProcessManagerGetAnyBuildRemoteFactory,
+
+            /// <nodoc/>
+            [CounterType(CounterType.Stopwatch)]
+            PrepareOutputsDuration,
+
+            /// <nodoc/>
+            [CounterType(CounterType.Stopwatch)]
+            PrepareDirectoryOutputsDuration
         }
 
         /// <summary>

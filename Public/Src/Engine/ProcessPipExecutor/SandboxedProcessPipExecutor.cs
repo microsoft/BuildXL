@@ -819,9 +819,12 @@ namespace BuildXL.ProcessPipExecutor
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
 
-                    if (!await PrepareOutputsAsync())
+                    using (Counters.StartStopwatch(SandboxedProcessCounters.PrepareOutputsDuration))
                     {
-                        return SandboxedProcessPipExecutionResult.PreparationFailure();
+                        if (!await PrepareOutputsAsync())
+                        {
+                            return SandboxedProcessPipExecutionResult.PreparationFailure();
+                        }
                     }
 
                     string executable = m_pip.Executable.Path.ToString(m_pathTable);
@@ -3199,9 +3202,12 @@ namespace BuildXL.ProcessPipExecutor
                     preserveOutputAllowlist.Add(path);
                 }
 
-                if (!await PrepareDirectoryOutputsAsync(preserveOutputAllowlist))
+                using (Counters.StartStopwatch(SandboxedProcessCounters.PrepareDirectoryOutputsDuration))
                 {
-                    return false;
+                    if (!await PrepareDirectoryOutputsAsync(preserveOutputAllowlist))
+                    {
+                        return false;
+                    }
                 }
 
                 var dependencies = dependenciesWrapper.Instance;

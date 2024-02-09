@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <summary>
         /// Gets and sets a queue length used by an async version of the logger.
         /// </summary>
-        public static int QueueLength { get; set; } = 500_000;
+        public static int QueueLength { get; set; } = 1_000_000;
 
         /// <summary>
         /// Gets and sets a mode that defines the behavior of the queue when its full.
@@ -350,35 +350,62 @@ namespace BuildXL.Cache.ContentStore.Logging
                 {
                     // Not using 'Reader.ReadAllAsync' because its not available in the version we use here.
                     // So we do what 'ReadAllAsync' does under the hood.
-                    while (await _requests.Reader.WaitToReadAsync(CancellationToken.None).ConfigureAwait(false))
+                    try
                     {
-                        while (_requests.Reader.TryRead(out var request))
+                        while (await _requests.Reader.WaitToReadAsync(CancellationToken.None).ConfigureAwait(false))
                         {
-                            Interlocked.Decrement(ref _pendingRequest);
+                            while (_requests.Reader.TryRead(out var request))
+                            {
+                                Interlocked.Decrement(ref _pendingRequest);
 
-                            try
-                            {
-                                if (request.Type == RequestType.Flush)
+                                try
                                 {
-                                    FlushImpl();
+                                    if (request.Type == RequestType.Flush)
+                                    {
+                                        FlushImpl();
+                                    }
+                                    else if (request.Type == RequestType.LogString)
+                                    {
+                                        LogStringImpl(request.DateTime, request.ThreadId, request.Severity, request.Message ?? string.Empty);
+                                    }
                                 }
-                                else if (request.Type == RequestType.LogString)
+                                catch (Exception ex)
                                 {
-                                    LogStringImpl(request.DateTime, request.ThreadId, request.Severity, request.Message ?? string.Empty);
-                                }
-                            }
-                            catch (Exception)
+                                    // We can't do anything here, but we don't want to break the message processing
+                                    // loop. We'll try to log this, but there's a non-zero chance we'll fail. In which
+                                    // case, we'll just ignore the error to ensure the loop keeps going.
+                                    try
+                                    {
+                                        LogStringImpl(request.DateTime, request.ThreadId, Severity.Fatal, $"Error processing log request: {ex}");
+                                        FlushImpl();
+                                    }
 #pragma warning disable ERP022 // Unobserved exception in a generic exception handler
-                            {
-                                // We can't do anything here, but we don't want to break the message processing loop.
-                            }
+                                    catch (Exception)
+                                    {
+                                    }
 #pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Something related to the channel went wrong. We'll try to log this, but there's a non-zero
+                        // chance this will fail, in which case we don't have any other option than to ignore it.
+                        try
+                        {
+                            LogStringImpl(DateTime.UtcNow, 0, Severity.Fatal, $"Error processing log request: {ex}");
+                            FlushImpl();
+                        }
+                        catch (Exception)
+                        {
+                            throw;
                         }
                     }
                 });
 
         }
-        
+
         private void FlushIfIdle()
         {
             if (Synchronous)

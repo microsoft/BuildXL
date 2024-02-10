@@ -281,7 +281,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Contains set up tasks for remote workers in a distributed build. (see <see cref="RemoteWorkerBase.AttachCompletionTask"/>)
         /// </summary>
-        private List<Task<bool>> m_workersAttachmentTasks;
+        private List<Task<bool>> m_workersAttachmentTasks = new();
 
         /// <summary>
         /// Cached delegate for the main method which executes the pips
@@ -1851,8 +1851,6 @@ namespace BuildXL.Scheduler
 
         private async Task EnsureMinimumWorkersAsync(int minimumWorkers, int warningThreshold)
         {
-            Contract.Assert(m_workersAttachmentTasks is not null, "Worker attachment tasks shouldn't be null");
-
             var allAttachmentTasks = TaskUtilities.SafeWhenAll(m_workersAttachmentTasks);
 
             while (true)
@@ -6152,20 +6150,6 @@ namespace BuildXL.Scheduler
             {
                 m_hasFailures = m_hasFailures || !TryInitSchedulerRuntimeState(pm.LoggingContext, schedulerState: schedulerState);
 
-                // Start workers after scheduler runtime state is successfully established
-                if (!HasFailed)
-                {
-                    if (IsDistributedOrchestrator)
-                    {
-                        StartWorkers(loggingContext);
-                    }
-                    else
-                    {
-                        // No remote workers to wait for
-                        m_workersAttachmentTasks = new();
-                    }
-                }
-
                 InitPipStates(pm.LoggingContext);
 
                 IEnumerable<NodeId> nodesToSchedule;
@@ -6191,6 +6175,12 @@ namespace BuildXL.Scheduler
                 m_executePhaseLoggingContext = pm.LoggingContext;
 
                 m_hasFailures = m_hasFailures || InitSandboxConnectionKext(loggingContext, sandboxConnectionKext);
+               
+                // Start workers after scheduler runtime state is successfully established and we have some build to run
+                if (!HasFailed && IsDistributedOrchestrator)
+                {
+                    StartWorkers(loggingContext);
+                }
 
                 PrioritizeAndSchedule(pm.LoggingContext, nodesToSchedule);
 

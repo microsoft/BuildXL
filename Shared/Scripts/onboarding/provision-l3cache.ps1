@@ -93,7 +93,7 @@ try {
     # Download the bicep script
     Invoke-WebRequest "https://bxlscripts.blob.core.windows.net/provisioning/provision-l3cache.bicep" -OutFile provision-l3cache.bicep
 
-    $command = "az deployment group $mode --subscription $subscription --resource-group $resourcegroup --template-file provision-l3cache.bicep --parameters `"@parameters.json`" --mode complete"
+    $command = "az deployment group $mode --subscription $subscription --resource-group $resourcegroup --template-file provision-l3cache.bicep --parameters `"@parameters.json`" --mode incremental"
     Write-Warning "Running command: $command"
     Invoke-Expression $command
 }

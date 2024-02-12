@@ -88,7 +88,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
         dependencies: args.untrackTestDirectory ? testDeployment.contents.contents : [ testDeployment.contents, ...(testDeployment.targetOpaques || []) ], 
         warningRegex: "^(?=a)b", // This is a never matching warning regex. StartOfLine followed by the next char must be 'a' (look ahead), and the next char must be a 'b'.
         workingDirectory: testDeployment.contents.root,
-        retryExitCodes: Environment.getFlag("RetryXunitTests") ? [1] : [],
+        retryExitCodes: Environment.getFlag("RetryXunitTests") ? [1, 3] : [],
         processRetries: Environment.hasVariable("NumXunitRetries") ? Environment.getNumberValue("NumXunitRetries") : undefined,
         unsafe: unsafeArgs,
         privilegeLevel: args.privilegeLevel,

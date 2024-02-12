@@ -24,10 +24,8 @@ stages:
         persistCredentials: true
       - checkout: DominoReleaseManagement
       - checkout: CloudBuild
-      - task: UseDotNet@2
-        inputs:
-          packageType: 'sdk'
-          version: '8.x'
+      - template: ../common/use-latest-dotnet-sdk.yml
+
       # Nuget authenticate is required for package restore to work even though the feed is under the same organization as the pipeline
       - task: NuGetAuthenticate@1
       - task: DotNetCoreCLI@2
@@ -47,11 +45,13 @@ stages:
           workingDirectory: '$(Build.ArtifactStagingDirectory)/BuildXLReleaseManagement'
       # Copy and publish BuildXL log in case it failed during the schedule phase
       - task: CopyFiles@2
+        continueOnError: true
         inputs:
           SourceFolder: '$(Build.SourcesDirectory)/BuildXL.Internal/Out/Logs'
           Contents: '**/BuildXL.log'
           TargetFolder: '$(Build.ArtifactStagingDirectory)/BuildXLLogs'
       - task: PublishPipelineArtifact@1
+        continueOnError: true
         inputs:
           targetPath: '$(Build.ArtifactStagingDirectory)/BuildXLLogs'
           artifact: '$(Build.BuildId).Logs'

@@ -39,10 +39,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             string cacheInstance,
             bool dryRun)
         {
+            var extraMessage = $"CacheInstance=[{cacheInstance}] RunId=[{runId}]";
             return context.PerformOperationAsync(
                 Tracer,
                 () => RunCoreAsync(context, config, fileSystem, secretsProvider, accountNames, clock, runId, contentDegreeOfParallelism, fingerprintDegreeOfParallelism, dryRun, cacheInstance),
-                extraEndMessage: _ => $"CacheInstance=[{cacheInstance}], RunId=[{runId}]");
+                extraStartMessage: extraMessage,
+                extraEndMessage: _ => extraMessage,
+                pendingOperationTracingInterval: TimeSpan.FromHours(1));
         }
 
         private async Task<BoolResult> RunCoreAsync(

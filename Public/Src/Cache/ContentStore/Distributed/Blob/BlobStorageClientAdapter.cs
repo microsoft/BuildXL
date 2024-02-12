@@ -262,7 +262,7 @@ public class BlobStorageClientAdapter
                     var content = await blob.DownloadContentAsync(context.Token);
                     Response response = content.GetRawResponse();
                     var metadata = (IReadOnlyDictionary<string, string>)content.Value.Details.Metadata;
-                    etag = response.Headers.ETag.ToString();
+                    etag = content.Value.Details.ETag.ToString();
                     var value = await readAsync(content.Value.Content);
                     length = content.Value.Details.ContentLength;
 

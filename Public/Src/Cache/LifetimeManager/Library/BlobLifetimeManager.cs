@@ -153,6 +153,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     await checkpointManager.StartupAsync(context).ThrowIfFailure();
                     var checkpointStateResult = await registry.GetCheckpointStateAsync(context).ThrowIfFailure();
 
+                    var startTime = clock.UtcNow;
+
                     RocksDbLifetimeDatabase db;
                     var firstRun = string.IsNullOrEmpty(checkpointStateResult.Value?.CheckpointId);
                     if (!firstRun)
@@ -209,7 +211,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                 checkpointManager,
                                 config.CheckpointCreationInterval,
                                 cacheInstance,
-                                runId);
+                                runId,
+                                startTime);
                         }
 
                         if (!dryRun)

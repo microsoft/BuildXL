@@ -62,6 +62,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         LruEnumerationBatchSize = 1000,
                         BlobNamespaceIds = new[] { namespaceId },
                     };
+
+                    var startTime = DateTime.UtcNow;
                     using var db = await LifetimeDatabaseCreator.CreateAsync(
                         context,
                         dbConfig,
@@ -83,7 +85,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         checkpointManager: null,
                         checkpointCreationInterval: TimeSpan.FromDays(1),
                         cacheInstance: "cacheInstance",
-                        runId: "runId").ThrowIfFailure();
+                        runId: "runId",
+                        startTime).ThrowIfFailure();
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 
                     (await session.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None)).Code.Should().Be(OpenStreamResult.ResultCode.ContentNotFound);
@@ -155,6 +158,17 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         LruEnumerationBatchSize = 1000,
                         BlobNamespaceIds = new[] { namespaceId },
                     };
+
+                    // This here is a bit of a hack. Since we don't have any control of the azure emulator's clock, we'll have to trick
+                    // the manager into thinking that the last access times are what we want them to be. Otherwise, the emulator gives us identical
+                    // last access times for all fingerprints, since they were put so close to one another.
+                    var clock = new MemoryClock
+                    {
+                        UtcNow = DateTime.UtcNow
+                    };
+
+                    var startTime = clock.UtcNow;
+
                     using var db = await LifetimeDatabaseCreator.CreateAsync(
                         context,
                         dbConfig,
@@ -164,14 +178,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         n => topology).ThrowIfFailureAsync();
 
                     var accessor = db.GetAccessor(namespaceId);
-
-                    // This here is a bit of a hack. Since we don't have any control of the azure emulator's clock, we'll have to trick
-                    // the manager into thinking that the last access times are what we want them to be. Otherwise, the emulator gives us identical
-                    // last access times for all fingerprints, since they were put so close to one another.
-                    var clock = new MemoryClock
-                    {
-                        UtcNow = DateTime.UtcNow
-                    };
 
                     for (var i = 0; i < totalFingerprints; i++)
                     {
@@ -203,7 +209,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         checkpointManager: null,
                         checkpointCreationInterval: TimeSpan.FromDays(1),
                         cacheInstance: "cacheInstance",
-                        runId: "runId").ThrowIfFailure();
+                        runId: "runId",
+                        startTime).ThrowIfFailure();
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 
                     for (var i = 0; i < (totalContent - contentToKeep); i++)

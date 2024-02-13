@@ -937,10 +937,9 @@ namespace Test.BuildXL.Processes
             processInfo.FileAccessManifest.EnableLinuxSandboxLogging = true;
 
             var result = RunProcess(processInfo).Result;
-            
-            TestOutput.WriteLine($"exit code: {result.ExitCode}{Environment.NewLine}stdout: {result.StandardOutput.ReadValueAsync().Result}{Environment.NewLine}stderr: {result.StandardError.ReadValueAsync().Result}");
 
-            XAssert.IsTrue(result.ExitCode == 0, $"Test terminated with exit code {result.ExitCode}.");
+            string message = $"Test terminated with exit code {result.ExitCode}.{Environment.NewLine}stdout: {result.StandardOutput.ReadValueAsync().Result}{Environment.NewLine}stderr: {result.StandardError.ReadValueAsync().Result}";
+            XAssert.IsTrue(result.ExitCode == 0, message);
 
             return (result, tempFiles.RootDirectory);
         }

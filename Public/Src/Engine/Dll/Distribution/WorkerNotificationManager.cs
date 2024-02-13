@@ -130,6 +130,7 @@ namespace BuildXL.Engine.Distribution
             m_pipResultListener = new PipResultListener(this, serializer);
             m_sendCancellationSource = new CancellationTokenSource();
             m_sendThread = new Thread(() => SendNotifications(m_sendCancellationSource.Token));
+            m_sendThread.IsBackground = true;
             m_sendThread.Start();
 
             m_started = true;

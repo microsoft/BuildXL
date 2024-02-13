@@ -165,8 +165,12 @@ namespace BuildXL.Engine.Distribution
                 Name = I($"#{workerId} (uninitialized dynamic worker)");
             }
 
-            // Depending on how long send requests take. It might make sense to use the same thread between all workers. 
+            // Initialize the thread that handles sending build requests as a background thread. This ensures that the presence of this thread 
+            // does not prevent the termination of the build execution (bxl) process. There are scenarios, particularly during early termination 
+            // due to failures, where workers may be disposed after being initiated but before the scheduler is activated. In such cases, making 
+            // this thread a background thread allows the bxl process to exit cleanly without waiting for this thread to complete, avoiding potential hang-ups.
             m_sendThread = new Thread(SendBuildRequests);
+            m_sendThread.IsBackground = true; 
         }
 
         private void SendBuildRequests()
@@ -361,7 +365,6 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc/>
         public override void Dispose()
         {
-            Contract.Requires(!m_sendThread.IsAlive);
             m_buildManifestReader?.Dispose();
             m_executionLogReader?.Dispose();
             m_workerClient?.Dispose();

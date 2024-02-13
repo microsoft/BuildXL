@@ -268,9 +268,9 @@ namespace BuildXL.Utilities.Configuration
         /// still aren't attached - in this case we would fail the worker in the metabuild stage of the build, losing it for the product build.
         /// This setting only impacts metabuild-style builds, where success in this build is required for the worker to participate in subsequent builds
         /// so we don't want to fail any worker even if it won't do any work (except for materializations).
-        /// Defaults to 1 minute
+        /// Defaults to 3 minutes 
         /// </remarks>
-        public static readonly Setting<TimeSpan> MinimumWaitForRemoteWorker = CreateSetting("BuildXLMinimumWaitForRemoteWorkerMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)) ?? TimeSpan.FromMinutes(1));
+        public static readonly Setting<TimeSpan> MinimumWaitForRemoteWorker = CreateSetting("BuildXLMinimumWaitForRemoteWorkerMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)) ?? TimeSpan.FromMinutes(3));
 
         /// <summary>
         /// If true, the orchestrator will validate that the minimum amount of workers participated in the build

@@ -90,7 +90,6 @@ namespace BuildXL.Scheduler.Tracing
         private readonly List<CapturedOperationInfo> m_uniqueAssociatedOperationsBuffer = new List<CapturedOperationInfo>();
 
         private readonly IOperationTrackerHost? m_host;
-        private readonly EtwOnlyTextLogger? m_etwOnlyTextLogger;
 
         /// <summary>
         /// The time keeper
@@ -116,10 +115,6 @@ namespace BuildXL.Scheduler.Tracing
             m_stopwatch = Stopwatch.StartNew();
             m_counters = new OperationCounters();
             m_totalActiveTimeOperationTracker = StartOperation(PipExecutorCounter.OperationTrackerActiveDuration, loggingContext);
-            if (EtwOnlyTextLogger.TryGetDefaultGlobalLoggingContext(out var defaultGlobalLoggingContext))
-            {
-                m_etwOnlyTextLogger = new EtwOnlyTextLogger(defaultGlobalLoggingContext, "stats.prf.json");
-            }
         }
 
         /// <summary>
@@ -302,19 +297,6 @@ namespace BuildXL.Scheduler.Tracing
                         }
 
                         var content = builder.ToString();
-
-                        if (m_etwOnlyTextLogger != null)
-                        {
-                            using (var reader = new StringReader(content))
-                            {
-                                string? line;
-                                while ((line = reader.ReadLine()) != null)
-                                {
-                                    m_etwOnlyTextLogger.TextLogEtwOnly((int)LogEventId.StatsPerformanceLog,
-                                         refreshInterval == null ? "Performance" : "IncrementalPerformance", line);
-                                }
-                            }
-                        }
 
                         writer.Write(content);
                     }

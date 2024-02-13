@@ -50,7 +50,6 @@ namespace BuildXL
         private int m_warningCount;
         private int m_errorCount;
         private readonly StatusMessageThrottler m_statusMessageThrottler;
-
         /// <nodoc />
         public AzureDevOpsListener(
             Events eventSource,
@@ -189,7 +188,6 @@ namespace BuildXL
             int dxCode = eventData.EventId;
             var message = eventData.Message;
             var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
-            var addFormattingToEventMessage = Environment.NewLine;
 
             // construct a short message for ADO console
             if ((eventData.EventId == (int)LogEventId.PipProcessError)
@@ -199,22 +197,30 @@ namespace BuildXL
                 var pipSemiStableHash = Pip.FormatSemiStableHash(pipProcessError.PipSemiStableHash);
                 var formattedDXCode = FormatErrorCode((int)LogEventId.PipProcessError);
 
-                // Splitting the error message into different segments and logging them individually as we want only OutputsToLog to be highlighted.
-                var errorMessagePrefix = @$"{formattedDXCode}[{pipSemiStableHash}, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}";
-                var errorMessageSuffix = $"{pipProcessError.MessageAboutPathsToLog}{addFormattingToEventMessage}{pipProcessError.PathsToLog}";
-                LogPipProcessEventMessage(errorMessagePrefix, pipProcessError.OutputToLog, errorMessageSuffix, eventType);
+                // Construct PipProcessError message.
+                LogIssue(eventType, string.Join(Environment.NewLine, 
+                    new[] {
+                        @$"{formattedDXCode}[{pipSemiStableHash}, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}",
+                        pipProcessError.OutputToLog,
+                        pipProcessError.MessageAboutPathsToLog,
+                        pipProcessError.PathsToLog
+                    }.Where(s => !string.IsNullOrWhiteSpace(s))));
             }
             else if ((eventData.EventId == (int)LogEventId.PipProcessWarning)
-            || (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedWarning && (int)args[1] == (int)LogEventId.PipProcessWarning))
+                || (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedWarning && (int)args[1] == (int)LogEventId.PipProcessWarning))
             {
                 var pipProcessWarning = new PipProcessEventFields(eventData.Payload, forwardedPayload: eventData.EventId != (int)LogEventId.PipProcessWarning, isPipProcessError: false);
                 var formattedDXCode = FormatErrorCode((int)LogEventId.PipProcessWarning);
                 var pipSemiStableHash = Pip.FormatSemiStableHash(pipProcessWarning.PipSemiStableHash);
 
-                // Splitting the warning message into different segments and logging them individually as we want only OutputsToLog to be highlighted.
-                var warningMessagePrefix = @$"{formattedDXCode}[{pipSemiStableHash}, {pipProcessWarning.PipDescription}, {pipProcessWarning.PipSpecPath}] - warnings";
-                var warningMessageSuffix = $"{pipProcessWarning.MessageAboutPathsToLog}{addFormattingToEventMessage}{pipProcessWarning.PathsToLog}";
-                LogPipProcessEventMessage(warningMessagePrefix, pipProcessWarning.OutputToLog, warningMessageSuffix, eventType);
+                // Construct PipProcessWarning message.
+                LogIssue(eventType, string.Join(Environment.NewLine,
+                    new[] {
+                        @$"{formattedDXCode}[{pipSemiStableHash}, {pipProcessWarning.PipDescription}, {pipProcessWarning.PipSpecPath}] - warnings",
+                        pipProcessWarning.OutputToLog,
+                        pipProcessWarning.MessageAboutPathsToLog,
+                        pipProcessWarning.PathsToLog
+                    }.Where(s => !string.IsNullOrWhiteSpace(s))));
             }
             else
             {
@@ -226,17 +232,6 @@ namespace BuildXL
                 string messageBodyWithAppendedDXCode = string.Concat(FormatErrorCode(dxCode), message);
                 var messageBody = string.Format(CultureInfo.CurrentCulture, messageBodyWithAppendedDXCode, args);
                 LogIssue(eventType, messageBody);
-            }
-        }
-
-        private void LogPipProcessEventMessage(string eventPrefix, string eventIssue, string eventSuffix, string eventType)
-        {
-            m_console.WriteOutputLine(MessageLevel.Info, eventPrefix);
-            LogIssue(eventType, eventIssue);
-            string formattedEventSuffix = eventSuffix.TrimEnd(Environment.NewLine.ToCharArray());
-            if (!string.IsNullOrEmpty(formattedEventSuffix))
-            {
-                m_console.WriteOutputLine(MessageLevel.Info, formattedEventSuffix);
             }
         }
 

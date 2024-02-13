@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using BuildXL;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Tracing;
@@ -55,12 +56,33 @@ namespace Test.BuildXL
             Messages.Clear();
         }
 
-        public void ValidateCallForPipProcessEventinADO(MessageLevel messageLevel, List<string> expectedErrorMessage)
+        public void ValidateCallForPipProcessEventinADO(MessageLevel messageLevel, List<string> expectedEventMessage)
         {
             XAssert.IsNotNull(Messages.LastOrDefault(), "WriteOutputLine was not called");
             XAssert.AreEqual(messageLevel, m_lastMessageLevel);
 
-            XAssert.IsTrue(expectedErrorMessage.SequenceEqual(Messages));
+            if (!expectedEventMessage.SequenceEqual(Messages))
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine($"Messages do not match. Expected message ({expectedEventMessage.Count} lines):");
+                foreach (var line in expectedEventMessage)
+                {
+                    sb.AppendLine("[");
+                    sb.AppendLine(line);
+                    sb.AppendLine("]");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine($"Actual message ({Messages.Count} lines):");
+                foreach (var line in Messages)
+                {
+                    sb.AppendLine("[");
+                    sb.AppendLine(line);
+                    sb.AppendLine("]");
+                }
+
+                XAssert.Fail(sb.ToString());
+            }
 
             Messages.Clear();
         }

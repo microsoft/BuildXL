@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using BuildXL;
 using BuildXL.Processes.Tracing;
 using BuildXL.ToolSupport;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
@@ -16,6 +17,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace Test.BuildXL
 {
@@ -249,7 +251,6 @@ namespace Test.BuildXL
             {
                 var result = new PipProcessEventTestElement();
                 long totalElapsedTimeMs = Convert.ToInt64(TimeSpan.FromSeconds(15).TotalMilliseconds);
-                var addFormattingToErrorMessage = Environment.NewLine;
 
                 if (isPipProcessError)
                 {
@@ -259,18 +260,26 @@ namespace Test.BuildXL
                         @"specs\mypip.dsc",
                         @"specs\workingDir",
                         "coolpip.exe",
-                        "Failure message Line1\r\nFailure message Line2\rFailure message Line3\n",
+                        $"Failure message Line1{Environment.NewLine}Failure message Line2{Environment.NewLine}Failure message Line3{Environment.NewLine}",
                         "Find output file in following path:",
                         @"specs\workingDir\out.txt",
                         -1,
                         "what does this do?",
                         "my pip",
                         totalElapsedTimeMs);
-                    var errorPrefix = @$"DX0064 [Pip0000000000000018, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}";
-                    var processedErrorOutputToLog = "##vso[task.logIssue type=error;]Failure message Line1%0D%0A##[error]Failure message Line2%0D##[error]Failure message Line3%0A##[error]";
-                    var errorSuffix = $"{pipProcessError.MessageAboutPathsToLog}{addFormattingToErrorMessage}{pipProcessError.PathsToLog}";
-                    result.AddToExpectingConsoleLogList(errorPrefix, processedErrorOutputToLog, errorSuffix, result.ExpectingConsoleLog);
                     result.PipProcessError = pipProcessError;
+
+                    // Construct PipProcessError message.
+                    string expectedText =
+@$"##vso[task.logIssue type=error;]DX0064 [Pip0000000000000018, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}
+##[error]Failure message Line1
+##[error]Failure message Line2
+##[error]Failure message Line3
+##[error]
+##[error]{pipProcessError.MessageAboutPathsToLog}
+##[error]{pipProcessError.PathsToLog}";
+
+                    result.ExpectingConsoleLog.Add(GenerateExpectedMessage(expectedText));
                 }
                 else
                 {
@@ -280,14 +289,22 @@ namespace Test.BuildXL
                     @"specs\mypip.dsc",
                     @"specs\workingDir",
                     "coolpip.exe",
-                    "Failure message Line1\r\nFailure message Line2\rFailure message Line3\n",
+                    $"Failure message Line1{Environment.NewLine}Failure message Line2{Environment.NewLine}Failure message Line3{Environment.NewLine}",
                     "Find output file in following path:",
                     @"specs\workingDir\out.txt");
-                    var warningPrefix = @$"DX0065 [Pip0000000000000018, {pipProcessWarning.PipDescription}, {pipProcessWarning.PipSpecPath}] - warnings";
-                    var processedWarningOutputToLog = "##vso[task.logIssue type=warning;]Failure message Line1%0D%0A##[warning]Failure message Line2%0D##[warning]Failure message Line3%0A##[warning]";
-                    var warningSuffix = $"{pipProcessWarning.MessageAboutPathsToLog}{addFormattingToErrorMessage}{pipProcessWarning.PathsToLog}";
                     result.PipProcessWarning = pipProcessWarning;
-                    result.AddToExpectingConsoleLogList(warningPrefix, processedWarningOutputToLog, warningSuffix, result.ExpectingConsoleLog);
+
+                    // Construct PipProcessWarning message.
+                    string expectedText =
+@$"##vso[task.logIssue type=warning;]DX0065 [Pip0000000000000018, {pipProcessWarning.PipDescription}, {pipProcessWarning.PipSpecPath}] - warnings
+##[warning]Failure message Line1
+##[warning]Failure message Line2
+##[warning]Failure message Line3
+##[warning]
+##[warning]{pipProcessWarning.MessageAboutPathsToLog}
+##[warning]{pipProcessWarning.PathsToLog}";
+
+                    result.ExpectingConsoleLog.Add(GenerateExpectedMessage(expectedText));
                 }
 
                 result.Console = new MockConsole();
@@ -299,11 +316,14 @@ namespace Test.BuildXL
                 return result;
             }
 
-            public void AddToExpectingConsoleLogList(string eventPrefix, string eventIssue, string eventSuffix, List<string> expectingConsoleLog)
+            private static string GenerateExpectedMessage(string rawMessage)
             {
-                expectingConsoleLog.Add(eventPrefix);
-                expectingConsoleLog.Add(eventIssue);
-                expectingConsoleLog.Add(eventSuffix);
+                // A few steps are needed to convert the raw message to the expected message.
+                // First, all Windows line endings should be normalized to OS specific ones. This
+                // is necessary because the .cs source file of the test will itself have OS specific line endings.
+                // The second step is to replace the OS specific line endings with the Azure DevOps ones. This varies
+                // depending on which OS the test is currently running in.
+                return rawMessage.Replace("\r\n", Environment.NewLine).Replace(Environment.NewLine, OperatingSystemHelper.IsWindowsOS ? "%0D%0A" : "%0A");
             }
 
             public void LogPipProcessError()

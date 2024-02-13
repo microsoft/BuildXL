@@ -65,6 +65,7 @@ public abstract class ForwardingContentUpdaterBase : StartupShutdownComponentBas
             context => ForwardUpdatedLocationsAsync(context, next),
             timeout: Settings.UpdateLocationsTimeout,
             traceOperationStarted: false,
+            traceErrorsOnly: true,
             // TODO: trace information about who the request was forwarded to
             pendingOperationTracingInterval: Settings.UpdateLocationsTracingInterval,
             extraEndMessage: _ => $"Request=[{request}]",

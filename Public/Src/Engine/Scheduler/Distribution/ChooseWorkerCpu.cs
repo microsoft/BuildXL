@@ -116,7 +116,7 @@ namespace BuildXL.Scheduler.Distribution
             WorkerResource? limitingResource = null;
             var moduleId = runnablePip.Pip.Provenance.ModuleId;
 
-            if (!IsOrchestrator)
+            if (!IsOrchestrator || runnablePip.MustRunOnOrchestrator)
             {
                 // This is shortcut for the single-machine builds.
                 chosenWorker = m_localWorker.TryAcquireProcess(runnablePip, out limitingResource, loadFactor: 1) ? m_localWorker : null;

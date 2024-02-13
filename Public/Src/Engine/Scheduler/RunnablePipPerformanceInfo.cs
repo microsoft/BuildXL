@@ -64,9 +64,9 @@ namespace BuildXL.Scheduler
         internal long PushOutputsToCacheDurationMs { get; private set; }
 
         /// <summary>
-        /// Number of retries attempted due to stopped worker 
+        /// Number of retries attempted on the remote workers
         /// </summary>
-        internal int RetryCountDueToStoppedWorker { get; private set; }
+        internal int RetryCountOnRemoteWorkers { get; private set; }
 
         /// <summary>
         /// Number of retries attempted due to low memory
@@ -78,7 +78,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         internal int RetryCountDueToRetryableFailures { get; private set; }
 
-        internal int RetryCount => RetryCountDueToStoppedWorker + RetryCountDueToLowMemory + RetryCountDueToRetryableFailures;
+        internal int RetryCount => RetryCountOnRemoteWorkers + RetryCountDueToLowMemory + RetryCountDueToRetryableFailures;
 
         /// <summary>
         /// Suspended duration of the process due to memory management
@@ -120,8 +120,8 @@ namespace BuildXL.Scheduler
                 case RetryReason.ResourceExhaustion:
                     RetryCountDueToLowMemory++;
                     break;
-                case RetryReason.StoppedWorker:
-                    RetryCountDueToStoppedWorker++;
+                case RetryReason.RemoteWorkerFailure:
+                    RetryCountOnRemoteWorkers++;
                     break;
                 default:
                     RetryCountDueToRetryableFailures++;

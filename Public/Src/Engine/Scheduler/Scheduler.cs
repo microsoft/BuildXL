@@ -1489,7 +1489,7 @@ namespace BuildXL.Scheduler
 
             m_loggingContext = loggingContext;
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
-            m_pipRetryCountersDueToNetworkFailures = new int[(configuration.Distribution.NumRetryFailedPipsOnAnotherWorker ?? 0) + 1];
+            m_pipRetryCountersDueToNetworkFailures = new int[configuration.Distribution.MaxRetryLimitOnRemoteWorkers + 1];
 
             VmInitializer = vmInitializer;
             RemoteProcessManager = RemoteProcessManagerFactory.Create(loggingContext, Context, configuration, new RemoteFilePredictor(this, this, loggingContext), Counters);
@@ -3258,9 +3258,9 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            if (runnablePip.Performance.RetryCountDueToStoppedWorker < m_pipRetryCountersDueToNetworkFailures.Length)
+            if (runnablePip.Performance.RetryCountOnRemoteWorkers < m_pipRetryCountersDueToNetworkFailures.Length)
             {
-                m_pipRetryCountersDueToNetworkFailures[runnablePip.Performance.RetryCountDueToStoppedWorker]++;
+                m_pipRetryCountersDueToNetworkFailures[runnablePip.Performance.RetryCountOnRemoteWorkers]++;
             }
 
             if (runnablePip.Performance.RetryCountDueToLowMemory > 0)
@@ -3955,8 +3955,7 @@ namespace BuildXL.Scheduler
                 pipType,
                 priority ?? GetPipPriority(pipId),
                 m_executePipFunc,
-                cpuUsageInPercent,
-                maxRetryLimit: m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker ?? 0);
+                cpuUsageInPercent);
 
             runnablePip.SetObserver(observer);
             if (IsDistributedWorker)
@@ -4866,7 +4865,7 @@ namespace BuildXL.Scheduler
                                     averageWorkingSetMb: Math.Max((int)(expectedCounters.AverageWorkingSetMb * 1.25), actualCounters?.AverageWorkingSetMb ?? 0),
                                     peakCommitSizeMb: Math.Max((int)(expectedCounters.PeakCommitSizeMb * 1.25), actualCounters?.PeakCommitSizeMb ?? 0),
                                     averageCommitSizeMb: Math.Max((int)(expectedCounters.AverageCommitSizeMb * 1.25), actualCounters?.AverageCommitSizeMb ?? 0));
-                               
+
                                 if (processRunnable.Performance.RetryCountDueToLowMemory == m_scheduleConfiguration.MaxRetriesDueToLowMemory)
                                 {
                                     Logger.Log.ExcessivePipRetriesDueToLowMemory(operationContext, processRunnable.Description, processRunnable.Performance.RetryCountDueToLowMemory);
@@ -4894,6 +4893,11 @@ namespace BuildXL.Scheduler
                                         processRunnable.RunLocation = ProcessRunLocation.Local;
                                     }
                                 }
+                            }
+                            else if (retryReason == RetryReason.DistributionFailure)
+                            {
+                                // When we cannot send the pip to the workers after some retries, we should try it on the orchestrator.
+                                processRunnable.MustRunOnOrchestrator = true;
                             }
                         }
 

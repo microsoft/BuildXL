@@ -2225,7 +2225,7 @@ namespace BuildXL.Scheduler
                         // we want to make the pip retry on another worker. For this, we need to set RetryInfo, or the pip
                         // will not be marked as cancelled (notice that the setting on PipResultStatus.Canceled
                         // in the ExecuteProcessAsync that wraps this method requires this).
-                        result.RetryInfo = RetryInfo.GetDefault(RetryReason.StoppedWorker);
+                        result.RetryInfo = RetryInfo.GetDefault(RetryReason.RemoteWorkerFailure);
                     }
                 }
 

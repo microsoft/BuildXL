@@ -19,26 +19,6 @@ namespace Test.BuildXL
 {
     public class BuildXLAppTests
     {
-        [Fact]
-        public void DistributedBuildConnectivityIssueTrumpsOtherErrors()
-        {
-            var loggingContext = XunitBuildXLTest.CreateLoggingContextForTest();
-
-            using (var listener = new TrackingEventListener(Events.Log))
-            {
-                listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
-                listener.RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
-                listener.RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
-                global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
-                global::BuildXL.Engine.Tracing.Logger.Log.DistributionExecutePipFailedNetworkFailure(loggingContext, "ArbitraryPip", "ArbitraryWorker", "ArbitraryMessage", "ArbitraryStep", "ArbitraryCaller");
-                global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
-
-                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(loggingContext, listener);
-                XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.ExitKind);
-                XAssert.AreEqual(global::BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), infrastructureErrorClassification.ErrorBucket);
-            }
-        }
-
         [Theory]
         [InlineData(true)]
         [InlineData(false)]

@@ -295,7 +295,7 @@ namespace BuildXL.Engine.Tracing
         DistributionFailedToCallOrchestrator = 7003,
         DistributionInactiveOrchestrator = 7004,
         DistributionStatistics = 7005,
-        DistributionExecutePipFailedNetworkFailure = 7006,
+        // DistributionExecutePipFailedNetworkFailure = 7006,
         DistributionWorkerExitFailure = 7007,
         DistributionSuccessfulRetryCallToWorker = 7008,
         DistributionSuccessfulRetryCallToOrchestrator = 7009,
@@ -415,6 +415,7 @@ namespace BuildXL.Engine.Tracing
         JournalNotEnabledOnVolumeWarning = 7135,
 
         ErrorCacheInitializationForEngineScheduleConstruction = 7136,
+        DistributionExecutePipFailedDistributionFailureWarning = 7137,
         // max 7200
     }
 }

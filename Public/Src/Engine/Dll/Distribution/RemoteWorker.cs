@@ -127,6 +127,8 @@ namespace BuildXL.Engine.Distribution
         private readonly TaskCompletionSource<Unit> m_serviceLocationTcs = new();
         private Task WaitForServiceLocationTask => m_serviceLocationTcs.Task;
 
+        private IPipExecutionEnvironment Environment => m_orchestratorService.Environment;
+
         /// <summary>
         /// Whether the worker is available to acquire work items
         /// </summary>
@@ -384,10 +386,10 @@ namespace BuildXL.Engine.Distribution
             m_pipGraph = pipGraph;
 
             // For manifest events, we wait for the messages to be processed before we send an ack to the worker. 
-            m_buildManifestReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name, asyncProcessing: false);
+            m_buildManifestReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, Environment, Name, asyncProcessing: false);
 
             // For xlg/non-manifest events, we wait for the messages to be added to the queue before we send an ack to the worker. 
-            m_executionLogReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, m_orchestratorService.Environment, Name, asyncProcessing: true);
+            m_executionLogReader = new WorkerExecutionLogReader(m_appLoggingContext, executionLogTarget, Environment, Name, asyncProcessing: true);
 
             // If there is a minimum waiting time to wait for attachment, we don't want to signal the scheduler is completed until this waiting period is over.
             // Minimum waiting time is only for builds where we replicate outputs to workers such as metabuilds.
@@ -399,7 +401,7 @@ namespace BuildXL.Engine.Distribution
             // The condition for proceeding is either the completion of the scheduler (with an extra wait for metabuild), or the completion of the attachment process.
             m_attachOrSchedulerCompletionTask = Task.WhenAny(schedulerCompletionWithExtraWait, AttachCompletionTask).Unwrap();
 
-            m_cancellationTokenRegistration = m_orchestratorService.Environment.Context.CancellationToken.Register(() => m_attachCompletion.TrySetResult(false));
+            m_cancellationTokenRegistration = Environment.Context.CancellationToken.Register(() => m_attachCompletion.TrySetResult(false));
 
             base.InitializeForDistribution(parent, config, pipGraph, executionLogTarget, schedulerCompletion, statusChangedAction);
             m_isInitialized = true; 
@@ -454,7 +456,7 @@ namespace BuildXL.Engine.Distribution
                 WorkerId = WorkerId,
                 CachedGraphDescriptor = m_orchestratorService.CachedGraphDescriptor.ToGrpc(),
                 SymlinkFileContentHash = m_orchestratorService.SymlinkFileContentHash.ToByteString(),
-                FingerprintSalt = m_orchestratorService.Environment.ContentFingerprinter.FingerprintSalt,
+                FingerprintSalt = Environment.ContentFingerprinter.FingerprintSalt,
                 OrchestratorLocation = new ServiceLocation
                 {
                     IpAddress = m_orchestratorService.Hostname,
@@ -462,10 +464,10 @@ namespace BuildXL.Engine.Distribution
                 },
             };
 
-            startData.EnvironmentVariables.Add(m_orchestratorService.Environment.State.PipEnvironment
+            startData.EnvironmentVariables.Add(Environment.State.PipEnvironment
                        .FullEnvironmentVariables.ToDictionary());
 
-            startData.PipSpecificPropertiesAndValues.AddRange(m_orchestratorService.Environment.Configuration.Engine.PipSpecificPropertyAndValues
+            startData.PipSpecificPropertiesAndValues.AddRange(Environment.Configuration.Engine.PipSpecificPropertyAndValues
                                                                             .Select(pipSpecificPropertyAndValue => new PipSpecificPropertyAndValue
                                                                             {
                                                                                 PipSpecificProperty = (int)pipSpecificPropertyAndValue.PropertyName,
@@ -771,7 +773,7 @@ namespace BuildXL.Engine.Distribution
 
         private bool IsFireAndForget(RunnablePip runnablePip)
         {
-            return m_orchestratorService.Environment.Configuration.Distribution.FireForgetMaterializeOutput()
+            return Environment.Configuration.Distribution.FireForgetMaterializeOutput()
                 && runnablePip.Step == PipExecutionStep.MaterializeOutputs;
         }
 
@@ -788,8 +790,8 @@ namespace BuildXL.Engine.Distribution
             var pip = runnable.Pip;
             if (pip.PipType == PipType.Process && 
                 ((Process)pip).Priority == Process.IntegrationTestPriority &&
-                pip.Tags.Any(a => a.ToString(runnable.Environment.Context.StringTable) == TagFilter.TriggerWorkerConnectionTimeout) &&
-                runnable.Performance.RetryCountDueToStoppedWorker == 0)
+                pip.Tags.Any(a => a.ToString(Environment.Context.StringTable) == TagFilter.TriggerWorkerConnectionTimeout) &&
+                runnable.Performance.RetryCountOnRemoteWorkers == 0)
             {
                 // We execute a pip which has 'buildxl.internal:triggerWorkerConnectionTimeout' in the integration tests for distributed build. 
                 // It is expected to lose the connection with the worker, so that we force the pips 
@@ -834,9 +836,8 @@ namespace BuildXL.Engine.Distribution
         private void ExtractHashes(RunnablePip runnable, List<FileArtifactKeyedHash> hashes)
         {
             var step = runnable.Step;
-            var environment = runnable.Environment;
 
-            bool enableDistributedSourceHashing = environment.Configuration.EnableDistributedSourceHashing();
+            bool enableDistributedSourceHashing = Environment.Configuration.EnableDistributedSourceHashing();
 
             // In the case of fire-and-forget MaterializeOutputs the pip can transition to HandleResult or Done
             // before it is actually sent to the worker, so we can observe these steps here
@@ -860,15 +861,15 @@ namespace BuildXL.Engine.Distribution
             using (var pooledFileSet = Pools.GetFileArtifactSet())
             using (var pooledDynamicFileMultiDirectoryMap = Pools.GetFileMultiDirectoryMap())
             {
-                var pathTable = environment.Context.PathTable;
+                var pathTable = Environment.Context.PathTable;
                 var files = pooledFileSet.Instance;
                 var dynamicFiles = pooledDynamicFileMultiDirectoryMap.Instance;
 
                 using (m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_CollectPipFilesToMaterializeDuration))
                 {
-                    environment.State.FileContentManager.CollectPipFilesToMaterialize(
+                    Environment.State.FileContentManager.CollectPipFilesToMaterialize(
                         isMaterializingInputs: !materializingOutputs,
-                        pipTable: environment.PipTable,
+                        pipTable: Environment.PipTable,
                         pip: runnable.Pip,
                         files: files,
                         dynamicFileMap: dynamicFiles,
@@ -902,17 +903,17 @@ namespace BuildXL.Engine.Distribution
 #endif
                     foreach (var file in files)
                     {
-                        var fileMaterializationInfo = environment.State.FileContentManager.GetInputContent(file);
+                        var fileMaterializationInfo = Environment.State.FileContentManager.GetInputContent(file);
                         bool isDynamicFile = dynamicFiles.TryGetValue(file, out var dynamicDirectories) && dynamicDirectories.Count != 0;
 
                         bool sendStringPath = m_pipGraph.MaxAbsolutePathIndex < file.Path.Value.Index;
 
                         var keyedHash = new FileArtifactKeyedHash
                         {
-                            IsSourceAffected = environment.State.FileContentManager.SourceChangeAffectedInputs.IsSourceChangedAffectedFile(file),
+                            IsSourceAffected = Environment.State.FileContentManager.SourceChangeAffectedInputs.IsSourceChangedAffectedFile(file),
                             RewriteCount = file.RewriteCount,
                             PathValue = sendStringPath ? AbsolutePath.Invalid.RawValue : file.Path.RawValue,
-                            IsAllowedFileRewrite = environment.State.FileContentManager.IsAllowedFileRewriteOutput(file.Path)
+                            IsAllowedFileRewrite = Environment.State.FileContentManager.IsAllowedFileRewriteOutput(file.Path)
                         }.SetFileMaterializationInfo(pathTable, fileMaterializationInfo);
 
                         // Never set a gRPC field to null
@@ -985,31 +986,34 @@ namespace BuildXL.Engine.Distribution
                 return;
             }
 
-            if (runnablePip.ShouldRetryDueToStoppedWorker())
+            var maxRetryLimitOnRemoteWorkers = Environment.Configuration.Distribution.MaxRetryLimitOnRemoteWorkers;
+            if (maxRetryLimitOnRemoteWorkers > runnablePip.Performance.RetryCountOnRemoteWorkers)
             {
                 Logger.Log.DistributionExecutePipFailedNetworkFailureWarning(
                     operationContext,
                     runnablePip.Description,
                     Name,
-                    errorMessage: errorMessage + " Retry Number: " + runnablePip.Performance.RetryCountDueToStoppedWorker + " out of " + runnablePip.MaxRetryLimitForStoppedWorker,
+                    errorMessage: errorMessage + " Retry Number: " + runnablePip.Performance.RetryCountOnRemoteWorkers + " out of " + maxRetryLimitOnRemoteWorkers,
                     step: pipCompletionTask.Step.AsString(),
                     callerName: callerName);
 
-                result = ExecutionResult.GetRetryableNotRunResult(operationContext, RetryInfo.GetDefault(RetryReason.StoppedWorker));
+                result = ExecutionResult.GetRetryableNotRunResult(operationContext, RetryInfo.GetDefault(RetryReason.RemoteWorkerFailure));
 
                 pipCompletionTask.TrySet(result);
                 return;
             }
 
-            Logger.Log.DistributionExecutePipFailedNetworkFailure(
+            Logger.Log.DistributionExecutePipFailedDistributionFailureWarning(
                     operationContext,
                     runnablePip.Description,
                     Name,
-                    errorMessage: errorMessage + " Retry Number: " + runnablePip.Performance.RetryCountDueToStoppedWorker + " out of " + runnablePip.MaxRetryLimitForStoppedWorker,
+                    errorMessage: errorMessage,
+                    maxRetryLimit: maxRetryLimitOnRemoteWorkers,
                     step: pipCompletionTask.Step.AsString(),
                     callerName: callerName);
 
-            result = ExecutionResult.GetFailureNotRunResult(operationContext);
+            result = ExecutionResult.GetRetryableNotRunResult(operationContext, RetryInfo.GetDefault(RetryReason.DistributionFailure));
+
             pipCompletionTask.TrySet(result);
         }
 
@@ -1017,7 +1021,6 @@ namespace BuildXL.Engine.Distribution
         {
             var pipId = runnable.PipId;
             var pipType = runnable.PipType;
-            var environment = runnable.Environment;
 
             Contract.Assert(m_pipCompletionTasks.ContainsKey(pipId), "RemoteWorker tried to await the result of a pip which it did not start itself");
 
@@ -1050,16 +1053,16 @@ namespace BuildXL.Engine.Distribution
             if (operationTimedOut
                 // For integration tests, simulate a timeout on the first try
                 || runnable.Pip is Process processPip && processPip.Priority == Process.IntegrationTestPriority &&
-                   runnable.Pip.Tags.Any(a => a.ToString(environment.Context.StringTable) == TagFilter.TriggerWorkerRemotePipTimeout) 
-                    && runnable.Performance.RetryCountDueToStoppedWorker == 0)
+                   runnable.Pip.Tags.Any(a => a.ToString(Environment.Context.StringTable) == TagFilter.TriggerWorkerRemotePipTimeout) 
+                    && runnable.Performance.RetryCountOnRemoteWorkers == 0)
             {
-                environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
+                Environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
 
                 // We assume the worker is in a bad state and abandon it so we can schedule pips elsewhere
                 OnConnectionFailureAsync(null, new ConnectionFailureEventArgs(ConnectionFailureType.RemotePipTimeout, $"Pip {runnable.Pip.FormattedSemiStableHash} timed out remotely on step {pipCompletionTask.Step.AsString()}. Timeout: {EngineEnvironmentSettings.RemotePipTimeout.Value.TotalMilliseconds} ms"));
 
                 // We consider the pip not run so we can retry it elsewhere
-                return ExecutionResult.GetRetryableNotRunResult(m_appLoggingContext, RetryInfo.GetDefault(RetryReason.StoppedWorker));
+                return ExecutionResult.GetRetryableNotRunResult(m_appLoggingContext, RetryInfo.GetDefault(RetryReason.RemoteWorkerFailure));
             }
 
             // TODO: Make worker reported time nested under AwaitRemoteResult operation
@@ -1096,7 +1099,6 @@ namespace BuildXL.Engine.Distribution
 
         public void HandleRemoteResult(RunnablePip runnable, ExecutionResult executionResult)
         {
-            var environment = runnable.Environment;
             var operationContext = runnable.OperationContext;
             var pip = runnable.Pip;
             var pipType = runnable.PipType;
@@ -1121,7 +1123,7 @@ namespace BuildXL.Engine.Distribution
             if (executionResult.Result == PipResultStatus.Failed)
             {
                 // Failure
-                m_orchestratorService.Environment.Counters.IncrementCounter(pip.PipType == PipType.Process ? PipExecutorCounter.ProcessPipsFailedRemotely : PipExecutorCounter.IpcPipsFailedRemotely);
+                Environment.Counters.IncrementCounter(pip.PipType == PipType.Process ? PipExecutorCounter.ProcessPipsFailedRemotely : PipExecutorCounter.IpcPipsFailedRemotely);
                 return;
             }
 
@@ -1133,7 +1135,7 @@ namespace BuildXL.Engine.Distribution
             // Success
             if (pipType == PipType.Process)
             {
-                m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.ProcessPipsSucceededRemotely);
+                Environment.Counters.IncrementCounter(PipExecutorCounter.ProcessPipsSucceededRemotely);
 
                 // NOTE: Process outputs will be reported later during the PostProcess step.
             }
@@ -1141,7 +1143,7 @@ namespace BuildXL.Engine.Distribution
             {
                 Contract.Assert(pipType == PipType.Ipc);
 
-                m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.IpcPipsSucceededRemotely);
+                Environment.Counters.IncrementCounter(PipExecutorCounter.IpcPipsSucceededRemotely);
 
                 // NOTE: Output content is reported for IPC but not Process because Process outputs will be reported
                 // later during PostProcess because cache convergence can change which outputs for a process are used
@@ -1149,7 +1151,7 @@ namespace BuildXL.Engine.Distribution
                 // Report the payload file of the IPC pip
                 foreach (var (fileArtifact, fileInfo, pipOutputOrigin) in executionResult.OutputContent)
                 {
-                    environment.State.FileContentManager.ReportOutputContent(
+                    Environment.State.FileContentManager.ReportOutputContent(
                         operationContext,
                         pip.SemiStableHash,
                         artifact: fileArtifact,
@@ -1262,7 +1264,7 @@ namespace BuildXL.Engine.Distribution
             }
 
             if (eventId == (int)LogEventId.PipFailedToMaterializeItsOutputs &&
-                m_orchestratorService.Environment.MaterializeOutputsInBackground)
+                Environment.MaterializeOutputsInBackground)
             {
                 isInfraError = true;
             }

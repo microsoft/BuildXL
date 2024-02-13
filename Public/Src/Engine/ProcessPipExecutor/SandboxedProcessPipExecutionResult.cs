@@ -363,7 +363,7 @@ namespace BuildXL.ProcessPipExecutor
             Contract.Requires(!retryInfo.CanBeRetriedInlineOrFalseIfNull() || retryInfo.RetryReason != RetryReason.ResourceExhaustion);
             Contract.Requires(!retryInfo.CanBeRetriedInlineOrFalseIfNull() || retryInfo.RetryReason != RetryReason.ProcessStartFailure);
             Contract.Requires(!retryInfo.CanBeRetriedInlineOrFalseIfNull() || retryInfo.RetryReason != RetryReason.TempDirectoryCleanupFailure);
-            Contract.Requires(!retryInfo.CanBeRetriedInlineOrFalseIfNull() || retryInfo.RetryReason != RetryReason.StoppedWorker);
+            Contract.Requires(!retryInfo.CanBeRetriedInlineOrFalseIfNull() || retryInfo.RetryReason != RetryReason.RemoteWorkerFailure);
 
             Status = status;
             ObservedFileAccesses = observedFileAccesses;

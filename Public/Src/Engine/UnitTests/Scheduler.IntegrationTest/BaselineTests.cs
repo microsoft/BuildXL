@@ -2044,7 +2044,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         public void RetryPipOnHighMemoryUsage(bool allowLowMemoryRetry)
         {
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
-            Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker = 5;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.CancellationRam;
             Configuration.Schedule.MaxRetriesDueToLowMemory = allowLowMemoryRetry ? 100 : 0;
 

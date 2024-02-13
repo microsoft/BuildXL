@@ -938,9 +938,6 @@ namespace BuildXL.Engine
                 {
                     var remoteWorkerCount = mutableConfig.Distribution.RemoteWorkerCount;
 
-                    // Enable retries on another worker by default
-                    mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker ??= 1;
-
                     if (mutableConfig.Distribution.LowWorkersWarningThreshold == null)
                     {
                         if (mutableConfig.InCloudBuild())

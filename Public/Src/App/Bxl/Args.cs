@@ -822,7 +822,7 @@ namespace BuildXL
                             opt => schedulingConfiguration.NumOfRemoteAgentLeases = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "numRetryFailedPipsOnAnotherWorker",
-                            opt => distributionConfiguration.NumRetryFailedPipsOnAnotherWorker = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                            opt => { /* DO NOTHING - Flag is deprecated */ }),
                         OptionHandlerFactory.CreateOption2(
                             "objectDirectory",
                             "o",

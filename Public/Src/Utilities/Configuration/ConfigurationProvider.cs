@@ -76,9 +76,6 @@ namespace BuildXL.Utilities.Configuration
 
             config.Engine.VerifyJunctionsDoNotConflictWithDirectoryTranslations = true;
 
-            // Enable retries on another worker. CB default is higher, as builds will typically have more workers than builds on other infras.
-            config.Distribution.NumRetryFailedPipsOnAnotherWorker = 3;
-
             config.Engine.TrackBuildsInUserFolder = false;
 
             config.Schedule.MinimumDiskSpaceForPipsGb = 5;
@@ -116,7 +113,6 @@ namespace BuildXL.Utilities.Configuration
 
             config.Distribution.EarlyWorkerRelease = true;
             config.Distribution.EarlyWorkerReleaseMultiplier = 1;
-            config.Distribution.NumRetryFailedPipsOnAnotherWorker = 1;
             // Machine are stateless in ADO, no point tracking builds.
             config.Engine.TrackBuildsInUserFolder = false;
             config.Logging.OptimizeConsoleOutputForAzureDevOps = true;

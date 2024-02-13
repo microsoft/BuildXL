@@ -92,16 +92,18 @@ namespace BuildXL.Scheduler
         /// <nodoc/>
         public IEnumerable<ExecutionResult> AllExecutionResults => m_allExecutionResults;
 
+        /// <nodoc/>
+        public bool MustRunOnOrchestrator { get; set; }
+
         internal ProcessRunnablePip(
             LoggingContext phaseLoggingContext,
             PipId pipId,
             int priority,
             Func<RunnablePip, Task> executionFunc,
             IPipExecutionEnvironment environment,
-            int maxRetryLimitForStoppedWorker = 0,
             ushort cpuUsageInPercents = 0,
             Pip pip = null)
-            : base(phaseLoggingContext, pipId, PipType.Process, priority, executionFunc, environment, maxRetryLimitForStoppedWorker, pip)
+            : base(phaseLoggingContext, pipId, PipType.Process, priority, executionFunc, environment, pip)
         {
             if (cpuUsageInPercents > 100)
             {

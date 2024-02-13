@@ -23,6 +23,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EarlyWorkerReleaseMultiplier = 2;
             EarlyWorkerRelease = true;
             VerifySourceFilesOnWorkers = false; // TODO: For testing purposes, this is going to be disabled by default. Update in the future to be enabled by default
+            MaxRetryLimitOnRemoteWorkers = 3;
         }
 
         /// <nodoc />
@@ -43,7 +44,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EarlyWorkerRelease = template.EarlyWorkerRelease;
             EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
             FireForgetMaterializeOutput = template.FireForgetMaterializeOutput;
-            NumRetryFailedPipsOnAnotherWorker = template.NumRetryFailedPipsOnAnotherWorker;
+            MaxRetryLimitOnRemoteWorkers = template.MaxRetryLimitOnRemoteWorkers;
             VerifySourceFilesOnWorkers = template.VerifySourceFilesOnWorkers;
         }
 
@@ -94,7 +95,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool? FireForgetMaterializeOutput { get; set; }
 
         /// <inheritdoc />
-        public int? NumRetryFailedPipsOnAnotherWorker { get; set; }
+        public int MaxRetryLimitOnRemoteWorkers { get; set; }
 
         /// <inheritdoc />
         public bool VerifySourceFilesOnWorkers { get; set; }

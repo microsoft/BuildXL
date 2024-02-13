@@ -633,13 +633,13 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionStreamingNetworkFailure(LoggingContext context, string workerName);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionExecutePipFailedNetworkFailure,
+            (ushort)LogEventId.DistributionExecutePipFailedDistributionFailureWarning,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureError,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Failing pip step {step} by {callerName} because execution request could not be sent to worker {workerName}: {errorMessage}")]
-        public abstract void DistributionExecutePipFailedNetworkFailure(LoggingContext context, string pipDescription, string workerName, string errorMessage, string step, string callerName);
+            Message = "[{pipDescription}] Failing pip step {step} by {callerName} because execution request could not be sent to worker {workerName}: {errorMessage}. Because it still fails after {maxRetryLimit} retries, the scheduler will execute the step on the orchestrator.")]
+        public abstract void DistributionExecutePipFailedDistributionFailureWarning(LoggingContext context, string pipDescription, string workerName, string errorMessage, int maxRetryLimit, string step, string callerName);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExecutePipFailedNetworkFailureWarning,

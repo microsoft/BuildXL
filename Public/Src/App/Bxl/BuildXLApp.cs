@@ -867,13 +867,7 @@ namespace BuildXL
 
         internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(LoggingContext loggingContext, TrackingEventListener listener)
         {
-            // The loss of connectivity to other machines during a distributed build is generally the true cause of the
-            // failure even though it may manifest itself as a different failure first (like failure to materialize)
-            if (listener.CountsPerEventId((int)EngineLogEventId.DistributionExecutePipFailedNetworkFailure) >= 1)
-            {
-                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: EngineLogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), BucketMessage: string.Empty);
-            }
-            else if (listener.CountsPerEventId((int)SchedulerLogEventId.ProblematicWorkerExit) >= 1 &&
+            if (listener.CountsPerEventId((int)SchedulerLogEventId.ProblematicWorkerExit) >= 1 &&
                 (listener.InternalErrorDetails.Count > 0 || listener.InfrastructureErrorDetails.Count > 0))
             {
                 string errorMessage = listener.InternalErrorDetails.Count > 0 ?

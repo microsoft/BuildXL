@@ -63,11 +63,6 @@ namespace BuildXL.Scheduler
         public IPipExecutionEnvironment Environment { get; }
 
         /// <summary>
-        /// Number of retries attempted for this pip
-        /// </summary>
-        public readonly int MaxRetryLimitForStoppedWorker;
-
-        /// <summary>
         /// Weight which specifies the number of slots to acquire in the workers and dispatchers.
         /// </summary>
         /// <remarks>
@@ -245,7 +240,6 @@ namespace BuildXL.Scheduler
             int priority,
             Func<RunnablePip, Task> executionFunc,
             IPipExecutionEnvironment environment,
-            int maxRetryLimitForStoppedWorker,
             Pip pip = null)
         {
             Contract.Requires(phaseLoggingContext != null);
@@ -261,7 +255,6 @@ namespace BuildXL.Scheduler
             ScheduleTime = DateTime.UtcNow;
             Performance = new RunnablePipPerformanceInfo(ScheduleTime);
             m_pip = pip;
-            MaxRetryLimitForStoppedWorker = maxRetryLimitForStoppedWorker;
         }
 
         /// <summary>
@@ -334,7 +327,7 @@ namespace BuildXL.Scheduler
             if ((PipType == PipType.Process || PipType == PipType.Ipc) && ExecutionResult == null)
             {
                 Contract.Assert(Environment.IsTerminating, "Attempted to cancel a pip prior its execution but the scheduler is not terminating.");
-                SetExecutionResult(ExecutionResult.GetRetryableNotRunResult(LoggingContext, RetryInfo.GetDefault(RetryReason.StoppedWorker)));
+                SetExecutionResult(ExecutionResult.GetCancelResult(LoggingContext));
             }
 
             return PipExecutionStep.Cancel;
@@ -377,7 +370,7 @@ namespace BuildXL.Scheduler
                 !Environment.IsTerminating)
             {
                 // Handle Retryable Cancellations
-                Performance.Retried(ExecutionResult?.RetryInfo ?? RetryInfo.GetDefault(RetryReason.StoppedWorker), ExecutionResult?.PerformanceInformation?.ProcessExecutionTime);
+                Performance.Retried(ExecutionResult?.RetryInfo ?? RetryInfo.GetDefault(RetryReason.RemoteWorkerFailure), ExecutionResult?.PerformanceInformation?.ProcessExecutionTime);
                 return DecideNextStepForRetry();
             }
 
@@ -403,14 +396,6 @@ namespace BuildXL.Scheduler
             }
 
             return PipExecutionStep.ChooseWorkerCpu;
-        }
-
-        /// <summary>
-        /// Returns if the failed pip should be retired on a different worker
-        /// </summary>
-        public bool ShouldRetryDueToStoppedWorker()
-        {
-            return MaxRetryLimitForStoppedWorker > Performance.RetryCountDueToStoppedWorker;
         }
 
         /// <summary>
@@ -557,15 +542,14 @@ namespace BuildXL.Scheduler
             PipType type,
             int priority,
             Func<RunnablePip, Task> executionFunc,
-            ushort cpuUsageInPercent,
-            int maxRetryLimit = 0)
+            ushort cpuUsageInPercent)
         {
             switch (type)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment, maxRetryLimit, cpuUsageInPercent);
+                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment, cpuUsageInPercent);
                 default:
-                    return new RunnablePip(loggingContext, pipId, type, priority, executionFunc, environment, maxRetryLimit);
+                    return new RunnablePip(loggingContext, pipId, type, priority, executionFunc, environment);
             }
         }
 
@@ -577,15 +561,14 @@ namespace BuildXL.Scheduler
             IPipExecutionEnvironment environment,
             Pip pip,
             int priority,
-            Func<RunnablePip, Task> executionFunc,
-            int maxRetryLimitForStoppedWorker = 0)
+            Func<RunnablePip, Task> executionFunc)
         {
             switch (pip.PipType)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, maxRetryLimitForStoppedWorker, pip: pip);
+                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, pip: pip);
                 default:
-                    return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, maxRetryLimitForStoppedWorker, pip);
+                    return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, pip);
             }
         }
 

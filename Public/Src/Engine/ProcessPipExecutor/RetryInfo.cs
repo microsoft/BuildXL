@@ -76,7 +76,8 @@ namespace BuildXL.ProcessPipExecutor
                 case RetryReason.ResourceExhaustion:
                 case RetryReason.ProcessStartFailure:
                 case RetryReason.TempDirectoryCleanupFailure:
-                case RetryReason.StoppedWorker:
+                case RetryReason.RemoteWorkerFailure:
+                case RetryReason.DistributionFailure:
                     return RetryByReschedule(reason);
 
                 case RetryReason.OutputWithNoFileAccessFailed:
@@ -166,9 +167,9 @@ namespace BuildXL.ProcessPipExecutor
         TempDirectoryCleanupFailure = 2,
 
         /// <summary>
-        /// Stopped worker
+        /// Pip fails due to the stopped remote worker, network/gRPC failure, failure to send the build request, etc.
         /// </summary>
-        StoppedWorker = 3,
+        RemoteWorkerFailure = 3,
 
         /// <summary>
         /// There is an output produced with file access observed.
@@ -198,7 +199,12 @@ namespace BuildXL.ProcessPipExecutor
         /// <summary>
         /// The sandboxed process may be retried due to fallback from remote execution.
         /// </summary>
-        RemoteFallback = 9
+        RemoteFallback = 9,
+
+        /// <summary>
+        /// We consistently fail this pip on remote workers. We will retry on the orchestrator next time.
+        /// </summary>
+        DistributionFailure = 10,
     }
 
     /// <summary>

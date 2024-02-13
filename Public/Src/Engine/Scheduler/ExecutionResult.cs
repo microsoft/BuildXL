@@ -760,12 +760,24 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Gets a canceled result without run information for retry on another worker.
+        /// Gets a canceled result without run information for retry.
         /// </summary>
         public static ExecutionResult GetRetryableNotRunResult(LoggingContext loggingContext, RetryInfo retryInfo)
         {
             var result = new ExecutionResult();
             result.SetResult(loggingContext, PipResultStatus.Canceled, retryInfo);
+            result.Seal();
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets a canceled result without run information.
+        /// </summary>
+        public static ExecutionResult GetCancelResult(LoggingContext loggingContext)
+        {
+            var result = new ExecutionResult();
+            result.SetResult(loggingContext, PipResultStatus.Canceled);
             result.Seal();
 
             return result;

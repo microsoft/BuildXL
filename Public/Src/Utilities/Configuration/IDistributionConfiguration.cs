@@ -97,10 +97,9 @@ namespace BuildXL.Utilities.Configuration
         bool? FireForgetMaterializeOutput { get; }
 
         /// <summary>
-        /// Indicates number of times the orchestrator should retry failing pips due to lost workers on a different worker.
-        /// To disable feature, set EnableRetryFailedPipsOnAnotherWorker to 0.
+        /// Indicates number of times the orchestrator should retry the pip on the remote workers due to the stopped worker, network failure, failure to send the build request, etc.
         /// </summary>
-        int? NumRetryFailedPipsOnAnotherWorker { get; }
+        int MaxRetryLimitOnRemoteWorkers { get; }
 
         /// <summary>
         /// Verify that source files that are statically declared pip inputs match between an orchestrator and a worker.

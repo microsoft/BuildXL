@@ -25,8 +25,6 @@ namespace BuildXL.Cache.ContentStore.Grpc
 
         public System.IO.Compression.CompressionLevel? ResponseCompressionLevel { get; init; }
 
-        public int? MinLogLevelVerbosity { get; init; }
-
-        public static GrpcDotNetServerOptions Default { get; } = new GrpcDotNetServerOptions() {MinLogLevelVerbosity = GrpcConstants.DefaultGrpcDotNetMinLogLevel};
+        public static GrpcDotNetServerOptions Default { get; } = new GrpcDotNetServerOptions();
     }
 }

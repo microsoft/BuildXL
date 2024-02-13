@@ -379,8 +379,6 @@ public static class EphemeralCacheFactory
             ConnectTimeout = configuration.ConnectionTimeout,
             GrpcDotNetOptions = new GrpcDotNetClientOptions()
             {
-                // We explicitly disable gRPC client-side tracing because it's too noisy.
-                MinLogLevelVerbosity = null,
             },
         };
         var connectionPool = new GrpcConnectionMap(grpcConnectionPoolConfiguration, context, clock);

@@ -12,15 +12,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
     /// </summary>
     public record GrpcDotNetClientOptions
     {
-        /// <summary>
-        /// If not null, specifies min verbosity level from grpc layer that will be sent to the cache telemetry.
-        /// </summary>
-        /// <remarks>
-        /// This value should match the values from Microsoft.Extensions.Logging.LogLevel enum.
-        /// </remarks>
-        public int? MinLogLevelVerbosity { get; init; }
-
-        public static GrpcDotNetClientOptions Default { get; } = new GrpcDotNetClientOptions() { MinLogLevelVerbosity = GrpcConstants.DefaultGrpcDotNetMinLogLevel }; // Using error logging severity by default.
+        /// <nodoc />
+        public static GrpcDotNetClientOptions Default = new GrpcDotNetClientOptions();
     }
-
 }

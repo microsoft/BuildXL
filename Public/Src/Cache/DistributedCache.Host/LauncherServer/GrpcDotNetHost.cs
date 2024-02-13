@@ -60,11 +60,6 @@ public class GrpcDotNetHost : IGrpcServerHost<GrpcDotNetHostConfiguration>
                                 l =>
                                 {
                                     l.ClearProviders();
-
-                                    if (grpcOptions.MinLogLevelVerbosity != null)
-                                    {
-                                        l.AddProvider(new LoggingAdapter("ASPNET", context, (LogLevel)grpcOptions.MinLogLevelVerbosity.Value));
-                                    }
                                 });
 
                             webBuilder.ConfigureKestrel(

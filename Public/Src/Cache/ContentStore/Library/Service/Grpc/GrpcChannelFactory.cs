@@ -149,16 +149,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 DisposeHttpClient = false,
             };
 
-            string grpcMinVerbosity = grpcDotNetSpecificOptions.MinLogLevelVerbosity != null
-                ? ((Microsoft.Extensions.Logging.LogLevel)grpcDotNetSpecificOptions.MinLogLevelVerbosity).ToString()
-                : "disabled";
-            Tracer.Debug(context, $"Grpc.Net logging min verbosity: {grpcMinVerbosity}");
-
-            if (grpcDotNetSpecificOptions.MinLogLevelVerbosity != null)
-            {
-                options.LoggerFactory = new GrpcCacheLoggerAdapter(Tracer, context.TracingContext.CreateNested(Tracer.Name), (Microsoft.Extensions.Logging.LogLevel)grpcDotNetSpecificOptions.MinLogLevelVerbosity.Value);
-            }
-
             var target = channelOptions.Location.ToGrpcHost();
             if (target.Encrypted)
             {

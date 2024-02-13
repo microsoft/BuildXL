@@ -1,0 +1,141 @@
+trigger: none 
+
+variables:
+  - name: BuildXL.LogsDirectory
+    value: $(Build.SourcesDirectory)\Out\Logs\pr-$(Build.BuildNumber)
+  - name: BuildXL.PreReleaseTag
+    value: pr.public.apiscan
+  - name: BuildXL.SemanticVersion
+    value: 0.0.$(Build.BuildNumber)
+  - name: BuildXL.Configuration
+    value: Release
+
+jobs:
+- job: APIScan
+  displayName: APIScan
+  timeoutInMinutes: 120
+  cancelTimeoutInMinutes: 1
+  pool:
+    name: BuildXL-DevOpsAgents-PME
+  steps:
+  - checkout: self
+    fetchDepth: 1
+
+  - template: ../common/journaling.yml # Enable journaling
+  - template: ../common/set-msvc-version.yml
+
+  # It should give us enough coverage to run with the default qualifier
+  - task: CmdLine@2
+    displayName: BuildXL (cscDebugType=pdbOnly) 
+    inputs:
+      script: 'bxl.cmd /q:Release /p:[Sdk.BuildXL]microsoftInternal=0 /p:[Sdk.BuildXL]cscDebugType=pdbOnly /logsDirectory:$(BuildXL.LogsDirectory) /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /processRetries:3'
+
+  - task: PublishPipelineArtifact@1
+    displayName: Upload logs
+    condition: always()
+    continueOnError: True
+    inputs:
+      path: $(BuildXL.LogsDirectory)
+      artifactName: BuildXL logs
+
+  # Some of the DLLs in the BuildXL deployment correspond to stock libraries brought in via NuGet. We only want to scan our very own BuildXL DLLs, so
+  # we use the produced PDBs as an indicator of that. As a way to isolate them and only scan those, we use separate binaries & symbols directories, where only
+  # the identified DLLs are copied
+  - powershell: |
+      $bxlDir = '$(Build.SourcesDirectory)\Out\Bin\Release\win-x64'
+      $binariesDir = '$(Agent.TempDirectory)\APIScan\Binaries'
+      $symbolsDir = '$(Agent.TempDirectory)\APIScan\Symbols'
+
+      New-Item -Path $binariesDir -ItemType Directory
+      New-Item -Path $symbolsDir -ItemType Directory
+
+       # Get all the .pdb, .dll and .exe files from bxlDir recursively
+      $pdbFiles = Get-ChildItem -Path $bxlDir -Filter "*.pdb" -Recurse
+      $dllFiles = Get-ChildItem -Path $bxlDir -Filter "*.dll" -Recurse
+
+      # Copy all .pdb files to symbolsDir
+      $pdbFiles | ForEach-Object {
+          Copy-Item -Path $_.FullName -Destination $symbolsDir
+      }
+
+      # Loop through each .pdb file
+      # TODO: there might be dlls with duplicate name in nested directories that actually target different frameworks. We should maybe
+      # instead do a recursive copy preserving the dir structure and make apiscan perform a recursive scan
+      foreach ($pdbFile in $pdbFiles) {
+          # Check if there's a .dll or .exe file with the same name
+          $matchingDllFile = $dllFiles | Where-Object { $_.BaseName -eq $pdbFile.BaseName }
+        
+          # Copy the matching .dll and files to binariesDir
+          if ($null -ne $matchingDllFile) {
+              Copy-Item -Path $matchingDllFile.FullName -Destination $binariesDir
+          }
+      }
+    failOnStderr: true
+    displayName: 'Prepare binary and symbol file'
+    continueOnError: false
+
+  - task: AzureCLI@2
+    displayName: 'Get token'
+    inputs:
+      azureSubscription: 'BuildXL - APIScan'
+      addSpnToEnvironment: true
+      scriptType: bash
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        echo "##vso[task.setvariable variable=APIScan-clientId;]$servicePrincipalId"
+        echo "##vso[task.setvariable variable=APIScan-tenantId;]$tenantId"
+
+  - task: APIScan@2
+    displayName: 'Run APIScan via Guardian'
+    env:
+        AzureServicesAuthConnectionString: RunAs=App;AppId=$(APIScan-clientId);TenantId=$(APIScan-tenantId);AppKey=$(APIScan-Secret)
+    inputs:
+      targetMode: 'binarysym'
+      softwareName: 'BuildXL'
+      softwareVersionNum: '$(Version-Number)'
+      softwareBuildNum: '$(Build.BuildId)'
+      softwareFolder: $(Agent.TempDirectory)\APIScan\Binaries
+      symbolsFolder: 'SRV*http://symweb;$(Agent.TempDirectory)\APIScan\Symbols'
+      modeType: 'prerelease'
+      toolVersion: 'Latest'
+  
+  - task: PostAnalysis@2
+    continueOnError: true
+    inputs:
+      GdnBreakAllTools: false
+      GdnBreakGdnToolApiScan: true
+      GdnBreakGdnToolApiScanSeverity: 'Warning'
+
+
+  # Publish the analysis artifacts
+  - task: PublishSecurityAnalysisLogs@3
+    condition: always()
+    inputs:
+      ArtifactName: 'CodeAnalysisLog'
+      ArtifactType: 'Container'
+      AllTools: false
+      AntiMalware: false
+      APIScan: true
+      Armory: false
+      Bandit: false
+      BinSkim: false
+      CodesignValidation: false
+      CredScan: false
+      CSRF: false
+      ESLint: false
+      Flawfinder: false
+      FortifySCA: false
+      FxCop: false
+      ModernCop: false
+      MSRD: false
+      PoliCheck: false
+      RoslynAnalyzers: false
+      SDLNativeRules: false
+      Semmle: false
+      SpotBugs: false
+      Trivy: false
+      TSLint: false
+      WebScout: false
+      Terrascan: false
+      TemplateAnalyzer: false
+      ToolLogsNotFoundAction: 'Standard'

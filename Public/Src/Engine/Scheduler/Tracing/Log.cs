@@ -191,7 +191,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.PipOutputUpToDate,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Pip output for '{fileName}' is already up to date. (hash: '{contentHash}'). {reparsePointInfo}.")]
         internal abstract void SchedulePipOutputUpToDate(

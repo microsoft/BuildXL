@@ -61,7 +61,8 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.Drop",
                                 contents: [ 
                                     importFrom("BuildXL.Tools.DropDaemon").withQualifier({
-                                        targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
+                                        // Due to regex timeouts that happen when we use net7, as a mitigation, deploy net6 dropD bits.
+                                        targetFramework: "net6.0",
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(evaluationOnly)
                                 ]

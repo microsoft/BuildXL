@@ -9,6 +9,9 @@ variables:
     value: 0.0.$(Build.BuildNumber)
   - name: BuildXL.Configuration
     value: Release
+  - group: "BuildXL Secrets"
+  - name: Codeql.Enabled
+    value: false
 
 jobs:
 - job: APIScan
@@ -25,10 +28,11 @@ jobs:
   - template: ../common/set-msvc-version.yml
 
   # It should give us enough coverage to run with the default qualifier
+  # We only care to scan binaries we produce, so we are using an output filter pointing to the Out\Bin\$(BuildXL.Configuration)\win-x64 folder
   - task: CmdLine@2
     displayName: BuildXL (cscDebugType=pdbOnly) 
     inputs:
-      script: 'bxl.cmd /q:Release /p:[Sdk.BuildXL]microsoftInternal=0 /p:[Sdk.BuildXL]cscDebugType=pdbOnly /logsDirectory:$(BuildXL.LogsDirectory) /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /processRetries:3'
+      script: 'bxl.cmd -DeployConfig $(BuildXL.Configuration) /p:[Sdk.BuildXL]microsoftInternal=0 /p:[Sdk.BuildXL]cscDebugType=pdbOnly /logsDirectory:$(BuildXL.LogsDirectory) /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /processRetries:3 Out\Bin\$(BuildXL.Configuration)\win-x64\*'
 
   - task: PublishPipelineArtifact@1
     displayName: Upload logs
@@ -53,9 +57,12 @@ jobs:
       $pdbFiles = Get-ChildItem -Path $bxlDir -Filter "*.pdb" -Recurse
       $dllFiles = Get-ChildItem -Path $bxlDir -Filter "*.dll" -Recurse
 
+      Write-Host "Copying files from '$($bxlDir)' to '$($symbolsDir)'"
+
       # Copy all .pdb files to symbolsDir
       $pdbFiles | ForEach-Object {
           Copy-Item -Path $_.FullName -Destination $symbolsDir
+          Write-Host "Copying '$($_.FullName)'"
       }
 
       # Loop through each .pdb file
@@ -68,6 +75,7 @@ jobs:
           # Copy the matching .dll and files to binariesDir
           if ($null -ne $matchingDllFile) {
               Copy-Item -Path $matchingDllFile.FullName -Destination $binariesDir
+              Write-Host "Copying '$($matchingDllFile.FullName)'"
           }
       }
     failOnStderr: true
@@ -88,11 +96,11 @@ jobs:
   - task: APIScan@2
     displayName: 'Run APIScan via Guardian'
     env:
-        AzureServicesAuthConnectionString: RunAs=App;AppId=$(APIScan-clientId);TenantId=$(APIScan-tenantId);AppKey=$(APIScan-Secret)
+        AzureServicesAuthConnectionString: RunAs=App;AppId=$(APIScan-clientId);TenantId=$(APIScan-tenantId);AppKey=$(mseng-Domino-BuildXL-APIScan)
     inputs:
       targetMode: 'binarysym'
       softwareName: 'BuildXL'
-      softwareVersionNum: '$(Version-Number)'
+      softwareVersionNum: '$(BuildXL.SemanticVersion)'
       softwareBuildNum: '$(Build.BuildId)'
       softwareFolder: $(Agent.TempDirectory)\APIScan\Binaries
       symbolsFolder: 'SRV*http://symweb;$(Agent.TempDirectory)\APIScan\Symbols'

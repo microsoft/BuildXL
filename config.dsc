@@ -147,7 +147,7 @@ config({
                 { id: "Microsoft.Tpl.Dataflow", version: "4.5.24" },
                 { id: "Microsoft.TypeScript.Compiler", version: "1.8" },
                 { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
-                { id: "Newtonsoft.Json", version: "13.0.1" },
+                { id: "Newtonsoft.Json", version: "13.0.3" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
                 { id: "System.Reflection.Metadata", version: "7.0.0" },
                 // The VBCS logger is used by QuickBuild and runs in the context of old VS installations, so it cannot use a higher version
@@ -157,13 +157,13 @@ config({
                 { id: "System.Threading.Tasks.Dataflow", version: "7.0.0" },
 
                 // Nuget
-                { id: "NuGet.Packaging", version: "5.11.5" },
-                { id: "NuGet.Configuration", version: "5.11.5" },
-                { id: "NuGet.Common", version: "5.11.5" },
-                { id: "NuGet.Protocol", version: "5.11.5" },
-                { id: "NuGet.Versioning", version: "5.11.5" }, 
-                { id: "NuGet.CommandLine", version: "6.4.2" },
-                { id: "NuGet.Frameworks", version: "5.11.5"}, // needed for qtest on .net core
+                { id: "NuGet.Packaging", version: "6.9.1" },
+                { id: "NuGet.Configuration", version: "6.9.1" },
+                { id: "NuGet.Common", version: "6.9.1" },
+                { id: "NuGet.Protocol", version: "6.9.1" },
+                { id: "NuGet.Versioning", version: "6.9.1" }, 
+                { id: "NuGet.CommandLine", version: "6.9.1" },
+                { id: "NuGet.Frameworks", version: "6.9.1"}, // needed for qtest on .net core
 
                 // ProjFS (virtual file system)
                 { id: "Microsoft.Windows.ProjFS", version: "1.2.19351.1" },

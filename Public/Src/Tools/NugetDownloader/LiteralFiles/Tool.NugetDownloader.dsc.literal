@@ -28,7 +28,9 @@ const downloaderDefinition: Transformer.ToolDefinition = {
     untrackedFiles: [
         nugetDownloaderExe,
         // Untracks the Cloudbuild credential provider
-        ...addIfLazy(Environment.hasVariable("__CLOUDBUILD_AUTH_HELPER_ROOT__"), () => [ f`${Environment.getDirectoryValue("__CLOUDBUILD_AUTH_HELPER_ROOT__")}/Nuget/CredentialProvider.Cloudbuild.exe` ])
+        ...addIfLazy(Environment.hasVariable("__CLOUDBUILD_AUTH_HELPER_ROOT__"), () => [ f`${Environment.getDirectoryValue("__CLOUDBUILD_AUTH_HELPER_ROOT__")}/Nuget/CredentialProvider.Cloudbuild.exe` ]),
+        // On some machines this file exists, and NuGet tries to access it
+        f`${Context.getMount("ProgramData").path}/Microsoft/Crypto/OIDInfo/DsOIDInfo.dat`
     ],
 };
 

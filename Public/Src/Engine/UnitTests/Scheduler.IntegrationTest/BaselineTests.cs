@@ -803,17 +803,104 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        /// <summary>
+        /// Tests that a directory probe will cause an underbuild if the probed directory is not under input directory.
+        /// </summary>
+        /// <remarks>See bug 2146397 for more context on what is being tested here.</remarks>
+        [Feature(Features.DirectoryProbe)]
+        [Fact]
+        public void ValidatePipUnderbuildWithDirectoryProbesNotUnderInputDirectory()
+        {
+            Configuration.Sandbox.ExplicitlyReportDirectoryProbes = true;
+
+            DirectoryArtifact directoryToProbe = CreateUniqueDirectoryArtifact(root: Path.Combine(SourceRoot, "Foo"));
+            
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.DirProbe(directoryToProbe),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            Directory.Delete(ArtifactToString(directoryToProbe));
+
+            // Even when ExplicitlyReportDirectoryProbes is true, Detours only report existing directory probe if ReportAccessIfExistent is set in
+            // the file access manifest. Such a flag is only set for directory dependencies.
+            RunScheduler().AssertCacheHit(pip.PipId);
+        }
+
+        /// <summary>
+        /// Tests that a directory probe will not cause an underbuild if the probed directory is under input directory.
+        /// </summary>
+        /// <remarks>See bug 2146397 for more context on what is being tested here.</remarks>
+        [Feature(Features.DirectoryProbe)]
+        [Theory]
+        [InlineData(SealDirectoryKind.SourceAllDirectories)]
+        [InlineData(SealDirectoryKind.SourceTopDirectoryOnly)]
+        [InlineData(SealDirectoryKind.Partial)]
+        public void ValidateDirectoryProbesUnderInputDirectory(SealDirectoryKind kind)
+        {
+            Configuration.Sandbox.ExplicitlyReportDirectoryProbes = true;
+
+            string rootDirectory = Path.Combine(SourceRoot, "Foo");
+            AbsolutePath rootDirectoryPath = AbsolutePath.Create(Context.PathTable, rootDirectory);
+
+            // Create directory to probe at SourceRoot/Foo/Bar/src_1
+            DirectoryArtifact directoryToProbe = CreateUniqueDirectoryArtifact(root: Path.Combine(rootDirectory, "Bar"));
+            FileArtifact file = CreateSourceFile(root: directoryToProbe.Path.GetParent(Context.PathTable));
+
+            // Seal the directory SourceRoot/Foo.
+            DirectoryArtifact dir = kind switch
+            {
+                SealDirectoryKind.SourceAllDirectories => SealDirectory(rootDirectoryPath, kind),
+                SealDirectoryKind.SourceTopDirectoryOnly => SealDirectory(rootDirectoryPath, kind),
+                SealDirectoryKind.Partial => SealDirectory(rootDirectoryPath, kind, file),
+                _ => throw new ArgumentException("Invalid SealDirectoryKind")
+            };
+
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.DirProbe(directoryToProbe),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            builder.AddInputDirectory(dir);
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            Directory.Delete(ArtifactToString(directoryToProbe));
+
+            // Even when ExplicitlyReportDirectoryProbes is true, Detours only report existing directory probe if ReportAccessIfExistent is set in
+            // the file access manifest. Such a flag is only set for directory dependencies.
+
+            if (kind == SealDirectoryKind.SourceAllDirectories)
+            {
+                // If it's under SourceAllDirectories, the observed input processor will treat the probe as an existing directory probe
+                // because the directory is considered as a source directory.
+                RunScheduler().AssertCacheMiss(pip.PipId);
+                RunScheduler().AssertCacheHit(pip.PipId);
+            }
+            else
+            {
+                // Even if the directory itself is under a sealed directory, but because the directory is not part of that sealed directory (i.e.,
+                // the sealed directory is only SourceTopDirectoryOnly or is only partial/full), the observed input processor will treat the probe as probing
+                // an output directory, and determine the probe as non-existent (to avoid cache churn).
+                RunScheduler().AssertCacheHit(pip.PipId);
+            }
+        }
+
         [Feature(Features.DirectoryProbe)]
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // we currently cannot simulate directory probes for macOS.
         [InlineData(true)]
         [InlineData(false)]
         public void ValidateTreatAbsentDirectoryAsExistentUnderOpaque(bool disableTreatAbsentDirectoryAsExistentUnderOpaque)
         {
-            // if (!disableTreatAbsentDirectoryAsExistentUnderOpaque)
-            // {
-            //     System.Diagnostics.Debugger.Launch();
-            // }
-
             if (disableTreatAbsentDirectoryAsExistentUnderOpaque)
             {
                 // Only set it in case of disableTreatAbsentDirectoryAsExistentUnderOpaque,

@@ -417,7 +417,7 @@ namespace BuildXL
             private readonly object m_lock = new object();
             private readonly BinaryWriter m_writer;
             private bool m_disabled;
-
+            public bool UpdatingConsole { get; } = false;
             internal AppServerForwardingConsole(BinaryWriter writer)
             {
                 m_writer = writer;

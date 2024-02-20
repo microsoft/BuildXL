@@ -299,7 +299,7 @@ namespace BuildXL
                         StringBuilder sb = wrap.Instance;
 
                         // Only show cache hits when this isn't a worker.
-                        sb.Append(m_notWorker ? @"{{9,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @" {{4,{0}}} done,");
+                        sb.Append(m_notWorker ? @"{{8,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @" {{4,{0}}} done,");
 
                         if (pipsFailed > 0)
                         {
@@ -313,11 +313,11 @@ namespace BuildXL
 
                         if (remoteProcs > 0)
                         {
-                            sb.Append(@" {{8,{0}}} executing ({{14}} remote), {{2,{0}}} waiting]");
+                            sb.Append(@" {{7,{0}}} executing ({{13}} remote), {{2,{0}}} waiting]");
                         }
                         else
                         {
-                            sb.Append(@" {{8,{0}}} executing, {{2,{0}}} waiting]");
+                            sb.Append(@" {{7,{0}}} executing, {{2,{0}}} waiting]");
                         }
 
                         if (pipsWaitingOnSemaphore > 0)
@@ -325,20 +325,16 @@ namespace BuildXL
                             sb.Append(@" ({{3,{0}}} on semaphores).");
                         }
 
-                        if (servicePipsRunning > 0)
-                        {
-                            sb.Append(@". Services: {{7}}.");
-                        }
-
                         if (filePipsTotal > 0)
                         {
-                            sb.Append(@" Files:[{{12}}/{{13}}]");
+                            sb.Append(@" Files:[{{11}}/{{12}}]");
                         }
 
                         string statusLine = sb.ToString();
                         sb.Length = 0;
 
                         var format = FinalizeFormatStringLayout(sb, statusLine, 0);
+                        var waitingOnBackgroundOperations = (procsDone + filePipsDone == procsTotal + filePipsTotal) && servicePipsRunning != 0;
 
                         sb.AppendFormat(
                             CultureInfo.InvariantCulture,
@@ -350,7 +346,6 @@ namespace BuildXL
                             procsDone,
                             procsHit,
                             procsSkipped,
-                            servicePipsRunning,
                             procsExecuting,
                             ComputePercentDone(procsDone, procsTotal, filePipsDone, filePipsTotal),
                             done,
@@ -359,8 +354,16 @@ namespace BuildXL
                             filePipsTotal,
                             remoteProcs);
 
+                        // Ensures backgroundTaskConsoleStatusMessage is displayed in ADO and when the fancyConsole option is disabled, when build progress is 100% and only service pips run.
+                        // This is done to ensure that we do not include this message in updatableMessage twice when the fancyConsole option is enabled.
+                        if (waitingOnBackgroundOperations && !m_console.UpdatingConsole)
+                        {
+                            sb.Append(" ");
+                            sb.Append(Strings.BackgroundTaskConsoleStatusMessage);
+                        }
+
                         string standardStatus = sb.ToString();
-                        string updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo);
+                        string updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo, waitingOnBackgroundOperations);
                         bool allowStatusThrottling = m_optimizeForAzureDevOps && eventData.EventId != (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable;
                         SendToConsole(eventData, "info", standardStatus, allowStatusThrottling: allowStatusThrottling, updatableMessage: updatingStatus);
                     }
@@ -631,7 +634,7 @@ namespace BuildXL
             public DateTime LastSeen;
         }
 
-        private string GetRunningPipsMessage(string standardStatus, string perfInfo)
+        private string GetRunningPipsMessage(string standardStatus, string perfInfo, bool waitingOnBackgroundOperations)
         {
             lock (m_runningPipsLock)
             {
@@ -691,8 +694,15 @@ namespace BuildXL
                         sb.AppendFormat(Strings.App_Errors_LogsDirectory, errors, m_logsDirectory);
                     }
 
-                    int pipCount = 0;
+                    // Display backgroundTaskStatusMessage if fancyConsole option is enabled and when build is 100% complete, no process pips running, but service pips are.
+                    if (m_runningPips.Count == 0 && waitingOnBackgroundOperations)
+                    {
+                        sb.AppendLine();
+                        sb.Append(Strings.BackgroundTaskConsoleStatusMessage);
+                    }
 
+                    int pipCount = 0;
+    
                     foreach (var item in m_runningPips.ToArray().OrderBy(kvp => kvp.Value.FirstSeen))
                     {
                         if (item.Value.LastSeen < thisCollection)

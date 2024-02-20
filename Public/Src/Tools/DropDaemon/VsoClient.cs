@@ -355,7 +355,7 @@ namespace Tool.DropDaemon
             {
                 m_counters.IncrementCounter(DropClientCounter.NumberOfIncompleteBatches);
             }
-
+            
             FileBlobDescriptor[] blobsForAssociate = new FileBlobDescriptor[0];
             try
             {

@@ -22,11 +22,13 @@ namespace BuildXL.Utilities.Tracing
         private readonly ConsoleColor m_warningColor;
         private MessageLevel m_highestMessageLevel;
         private bool m_isDisposed;
-        private readonly bool m_updatingConsole;
         private int m_firstLineLength;
         private string m_lastOverwriteableLine;
         private readonly PathTranslator m_pathTranslator;
         private readonly bool m_debugConsole;
+        /// <inheritdoc />
+        public bool UpdatingConsole { get; private set; }
+
 
         /// <summary>
         /// Create a new standard console
@@ -50,7 +52,7 @@ namespace BuildXL.Utilities.Tracing
 
             // If any output is redirected, updating the cursor position won't work. We assume the output won't get
             // redirected after the process starts.
-            m_updatingConsole = !Console.IsOutputRedirected && !Console.IsErrorRedirected && supportsOverwriting;
+            UpdatingConsole = !Console.IsOutputRedirected && !Console.IsErrorRedirected && supportsOverwriting;
             m_pathTranslator = pathTranslator;
 
             if (colorize)
@@ -105,16 +107,16 @@ namespace BuildXL.Utilities.Tracing
         /// <inheritdoc />
         public void WriteOverwritableOutputLine(MessageLevel messageLevel, string standardLine, string overwritableLine)
         {
-            WriteOutputLine(messageLevel, m_updatingConsole ? overwritableLine : standardLine, overwritable: m_updatingConsole);
+            WriteOutputLine(messageLevel, UpdatingConsole ? overwritableLine : standardLine, overwritable: UpdatingConsole);
         }
 
         /// <inheritdoc />
         public void WriteOverwritableOutputLineOnlyIfSupported(MessageLevel messageLevel, string standardLine, string overwritableLine)
         {
-            if (m_updatingConsole)
+            if (UpdatingConsole)
             {
-                WriteOutputLine(messageLevel, m_updatingConsole ? overwritableLine : standardLine,
-                    overwritable: m_updatingConsole);
+                WriteOutputLine(messageLevel, UpdatingConsole ? overwritableLine : standardLine,
+                    overwritable: UpdatingConsole);
             }
         }
 

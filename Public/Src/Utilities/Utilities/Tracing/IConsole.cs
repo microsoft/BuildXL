@@ -39,6 +39,14 @@ namespace BuildXL.Utilities.Tracing
     public interface IConsole : IDisposable
     {
         /// <summary>
+        /// This flag determines whether or not to update the console based on the fancyConsole setting and error output redirection status.
+        /// </summary>
+        /// <remarks> 
+        /// This flag is updated in the StandardConsole implementation of IConsole.
+        /// </remarks>
+        bool UpdatingConsole { get; }
+
+        /// <summary>
         /// Writes a line with the given message level.
         /// </summary>
         void WriteOutputLine(MessageLevel messageLevel, string line);

@@ -123,4 +123,7 @@
   <data name="ConsoleListener_AdditionalPips" xml:space="preserve">
     <value>       + {0} more...</value>
   </data>
+  <data name="BackgroundTaskConsoleStatusMessage" xml:space="preserve">
+    <value>Waiting for background tasks to complete</value>
+  </data>
 </root>

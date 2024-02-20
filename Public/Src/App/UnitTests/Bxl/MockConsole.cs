@@ -10,14 +10,23 @@ using BuildXL.ToolSupport;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using Strings = BuildXL.ConsoleLogger.Strings;
 
 namespace Test.BuildXL
 {
     internal class MockConsole : IConsole
     {
         private MessageLevel m_lastMessageLevel;
-        // This list is used in ADOConsole for DX64 errors where the message is split into various segments and logged to ensure that only a part of the error message is highlighted.
+
+        /// <summary>
+        /// This list is used to capture the console messages emitted.
+        /// </summary>        
         internal List<string> Messages = new List<string>();
+
+        /// <summary>
+        /// This flag is used to mimic the StandardConsole. The flag is enabled when the fancyConsole option is enabled.
+        /// </summary>
+        public bool UpdatingConsole { get; set; } = false;
 
         public void Dispose()
         {
@@ -98,7 +107,8 @@ namespace Test.BuildXL
 
         public void WriteOverwritableOutputLine(MessageLevel messageLevel, string standardLine, string overwritableLine)
         {
-            // noop
+            // We expect BackgroundTaskConsoleStatusMessage to be captured when the build is complete but service pips are still running, applicable for fancyConsole or ADO console.
+            Messages.Add(UpdatingConsole ? overwritableLine : standardLine);
         }
 
         public void WriteOverwritableOutputLineOnlyIfSupported(MessageLevel messageLevel, string standardLine, string overwritableLine)
@@ -109,6 +119,18 @@ namespace Test.BuildXL
         public bool AskUser()
         {
             return false;
+        }
+
+        /// <summary>
+        /// Validates console build status message for service pips.
+        /// BackgroundTaskConsoleStatusMessage is shown only when build completes while service pips run, applicable to ADO console or with fancyConsole option.
+        /// </summary>
+        public void ValidateBuildStatusLineMessage(bool expectedBuildStatusMessage)
+        {
+            XAssert.IsNotNull(Messages.LastOrDefault(), "WriteOutputLine was not called");
+            var containsMessage = Messages.LastOrDefault()?.Contains(Strings.BackgroundTaskConsoleStatusMessage) ?? false;
+            XAssert.AreEqual(expectedBuildStatusMessage, containsMessage);
+            Messages.Clear();
         }
     }
 }

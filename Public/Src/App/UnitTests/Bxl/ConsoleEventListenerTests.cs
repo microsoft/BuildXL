@@ -7,8 +7,10 @@ using System.Linq;
 using System.Threading;
 using BuildXL;
 using BuildXL.ToolSupport;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+using BuildXL.ViewModel;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -291,6 +293,117 @@ namespace Test.BuildXL
             XAssert.IsTrue(loggedMessage.EndsWith(message));
             XAssert.IsFalse(loggedMessage.Contains("Worker"));
             XAssert.IsFalse(loggedMessage.Contains("logged"));
+        }
+
+        [Theory]
+        [MemberData(nameof(BuildStatusData))]
+        public void EvaluateBackgroundTaskStatusMessageDisplay(BuildStatusParameters buildStatusParameters)
+        {
+            TestEvents log = TestEvents.Log;
+            var loggingContext = BuildXLTestBase.CreateLoggingContextForTest();
+
+            using (var console = new MockConsole())
+            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, CancellationToken.None, optimizeForAzureDevOps: buildStatusParameters.OptimizeForAzureDevOps))
+            {
+                console.UpdatingConsole = buildStatusParameters.IsFancyConsoleEnabled;
+                listener.RegisterEventSource(TestEvents.Log);
+                listener.RegisterEventSource(TestEvents.Log);
+                listener.RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+                listener.RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
+                BuildViewModel buildViewModel = new BuildViewModel();
+                var pipExecutionContext = BuildXLContext.CreateInstanceForTesting();
+                buildViewModel.SetContext(pipExecutionContext);
+                listener.SetBuildViewModel(buildViewModel);
+
+                var procsSucceeded = 10;
+                var procsFailed = 10;
+                var procsSkipped = 10;
+
+                var done = procsSucceeded + procsFailed + procsSkipped;
+                var total = done + buildStatusParameters.ProcsExecuting + buildStatusParameters.ProcsWaiting + buildStatusParameters.ProcsPending;
+                var processPercent = (100.0 * done) / (total * 1.0);
+                var currentProgress = Convert.ToInt32(Math.Floor(processPercent));
+
+                global::BuildXL.Scheduler.Scheduler.LogPipStatus(loggingContext,
+                    pipsSucceeded: 10,
+                    pipsFailed: 10,
+                    pipsSkippedDueToFailedDependencies: 10,
+                    pipsRunning: 0,
+                    pipsReady: 0,
+                    pipsWaiting: 0,
+                    pipsWaitingOnSemaphore: 0,
+                    servicePipsRunning: buildStatusParameters.ServicePips,
+                    perfInfoForConsole: "",
+                    pipsWaitingOnResources: 0,
+                    procsExecuting: buildStatusParameters.ProcsExecuting,
+                    procsSucceeded: procsSucceeded,
+                    procsFailed: procsFailed,
+                    procsSkippedDueToFailedDependencies: procsSkipped,
+                    procsPending: buildStatusParameters.ProcsPending,
+                    procsWaiting: buildStatusParameters.ProcsWaiting,
+                    procsCacheHit: 10,
+                    procsNotIgnored: 10,
+                    limitingResource: "",
+                    perfInfoForLog: "",
+                    overwriteable: true,
+                    copyFileDone: 100,
+                    copyFileNotDone: buildStatusParameters.CopyFileNotDone,
+                    writeFileDone: 10,
+                    writeFileNotDone: buildStatusParameters.WriteFileNotDone,
+                    procsRemoted: 0);
+                console.ValidateBuildStatusLineMessage(buildStatusParameters.IsBackgroundTaskConsoleStatusMessageExpected);
+            }
+        }
+
+        /// <summary>
+        /// These test parameters are used to validate the various scenarios related to service pips status in the console.
+        /// Case1: Display the background task message when build is 100% complete, no process pips running, but service pips are.
+        /// Case2: Do not display the background task message when build is incomplete and both process and service pips are executing.
+        /// Case3: Do not display the background task message when build is incomplete, process pips are running, but service pips are done.
+        /// Case4: Do not display the background task message when build is 100% complete, no process pips are running and service pips are done.
+        /// Case5: Display the background task message when build is 100% complete, no process pips running, but service pips are and when the fancyConsole option is disabled and it is non-ADO.
+        /// Case6: Do not display the background task message when build is incomplete, process pips are running, but service pips are done and when the fancyConsole option is disabled and it is non-ADO.
+        /// Case7: In ADO, display the background task message when build is 100% complete, no process pips running, but service pips are and when the fancyConsole option is disabled.
+        /// Case8 : In ADO, do not display the background task message when build is incomplete, both process and service pips are executing and when the fancyConsole option is disabled.
+        /// </summary>
+        private static IEnumerable<object[]> BuildStatusData()
+        {
+            yield return new object[] { new BuildStatusParameters { ProcsExecuting = 0, ProcsPending = 0, ProcsWaiting = 0, CopyFileNotDone = 0, WriteFileNotDone = 0, ServicePips = 10, IsBackgroundTaskConsoleStatusMessageExpected = true, IsFancyConsoleEnabled = true, OptimizeForAzureDevOps = false } };
+
+            yield return new object[] { new BuildStatusParameters { ProcsExecuting = 10, ProcsPending = 0, ProcsWaiting = 0, CopyFileNotDone = 10, WriteFileNotDone = 10, ServicePips = 10, IsBackgroundTaskConsoleStatusMessageExpected = false, IsFancyConsoleEnabled = true, OptimizeForAzureDevOps = false } };
+
+            yield return new object[] { new BuildStatusParameters { ProcsExecuting = 10, ProcsPending = 0, ProcsWaiting = 0, CopyFileNotDone = 10, WriteFileNotDone = 10, ServicePips = 0, IsBackgroundTaskConsoleStatusMessageExpected = false, IsFancyConsoleEnabled = true, OptimizeForAzureDevOps = false } };
+
+            yield return new object[] { new BuildStatusParameters { ProcsExecuting = 0, ProcsPending = 0, ProcsWaiting = 0, CopyFileNotDone = 0, WriteFileNotDone = 0, ServicePips = 0, IsBackgroundTaskConsoleStatusMessageExpected = false, IsFancyConsoleEnabled = true, OptimizeForAzureDevOps = false } };
+
+            yield return new object[] { new BuildStatusParameters { ProcsExecuting = 0, ProcsPending = 0, ProcsWaiting = 0, CopyFileNotDone = 0, WriteFileNotDone = 0, ServicePips = 10, IsBackgroundTaskConsoleStatusMessageExpected = true, IsFancyConsoleEnabled = false, OptimizeForAzureDevOps = false } };
+
+            yield return new object[] { new BuildStatusParameters { ProcsExecuting = 10, ProcsPending = 0, ProcsWaiting = 0, CopyFileNotDone = 10, WriteFileNotDone = 10, ServicePips = 0, IsBackgroundTaskConsoleStatusMessageExpected = false, IsFancyConsoleEnabled = false, OptimizeForAzureDevOps = false } };
+
+            yield return new object[] { new BuildStatusParameters { ProcsExecuting = 0, ProcsPending = 0, ProcsWaiting = 0, CopyFileNotDone = 0, WriteFileNotDone = 0, ServicePips = 10, IsBackgroundTaskConsoleStatusMessageExpected = true, IsFancyConsoleEnabled = false, OptimizeForAzureDevOps = true } };
+
+            yield return new object[] { new BuildStatusParameters { ProcsExecuting = 10, ProcsPending = 0, ProcsWaiting = 0, CopyFileNotDone = 10, WriteFileNotDone = 10, ServicePips = 10, IsBackgroundTaskConsoleStatusMessageExpected = false, IsFancyConsoleEnabled = false, OptimizeForAzureDevOps = true } };
+        }
+
+        public struct BuildStatusParameters
+        {
+            public long ProcsExecuting;
+
+            public long ProcsPending;
+
+            public long ProcsWaiting;
+
+            public long CopyFileNotDone;
+
+            public long WriteFileNotDone;
+
+            public long ServicePips;
+
+            public bool IsBackgroundTaskConsoleStatusMessageExpected;
+
+            public bool IsFancyConsoleEnabled;
+
+            public bool OptimizeForAzureDevOps;
         }
     }
 }

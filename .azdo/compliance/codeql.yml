@@ -1,18 +1,9 @@
-trigger: none 
+name: BuildXL CodeQL
+trigger: none
 
 variables:
-  - name: Branding_SourceIdentification
-    value: $(Build.SourceBranch):$(Build.SourceVersion)
-  - name: BuildXL.LogsDirectory.LKG
-    value: $(Build.SourcesDirectory)\Out\Logs\pr-$(Build.BuildNumber)-lkg
   - name: BuildXL.LogsDirectory
-    value: $(Build.SourcesDirectory)\Out\Logs\pr-$(Build.BuildNumber)
-  - name: BuildXL.PreReleaseTag
-    value: $(Build.BuildNumber)
-  - name: BuildXL.SemanticVersion
-    value: codeql
-  - name: BuildXL.PkgVersion
-    value: codeql-$(BuildXL.PreReleaseTag)
+    value: $(Build.SourcesDirectory)\Out\Logs
   - name: Codeql.Enabled
     value: true
 
@@ -30,12 +21,12 @@ jobs:
   - template: ../common/journaling.yml # Enable journaling
   - template: ../common/set-msvc-version.yml
 
-  # Build bxl without tests
+  # Filter the build all packages published by the BuildXL.Internal repo. It isn't important to scan unit tests
   - task: CmdLine@1
     displayName: Run bxl.cmd
     inputs:
       filename: 'bxl.cmd'
-      arguments: '/p:BUILDXL_FINGERPRINT_SALT=* /logsDirectory:$(BuildXL.LogsDirectory) /f:output=''out/bin/release/public/pkgs/Microsoft.BuildXL.win-x64.$(BuildXL.PkgVersion).nupkg''oroutput=''out/bin/release/public/pkgs/Microsoft.BuildXL.win-x64-net7.$(BuildXL.PkgVersion).nupkg''oroutput=''out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Hashing.$(BuildXL.PkgVersion).nupkg''oroutput=''out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Interfaces.$(BuildXL.PkgVersion).nupkg''oroutput=''out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Tools.$(BuildXL.PkgVersion).nupkg''oroutput=''out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Libraries.$(BuildXL.PkgVersion).nupkg''oroutput=''out/bin/release/public/pkgs/Microsoft.BuildXL.Utilities.$(BuildXL.PkgVersion).nupkg''oroutput=''out/bin/release/public/pkgs/Microsoft.BuildXL.Utilities.Core.$(BuildXL.PkgVersion).nupkg''oroutput=''out/bin/release/public/pkgs/Microsoft.BuildXL.Native.$(BuildXL.PkgVersion).nupkg''oroutput=''out/bin/release/public/pkgs/Microsoft.BuildXL.Processes.$(BuildXL.PkgVersion).nupkg'' /q:Release /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification) /logOutput:FullOutputOnWarningOrError /p:[Sdk.BuildXL]microsoftInternal=0 /processRetries:3 /enableGrpc+ /traceInfo:selfhostlkgflavor=Public /nowarn:2841 /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000 /CODEQL_TEMP_DIR:$(Agent.TempDirectory)\codeql3000'
+      arguments: '/p:BUILDXL_FINGERPRINT_SALT=* /logsDirectory:$(BuildXL.LogsDirectory) /p:[Sdk.BuildXL]microsoftInternal=0 /processRetries:3 /traceInfo:selfhostlkgflavor=Public /scrubDirectory:$(Build.SourcesDirectory)\Out /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000 /p:CODEQL_TEMP_DIR:$(Agent.TempDirectory)\codeql3000  out\bin\debug\public\pkgs\*'
 
   - task: PublishPipelineArtifact@1
     displayName: Upload logs

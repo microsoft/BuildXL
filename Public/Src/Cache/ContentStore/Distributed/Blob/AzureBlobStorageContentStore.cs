@@ -29,6 +29,14 @@ public sealed record AzureBlobStorageContentStoreConfiguration
     public IRemoteContentAnnouncer? Announcer { get; init; } = null;
 
     public TimeSpanSetting StorageInteractionTimeout { get; init; } = TimeSpan.FromMinutes(30);
+
+    public int ParallelHashingFileSizeBoundary { get; init; } = (int)"4 MB".ToSize();
+
+    public int InitialTransferSize { get; init; } = (int)"4 MB".ToSize();
+
+    public int MaximumTransferSize { get; init; } = (int)"200 MB".ToSize();
+
+    public int MaximumConcurrency { get; init; } = Environment.ProcessorCount;
 }
 
 /// <summary>
@@ -71,8 +79,7 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
             new AzureBlobStorageContentSession.Configuration(
                 Name: name,
                 ImplicitPin: implicitPin,
-                StorageInteractionTimeout: _configuration.StorageInteractionTimeout,
-                Announcer: _configuration.Announcer),
+                StoreConfiguration: _configuration),
             store: this);
     }
 

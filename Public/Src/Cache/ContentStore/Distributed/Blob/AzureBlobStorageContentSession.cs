@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -21,8 +20,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tracing;
@@ -41,27 +40,16 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
     public record Configuration(
         string Name,
         ImplicitPin ImplicitPin,
-        TimeSpan StorageInteractionTimeout,
-        IRemoteContentAnnouncer? Announcer,
-        int? ParallelHashingFileSizeBoundary = null,
-        int? InitialTransferSize = null,
-        int? MaximumTransferSize = null,
-        int? MaximumConcurrency = null
-        )
+        AzureBlobStorageContentStoreConfiguration StoreConfiguration)
     {
-        public int ParallelHashingFileSizeBoundarySetting => ParallelHashingFileSizeBoundary ?? (int)"4 MB".ToSize();
-
-        public int InitialTransferSizeSetting => InitialTransferSize ?? (int)"4 MB".ToSize();
-
-        public int MaximumTransferSizeSetting => MaximumTransferSize ?? (int)"200 MB".ToSize();
-
-        public int MaximumConcurrencySetting => MaximumConcurrency ?? Environment.ProcessorCount;
     }
 
     /// <inheritdoc />
     protected override Tracer Tracer { get; } = new(nameof(AzureBlobStorageContentSession));
 
-    private readonly Configuration _configuration;
+    private readonly AzureBlobStorageContentStoreConfiguration _configuration;
+    private readonly Configuration _sessionConfiguration;
+
     private readonly AzureBlobStorageContentStore _store;
     private readonly BlobStorageClientAdapter _clientAdapter;
 
@@ -70,10 +58,12 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
     private readonly List<Func<Context, ContentHash, Task>> _contentNotFoundListeners = new();
 
     /// <nodoc />
-    public AzureBlobStorageContentSession(Configuration configuration, AzureBlobStorageContentStore store)
-        : base(configuration.Name)
+    public AzureBlobStorageContentSession(Configuration sessionConfiguration, AzureBlobStorageContentStore store)
+        : base(sessionConfiguration.Name)
     {
-        _configuration = configuration;
+        _sessionConfiguration = sessionConfiguration;
+        _configuration = _sessionConfiguration.StoreConfiguration;
+
         _store = store;
         _clientAdapter = new BlobStorageClientAdapter(
             Tracer,
@@ -143,71 +133,36 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
-        // TODO: OpenStream is kind of problematic, because we have no way to guarantee the information being read
-        // matches the hash while we're reading it. Therefore, we are forced to download into a temporary folder before
+        // OpenStream is kind of problematic, because we have no way to guarantee the information being read matches
+        // the hash while we're reading it. Therefore, we are forced to download into a temporary folder before
         // downloading, and then open a stream to the resulting file. This is not ideal, but it's the best we can do.
-        var stream = await TryOpenRemoteStreamAsync(context, contentHash).ThrowIfFailureAsync();
-        return new OpenStreamResult(stream);
-    }
-
-    /// <summary>
-    /// Creates a stream against the given <see cref="ContentHash"/>
-    /// </summary>
-    /// <returns>Returns Success(null) if the blob for a given content hash is not found.</returns>
-    private Task<Result<StreamWithLength?>> TryOpenRemoteStreamAsync(OperationContext context, ContentHash contentHash)
-    {
-        AbsoluteBlobPath? blobPath = null;
-        return context.PerformOperationWithTimeoutAsync(
-            Tracer,
-            async context =>
-            {
-                (var stream, blobPath) = await TryOpenReadAsync(context, contentHash);
-                return Result.Success(stream, isNullAllowed: true);
-            },
-            traceOperationStarted: false,
-            timeout: _configuration.StorageInteractionTimeout,
-            extraEndMessage: r =>
-                             {
-                                 long size = -1;
-                                 if (r.Succeeded && r.Value is not null)
-                                 {
-                                     size = r.Value.Value.Length;
-                                 }
-
-                                 return $"ContentHash=[{contentHash.ToShortString()}] Size=[{size}] BlobPath=[{blobPath.ToString() ?? "UNKNOWN"}]";
-                             });
-    }
-
-    private async Task<(StreamWithLength? Stream, AbsoluteBlobPath Path)> TryOpenReadAsync(OperationContext context, ContentHash contentHash)
-    {
-        var (stream, blobPath) = await attempt();
-        if (_configuration.Announcer is not null)
+        //
+        // A couple of things make matters worse:
+        //
+        // 1. We see people opening streams for files upwards of 13GB, so we don't want to dump into a MemoryStream.
+        // 2. We can't return a stream from the Storage SDK directly, because most of those implementations aren't very
+        //    careful about whether they keep connections open or not, and we can run out of file handles.
+        // 3. People often want to seek in the stream, so we can't just return a network-backed stream to a file
+        //    being downloaded at the current time.
+        var temporaryPath = _fileSystem.GetTempPath() / Guid.NewGuid().ToString();
+        var result = await PlaceRemoteFileAsync(context, contentHash, temporaryPath, FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists).ThrowIfFailureAsync();
+        switch (result.ResultCode)
         {
-            if (stream is null)
-            {
-                await TryNotify(context, new DeleteEvent(blobPath, contentHash));
-            }
-            else
-            {
-                await TryNotify(context, new TouchEvent(blobPath, contentHash, stream.Value.Length));
-            }
-        }
-
-        return (stream, blobPath);
-
-        async Task<(StreamWithLength? Stream, AbsoluteBlobPath Path)> attempt()
-        {
-            var (client, path) = await GetBlobClientAsync(context, contentHash);
-            try
-            {
-                var readStream = await client.OpenReadAsync(allowBlobModifications: false, cancellationToken: context.Token);
-                return (readStream.WithLength(readStream.Length), path);
-            }
-            // See: https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-error-codes
-            catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
-            {
-                return (null, path);
-            }
+            case PlaceFileResult.ResultCode.PlacedWithHardLink:
+            case PlaceFileResult.ResultCode.PlacedWithCopy:
+            case PlaceFileResult.ResultCode.PlacedWithMove:
+                // We don't close this stream on purpose, the caller is expected to do so.
+                var fileStream = new FileStream(path: temporaryPath.Path,
+                                                FileMode.Open,
+                                                FileAccess.Read,
+                                                FileShare.Read | FileShare.Delete,
+                                                bufferSize: FileSystemConstants.FileIOBufferSize,
+                                                options: FileOptions.DeleteOnClose | FileOptions.Asynchronous);
+                return new OpenStreamResult(fileStream.WithLength(length: result.FileSize ?? fileStream.Length));
+            case PlaceFileResult.ResultCode.NotPlacedContentNotFound:
+                return new OpenStreamResult(null);
+            default:
+                return new OpenStreamResult(OpenStreamResult.ResultCode.Error, errorMessage: "Attempted to download to a random file name but the download failed in a way that's never supposed to happen");
         }
     }
 
@@ -248,29 +203,17 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         _contentNotFoundListeners.Add(listener);
     }
 
-    private FileStream OpenFileStream(AbsolutePath path, long? length, bool randomAccess)
+    private FileStream OpenFileStream(AbsolutePath path)
     {
-        Contract.Requires(length is null or >= 0);
-
-        var flags = FileOptions.Asynchronous;
-        if (randomAccess)
-        {
-            flags |= FileOptions.RandomAccess;
-        }
-        else
-        {
-            flags |= FileOptions.SequentialScan;
-        }
-
         Stream stream;
         try
         {
             stream = _fileSystem.OpenForWrite(
                 path,
-                length,
+                expectingLength: null,
                 FileMode.Create,
                 FileShare.None,
-                flags).Stream;
+                FileOptions.Asynchronous | FileOptions.SequentialScan).Stream;
         }
         catch (DirectoryNotFoundException)
         {
@@ -278,10 +221,10 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
 
             stream = _fileSystem.OpenForWrite(
                 path,
-                length,
+                expectingLength: null,
                 FileMode.Create,
                 FileShare.None,
-                flags).Stream;
+                FileOptions.Asynchronous | FileOptions.SequentialScan).Stream;
         }
 
         return (FileStream)stream;
@@ -310,22 +253,22 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                     (client, blobPath) = await GetBlobClientAsync(context, contentHash);
                     stopwatch.ElapsedAndReset();
 
-                    using var fileStream = OpenFileStream(path, length: null, randomAccess: false);
+                    using var fileStream = OpenFileStream(path);
                     statistics.OpenFileStreamDuration = stopwatch.ElapsedAndReset();
 
                     await using (var hashingStream = HashInfoLookup
                                      .GetContentHasher(contentHash.HashType)
                                      .CreateWriteHashingStream(
                                          fileStream,
-                                         parallelHashingFileSizeBoundary: _configuration.ParallelHashingFileSizeBoundarySetting))
+                                         parallelHashingFileSizeBoundary: _configuration.ParallelHashingFileSizeBoundary))
                     {
                         var blobDownloadToOptions = new BlobDownloadToOptions()
                         {
                             TransferOptions = new StorageTransferOptions()
                             {
-                                InitialTransferSize = _configuration.InitialTransferSizeSetting,
-                                MaximumTransferSize = _configuration.MaximumTransferSizeSetting,
-                                MaximumConcurrency = _configuration.MaximumConcurrencySetting,
+                                InitialTransferSize = _configuration.InitialTransferSize,
+                                MaximumTransferSize = _configuration.MaximumTransferSize,
+                                MaximumConcurrency = _configuration.MaximumConcurrency,
                             },
                         };
 
@@ -350,6 +293,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                 {
                     statistics.DownloadDuration ??= stopwatch.ElapsedAndReset();
 
+                    await TryNotify(context, new DeleteEvent(blobPath!.Value, contentHash));
                     return Result.Success(new RemoteDownloadResult
                     {
                         ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
@@ -382,6 +326,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                         });
                 }
 
+                await TryNotify(context, new AddEvent(blobPath!.Value, contentHash, fileSize));
                 return Result.Success(
                     new RemoteDownloadResult
                     {

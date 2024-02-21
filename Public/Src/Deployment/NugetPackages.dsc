@@ -18,7 +18,7 @@ namespace NugetPackages {
      * 2. Create a package identifier with a name that matches the name of the assembly being packaged.
      * 3. Create a Nuget.PackageSpecification for the new package.
      * 4. Add the PackageSpecification into the `packageSpecifications` array.
-     * 5. Call `Nuget.packAssemblies` with inferInternalDependencies set to true to enable package dependency verification.
+     * 5. Call `packAssemblies` with inferInternalDependencies set to true to enable package dependency verification.
      */
 
     // Windows Qualifiers
@@ -66,6 +66,15 @@ namespace NugetPackages {
     const packageNamePrefix = BuildXLSdk.Flags.isMicrosoftInternal
         ? "BuildXL"
         : "Microsoft.BuildXL";
+    
+
+    /** 
+     * The notice file compiles the license and copyright information for any code or other materials under open source licenses that we distribute in a Microsoft Offering. 
+     * The notice file is automatically generated in our rolling builds before we execute the selfhost build that produce the nuget packages.
+     * In those rolling builds, the notice file is put on the source root.
+    */
+    const includeNoticeFile = !BuildXLSdk.Flags.isMicrosoftInternal;
+    const noticeFilePath = f`${Context.getMount("SourceRoot").path}/NOTICE.txt`;
 
     const buildXLAriaCommonIdentity = { id: `${packageNamePrefix}.AriaCommon`, version: Branding.Nuget.packageVersion };
     const buildXLUtilitiesIdentity = { id: `${packageNamePrefix}.Utilities`, version: Branding.Nuget.packageVersion };
@@ -641,33 +650,33 @@ namespace NugetPackages {
      * Changing them now would result in downstream consumers needing to include dependencies they may not necessarily want to add. 
      * For example, BuildX.Processes will have a dependency on BuildXL.Utilties which is undesirable because Utilities contains a lot of external dependencies.
      */
-    const ariaCommon = Nuget.packAssembliesAndAssertDependencies(ariaCommonSpecification, packageSpecifications, packageBranding, /** inferInternalDependencies */ true, /* dependencyScope */ []);
+    const ariaCommon = packAssembliesAndAssertDependencies(ariaCommonSpecification, packageSpecifications, packageBranding, /** inferInternalDependencies */ true, /* dependencyScope */ []);
     const utilities = Nuget.packAssemblies(utilitiesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
     // NOTE: utilitiesCore, native, processes, and processesLinux have a restricted set of dependencies.
     // Do not modify its set of allowed dependencies without first consulting with the BuildXL team.
-    const utilitiesCore = Nuget.packAssembliesAndAssertDependencies(utilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true, /* dependencyScope */ []);
-    const native = Nuget.packAssembliesAndAssertDependencies(nativeSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true,/* dependencyScope */ [buildXLUtilitiesCoreIdentity]);
-    const pips = Nuget.packAssemblies(pipsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
-    const processes = Nuget.packAssembliesAndAssertDependencies(processesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
-    const processesLinux = Nuget.packAssembliesAndAssertDependencies(processesLinuxSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
-    const engineCache = Nuget.packAssemblies(engineCacheSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
-    const cacheContentStoreDistributed = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreDistributedSpecification, packageSpecifications, packageBranding, /* inferBuildXLDepencies */ true);
-    const cacheContentStoreLibrary = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheContentStoreGrpc = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreGrpcSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheContentStoreVsts = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : Nuget.packAssemblies(cacheContentStoreVstsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheContentStoreVstsInterfaces = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : Nuget.packAssemblies(cacheContentStoreVstsInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheMemoizationStoreDistributed = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheMemoizationStoreDistributedSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheMemoizationStoreLibrary = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheMemoizationStoreLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheMemoizationStoreVsts = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : Nuget.packAssemblies(cacheMemoizationStoreVstsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheMemoizationStoreVstsInterfaces = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : Nuget.packAssemblies(cacheMemoizationStoreVstsInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheHostServices = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheHostServicesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheHostConfiguration = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheHostConfigurationSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheLogging = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheLoggingSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheContentStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheMemoizationStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheMemoizationStoreInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheContentStoreHashing = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreHashingSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const cacheContentStoreUtilitiesCore = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(cacheContentStoreUtilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
-    const blobLifetimeManagerLibrary = !canBuildAllPackagesOnThisHost ? undefined : Nuget.packAssemblies(blobLifetimeManagerLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const utilitiesCore = packAssembliesAndAssertDependencies(utilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true, /* dependencyScope */ []);
+    const native = packAssembliesAndAssertDependencies(nativeSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true,/* dependencyScope */ [buildXLUtilitiesCoreIdentity]);
+    const pips = packAssemblies(pipsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
+    const processes = packAssembliesAndAssertDependencies(processesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
+    const processesLinux = packAssembliesAndAssertDependencies(processesLinuxSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false, /* dependencyScope */ [buildXLUtilitiesCoreIdentity, buildXLNativeIdentity]);
+    const engineCache = packAssemblies(engineCacheSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
+    const cacheContentStoreDistributed = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheContentStoreDistributedSpecification, packageSpecifications, packageBranding, /* inferBuildXLDepencies */ true);
+    const cacheContentStoreLibrary = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheContentStoreLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreGrpc = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheContentStoreGrpcSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreVsts = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : packAssemblies(cacheContentStoreVstsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreVstsInterfaces = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : packAssemblies(cacheContentStoreVstsInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreDistributed = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheMemoizationStoreDistributedSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreLibrary = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheMemoizationStoreLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreVsts = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : packAssemblies(cacheMemoizationStoreVstsSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreVstsInterfaces = !canBuildAllPackagesOnThisHost || !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : packAssemblies(cacheMemoizationStoreVstsInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheHostServices = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheHostServicesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheHostConfiguration = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheHostConfigurationSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheLogging = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheLoggingSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheContentStoreInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheMemoizationStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheMemoizationStoreInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreHashing = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheContentStoreHashingSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const cacheContentStoreUtilitiesCore = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheContentStoreUtilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const blobLifetimeManagerLibrary = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(blobLifetimeManagerLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
 
     const cacheLibrariesPackages = [
         cacheContentStoreDistributed,
@@ -754,15 +763,27 @@ namespace NugetPackages {
         targetLocation: packageTargetFolder,
     });
 
-    export function pack(args: {
+    export interface PackArgs {
         id: string,
         deployment: Deployment.Definition,
         deploymentOptions?: Managed.Deployment.FlattenOptions,
         copyContentFiles?: boolean,
         dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[],
         filterFiles?: PathAtom[]
-    }) : File {
+    }
 
+    export function pack(args: PackArgs) : File {
+
+        if (includeNoticeFile) {
+            args = args.override<PackArgs>({
+                deployment: <Deployment.Definition>{
+                    contents: [
+                        ...(args.deployment.contents || []),
+                        noticeFilePath,
+                    ]
+                }
+            });
+        }
         const dependencies : Nuget.Dependency[] = (args.dependencies || [])
             .map(dep => {
                 if (isManagedPackage(dep)) {
@@ -773,13 +794,47 @@ namespace NugetPackages {
             });
 
         return Nuget.pack({
-            metadata:  Nuget.createMetaData({id: args.id, dependencies: dependencies,copyContentFiles: args.copyContentFiles, packageBranding: packageBranding}),
+            metadata:  Nuget.createMetaData({id: args.id, dependencies: dependencies, copyContentFiles: args.copyContentFiles, packageBranding: packageBranding}),
             deployment: args.deployment,
             deploymentOptions: args.deploymentOptions,
             noPackageAnalysis: true,
             noDefaultExcludes: true,
             filterFiles: args.filterFiles,
         }).nuPkg;
+    }
+
+
+    function addNoticeFileIfNeeded(args: Nuget.PackageSpecification) : Nuget.PackageSpecification
+    {
+        if (!includeNoticeFile) {
+            return args;
+        }
+
+        return args.override<Nuget.PackageSpecification>({
+            additionalContent: [
+                ...(args.additionalContent || []),
+                noticeFilePath,
+            ],
+        });
+    }
+
+    function packAssemblies(
+        args: Nuget.PackageSpecification,
+        packageSpecifications : Nuget.PackageSpecification[],
+        packageBranding : Nuget.PackageBranding,
+        inferInternalDependencies : boolean) : File
+    {
+        return Nuget.packAssemblies(addNoticeFileIfNeeded(args), packageSpecifications, packageBranding, inferInternalDependencies);
+    }
+
+    function packAssembliesAndAssertDependencies(
+        args: Nuget.PackageSpecification,
+        packageSpecifications : Nuget.PackageSpecification[],
+        packageBranding : Nuget.PackageBranding,
+        inferInternalDependencies : boolean,
+        allowedDependecies : Nuget.PackageIdentifier[] ) : File
+    {
+        return Nuget.packAssembliesAndAssertDependencies(addNoticeFileIfNeeded(args), packageSpecifications, packageBranding, inferInternalDependencies, allowedDependecies);
     }
 
     export function isManagedPackage(item: Nuget.Dependency | Managed.ManagedNugetPackage) : item is Managed.ManagedNugetPackage {

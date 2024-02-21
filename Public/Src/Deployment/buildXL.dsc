@@ -9,13 +9,6 @@ namespace BuildXL {
 
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
-    /** 
-     * The notice file compiles the license and copyright information for any code or other materials under open source licenses that we distribute in a Microsoft Offering. 
-     * The notice file is automatically generated in our rolling builds before we execute the selfhost build that produce the nuget packages.
-     * In those rolling builds, the notice file is put on the source root.
-    */
-    const noticeFilePath = f`${Context.getMount("SourceRoot").path}/NOTICE.txt`;
-
     /**
      * The main deployment definition
      */
@@ -42,10 +35,6 @@ namespace BuildXL {
             ]), 
             ...addIfLazy(qualifier.targetRuntime === "linux-x64", () => [
                 importFrom("BuildXL.Tools.Ninjson.linux-x64").pkg.contents
-            ]),
-            
-            ...addIfLazy(File.exists(noticeFilePath), () => [
-                noticeFilePath
             ]),            
         ]
     };

@@ -35,7 +35,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly IEsrpSignConfiguration m_esrpSignConfiguration;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 21;
+        public const int SpecGenerationFormatVersion = 22;
 
         private readonly NugetRelativePathComparer m_nugetRelativePathComparer;
 
@@ -401,10 +401,10 @@ namespace BuildXL.FrontEnd.Nuget
                         continue;
                     }
 
-                    for (int i = 0; i < indices.Count(); i++)
+                    for (int i = 0; i < indices.Count; i++)
                     {
                         int start = indices[i];
-                        int count = (i + 1) > indices.Count() - 1 ? versionHistory.Count() - start : (indices[i + 1] - indices[i]);
+                        int count = (i + 1) > indices.Count - 1 ? versionHistory.Count - start : (indices[i + 1] - indices[i]);
 
                         callback(versionHistory.GetRange(start, count));
                     }

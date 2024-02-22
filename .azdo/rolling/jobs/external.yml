@@ -41,6 +41,18 @@ jobs:
   - checkout: self
     fetchDepth: 1
     fetchTags: false
+  
+  # Run component detection to generate NOTICE file in the root of the repo.
+  # The generated file will be included in the nuget packages we create and publish in this job 
+  # If any of these tasks fail we fall back the the NOTICE.txt already checked in the repository.
+  - task: ComponentGovernanceComponentDetection@0
+    displayName: Component Detection
+
+  - task: notice@0
+    displayName: Generate NOTICE file
+    inputs:
+      outputfile: $(Build.SourcesDirectory)\NOTICE.txt
+      outputformat: text
 
   - template: ../steps/external_prepare.yml
 

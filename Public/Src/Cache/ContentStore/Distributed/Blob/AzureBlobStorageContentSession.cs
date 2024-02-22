@@ -20,7 +20,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
-using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core;
@@ -435,7 +434,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         if (contentHashWithSize.Size != streamWithLength.Length)
         {
-            return new PutResult(contentHashWithSize.Hash, $"Expected content size to be {contentHashWithSize.Size} as advertised, but found {streamWithLength.Length} instead");
+            Tracer.Warning(context, $"Expected content size to be {contentHashWithSize.Size} as advertised, but found {streamWithLength.Length} instead");
         }
 
         return await UploadFromStreamAsync(operationContext, contentHashWithSize.Hash, streamWithLength.Stream, streamWithLength.Length);

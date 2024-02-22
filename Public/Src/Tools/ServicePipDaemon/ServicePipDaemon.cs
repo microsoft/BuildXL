@@ -677,7 +677,15 @@ namespace Tool.ServicePipDaemon
                 var initializedFilters = filters.Select(
                     filter => filter == IncludeAllFilter
                         ? null
-                        : new Regex(filter, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)));
+                        // Starting .NET 7, the .NET team made timeouts more accurate. So, with a shorter timeout, prior to .NET 7, we
+                        // may have a match that takes much longer than the timeout and does not time out, and now in .NET 7, it will.
+                        // One situation where the timeout occurs is when the machine is very busy and the OS does not let the thread to run.
+                        // To this end, we set timeout for the regex with a generous value, e.g., 10 minutes.
+                        //
+                        // One can think of setting the timeout to infinite, but that is not a good idea because the regex is user specified, and
+                        // without timeout, we can end up with ReDoS.
+                        // For more information, read https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/
+                        : new Regex(filter, RegexOptions.IgnoreCase, TimeSpan.FromMinutes(10)));
 
                 return initializedFilters.ToArray();
             }

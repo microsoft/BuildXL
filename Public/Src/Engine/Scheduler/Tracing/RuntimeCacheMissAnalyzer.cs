@@ -64,7 +64,7 @@ namespace BuildXL.Scheduler.Tracing
                 // that were succesful. We'll use this dictionary to assign a provenance to each key. 
                 // The idea is to analyze if this heuristic is actually successful or not, 
                 // TODO [maly] Remove this log-line after analysis
-                var keyOrigin = option.Mode == CacheMissMode.GitHashes || option.Mode == CacheMissMode.AzureDevOps
+                var keyOrigin = option.Mode == CacheMissMode.AzureDevOps
                     ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     : null;
 
@@ -85,13 +85,8 @@ namespace BuildXL.Scheduler.Tracing
                     else
                     {
                         IReadOnlyList<string> keys = option.Keys;
-                        Contract.Assert(option.Mode == CacheMissMode.Remote || option.Mode == CacheMissMode.GitHashes || option.Mode == CacheMissMode.AzureDevOps);
-                        if (option.Mode == CacheMissMode.GitHashes)
-                        {
-                            // turn 'keys' into the final candidate list
-                            keys = await SelectKeysFromGitHashes(keys, keyOrigin, testHooks, loggingContext);
-                        }
-                        else if (option.Mode == CacheMissMode.AzureDevOps)
+                        Contract.Assert(option.Mode == CacheMissMode.Remote || option.Mode == CacheMissMode.AzureDevOps);
+                        if (option.Mode == CacheMissMode.AzureDevOps)
                         {
                             Contract.Assert(configuration.Infra == Infra.Ado);
                             keys = GetKeysFromAdoEnvironment(keyOrigin, loggingContext);
@@ -219,134 +214,6 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             return new string(chars);
-        }
-
-        private static async Task<IReadOnlyList<string>> SelectKeysFromGitHashes(IReadOnlyList<string> keys, Dictionary<string, string> keyOrigin, FingerprintStoreTestHooks testHooks, LoggingContext loggingContext)
-        {
-            var candidateHashes = new List<string>();
-            var gitHelper = testHooks?.GitHelper ?? new GitHelper();
-
-            // Git hashes mode uses the option.Keys list to store the information needed
-            // to retrieve the actual keys (what we are about to do here). We don't
-            // get the keys immediately while arg-parsing because that means launching the git
-            // process (maybe multiple times) and it's better to do it in this background operation.
-
-            // keys[0] has the prefix 
-            var prefix = keys[0];
-
-            // Helper function to accumulate candidates in different collections,
-            // while updating the "origin" of the key to log it when a key is sucessful later.
-            void addCandidates(List<string> target, IReadOnlyList<string> source, string origin)
-            {
-                for (var i = 0; i < source.Count; i++)
-                {
-                    var candidateValue = $"{prefix}_{source[i]}";
-
-                    // TryAdd - we can have collisions, the first one should prevail
-                    if (!keyOrigin.ContainsKey(candidateValue))
-                    {
-                        keyOrigin.Add(candidateValue, $"{origin}-{i}");
-                    }
-
-                    target.Add(candidateValue);
-                }
-            }
-
-            // 1. Get latest 5 commits from the current HEAD. We should get a match if this branch was built before,
-            //    for example for a PR we expect one build per 'iteration'. Because an iteration can have multiple commits,
-            //    we should not use a very small number (like, say, this commit and the one before), but let's not go overboard either. 
-            var latestCommitsResult = await gitHelper.GetLatestCommitHashesAsync(5);
-            if (!latestCommitsResult.Succeeded)
-            {
-                Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Failure while retreiving git hashes: {latestCommitsResult.Failure.Describe()}"));
-                return null;
-            }
-
-            // Accumulate all keys in candidateHashes
-            addCandidates(candidateHashes, latestCommitsResult.Result, "HEAD");
-
-            // 2. For any additional branches (represented by option.Keys[1..]), the basic assumption is that they ran build against every commit
-            //      (i.e., this should typically only be the main branch).
-            //  a) We retrieve the merge-base from HEAD and that branch. We use as keys the hashes for the 3 commits immediately previous to the merge-base.
-            //  b) Finally, we use the latest hash from that branch as a last resort, assuming that it was built recently
-            //
-            // An example: for a PR (that has branched from `h5` and committed a number of times) merging against main, with this topology:
-            //
-            // 
-            //                                 .-- b5 -- b4 -- b3 -- b2 -- b1 -- b0    [PR branch]
-            //                                /
-            //              h8 -- h7 --h6 -- h5 -- h4 -- h3 -- h2 -- h1 -- h0     [main]
-            // 
-            //
-            // The hashes for the keys would be (as described above)
-            // 1) b0, b1, b2, b3, b4, b5 
-            // 2a) h5, h6, h7
-            // 2b) h0, h1, h2
-            //
-            // With a topology like this:
-            // 
-            //                                 .-- b1 -- b0    [PR branch]
-            //                                /
-            //              h8 -- h7 --h6 -- h5 -- h1 -- h0     [main]
-            // 
-            // where each step produces the candidates:
-            //
-            // 1) b0, b1, h5, h6, h7
-            // 2a) h5, h6, h7
-            // 2b) h0, h1, h5
-            //
-            // results in the following candidates: b0, b1, h5, h6, h7, h0, h1.
-            // The duplicates are simply not counted twice, but we don't look for additional candidates
-            // (so the size of this list varies depending on the state of the repository).
-            var mergeBaseHashes = new List<string>();
-            var latestFromBranchHashes = new List<string>();
-            foreach (var branch in keys.Skip(1))
-            {
-                var mergeBase = await gitHelper.GetMergeBaseAsync("HEAD", branch);
-                if (!mergeBase.Succeeded)
-                {
-                    Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Failure while retreiving git merge-base with branch {branch}: {mergeBase.Failure.Describe()}"));
-                }
-                else
-                {
-                    // (a) - 3 commits starting from the merge base
-                    latestCommitsResult = await gitHelper.GetLatestCommitHashesAsync(3, mergeBase.Result);
-                    if (!latestCommitsResult.Succeeded)
-                    {
-                        Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Failure while retreiving git hashes up to merge-base {mergeBase.Result}: {latestCommitsResult.Failure.Describe()}"));
-                        continue;
-                    }
-
-                    addCandidates(mergeBaseHashes, latestCommitsResult.Result, $"MergeBase-{branch}");
-                }
-
-                // (b) - 3 commits starting from the branch head
-                latestCommitsResult = await gitHelper.GetLatestCommitHashesAsync(3, branch);
-                if (!latestCommitsResult.Succeeded)
-                {
-                    Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Failure while retreiving git hashes from branch {branch}: {latestCommitsResult.Failure.Describe()}"));
-                }
-                else
-                {
-                    addCandidates(latestFromBranchHashes, latestCommitsResult.Result, $"LatestFromBranch-{branch}");
-                }
-            }
-
-            foreach (var candidate in mergeBaseHashes.Concat(latestFromBranchHashes))
-            {
-                // Remember kids, it's not quadratic if the size is bounded! 
-                if (candidateHashes.Contains(candidate))
-                {
-                    // Remove after analysis
-                    Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Duplicate candidate: {candidate}. Origin: {keyOrigin[candidate]}"));
-                }
-                else
-                {
-                    candidateHashes.Add(candidate);
-                }
-            }
-
-            return candidateHashes;
         }
 
         private readonly FingerprintStoreExecutionLogTarget m_logTarget;
@@ -718,36 +585,17 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Choose a key with which to store the fingerprint store for this build so as to be consistent with subsequent retrieval attempts.
         /// </summary>
-        internal static async Task<string> GetStoreKeyForCurrentBuild(CacheMissAnalysisOption option, LoggingContext loggingContext)
+        internal static string GetStoreKeyForCurrentBuild(CacheMissAnalysisOption option, LoggingContext loggingContext)
         {
-            string storeKey = null;
-            // For git commit mode, retrieve the latest commit from HEAD and use that as the key
-            if (option.Mode == CacheMissMode.GitHashes)
+            if (option.Mode == CacheMissMode.AzureDevOps)
             {
-                var gitHelper = new GitHelper();
-                var currentCommit = await gitHelper.GetLatestCommitHashesAsync(1);
-                if (currentCommit.Succeeded)
-                {
-                    var prefix = option.Keys[0];
-                    var currentCommitHash = currentCommit.Result.First();
-                    storeKey = $"{prefix}_{currentCommitHash}";
-                }
-                else
-                {
-                    Logger.Log.MissingKeyWhenSavingFingerprintStore(loggingContext, $"an error was encountered when invoking git for the latest commit hash to be used as a key: {currentCommit.Failure.Describe()}");
-                }
-            }
-            else if (option.Mode == CacheMissMode.AzureDevOps)
-            {
-				return GetKeyFromAdoEnvironment("BUILD_SOURCEBRANCH");
+                return GetKeyFromAdoEnvironment("BUILD_SOURCEBRANCH");
             }
             else
             {
                 // Use the first key as a store key.
-                storeKey = option.Keys.FirstOrDefault();
+                return option.Keys.FirstOrDefault();
             }
-
-            return storeKey;
         }
 
         private readonly struct CacheMissTimer : IDisposable

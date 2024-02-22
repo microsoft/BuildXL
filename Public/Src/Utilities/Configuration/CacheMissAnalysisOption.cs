@@ -28,7 +28,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// If this mode uses a remote fingerprint store, so the engine should publish the fingerprint store to the cache
         /// </summary>
-        public bool ShouldPublishFingerprintStoreToCache => Mode == CacheMissMode.Remote || Mode == CacheMissMode.AzureDevOps || Mode == CacheMissMode.GitHashes;
+        public bool ShouldPublishFingerprintStoreToCache => Mode == CacheMissMode.Remote || Mode == CacheMissMode.AzureDevOps;
 
         /// <nodoc />
         public static CacheMissAnalysisOption Disabled()
@@ -52,12 +52,6 @@ namespace BuildXL.Utilities.Configuration
         public static CacheMissAnalysisOption RemoteMode(string[] keys)
         {
             return new CacheMissAnalysisOption(CacheMissMode.Remote, keys, AbsolutePath.Invalid);
-        }
-
-        /// <nodoc />
-        public static CacheMissAnalysisOption GitHashesMode(string[] keys)
-        {
-            return new CacheMissAnalysisOption(CacheMissMode.GitHashes, keys, AbsolutePath.Invalid);
         }
 
         /// <nodoc />
@@ -113,11 +107,6 @@ namespace BuildXL.Utilities.Configuration
         /// (current branch name, and source and target branches when in a pull request build). 
         /// </summary>
         AzureDevOps,
-
-        /// <summary>
-        /// Look up the fingerprint store in the cache using recent git commit hashes
-        /// </summary>
-        GitHashes,
     }
 
     /// <summary>

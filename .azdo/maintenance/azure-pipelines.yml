@@ -56,3 +56,43 @@ stages:
           targetPath: '$(Build.ArtifactStagingDirectory)/BuildXLLogs'
           artifact: '$(Build.BuildId).Logs'
           publishLocation: 'pipeline'
+
+    - job: UpdateNoticeFile
+      displayName: "Update NOTICE.txt in BuildXL.Internal"
+      steps:
+      - checkout: self
+        fetchDepth: 1
+        persistCredentials: true
+      
+      # Run component detection to generate NOTICE file in the root of the repo.
+      # The generated file will be included in the nuget packages we create and publish in this job 
+      # If any of these tasks fail we fall back the the NOTICE.txt already checked in the repository.
+      - task: ComponentGovernanceComponentDetection@0
+        displayName: Component Detection
+
+      - task: notice@0
+        displayName: Generate NOTICE file
+        inputs:
+          outputfile: $(Build.SourcesDirectory)\BuildXL.Internal\NOTICE.txt
+          outputformat: text
+
+      - checkout: DominoReleaseManagement
+      - template: ../common/use-latest-dotnet-sdk.yml
+
+      # Nuget authenticate is required for package restore to work even though the feed is under the same organization as the pipeline
+      - task: NuGetAuthenticate@1
+      - task: DotNetCoreCLI@2
+        inputs:
+          command: 'publish'
+          publishWebProjects: false
+          projects: '$(Build.SourcesDirectory)/Domino.ReleaseManagement/src/BuildXLReleaseManagement/BuildXLReleaseManagement/BuildXLReleaseManagement.csproj'
+          arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
+          zipAfterPublish: false
+
+      - task: PowerShell@2
+        inputs:
+          targetType: 'inline'
+          script: .\BuildXLReleaseManagement.exe updateNoticeFile --MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng) --BuildXLSourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal"
+          showWarnings: true
+          pwsh: false
+          workingDirectory: '$(Build.ArtifactStagingDirectory)/BuildXLReleaseManagement'

@@ -2,6 +2,23 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240216.4 (Release [363779](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=363779))
+- Drop daemon is deployed as .NET6.
+- PipOutputUpToDate message is demoted to diagnostic level.
+- Improved retry logic for pips that failed in remote worker.
+- Changed minimum wait for remote worker from 1 min to 3 mins.
+- Removed stats.prf.json from Kusto telemetry.
+- Removed gRPC telemetry from cache.
+- Changed the error logging message displayed on ADO console for DX64 errors and DX65 warnings.
+- Added scripts for provisioning kusto log for onboarding purposes.
+- Changed job object logic for collecting surviving processes to accommodate undocumented Windows API behavior.
+- Avoid creating process dumps for allowed surviving child processes.
+- Improvement on symbol daemon indexer:
+  - ignore absent files,
+  - treat request for existing symbol as user error.
+- Avoid logging full (big) message payload received by ApiServer.
+
+
 # 0.1.0-20240202.1.1 (Release [361581](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=361581))
 - BXL bits are now using Net 7
 - Improved worker attachment logic

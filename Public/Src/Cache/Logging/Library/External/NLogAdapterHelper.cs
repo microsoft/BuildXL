@@ -178,7 +178,8 @@ namespace BuildXL.Cache.Logging.External
 
     <rules>
         <!-- Trace corresponds to our Diagnostic level -->
-        <logger name=""*"" minlevel=""Trace"" writeTo=""LogUpload"" />
+        <!-- Cache uses Diagnostic for extra tracing. We disable it here because it's too noisy. -->
+        <logger name=""*"" minlevel=""Debug"" writeTo=""LogUpload"" />
     </rules>
 </nlog>";
         }

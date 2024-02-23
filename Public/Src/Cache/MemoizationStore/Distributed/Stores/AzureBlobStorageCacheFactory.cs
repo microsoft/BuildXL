@@ -110,7 +110,7 @@ public static class AzureBlobStorageCacheFactory
     /// <nodoc />
     public static CreateResult Create(OperationContext context, Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
     {
-        context.TracingContext.Warning($"Creating cache with BuildXL version {Branding.Version}", nameof(AzureBlobStorageCacheFactory));
+        context.TracingContext.Debug($"Creating cache with BuildXL version {Branding.Version}", nameof(AzureBlobStorageCacheFactory));
 
         if (string.IsNullOrEmpty(configuration.Universe))
         {

@@ -58,10 +58,10 @@ namespace BuildXL.Utilities.Core
                 return m_processorName;
             }
 
-            m_processorName = 
+            m_processorName =
                 FirstMatchOrDefault(
-                    File.ReadLines("/proc/cpuinfo"), 
-                    new Regex(@$"^model name\s+:(?<{RegexValueGroupName}>.*)$", RegexOptions.Compiled, TimeSpan.FromMinutes(1))) 
+                    File.ReadLines("/proc/cpuinfo"),
+                    new Regex(@$"^model name\s+:(?<{RegexValueGroupName}>.*)$", RegexOptions.Compiled, TimeSpan.FromMinutes(1)))
                 ?? InfoNotAvailable;
             return m_processorName;
         }
@@ -119,5 +119,58 @@ namespace BuildXL.Utilities.Core
             Match match = regex.Matches(line).Cast<Match>().FirstOrDefault();
             value = match != null ? match.Groups["value"].Value.Trim() : null;
         }
+
+        /// <summary>
+        /// Obtains the linux distro information of the machine.
+        /// </summary>
+        /// <remarks>
+        /// /etc/os-release file provides the information about the underlying OS.
+        /// Sample file contents
+        /// VERSION = "20.04.2 LTS (Focal Fossa)"
+        /// ID = ubuntu
+        /// ID_LIKE = debian
+        /// PRETTY_NAME = "Ubuntu 20.04.2 LTS"
+        /// VERSION_ID = "20.04"
+        /// VERSION_CODENAME = focal
+        /// UBUNTU_CODENAME = focal
+        /// We make use of the Version_Id and Id to obtain the required information.
+        /// </remarks>
+        public static (string distroName, Version distroVersionId) GetLinuxDistroInfo()
+        {
+            string distroName = null;
+            Version distroVersionId = null;
+
+            foreach (string line in File.ReadLines("/etc/os-release"))
+            {
+                var keyValuePair = line.Split('=');
+
+                if (keyValuePair.Length == 2)
+                {
+                    string key = keyValuePair[0].Trim();
+                    string value = keyValuePair[1].Trim(); 
+
+                    // Capture the Version_Id and Id from this file.
+                    if (key == "ID")
+                    {
+                        distroName = value.ToLower();
+                    }
+                    else if (key == "VERSION_ID")
+                    {
+                        if (!Version.TryParse(value.Replace("\"", ""), out distroVersionId))
+                        {
+                            throw new ArgumentException($"Failed to parse the Linux distro Version_Id '{value}'");
+                        }
+                    }
+                }
+            }
+
+            if (string.IsNullOrEmpty(distroName) || distroVersionId == null) 
+            {
+                throw new BuildXLException("Failed to obtain Linux distribution name and version ID due to a parsing error");
+            }
+
+            return (distroName, distroVersionId);
+        }
     }
+
 }

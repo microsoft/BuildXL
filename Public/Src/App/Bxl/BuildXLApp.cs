@@ -1061,6 +1061,21 @@ namespace BuildXL
                             Value = (long)gitRemoteRepoStopWatch.TotalElapsed.TotalMilliseconds
                         });
 
+                    // Check if the current Linux distro version is supported by BuildXL or not.
+                    if (OperatingSystemHelper.IsLinuxOS)
+                    {
+                        try
+                        {
+                            if (!OperatingSystemHelperExtension.IsLinuxDistroVersionSupported())
+                            {
+                                Logger.Log.IncompatibleLinuxDistroVersionDetected(loggingContext, s_machineInfo.OsVersion);
+                            }
+                        }
+                        catch(Exception ex)
+                        {
+                            Logger.Log.FailedToObtainLinuxDistroInfo(loggingContext, $"Failed to obtain Linux distro information due to {ex}");
+                        }
+                    }
 
                     LogDominoInvocation(
                         loggingContext,

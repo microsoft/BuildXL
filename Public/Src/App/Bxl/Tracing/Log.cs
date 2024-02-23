@@ -561,6 +561,22 @@ namespace BuildXL.App.Tracing
             Keywords = (int)(Keywords.UserMessage),
             Message = "Found git config file at '{gitConfigFilePath}'")]
         public abstract void FoundGitConfigFile(LoggingContext context, string gitConfigFilePath);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.IncompatibleLinuxDistroVersionDetected,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Message = "Current Linux distro version: {linuxDistroVersion}. BuildXL supports only Ubuntu version 20.04 LTS. Please update to version 20.04 LTS to ensure compatibility.",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void IncompatibleLinuxDistroVersionDetected(LoggingContext context, string linuxDistroVersion);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FailedToObtainLinuxDistroInfo,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Message = "{errorMessage}",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void FailedToObtainLinuxDistroInfo(LoggingContext context, string errorMessage);
     }
 
     /// <summary>

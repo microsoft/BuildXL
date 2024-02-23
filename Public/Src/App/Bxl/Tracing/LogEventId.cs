@@ -75,5 +75,7 @@ namespace BuildXL.App.Tracing
         // Capture Git remote info
         FailedToGetGitRemoteRepoInfo = 15007,
         FoundGitConfigFile = 15009,
+        IncompatibleLinuxDistroVersionDetected = 15010,
+        FailedToObtainLinuxDistroInfo = 15011,
     }
 }

@@ -41,6 +41,16 @@ namespace BuildXL.Utilities
         private const int ProcessTimeoutMilliseconds = 1000;
 
         /// <summary>
+        /// Currently supported Linux distro version by BuildXL.
+        /// </summary>
+        private static readonly Version m_supportedLinuxDistroVersionId = new Version("20.04");
+
+        /// <summary>
+        /// Operating system id.
+        /// </summary>
+        private const string SupportedLinuxDistributionName = "ubuntu";
+
+        /// <summary>
         /// Gets the current OS description e.g. "Windows 10 Enterprise 10.0.10240"
         /// </summary>
         public static string GetOSVersion()
@@ -351,7 +361,19 @@ namespace BuildXL.Utilities
             }
         }
 
-#region macOS Helpers
+        /// <summary>
+        /// Checks if the current Linux distro version on the machine is among those officially supported by BuildXL.
+        /// </summary>
+        public static bool IsLinuxDistroVersionSupported()
+        {
+            var linuxDistroInfo = LinuxSystemInfo.GetLinuxDistroInfo();
+
+            return linuxDistroInfo.distroName == SupportedLinuxDistributionName &&
+                   linuxDistroInfo.distroVersionId.Major == m_supportedLinuxDistroVersionId.Major &&
+                   linuxDistroInfo.distroVersionId.Minor == m_supportedLinuxDistroVersionId.Minor;
+        }
+
+        #region macOS Helpers
 
         private static Version GetOSVersionMacOS()
         {

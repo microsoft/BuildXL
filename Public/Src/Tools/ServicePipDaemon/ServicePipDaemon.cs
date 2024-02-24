@@ -251,6 +251,24 @@ namespace Tool.ServicePipDaemon
         };
 
         /// <nodoc />
+        public static readonly IntOption OperationTimeoutMinutes = RegisterDaemonConfigOption(new IntOption("operationTimeoutMinutes")
+        {
+            ShortName = "ot",
+            HelpText = "Optional timeout on the Client in minutes.",
+            IsRequired = false,
+            DefaultValue = (int)DaemonConfig.DefaultOperationTimeoutMinutes.TotalMinutes,
+        });
+
+        /// <nodoc />
+        public static readonly IntOption MaxOperationRetries = RegisterDaemonConfigOption(new IntOption("maxOperationRetries")
+        {
+            ShortName = "mor",
+            HelpText = "Optional number of retries to perform if the Client fails an operation.",
+            IsRequired = false,
+            DefaultValue = DaemonConfig.DefaultMaxOperationRetries
+        });
+
+        /// <nodoc />
         protected static T RegisterOption<T>(List<Option> options, T option) where T : Option
         {
             options.Add(option);
@@ -596,7 +614,9 @@ namespace Tool.ServicePipDaemon
                 stopOnFirstFailure: conf.Get(StopOnFirstFailure),
                 enableCloudBuildIntegration: conf.Get(EnableCloudBuildIntegration),
                 logDir: conf.Get(LogDir),
-                verbose: conf.Get(Verbose));
+                verbose: conf.Get(Verbose),
+                operationTimeout: TimeSpan.FromMinutes(conf.Get(OperationTimeoutMinutes)),
+                maxOperationRetries: conf.Get(MaxOperationRetries));
         }
 
         private static string Usage()

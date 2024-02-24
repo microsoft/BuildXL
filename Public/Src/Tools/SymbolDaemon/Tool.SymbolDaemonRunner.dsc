@@ -441,6 +441,8 @@ function getExecuteArguments(command: string, args: UberArguments, ...additional
                 command === "start",
                 Cmd.optionalBooleanFlag("--enableCloudBuildIntegration ", Environment.getFlag("BuildXLReportSymbolPublishingToCB"), "true", "false")
             ),
+            Cmd.option("--operationTimeoutMinutes ", args.operationTimeoutMinutes),
+            Cmd.option("--maxOperationRetries ", args.maxOperationRetries),
         ],
         consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
         dependencies: [

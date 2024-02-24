@@ -40,7 +40,9 @@ namespace Test.Tool.DropDaemon
         {
             var reloadingClient = new ReloadingDropServiceClient(
                 logger: TestLogger,
-                clientConstructor: () => new MockDropServiceClient(dropOperation: () => { }));
+                clientConstructor: () => new MockDropServiceClient(dropOperation: () => { }),
+                operationTimeout: DaemonConfig.DefaultOperationTimeoutMinutes,
+                maxOperationRetryCount: DaemonConfig.DefaultMaxOperationRetries);
 
             await CallDropOperationAsync(reloadingClient, operationReturnsResult);
             XAssert.AreEqual(1, reloadingClient.Reloader.CurrentVersion);
@@ -69,7 +71,9 @@ namespace Test.Tool.DropDaemon
                         {
                             ThrowUnauthorizedException();
                         }
-                    }));
+                    }),
+                operationTimeout: DaemonConfig.DefaultOperationTimeoutMinutes,
+                maxOperationRetryCount: DaemonConfig.DefaultMaxOperationRetries);
 
             await CallDropOperationAsync(reloadingClient, operationReturnsResult);
             XAssert.AreEqual(numOfAuthFailures + 1, reloadingClient.Reloader.CurrentVersion);
@@ -104,7 +108,9 @@ namespace Test.Tool.DropDaemon
                     {
                         maybeThrow(++counter);
                     });
-                });
+                },
+                operationTimeout: DaemonConfig.DefaultOperationTimeoutMinutes,
+                maxOperationRetryCount: DaemonConfig.DefaultMaxOperationRetries);
 
             await CallDropOperationAsync(reloadingClient, operationReturnsResult);
             XAssert.AreEqual(2, reloadingClient.Reloader.CurrentVersion);
@@ -115,13 +121,14 @@ namespace Test.Tool.DropDaemon
         [InlineData(false)]
         public async Task TestPermanentAuthException(bool operationReturnsResult)
         {
-            var retryIntervals = new[] { TimeSpan.FromMilliseconds(10), TimeSpan.FromMilliseconds(20) };
+            var retryCount = 2;
             var reloadingClient = new ReloadingDropServiceClient(
                 logger: TestLogger,
-                retryIntervals: retryIntervals,
-                clientConstructor: () => new MockDropServiceClient(dropOperation: ThrowUnauthorizedException));
+                clientConstructor: () => new MockDropServiceClient(dropOperation: ThrowUnauthorizedException),
+                operationTimeout: DaemonConfig.DefaultOperationTimeoutMinutes,
+                maxOperationRetryCount: retryCount);
             await Assert.ThrowsAsync<VssUnauthorizedException>(() => CallDropOperationAsync(reloadingClient, operationReturnsResult));
-            XAssert.AreEqual(retryIntervals.Length + 1, reloadingClient.Reloader.CurrentVersion);
+            XAssert.AreEqual(retryCount + 1, reloadingClient.Reloader.CurrentVersion);
         }
 
         private IIpcLogger TestLogger => new LambdaLogger((level, format, args) => Output.WriteLine(LoggerExtensions.Format(level, format, args)));

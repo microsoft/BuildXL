@@ -61,6 +61,16 @@ namespace Tool.ServicePipDaemon
         ///     Enable verbose logging.
         /// </summary>
         public bool Verbose { get; }
+
+        /// <summary>
+        ///     Optional timeout on the service client in minutes.
+        /// </summary>
+        public TimeSpan OperationTimeoutMinutes { get; }
+
+        /// <summary>
+        ///     Optional number of retries to perform if a service client fails an operation.
+        /// </summary>
+        public int MaxOperationRetries { get; }
         #endregion
 
         #region Defaults
@@ -82,10 +92,16 @@ namespace Tool.ServicePipDaemon
         public static readonly TimeSpan DefaultConnectRetryDelay = TimeSpan.FromSeconds(5);
 
         /// <nodoc/>
-        public static bool DefaultEnableCloudBuildIntegration { get; } = false;
+        public const bool DefaultEnableCloudBuildIntegration = false;
 
         /// <nodoc/>
-        public static bool DefaultVerbose { get; } = false;
+        public const bool DefaultVerbose = false;
+
+        /// <nodoc/>
+        public static TimeSpan DefaultOperationTimeoutMinutes { get; } = TimeSpan.FromMinutes(15);
+
+        /// <nodoc/>
+        public const int DefaultMaxOperationRetries = 13;
         #endregion
 
         // ==================================================================================================
@@ -101,7 +117,9 @@ namespace Tool.ServicePipDaemon
             bool? stopOnFirstFailure = null,
             bool? enableCloudBuildIntegration = null,
             string logDir = null,
-            bool? verbose = null)
+            bool? verbose = null,
+            TimeSpan? operationTimeout = null,
+            int? maxOperationRetries = null)
         {
             Contract.Requires(logger != null);
             Moniker = moniker;
@@ -112,6 +130,8 @@ namespace Tool.ServicePipDaemon
             EnableCloudBuildIntegration = enableCloudBuildIntegration ?? DefaultEnableCloudBuildIntegration;
             LogDir = logDir;
             Verbose = verbose ?? DefaultVerbose;
+            OperationTimeoutMinutes = operationTimeout ?? DefaultOperationTimeoutMinutes;
+            MaxOperationRetries = maxOperationRetries ?? DefaultMaxOperationRetries;
         }
     }
 }

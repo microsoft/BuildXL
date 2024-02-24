@@ -97,7 +97,7 @@ namespace Tool.SymbolDaemon
         private readonly CounterCollection<SymbolClientCounter> m_counters;
 
         /// <nodoc />
-        public VsoSymbolClient(IIpcLogger logger, SymbolConfig config, Client apiClient)
+        public VsoSymbolClient(IIpcLogger logger, DaemonConfig daemonConfig, SymbolConfig config, Client apiClient)
         {
             m_logger = logger;
             m_apiClient = apiClient;
@@ -114,7 +114,9 @@ namespace Tool.SymbolDaemon
 
             m_symbolClient = new ReloadingSymbolClient(
                 logger: logger,
-                clientConstructor: CreateSymbolServiceClient);
+                clientConstructor: CreateSymbolServiceClient,
+                operationTimeout: daemonConfig.OperationTimeoutMinutes,
+                maxRetryCount: daemonConfig.MaxOperationRetries);
 
             m_nagleQueue = NagleQueue<BatchedSymbolFile>.Create(
                 maxDegreeOfParallelism: m_config.MaxParallelUploads,

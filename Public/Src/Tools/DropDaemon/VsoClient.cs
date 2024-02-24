@@ -21,7 +21,6 @@ using BuildXL.Utilities.Authentication;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.ArtifactServices.App.Shared.Cache;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Common;
@@ -120,7 +119,9 @@ namespace Tool.DropDaemon
             // instantiate drop client
             m_dropClient = new ReloadingDropServiceClient(
                 logger: logger,
-                clientConstructor: CreateDropServiceClient);
+                clientConstructor: CreateDropServiceClient,
+                operationTimeout: daemonConfig.OperationTimeoutMinutes,
+                maxOperationRetryCount: daemonConfig.MaxOperationRetries);
 
             m_nagleQueue = NagleQueue<AddFileItem>.Create(
                 maxDegreeOfParallelism: m_config.MaxParallelUploads,

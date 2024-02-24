@@ -107,6 +107,12 @@ export interface DaemonSettings {
     
     /** Verbose logging. */
     verbose?: boolean;
+
+    /** Optional timeout on the SymbolClient in minutes. */
+    operationTimeoutMinutes?: number;
+
+    /** Optional number of retries to perform if a SymbolClient fails an operation. */
+    maxOperationRetries?: number;
 }
 
 /**

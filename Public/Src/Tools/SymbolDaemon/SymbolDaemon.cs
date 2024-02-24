@@ -730,7 +730,7 @@ namespace Tool.SymbolDaemon
             m_logger.Info(I($"Using {nameof(SymbolConfig)}: {JsonConvert.SerializeObject(symbolConfig)}"));
 
             // if no ISymbolServiceClient has been provided, create VsoSymbolClient using the provided SymbolConfig
-            m_symbolServiceClientTask = symbolServiceClientTask ?? Task.Run(() => (ISymbolClient)new VsoSymbolClient(m_logger, symbolConfig, bxlClient));
+            m_symbolServiceClientTask = symbolServiceClientTask ?? Task.Run(() => (ISymbolClient)new VsoSymbolClient(m_logger, daemonConfig, symbolConfig, bxlClient));
 
             m_symbolIndexer = new SymbolIndexer(SymbolAppTraceSource.SingleInstance);
         }

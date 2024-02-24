@@ -471,6 +471,8 @@ export namespace DropDaemonRunner {
                     Cmd.option("--signBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestSigning")),
                     Cmd.option("--uploadBcdeFileToDrop ", "true", Environment.getFlag("BuildXLEnableUploadBcdeFileToDrop"))
                 ),
+                Cmd.option("--operationTimeoutMinutes ", args.operationTimeoutMinutes),
+                Cmd.option("--maxOperationRetries ", args.maxOperationRetries),
             ],
             consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
             dependencies: [

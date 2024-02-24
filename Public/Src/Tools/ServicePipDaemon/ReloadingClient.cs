@@ -18,8 +18,6 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     public abstract class ReloadingClient<T> : IDisposable where T : IDisposable
     {
-        private static readonly TimeSpan s_defaultOperationTimeout = TimeSpan.FromMinutes(15);
-
         // Default number and length of polling intervals - total time is approximately the sum of all these intervals.
         // NOTE: taken from DBS.ActionRetryer class, from CloudBuild.Core
         private static readonly IEnumerable<TimeSpan> s_defaultRetryIntervals = new[]
@@ -41,8 +39,9 @@ namespace Tool.ServicePipDaemon
         };
 
         private readonly IIpcLogger m_logger;
+        private readonly TimeSpan m_operationTimeout;
         private readonly IEnumerable<TimeSpan> m_retryIntervals;
-        private readonly HashSet<Type> m_nonRetryableExceptions;
+        private readonly HashSet<Type> m_nonRetriableExceptions;
 
         /// <summary>
         /// Exposed for testing
@@ -50,33 +49,38 @@ namespace Tool.ServicePipDaemon
         internal readonly Reloader<T> Reloader;
 
         /// <nodoc />
-        public ReloadingClient(IIpcLogger logger, Func<T> clientConstructor, IEnumerable<TimeSpan> retryIntervals = null, IEnumerable<Type> nonRetryableExceptions = null)
+        public ReloadingClient(IIpcLogger logger, Func<T> clientConstructor, TimeSpan operationTimeout, int maxOperationRetryCount, IEnumerable<Type> nonRetriableExceptions = null)
         {
             Contract.Assert(logger != null);
             Contract.Assert(clientConstructor != null);
-            Contract.Assert(nonRetryableExceptions == null || nonRetryableExceptions.All(e => e.IsSubclassOf(typeof(Exception))));
+            Contract.Assert(nonRetriableExceptions == null || nonRetriableExceptions.All(e => e.IsSubclassOf(typeof(Exception))));
 
             m_logger = logger;
             Reloader = new Reloader<T>(clientConstructor, destructor: client => client.Dispose());
-            m_retryIntervals = retryIntervals ?? s_defaultRetryIntervals;
-            m_nonRetryableExceptions = nonRetryableExceptions == null ? new HashSet<Type>() : new HashSet<Type>(nonRetryableExceptions);
+            m_operationTimeout = operationTimeout;
+            m_nonRetriableExceptions = nonRetriableExceptions == null ? new HashSet<Type>() : new HashSet<Type>(nonRetriableExceptions);
+
+            // If the specified max retry count is greater than the default set of retry intervals, we will repeat the last interval to fill the gap.
+            var remainingIntervalCount = maxOperationRetryCount - s_defaultRetryIntervals.Count();
+            remainingIntervalCount = remainingIntervalCount < 0 ? 0 : remainingIntervalCount;
+            m_retryIntervals = s_defaultRetryIntervals
+                .Take(maxOperationRetryCount)
+                .Concat(Enumerable.Repeat(s_defaultRetryIntervals.LastOrDefault(), remainingIntervalCount));
         }
 
         /// <summary>
         /// Executes and, if necessary, retries an operation 
-        /// </summary>        
+        /// </summary>
         protected async Task<U> RetryAsync<U>(
             string operationName,
             Func<T, CancellationToken, Task<U>> fn,
             CancellationToken cancellationToken,
             IEnumerator<TimeSpan> retryIntervalEnumerator = null,
             bool reloadFirst = false,
-            Guid? operationId = null,
-            TimeSpan? timeout = null)
+            Guid? operationId = null)
         {
             operationId = operationId ?? Guid.NewGuid();
             retryIntervalEnumerator = retryIntervalEnumerator ?? m_retryIntervals.GetEnumerator();
-            timeout = timeout ?? s_defaultOperationTimeout;
 
             try
             {
@@ -91,10 +95,10 @@ namespace Tool.ServicePipDaemon
 
                     var instance = GetCurrentVersionedValue();
                     m_logger.Verbose("[{2}] Invoking '{0}' against instance version {1}", operationName, instance.Version, operationId.Value);
-                    return await WithTimeoutAsync(fn(instance.Value, innerCancellationSource.Token), timeout.Value, timeoutCancellationSource);
+                    return await WithTimeoutAsync(fn(instance.Value, innerCancellationSource.Token), m_operationTimeout, timeoutCancellationSource);
                 }
             }
-            catch (Exception e) when (m_nonRetryableExceptions.Contains(e.GetType()))
+            catch (Exception e) when (m_nonRetriableExceptions.Contains(e.GetType()))
             {
                 // We should not retry exceptions of this type.
                 throw;
@@ -103,7 +107,7 @@ namespace Tool.ServicePipDaemon
             {
                 if (e is TimeoutException)
                 {
-                    m_logger.Warning("[{2}] Timeout ({0}sec) happened while waiting {1}.", timeout.Value.TotalSeconds, operationName, operationId.Value);
+                    m_logger.Warning("[{2}] Timeout ({0}sec) happened while waiting {1}.", m_operationTimeout.TotalSeconds, operationName, operationId.Value);
                 }
 
                 if (retryIntervalEnumerator.MoveNext())

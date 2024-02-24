@@ -27,9 +27,10 @@ namespace Tool.ServicePipDaemon
         /// </summary>
         /// <param name="logger">Logger.</param>
         /// <param name="clientConstructor">Target drop service client.</param>
-        /// <param name="retryIntervals">How many times to retry and how much to wait between retries.</param>
-        public ReloadingDropServiceClient(IIpcLogger logger, Func<IDropServiceClient> clientConstructor, IEnumerable<TimeSpan> retryIntervals = null)
-            : base(logger, clientConstructor, retryIntervals)
+        /// <param name="operationTimeout">Timeout for the reloading client.</param>
+        /// <param name="maxOperationRetryCount">How many times to retry.</param>
+        public ReloadingDropServiceClient(IIpcLogger logger, Func<IDropServiceClient> clientConstructor, TimeSpan operationTimeout, int maxOperationRetryCount)
+            : base(logger, clientConstructor, operationTimeout, maxOperationRetryCount)
         {
         }
 

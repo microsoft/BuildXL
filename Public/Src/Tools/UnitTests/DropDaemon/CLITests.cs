@@ -249,7 +249,7 @@ namespace Test.Tool.DropDaemon
         {
             optionFound = options.FirstOrDefault(o =>
             {
-                var suffixes = new[] { string.Empty, "Millis", "Days" };
+                var suffixes = new[] { string.Empty, "Millis", "Minutes", "Days" };
                 var optionName = o.LongName.Replace("tcp", string.Empty).Replace("Tcp", string.Empty);
                 return suffixes.Any(s => string.Equals(optionName, prop.Name + s, StringComparison.OrdinalIgnoreCase));
             });
@@ -322,6 +322,7 @@ namespace Test.Tool.DropDaemon
                 var configOptionValue =
                     optionFound.LongName.EndsWith("Millis") ? TimeSpan.FromMilliseconds(val) :
                     optionFound.LongName.EndsWith("Days") ? TimeSpan.FromDays(val) :
+                    optionFound.LongName.EndsWith("Minutes") ? TimeSpan.FromMinutes(val) :
                     TimeSpan.FromTicks(val);
                 return new[]
                 {

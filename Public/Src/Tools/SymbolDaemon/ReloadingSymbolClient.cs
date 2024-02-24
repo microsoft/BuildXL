@@ -11,7 +11,6 @@ using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Symbol.App.Core;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
-using BlobIdentifierWithBlocks = Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifierWithBlocks;
 
 namespace Tool.ServicePipDaemon
 {
@@ -21,8 +20,8 @@ namespace Tool.ServicePipDaemon
     public sealed class ReloadingSymbolClient : ReloadingClient<ISymbolServiceClient>, ISymbolServiceClient
     {
         /// <nodoc/>
-        public ReloadingSymbolClient(IIpcLogger logger, Func<ISymbolServiceClient> clientConstructor, IEnumerable<TimeSpan> retryIntervals = null)
-            : base(logger, clientConstructor, retryIntervals, new[] { typeof(DebugEntryExistsException) })
+        public ReloadingSymbolClient(IIpcLogger logger, Func<ISymbolServiceClient> clientConstructor, TimeSpan operationTimeout, int maxRetryCount)
+            : base(logger, clientConstructor, operationTimeout: operationTimeout, maxRetryCount, new[] { typeof(DebugEntryExistsException) })
         {
         }
 

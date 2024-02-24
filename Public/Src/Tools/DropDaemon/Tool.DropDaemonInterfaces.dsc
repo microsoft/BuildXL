@@ -71,6 +71,12 @@ export interface DaemonSettings {
     
     /** Verbose logging. */
     verbose?: boolean;
+
+    /** Optional timeout on the DropClient in minutes. */
+    operationTimeoutMinutes?: number;
+
+    /** Optional number of retries to perform if a DropClient fails an operation. */
+    maxOperationRetries?: number;
 }
 
 /** 

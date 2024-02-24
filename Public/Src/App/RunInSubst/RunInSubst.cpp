@@ -278,7 +278,8 @@ static bool ParseSubstSourcesAndTargets(int argc, _TCHAR* argv[], PSUBST_LIST_NO
 // warning C26485: Expression 'dl': No array to pointer decay (bounds.3).
 // warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
 // warning C26409: Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
-#pragma warning( disable : 6386 26446 26401 26414 26481 26485 26472 26409 )
+// warning C26493: Don't use C-style casts (type.4)
+#pragma warning( disable : 6386 26446 26401 26414 26481 26485 26472 26409 26493 )
 
 // Gets the mapped path for each mapped drive.
 // Returns 0 if successful and non-zero if failed.
@@ -587,7 +588,8 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType) noexcept
 // warning C26485: Expression 'argv': No array to pointer decay (bounds.3).
 // warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
 // warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
-#pragma warning( disable : 26446 26485 26481 26472 )
+// warning C26493: Don't use C-style casts (type.4)
+#pragma warning( disable : 26446 26485 26481 26472 26493 )
 // Executes the command that was specified on in the arguments.
 // Returns the exit code of the process that was started.
 int ExecuteProcess(int argc, _TCHAR* argv[], int executableToRunIndex, PSUBST_NODE* pOrderedSubstList)
@@ -750,7 +752,8 @@ int ExecuteProcess(int argc, _TCHAR* argv[], int executableToRunIndex, PSUBST_NO
 // warning C26461: The pointer argument 'pSubstList' for function 'SubstDrivesAndExecute' can be marked as a pointer to const (con.3).
 // warning C26481: Don't use pointer arithmetic. Use span instead (bounds.1).
 // warning C6387: 'pListNode->szSourceDirectory' could be '0'.
-#pragma warning( disable : 26485 26461 26481 6387 )
+// warning C26493: Don't use C-style casts (type.4).
+#pragma warning( disable : 26485 26461 26481 6387 26493 )
 // Tries to substitute a drive.
 // Returns 0 on success and non-zero on failure.
 static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSubstList, PSUBST_NODE* pOrderedSubstList, int executableToRunIndex)

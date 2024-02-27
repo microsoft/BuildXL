@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Tracing
@@ -39,6 +40,7 @@ namespace BuildXL.Tracing
                 int machineMinimumAvailableMemoryMegabytes = ConvertToInt(aggregator.MachineAvailablePhysicalMB.Minimum);
 
                 int machineActiveTcpConnections = ConvertToInt(aggregator.MachineActiveTcpConnections.Latest);
+                int machineOpenFileDescriptors = ConvertToInt(aggregator.MachineOpenFileDescriptors.Latest);
 
                 Dictionary<string, long> dict = new Dictionary<string, long>(8 + aggregator.DiskStats.Count);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessAverageThreadCount), processAverageThreadCount);
@@ -68,6 +70,12 @@ namespace BuildXL.Tracing
                     dict.Add(GetCategorizedStatisticName(GetCategorizedStatisticName(description, Statistics.MachineAverageDiskActiveTime), diskStat.Drive), activeTime);
                 }
                 dict.Add(GetCategorizedStatisticName(description, Statistics.MachineActiveTcpConnections), machineActiveTcpConnections);
+
+                // Log the information only for linux builds.
+                if (OperatingSystemHelper.IsLinuxOS)
+                {
+                    dict.Add(GetCategorizedStatisticName(description, Statistics.MachineOpenFileDescriptors), machineOpenFileDescriptors);
+                }
 
                 Logger.Log.BulkStatistic(loggingContext, dict);
             }

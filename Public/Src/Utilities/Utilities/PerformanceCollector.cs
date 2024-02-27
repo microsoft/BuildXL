@@ -370,7 +370,8 @@ namespace BuildXL.Utilities
                             processes: m_processes,
                             cpuQueueLength: m_cpuQueueLength,
                             threads: m_threads,
-                            machineActiveTcpConnections: GetMachineActiveTcpConnections());
+                            machineActiveTcpConnections: GetMachineActiveTcpConnections(),
+                            machineOpenFileDescriptors: GetMachineOpenFileDescriptors());
                     }
                 }
 
@@ -487,6 +488,29 @@ namespace BuildXL.Utilities
                 return -1;
             }
 #pragma warning restore ERP022
+        }
+
+        /// <summary>
+        /// Obtains the number of file descriptors that are currently open in the machine.
+        /// </summary>
+        internal static int GetMachineOpenFileDescriptors()
+        {
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                return 0;
+            }
+
+            try
+            {
+                // '/proc/self/fd' is a pseudo directory that provides symlinks to all the file descriptors that the current process has open.
+                return Directory.EnumerateFiles("/proc/self/fd").Count();
+            }
+#pragma warning disable ERP022 // Do not log an error in case of failure.
+            catch (Exception)
+            {
+                return -1;
+            }
+#pragma warning restore ERP022        
         }
 
         private static double BytesToKbits(long bytes)
@@ -975,6 +999,11 @@ namespace BuildXL.Utilities
             /// Count of all the TCP active connections which are listening and established.
             /// </summary>
             public int MachineActiveTcpConnections;
+            
+            /// <summary>
+            /// Count of all the open file descriptors in the Linux machine.
+            /// </summary>
+            public int MachineOpenFileDescriptors;
         }
 
         /// <summary>
@@ -1082,6 +1111,9 @@ namespace BuildXL.Utilities
             /// <nodoc />
             public readonly Aggregation MachineActiveTcpConnections;
 
+            /// <nodoc />
+            public readonly Aggregation MachineOpenFileDescriptors;
+
             /// <summary>
             /// Stats about disk usage. This is guarenteed to be in the same order as <see cref="GetDrives"/>
             /// </summary>
@@ -1182,6 +1214,7 @@ namespace BuildXL.Utilities
 
                 m_diskStats = diskStats.ToArray();
                 MachineActiveTcpConnections = new Aggregation();
+                MachineOpenFileDescriptors = new Aggregation();
             }
 
             /// <summary>
@@ -1269,6 +1302,7 @@ namespace BuildXL.Utilities
                         perfInfo.Processes = SafeConvert.ToInt32(Processes.Latest);
                         perfInfo.CpuQueueLength = SafeConvert.ToInt32(CpuQueueLength.Latest);
                         perfInfo.MachineActiveTcpConnections = SafeConvert.ToInt32(MachineActiveTcpConnections.Latest);
+                        perfInfo.MachineOpenFileDescriptors = SafeConvert.ToInt32(MachineOpenFileDescriptors.Latest);
 
                         int diskIndex = 0;
                         perfInfo.DiskAvailableSpaceGb = new int[DiskStats.Count];
@@ -1368,7 +1402,8 @@ namespace BuildXL.Utilities
                 int? processes,
                 int? cpuQueueLength,
                 int? threads,
-                int? machineActiveTcpConnections)
+                int? machineActiveTcpConnections,
+                int? machineOpenFileDescriptors)
             {
                 Interlocked.Increment(ref m_sampleCount);
 
@@ -1398,6 +1433,7 @@ namespace BuildXL.Utilities
                 Processes.RegisterSample(processes);
                 CpuQueueLength.RegisterSample(cpuQueueLength);
                 MachineActiveTcpConnections.RegisterSample(machineActiveTcpConnections);
+                MachineOpenFileDescriptors.RegisterSample(machineOpenFileDescriptors);
 
                 Contract.Assert(m_diskStats.Length == machineDiskStats.Length);
                 for (int i = 0; i < machineDiskStats.Length; i++)

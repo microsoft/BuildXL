@@ -44,12 +44,21 @@ namespace Test.BuildXL.Utilities
         }
 
         /// <summary>
-        /// This test checks whether TryGetMachineActiveTcpConnections method returns active tcp connections established on the machine.
+        /// This test checks whether GetMachineActiveTcpConnections method returns active tcp connections established on the machine.
         /// </summary>
         [Fact]
         public void VerifyMachineActiveTcpConnectionsCount()
         {
-             XAssert.IsTrue(PerformanceCollector.GetMachineActiveTcpConnections() > 0, "TryGetMachineActiveTcpConnections method has failed to return a valid, non-negative TCP connection count.");
+             XAssert.IsTrue(PerformanceCollector.GetMachineActiveTcpConnections() > 0, "GetMachineActiveTcpConnections method has failed to return a valid, non-negative TCP connection count.");
+        }
+
+        /// <summary>
+        /// This test checks whether the GetMachineOpenFileDescriptors methods returns the file descriptors currently open on the machine. 
+        /// </summary>
+        [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        public void VerifyMachineOpenFileDescriptorsCount()
+        {
+            XAssert.IsTrue(PerformanceCollector.GetMachineOpenFileDescriptors() > 0, "GetMachineOpenFileDescriptors method has failed to return a valid, non-negative open file descriptors count.");
         }
 
         /// <summary>

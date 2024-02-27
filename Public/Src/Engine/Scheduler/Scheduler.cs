@@ -2442,6 +2442,7 @@ namespace BuildXL.Scheduler
                 { "ProcessPipsWaiting", data => data.ProcessPipsPending - data.ProcessPipsAllocatedSlots },
                 { "TotalAcquiredProcessSlots", data => Workers.Where(a => a.IsAvailable).Sum(a => a.AcquiredProcessSlots) },
                 { "MachineActiveTcpConnections", _ => m_perfInfo.MachineActiveTcpConnections },
+                { "MachineOpenFileDescriptors", _ => m_perfInfo.MachineOpenFileDescriptors },
                 { "AvailableWorkersCount", data => AvailableWorkersCount },
 
                 // Worker Pip State counts and status

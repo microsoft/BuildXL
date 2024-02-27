@@ -333,4 +333,7 @@
   <data name="MachineActiveTcpConnections" xml:space="preserve">
     <value>MachineActiveTcpConnections</value>
   </data>
+  <data name="MachineOpenFileDescriptors" xml:space="preserve">
+    <value>MachineOpenFileDescriptors</value>
+  </data>
 </root>

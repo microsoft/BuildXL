@@ -2375,7 +2375,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         [GeneratedEvent(
             (int)LogEventId.StartParseConfig,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
@@ -2385,7 +2385,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         [GeneratedEvent(
             (int)LogEventId.EndParseConfig,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
@@ -2518,7 +2518,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)SharedLogEventId.StartEngineRun,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Keywords.Diagnostics | (int)Keywords.Progress,
+            Keywords = (int)Keywords.Progress,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
             Message = EventConstants.PhasePrefix + "Run engine")]
@@ -2528,7 +2528,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)SharedLogEventId.EndEngineRun,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Keywords.Diagnostics | (int)Keywords.Progress,
+            Keywords = (int)Keywords.Progress,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + "Done running engine")]

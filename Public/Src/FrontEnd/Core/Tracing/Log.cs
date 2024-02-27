@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             Message =
                 EventConstants.PhasePrefix +
                 "Done loading {statistics.FileCount} config files. Loaded in {statistics.ElapsedMilliseconds} ms. Parsed in {statistics.ElapsedMillisecondsParse} ms. Converted in {statistics.ElapsedMillisecondsConvertion} ms.",
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]

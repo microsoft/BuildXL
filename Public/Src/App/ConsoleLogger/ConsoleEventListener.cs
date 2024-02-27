@@ -299,7 +299,7 @@ namespace BuildXL
                         StringBuilder sb = wrap.Instance;
 
                         // Only show cache hits when this isn't a worker.
-                        sb.Append(m_notWorker ? @"{{8,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @" {{4,{0}}} done,");
+                        sb.Append(m_notWorker ? @"{{8,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @"Processes:[{{4,{0}}} done,");
 
                         if (pipsFailed > 0)
                         {

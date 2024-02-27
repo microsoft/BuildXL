@@ -453,93 +453,110 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         Stream stream,
         long contentSize)
     {
-        // See: https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-error-codes
-        const int PreconditionFailed = 412;
-        const int BlobAlreadyExists = 409;
         AbsoluteBlobPath? blobPath = null;
         return context.PerformOperationWithTimeoutAsync(
             Tracer,
             async context =>
             {
-                BlobClient client;
-                (client, blobPath) = await GetBlobClientAsync(context, contentHash);
-
-                // WARNING: remember implicit pin
-
-                // TODO: bandwidth checking?
-                // TODO: timeouts
-                var contentAlreadyExistsInCache = false;
-
-                // The Storage service can only reply existence after the entire blob has been uploaded. Unfortunately
-                // for us, the larger the file is the more likely that it is also unique, so it doesn't make sense for
-                // us to pre-check existence _before_ doing the upload.
-                //
-                // The ONLY exception to this are deterministic large files (i.e., there's a large file that's always
-                // the same and always uploaded). For that specific case, it would make sense to perform a parallel
-                // existence check while we upload the file, and cancel the upload if the file already exists.
-                // TODO: implement this.
-                try
-                {
-                    // TODO: setup parallel upload by using storage options (ParallelOperationThreadCount)
-                    // TODO: setup cancellation time via storage options (MaximumExecutionTime / ServerTimeout)
-                    // TODO: ideally here we'd also hash in the bg and cancel the op if it turns out the hash
-                    // doesn't match as a protective measure against trusted puts with the wrong hash.
-
-                    var blobUploadOptions = new BlobUploadOptions()
-                    {
-                        Conditions = new BlobRequestConditions { IfNoneMatch = new ETag("*") },
-                    };
-
-                    // Setting transfer options will more likely than not mean that the SDK will enter a code path
-                    // where uploads can be chunked. The issue is that chunking uploads are much slower for very small
-                    // files. Therefore, we only set the transfer options if the file is larger than the initial window.
-                    if (contentSize >= 0 && contentSize > _configuration.InitialTransferSize)
-                    {
-                        blobUploadOptions.TransferOptions = new StorageTransferOptions
-                        {
-                            InitialTransferSize = _configuration.InitialTransferSize,
-                            MaximumTransferSize = _configuration.MaximumTransferSize,
-                            MaximumConcurrency = _configuration.MaximumConcurrency,
-                        };
-                    }
-
-                    await client.UploadAsync(
-                        stream,
-                        blobUploadOptions,
-                        cancellationToken: context.Token);
-                }
-                catch (RequestFailedException e) when (e.Status is PreconditionFailed or BlobAlreadyExists)
-                {
-                    contentAlreadyExistsInCache = true;
-                }
-
-                if (contentAlreadyExistsInCache)
-                {
-                    // Garbage collection requires that we bump the last access time of blobs when we attempt
-                    // to add a content hash list and one of its contents already exists. The reason for this is that,
-                    // if we don't, a race condition exists where GC could attempt to delete the piece of content before
-                    // it knows that the new CHL exists. By touching the content, the last access time for this blob will
-                    // now be above the deletion threshold (GC will not delete blobs touched more recently than 24 hours ago)
-                    // and the race condition is eliminated.
-                    var touchResult = await _clientAdapter.TouchAsync(context, client);
-
-                    if (!touchResult.Succeeded)
-                    {
-                        return new PutResult(touchResult);
-                    }
-
-                    await TryNotify(context, new TouchEvent(blobPath!.Value, contentHash, touchResult.Value.contentLength ?? -1));
-                }
-                else
-                {
-                    await TryNotify(context, new AddEvent(blobPath!.Value, contentHash, contentSize));
-                }
-
-                return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache);
+                (var client, blobPath) = await GetBlobClientAsync(context, contentHash);
+                // TODO: bandwidth-check and retry
+                return await PerformUploadFromStreamAsync(context, contentHash, client, blobPath!.Value, stream, contentSize);
             },
             traceOperationStarted: false,
             extraEndMessage: _ => $"ContentHash=[{contentHash.ToShortString()}] Size=[{contentSize}] BlobPath=[{blobPath.ToString() ?? "UNKNOWN"}]",
-            timeout: _configuration.StorageInteractionTimeout);
+            timeout: ComputeMaximumUploadTime(context, contentSize));
+    }
+
+    private TimeSpan ComputeMaximumUploadTime(OperationContext context, long? contentSize)
+    {
+        // This implies the size is unknown.
+        if (contentSize is null || contentSize <= 0)
+        {
+            return _configuration.StorageInteractionTimeout;
+        }
+
+        // We do a linear search on purpose as most operations will be for small file sizes (i.e., hit the first entry)
+        // and the list is expected to be very small.
+        foreach (var entry in _configuration.UploadSafeguardTimeouts)
+        {
+            if (contentSize <= entry.MaximumSizeBytes)
+            {
+                return entry.Timeout;
+            }
+        }
+
+        return _configuration.StorageInteractionTimeout;
+    }
+
+    private async Task<PutResult> PerformUploadFromStreamAsync(OperationContext context, ContentHash contentHash, BlobClient client, AbsoluteBlobPath blobPath, Stream stream, long contentSize)
+    {
+        // See: https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-error-codes
+        const int PreconditionFailed = 412;
+        const int BlobAlreadyExists = 409;
+
+        var contentAlreadyExistsInCache = false;
+
+        // The Storage service can only reply existence after the entire blob has been uploaded. Unfortunately
+        // for us, the larger the file is the more likely that it is also unique, so it doesn't make sense for
+        // us to pre-check existence _before_ doing the upload.
+        //
+        // The ONLY exception to this are deterministic large files (i.e., there's a large file that's always
+        // the same and always uploaded). For that specific case, it would make sense to perform a parallel
+        // existence check while we upload the file, and cancel the upload if the file already exists.
+        // TODO: implement this.
+        try
+        {
+            var blobUploadOptions = new BlobUploadOptions()
+            {
+                Conditions = new BlobRequestConditions { IfNoneMatch = new ETag("*") },
+            };
+
+            // Setting transfer options will more likely than not mean that the SDK will enter a code path
+            // where uploads can be chunked. The issue is that chunking uploads are much slower for very small
+            // files. Therefore, we only set the transfer options if the file is larger than the initial window.
+            if (contentSize >= 0 && contentSize > _configuration.InitialTransferSize)
+            {
+                blobUploadOptions.TransferOptions = new StorageTransferOptions
+                {
+                    InitialTransferSize = _configuration.InitialTransferSize,
+                    MaximumTransferSize = _configuration.MaximumTransferSize,
+                    MaximumConcurrency = _configuration.MaximumConcurrency,
+                };
+            }
+
+            await client.UploadAsync(
+                stream,
+                blobUploadOptions,
+                cancellationToken: context.Token);
+        }
+        catch (RequestFailedException e) when (e.Status is PreconditionFailed or BlobAlreadyExists)
+        {
+            contentAlreadyExistsInCache = true;
+        }
+
+        if (contentAlreadyExistsInCache)
+        {
+            // Garbage collection requires that we bump the last access time of blobs when we attempt
+            // to add a content hash list and one of its contents already exists. The reason for this is that,
+            // if we don't, a race condition exists where GC could attempt to delete the piece of content before
+            // it knows that the new CHL exists. By touching the content, the last access time for this blob will
+            // now be above the deletion threshold (GC will not delete blobs touched more recently than 24 hours ago)
+            // and the race condition is eliminated.
+            var touchResult = await _clientAdapter.TouchAsync(context, client);
+
+            if (!touchResult.Succeeded)
+            {
+                return new PutResult(touchResult);
+            }
+
+            await TryNotify(context, new TouchEvent(blobPath, contentHash, touchResult.Value.contentLength ?? -1));
+        }
+        else
+        {
+            await TryNotify(context, new AddEvent(blobPath, contentHash, contentSize));
+        }
+
+        return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache);
     }
 
     private Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)

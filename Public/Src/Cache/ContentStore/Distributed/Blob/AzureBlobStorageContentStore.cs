@@ -4,6 +4,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -18,6 +19,8 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Blob;
+
+public readonly record struct UploadOperationTimeout(long MaximumSizeBytes, TimeSpan Timeout);
 
 /// <summary>
 /// Configuration for <see cref="AzureBlobStorageContentStore"/>.
@@ -37,6 +40,24 @@ public sealed record AzureBlobStorageContentStoreConfiguration
     public int MaximumTransferSize { get; init; } = (int)"200 MB".ToSize();
 
     public int MaximumConcurrency { get; init; } = Environment.ProcessorCount;
+
+    /// <summary>
+    /// Timeout for upload operations based on the size of the upload.
+    /// </summary>
+    /// <remarks>
+    /// - This is an absolute timeout for the upload operation, meant to ensure we don't get stuck on a single upload,
+    ///   they should in practice finish significanly quicker than this.
+    /// - This list must be sorted by ascending size as it's looked up assuming it.
+    /// </remarks>
+    public List<UploadOperationTimeout> UploadSafeguardTimeouts { get; init; } = new List<UploadOperationTimeout>()
+    {
+        new UploadOperationTimeout("4 MB".ToSize(), TimeSpan.FromMinutes(30)),
+        new UploadOperationTimeout("1 GB".ToSize(), TimeSpan.FromHours(1)),
+        new UploadOperationTimeout("8 GB".ToSize(), TimeSpan.FromHours(2)),
+
+        // This is a catch-all for all cases that go over the sizes above.
+        new UploadOperationTimeout(long.MaxValue, TimeSpan.FromHours(24)),
+    };
 }
 
 /// <summary>

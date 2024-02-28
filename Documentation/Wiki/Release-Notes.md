@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240223.2 (Release [365241](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=365241))
+- Modified the build status line for IPC pips progress
+- Add net8 support for NugetSpecGenerator
+- Increase regex timeout in service pips
+- Remove GitHashes cache miss analysis mode
+
 # 0.1.0-20240216.4 (Release [363779](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=363779))
 - Drop daemon is deployed as .NET6.
 - PipOutputUpToDate message is demoted to diagnostic level.

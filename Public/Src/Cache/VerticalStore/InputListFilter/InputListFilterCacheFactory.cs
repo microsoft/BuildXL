@@ -80,7 +80,7 @@ namespace BuildXL.Cache.InputListFilter
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null, PathTable pathTable = null)
         {
             Contract.Requires(cacheData != null);
 
@@ -118,7 +118,7 @@ namespace BuildXL.Cache.InputListFilter
                 }
             }
 
-            var maybeCache = await CacheFactory.InitializeCacheAsync(config.FilteredCache, activityId, configuration);
+            var maybeCache = await CacheFactory.InitializeCacheAsync(config.FilteredCache, activityId, configuration, pathTable);
             if (!maybeCache.Succeeded)
             {
                 return maybeCache.Failure;

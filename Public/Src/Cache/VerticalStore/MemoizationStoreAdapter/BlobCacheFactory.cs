@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
@@ -41,8 +42,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             var context = new OperationContext(tracingContext);
 
             context.TracingContext.Info($"Creating blob cache. Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}]", nameof(EphemeralCacheFactory));
-
-            var credentials = LoadAzureCredentials(configuration);
+            
+            var credentials = LoadAzureCredentials(configuration, context.Token);
 
             var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
                 ShardingScheme: new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
@@ -54,7 +55,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <nodoc />
-        internal static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> LoadAzureCredentials(BlobCacheConfig configuration)
+        internal static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> LoadAzureCredentials(BlobCacheConfig configuration, CancellationToken token)
         {
             Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> credentials = null;
 
@@ -86,6 +87,23 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
                 var credential = new ManagedIdentityAzureStorageCredentials(configuration.ManagedIdentityId, uri);
+                credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
+            }
+
+            // If we didn't acquire any credentials so far and the configuration allows for interactive auth, let's set up
+            // an interactive credential mechanism.
+            if (credentials is null && configuration.AllowInteractiveAuth)
+            {
+                Contract.Requires(!string.IsNullOrEmpty(configuration.StorageAccountEndpoint));
+                Contract.Requires(!string.IsNullOrEmpty(configuration.InteractiveAuthTokenDirectory));
+
+                if (!Uri.TryCreate(configuration.StorageAccountEndpoint, UriKind.Absolute, out Uri uri))
+                {
+                    throw new InvalidOperationException($"'{configuration.StorageAccountEndpoint}' does not represent a valid URI.");
+                }
+                
+                credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
+                var credential = new InteractiveClientStorageCredentials(configuration.InteractiveAuthTokenDirectory, uri, token);
                 credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
             }
 

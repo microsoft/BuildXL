@@ -85,7 +85,7 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null, PathTable pathTable = null)
         {
             Contract.Requires(cacheData != null);
 
@@ -109,7 +109,7 @@ namespace BuildXL.Cache.VerticalAggregator
                 }
 
                 // initialize local cache
-                var maybeCache = await CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.LocalCache, activityId, configuration);
+                var maybeCache = await CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.LocalCache, activityId, configuration, pathTable);
                 if (!maybeCache.Succeeded)
                 {
                     return eventing.StopFailure(maybeCache.Failure);
@@ -128,7 +128,7 @@ namespace BuildXL.Cache.VerticalAggregator
                     return eventing.Returns(Possible.Create(local));
                 }
 
-                maybeCache = await ConstructRemoteCacheAsync(activityId, cacheAggregatorConfig, configuration);
+                maybeCache = await ConstructRemoteCacheAsync(activityId, cacheAggregatorConfig, configuration, pathTable);
                 if (!maybeCache.Succeeded)
                 {
                     eventing.Write(CacheActivity.CriticalDataOptions, new { RemoteCacheFailed = maybeCache.Failure });
@@ -176,14 +176,14 @@ namespace BuildXL.Cache.VerticalAggregator
             }
         }
 
-        private static async Task<Possible<ICache, Failure>> ConstructRemoteCacheAsync(Guid activityId, Config cacheAggregatorConfig, IConfiguration configuration)
+        private static async Task<Possible<ICache, Failure>> ConstructRemoteCacheAsync(Guid activityId, Config cacheAggregatorConfig, IConfiguration configuration, PathTable pathTable)
         {
             var timeout = TimeSpan.FromMilliseconds(cacheAggregatorConfig.RemoteConstructionTimeoutMilliseconds);
 
             try
             {
                 return await TaskUtilities.WithTimeoutAsync(
-                    CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.RemoteCache, activityId, configuration),
+                    CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.RemoteCache, activityId, configuration, pathTable),
                     timeout);
             }
 #pragma warning disable CA1031 // Do not catch general exception types

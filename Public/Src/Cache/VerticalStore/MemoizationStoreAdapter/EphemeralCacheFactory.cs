@@ -39,7 +39,7 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, 
 
         if (configuration.DatacenterWide)
         {
-            var accounts = BlobCacheFactory.LoadAzureCredentials(configuration);
+            var accounts = BlobCacheFactory.LoadAzureCredentials(configuration, context.Token);
             var sorted = ShardingScheme.SortAccounts(accounts.Keys.ToList());
             var credentials = accounts[sorted.First()];
 

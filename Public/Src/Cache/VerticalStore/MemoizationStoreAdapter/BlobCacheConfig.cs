@@ -87,6 +87,26 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public string ManagedIdentityId { get; set; }
 
         /// <summary>
+        /// Whether to allow interactive user authentication against the storage account. This should only be
+        /// turned on for local builds.
+        /// </summary>
+        /// <remarks>
+        /// Provided by the BuildXL main configuration object.
+        /// </remarks>
+        [DefaultValue(false)]
+        public bool AllowInteractiveAuth { get; set; }
+
+        /// <summary>
+        /// The directory where interactive tokens should be stored and retrieved as a way to provide silent authentication (when possible)
+        /// across BuildXL invocations.
+        /// </summary>
+        /// <remarks>
+        /// Provided by the BuildXL main configuration object.
+        /// </remarks>
+        [DefaultValue(null)]
+        public string InteractiveAuthTokenDirectory { get; set; }
+
+        /// <summary>
         /// The configured number of days the storage account will retain blobs before deleting (or soft deleting)
         /// them based on last access time. If content and metadata have different retention policies, the shortest
         /// retention period is expected here.
@@ -154,12 +174,17 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <summary>
         /// This configuration needs the role, activity id and the kusto logging info coming from the engine configuration object
         /// </summary>
-        public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, out Failure failure)
+        public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, PathTable pathTable, out Failure failure)
         {
             LogToKusto = configuration.Cache.CacheLogToKusto;
             // For legacy reasons, cache logs require 'Master' when the build role is orchestrator
             Role = configuration.Distribution.BuildRole.IsOrchestrator() ? "Master" : configuration.Distribution.BuildRole.ToString();
             BuildId = activityId.ToString();
+
+            AllowInteractiveAuth = configuration.Interactive;
+            // Let's use the engine cache as the target directory for storing the token
+            // This should be enough to offer persistence/silent authentication for local builds
+            InteractiveAuthTokenDirectory = configuration.Layout.EngineCacheDirectory.ToString(pathTable);
 
             if (!LogToKusto)
             {

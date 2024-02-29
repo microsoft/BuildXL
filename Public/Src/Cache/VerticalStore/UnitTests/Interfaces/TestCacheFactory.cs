@@ -116,7 +116,7 @@ namespace BuildXL.Cache.Tests
         /// </summary>
         /// <param name="cacheData">ICacheConfigData input data</param>
         /// <returns>Cache object or a Failure</returns>
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null, PathTable pathTable = null)
         {
             var possibleCacheConfig = cacheData.Create<TestCacheFactoryConfiguration>();
             if (!possibleCacheConfig.Succeeded)

@@ -160,7 +160,7 @@ namespace BuildXL.Cache.BasicFilesystem
         }
 
         /// <inheritdoc />
-        public Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null)
+        public Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration = null, PathTable pathTable = null)
         {
             Contract.Requires(cacheData != null);
             return Task.FromResult(InitializeCache(cacheData, activityId));

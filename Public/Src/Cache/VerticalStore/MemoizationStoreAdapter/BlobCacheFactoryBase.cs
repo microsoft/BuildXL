@@ -31,11 +31,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public async Task<Possible<ICache, Failure>> InitializeCacheAsync(
             ICacheConfigData cacheData,
             Guid activityId,
-            IConfiguration configuration = null)
+            IConfiguration configuration = null,
+            PathTable pathTable = null)
         {
             Contract.Requires(cacheData != null);
 
-            var possibleCacheConfig = cacheData.Create<TConfig>(activityId, configuration);
+            var possibleCacheConfig = cacheData.Create<TConfig>(activityId, configuration, pathTable);
             if (!possibleCacheConfig.Succeeded)
             {
                 return possibleCacheConfig.Failure;

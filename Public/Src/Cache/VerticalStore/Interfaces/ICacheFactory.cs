@@ -21,8 +21,9 @@ namespace BuildXL.Cache.Interfaces
         /// <param name="cacheData">ICacheConfigData input data</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <param name="configuration">Configuration object, which may influence how the cache is configured</param>
+        /// <param name="pathTable">Path table associated with the configuration object</param>
         /// <returns>Cache object or a Failure</returns>
-        Task<Possible<ICache, Failure>> InitializeCacheAsync([NotNull]ICacheConfigData cacheData, Guid activityId = default(Guid), IConfiguration configuration = null);
+        Task<Possible<ICache, Failure>> InitializeCacheAsync([NotNull]ICacheConfigData cacheData, Guid activityId = default(Guid), IConfiguration configuration = null, PathTable pathTable = null);
 
         /// <summary>
         /// Validates a configuration object.

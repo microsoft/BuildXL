@@ -167,6 +167,24 @@ jobs:
   # Step 2. Build microsoftInternal=0 using the built bits
   - template: ../common/set-msvc-version.yml
 
+    #Step 3. Check to see if there are any unstaged files in the build and fail the build.
+  - task: PowerShell@2
+    displayName: Check for unstaged files in the build
+    inputs:
+      targetType: inline
+      continueOnError: true
+      script: |
+        $gitStatus = git status --porcelain
+        if (-not [string]::IsNullOrWhiteSpace($gitStatus))
+        {
+            Write-Host "##vso[task.logissue type=error]There are unstaged files in the build."
+            Write-Host "##vso[task.logissue type=error]Please commit these files and re-run the validation."
+            $gitStatus.Split([Environment]::NewLine) | ForEach-Object {
+                Write-Host "##vso[task.logissue type=error]$($_)"
+            }
+            exit 1
+        }
+
   - task: CmdLine@2
     displayName: BuildXL -Use Dev (microsoftInternal=0) 
     inputs:

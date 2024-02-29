@@ -268,7 +268,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static string GetRuntimeFrameworkNameAndVersion()
         {
-#if NET_STANDARD_20
+#if NETSTANDARD2_0
             return ".NETStandard,Version=v2.0";
 #else
             return OperatingSystemHelper.IsDotNetCore

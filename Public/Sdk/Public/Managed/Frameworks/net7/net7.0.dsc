@@ -95,12 +95,7 @@ export const framework : Shared.Framework = {
         "NET6_0",
         "NET6_0_OR_GREATER",
         "NET7_0",
-        "NET7_0_OR_GREATER",
-        
-        // Legacy symbols, not compatible with the official ones described here: https://docs.microsoft.com/en-us/dotnet/standard/frameworks
-        "NET_CORE",
-        "NET_COREAPP",
-        "NET_COREAPP_60"
+        "NET7_0_OR_GREATER"
     ],
 };
 

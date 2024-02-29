@@ -149,7 +149,7 @@ namespace BuildXL.Utilities.Core
 
         private static int GetProcessorId()
         {
-#if NET_STANDARD_20 || NETCOREAPP
+#if NETSTANDARD2_0 || NETCOREAPP
             if (OperatingSystemHelper.IsUnixOS)
             {
             // Net standard version is very weird, because Thread.GetCurrentProcessorId() is not exposed there
@@ -160,7 +160,7 @@ namespace BuildXL.Utilities.Core
             // * use something like https://github.com/Spreads/Spreads.Native/blob/af46e0137e0fbfb5860e7e0996280adb2ae9173e/dotnet/src/Spreads.Native/Cpu.cs
             //   (but the license there won't allow us to use that version as is).
             // * move away from using current processor Id and just use a simpler implementation.
-#if NET_STANDARD_20
+#if NETSTANDARD2_0
                 return Thread.CurrentThread.ManagedThreadId % AssumedLogicalProcessorCount;
 #else
                 return Thread.GetCurrentProcessorId() % AssumedLogicalProcessorCount;

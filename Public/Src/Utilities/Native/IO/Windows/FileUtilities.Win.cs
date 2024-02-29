@@ -869,7 +869,7 @@ namespace BuildXL.Native.IO.Windows
                 FileSecurity fileSecurity = fileInfo.GetAccessControl();
 
                 string userName =
-#if !NET_STANDARD_20
+#if !NETSTANDARD2_0
                 WindowsIdentity.GetCurrent().Name;
 #else
                 $"{Environment.UserDomainName}\\{Environment.UserName}";
@@ -1879,7 +1879,7 @@ namespace BuildXL.Native.IO.Windows
                 {
                     // SID for current user
                     var currentUser =
-#if !NET_STANDARD_20
+#if !NETSTANDARD2_0
                     WindowsIdentity.GetCurrent().Name;
 #else
                     Environment.UserName;

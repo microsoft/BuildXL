@@ -365,7 +365,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public void Serialize(BinaryWriter writer, int length = MaxLength)
 #pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
         {
-#if NET_COREAPP
+#if NETCOREAPP
             // BinaryWriter.Write(Span) is only available for .net core.
             fixed (byte* s = &_bytes.FixedElementField)
             {
@@ -427,7 +427,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 var span = AsSpan(s, length);
                 span = span.Slice(span.Length - 8, length: 8);
-#if NET_COREAPP
+#if NETCOREAPP
                 return BitConverter.ToInt64(span);
 #else
                 return MemoryMarshal.Read<long>(span);

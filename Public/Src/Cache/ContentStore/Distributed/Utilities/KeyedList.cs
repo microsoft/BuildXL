@@ -3,7 +3,7 @@
 
 #if NET_FRAMEWORK
 #define DEFINETRYGET
-#elif NET_STANDARD_20
+#elif NETSTANDARD2_0
 #define DEFINETRYGET
 #endif
 

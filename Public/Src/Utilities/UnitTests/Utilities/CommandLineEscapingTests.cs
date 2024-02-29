@@ -85,7 +85,7 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-#if NET_CORE
+#if NETCOREAPP
 
         [Fact]
         public void ParseEmptyStringReturnsZeroLengthList()

@@ -292,7 +292,7 @@ namespace BuildXL.FrontEnd.Nuget
                             chunkStart = totalLength - MinimalChunkSizeInBytes;
                         }
                     }
-#if NET_COREAPP_60
+#if NET6_0_OR_GREATER
                     using (var chunk = await response.Content.ReadAsStreamAsync(m_cancellationToken))
 #else
                     using (var chunk = await response.Content.ReadAsStreamAsync())

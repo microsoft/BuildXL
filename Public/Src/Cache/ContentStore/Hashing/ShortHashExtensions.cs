@@ -11,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <nodoc />
     public static class ShortHashExtensions
     {
-#if NET_COREAPP
+#if NETCOREAPP
         /// <summary>
         /// Gets a byte representation of <paramref name="hash"/>.
         /// </summary>

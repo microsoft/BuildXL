@@ -253,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public void Serialize(BinaryWriter writer)
         {
-#if NET_COREAPP
+#if NETCOREAPP
             // BinaryWriter.Write(Span) only available on .NET Core
             fixed (byte* p = &_bytes.FixedElementField)
             {

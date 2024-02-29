@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Collections
         public static (int size, int overhead) GetSize(Type type)
         {
 // The functionality is not supported in .net standard case
-#if NET_STANDARD_20
+#if NETSTANDARD2_0
             return (size: -1, overhead: 0);
 #else
             if (type.IsValueType)
@@ -47,7 +47,7 @@ namespace BuildXL.Utilities.Collections
 #endif
         }
 
-#if !NET_STANDARD_20
+#if !NETSTANDARD2_0
         /// <summary>
         /// Return s the size of a reference type instance excluding the overhead.
         /// </summary>
@@ -342,7 +342,7 @@ namespace BuildXL.Utilities.Collections
         {
             return t.GetCustomAttribute(typeof(UnsafeValueTypeAttribute)) != null;
         }
-#endif // NET_STANDARD_20
+#endif // NETSTANDARD2_0
 
 #if !NET5_0_OR_GREATER
         /// <summary>

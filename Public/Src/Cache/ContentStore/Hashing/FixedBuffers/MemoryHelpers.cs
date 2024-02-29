@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public static class MemoryHelpers
     {
-#if NET_COREAPP
+#if NETCOREAPP
         /// <summary>
         /// Interprets a struct instance <paramref name="value"/> as an array of bytes.
         /// </summary>

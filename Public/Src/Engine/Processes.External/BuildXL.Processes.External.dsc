@@ -18,6 +18,7 @@ namespace Processes.External {
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 importFrom("System.Text.Json").pkg,
                 importFrom("System.Memory").pkg,
+                importFrom("System.Threading.Tasks.Extensions").pkg,
                 BuildXLSdk.NetFx.System.Net.Http.dll,
                 NetFx.Netstandard.dll
             ]),

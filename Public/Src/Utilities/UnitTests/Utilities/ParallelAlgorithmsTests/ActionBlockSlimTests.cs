@@ -3,11 +3,12 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.ParallelAlgorithms;
 using FluentAssertions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -28,6 +29,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
 
         // Tests that cover cancellation
         [Fact]
+        [SuppressMessage("AsyncUsage", "AsyncFixer02")]
         public async Task External_Cancellation_Cancels_Completion()
         {
             var cts = new CancellationTokenSource();
@@ -40,6 +42,7 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
         
         [Fact]
+        [SuppressMessage("AsyncUsage", "AsyncFixer02")]
         public async Task External_Cancellation_Allows_Callbacks_To_Finish()
         {
             bool cancellationIsChecked = false;

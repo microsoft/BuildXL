@@ -519,5 +519,37 @@ namespace BuildXL.Utilities.Core.Tasks
             /// </summary>
             public int CurrentCount => m_semaphore?.CurrentCount ?? -1;
         }
+
+        // Starting .Net8, CancellationTokenSource has CancelAsync() method. To make AsyncFixer happy and to keep our
+        // code readable, we add this extension method. Though it has 'async' in the name it's not an async method
+        // in .net versions prior to .Net8.
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// If async cancellation is supported by the runtime, communicates request for cancellation asynchronously.
+        /// Otherwise, communicates the request synchronously.
+        /// </summary>
+        /// <remarks>
+        /// Use this extension method when you need to cancel a CancellationTokenSource inside of an async method.
+        /// The return value must be awaited.
+        /// </remarks>
+        public static async ValueTask CancelTokenAsyncIfSupported(this CancellationTokenSource cts)
+        {
+            await cts.CancelAsync();
+        }
+#else
+        /// <summary>
+        /// If async cancellation is supported by the runtime, communicates request for cancellation asynchronously.
+        /// Otherwise, communicates the request synchronously.
+        /// </summary>
+        /// <remarks>
+        /// Use this extension method when you need to cancel a CancellationTokenSource inside of an async method.
+        /// The return value must be awaited.
+        /// </remarks>
+        public static ValueTask CancelTokenAsyncIfSupported(this CancellationTokenSource cts)
+        {
+            cts.Cancel();
+            return default;
+        }
+#endif
     }
 }

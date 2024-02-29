@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core.Tasks;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -84,7 +85,7 @@ namespace ContentStoreTest.Utils
                 TaskScheduler.UnobservedTaskException += taskSchedulerOnUnobservedTaskException;
 
                 // Cancelling the operation even before starting it.
-                cts.Cancel();
+                await cts.CancelTokenAsyncIfSupported();
 
                 // Using task completion source as an event to force the task completion in a specific time.
                 var tcs = new TaskCompletionSource<object>();

@@ -2,18 +2,20 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Instrumentation.Common;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using System.Threading;
-using System.Collections.Generic;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Engine.Tracing;
 using BuildXL.Cache.ContentStore.Grpc;
-using System.Security.Cryptography.X509Certificates;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
+
 #if NETCOREAPP
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -156,7 +158,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 #if NETCOREAPP
             if (m_kestrelServer != null)
             {
-                m_cancellationSource.Cancel();
+                await m_cancellationSource.CancelTokenAsyncIfSupported();
                 await m_kestrelServer.WaitForShutdownAsync();
             }
 #endif

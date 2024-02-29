@@ -109,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             else
             {
                 // Clean up the delay task.
-                delayCancellation.Cancel();
+                await delayCancellation.CancelTokenAsyncIfSupported();
             }
 
             return await task;

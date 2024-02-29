@@ -2923,7 +2923,7 @@ namespace BuildXL
             {
                 // Timeout time specified by CB has already passed
                 Logger.Log.CbTimeoutTooLow(m_appLoggingContext, earlyCbTimeoutMins);
-                m_cancellationSource.Cancel();
+                await m_cancellationSource.CancelTokenAsyncIfSupported();
                 return;
             }
 
@@ -2935,7 +2935,7 @@ namespace BuildXL
                 m_appLoggingContext,
                 earlyCbTimeoutMins,
                 Convert.ToInt32(TimeSpan.FromMilliseconds(msUntilTimeout).TotalMinutes));
-            m_cancellationSource.Cancel();
+            await m_cancellationSource.CancelTokenAsyncIfSupported();
         }
     }
 

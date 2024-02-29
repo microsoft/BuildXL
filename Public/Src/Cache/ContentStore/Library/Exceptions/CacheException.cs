@@ -76,6 +76,9 @@ namespace BuildXL.Cache.ContentStore.Exceptions
         /// </summary>
         /// <param name="info">Info that holds serialized data about exception</param>
         /// <param name="context">Context that contains information about source or destination</param>
+#if NET8_0_OR_GREATER
+        [Obsolete(DiagnosticId = "SYSLIB0051")]
+#endif
         protected CacheException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {

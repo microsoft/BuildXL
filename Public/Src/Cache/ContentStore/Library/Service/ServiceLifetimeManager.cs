@@ -114,7 +114,9 @@ namespace BuildXL.Cache.ContentStore.Service
             using (var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token))
             {
                 var token = cts.Token;
+#pragma warning disable AsyncFixer02  // cts.CancelAsync() should be used instead
                 WaitForDeletionAsync(ServiceShutdownFile(serviceId), () => cts.Cancel(), token).Forget();
+#pragma warning restore AsyncFixer02
                 return await runAsync(token);
             }
         }

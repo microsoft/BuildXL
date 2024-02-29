@@ -591,7 +591,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 // Note that this race condition should be uncommon, because it depends on the timeout firing at a very
                 // precise time (basically equivalent to the amount of time it takes the copy scheduler to get to the
                 // copy).
-                cancelCopyCts.Cancel();
+                await cancelCopyCts.CancelTokenAsyncIfSupported();
 
                 Tracer.TrackMetric(request.Context, _timeoutMetricNames[priority], 1);
                 return CopySchedulerResult<T>.TimeOut(_configuration.SchedulerTimeout);

@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             var cts = new CancellationTokenSource();
             var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
 
-            cts.Cancel();
+            await cts.CancelTokenAsyncIfSupported();
             bool callbackIsCalled = false;
 
             Func<Task<BoolResult>> operation = async () =>
@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             var cts = new CancellationTokenSource();
             var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
 
-            cts.Cancel();
+            await cts.CancelTokenAsyncIfSupported();
             bool callbackIsCalled = false;
             var r = context.PerformNonResultOperationAsync(
                 tracer,

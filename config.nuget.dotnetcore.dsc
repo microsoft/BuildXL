@@ -5,11 +5,13 @@ const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
 const core60Version = "6.0.22";
 const core70Version = "7.0.11";
+const core80Version = "8.0.2";
 
 // Microsoft.NETCore.Platforms has become out of sync with the rest of the packages that use core60Version
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
 const core60VersionPlatforms = "6.0.11"; 
 const core70VersionPlatforms = "7.0.4";
+const core80VersionPlatforms = "8.0.0-preview.7.23375.6";
 
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";
@@ -95,6 +97,40 @@ export const pkgs = [
     { id: "Microsoft.NETCore.App.Host.linux-x64", version: core70Version, alias: "Microsoft.NETCore.App.Host.linux-x64.7.0" },
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core70Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.7.0" },
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core70Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.7.0" },    
+
+    // .NET 8
+
+    // .NET Core 8.0 Dependencies
+    { id: "Microsoft.NETCore.App.Ref", version: core80Version, alias: "Microsoft.NETCore.App.Ref80",
+        // This dll has a partial copy of System.Text.Json which causes collisions with real System.Text.Json
+        filesToExclude: [r`analyzers/dotnet/cs/System.Text.Json.SourceGeneration.dll`] },
+
+    { id: "Microsoft.NETCore.Platforms", version: core80VersionPlatforms, alias: "Microsoft.NETCore.Platforms.8.0" },
+    
+    // .NET Core Self-Contained Deployment
+    { id: "Microsoft.NETCore.DotNetHostResolver", version: core80Version, alias: "Microsoft.NETCore.DotNetHostResolver.8.0" },
+
+    { id: "Microsoft.NETCore.DotNetHostPolicy", version: core80Version, alias: "Microsoft.NETCore.DotNetHostPolicy.8.0" },
+
+    { id: "Microsoft.NETCore.DotNetAppHost", version: core80Version, alias: "Microsoft.NETCore.DotNetAppHost.8.0" },
+
+    // .NET Core win-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.win-x64", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.8.0" },
+    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.8.0" },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.8.0" },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.8.0" },
+
+    // .NET Core osx-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core80Version, alias: "Microsoft.NETCore.App.Host.osx-x64.8.0" },
+    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core80Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.8.0"},
+    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: core80Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.8.0" },
+    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: core80Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.8.0" },
+
+    // .NET Core linux-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core80Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.8.0" },
+    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core80Version, alias: "Microsoft.NETCore.App.Host.linux-x64.8.0" },
+    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core80Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.8.0" },
+    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core80Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.8.0" },
 
     { id: "runtime.native.System", version: pkgVersion },
     { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS", "unix" ] },

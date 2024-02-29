@@ -267,14 +267,14 @@ export function compile(inputArgs: Arguments) : Result {
  */
 export function getDotNetCoreVersion(cscArguments: Arguments): Shared.DotNetCoreVersion {
     if (!cscArguments.defines) {
-        return "net6.0";
-    }
-
-    if (cscArguments.defines.some(e => e === "NET_COREAPP_70")) {
         return "net7.0";
     }
 
-    return "net6.0";
+    if (cscArguments.defines.some(e => e === "NET8_0")) {
+        return "net8.0";
+    }
+
+    return "net7.0";
 }
 
 /**

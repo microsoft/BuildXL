@@ -20,11 +20,13 @@ namespace BuildXL.Cache.Host.Service
         public LoggingAdapter(string name, Context context, LogLevel minLogLevel = LogLevel.Error) =>
             (_name, _context, _minLogLevel) = (name, context, minLogLevel);
 
+#pragma warning disable CS8633
         public IDisposable BeginScope<TState>(TState state) 
 #if NET7_0_OR_GREATER
         where TState : notnull 
 #endif
         => default!;
+#pragma warning restore CS8633
 
         public ILogger CreateLogger(string categoryName)
         {

@@ -1,24 +1,24 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Blob;
-using BuildXL.Cache.ContentStore.Interfaces.Auth;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
-using System.Linq;
-using BuildXL.Cache.ContentStore.Tracing;
-using Azure.Storage.Blobs.ChangeFeed;
-using BuildXL.Utilities.Core.Tasks;
 using System;
-using Azure;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
-using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
+using System.Threading.Tasks;
+using Azure;
+using Azure.Storage.Blobs.ChangeFeed;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Timers;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Utilities.Core.Tasks;
+using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Library
 {
@@ -45,7 +45,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
     }
 
     /// <summary>
-    /// Reads events from the Azure Storage change feed for each accoutn in the cache and dispatches them to the database updater. This ensures that
+    /// Reads events from the Azure Storage change feed for each account in the cache and dispatches them to the database updater. This ensures that
     /// our view of the remote is accurate.
     /// </summary>
     public class AzureStorageChangeFeedEventDispatcher
@@ -250,7 +250,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 if (!lockResult.Succeeded || !lockResult.Value.Succeeded)
                 {
                     // We've failed to process a page. This is unrecoverable. Cancel further page processing.
-                    cts.Cancel();
+                    await cts.CancelTokenAsyncIfSupported();
                     return lockResult.Succeeded ? lockResult.Value : lockResult;
                 }
 

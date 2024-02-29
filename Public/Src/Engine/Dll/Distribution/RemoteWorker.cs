@@ -519,8 +519,7 @@ namespace BuildXL.Engine.Distribution
             {
                 // For the dynamic workers whose locations are still unknown, we should not wait for the attachment period when they early-released.
                 // Those workers can already terminate after they get 'Released' result from their 'Hello' call. 
-
-                m_attachCancellation.Cancel(); // This will complete m_firstCallCompletion
+                await m_attachCancellation.CancelTokenAsyncIfSupported(); // This will complete m_firstCallCompletion
             }
             else if (!m_isConnectionLost)
             {
@@ -535,7 +534,7 @@ namespace BuildXL.Engine.Distribution
             {
                 // If the scheduler is completed before Attach call gets completed, we cancel it and we do not wait more.
                 // In CloudBuild, when the orchestrator is terminated, all workers will be terminated as well even if their bxl process is still alive.
-                m_attachCancellation.Cancel();
+                await m_attachCancellation.CancelTokenAsyncIfSupported();
             }
 
             while (true)

@@ -560,7 +560,7 @@ namespace BuildXL.Scheduler.Cache
                 if (StoreAccessor != null)
                 {
                     // Stop garbage collection
-                    m_garbageCollectCancellation.Cancel();
+                    await m_garbageCollectCancellation.CancelTokenAsyncIfSupported();
                     // Wait for garbage collection to complete
                     await m_garbageCollectTask;
 

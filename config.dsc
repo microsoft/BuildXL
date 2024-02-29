@@ -340,7 +340,7 @@ config({
                 { id: "boost", version: "1.71.0.0" },
 
                 // Needed for SBOM Generation
-                { id: "Microsoft.Extensions.Logging.Abstractions", version: "7.0.0" },
+                { id: "Microsoft.Extensions.Logging.Abstractions", version: "8.0.0" },
                 { id: "packageurl-dotnet", version: "1.1.0" },
                 { id: "System.Reactive", version: "4.4.1" },
 
@@ -360,10 +360,9 @@ config({
         importFile(f`config.microsoftInternal.dsc`).resolver,
 
         // .NET Runtimes.
-        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-External\module.config.dsc`] },
-        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-5-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-6-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-7-External\module.config.dsc`] },
+        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-8-External\module.config.dsc`] },
 
         {
             kind: "Download",
@@ -374,6 +373,26 @@ config({
                     moduleName: "Apple.Darwin.Xnu",
                     url: "https://github.com/apple/darwin-xnu/archive/xnu-4903.221.2.tar.gz",
                     hash: "VSO0:D6D26AEECA99240D2D833B6B8B811609B9A6E3516C0EE97A951B64F9AA4F90F400",
+                    archiveType: "tgz",
+                },
+
+                // DotNet Core Runtime 8.0
+                {
+                    moduleName: "DotNet-Runtime.win-x64.8.0", 
+                    url: "https://download.visualstudio.microsoft.com/download/pr/8abf4502-4a22-4a2e-bea0-9fe73379d62e/88146c1d41e53e08f9dbc92a217143de/dotnet-runtime-8.0.2-win-x64.zip",
+                    hash: "VSO0:D058BFA37752D70EDA970533246C1725703EF34A346C86A4D7723D0B6694C3AD00",
+                    archiveType: "zip",
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.8.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/414af43f-fdc6-4e8e-bbff-8b544a6627a8/0719a2eafa1d0d5f73ee0a7aae4ce670/dotnet-runtime-8.0.2-osx-x64.tar.gz",
+                    hash: "VSO0:9BDA5E581D85949C35E5D40DD1FBBA2FCE4AC3165D18AEFADE240450F3F59BE400",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.8.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/307e4bf7-53c1-4b03-a2e5-379151ab3a04/140e7502609d45dfd83e4750b4bb5178/dotnet-runtime-8.0.2-linux-x64.tar.gz",
+                    hash: "VSO0:4D25DA4C24F952B189F7426C9A3E673C55134C6FB1D84E7BA05313ADE12FB72200",
                     archiveType: "tgz",
                 },
 
@@ -417,46 +436,6 @@ config({
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 5.0
-                {
-                    moduleName: "DotNet-Runtime.win-x64.5.0.100",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/e285f4d2-03b3-44b3-960c-4897d24b36a6/3e2458ba37e913aad84394253c0a50da/dotnet-runtime-5.0.10-win-x64.zip",
-                    hash: "VSO0:23E48E45703DAC800E97ADE38E43CACB8518D895F72AAB9EB426D9ADE837F6C200",
-                    archiveType: "zip",
-                },
-                {
-                    moduleName: "DotNet-Runtime.osx-x64.5.0.100",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/112291a5-e3e0-4741-9c66-c9cea6231f3f/3ebd75dfda0492fcbf50c6f939762c46/dotnet-runtime-5.0.0-osx-x64.tar.gz",
-                    hash: "VSO0:FA5B6AD52AB940BD56BFAE1A1D841885071EE82A356C8D7EA82FCCAE562920FB00",
-                    archiveType: "tgz",
-                },
-                {
-                    moduleName: "DotNet-Runtime.linux-x64.5.0.100",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/4bb93b65-658d-4c6c-b4e2-32ec2a3d8aa6/ca3a11e65bcbc6dbb30330a54fcc1059/dotnet-runtime-5.0.10-linux-x64.tar.gz",
-                    hash: "VSO0:A7B32570216C6EBF2EA18584402EE03FB58246483A49977877D20B9654A321F300",
-                    archiveType: "tgz",
-                },
-
-                // DotNet Core Runtime 3.1
-                {
-                    moduleName: "DotNet-Runtime.win-x64.3.1.19",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/931d585f-d14b-4714-93e7-b6c648b2aabd/8040f6c391002ae09b3e79662033eeb1/aspnetcore-runtime-3.1.19-win-x64.zip",
-                    hash: "VSO0:AA74CA39625548953060640B7F2D2B535A12E49B2E8995E66E86C774F2D6C4FC00",
-                    archiveType: "zip",
-                },
-                {
-                    moduleName: "DotNet-Runtime.osx-x64.3.1.19",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/d8fc8a1f-8d5f-4ab9-b847-5a265231987f/f634e0332753e0a436d16c7a9e0614dc/aspnetcore-runtime-3.1.19-osx-x64.tar.gz",
-                    hash: "VSO0:51F3BFF42A88CA9DE4034CC6EE895AB9151498DE380EA9A3B3D41E0CB7BE607600",
-                    archiveType: "tgz",
-                },
-                {
-                    moduleName: "DotNet-Runtime.linux-x64.3.1.19",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/7a050aa5-7842-4bfa-a1c9-67c6c5995ea9/5592f443610943d5ca738ae92309dfab/aspnetcore-runtime-3.1.19-linux-x64.tar.gz",
-                    hash: "VSO0:C6CA26DD12EBC3A35AEEFAF400DA970F2AAAA6864EEF660247754594F4B330DF00",
-                    archiveType: "tgz",
-                },
-                
                 // The following are needed for dotnet core MSBuild test deployments
                 {
                     moduleName: "DotNet-Runtime.win-x64.2.2.2",
@@ -518,6 +497,11 @@ config({
                 targetFramework: "net472",
                 targetRuntime: "win-x64",
             },
+            DebugNet8: {
+                configuration: "debug",
+                targetFramework: "net8.0",
+                targetRuntime: "win-x64",
+            },
             DebugNet7: {
                 configuration: "debug",
                 targetFramework: "net7.0",
@@ -538,6 +522,11 @@ config({
                 targetFramework: "net7.0",
                 targetRuntime: "linux-x64",
             },
+            DebugLinuxNet8: {
+                configuration: "debug",
+                targetFramework: "net7.0",
+                targetRuntime: "linux-x64",
+            },
             // Release
             Release: {
                 configuration: "release",
@@ -547,6 +536,11 @@ config({
             ReleaseNet472: {
                 configuration: "release",
                 targetFramework: "net472",
+                targetRuntime: "win-x64",
+            },
+            ReleaseNet8: {
+                configuration: "release",
+                targetFramework: "net8.0",
                 targetRuntime: "win-x64",
             },
             ReleaseNet7: {
@@ -567,6 +561,11 @@ config({
             ReleaseLinux: {
                 configuration: "release",
                 targetFramework: "net7.0",
+                targetRuntime: "linux-x64",
+            },
+            ReleaseLinuxNet8: {
+                configuration: "release",
+                targetFramework: "net8.0",
                 targetRuntime: "linux-x64",
             },
         }

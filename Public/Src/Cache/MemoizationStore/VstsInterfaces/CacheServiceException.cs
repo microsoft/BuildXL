@@ -60,6 +60,9 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
         /// <summary>
         /// Initializes a new instance of the <see cref="CacheServiceException"/> class.
         /// </summary>
+#if NET8_0_OR_GREATER
+        [Obsolete(DiagnosticId = "SYSLIB0051")]
+#endif
         protected CacheServiceException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
@@ -74,6 +77,9 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
         /// <inheritdoc />
 #if (!NET5_0_OR_GREATER)
         [SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
+#endif
+#if NET8_0_OR_GREATER
+        [Obsolete(DiagnosticId = "SYSLIB0051")]
 #endif
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {

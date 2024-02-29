@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Processes.External;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Processes.Remoting
 {
@@ -134,7 +135,7 @@ namespace BuildXL.Processes.Remoting
         /// <inheritdoc />
         public override async Task KillAsync()
         {
-            m_killProcessCts.Cancel();
+            await m_killProcessCts.CancelTokenAsyncIfSupported();
 
             if (m_remoteProcess != null)
             {

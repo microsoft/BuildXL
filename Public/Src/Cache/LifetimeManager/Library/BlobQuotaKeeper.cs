@@ -237,7 +237,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                         if (currentSize <= maxSize)
                         {
-                            underQuotaCts.Cancel();
+                            await underQuotaCts.CancelTokenAsyncIfSupported();
                         }
                     }
                     catch (Exception ex)
@@ -312,7 +312,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     if (currentSize <= maxSize)
                     {
-                        underQuotaCts.Cancel();
+                        await underQuotaCts.CancelTokenAsyncIfSupported();
                     }
                 },
                 underQuotaCts.Token);

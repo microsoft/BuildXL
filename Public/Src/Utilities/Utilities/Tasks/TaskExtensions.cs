@@ -42,11 +42,11 @@ namespace BuildXL.Utilities.Core.Tasks
             var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
             var semaphore = new SemaphoreSlim(degreeOfParallelism, degreeOfParallelism);
 
-            var result = await Task.WhenAll(source.Select(e => ProcessAsync(e)));
+            var result = await Task.WhenAll(source.Select(e => processAsync(e)));
 
             return result.Where(r => r != null).Select(r => r.Value).ToArray();
 
-            async Task<Possible<TResult>?> ProcessAsync(T value)
+            async Task<Possible<TResult>?> processAsync(T value)
             {
                 if (cts.Token.IsCancellationRequested)
                 {
@@ -61,7 +61,7 @@ namespace BuildXL.Utilities.Core.Tasks
                     var selectorResult = await selector(value);
                     if (!selectorResult.Succeeded)
                     {
-                        cts.Cancel();
+                        await cts.CancelTokenAsyncIfSupported();
                     }
                     return selectorResult;
                 }
@@ -71,7 +71,7 @@ namespace BuildXL.Utilities.Core.Tasks
                 }
                 catch (Exception e)
                 {
-                    cts.Cancel();
+                    await cts.CancelTokenAsyncIfSupported();
 
                     // Use ExceptionDispatchInfo for preserving the original stack trace.
                     // 'throw;' unfortunately messes up with it on the Desktop CLR.

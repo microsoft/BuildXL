@@ -55,7 +55,8 @@ namespace LanguageService.Server {
                 skipPdb: true,
                 // CODESYNC: \Public\Src\FrontEnd\MsBuild\BuildXL.FrontEnd.MsBuild.dsc
                 // The vscode vsix does not need to have the vbcscompiler from the msbuild frontend since that is only used during build, 
-                // not during graph construction. This saves a lot of Mb's to keep us under the size limmit of the marketplace
+                // not during graph construction. This saves a lot of Mb's to keep us under the size limmit of the marketplace.
+                // The list of excluded items should match the qualifier declared in Public\Src\Tools\VBCSCompilerLogger\VBCSCompilerLogger.dsc.
                 excludedDeployableItems: [
                     importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "net472" }).dll,
                     importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "net7.0" }).dll,

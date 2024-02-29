@@ -209,7 +209,7 @@ public sealed class GrpcCopyClient : StartupShutdownSlimBase
             catch (TimeoutException t)
             {
                 // Trying to cancel the back end operation as well.
-                cts.Cancel();
+                await cts.CancelTokenAsyncIfSupported();
                 result = new CopyFileResult(CopyResultCode.TimeToFirstByteTimeoutError, t);
                 return result;
             }
@@ -412,7 +412,7 @@ public sealed class GrpcCopyClient : StartupShutdownSlimBase
             }
             catch (TimeoutException t)
             {
-                cts.Cancel();
+                await cts.CancelTokenAsyncIfSupported();
                 result = new PushFileResult(CopyResultCode.TimeToFirstByteTimeoutError, t);
                 return result;
             }
@@ -446,7 +446,9 @@ public sealed class GrpcCopyClient : StartupShutdownSlimBase
                     // serverIsDoneSource.Cancel will throw ObjectDisposedException.
                     // This exception is not observed because the stack could've been unwound before
                     // the result of this method is awaited.
+#pragma warning disable AsyncFixer02
                     IgnoreObjectDisposedException(() => cts.Cancel());
+#pragma warning restore AsyncFixer02
                 });
 
             result = await _bandwidthChecker.CheckBandwidthAtIntervalAsync(

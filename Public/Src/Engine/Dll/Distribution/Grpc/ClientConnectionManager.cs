@@ -528,7 +528,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 // WaitForStateChangedAsync hangs when you dispose/shutdown the channel when it is 'idle'.
                 // That's why, we pass a cancellation token to WaitForStateChangedAsync and cancel 
-                m_exitTokenSource.Cancel();
+                await m_exitTokenSource.CancelTokenAsyncIfSupported();
             }
 
             if (m_monitorConnectionTask != null)

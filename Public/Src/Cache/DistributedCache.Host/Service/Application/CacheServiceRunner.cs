@@ -144,7 +144,9 @@ namespace BuildXL.Cache.Host.Service
                 using var cts = new CancellationTokenSource();
                 LifetimeManager.OnTeardownRequested += args =>
                 {
+#pragma warning disable AsyncFixer02
                     cts.Cancel();
+#pragma warning restore AsyncFixer02
                 };
 
                 using var cancellableContext = new CancellableOperationContext(context, cts.Token);

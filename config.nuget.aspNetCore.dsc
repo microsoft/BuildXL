@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-const aspVersion = "7.0.0";
+const aspVersion = "8.0.0";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
@@ -10,6 +10,9 @@ const asp6RuntimeVersion = "6.0.27";
 
 const asp7RefVersion = "7.0.16";
 const asp7RuntimeVersion = "7.0.16";
+
+const asp8RefVersion = "8.0.2";
+const asp8RuntimeVersion = "8.0.2";
 
 export const pkgs = [
     // aspnet web api
@@ -47,4 +50,12 @@ export const pkgs = [
         filesToExclude: [r`runtimes/linux-x64/lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/linux-x64/lib/net7.0/Microsoft.Extensions.Logging.dll`] },
     { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp7RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.7.0.0", 
         filesToExclude: [r`runtimes/osx-x64/lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/osx-x64/lib/net7.0/Microsoft.Extensions.Logging.dll`] },
+
+    { id: "Microsoft.AspNetCore.App.Ref", version: asp8RefVersion, alias: "Microsoft.AspNetCore.App.Ref.8.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp8RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.8.0.0", 
+        filesToExclude: [r`runtimes/win-x64/lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/win-x64/lib/net8.0/Microsoft.Extensions.Logging.dll`] },
+    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp8RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.8.0.0", 
+        filesToExclude: [r`runtimes/linux-x64/lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/linux-x64/lib/net8.0/Microsoft.Extensions.Logging.dll`] },
+    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp8RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.8.0.0", 
+        filesToExclude: [r`runtimes/osx-x64/lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/osx-x64/lib/net8.0/Microsoft.Extensions.Logging.dll`] },
 ];

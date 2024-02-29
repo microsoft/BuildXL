@@ -290,7 +290,11 @@ namespace BuildXL.Utilities.Collections
         {
             try
             {
-                return FormatterServices.GetUninitializedObject(t);
+#if NET5_0_OR_GREATER
+                return System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(t);
+#else
+                return System.Runtime.Serialization.FormatterServices.GetUninitializedObject(t);
+#endif
             }
             catch (TypeInitializationException)
             {

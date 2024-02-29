@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -112,7 +113,7 @@ namespace ContentStoreTest.Utils
             var cts = new CancellationTokenSource();
             var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
             var component = new Component();
-            cts.Cancel();
+            await cts.CancelTokenAsyncIfSupported();
 
             using var cancellableContext = component.DelayedShutdownTracker(context, GetDelay());
 

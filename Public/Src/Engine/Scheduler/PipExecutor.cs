@@ -1958,7 +1958,9 @@ namespace BuildXL.Scheduler
 
                         using (operationContext.StartAsyncOperation(PipExecutorCounter.ResourceLimitCancelProcessDuration))
                         {
+#pragma warning disable AsyncFixer02
                             innerResourceLimitCancellationTokenSource.Cancel();
+#pragma warning restore AsyncFixer02
                         }
                     });
 
@@ -1978,7 +1980,7 @@ namespace BuildXL.Scheduler
                 var aggregatePipProperties = new Dictionary<string, int>();
                 IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleDynamicOutputs = null;
 
-                // A collection of formatted semistable hashes for pips which will have verbose sandbox logging enableed. 
+                // A collection of formatted semistable hashes for pips which will have verbose sandbox logging enabled. 
                 var isVerboseLoggingEnabled = environment.PipSpecificPropertiesConfig?.PipHasProperty(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, pip.SemiStableHash) == true;
 
                 // Retry pip count up to limit if we produce result without detecting file access.

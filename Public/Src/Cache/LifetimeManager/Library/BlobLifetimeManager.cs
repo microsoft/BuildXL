@@ -19,6 +19,7 @@ using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Library
 {
@@ -285,7 +286,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                 context,
                                 $"Failed to renew lease on the blob cache. Aborting since this could lead to multiple GC runs running at the same time.");
 
-                            cts.Cancel();
+                            await cts.CancelTokenAsyncIfSupported();
                         }
                     },
                     period: TimeSpan.FromMinutes(5),

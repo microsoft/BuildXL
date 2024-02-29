@@ -117,7 +117,9 @@ namespace BuildXL.Cache.Host.Service
             {
                 LifetimeManager.OnTeardownRequested += _ =>
                 {
+#pragma warning disable AsyncFixer02
                     cts.Cancel();
+#pragma warning restore AsyncFixer02
                 };
             }
             

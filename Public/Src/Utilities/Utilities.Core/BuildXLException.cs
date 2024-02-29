@@ -52,6 +52,9 @@ namespace BuildXL.Utilities.Core
             }
         }
 
+#if NET8_0_OR_GREATER
+        [Obsolete(DiagnosticId = "SYSLIB0051")]
+#endif
         private BuildXLException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
@@ -59,6 +62,9 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <inheritdoc />
+#if NET8_0_OR_GREATER
+        [Obsolete(DiagnosticId = "SYSLIB0051")]
+#endif
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.AddValue(ExceptionRootCauseName, (int)m_rootCause);

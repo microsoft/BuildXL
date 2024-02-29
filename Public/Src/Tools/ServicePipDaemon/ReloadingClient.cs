@@ -145,7 +145,7 @@ namespace Tool.ServicePipDaemon
             {
                 if (await Task.WhenAny(task, Task.Delay(timeout)) != task)
                 {
-                    timeoutToken.Cancel();
+                    await timeoutToken.CancelTokenAsyncIfSupported();
                     throw new TimeoutException();
                 }
             }

@@ -16,7 +16,8 @@ namespace Scheduler {
                 NetFx.System.Text.Encoding.dll,
                 NetFx.Netstandard.dll,
                 importFrom("System.Text.Json").pkg,
-                importFrom("System.Collections.Immutable").pkg
+                importFrom("System.Collections.Immutable").pkg,
+                importFrom("System.Threading.Tasks.Extensions").pkg
             ]),
             ...addIfLazy(BuildXLSdk.isDotNetCore, () => [
                 importFrom("BuildXL.Utilities").PackedTable.dll,

@@ -143,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public async Task SetDatabaseModeAsync(bool isDatabaseWriteable)
         {
-            _garbageCollectionCts.Cancel();
+            await _garbageCollectionCts.CancelTokenAsyncIfSupported();
             await _garbageCollectionTask;
 
             lock (_garbageCollectionLock)
@@ -207,7 +207,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             NagleOperationTracer?.Dispose();
 
-            _garbageCollectionCts.Cancel();
+            await _garbageCollectionCts.CancelTokenAsyncIfSupported();
             await _garbageCollectionTask;
             lock (_garbageCollectionLock)
             {

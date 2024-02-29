@@ -17,8 +17,12 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
     public class GlobalProperties : ReadOnlyDictionary<string, string>
     {
         /// <nodoc/>
+#if NET8_0_OR_GREATER
+        public static new readonly GlobalProperties Empty = new();
+#else
         public static readonly GlobalProperties Empty = new();
-        
+#endif
+
         private GlobalProperties() : base(new Dictionary<string, string>())
         {
         }

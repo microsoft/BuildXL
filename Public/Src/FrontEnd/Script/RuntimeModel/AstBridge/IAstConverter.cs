@@ -31,6 +31,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
         }
 
+#if NET8_0_OR_GREATER
+        [Obsolete(DiagnosticId = "SYSLIB0051")]
+#endif
         public ConversionException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         { }

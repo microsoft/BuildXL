@@ -73,7 +73,7 @@ namespace ContentStoreTest.Service
             using var testDirectory = new DisposableDirectory(_fileSystem.Value);
             var cts = new CancellationTokenSource();
             var manager = Create(testDirectory.Path, cts, out var context);
-            cts.Cancel();
+            await cts.CancelTokenAsyncIfSupported();
 
             var interruptableServiceTask = manager.RunInterruptableServiceAsync(context, InterruptableServiceId, async token =>
             {

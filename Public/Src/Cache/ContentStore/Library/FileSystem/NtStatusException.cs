@@ -48,6 +48,9 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <summary>
         ///     Initializes a new instance of the <see cref="NTStatusException" /> class.
         /// </summary>
+#if NET8_0_OR_GREATER
+        [Obsolete(DiagnosticId = "SYSLIB0051")]
+#endif
         protected NTStatusException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
@@ -69,6 +72,9 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
+#if NET8_0_OR_GREATER
+        [Obsolete(DiagnosticId = "SYSLIB0051")]
+#endif
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.AddValue("StatusCode", _statusCode);

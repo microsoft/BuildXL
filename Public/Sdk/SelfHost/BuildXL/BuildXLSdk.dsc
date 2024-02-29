@@ -133,13 +133,13 @@ export interface InternalsVisibleToArguments {
  * Returns true if the current qualifier is targeting .NET Core or .NET Standard
  */
 @@public
-export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0";
+export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0" || qualifier.targetFramework === "net8.0";
 
 /**
  * Returns true if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCore : boolean = qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0";
+export const isDotNetCore : boolean = qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0" || qualifier.targetFramework === "net8.0";
 
 @@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net472";
@@ -170,7 +170,7 @@ export const targetFrameworkMatchesCurrentHost =
 export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
     // Running tests for .NET Core App 3.0, .NET 5 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "net6.0" && qualifier.targetFramework !== "net7.0" && qualifier.targetFramework !== "net472") ||
+    (qualifier.targetFramework !== "net6.0" && qualifier.targetFramework !== "net7.0" && qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net472") ||
     !targetFrameworkMatchesCurrentHost;
 
 /***
@@ -910,7 +910,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     // Required members is needed for non .net7 target frameworks.
     // Uncomment once the .net7 PR is in.
-    if (qualifier.targetFramework !== "net7.0" && args.addPolySharpAttributes !== false) {
+    if (qualifier.targetFramework !== "net7.0" && qualifier.targetFramework !== "net8.0" && args.addPolySharpAttributes !== false) {
         polySharpAttributeFiles = polySharpAttributeFiles.concat([polySharpAttributes.required, polySharpAttributes.setsRequiredMembers, polySharpAttributes.compilerFeatureRequired, polySharpAttributes.stringSyntax]);
     }
 
@@ -980,7 +980,7 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 /** Returns true if test should use QTest framework. */
 function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
     return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
-        && !isDotNetCore                                      // Disable QTest for .net 6 & 7 for now.
+        && !isDotNetCore                                      // Disable QTest for .net 6 & 7 & 8 for now.
         && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
 }
 

@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Utilities.Core.Tasks;
 
 #nullable enable
 
@@ -136,8 +137,8 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                     if (currentSpeed == 0 || currentSpeed < minimumSpeedInMbPerSec)
                     {
-                        copyCancellation.Cancel();
-                        
+                        await copyCancellation.CancelTokenAsyncIfSupported();
+
                         var totalBytesCopied = position - startPosition;
                         var result = getErrorResult(
                             $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {totalBytesCopied} bytes copied (received {bytesTransferredPerIteration} bytes in {configBandwidthCheckInterval.TotalSeconds} seconds).");

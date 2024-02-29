@@ -2,12 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.ParallelAlgorithms;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.Utilities.ParallelAlgorithmsTests;
 using Xunit;
@@ -24,7 +25,9 @@ namespace Test.BuildXL.Utilities
             using var awaitable = cts.Token.ToAwaitable();
             Assert.False(awaitable.CompletionTask.IsCompleted);
 
+#pragma warning disable AsyncFixer02
             cts.Cancel();
+#pragma warning restore AsyncFixer02
             return awaitable.CompletionTask;
         }
 
@@ -155,7 +158,9 @@ namespace Test.BuildXL.Utilities
 
             // Given cancellation token should be propagated to the callback and when the cancellation token source
             // is triggered the callback should be able to see that signal.
+#pragma warning disable AsyncFixer02
             cts.Cancel();
+#pragma warning restore AsyncFixer02
 
             // The task should not fail with timeout here.
             await task;

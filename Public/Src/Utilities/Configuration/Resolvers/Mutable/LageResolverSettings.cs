@@ -20,11 +20,15 @@ namespace BuildXL.Utilities.Configuration.Mutable
         : base(template, pathRemapper)
         {
             NpmLocation = pathRemapper.Remap(template.NpmLocation);
+            LageLocation = pathRemapper.Remap(template.LageLocation);
             Since = template.Since;
         }
 
         /// <inheritdoc/>
         public FileArtifact? NpmLocation { get; set; }
+
+        /// <inheritdoc/>
+        public FileArtifact? LageLocation { get; set; }
 
         /// <inheritdoc/>
         public string Since { get; set; }

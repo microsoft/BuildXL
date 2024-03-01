@@ -19,6 +19,8 @@ namespace BuildXL.FrontEnd.Lage
     /// </summary>
     public class LageWorkspaceResolver : ToolBasedJavaScriptWorkspaceResolver<LageConfiguration, ILageResolverSettings>
     {
+        private bool m_useNpmLocation = true;
+
         /// <summary>
         /// CODESYNC: the BuildXL deployment spec that places the tool
         /// </summary>
@@ -35,20 +37,38 @@ namespace BuildXL.FrontEnd.Lage
         }
 
         /// <inheritdoc/>
-        protected override bool TryFindGraphBuilderToolLocation(ILageResolverSettings resolverSettings, BuildParameters.IBuildParameters buildParameters, out AbsolutePath npmLocation, out string failure)
+        protected override bool TryFindGraphBuilderToolLocation(ILageResolverSettings resolverSettings, BuildParameters.IBuildParameters buildParameters, out AbsolutePath toolLocation, out string failure)
         {
-            // If the base location was provided at configuration time, we honor it as is
+            if (resolverSettings.NpmLocation.HasValue && resolverSettings.LageLocation.HasValue)
+            {
+                failure = "npmLocation and lageLocation cannot be specified simultaneously.";
+                toolLocation = AbsolutePath.Invalid;
+                return false;
+            }
+
+            // If the npm location was provided at configuration time, we honor it as is
             if (resolverSettings.NpmLocation.HasValue)
             {
-                npmLocation = resolverSettings.NpmLocation.Value.Path;
+                toolLocation = resolverSettings.NpmLocation.Value.Path;
                 failure = string.Empty;
                 return true;
             }
 
-            // If the location was not provided, let's try to see if NPM is under %PATH%
+            // Same for Lage location
+            if (resolverSettings.LageLocation.HasValue)
+            {
+                toolLocation = resolverSettings.LageLocation.Value.Path;
+                failure = string.Empty;
+                // Indicate that we are using the lage location, since the graph construction tool arguments will be different
+                m_useNpmLocation = false;
+                return true;
+            }
+
+            // When we reach this point, we know that neither npm nor lage location was provided. Let's try to find npm in PATH.
+            // We could try to look for lage as well (after npm, for example), but they are usually both there - or none of them are.
             string paths = buildParameters["PATH"];
 
-            if (!FrontEndUtilities.TryFindToolInPath(Context, Host, paths, new[] { "npm", "npm.cmd" }, out npmLocation))
+            if (!FrontEndUtilities.TryFindToolInPath(Context, Host, paths, new[] { "npm", "npm.cmd" }, out toolLocation))
             {
                 failure = "A location for 'npm' is not explicitly specified. However, 'npm' doesn't seem to be part of PATH. You can either specify the location explicitly using 'npmLocation' field in " +
                     $"the Lage resolver configuration, or make sure 'npm' is part of your PATH. Current PATH is '{paths}'.";
@@ -58,7 +78,7 @@ namespace BuildXL.FrontEnd.Lage
             failure = string.Empty;
 
             // Just verbose log this
-            Tracing.Logger.Log.UsingNpmAt(Context.LoggingContext, resolverSettings.Location(Context.PathTable), npmLocation.ToString(Context.PathTable));
+            Tracing.Logger.Log.UsingToolAt(Context.LoggingContext, resolverSettings.Location(Context.PathTable), toolLocation.ToString(Context.PathTable));
 
             return true;
         }
@@ -82,10 +102,32 @@ namespace BuildXL.FrontEnd.Lage
             sb.Append($@" ""{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}""");
             sb.Append($@" ""{pathToRepoRoot}""");
             sb.Append($@" ""{outputFile.ToString(Context.PathTable, PathFormat.Script)}""");
-            sb.Append($@" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}""");
+            
+            // The 4th argument is the npm location. If it is not specified, pass "undefined" string.
+            // The graph construction tool actually will pick the 6th argument as tool to call over this one, but passing undefined here makes more explicit that the npm location
+            // is not used
+            if (m_useNpmLocation)
+            {
+                sb.Append($@" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}""");
+            }
+            else
+            {
+                // Pass the 6th argument (lage location) as "undefined" string. This argument is used by Office implementation as well.
+                sb.Append(@" ""undefined""");
+            }
+
             sb.Append($@" ""{string.Join(" ", commands)}""");
-            // Pass the 6th argument (lage location) as "undefined" string. This argument is used by Office implementation.
-            sb.Append(@" ""undefined""");
+            if (m_useNpmLocation)
+            {
+                // Pass the 6th argument (lage location) as "undefined" string. This argument is used by Office implementation.
+                sb.Append(@" ""undefined""");
+            }
+            else
+            {
+                // The Lage location is explicitly specified, so pass it as the 6th argument
+                sb.Append($@" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}""");
+            }
+            
             _ = ResolverSettings.Since == null ? sb.Append(@" ""undefined""") : sb.Append($@" ""{ResolverSettings.Since}""");
 
             return JavaScriptUtilities.GetCmdArguments(sb.ToString());

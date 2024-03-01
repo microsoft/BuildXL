@@ -29,13 +29,13 @@ namespace BuildXL.FrontEnd.Lage.Tracing
         }
 
         [GeneratedEvent(
-            (ushort)LogEventId.UsingNpmAt,
+            (ushort)LogEventId.UsingToolAt,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Message = EventConstants.LabeledProvenancePrefix + "Using Npm at '{basePath}'.",
+            Message = EventConstants.LabeledProvenancePrefix + "Using tool at '{basePath}'.",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void UsingNpmAt(LoggingContext context, Location location, string basePath);
+        public abstract void UsingToolAt(LoggingContext context, Location location, string basePath);
     }
 }

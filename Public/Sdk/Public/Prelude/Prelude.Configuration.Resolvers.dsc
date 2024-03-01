@@ -393,8 +393,16 @@ interface LageResolver extends JavaScriptResolver {
     /**
      * The location of NPM.  If not provided, BuildXL will try to look for it under PATH.
      *  Npm is used to get Lage during graph construction.
+     * This and lageLocation cannot be explicitly provided simultaneously.
      */
     npmLocation?: File;
+
+    /**
+     * The location of Lage.
+     * Lage is used to get the build graph.
+     * This and npmLocation cannot be explicitly provided simultaneously.
+     */
+    lageLocation?: File;
 
     /**
      * Instructs Lage to generate a subset of the build graph that contains only the nodes that have changed since the given commit. See href="https://microsoft.github.io/lage/docs/Reference/cli".

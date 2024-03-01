@@ -15,8 +15,17 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         /// <remarks>
         /// Npm is used to get Lage during graph construction
+        /// Either NpmLocation or LageLocation should be provided, but not both.
         /// </remarks>
         FileArtifact? NpmLocation { get; }
+
+        /// <summary>
+        /// The location of Lage.
+        /// </summary>
+        /// <remarks>
+        /// Either NpmLocation or LageLocation should be provided, but not both.
+        /// </remarks>
+        FileArtifact? LageLocation { get; }
 
         /// <summary>
         /// Instructs Lage to generate a subset of the build graph that contains only the nodes that have changed since the given commit.

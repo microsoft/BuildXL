@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
@@ -98,6 +99,33 @@ namespace Test.BuildXL.FrontEnd.Lage
             // Lage sometimes fails with an obscure error because the underlying git operation fails (depending on the environment where it runs)
             AllowErrorEventMaybeLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
             AllowErrorEventMaybeLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ProjectGraphConstructionError);
+        }
+
+        [Fact]
+        public void LageLocationIsHonored()
+        {
+            var config = Build(executeCommands: "['test']", lageLocation: PathToLage)
+                .AddJavaScriptProject("@ms/project-A", "src/A", "module.exports = function A(){}", scriptCommands: new[] { ("test", "node ./main.js") })
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunLageProjects(config);
+
+            Assert.True(engineResult.IsSuccess);
+
+            AssertVerboseEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ConstructingGraphScript, count: 1);
+            string graphConstructionToolArgs = EventListener.GetLogMessagesForEventId((int)global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ConstructingGraphScript).Single();
+
+            // We should be passing 'undefined' for the npm location (4th arg) and the path to lage as the lage location (6th arg)
+            // Nothing special about windows here wrt behavior, but for the Linux case the equivalent command line has a bunch
+            // of escaped quotes, so it would just make the test less readable.
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                Assert.Contains($@"""undefined"" ""test"" ""{PathToLage}""", graphConstructionToolArgs);
+            }
+
+            // The graph construction process should be returning a single process pip.
+            var processes = engineResult.EngineState.PipGraph.RetrievePipsOfType(PipType.Process).ToList();
+            Assert.Equal(1, processes.Count);
         }
     }
 }

@@ -778,7 +778,7 @@ namespace BuildXL.Engine.Distribution
 
         public void SendToRemote(OperationContext operationContext, RunnablePip runnable)
         {
-            Contract.Assert(runnable.Step == PipExecutionStep.MaterializeOutputs || EverConnected, "All steps except MaterializeOutput step require available workers.");
+            Contract.Assert(runnable.Step == PipExecutionStep.MaterializeOutputs || Status == WorkerNodeStatus.Running || EverAvailable, $"All steps except MaterializeOutput step require available workers: {Name}");
 
             var pipId = runnable.PipId;
             var processRunnable = runnable as ProcessRunnablePip;

@@ -5,20 +5,24 @@ pipelines:
     retail:
       source:
         credscan:
-          lastModifiedDate: 2023-11-22
+          lastModifiedDate: 2024-02-29
         eslint:
-          lastModifiedDate: 2023-11-22
+          lastModifiedDate: 2024-02-29
         armory:
-          lastModifiedDate: 2023-11-22
+          lastModifiedDate: 2024-02-29
+      binary:
+        binskim:
+          lastModifiedDate: 2024-02-29
+    usedNonDefaultBranch: true
   15756:
     cloudbuild:
       binskim:
-        lastModifiedDate: 2024-01-04
+        lastModifiedDate: 2024-03-02
       credscan:
-        lastModifiedDate: 2024-01-04
+        lastModifiedDate: 2024-03-02
     retail:
       binary:
         credscan:
-          lastModifiedDate: 2023-12-21
+          lastModifiedDate: 2024-03-02
         binskim:
-          lastModifiedDate: 2023-12-21
+          lastModifiedDate: 2024-03-02

@@ -503,6 +503,11 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         {
                             using var pooledHandle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
                             await readStream.Value.Stream.CopyToWithFullBufferAsync(writeStream, pooledHandle.Value).ConfigureAwait(false);
+
+                            // Without this *async* flush, this async method issues blocking I/O during Dispose.
+                            // This causes horrible stalls and timeouts. See the below for an example:
+                            // https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal/pullrequest/770634
+                            await writeStream.FlushAsync().ConfigureAwait(false);
                         }
                     }
                     // Making sure we're trying to create directory for DirectoryNotFound or FileNotFound exceptions.

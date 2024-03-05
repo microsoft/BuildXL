@@ -73,6 +73,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
                 ? <File>path 
                 : File.fromPath(testDeployment.contents.root.combine(<RelativePath>path)))) 
         || [],
+        passThroughEnvironmentVariables: args.passThroughEnvVars || []
     };
 
     let execArguments : Transformer.ExecuteArguments = {
@@ -82,6 +83,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
             ...(args.tags || [])
         ],
         arguments: arguments,
+        environmentVariables: args.envVars,
         // When test directory is untracked, declare dependencies to individual files instead of the seal directory.
         // Reason: if the same directory is both untracked and declared as a dependency it's not clear which one takes
         //         precedence in terms of allowed/disallowed file accesses.
@@ -95,25 +97,19 @@ export function runConsoleTest(args: TestRunArguments): Result {
         weight: args.weight,
     };
 
-    if (args.passThroughEnvVars !== undefined) {
-        execArguments = execArguments.merge<Transformer.ExecuteArguments>({
-            environmentVariables: [ ...passThroughEnvVars(args.passThroughEnvVars) ]
-        });
-    }
-
     if (Context.getCurrentHost().os !== "win") {
         execArguments = execArguments.merge<Transformer.ExecuteArguments>({
             environmentVariables: [
                 {name: "COMPlus_DefaultStackSize", value: "200000"},
-                ...passThroughEnvVars([
-                    "HOME",
-                    "TMPDIR",
-                    "USER"
-                ])
             ],
             unsafe: {
                 untrackedPaths: addIf(Environment.hasVariable("HOME"), f`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`),
-                untrackedScopes: [ d`/mnt`, d`/init`, d`/usr` ]
+                untrackedScopes: [ d`/mnt`, d`/init`, d`/usr` ],
+                passThroughEnvironmentVariables: [
+                    "HOME",
+                    "TMPDIR",
+                    "USER"
+                ]
             },
         });
     }
@@ -148,13 +144,6 @@ export function runConsoleTest(args: TestRunArguments): Result {
         nunitFile: args.nunitFile && result.getOutputFile(args.nunitFile),
         htmlFile:  args.htmlFile && result.getOutputFile(args.htmlFile),
     };
-}
-
-function passThroughEnvVars(envVarNames: string[]): Transformer.EnvironmentVariable[] {
-    return envVarNames
-        .mapMany(envVarName => Environment.hasVariable(envVarName)
-            ? [ {name: envVarName, value: Environment.getStringValue(envVarName)} ]
-            : []);
 }
 
 function categoryToTrait(cat: string) : NameValuePair {

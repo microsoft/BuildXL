@@ -1040,11 +1040,10 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
                     dependencies: args.sources,
                 }
             },
-            passThroughEnvVars: [
-                // The microsoftInternal variable is used by tests that pull packages during a test (eg: nuget resolver tests)
-                // to determine whether it should use nuget.org (for external builds) or the internal feed (for internal builds).
-                "[Sdk.BuildXL]microsoftInternal"
-            ]
+            
+            // The microsoftInternal variable is used by tests that pull packages during a test (eg: nuget resolver tests)
+            // to determine whether it should use nuget.org (for external builds) or the internal feed (for internal builds).
+            envVars: Environment.hasVariable("[Sdk.BuildXL]microsoftInternal") ? [ { name: "[Sdk.BuildXL]microsoftInternal", value: Environment.getStringValue("[Sdk.BuildXL]microsoftInternal") } ] : undefined
         },
         runtimeContentToSkip: [
             // Don't deploy the branding manifest for unittest so that updating the version number does not affect the unittests.

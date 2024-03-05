@@ -274,6 +274,9 @@ export interface TestRunArguments {
     /** Disables code coverage. */
     disableCodeCoverage? : boolean;
 
+    /** Environment variables to be set for the underlying test runner with the value extracted from the current environment */
+    envVars?: Transformer.EnvironmentVariable[];
+
     /** Environment variables to be set as pass-through to the underlying test runner */
     passThroughEnvVars?: string[];
 }

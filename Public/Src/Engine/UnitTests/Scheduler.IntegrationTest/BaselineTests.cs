@@ -1720,6 +1720,10 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // This event is logged when a credential is detected in the env variables.
             AssertErrorEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, expectCredentialDetected ? 1 : 0);
+            if (expectCredentialDetected)
+            {
+                AssertLogContains(caseSensitive: true, [$"The following environment variables - '{envVarKey}' either need to be removed or made passthrough"]);
+            }
 
         }
 #endif

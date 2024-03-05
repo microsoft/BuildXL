@@ -43,7 +43,7 @@ namespace BuildXL.Pips.Builders
         private readonly CounterCollection<CredScanCounter> m_counters = new CounterCollection<CredScanCounter>();
         private readonly LoggingContext m_loggingContext;
         private readonly PipFragmentRenderer m_renderer;
-        private readonly ActionBlockSlim<(string kvp, Process process)> m_credScanActionBlock;
+        private readonly ActionBlockSlim<(string variable, string value, Process process)> m_credScanActionBlock;
 
         /// <summary>
         /// This list of user defined environment variables which are to ignored by the CredScan library.
@@ -57,7 +57,7 @@ namespace BuildXL.Pips.Builders
         {
             m_loggingContext = loggingContext;
             m_credScanEnvironmentVariablesAllowList = credScanEnvironmentVariablesAllowList;
-            m_credScanActionBlock = ActionBlockSlim.CreateWithAsyncAction<(string, Process)>(
+            m_credScanActionBlock = ActionBlockSlim.CreateWithAsyncAction<(string, string, Process)>(
                       degreeOfParallelism: Environment.ProcessorCount,
                       processItemAction: ScanForCredentialsAsync);
             m_credScan = CredentialScannerFactory.Create();
@@ -93,11 +93,7 @@ namespace BuildXL.Pips.Builders
 
                     string value = env.Value.ToString(m_renderer);
                     m_counters.IncrementCounter(CredScanCounter.NumProcessed);
-
-                    // Converting the env variable into the below pattern.
-                    // Ex: string input = "password = Cr3d5c@n_D3m0_P@55w0rd";
-                    // The above example is one of the suggested patterns to represent the input string which is to be passed to the CredScan method.
-                    m_credScanActionBlock.Post(($"{envVarKey} = {value}", process));
+                    m_credScanActionBlock.Post((envVarKey, value, process));
                 }
             }
         }
@@ -105,23 +101,22 @@ namespace BuildXL.Pips.Builders
         /// <summary>
         /// This method is used to scan env variables for credentials.
         /// </summary>
-#pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
-        private async Task ScanForCredentialsAsync((string envVar, Process process) item)
+        private async Task ScanForCredentialsAsync((string variable, string value, Process process) item)
         {
             using (m_counters.StartStopwatch(CredScanCounter.ScanDuration))
             {
                 m_counters.IncrementCounter(CredScanCounter.NumScanCalls);
 
-                var results = await m_credScan.ScanAsync(item.envVar);
-                foreach (var result in results)
+                // Converting the env variable into the below pattern.
+                // Ex: string input = "password = Cr3d5c@n_D3m0_P@55w0rd";
+                // The above example is one of the suggested patterns to represent the input string which is to be passed to the CredScan method.
+                var results = await m_credScan.ScanAsync($"{item.variable} = {item.value}");
+                if (results.Any())
                 {
-                    string kvp = result.Match.MatchPrefix;
-                    string key = kvp.Split('=')[0];
-                    m_envVarsWithCredentials.Add((key, item.process));
+                    m_envVarsWithCredentials.Add((item.variable, item.process));
                 }
             }
         }
-#pragma warning restore 1998
 
         /// <summary>
         /// Wait for the completion of the action block and log the detected credentials.
@@ -146,9 +141,9 @@ namespace BuildXL.Pips.Builders
 
             if (m_envVarsWithCredentials.Count > 0)
             {
-                foreach (var tuple in m_envVarsWithCredentials)
+                foreach (var (envVarKey, process) in m_envVarsWithCredentials)
                 {
-                   Logger.Log.CredScanDetection(m_loggingContext, tuple.process.GetDescription(context), tuple.envVarKey);
+                   Logger.Log.CredScanDetection(m_loggingContext, process.GetDescription(context), envVarKey);
                 }
 
                 return false;

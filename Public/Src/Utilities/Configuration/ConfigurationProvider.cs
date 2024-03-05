@@ -120,6 +120,7 @@ namespace BuildXL.Utilities.Configuration
             config.Sandbox.TimeoutMultiplier = 3;
             config.Schedule.UseHistoricalCpuUsageInfo = true;
             config.Schedule.UseHistoricalRamUsageInfo = false;
+            config.FrontEnd.EnableCredScan = true;
 
             return config;
         }

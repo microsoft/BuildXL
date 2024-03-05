@@ -3,6 +3,8 @@
 
 import * as Managed from "Sdk.Managed";
 
+const includeCredScan = BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isDotNetCore;
+
 @@public
 export const dll = BuildXLSdk.library({
     assemblyName: "BuildXL.Pips",
@@ -26,7 +28,7 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Utilities").Configuration.dll,
         importFrom("BuildXL.Utilities").Utilities.Core.dll,
         importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.dll,
-        ...addIf(BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isDotNetCore,
+        ...addIf(includeCredScan,
             importFrom("Microsoft.Automata.SRM").pkg,
             importFrom("Microsoft.ApplicationInsights").pkg,
             importFrom("Microsoft.Security.RegularExpressions").pkg,
@@ -35,6 +37,7 @@ export const dll = BuildXLSdk.library({
             importFrom("Microsoft.Security.CredScan.KnowledgeBase.Ruleset").pkg
         ),
     ],
+    runtimeReferences: includeCredScan ? [ importFrom("Crc32.NET").pkg ] : undefined,
     internalsVisibleTo: [
         "BuildXL.Scheduler",
         "Test.BuildXL.EngineTestUtilities",

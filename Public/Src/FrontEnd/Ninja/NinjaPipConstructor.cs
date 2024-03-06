@@ -40,12 +40,6 @@ namespace BuildXL.FrontEnd.Ninja
         private readonly ConcurrentDictionary<AbsolutePath, FileArtifact> m_outputFileArtifacts = new ConcurrentDictionary<AbsolutePath, FileArtifact>();
         private readonly ConcurrentDictionary<string, AbsolutePath> m_exeLocations = new ConcurrentDictionary<string, AbsolutePath>();
         private readonly NinjaPipConstructionSettings m_settings;
-
-
-        /// <summary>
-        ///  TODO: Remove after the cloudbuild environment is correctly set
-        /// </summary>
-        private readonly AbsolutePath m_manuallyDroppedDependenciesPath;
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
         private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
 
@@ -72,9 +66,6 @@ namespace BuildXL.FrontEnd.Ninja
             m_settings = settings;
             m_pipConstructionHelper = GetPipConstructionHelperForModule(m_projectRoot, moduleDefinition, qualifierId);
             m_frontEndName = frontEndName;
-            m_manuallyDroppedDependenciesPath = m_frontEndHost.Configuration.Layout.BuildEngineDirectory;
-
-
             PrepareEnvironment(settings.UserDefinedEnvironment, settings.UserDefinedPassthroughVariables, out m_userDefinedEnvironment, out m_userDefinedPassthroughVariables);
         }
 
@@ -335,10 +326,6 @@ namespace BuildXL.FrontEnd.Ninja
                 // Skip this untrack for linux because Environment.SpecialFolder.UserProfile always return $HOME on linux 
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
             }
-            // TODO: This is just here because the cloud build requires manually dropping the necessary executables and libraries, and should be removed
-            // when that issue is resolved.
-            string toolsDir = m_manuallyDroppedDependenciesPath.ToString(m_context.PathTable);
-            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, toolsDir)));
 
             // Git accesses should be ignored if .git directory is there
             var gitDirectory = m_projectRoot.Combine(m_context.PathTable, ".git");
@@ -432,10 +419,7 @@ namespace BuildXL.FrontEnd.Ninja
             out IEnumerable<KeyValuePair<string, string>> environment,
             out IEnumerable<string> passthroughs)
         {
-            // Assume we are building in cloudbuild if the custom directory with the needed tools is
-            var inCloudBuild = FileUtilities.Exists(m_manuallyDroppedDependenciesPath.ToString(m_context.PathTable));
-
-            if (!inCloudBuild)
+            if (!m_frontEndHost.Configuration.InCloudBuild())
             {
                 environment = userDefinedEnvironment;
                 passthroughs = userDefinedPassthroughs;
@@ -443,12 +427,9 @@ namespace BuildXL.FrontEnd.Ninja
             }
             else
             {
-                // Augment the environment with our own tools
-                var augmentedEnvironment = SpecialCloudConfiguration.OverrideEnvironmentForCloud(userDefinedEnvironment, m_manuallyDroppedDependenciesPath, m_context);
-
                 // Filter passthroughs
-                environment = augmentedEnvironment.Where(kvp => !isCloudBuildPassthrough(kvp.Key));
-                passthroughs = userDefinedPassthroughs.Union(augmentedEnvironment.Select(kvp => kvp.Key).Where(k => isCloudBuildPassthrough(k)));
+                environment = userDefinedEnvironment.Where(kvp => !isCloudBuildPassthrough(kvp.Key));
+                passthroughs = userDefinedPassthroughs.Union(environment.Select(kvp => kvp.Key).Where(k => isCloudBuildPassthrough(k)));
 
                 bool isCloudBuildPassthrough(string envVar)
                 {

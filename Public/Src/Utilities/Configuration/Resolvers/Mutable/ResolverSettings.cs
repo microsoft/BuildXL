@@ -71,8 +71,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
                     return new MsBuildResolverSettings(msBuildResolver, pathRemapper);
                 case INinjaResolverSettings ninjaResolver:
                     return new NinjaResolverSettings(ninjaResolver, pathRemapper);
-                case ICMakeResolverSettings cmakeResolver:
-                    return new CMakeResolverSettings(cmakeResolver, pathRemapper);
                 case IRushResolverSettings rushResolver:
                     return new RushResolverSettings(rushResolver, pathRemapper);
                 case IYarnResolverSettings yarnResolver:

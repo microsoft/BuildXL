@@ -35,8 +35,7 @@ namespace Ninja {
             Sdk.dll,
         ],
         internalsVisibleTo: [
-            "Test.BuildXL.FrontEnd.Ninja",
-            "BuildXL.FrontEnd.CMake",
+            "Test.BuildXL.FrontEnd.Ninja"
         ],
     });
 }

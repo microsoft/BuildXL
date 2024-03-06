@@ -29,7 +29,6 @@ namespace Factory {
             Yarn.dll,
             JavaScript.dll,
             Lage.dll,
-            CMake.dll,
             Ninja.dll,
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [            
                 MsBuild.dll,               

@@ -28,7 +28,6 @@ namespace BuildXL {
             importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
 
             // tools
-            importFrom("BuildXL.Tools").CMakeRunner.exe,
             importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
                 importFrom("BuildXL.Tools.Ninjson").pkg.contents

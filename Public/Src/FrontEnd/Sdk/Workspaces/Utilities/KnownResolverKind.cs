@@ -40,9 +40,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <nodoc/>
         public const string NinjaResolverKind = "Ninja";
 
-        /// <nodoc/>
-        public const string CMakeResolverKind = "CMake";
-
         /// <nodoc />
         public static readonly string DefaultSourceResolverKind = "DefaultSourceResolver";
 
@@ -63,7 +60,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 value == DownloadResolverKind ||
                 value == MsBuildResolverKind ||
                 value == NinjaResolverKind ||
-                value == CMakeResolverKind ||
                 value == RushResolverKind ||
                 value == YarnResolverKind ||
                 value == LageResolverKind ||

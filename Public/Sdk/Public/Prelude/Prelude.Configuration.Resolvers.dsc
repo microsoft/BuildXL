@@ -760,54 +760,6 @@ interface NinjaResolver extends ResolverBase, UntrackingSettings {
     additionalOutputDirectories?: (Path | RelativePath)[];
 }
 
-/**
- * Resolver for projects specified with CMake
- * This resolver will generate files
- */
-interface CMakeResolver extends ResolverBase {
-    kind: "CMake";
-
-    /**
-     * The root of the project. This should be the directory containing the CMakeLists.txt file
-     */
-    projectRoot: Directory;
-
-    /**
-     * The name of the module exposed to other DScript projects.
-     * This should be unique across modules.
-     */
-    moduleName: string;
-
-
-    /**
-     * The directory where we will build, relative to the BuildXL output folder
-     */
-    buildDirectory: RelativePath;
-
-    /**
-     * When cmake is first run in an empty build tree, it creates a CMakeCache.txt file
-     * and populates it with customizable settings for the project.
-     * This option may be used to specify a setting that takes priority over the project’s default value.
-     * [https://cmake.org/cmake/help/v3.6/manual/cmake.1.html]
-     *
-     * These values will be passed to the CMake generator as -D<name>=<value> arguments
-     * The value can be 'undefined', in which case the variable will be unset (-U<name> will be passed as an argument)
-     */
-    cacheEntries?: { [name: string]: string; };
-
-    /**
-     * Collection of directories to search for cmake.exe.
-     * If not specified, locations in %PATH% are used.
-     * Locations are traversed in specification order.
-    */
-    cMakeSearchLocations?: Directory[];
-
-    /**
-     * Custom untracking settings
-     */
-    untrackingSettings?: UntrackingSettings;
-}
-
 interface ToolConfiguration {
     toolUrl?: string;
     hash?: string;
@@ -906,4 +858,4 @@ interface MsBuildResolverDefaults {
 
 }
 
-type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | CMakeResolver | RushResolver | YarnResolver | LageResolver | CustomJavaScriptResolver;
+type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | RushResolver | YarnResolver | LageResolver | CustomJavaScriptResolver;

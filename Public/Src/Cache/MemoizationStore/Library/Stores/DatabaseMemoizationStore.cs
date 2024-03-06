@@ -146,7 +146,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     Database.AssociatedContentNeedsPinning(ctx, strongFingerprint, result))
                 {
                     (ContentHashListWithDeterminism contentHashList, _, _) = result;
-                    var pinResult = await contentSession.EnsureContentIsAvailableWithResultAsync(ctx, Tracer.Name, contentHashList.ContentHashList, automaticallyOverwriteContentHashLists, ctx.Token).ConfigureAwait(false);
+                    // Observe we explicitly pass automaticallyOverwriteContentHashLists: true. We want automatic overriding on since in this case we are *preventively* pinning, and we do want the pin operation to happen
+                    var pinResult = await contentSession.EnsureContentIsAvailableWithResultAsync(ctx, Tracer.Name, contentHashList.ContentHashList, automaticallyOverwriteContentHashLists: true, ctx.Token).ConfigureAwait(false);
 
                     if (!pinResult.Succeeded)
                     {

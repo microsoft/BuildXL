@@ -137,7 +137,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     var contentSessionResult = contentStore.CreateSession(context, Name, ImplicitPin.None);
                     contentSessionResult.ShouldBeSuccess();
 
-                    var sessionResult = store.CreateSession(context, Name, contentSessionResult.Session, automaticallyOverwriteContentHashLists: true);
+                    var sessionResult = store.CreateSession(context, Name, contentSessionResult.Session, automaticallyOverwriteContentHashLists: false);
                     sessionResult.ShouldBeSuccess();
 
                     using (var cacheSession = new OneLevelCacheSession(parent: null, Name, ImplicitPin.None, sessionResult.Session, contentSessionResult.Session))
@@ -211,6 +211,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
             var retentionPolicy = TimeSpan.FromDays(1);
 
+            // Observe we consistently use automaticallyOverwriteContentHashLists: false, which is the way the AzureBlobStorageCacheFactory
+            // configures it
             return RunTestAsync(context, retentionPolicy, async (
                 DatabaseMemoizationStore store,
                 AzureBlobStorageMetadataStore metadataStore,
@@ -231,7 +233,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     ctx, strongFingerprint, string.Empty, new ContentHashListWithDeterminism(null, CacheDeterminism.None), new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None)).ShouldBeSuccess();
 
                 // Now retrieve it using the store
-                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: false).ShouldBeSuccess();
 
                 // This operation shouldn't have triggered any preventive pins, since the content is guaranteed by the eviction policy
                 Assert.Equal(0, GetPinCount(tracer));
@@ -243,7 +245,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 await metadataStore.UpdateLastContentPinnedTimeForTestingAsync(ctx, strongFingerprint, DateTime.UtcNow - retentionPolicy).ShouldBeSuccess();
 
                 // Now retrieve it again. This should have triggered a pin on the content and the content hash list last pin time updated
-                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: false).ShouldBeSuccess();
 
                 // The operation should have triggered a pin on the (single) content
                 Assert.Equal(1, GetPinCount(tracer));
@@ -255,7 +257,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 Assert.True(getResultWithPreventivePin.LastContentPinnedTime > getResult.LastContentPinnedTime);
 
                 // Just being defensive: retrieve it a third time. Now no new pins should be triggered
-                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: false).ShouldBeSuccess();
                 Assert.Equal(1, GetPinCount(tracer));
             });
         }
@@ -268,6 +270,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
             var retentionPolicy = TimeSpan.FromDays(1);
 
+            // Observe we consistently use automaticallyOverwriteContentHashLists: false, which is the way the AzureBlobStorageCacheFactory
+            // configures it
             return RunTestAsync(context, retentionPolicy, async (
                 DatabaseMemoizationStore store,
                 AzureBlobStorageMetadataStore metadataStore,
@@ -288,7 +292,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     ctx, strongFingerprint, string.Empty, new ContentHashListWithDeterminism(null, CacheDeterminism.None), new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None)).ShouldBeSuccess();
 
                 // Now retrieve it using the store
-                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: false).ShouldBeSuccess();
 
                 // This operation shouldn't have triggered any preventive pins, since the content is guaranteed by the eviction policy
                 Assert.Equal(0, GetPinCount(tracer));
@@ -316,9 +320,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 putResult = await cacheSession.PutStreamAsync(context, ContentStore.Hashing.HashType.Vso0, new MemoryStream(new byte[] { 1, 2, 3 }), Token);
 
                 // Now retrieve it using the store
-                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: contentSession != null).ShouldBeSuccess();
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: false).ShouldBeSuccess();
 
-                // This operation shoukd have triggered preventive pins, since no metadata was present
+                // This operation should have triggered preventive pins, since no metadata was present
                 Assert.Equal(1, GetPinCount(tracer));
             });
         }

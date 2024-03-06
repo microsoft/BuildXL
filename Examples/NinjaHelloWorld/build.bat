@@ -1,1 +1,1 @@
-%BUILDXL_BIN%/bxl /c:config.dsc /server- /disableProcessRetryOnResourceExhaustion+
+%BUILDXL_BIN%/bxl /c:config.dsc /server-

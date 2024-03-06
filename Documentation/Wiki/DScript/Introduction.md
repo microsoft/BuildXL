@@ -1,5 +1,5 @@
 # Introduction
-BuildXL uses the DScript scripting language as one of its front-end build specification languages, used by the BuildXL repo itself plus a few Microsoft teams like Office.
+BuildXL uses the DScript scripting language as one of its frontend build specification languages, used by the BuildXL repo itself plus a few Microsoft teams like Office.
 
 DScript is based on [TypeScript](http://www.typescriptlang.org/) which derives from [JavaScript](https://www.javascript.com/).
 

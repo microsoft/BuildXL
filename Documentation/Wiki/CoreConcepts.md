@@ -50,7 +50,7 @@ each of the pip represent a project-level call. Similarly, the JavaScript fronte
 understand various JavaScript orchestrators to create a project graph. Currently, the JavaScript frontend supports
 Rush, Yarn, and Lage orchestrators.
 
-BuildXL has frontends for CMake/Ninja Ninja specifications. The frontends run CMake/Ninja, and rely on a plugin to create a Ninja process graph that is then converted into a pip graph.
+BuildXL has frontends for CMake/Ninja specifications. The frontends run CMake/Ninja, and rely on a plugin to create a Ninja process graph that is then converted into a pip graph.
 
 BuildXL has frontends that can handle using packages or downloading files during the build. Currently, BuildXL only supports
 using NuGet pacakages.

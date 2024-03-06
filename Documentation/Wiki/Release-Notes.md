@@ -2017,7 +2017,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Improved help for the execution analyzer
 - An assortment of memory optimizations
 - Policy for controlling directory creation under writable mounts
-- Improved front-end statistics
+- Improved frontend statistics
 
 # 0.20180405.5.0 (Release [10352](https://dev.azure.com/mseng/domino/_release?releaseId=10352&_a=release-summary)), released on 4/11/2018
 - Various memory optimizations
@@ -2040,7 +2040,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Add RAM throttling
 - Shrink serialized size for small StringTables
 - Target TLS 1.2 in domino & drop
-- Fix issue with public surface generator required by the incremental front-end
+- Fix issue with public surface generator required by the incremental frontend
 - Fix underbuild when a new directory is created under read-only mount
 
 # 0.20180309.2.0 (Release [9452](https://dev.azure.com/mseng/domino/_release?releaseId=9452&_a=release-summary)), released on 3/14/2018
@@ -2238,9 +2238,9 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Misc bug fixes 
 
 # 0.20170911.3.0 
-- Various optimizations for incremental parsing and type checking phases for the front-end
+- Various optimizations for incremental parsing and type checking phases for the frontend
 - Support for importFile function in module configuration files
-- Fix memory leak in the front-end that prevented front-end memory to be released
+- Fix memory leak in the frontend that prevented frontend memory to be released
 - Work in progress for moving BuildXL to CoreCLR
 - Allowed grouping for Sealed Directories.
 - Misc bug fixes

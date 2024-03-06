@@ -1,6 +1,5 @@
 # Building CMake-based repos with BuildXL using the Ninja frontend
-BuildXL provides support for CMake-based repositories. 
-This is achieved with a particular [frontend](../Frontends.md) type that knows how to translate a Ninja specification into a graph that BuildXL can then schedule and execute.
-Thus, the main requirement is that the CMake build works with [the Ninja generator](https://cmake.org/cmake/help/latest/generator/Ninja.html). 
-
-Thus, the way to build with CMake and BuildXL is to generate the Ninja specification with `cmake -GNinja`, which will output a `build.ninja` file into the build tree, and then use the [Ninja frontend](Ninja.md) in your configuration to run the build.
+BuildXL can be used to build CMake-based repositories.
+The only requirement is the repositories generate Ninja specifications through CMake's [Ninja generator](https://cmake.org/cmake/help/latest/generator/Ninja.html).
+The command `cmake -GNinja` will output a `build.ninja` file containing the generated Ninja specifications.
+BuildXL, with its [Ninja frontend](../Frontends/Ninja.md), can translate those Ninja specifications into a build graph that itcan schedule and execute.

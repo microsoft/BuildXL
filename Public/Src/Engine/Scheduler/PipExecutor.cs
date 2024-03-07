@@ -5021,6 +5021,11 @@ namespace BuildXL.Scheduler
                     // An assertion for the dynamic outputs
                     Contract.Assert(metadata.DynamicOutputs.Sum(a => a.RelativePathFileMaterializationInfos.Count) == numDynamicOutputs);
 
+                    if (environment.Context.CancellationToken.IsCancellationRequested)
+                    {
+                        return false;
+                    }
+
                     var entryStore = await TryCreateTwoPhaseCacheEntryAndStoreMetadataAsync(
                         operationContext,
                         environment,

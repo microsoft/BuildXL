@@ -23,7 +23,7 @@ $b64CloudbuildPat = [Convert]::ToBase64String($cbPatBytes)
 [Environment]::SetEnvironmentVariable(
     "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS",
     <#[SuppressMessage("Microsoft.Security", "CS002:SecretInNextLine", Justification="Not a secret")]#>
-    "{ 'endpointCredentials': [ {'endpoint':'https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json', 'password':'$1esPat'}, {'endpoint':'https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json', 'password':'$cbPat'} ]}",
+    "{ `"endpointCredentials`": [ {`"endpoint`":`"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json`", `"password`":`"$1esPat`"}, {`"endpoint`":`"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json`", `"password`":`"$cbPat`"} ]}",
     "Process")
 
 .\RunCheckInTests.cmd /lab $args /internal

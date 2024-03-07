@@ -67,9 +67,9 @@ if ($NcPath)
 # CODESYNC: Keep this variable name in sync with Public/Src/FrontEnd/UnitTests/Nuget/Test.BuildXL.FrontEnd.Nuget.dsc
 [Environment]::SetEnvironmentVariable("VSS_NUGET_EXTERNAL_FEED_ENDPOINTS", "
 {
-    'endpointCredentials': [
-        {'endpoint':'https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json', 'password':'$OneEsPat'}, 
-        {'endpoint':'https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json', 'password':'$CbPat'}
+    `"endpointCredentials`": [
+        {`"endpoint`":`"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json`", `"password`":`"$OneEsPat`"}, 
+        {`"endpoint`":`"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json`", `"password`":`"$CbPat`"}
     ]
 }", "Process")
 

@@ -87,8 +87,7 @@ REM *********************************
 	)
 
 	REM Install latest Azure Artifacts Credentials Provider (https://github.com/microsoft/artifacts-credprovider)
-	REM [maly - Mar 03 2024] Note: not the latest, we're pinning the version to 1.0.9 after a breaking change - See work item #2156510 
-	powershell -NoProfile -Command "iex ""& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx -Version 1.0.9 -Force"""
+	powershell -NoProfile -Command "iex ""& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx"""
 
 	set _BUILDXL_BOOTSTRAP_OUT=%ENLISTMENTROOT%\Out\BootStrap
 

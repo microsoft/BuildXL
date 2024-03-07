@@ -2355,7 +2355,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.PipFailedSharedOpaqueOutputsCleanUp,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Error,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,

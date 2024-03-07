@@ -34,6 +34,8 @@ jobs:
         /q:ReleaseDotNet6
         /q:DebugNet7
         /q:ReleaseNet7
+        /q:DebugNet8
+        /q:ReleaseNet8
         /p:Build.BuildId=$(Build.BuildNumber)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /p:[Sdk.BuildXL]microsoftInternal=1

@@ -802,11 +802,11 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.ProblematicWorkerExit,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "{workerName} stopped with a failure. Is the connection lost sometime after connected: {isConnectionLost}. Is ever connected: {everConnected}. Is ever available: {everAvailable}. Is early-release initiated: {isEarlyReleaseInitiated}",
+            Message = "{workerName} stopped with a failure. Is the connection lost sometime after connected: {isConnectionLost}. Is ever connected: {everConnected}. Is ever available: {everAvailable}. Is early-release initiated: {isEarlyReleaseInitiated}. Infra failure: {infraFailure}",
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void ProblematicWorkerExit(LoggingContext context, string workerName, bool isConnectionLost, bool everConnected, bool everAvailable, bool isEarlyReleaseInitiated);
+        public abstract void ProblematicWorkerExit(LoggingContext context, string workerName, bool isConnectionLost, bool everConnected, bool everAvailable, bool isEarlyReleaseInitiated, string infraFailure);
 
         [GeneratedEvent(
             (ushort)LogEventId.StorageCacheGetContentError,

@@ -57,7 +57,7 @@ namespace BuildXL.Engine.Distribution
         private CancellationTokenRegistration m_cancellationTokenRegistration;
         private bool m_isInitialized;
         private volatile bool m_isConnectionLost;
-
+        private bool m_materializeOutputFailed;
         private bool m_isEarlyReleaseInitiated;
 
         /// <inheritdoc />
@@ -632,28 +632,39 @@ namespace BuildXL.Engine.Distribution
                 Logger.Log.DistributionStreamingNetworkFailure(m_appLoggingContext, Name);
             }
 
+            string infraFailure = string.Empty;
+            if (!EverAvailable && !IsEarlyReleaseInitiated)
+            {
+                infraFailure = $"Worker did not get attached until Scheduler was completed and the given timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} min) expired";
+            }
+            else if (m_materializeOutputFailed)
+            {
+                infraFailure = "Some materialize output requests could not be sent";
+            }
+            else if (m_isConnectionLost)
+            {
+                infraFailure = "The connection got lost with the worker";
+            }
+
+            RpcCallResult<Unit> exitCallResult = null;
+
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
             if (!m_isConnectionLost && EverConnected)
             {
                 var buildEndData = new BuildEndData();
 
-                string failureMessage = string.Empty;
-                if (!EverAvailable && !IsEarlyReleaseInitiated)
-                {
-                    failureMessage = $"Worker did not get attached until Scheduler was completed and the given timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} min) expired";
-                }
-
-                buildEndData.Failure = buildFailure ?? failureMessage;
-                var callResult = await m_workerClient.ExitAsync(buildEndData);
-                m_isConnectionLost = !callResult.Succeeded;
+                buildEndData.Failure = buildFailure ?? infraFailure;
+                exitCallResult = await m_workerClient.ExitAsync(buildEndData);
             }
 
-            if ((!EverAvailable && !IsEarlyReleaseInitiated) || m_isConnectionLost)
+            if (!string.IsNullOrEmpty(infraFailure) || exitCallResult?.Succeeded == false)
             {
                 // We log the following message for each worker if any of these occurs:
                 // (i) The worker has not been ever attached to the orchestrator at any part of the build and the early release has not been initiated for this worker.
                 // (ii) The worker has been connected to the orchestrator at one point, but then we lost the connection with the worker.
-                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, Name, m_isConnectionLost, EverConnected, EverAvailable, IsEarlyReleaseInitiated);
+                // (iii) The worker failed to materialize all outputs.
+                // (iv) The exit call fails to be sent.
+                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, Name, m_isConnectionLost, EverConnected, EverAvailable, IsEarlyReleaseInitiated, infraFailure);
                 m_orchestratorService.Counters.IncrementCounter(DistributionCounter.NumProblematicWorkers);
             }
 
@@ -977,6 +988,8 @@ namespace BuildXL.Engine.Distribution
             {
                 // Output replication failures on workers due to connection issues do not fail the distributed build. 
                 // Setting the exit failure above ensures that the worker will fail its build and not proceed.
+                m_materializeOutputFailed = true;
+
                 result = new ExecutionResult();
                 result.SetResult(operationContext, PipResultStatus.NotMaterialized);
                 result.Seal();

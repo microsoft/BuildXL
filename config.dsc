@@ -520,6 +520,11 @@ config({
                 targetFramework: "net7.0",
                 targetRuntime: "osx-x64",
             },
+            DebugDotNetCoreMacNet8: {
+                configuration: "debug",
+                targetFramework: "net8.0",
+                targetRuntime: "osx-x64",
+            },
             DebugLinux: {
                 configuration: "debug",
                 targetFramework: "net7.0",
@@ -527,7 +532,7 @@ config({
             },
             DebugLinuxNet8: {
                 configuration: "debug",
-                targetFramework: "net7.0",
+                targetFramework: "net8.0",
                 targetRuntime: "linux-x64",
             },
             // Release
@@ -559,6 +564,11 @@ config({
             ReleaseDotNetCoreMac: {
                 configuration: "release",
                 targetFramework: "net7.0",
+                targetRuntime: "osx-x64",
+            },
+            ReleaseDotNetCoreMacNet8: {
+                configuration: "release",
+                targetFramework: "net8.0",
                 targetRuntime: "osx-x64",
             },
             ReleaseLinux: {

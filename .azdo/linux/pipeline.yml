@@ -69,7 +69,7 @@ extends:
         parameters:
           BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
           ValidationName: InternalRelease
-          BxlExtraArgs: --internal /q:ReleaseLinux
+          BxlExtraArgs: --internal /q:ReleaseLinux /q:ReleaseLinuxNet8
           Role: Orchestrator
     
     - stage: Build_Internal_Workers
@@ -80,7 +80,7 @@ extends:
         parameters:
           BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
           ValidationName: InternalRelease
-          BxlExtraArgs: --internal /q:ReleaseLinux 
+          BxlExtraArgs: --internal /q:ReleaseLinux /q:ReleaseLinuxNet8
           Role: Worker
 
     - stage: Verify_PTrace

@@ -9,6 +9,8 @@ declare arg_Positional=()
 # stores user-specified args that are not used by this script; added to the end of command line
 declare arg_UserProvidedBxlArguments=()
 declare arg_DeployDev=""
+# a temporary option to deploy net8 bits
+declare arg_DeployDevNet8=""
 declare arg_UseDev=""
 declare arg_Minimal=""
 declare arg_Internal=""
@@ -68,7 +70,12 @@ function getLkg() {
 }
 
 function setMinimal() {
-    arg_Positional+=(/q:${configuration}${HostQualifier} "/f:output='$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}/*'")
+    if [[ -n "$arg_DeployDevNet8" ]]; then
+        # Net8 qualifiers are just default ones with 'net8' suffix
+        arg_Positional+=("/q:${configuration}${HostQualifier}Net8 /f:output='$MY_DIR/Out/Bin/${outputConfiguration}/net8.0/${DeploymentFolder}/*'")
+    else
+        arg_Positional+=("/q:${configuration}${HostQualifier} /f:output='$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}/*'")
+    fi
 }
 
 function setInternal() {
@@ -106,7 +113,7 @@ function compileWithBxl() {
 }
 
 function printHelp() {
-    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--vs] [--use-adobuildrunner] [--runner-arg <arg-to-buildrunner>] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
+    echo "${BASH_SOURCE[0]} [--deploy-dev] [--deploy-dev-net8] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--vs] [--use-adobuildrunner] [--runner-arg <arg-to-buildrunner>] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
 }
 
 function parseArgs() {
@@ -122,6 +129,10 @@ function parseArgs() {
             ;;
         --deploy-dev)
             arg_DeployDev="1"
+            shift
+            ;;
+        --deploy-dev-net8)
+            arg_DeployDevNet8="1"
             shift
             ;;
         --use-dev)
@@ -294,6 +305,11 @@ pushd "$MY_DIR"
 
 parseArgs "$@"
 
+if [[ -n "$arg_DeployDev" && -n "$arg_DeployDevNet8" ]]; then
+    print_error "Conflicting arguments. Cannot use both --deploy-dev and --deploy-dev-net8 at the same time."
+    exit 1
+fi
+
 outputConfiguration=`printf '%s' "$configuration" | awk '{ print tolower($0) }'`
 
 if [[ -n "$arg_Internal" && -n "$TF_BUILD" ]]; then
@@ -302,7 +318,7 @@ fi
 
 findMono
 
-if [[ -n "$arg_DeployDev" || -n "$arg_Minimal" ]]; then
+if [[ -n "$arg_DeployDev" || -n "$arg_DeployDevNet8" || -n "$arg_Minimal" ]]; then
     setMinimal
 fi
 
@@ -386,6 +402,8 @@ compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}
 
 if [[ -n "$arg_DeployDev" ]]; then
     deployBxl "$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
+elif [[ -n "$arg_DeployDevNet8" ]]; then
+    deployBxl "$MY_DIR/Out/Bin/${outputConfiguration}/net8.0/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
 fi
 
 popd

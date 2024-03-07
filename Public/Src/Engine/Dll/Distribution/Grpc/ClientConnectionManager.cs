@@ -134,7 +134,12 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         private void SendHeartbeat()
         {
-            var result = CallAsync(m_heartbeatCall, "Heartbeat", m_exitTokenSource.Token, doNotRetry: true).GetAwaiter().GetResult();
+            if (m_isExitCalledForServer)
+            {
+                return;
+            }
+
+            var result = CallAsync(m_heartbeatCall, "Heartbeat", m_exitTokenSource.Token, doNotRetry: true, timeout: TimeSpan.FromMinutes(1)).GetAwaiter().GetResult();
 
             if (result.Succeeded)
             {
@@ -544,7 +549,8 @@ namespace BuildXL.Engine.Distribution.Grpc
             string operation,
             CancellationToken cancellationToken = default(CancellationToken),
             bool waitForConnection = false,
-            bool doNotRetry = false)
+            bool doNotRetry = false,
+            TimeSpan? timeout = null)
         {
             var watch = StopwatchSlim.Start();
 
@@ -578,7 +584,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 try
                 {
                     var callOptions = new CallOptions(
-                        deadline: DateTime.UtcNow.Add(GrpcSettings.CallTimeout),
+                        deadline: DateTime.UtcNow.Add(timeout ?? GrpcSettings.CallTimeout),
                         cancellationToken: cancellationToken,
                         headers: headerResult.headers).WithWaitForReady();
 

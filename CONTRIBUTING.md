@@ -5,7 +5,7 @@ Development activities are performed on internal systems and code is regularly m
 
 Due to the overhead associated with this process, we ask that contributions are limited to substantial changes as opposed to cleanups like fixing typos. We highly encourage creating an Issue prior to sending a Pull Request so the proposed change can be discussed prior to submission. We very much value the open source community and want to be respectful of people's time and interest.
 
-If you are a Microsoft employee, please make your contribution to the BuildXL.Internal repository.
+**Microsoft employees** should make contributions to the BuildXL.Internal repository. Join the [EX-BuildXLFTE](https://coreidentity.microsoft.com/manage/Entitlement/entitlement/ecbuildxlfte-fva4) Entitlement for access.
 
 # Contributing to BuildXL
 Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.

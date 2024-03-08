@@ -34,6 +34,8 @@ export const qTestTool: Transformer.ToolDefinition = {
 const defaultArgs: QTestArguments = {
     testAssembly: undefined,
     qTestType: undefined,
+    qTestTargetIdForTelemetry: undefined,
+    qTestTargetIdForFlakyTestSuppression: undefined,
     useVsTest150: true,
     qTestPlatform: QTestPlatform.unspecified,
     qTestDotNetFramework: QTestDotNetFramework.unspecified,
@@ -329,6 +331,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--EnableMsTestTraceLogging", args.qTestEnableMsTestTraceLogging),
         Cmd.option("--VstestConsoleLoggerOptions ", args.qTestVstestConsoleLoggerOptions),
         Cmd.option("--msBuildToolsRoot ", args.qTestMsTestPlatformRootPathValue !== undefined ? args.qTestMsTestPlatformRootPathValue : Artifact.input(args.qTestMsTestPlatformRootPath)),
+        Cmd.option("--targetIdForTelemetry ", args.qTestTargetIdForTelemetry),
+        Cmd.option("--targetIdForFlakyTestSuppression ", args.qTestTargetIdForFlakyTestSuppression),
         Cmd.option("--additionalQTestArgumentsFile ", Artifact.none(args.additionalQTestArgumentsFile))
     ];
 
@@ -659,6 +663,10 @@ export interface QTestArguments extends Transformer.RunnerArguments {
      * List of DBS.QTest.exe arguments can be found here: https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/QTest/QTestExe/QTestExeArgumentObject.cs
     */
     additionalQTestArgumentsFile?: File;
+    /** Unique Id of this target used for suppressing flaky tests */
+    qTestTargetIdForFlakyTestSuppression?: string;
+    /** Unique Id of this target used for emitting telemetry to Kusto */
+    qTestTargetIdForTelemetry?: string;
     /** Allows safe rewrites over source code files */
     safeSourceRewritesAreAllowed?: SourceRewritePolicy;
     /** Nested tool options */

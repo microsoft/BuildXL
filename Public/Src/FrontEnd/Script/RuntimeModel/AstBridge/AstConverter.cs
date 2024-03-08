@@ -186,12 +186,12 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <inheritdoc />
         public ConfigurationDeclaration ConvertConfiguration()
         {
-            var configurationLiteral = ConfigurationConverter.ExtractConfigurationLiteral(CurrentSourceFile);
+            var configurationExpression = ConfigurationConverter.ExtractConfigurationExpression(CurrentSourceFile);
 
             var context = new ConversionContext(EmptyFunctionScope(), QualifierSpaceId.Invalid);
-            var convertedObjectLiteral = ConvertObjectLiteral(configurationLiteral, context);
+            var convertedExpression = ConvertExpression(configurationExpression, context);
 
-            if (convertedObjectLiteral == null)
+            if (convertedExpression == null)
             {
                 // Errors have been logged.
                 return null;
@@ -204,7 +204,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
             var keyword = SymbolAtom.Create(StringTable, configurationKeyword.Text);
             var location = Location(configurationKeyword);
-            ConfigurationDeclaration result = new ConfigurationDeclaration(keyword, convertedObjectLiteral, location);
+            ConfigurationDeclaration result = new ConfigurationDeclaration(keyword, convertedExpression, location);
 
             // Need to register configuration invocation in the module. This is important!
             m_binder.AddExportBinding(CurrentFileModule, keyword, result.ConfigExpression, location);

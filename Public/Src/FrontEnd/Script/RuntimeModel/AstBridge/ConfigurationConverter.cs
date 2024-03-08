@@ -26,10 +26,10 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         }
 
         /// <summary>
-        /// Extracts object literal that was specified for configuration function.
+        /// Extracts the expression that was specified for configuration function.
         /// This method assumes that source was already validated and contains correct state.
         /// </summary>
-        public static IObjectLiteralExpression ExtractConfigurationLiteral(ISourceFile sourceFile)
+        public static IExpression ExtractConfigurationExpression(ISourceFile sourceFile)
         {
             // This method should have this precondition, but to avoid additional wasteful work, this precondition is missing, but assumed.
             // Contract.Requires(ValidateRootConfiguration(sourceFile));
@@ -38,7 +38,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
             var callExpression = configurationStatement.AsCallExpression();
 
-            return callExpression.Arguments[0].Cast<IObjectLiteralExpression>();
+            return callExpression.Arguments[0];
         }
 
         /// <summary>
@@ -65,14 +65,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             if (callExpression.Arguments.Count != 1)
             {
                 string message = I($"Configuration expression should take 1 argument but got {callExpression.Arguments.Count}");
-                logger.ReportInvalidConfigurationFileFormat(loggingContext, callExpression.LocationForLogging(sourceFile), message);
-                return false;
-            }
-
-            var objectLiteral = callExpression.Arguments[0].As<IObjectLiteralExpression>();
-            if (objectLiteral == null)
-            {
-                string message = I($"Configuration expression should take object literal but got {callExpression.Arguments[0].Kind}");
                 logger.ReportInvalidConfigurationFileFormat(loggingContext, callExpression.LocationForLogging(sourceFile), message);
                 return false;
             }

@@ -222,6 +222,15 @@ config({
             Assert.Contains("Object literal may only specify known properties, and 'unknownProperty' does not exist in type 'Configuration'", failure.FullMessage);
         }
 
+        [Fact]
+        public void ConfigurationAcceptsArbitraryExpression()
+        {
+            string code = @"
+config((() => ({}))());";
+
+            var failure = ParseConfigurationSuccessfully(code);
+        }
+
         private IConfiguration ParseConfigurationSuccessfully(string configuration, ICommandLineConfiguration commandLine = null)
         {
             var result = ParseConfiguration(configuration, commandLine);

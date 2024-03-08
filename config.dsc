@@ -320,11 +320,11 @@ config({
                 { id: "ObjectLayoutInspector", version: "0.1.4" },
 
                 // Ninja JSON graph generation helper
-                { id: "BuildXL.Tools.Ninjson", version: "1.11.2" },
+                { id: "BuildXL.Tools.Ninjson", version: "1.11.3" },
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
 
                 // Ninja JSON Linux Text
-                { id: "BuildXL.Tools.Ninjson.linux-x64", version: "1.11.2", osSkip: [ "macOS" ] },
+                { id: "BuildXL.Tools.Ninjson.linux-x64", version: "1.11.3.1", osSkip: [ "macOS" ] },
 
                 // Azure Communication
                 { id: "Microsoft.Rest.ClientRuntime", version: "2.3.24",

@@ -1341,7 +1341,7 @@ namespace Tool.DropDaemon
         /// <summary>
         /// BuildXL's classification of different <see cref="IpcResultStatus"/> values:
         ///   - <see cref="IpcResultStatus.InvalidInput"/>      --> <see cref="Keywords.UserError"/>
-        ///   - <see cref="IpcResultStatus.TransmissionError"/> --> <see cref="Keywords.InfrastructureError"/>
+        ///   - <see cref="IpcResultStatus.TransmissionError"/> --> <see cref="Keywords.InfrastructureIssue"/>
         ///   - all other errors                                --> InternalError
         /// </summary>
         private static async Task<TResult> HandleKnownErrorsAsync<TResult>(Func<Task<TResult>> factory, ErrorFactory<TResult> errorValueFactory)

@@ -463,7 +463,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolErrorCopyFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' failed to download because an error occurred copying from '{url}' to '{targetFilePath}': {message}")]
         public abstract void DownloadToolErrorCopyFile(
@@ -506,7 +506,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolErrorDownloading,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' failed to download from url: '{url}' to target location '{targetFilePath}' with error: {message}")]
         public abstract void DownloadToolErrorDownloading(
@@ -520,7 +520,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolErrorFileNotDownloaded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' failed to download. No file was produced at target location '{targetFilePath}'")]
         public abstract void DownloadToolErrorFileNotDownloaded(LoggingContext loggingContext, string toolName, string targetFilePath);
@@ -529,7 +529,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolErrorDownloadedToolWrongHash,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (ushort)Tasks.Parser,
             Message =
                 "Tool '{toolName}' failed to validate. The configuration specified required hash '{expectedHash}', but the file '{targetFilePath}' downloaded from '{url}' has hash '{actualHash}'. For safety reasons we will not continue the build. You must update the config and/or validate the that the server providing the file is not compromised.")]

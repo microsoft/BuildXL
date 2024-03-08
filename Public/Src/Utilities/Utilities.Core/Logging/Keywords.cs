@@ -48,9 +48,9 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public const EventKeywords ExternalEtwOnly = (EventKeywords)(1 << 5);
 
         /// <summary>
-        /// Error events that are flagged as infrastructure issues
+        /// Events that are flagged as infrastructure issues
         /// </summary>
-        public const EventKeywords InfrastructureError = (EventKeywords)(1 << 6);
+        public const EventKeywords InfrastructureIssue = (EventKeywords)(1 << 6);
 
         /// <summary>
         /// Error events that are flagged as User Errors

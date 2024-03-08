@@ -94,7 +94,7 @@ namespace BuildXL.App.Tracing
             EventLevel = Level.Verbose,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = "{ShortProductName} process exited with: ExitCode:'{0}', ExitType:{1}, ErrorBucket:{errorBucket}")]
-        public abstract void DominoCompletion(LoggingContext context, int exitCode, string exitKind, string errorBucket, string bucketMessage, int processRunningTime);
+        public abstract void DominoCompletion(LoggingContext context, int exitCode, string exitKind, string errorBucket, string bucketMessage, int processRunningTime, string internalWarning);
 
         [GeneratedEvent(
             (ushort)LogEventId.DominoPerformanceSummary,
@@ -515,7 +515,7 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             Message = "Build Termination started {timeoutMins} mins before CB timeout for clean exit. BuildXL had a total of {availableMins} mins to complete the build.")]
         public abstract void CbTimeoutReached(LoggingContext context, int timeoutMins, int availableMins);
 
@@ -524,7 +524,7 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             Message = "Build Terminated immediately since CB timeout is less than {mins} mins, please increase the CB timeout in your queue config")]
         public abstract void CbTimeoutTooLow(LoggingContext context, int mins);
 
@@ -533,7 +533,7 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             Message = "BuildXL received invalid CB Timeout information. Current Time UTC ticks: {utcTicksNow}. Timeout UTC ticks received from CB: {utcTicksCbTimeout}.")]
         public abstract void CbTimeoutInvalid(LoggingContext context, string utcTicksNow, string utcTicksCbTimeout);
 

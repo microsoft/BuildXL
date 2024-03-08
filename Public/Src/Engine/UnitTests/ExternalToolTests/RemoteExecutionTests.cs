@@ -109,6 +109,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             ProcessWithOutputs process = SchedulePipBuilder(builder);
 
             ScheduleRunResult result = RunScheduler().AssertSuccess();
+            AssertWarningEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.PipRetryDueToRetryableFailures, count: 1);
             XAssert.AreEqual(1, result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalRunRemoteProcesses));
             XAssert.AreEqual(1, result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalRunLocallyProcessesOnRemotingWorker));
             XAssert.AreEqual(1, result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalRemoteFallbackRetries));

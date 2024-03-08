@@ -109,7 +109,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.PipIpcFailedDueToInfrastructureError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}' because of an infrastructure error. Error: {message}")]
         internal abstract void PipIpcFailedDueToInfrastructureError(
@@ -648,7 +648,7 @@ namespace BuildXL.Scheduler.Tracing
            (ushort)LogEventId.FailedToDeserializeLRUMap,
            EventGenerators = EventGenerators.LocalAndTelemetry,
            EventLevel = Level.Warning,
-           Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+           Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
            EventTask = (ushort)Tasks.PipExecutor,
            Message = "Failed to deserialize LRUEntriesMap, Exception encountered - {message}")]
         internal abstract void FailedToDeserializeLRUEntriesMap(LoggingContext loggingContext, string message);
@@ -713,7 +713,7 @@ namespace BuildXL.Scheduler.Tracing
              Message = "Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from orchestrator.",
              EventLevel = Level.Error,
              EventTask = (ushort)Tasks.Distribution,
-             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError))]
+             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue))]
         public abstract void PipInputVerificationMismatch(LoggingContext context, string actualHash, string expectedHash, string filePath);
 
         [GeneratedEvent(
@@ -731,7 +731,7 @@ namespace BuildXL.Scheduler.Tracing
             Message = "Pip input '{filePath}' not found locally, but exists on the orchestrator. Ensure that source files are properly replicated from the orchestrator.",
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue))]
         public abstract void PipInputVerificationMismatchExpectedExistence(LoggingContext context, string filePath);
 
         [GeneratedEvent(
@@ -740,7 +740,7 @@ namespace BuildXL.Scheduler.Tracing
             Message = "Pip input '{filePath}' found locally, but does NOT exist on the orchestrator. Ensure that old files are cleaned up and source files are properly replicated from the orchestrator.",
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue))]
         public abstract void PipInputVerificationMismatchExpectedNonExistence(LoggingContext context, string filePath);
 
         [GeneratedEvent(
@@ -805,7 +805,7 @@ namespace BuildXL.Scheduler.Tracing
             Message = "{workerName} stopped with a failure. Is the connection lost sometime after connected: {isConnectionLost}. Is ever connected: {everConnected}. Is ever available: {everAvailable}. Is early-release initiated: {isEarlyReleaseInitiated}. Infra failure: {infraFailure}",
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue))]
         public abstract void ProblematicWorkerExit(LoggingContext context, string workerName, bool isConnectionLost, bool everConnected, bool everAvailable, bool isEarlyReleaseInitiated, string infraFailure);
 
         [GeneratedEvent(
@@ -3389,7 +3389,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             Message = "Minimum workers not satisfied. # Minimum workers: {minimumWorkers}, # Succesfully attached workers: {connectedWorkers}")]
         public abstract void MinimumWorkersNotSatisfied(LoggingContext context, int minimumWorkers, int connectedWorkers);
 
@@ -3484,7 +3484,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             Message = "Failed to initialize the sandbox connection manager: {reason}")]
         public abstract void KextFailedToInitializeConnectionManager(LoggingContext context, string reason);
 
@@ -3493,7 +3493,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
              Message = "Received unrecoverable error from sandbox connection, please reload the extension and retry, tweaking configuration parameters if necessary (e.g., /numberOfKextConnections, /reportQueueSizeMb).  Error code: {errorCode}.  Additional description: {description}.")]
         public abstract void KextFailureNotificationReceived(LoggingContext context, int errorCode, string description);
 
@@ -3784,8 +3784,8 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.PipRetryDueToLowMemory,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
+            EventLevel = Level.Warning,
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Pip will be retried due to Low Memory. DefaultWorkingSetUsage: {defaultWorkingSetUsage}, ExpectedWorkingSetUsage: {expectedWorkingSetUsage}, ActualWorkingSetUsage: {actualWorkingSetUsage}")]
         internal abstract void PipRetryDueToLowMemory(LoggingContext loggingContext, string pipDescription, int defaultWorkingSetUsage, int expectedWorkingSetUsage, int actualWorkingSetUsage);
@@ -3793,8 +3793,8 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.PipRetryDueToRetryableFailures,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
+            EventLevel = Level.Warning,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Pip will be retried due to a retryable failure: {retryReason}.")]
         internal abstract void PipRetryDueToRetryableFailures(LoggingContext loggingContext, string pipDescription, string retryReason);

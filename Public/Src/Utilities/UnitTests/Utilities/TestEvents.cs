@@ -125,7 +125,7 @@ namespace Test.BuildXL.Utilities
             (int)EventId.InfrastructureErrorEvent,
             Level = EventLevel.Error,
             Task = Instrumentation.Common.Tasks.UnitTest,
-            Keywords = Keywords.UserMessage | Keywords.InfrastructureError,
+            Keywords = Keywords.UserMessage | Keywords.InfrastructureIssue,
             Message = "{0}")]
         public void InfrastructureErrorEvent(string message)
         {

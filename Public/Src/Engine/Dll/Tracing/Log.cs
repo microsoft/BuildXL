@@ -627,7 +627,7 @@ namespace BuildXL.Engine.Tracing
             (ushort)LogEventId.DistributionStreamingNetworkFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureError,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureIssue,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "Streaming finalization fails on {workerName}")]
         public abstract void DistributionStreamingNetworkFailure(LoggingContext context, string workerName);
@@ -635,8 +635,8 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExecutePipFailedDistributionFailureWarning,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureError,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureIssue,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Failing pip step {step} by {callerName} because execution request could not be sent to worker {workerName}: {errorMessage}. Because it still fails after {maxRetryLimit} retries, the scheduler will execute the step on the orchestrator.")]
         public abstract void DistributionExecutePipFailedDistributionFailureWarning(LoggingContext context, string pipDescription, string workerName, string errorMessage, int maxRetryLimit, string step, string callerName);
@@ -645,7 +645,7 @@ namespace BuildXL.Engine.Tracing
             (ushort)LogEventId.DistributionExecutePipFailedNetworkFailureWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureError,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureIssue,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Failing pip step {step} by {callerName} because execution request could not be sent to worker {workerName}: {errorMessage}")]
         public abstract void DistributionExecutePipFailedNetworkFailureWarning(LoggingContext context, string pipDescription, string workerName, string errorMessage, string step, string callerName);
@@ -765,7 +765,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Info,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.InfrastructureError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.InfrastructureIssue))]
         public abstract void DistributionServiceInitializationError(LoggingContext context, string role, ushort port, string exceptionMessage);
 
         [GeneratedEvent(
@@ -1515,7 +1515,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.FailedToCreateEngineOutputDirectories,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (int)Tasks.Engine,
             Message = "Failed to create BuildXL engine output directories. This may be due to invoking concurrent builds with overlapping directories. Kill all instances of {ShortProductName} if concurrent builds are unexpected. Error: {0}")]
         public abstract void FailedToCreateEngineOutputDirectories(LoggingContext context, string message);
@@ -1524,7 +1524,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.FailedToAcquireDirectoryLock,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (int)Tasks.Engine,
             Message = "Failed to acquire a lock to prevent concurrent builds: {0}")]
         public abstract void FailedToAcquireDirectoryLock(LoggingContext context, string innerException);
@@ -1818,7 +1818,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.BusyOrUnavailableOutputDirectories,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (int)Tasks.Engine,
             Message = "Concurrent builds using the same output directories are not supported. Directory already in use or not reachable {0}.")]
         public abstract void BusyOrUnavailableOutputDirectories(LoggingContext context, string objectDirectoryPath);
@@ -2792,7 +2792,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Engine,
             Message = "Failed to redirect user profile. {detailedErrorMessage}",
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue))]
         public abstract void FailedToRedirectUserProfile(LoggingContext context, string detailedErrorMessage);
 
         [GeneratedEvent(

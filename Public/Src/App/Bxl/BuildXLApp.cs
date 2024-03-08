@@ -110,8 +110,9 @@ namespace BuildXL
         public readonly string ErrorBucket;
         public readonly string BucketMessage;
         public readonly bool DoNotReuseServer;
+        public readonly string InternalWarning;
 
-        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage, bool doNotSaveServerState)
+        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage, bool doNotSaveServerState, string internalWarnings)
         {
             ExitKind = exitKind;
             CloudBuildExitKind = cloudBuildExitKind;
@@ -119,16 +120,17 @@ namespace BuildXL
             ErrorBucket = errorBucket;
             BucketMessage = bucketMessage;
             DoNotReuseServer = doNotSaveServerState;
+            InternalWarning = internalWarnings;
         }
 
-        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool doNotSaveServerState = false)
+        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool doNotSaveServerState = false, string internalWarning = "")
         {
-            return new AppResult(exitKind, exitKind, engineState, errorBucket, bucketMessage, doNotSaveServerState);
+            return new AppResult(exitKind, exitKind, engineState, errorBucket, bucketMessage, doNotSaveServerState, internalWarning);
         }
 
-        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool doNotReuseServer = false)
+        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage, bool doNotReuseServer, string internalWarning)
         {
-            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, bucketMessage, doNotReuseServer);
+            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, bucketMessage, doNotReuseServer, internalWarning);
         }
     }
 
@@ -738,20 +740,24 @@ namespace BuildXL
                             }
                         }
 
+                        // Empty string if there are no internal warnings
+                        string internalWarning = appLoggers.TrackingEventListener.InternalWarning;
+
                         if (appLoggers.TrackingEventListener.HasFailures)
                         {
                             WriteErrorToConsoleWithDefaultColor(Strings.App_Main_BuildFailed);
 
                             LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
 
-                            var classification = ClassifyFailureFromLoggedEvents(pm.LoggingContext, appLoggers.TrackingEventListener);
+                            var classification = ClassifyFailureFromLoggedEvents(appLoggers.TrackingEventListener);
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
 
                             return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket,
                                 bucketMessage: classification.BucketMessage,
                                 // Some L3 cache initialization failures relating to auth are sticky and will not succeed if retried from
                                 // within the same process. Make sure not to reuse the server process when the cache fails to init for safety.
-                                doNotReuseServer: appLoggers.TrackingEventListener.CountsPerEventId((int)BuildXL.Engine.Tracing.LogEventId.StorageCacheStartupError) > 0);
+                                doNotReuseServer: appLoggers.TrackingEventListener.CountsPerEventId((int)BuildXL.Engine.Tracing.LogEventId.StorageCacheStartupError) > 0,
+                                internalWarning: internalWarning);
                         }
 
                         WriteToConsole(Strings.App_Main_BuildSucceeded);
@@ -777,7 +783,9 @@ namespace BuildXL
                             }
                         }
 
-                        return AppResult.Create(ExitKind.BuildSucceeded, newEngineState, string.Empty);
+                        return AppResult.Create(ExitKind.BuildSucceeded, newEngineState, 
+                            errorBucket: string.Empty,
+                            internalWarning: internalWarning);
                     }
                     finally
                     {
@@ -865,7 +873,7 @@ namespace BuildXL
                 engineState);
         }
 
-        internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(LoggingContext loggingContext, TrackingEventListener listener)
+        internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(TrackingEventListener listener)
         {
             if (listener.CountsPerEventId((int)SchedulerLogEventId.ProblematicWorkerExit) >= 1 &&
                 (listener.InternalErrorDetails.Count > 0 || listener.InfrastructureErrorDetails.Count > 0))
@@ -878,7 +886,7 @@ namespace BuildXL
                     listener.InternalErrorDetails.FirstErrorName :
                     listener.InfrastructureErrorDetails.FirstErrorName;
 
-                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: $"{SchedulerLogEventId.ProblematicWorkerExit.ToString()}.{errorName}", BucketMessage: errorMessage);
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: $"{SchedulerLogEventId.ProblematicWorkerExit}.{errorName}", BucketMessage: errorMessage);
             }
             // Failure to compute a build manifest hash will manifest as an IPC pip failure
             else if (listener.CountsPerEventId((int)SchedulerLogEventId.ErrorApiServerGetBuildManifestHashFromLocalFileFailed) >= 1
@@ -1109,9 +1117,7 @@ namespace BuildXL
                         loggingContext,
                         ExitCode.FromExitKind(exitKind),
                         exitKind,
-                        result.CloudBuildExitKind,
-                        result.ErrorBucket,
-                        result.BucketMessage,
+                        result,
                         Convert.ToInt32(utcNow.Subtract(m_startTimeUtc).TotalMilliseconds),
                         utcNow.Ticks,
                         m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration);
@@ -1156,9 +1162,7 @@ namespace BuildXL
             LoggingContext context,
             int exitCode,
             ExitKind exitKind,
-            ExitKind cloudBuildExitKind,
-            string errorBucket,
-            string bucketMessage,
+            AppResult result,
             int processRunningTime,
             long utcTicks,
             bool inCloudBuild)
@@ -1166,10 +1170,11 @@ namespace BuildXL
             Logger.Log.DominoCompletion(context,
                 exitCode,
                 exitKind.ToString(),
-                errorBucket,
+                result.ErrorBucket,
                 // This isn't a command line but it should still be sanatized for sake of not overflowing in telemetry
-                ScrubCommandLine(bucketMessage, 1000, 1000),
-                processRunningTime);
+                ScrubCommandLine(result.BucketMessage, 1000, 1000),
+                processRunningTime,
+                result.InternalWarning);
 
             // Sending a different event to CloudBuild ETW listener.
             if (inCloudBuild)
@@ -1179,7 +1184,7 @@ namespace BuildXL
                     UtcTicks = utcTicks,
                     ExitCode = exitCode,
                     ExitKind = exitKind,
-                    ErrorBucket = errorBucket,
+                    ErrorBucket = result.ErrorBucket,
                 });
             }
         }

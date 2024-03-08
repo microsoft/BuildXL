@@ -64,7 +64,7 @@ namespace BuildXL.PipGraphFragmentGenerator.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Analyzers,
             Message = "Unhandled infrastructure error: {exceptionMessage}",
-            Keywords = ((int)Keywords.UserMessage) | (int)Keywords.InfrastructureError)]
+            Keywords = ((int)Keywords.UserMessage) | (int)Keywords.InfrastructureIssue)]
         public abstract void UnhandledInfrastructureError(LoggingContext context, string exceptionMessage);
 
     }

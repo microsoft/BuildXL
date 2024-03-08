@@ -699,7 +699,7 @@ namespace BuildXL.Processes.Tracing
             (int)LogEventId.PipProcessOutputPreparationFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipSpecPrefix + "Process output directories could not be prepared, path '{2}', error code {3:X8}: {4}")]
         public abstract void PipProcessOutputPreparationFailed(
@@ -885,7 +885,7 @@ namespace BuildXL.Processes.Tracing
             (ushort)LogEventId.PipTempDirectoryCleanupWarning,
             EventLevel = Level.Warning,
             EventGenerators = EventGenerators.LocalOnly,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Failed to clean temp directory at '{directory}'. Pip may be retried or failed. {exceptionMessage}")]
         public abstract void PipTempDirectoryCleanupFailure(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);

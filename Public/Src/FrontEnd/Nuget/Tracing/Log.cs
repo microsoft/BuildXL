@@ -222,7 +222,7 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             (ushort)LogEventId.NugetFailedDownloadPackage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (ushort)Tasks.Parser,
             Message = "Nuget failed to download package '{package}': {message}")]
         public abstract void NugetFailedDownloadPackage(LoggingContext context, string package, string message);

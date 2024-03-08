@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
@@ -40,6 +41,9 @@ namespace BuildXL.Utilities.Tracing
         /// The UTC time representing time 0 for this listener
         /// </summary>
         private readonly DateTime m_baseTime;
+
+        /// <nodoc/>
+        public string InternalWarning { get; private set; }
 
         /// <summary>
         /// Initializes an instance.
@@ -212,6 +216,13 @@ namespace BuildXL.Utilities.Tracing
         {
             Contract.Assume(eventData.Level == EventLevel.Warning);
             Interlocked.Increment(ref m_numWarnings);
+
+            long keywords = (long)eventData.Keywords;
+            if ((keywords & (long)Keywords.InfrastructureIssue) > 0 &&
+                !string.IsNullOrEmpty(InternalWarning))
+            {
+                InternalWarning = eventData.EventName;
+            }
         }
 
         /// <inheritdoc />
@@ -301,7 +312,7 @@ namespace BuildXL.Utilities.Tracing
                 UserErrorDetails.RegisterError(eventName, errorMessage);
                 return false;
             }
-            else if ((keywords & (long)Keywords.InfrastructureError) > 0)
+            else if ((keywords & (long)Keywords.InfrastructureIssue) > 0)
             {
                 InfrastructureErrorDetails.RegisterError(eventName, errorMessage);
             }

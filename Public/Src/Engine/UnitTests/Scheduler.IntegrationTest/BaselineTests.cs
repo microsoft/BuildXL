@@ -2183,6 +2183,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             if (allowLowMemoryRetry)
             {
                 schedulerResult.AssertSuccess();
+                AssertWarningEventLogged(LogEventId.PipRetryDueToLowMemory, count: 1);
             }
             else
             {
@@ -2292,6 +2293,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // One of the pips was suspended, never resumed, cancelled, and ran to completion when retried
             schedulerResult.AssertSuccess();
+            AssertWarningEventLogged(LogEventId.PipRetryDueToLowMemory, count: 1);
             AssertVerboseEventLogged(LogEventId.EmptyWorkingSet, count: 1);
             AssertVerboseEventLogged(LogEventId.ResumeProcess, count: 0);
             AssertVerboseEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);

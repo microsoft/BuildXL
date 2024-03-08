@@ -172,6 +172,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public string BuildId { get; set; }
 
         /// <summary>
+        /// Treat the blob cache as read only. Still pull from it.
+        /// </summary>
+        [DefaultValue(false)]
+        public bool IsReadOnly { get; set; }
+
+        /// <summary>
         /// This configuration needs the role, activity id and the kusto logging info coming from the engine configuration object
         /// </summary>
         public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, PathTable pathTable, out Failure failure)

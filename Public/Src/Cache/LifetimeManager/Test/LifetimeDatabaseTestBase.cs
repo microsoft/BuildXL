@@ -79,7 +79,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         MaximumRetryCount = 0,
                     },
                     StorageInteractionTimeout = TimeSpan.FromSeconds(1)
-                }
+                },
+                IsReadOnly = false
             });
 
             var blobMemoizationDatabase = new MetadataStoreMemoizationDatabase(

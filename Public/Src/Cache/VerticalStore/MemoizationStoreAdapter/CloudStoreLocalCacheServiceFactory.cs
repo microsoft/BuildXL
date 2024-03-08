@@ -144,7 +144,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             MemoizationStore.Interfaces.Caches.ICache cache = LocalCache.CreateRpcCache(logger, clientConfiguration);
             var statisticsFilePath = new AbsolutePath(logPath.Path + ".stats");
 
-            return new MemoizationStoreAdapterCache(configuration.CacheId, cache, logger, statisticsFilePath, implicitPin: ImplicitPin.PutAndGet);
+            return new MemoizationStoreAdapterCache(configuration.CacheId, cache, logger, statisticsFilePath, isReadOnly: false, implicitPin: ImplicitPin.PutAndGet);
         }
 
         private static ServiceClientContentStoreConfiguration CreateClientConfiguration(Config configuration, ILogger logger)

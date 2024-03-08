@@ -58,12 +58,12 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             // Many tests don't upload content for a given content hash list, and a null retention policy will make the database try to preventively pin
             // nonexistent content
             var conf = new Host.Configuration.MetadataStoreMemoizationDatabaseConfiguration() { DisablePreventivePinning = true };
-            var database = new MetadataStoreMemoizationDatabase(store: CreateAzureBlobStorageMetadataStore(), conf);
+            var database = new MetadataStoreMemoizationDatabase(store: CreateAzureBlobStorageMetadataStore(isReadonly: false), conf);
 
             return new DatabaseMemoizationStore(database: database);
         }
 
-        private AzureBlobStorageMetadataStore CreateAzureBlobStorageMetadataStore()
+        private AzureBlobStorageMetadataStore CreateAzureBlobStorageMetadataStore(bool isReadonly)
         {
             var shards = Enumerable.Range(0, 10).Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
 
@@ -95,6 +95,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var config = new BlobMetadataStoreConfiguration
             {
                 Topology = topology,
+                IsReadOnly = isReadonly,
             };
 
             topology.EnsureContainersExistAsync(new OperationContext(new Context(Logger), CancellationToken.None)).GetAwaiter().GetResult().ShouldBeSuccess();
@@ -114,9 +115,12 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         protected async Task RunTestAsync(
-          Context context, TimeSpan retentionPolicy, Func<DatabaseMemoizationStore, AzureBlobStorageMetadataStore, MetadataStoreMemoizationDatabase, ICacheSession, IContentSession, ContentStoreInternalTracer, FileSystemContentStore, Task> funcAsync)
+          Context context,
+          TimeSpan retentionPolicy,
+          Func<DatabaseMemoizationStore, AzureBlobStorageMetadataStore, MetadataStoreMemoizationDatabase, ICacheSession, IContentSession, ContentStoreInternalTracer, FileSystemContentStore, Task> funcAsync,
+          bool isMetadataStoreReadonly = false)
         {
-            var metadataStore = CreateAzureBlobStorageMetadataStore();
+            var metadataStore = CreateAzureBlobStorageMetadataStore(isMetadataStoreReadonly);
             var database = new MetadataStoreMemoizationDatabase(metadataStore,
                 new Host.Configuration.MetadataStoreMemoizationDatabaseConfiguration() { RetentionPolicy = retentionPolicy });
 
@@ -365,6 +369,61 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 // The second content hash list should be listed first (since it got added last)
                 Assert.Equal(strongFingerprint2.Selector.ContentHash, selectors[0].ContentHash);
                 Assert.Equal(strongFingerprint.Selector.ContentHash, selectors[1].ContentHash);
+            });
+        }
+
+        [Fact]
+        public Task TestPreventivePinningHandlesReadOnlyMode()
+        {
+            var context = new Context(Logger);
+            var strongFingerprint = StrongFingerprint.Random();
+
+            var retentionPolicy = TimeSpan.FromDays(1);
+
+            // Observe we consistently use automaticallyOverwriteContentHashLists: false, which is the way the AzureBlobStorageCacheFactory
+            // configures it
+            return RunTestAsync(context, retentionPolicy, isMetadataStoreReadonly: true, funcAsync: async (
+                DatabaseMemoizationStore store,
+                AzureBlobStorageMetadataStore metadataStore,
+                MetadataStoreMemoizationDatabase database,
+                ICacheSession cacheSession,
+                IContentSession contentSession,
+                ContentStoreInternalTracer tracer,
+                FileSystemContentStore _) =>
+            {
+                var before = DateTime.UtcNow;
+                var ctx = new OperationContext(context);
+
+                // Store a new content hash list
+                var putResult = await cacheSession.PutRandomAsync(
+                    context, ContentHashType, false, RandomContentByteCount, Token);
+                var contentHashList = new ContentHashList(new[] { putResult.ContentHash });
+                var addResult = await database.CompareExchangeAsync(
+                    ctx, strongFingerprint, string.Empty, new ContentHashListWithDeterminism(null, CacheDeterminism.None), new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None)).ShouldBeSuccess();
+
+                // Change the timestamp so it looks like it is due for being evicted. This test-specific method bypasses the readonly mode, so the change actually happens
+                await metadataStore.UpdateLastContentPinnedTimeForTestingAsync(ctx, strongFingerprint, DateTime.UtcNow - retentionPolicy).ShouldBeSuccess();
+
+                // Now retrieve it using the store. This should trigger a pin on the content, but the content hash list last pin time shouldn't be updated because of the read-only restrictions
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: false).ShouldBeSuccess();
+
+                // The operation should have triggered a pin on the content
+                Assert.Equal(1, GetPinCount(tracer));
+
+                // Retrieve the content hash list using a lower level component so we can inspect the last upload time later
+                var getResult = await database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: true).ShouldBeSuccess();
+
+                // Retrieve it again using the store. The pin should happen again, since the last pin time was not updated
+                await store.GetContentHashListAsync(ctx, strongFingerprint, Token, contentSession, automaticallyOverwriteContentHashLists: false).ShouldBeSuccess();
+
+                // The operation should have triggered another pin on the content (2 total)
+                Assert.Equal(2, GetPinCount(tracer));
+
+                // Retrieve the content hash list using a lower level component so we can inspect the last upload time
+                var getResultWithPreventivePin = await database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: true).ShouldBeSuccess();
+
+                // The last content pinned time shouldn't have been updated in between calls
+                Assert.Equal(getResultWithPreventivePin.LastContentPinnedTime, getResult.LastContentPinnedTime);
             });
         }
 

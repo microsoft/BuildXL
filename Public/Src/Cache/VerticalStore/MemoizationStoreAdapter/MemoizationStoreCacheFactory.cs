@@ -140,6 +140,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue((int)ContentStore.Interfaces.Stores.ImplicitPin.PutAndGet)]
             public int ImplicitPin { get; set; }
 
+            /// <summary>
+            /// Treat the cache as read only. Still pull from it.
+            /// </summary>
+            [DefaultValue(false)]
+            public bool IsReadOnly { get; set; }
+
             /// <nodoc />
             public Config()
             {
@@ -155,6 +161,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 UseStreamCAS = false;
                 StreamCAS = null;
                 ReplaceExistingOnPlaceFile = false;
+                IsReadOnly = false;
             }
         }
 
@@ -268,6 +275,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     localCache,
                     logger,
                     statsFilePath,
+                    isReadOnly: cacheConfig.IsReadOnly,
                     cacheConfig.ReplaceExistingOnPlaceFile,
                     (ImplicitPin)cacheConfig.ImplicitPin);
 

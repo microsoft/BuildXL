@@ -31,11 +31,13 @@ public static class AzureBlobStorageCacheFactory
     /// Set to null to disable engine-side GC if you are using the BlobLifetimeManager to manage the size of the cache.
     /// If not null, if a content hash list is older than this retention period, the engine will manually pin all of its contents to ensure that content still exists.
     /// </param>
+    /// <param name="IsReadOnly">Whether the cache is read-only</param>
     public record Configuration(
         ShardingScheme ShardingScheme,
         string Universe,
         string Namespace,
-        int? RetentionPolicyInDays)
+        int? RetentionPolicyInDays,
+        bool IsReadOnly)
     {
         /// <summary>
         /// The default universe.
@@ -188,7 +190,8 @@ public static class AzureBlobStorageCacheFactory
                 {
                     StorageInteractionTimeout = configuration.StorageInteractionTimeout,
                     RetryPolicy = BlobFolderStorageConfiguration.DefaultRetryPolicy,
-                }
+                },
+                IsReadOnly = configuration.IsReadOnly
             });
 
         // The memoization database will make sure the associated content for a retrieved content

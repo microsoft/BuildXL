@@ -25,7 +25,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                         new List<BlobCacheStorageAccountName>() { accountName }),
                     Universe: "default",
                     Namespace: "default",
-                    RetentionPolicyInDays: 0);
+                    RetentionPolicyInDays: 0,
+                    IsReadOnly: false);
 
             var secretsProvider = new StaticBlobCacheSecretsProvider(new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>()
             {

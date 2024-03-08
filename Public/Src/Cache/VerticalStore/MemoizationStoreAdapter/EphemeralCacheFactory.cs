@@ -24,6 +24,23 @@ namespace BuildXL.Cache.MemoizationStoreAdapter;
 /// </summary>
 public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, ICacheFactory
 {
+    private const string ReadOnlyModeError = "Ephemeral cache factory does not support read-only mode.";
+
+    /// <inheritdoc/>
+    public override Task<Possible<ICache, Failure>> InitializeCacheAsync(EphemeraCacheConfig configuration)
+    {
+        // TODO: The ephemeral factory does not support read-only mode, but this could be added in the future.
+        // Ideally we shouldn't have this option in the ephemeral configuration object at all, but today there is a subclass relationship
+        // with the BlobCacheConfig (where readonly mode is supported) that it is not easy to break.
+        // Observe that ValidateConfiguration method (part of ICacheFactory) is today only called in the context of CloudBuild, so
+        // it won't catch this on non-CB builds.
+        if (configuration.IsReadOnly)
+        {
+            return Task.FromResult(new Possible<ICache, Failure>(new Failure<string>(ReadOnlyModeError)));
+        }
+
+        return base.InitializeCacheAsync(configuration);
+    }
 
     internal override async Task<MemoizationStore.Interfaces.Caches.ICache> CreateCacheAsync(ILogger logger, EphemeraCacheConfig configuration)
     {
@@ -86,6 +103,10 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, 
                     nameof(cacheConfig.ConnectionStringFileEnvironmentVariableName));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.Universe, nameof(cacheConfig.Universe));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.Namespace, nameof(cacheConfig.Namespace));
+                if (cacheConfig.IsReadOnly)
+                {
+                    failures.Add(new Failure<string>(ReadOnlyModeError));
+                }
 
                 return failures;
             });

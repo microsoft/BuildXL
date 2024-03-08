@@ -56,11 +56,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <param name="implicitPin">ImplicitPin to be used when creating sessions.</param>
         /// <param name="precedingStateDegradationFailures">State degradation failures that happened before the creation of this cache, and that should be reported when the proper listener
         /// <see cref="SuscribeForCacheStateDegredationFailures(Action{Failure})"/> is set</param>
+        /// <param name="isReadOnly">Whether the cache is read-only</param>
         public MemoizationStoreAdapterCache(
             CacheId cacheId,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache innerCache,
             ILogger logger,
             AbsolutePath statsFile,
+            bool isReadOnly,
             bool replaceExistingOnPlaceFile = false,
             ImplicitPin implicitPin = ImplicitPin.PutAndGet,
             List<Failure> precedingStateDegradationFailures = null)
@@ -77,6 +79,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             m_replaceExistingOnPlaceFile = replaceExistingOnPlaceFile;
             m_implicitPin = implicitPin;
             m_stateDegradationFailuresOnInit = precedingStateDegradationFailures ?? new List<Failure>();
+            IsReadOnly = isReadOnly;
         }
 
         /// <summary>
@@ -102,7 +105,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public bool IsShutdown => m_isShutdown;
 
         /// <inheritdoc />
-        public bool IsReadOnly => false;
+        public bool IsReadOnly { get; }
 
         /// <inheritdoc />
         public bool IsDisconnected => false;

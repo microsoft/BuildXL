@@ -48,7 +48,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <summary>
         /// Create cache using configuration
         /// </summary>
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(TConfig configuration)
+        public virtual async Task<Possible<ICache, Failure>> InitializeCacheAsync(TConfig configuration)
         {
             Contract.Requires(configuration != null);
             if (string.IsNullOrEmpty(configuration.Universe))
@@ -103,9 +103,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     innerCache: await CreateCacheAsync(logger, configuration),
                     logger: logger,
                     statsFile: new AbsolutePath(logPath.Path + ".stats"),
+                    isReadOnly: configuration.IsReadOnly,
                     implicitPin: ImplicitPin.None,
                     precedingStateDegradationFailures: failures);
-
+                
                 var startupResult = await cache.StartupAsync();
                 if (!startupResult.Succeeded)
                 {

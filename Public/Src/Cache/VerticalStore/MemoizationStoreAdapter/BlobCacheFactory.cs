@@ -49,7 +49,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 ShardingScheme: new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
                 Universe: configuration.Universe,
                 Namespace: configuration.Namespace,
-                RetentionPolicyInDays: configuration.RetentionPolicyInDays <= 0 ? null : configuration.RetentionPolicyInDays);
+                RetentionPolicyInDays: configuration.RetentionPolicyInDays <= 0 ? null : configuration.RetentionPolicyInDays,
+                IsReadOnly: configuration.IsReadOnly);
 
             return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
         }
@@ -114,7 +115,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             return credentials;
         }
-
         /// <inheritdoc />
         public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
         {

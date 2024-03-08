@@ -35,6 +35,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         /// <nodoc />
         public BlobFolderStorageConfiguration BlobFolderStorageConfiguration { get; set; } = new BlobFolderStorageConfiguration();
+
+        /// <nodoc/>
+        public required bool IsReadOnly { get; init; }
     }
 
     /// <nodoc />
@@ -101,6 +104,13 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// </summary>
         public Task<Result<bool>> NotifyContentWasPinnedAsync(OperationContext context, StrongFingerprint strongFingerprint)
         {
+            // In read-only mode we cannot update the last pinned time. This can result in extra preventive pinning, but it doesn't affect correctness.
+            // Let's do this outside of the tracer so we don't actually count/measure this operation in that case.
+            if (_configuration.IsReadOnly)
+            {
+                return Task.FromResult(new Result<bool>(true));
+            }
+
             var stopwatch = Stopwatch.StartNew();
             _tracer.ContentWasPinnedStart(context);
 
@@ -125,6 +135,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
             try
             {
+                // If the store is readonly, we cannot actually remove the metadata.
+                if (_configuration.IsReadOnly)
+                {
+                    return Task.FromResult(Result.Success(true));
+                }
+
                 // Clear the metadata of the given entry, so the next time it is queried, preventive pinning will happen
                 return UpdateMetadataAsync(context, strongFingerprint, metadata: null);
             }

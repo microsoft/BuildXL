@@ -81,9 +81,15 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
 
                 var vstsCache = BuildCacheUtils.CreateBuildCacheCache(cacheConfig, logger, Environment.GetEnvironmentVariable("VSTSPERSONALACCESSTOKEN"), activityId);
-
+                
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
-                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, vstsCache, logger, statsFilePath);
+                var cache = new MemoizationStoreAdapterCache(
+                    cacheConfig.CacheId,
+                    vstsCache,
+                    logger,
+                    statsFilePath,
+                    // The build cache service is never read-only
+                    isReadOnly: false);
 
                 logger.Diagnostic($"Initializing the cache [{cacheConfig.CacheId}]");
                 var startupResult = await cache.StartupAsync();

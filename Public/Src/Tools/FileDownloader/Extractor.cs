@@ -11,9 +11,8 @@ using BuildXL.Utilities.Configuration;
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.GZip;
 using ICSharpCode.SharpZipLib.Tar;
-using ICSharpCode.SharpZipLib.Zip;
-using static BuildXL.Interop.Unix.IO;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Tool.Download
 {
@@ -24,8 +23,8 @@ namespace Tool.Download
     {
         private static readonly Dictionary<string, string> s_packagesToBeChecked = new Dictionary<string, string>
         {
-            {"NodeJs.linux-x64",  "node-v18.6.0-linux-x64/bin/node"},
-            {"DotNet-Runtime.linux", "dotnet"}
+            { "NodeJs.linux-x64", "node" },
+            { "DotNet-Runtime.linux", "dotnet" }
         };
 
         private Extractor() : base("Extractor")
@@ -141,10 +140,7 @@ namespace Tool.Download
                                 {
                                     if (target.Contains(packageName))
                                     {
-                                        if (!SetExecutePermissionsForExtractedFiles(target, s_packagesToBeChecked[packageName]))
-                                        {
-                                            return false;
-                                        }
+                                        SetExecutePermissionsForExtractedFiles(target, s_packagesToBeChecked[packageName]);
                                     }
                                 }
                             }
@@ -205,9 +201,9 @@ namespace Tool.Download
         /// It is expected to be shortlived and probably generalized to setting the execute permission for all extractor output.
         /// TODO: Need to remove this hack once the bug is fixed. Refer bug https://dev.azure.com/mseng/1ES/_workitems/edit/2073919 for further information.
         /// </remarks>
-        private bool SetExecutePermissionsForExtractedFiles(string target, string relativePath)
+        private bool SetExecutePermissionsForExtractedFiles(string target, string executableName)
         {
-            string fullPathForExecutableFile = Path.Combine(target, relativePath);
+            string fullPathForExecutableFile = new DirectoryInfo(target).EnumerateFiles(executableName, SearchOption.AllDirectories).FirstOrDefault().FullName;
 
             if (File.Exists(fullPathForExecutableFile))
             {

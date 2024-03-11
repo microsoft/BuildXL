@@ -495,6 +495,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         const int BlobAlreadyExists = 409;
 
         var contentAlreadyExistsInCache = false;
+        var position = stream.Position;
 
         // The Storage service can only reply existence after the entire blob has been uploaded. Unfortunately
         // for us, the larger the file is the more likely that it is also unique, so it doesn't make sense for
@@ -546,6 +547,19 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
 
             if (!touchResult.Succeeded)
             {
+                // There is a possible race condition here:
+                // 1. We try to upload the blob, but it already exists, so the upload fails.
+                // 2. In between that time and the touch above, the blob is deleted by GC because it's not referenced
+                //    by a CHL and the upload time was too long ago.
+                // 3. We try to touch the blob, but it doesn't exist, so the touch fails.
+                // In this case, because we actually have the content available to us at this time, we can retry the
+                // upload. We do this manually and exactly once on purpose to prevent any weirdnesses around this.
+                if (touchResult.Exception is not null && touchResult.Exception is RequestFailedException exception && exception.Message.Contains("BlobNotFound"))
+                {
+                    stream.Seek(position, SeekOrigin.Begin);
+                    return await PerformUploadFromStreamAsync(context, contentHash, client, blobPath, stream, contentSize);
+                }
+
                 return new PutResult(touchResult);
             }
 

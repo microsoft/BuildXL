@@ -9,7 +9,6 @@ variables:
     value: 0.0.$(Build.BuildNumber)
   - name: BuildXL.Configuration
     value: Release
-  - group: "BuildXL Secrets"
   - name: Codeql.Enabled
     value: false
 
@@ -92,11 +91,17 @@ jobs:
       inlineScript: |
         echo "##vso[task.setvariable variable=APIScan-clientId;]$servicePrincipalId"
         echo "##vso[task.setvariable variable=APIScan-tenantId;]$tenantId"
+        echo "##vso[task.setsecret]$idToken"
+        echo "##vso[task.setvariable variable=APIScan-idToken;]$idToken"
 
+  - task: CmdLine@2
+    inputs:
+      script: 'az login --service-principal -u $(APIScan-clientId) --tenant $(APIScan-tenantId) --allow-no-subscriptions --federated-token $(APIScan-idToken)'
+        
   - task: APIScan@2
     displayName: 'Run APIScan via Guardian'
     env:
-        AzureServicesAuthConnectionString: RunAs=App;AppId=$(APIScan-clientId);TenantId=$(APIScan-tenantId);AppKey=$(mseng-Domino-BuildXL-APIScan)
+        AzureServicesAuthConnectionString: RunAs=Developer;DeveloperTool=AzureCli
     inputs:
       targetMode: 'binarysym'
       softwareName: 'BuildXL'
@@ -122,28 +127,5 @@ jobs:
       ArtifactName: 'CodeAnalysisLog'
       ArtifactType: 'Container'
       AllTools: false
-      AntiMalware: false
       APIScan: true
-      Armory: false
-      Bandit: false
-      BinSkim: false
-      CodesignValidation: false
-      CredScan: false
-      CSRF: false
-      ESLint: false
-      Flawfinder: false
-      FortifySCA: false
-      FxCop: false
-      ModernCop: false
-      MSRD: false
-      PoliCheck: false
-      RoslynAnalyzers: false
-      SDLNativeRules: false
-      Semmle: false
-      SpotBugs: false
-      Trivy: false
-      TSLint: false
-      WebScout: false
-      Terrascan: false
-      TemplateAnalyzer: false
       ToolLogsNotFoundAction: 'Standard'

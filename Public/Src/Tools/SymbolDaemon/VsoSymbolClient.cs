@@ -199,9 +199,6 @@ namespace Tool.SymbolDaemon
                 + $"Name: {result.Name}{Environment.NewLine}"
                 + $"Content list: '{result.Url}/DebugEntries'";
 
-            // Send the message to the main log.
-            Analysis.IgnoreResult(await m_apiClient.LogMessage(requestDetails));
-
             m_logger.Verbose(requestDetails);
 
             return result;

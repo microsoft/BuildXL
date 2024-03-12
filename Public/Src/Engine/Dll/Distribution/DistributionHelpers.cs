@@ -78,5 +78,22 @@ namespace BuildXL.Engine.Distribution
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}::{1}", ipAddress, port);
         }
+
+        /// <nodoc />
+        public static BuildXL.Distribution.Grpc.PipSpecificPropertyAndValue ToGrpc(this BuildXL.Utilities.PipSpecificPropertyAndValue pipSpecificPropertyAndValue)
+        {
+            var serialized = new BuildXL.Distribution.Grpc.PipSpecificPropertyAndValue()
+            {
+                PipSpecificProperty = (int)pipSpecificPropertyAndValue.PropertyName,
+                PipSemiStableHash = pipSpecificPropertyAndValue.PipSemiStableHash
+            };
+
+            if (pipSpecificPropertyAndValue.PropertyValue != null)
+            {
+                serialized.PropertyValue = pipSpecificPropertyAndValue.PropertyValue;
+            }
+
+            return serialized;
+		}
     }
 }

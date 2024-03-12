@@ -467,13 +467,7 @@ namespace BuildXL.Engine.Distribution
             startData.EnvironmentVariables.Add(Environment.State.PipEnvironment
                        .FullEnvironmentVariables.ToDictionary());
 
-            startData.PipSpecificPropertiesAndValues.AddRange(Environment.Configuration.Engine.PipSpecificPropertyAndValues
-                                                                            .Select(pipSpecificPropertyAndValue => new PipSpecificPropertyAndValue
-                                                                            {
-                                                                                PipSpecificProperty = (int)pipSpecificPropertyAndValue.PropertyName,
-                                                                                PipSemiStableHash = pipSpecificPropertyAndValue.PipSemiStableHash,
-                                                                                PropertyValue = pipSpecificPropertyAndValue.PropertyValue
-                                                                            }));
+            startData.PipSpecificPropertiesAndValues.AddRange(Environment.Configuration.Engine.PipSpecificPropertyAndValues.Select(p => p.ToGrpc()));
 
             while (!m_attachOrSchedulerCompletionTask.IsCompleted)
             {

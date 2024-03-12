@@ -1,0 +1,103 @@
+# This pipeline will build the BuildXL NPM package on a Linux agent and then push to https://dev.azure.com/mseng/Domino/_artifacts/feed/BuildXL.experimental
+# This feed can be upstreamed by our customers: with this, we can use custom bits in their workflows for debugging purposes
+trigger: none # Manually run
+
+parameters:
+# Whether to build the release or debug version of BuildXL
+- name: Flavor
+  type: string
+  values:
+  - release
+  - debug
+  default: release
+# The branch of the repo to check out and build 
+- name: branch
+  type: string
+# The name of the package for npm. Avoid using hyphens or dots
+- name: PackageName
+  type: string
+
+resources:
+  repositories:
+  - repository: BuildXL.Internal
+    type: git
+    name: Domino/BuildXL.Internal
+    ref: ${{ parameters.branch }}
+
+jobs:
+- job: Build_Linux
+  variables:
+  - group: "BuildXL Secrets"
+  displayName: Build linux NPM package (${{ parameters.Flavor }})
+  pool:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+
+  steps:
+  - checkout: BuildXL.Internal
+
+  - template: ../common/use-latest-dotnet-sdk.yml
+  - bash: |
+      set -eu
+      # install mono
+      sudo apt-get update
+      sudo apt-get install -y mono-complete mono-devel
+      mono --version
+    displayName: Install Mono
+
+  - bash: |
+      sudo mkdir /home/subst
+      sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
+    displayName: Bind /home/subst to sources directory  
+
+  - bash: >-
+      set -eu
+            
+      sed -i "s|_packaging/BuildXL/npm|_packaging/BuildXL.experimental/npm|g" ./Public/Src/Deployment/npm/.npmrc ./Public/Src/Deployment/npm/package-linux.json  # Replace BuildXL with BuildXL.experimental for the feed
+      
+      bash bxl.sh --internal --use-adobuildrunner
+      --runner-arg /cacheConfigLogGeneratedConfiguration:true 
+      --runner-arg /cacheConfigStorageAccountEndpoint:https://l3bxlselfhost.blob.core.windows.net
+      --runner-arg /cacheConfigManagedIdentityId:eb694749-b1d6-45bc-b7af-2bd81603968a
+      /q:ReleaseLinux /q:DebugLinux "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/npm/*'" "/p:Build.BuildId=0.1.0-${{ parameters.PackageName }}" "/p:[BuildXL.Branding]SourceIdentification=NpmExperimental-$(Build.BuildId)"
+    displayName: Build NPM package
+    workingDirectory: /home/subst
+    env:
+      AdoBuildRunnerInvocationKey: Build
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
+      PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+  
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish package to consume on Windows job'
+    inputs:
+      artifactName: 'LinuxNpmPackage'
+      path: '$(Build.SourcesDirectory)/Out/Bin/${{ parameters.Flavor }}/npm/linux-x64'
+
+- job: Publish_Windows
+  displayName: 'Publish on Windows'
+  pool:
+    name: BuildXL-DevOpsAgents-PME
+  dependsOn: Build_Linux
+  steps:
+  - checkout: none
+  - task: DownloadPipelineArtifact@2
+    displayName: 'Download Artifact'
+    inputs:
+      artifactName: 'LinuxNpmPackage'
+      path: '$(System.DefaultWorkingDirectory)/LinuxNpmPackage'
+
+  - task: NodeTool@0
+    inputs:
+      versionSource: 'spec'
+    displayName: Install node
+
+  - task: Npm@1
+    displayName: 'Publish npm package to BuildXL.experimental feed (Linux)'
+    inputs:
+      command: custom
+      workingDir: '$(System.DefaultWorkingDirectory)/LinuxNpmPackage'
+      verbose: true
+      customCommand: 'publish'
+      customRegistry: useFeed
+      customFeed: '9ed2c125-1cd5-4a17-886b-9d267f3a5fab/21928c99-428b-4ccc-8a3e-0d11b5cc80db'

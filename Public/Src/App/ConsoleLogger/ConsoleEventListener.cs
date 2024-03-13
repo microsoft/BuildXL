@@ -332,6 +332,7 @@ namespace BuildXL
 
                         string statusLine = sb.ToString();
                         sb.Length = 0;
+                        string updatingStatus = null;
 
                         var format = FinalizeFormatStringLayout(sb, statusLine, 0);
                         var waitingOnBackgroundOperations = (procsDone + filePipsDone == procsTotal + filePipsTotal) && servicePipsRunning != 0;
@@ -363,7 +364,11 @@ namespace BuildXL
                         }
 
                         string standardStatus = sb.ToString();
-                        string updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo, waitingOnBackgroundOperations);
+                        // We do not need to construct the fancy console message for ADO.
+                        if (!m_optimizeForAzureDevOps)
+                        {
+                            updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo, waitingOnBackgroundOperations);
+                        }
                         bool allowStatusThrottling = m_optimizeForAzureDevOps && eventData.EventId != (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable;
                         SendToConsole(eventData, "info", standardStatus, allowStatusThrottling: allowStatusThrottling, updatableMessage: updatingStatus);
                     }

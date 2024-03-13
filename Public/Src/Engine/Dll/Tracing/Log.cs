@@ -81,7 +81,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.StartExecute,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             Message = EventConstants.PhasePrefix + "Starting execution",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
@@ -92,7 +92,7 @@ namespace BuildXL.Engine.Tracing
             (ushort)LogEventId.EndExecute,
             EventGenerators = EventGenerators.LocalOnly,
             Message = EventConstants.PhasePrefix + "Done executing pips in {executeStatistics.ElapsedMilliseconds} ms.",
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
@@ -266,7 +266,7 @@ namespace BuildXL.Engine.Tracing
             (ushort)LogEventId.EndCheckingForPipGraphReuse,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             Message = EventConstants.PhasePrefix + "Done checking for pip graph reuse in {graphCacheCheckStatistics.ElapsedMilliseconds}ms. ObjectDirectoryMissReason:{graphCacheCheckStatistics.ObjectDirectoryMissReasonAsString}, CacheMissReason:{graphCacheCheckStatistics.CacheMissReasonAsString} ",
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
@@ -599,7 +599,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWaitingForOrchestratorAttached,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "Waiting for orchestrator to attach")]
@@ -653,7 +653,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionAttachReceived,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "Received attach request from the orchestrator. New session identifier: {sessionId}. Orchestrator Name: {orchestratorName}.")]
@@ -2861,7 +2861,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         [GeneratedEvent(
             (ushort)LogEventId.ScheduleConstructedWithConfiguration,
             EventGenerators = EventGenerators.LocalAndTelemetry,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (int)Tasks.Engine,
             Message = "Schedule constructed. Resolvers involved: [{frontendKinds}].")]

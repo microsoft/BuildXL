@@ -81,6 +81,7 @@ function setMinimal() {
 function setInternal() {
     arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
     arg_Positional+=("/remoteTelemetry+")
+    arg_Positional+=("/generateCgManifestForNugets:cg/nuget/cgmanifest.json")
 
     for arg in "$@"
     do
@@ -100,7 +101,6 @@ function compileWithBxl() {
         /nowarn:11319 # DX11319: nuget version mismatch
         /logsToRetain:20
         /cachemiss
-        /generateCgManifestForNugets:cg/nuget/cgmanifest.json
         "$@"
     )
 

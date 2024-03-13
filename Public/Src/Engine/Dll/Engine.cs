@@ -1992,7 +1992,7 @@ namespace BuildXL.Engine
 
 #if NET6_0_OR_GREATER
                                 // We are done with the Schedule phase. Config is final at this point, so we can log it now.
-                                var configLoggingTask = Configuration.SerialzieToFileAsync(Context.PathTable, indent: true, includePaths: true, ignoreNulls: false);
+                                var configLoggingTask = Configuration.SerialzieToFileAsync(Context.PathTable, m_translator, indent: true, includePaths: true, ignoreNulls: false);
 #endif
 
                                 if (success && !exitOnNewGraph && phase.HasFlag(EnginePhases.Execute))

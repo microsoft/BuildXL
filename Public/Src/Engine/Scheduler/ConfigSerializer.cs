@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Tracing;
 
 #nullable enable
 
@@ -28,7 +29,7 @@ namespace BuildXL.Scheduler
     {
         private const string SerializedConfigFileExtension = ".configuration.json";
 
-        private static JsonSerializerOptions GetSerializerOptions(PathTable pathTable, bool indent, bool includePaths, bool ignoreNulls)
+        private static JsonSerializerOptions GetSerializerOptions(PathTable pathTable, PathTranslator? pathTranslator, bool indent, bool includePaths, bool ignoreNulls)
         {
             return new JsonSerializerOptions
             {
@@ -39,7 +40,7 @@ namespace BuildXL.Scheduler
                     new JsonStringEnumConverter(allowIntegerValues: true),
                     new PathAtomJsonConverter(pathTable),
                     new CustomLogValueJsonConverter(),
-                    new PathConverterFactory(pathTable, !includePaths)
+                    new PathConverterFactory(pathTable, pathTranslator, !includePaths)
                 }
             };
         }
@@ -47,11 +48,11 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Serializes a configuration and writes it as a UTF-8 encoded string into the stream.
         /// </summary>
-        public static async Task<Possible<Unit>> SerializeToStreamAsync(this IConfiguration configuration, Stream utf8Json, PathTable pathTable, bool indent, bool includePaths, bool ignoreNulls)
+        public static async Task<Possible<Unit>> SerializeToStreamAsync(this IConfiguration configuration, Stream utf8Json, PathTable pathTable, PathTranslator? pathTranslator, bool indent, bool includePaths, bool ignoreNulls)
         {
             try
             {
-                await JsonSerializer.SerializeAsync<object>(utf8Json, configuration, GetSerializerOptions(pathTable, indent, includePaths, ignoreNulls));
+                await JsonSerializer.SerializeAsync<object>(utf8Json, configuration, GetSerializerOptions(pathTable, pathTranslator, indent, includePaths, ignoreNulls));
             }
             catch (Exception ex)
             {
@@ -64,7 +65,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Serializes a configuration and writes it into a file.
         /// </summary>
-        public static async Task<Possible<Unit>> SerialzieToFileAsync(this IConfiguration configuration, PathTable pathTable, bool indent, bool includePaths, bool ignoreNulls)
+        public static async Task<Possible<Unit>> SerialzieToFileAsync(this IConfiguration configuration, PathTable pathTable, PathTranslator? pathTranslator, bool indent, bool includePaths, bool ignoreNulls)
         {
             Contract.Requires(configuration != null);
             Contract.Requires(configuration.Logging.LogsDirectory.IsValid);
@@ -74,7 +75,7 @@ namespace BuildXL.Scheduler
                 // Save the serialized file into the logs folder.
                 var path = Path.Combine(configuration.Logging.LogsDirectory.ToString(pathTable), configuration.Logging.LogPrefix + SerializedConfigFileExtension);
                 using var stream = File.Create(path);
-                return await SerializeToStreamAsync(configuration, stream, pathTable, indent, includePaths, ignoreNulls);
+                return await SerializeToStreamAsync(configuration, stream, pathTable, pathTranslator, indent, includePaths, ignoreNulls);
             }
             catch (Exception ex)
             {
@@ -85,11 +86,13 @@ namespace BuildXL.Scheduler
         private class PathConverterFactory : JsonConverterFactory
         {
             private readonly PathTable m_pathTable;
+            private readonly PathTranslator? m_pathTranslator;
             private readonly bool m_replacePaths;
 
-            public PathConverterFactory(PathTable pathTable, bool replacePaths)
+            public PathConverterFactory(PathTable pathTable, PathTranslator? pathTranslator, bool replacePaths)
             {
                 m_pathTable = pathTable;
+                m_pathTranslator = pathTranslator;
                 m_replacePaths = replacePaths;
             }
 
@@ -103,11 +106,11 @@ namespace BuildXL.Scheduler
             {
                 if (typeToConvert == typeof(AbsolutePath))
                 {
-                    return new PathJsonConverter<AbsolutePath>(m_pathTable, m_replacePaths);
+                    return new PathJsonConverter<AbsolutePath>(m_pathTable, m_pathTranslator, m_replacePaths);
                 }
                 else if (typeToConvert == typeof(RelativePath))
                 {
-                    return new PathJsonConverter<RelativePath>(m_pathTable, m_replacePaths);
+                    return new PathJsonConverter<RelativePath>(m_pathTable, pathTranslator: null, m_replacePaths);
                 }
 
                 throw new NotSupportedException($"Cannot create a converter for a type '{typeToConvert}'.");
@@ -118,11 +121,13 @@ namespace BuildXL.Scheduler
         {
             private const string ReplacePathsWith = ".";
             private readonly PathTable m_pathTable;
+            private readonly PathTranslator? m_pathTranslator;
             private readonly bool m_replacePaths;
 
-            public PathJsonConverter(PathTable pathTable, bool replacePaths)
+            public PathJsonConverter(PathTable pathTable, PathTranslator? pathTranslator, bool replacePaths)
             {
                 m_pathTable = pathTable;
+                m_pathTranslator = pathTranslator;
                 m_replacePaths = replacePaths;
             }
 
@@ -143,7 +148,10 @@ namespace BuildXL.Scheduler
                 {
                     if (value is AbsolutePath absolutePath)
                     {
-                        writer.WriteStringValue(absolutePath.ToString(m_pathTable));
+                        var origianalPath = m_pathTranslator != null 
+                            ? m_pathTranslator.Translate(absolutePath.ToString(m_pathTable)) 
+                            : absolutePath.ToString(m_pathTable);
+                        writer.WriteStringValue(origianalPath);
                     }
                     else if (value is RelativePath relativePath)
                     {

@@ -12,6 +12,7 @@ using BuildXL.Scheduler;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -128,6 +129,16 @@ namespace Test.BuildXL.Scheduler
             node = await SerializeToJsonNodeAsync(config, pathTable, indent: false, includePaths: true, ignoreNulls: true);
             XAssert.AreEqual(path, node["Layout"]!["PrimaryConfigFile"]!.GetValue<string>());
 
+            // Subst paths are translated.
+            var target = X("/B/");
+            var source = X("/X/abc");
+            var translatablePath = X("/B/foo.bar");
+            var translatableAbsolutePath = AbsolutePath.Create(pathTable, translatablePath);
+            XAssert.IsTrue(PathTranslator.CreateIfEnabled(target, source, out var translator), "Failed to create PathTranslator");
+            config.Layout.PrimaryConfigFile = translatableAbsolutePath;
+            node = await SerializeToJsonNodeAsync(config, pathTable, translator, indent: false, includePaths: true, ignoreNulls: true);
+            XAssert.AreEqual(path, node["Layout"]!["PrimaryConfigFile"]!.GetValue<string>());
+
             // PathAtoms are not affected by includePaths option.
             config.Ide.SolutionName = PathAtom.Invalid;
             node = await SerializeToJsonNodeAsync(config, pathTable, indent: false, includePaths: false, ignoreNulls: true);
@@ -141,15 +152,18 @@ namespace Test.BuildXL.Scheduler
         private async Task<string> SerializeToJsonStringAsync(IConfiguration config, PathTable pathTable, bool indent, bool includePaths, bool ignoreNulls)
         {
             using var ms = new MemoryStream();
-            var possibleSuccess = await config.SerializeToStreamAsync(ms, pathTable, indent, includePaths, ignoreNulls);
+            var possibleSuccess = await config.SerializeToStreamAsync(ms, pathTable, pathTranslator: null, indent, includePaths, ignoreNulls);
             XAssert.IsTrue(possibleSuccess.Succeeded);
             return Encoding.UTF8.GetString(ms.ToArray());
         }
 
-        private async Task<System.Text.Json.Nodes.JsonNode> SerializeToJsonNodeAsync(IConfiguration config, PathTable pathTable, bool indent, bool includePaths, bool ignoreNulls)
+        private Task<System.Text.Json.Nodes.JsonNode> SerializeToJsonNodeAsync(IConfiguration config, PathTable pathTable, bool indent, bool includePaths, bool ignoreNulls)
+            => SerializeToJsonNodeAsync(config, pathTable, pathTranslator: null, indent, includePaths, ignoreNulls);
+
+        private async Task<System.Text.Json.Nodes.JsonNode> SerializeToJsonNodeAsync(IConfiguration config, PathTable pathTable, PathTranslator? pathTranslator, bool indent, bool includePaths, bool ignoreNulls)
         {
             using var ms = new MemoryStream();
-            var possibleSuccess = await config.SerializeToStreamAsync(ms, pathTable, indent, includePaths, ignoreNulls);
+            var possibleSuccess = await config.SerializeToStreamAsync(ms, pathTable, pathTranslator, indent, includePaths, ignoreNulls);
             XAssert.IsTrue(possibleSuccess.Succeeded);
 
             ms.Seek(0, SeekOrigin.Begin);

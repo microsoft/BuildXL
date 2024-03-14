@@ -42,7 +42,6 @@ using IContentResolver = BuildXL.Cache.ContentStore.Distributed.Ephemeral.IConte
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
 
 [Collection("Redis-based tests")]
-[Trait("DisableFailFast", "true")]
 public abstract class EphemeralCacheTestsBase : TestWithOutput
 {
     private readonly LocalRedisFixture _fixture;
@@ -523,7 +522,6 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                 ConnectionTimeout = TimeSpan.FromSeconds(30),
                 GetLocationsTimeout = TimeSpan.FromSeconds(1),
                 UpdateLocationsTimeout = TimeSpan.FromSeconds(1),
-                DatacenterUpdateLocationsTimeout = TimeSpan.FromSeconds(5),
                 // These features are used in production but not in tests (by default). The reason is that we want to
                 // ensure consistency in tests, and these features allow query elision and therefore allow stale data
                 // to be returned in a given window of time.

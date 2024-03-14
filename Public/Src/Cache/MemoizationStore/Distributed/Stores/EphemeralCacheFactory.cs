@@ -103,15 +103,7 @@ public static class EphemeralCacheFactory
         /// <summary>
         /// Maximum time to wait for the result of a UpdateLocations gRPC request
         /// </summary>
-        public TimeSpan UpdateLocationsTimeout { get; init; } = TimeSpan.FromMilliseconds(200);
-
-        /// <summary>
-        /// Maximum time to wait for the result of a UpdateLocations gRPC request when it is sent to a datacenter node.
-        /// </summary>
-        /// <remarks>
-        /// This is done asynchronously and non-blocking in production, so it doesn't slow the hot path.
-        /// </remarks>
-        public TimeSpan DatacenterUpdateLocationsTimeout { get; init; } = TimeSpan.FromMinutes(9);
+        public TimeSpan UpdateLocationsTimeout { get; init; } = TimeSpan.FromMilliseconds(100);
 
         /// <summary>
         /// The maximum staleness we're willing to tolerate to elide a remote locations query when acting as a worker.
@@ -409,12 +401,9 @@ public static class EphemeralCacheFactory
 
         var grpcContentTrackerConnectionPool = new GrpcDotNetClientAccessor<IGrpcContentTracker, IContentTracker>(
             connectionPool,
-            (location, service) =>
-            {
-                return new GrpcContentTrackerClient(
-                                grpcContentTrackerClientConfiguration,
-                                new FixedClientAccessor<IGrpcContentTracker>(service, location));
-            },
+            (location, service) => new GrpcContentTrackerClient(
+                grpcContentTrackerClientConfiguration,
+                new FixedClientAccessor<IGrpcContentTracker>(service, location)),
             localClient,
             MetadataServiceSerializer.ClientFactory);
 
@@ -448,12 +437,7 @@ public static class EphemeralCacheFactory
         var shardedContentUpdater = new ShardedContentUpdater(
             new ShardedContentUpdater.Configuration()
             {
-                WriteCandidates = 2,
-                UpdateLocationsTimeout = configuration.DatacenterUpdateLocationsTimeout,
-                BatchingUpdateLocationsTimeout = configuration.UpdateLocationsTimeout,
-                BatchingInterval = configuration.DatacenterUpdateLocationsTimeout.Multiply(0.3),
-                BatchingMaxBatchSize = 100,
-                BatchingMaxDegreeOfParallelism = 5,
+                UpdateLocationsTimeout = configuration.UpdateLocationsTimeout,
             },
             grpcContentTrackerConnectionPool,
             shardingScheme,
@@ -506,10 +490,6 @@ public static class EphemeralCacheFactory
             // 1. The master of the current build serves as the source of truth for the current build.
             // 2. Workers use the master as their source of truth, propagate all updates to it as well.
             // 3. The master will forward all updates and queries to the appropriate nodes in the datacenter.
-            // 4. Updates forwarded by the master are batched when sent to the datacenter-wide cache and may be
-            //    arbitrarily delayed. This is to reduce the load on the master and the datacenter-wide cache, mainly
-            //    because we're observing that the master is experiencing ephemeral port exhaustion from the
-            //    communication patterns without batching.
             if (masterElectionMechanism.Role == Role.Master)
             {
                 // TODO: send updates back to workers

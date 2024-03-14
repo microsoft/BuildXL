@@ -453,6 +453,22 @@ namespace BuildXL
                             "fancyConsoleMaxStatusPips",
                             opt => loggingConfiguration.FancyConsoleMaxStatusPips = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
+                            "fingerprintSalt",
+                            (opt) =>
+                            {
+                                if (string.IsNullOrWhiteSpace(opt.Value))
+                                {
+                                    // An empty argument resets the cache salt to nothing
+                                    cacheConfiguration.CacheSalt = null;
+                                }
+                                else
+                                {
+                                    // Non-empty values accumulate
+                                    cacheConfiguration.CacheSalt ??= string.Empty;
+                                    cacheConfiguration.CacheSalt += opt.Value;
+                                }
+                            }),
+                        OptionHandlerFactory.CreateOption(
                             "fileChangeTrackerInitializationMode",
                             opt => engineConfiguration.FileChangeTrackerInitializationMode = CommandLineUtilities.ParseEnumOption<FileChangeTrackerInitializationMode>(opt)),
                         OptionHandlerFactory.CreateOption(

@@ -490,6 +490,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/fingerprintSalt[value]",
+                Strings.HelpText_DisplayHelp_FingerprintSalt,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/reuseEngineState[+|-]",
                 Strings.HelpText_DisplayHelp_ReuseEngineState,
                 HelpLevel.Verbose);

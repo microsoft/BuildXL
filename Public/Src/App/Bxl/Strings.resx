@@ -489,13 +489,13 @@
   <data name="HelpText_DisplayHelp_DistributedBuildBanner" xml:space="preserve">
     <value>DISTRIBUTED BUILD</value>
   </data>
-    <data name="HelpText_DisplayHelp_DistributedBuildOrchestratorLocation" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_DistributedBuildOrchestratorLocation" xml:space="preserve">
     <value>Specifies the IP address or host name and TCP port of the orchestrator machine to which a worker will connect to join a build session.  This argument is redundant if the orchestratro is invoked with /distributedBuildWorker specified for this worker. (short form: /dbo)</value>
   </data>
-    <data name="HelpText_DisplayHelp_MachineHostName" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_MachineHostName" xml:space="preserve">
     <value>Specifies the host name where the machine running the build can be reached. This value should only be overriden by build runners, never by a user. In particular, we need it to be overriddable because on ADO networks the machines are not reachable in the hostname that GetHostName returns, and we need a special suffix that is appended by the AdoBuildRunner.</value>
   </data>
-    <data name="HelpText_DisplayHelp_DistributedBuildWorker" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_DistributedBuildWorker" xml:space="preserve">
     <value>Specifies the IP address or host name and TCP port of remote worker build services which this process can dispatch work to during a distributed build (can specify multiple). This argument is redundant if the corresponding worker is invoked with /distributedBuildOrchestratorLocation specified. (short form: /dbw)</value>
   </data>
   <data name="HelpText_DisplayHelp_DistributedBuildServicePort" xml:space="preserve">
@@ -1209,5 +1209,8 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="Args_Experimental_useDominoScriptv2_Deprecated" xml:space="preserve">
     <value>The /exp:useDominoScriptv2 option has been deprecated. Remove any usage of this variable, it has no effect anymore</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FingerprintSalt" xml:space="preserve">
+    <value>Salts fingerprints used for caching. May be specified multiple times and values concatenate. An empty value clears previous values.</value>
   </data>
 </root>

@@ -81,7 +81,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.StartExecute,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Message = EventConstants.PhasePrefix + "Starting execution",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
@@ -92,7 +92,7 @@ namespace BuildXL.Engine.Tracing
             (ushort)LogEventId.EndExecute,
             EventGenerators = EventGenerators.LocalOnly,
             Message = EventConstants.PhasePrefix + "Done executing pips in {executeStatistics.ElapsedMilliseconds} ms.",
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
@@ -266,7 +266,7 @@ namespace BuildXL.Engine.Tracing
             (ushort)LogEventId.EndCheckingForPipGraphReuse,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             Message = EventConstants.PhasePrefix + "Done checking for pip graph reuse in {graphCacheCheckStatistics.ElapsedMilliseconds}ms. ObjectDirectoryMissReason:{graphCacheCheckStatistics.ObjectDirectoryMissReasonAsString}, CacheMissReason:{graphCacheCheckStatistics.CacheMissReasonAsString} ",
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
@@ -2376,7 +2376,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.StartParseConfig,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
             Message = EventConstants.PhasePrefix + "Parsing configuration files")]
@@ -2386,7 +2386,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.EndParseConfig,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + "Done parsing configuration files")]
@@ -2861,7 +2861,7 @@ If you can't update and need this feature after July 2018 please reach out to th
         [GeneratedEvent(
             (ushort)LogEventId.ScheduleConstructedWithConfiguration,
             EventGenerators = EventGenerators.LocalAndTelemetry,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (int)Tasks.Engine,
             Message = "Schedule constructed. Resolvers involved: [{frontendKinds}].")]

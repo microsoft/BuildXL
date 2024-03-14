@@ -46,7 +46,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndLoadConfigPhaseComplete(LoggingContext context, LoadConfigurationStatistics statistics);
 
         [GeneratedEvent(

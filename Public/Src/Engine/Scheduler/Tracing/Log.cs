@@ -4011,7 +4011,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.SchedulerComplete,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "The scheduler has been marked as completed")]

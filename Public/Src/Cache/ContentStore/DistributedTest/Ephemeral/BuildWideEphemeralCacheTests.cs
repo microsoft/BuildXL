@@ -1,8 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#nullable enable
-using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -14,9 +12,13 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
 
 [TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
+[Collection("Redis-based tests")]
+[Trait("DisableFailFast", "true")]
 public class BuildWideEphemeralCacheTests : EphemeralCacheTestsBase
 {
     protected override Mode TestMode => Mode.BuildWide;

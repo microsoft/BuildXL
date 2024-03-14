@@ -56,17 +56,12 @@ jobs:
 
   - template: ../steps/external_prepare.yml
 
-  - template: ../../packages/generate-output-package-filter.yml
-    parameters:
-      internal: 'false'
-      packageList: 'packages'
-
   - task: CmdLine@1
     displayName: Run bxl.cmd
     inputs:
       filename: bxl.cmd
-      arguments: >-
-        /f:$(PackagesFilter)
+      arguments: >- 
+        /f:output='out/bin/release/public/pkgs/Microsoft.BuildXL.win-x64.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.win-x64-net7.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Hashing.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Interfaces.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Tools.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Cache.Libraries.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Utilities.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Utilities.Core.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Native.$(Build.BuildNumber).nupkg'oroutput='out/bin/release/public/pkgs/Microsoft.BuildXL.Processes.$(Build.BuildNumber).nupkg'
         /q:Release
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)

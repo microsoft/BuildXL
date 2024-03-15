@@ -150,6 +150,10 @@ function validateArguments(args: QTestArguments): void {
     if (args.qTestDirToDeploy && args.qTestInputs) {
         Contract.fail("Do not specify both qTestDirToDeploy and qTestInputs. Specify your inputs using only one of these arguments");
     }
+
+    if (args.qTestDirToDeploy && args.qTestInputPaths) {
+        Contract.fail("Do not specify both qTestDirToDeploy and qTestInputPaths. Specify your inputs using only one of these arguments");
+    }
 }
 
 /**
@@ -169,11 +173,19 @@ function findFlakyFile(): File {
  * Create a Manifest of input files for QTest to populate the test sandbox.
  */
 function createInputsManifest(args: QTestArguments) : File {
-    let inputsArray: Array<Path | RelativePath | PathAtom> = undefined;
-    if (args.qTestInputs) {
-        inputsArray = args.qTestInputs.mapMany(f => [f.path, f.name]);
-    } else if (args.qTestDirToDeploy) {
+    let inputsArray: Array<Path | RelativePath | PathAtom> = [];
+    if (args.qTestDirToDeploy) {
         inputsArray = args.qTestDirToDeploy.contents.mapMany(f => [f.path, args.qTestDirToDeploy.path.getRelative(f.path)]);
+    }
+    else
+    {
+        if (args.qTestInputs) {
+            inputsArray = args.qTestInputs.mapMany(f => [f.path, f.name]);
+        }
+
+        if (args.qTestInputPaths) {
+            inputsArray = inputsArray.concat(args.qTestInputPaths.mapMany(p => [p.path, p.name]));
+        }
     }
 
     if (inputsArray && inputsArray.length > 0) {
@@ -578,6 +590,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestDirToDeploy?: StaticDirectory;
     /** Explicit specification of all inputs instead of using qTestDirToDeploy, this file will be copied to sandbox by QTest */
     qTestInputs?: File[];
+    /** Explicit specification of all input paths under opaque directory instead of using qTestDirToDeploy, this file will be copied to sandbox by QTest */
+    qTestInputPaths?: Path[];
     /** Explicit specification of extra run time dependencies, will not be copied to sandbox */
     qTestRuntimeDependencies ?: Transformer.InputArtifact[];
     /** Describes the runner to launch tests */

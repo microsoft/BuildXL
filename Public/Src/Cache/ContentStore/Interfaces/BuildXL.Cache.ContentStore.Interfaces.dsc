@@ -34,6 +34,7 @@ namespace Interfaces {
         allowUnsafeBlocks: true,
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore",
+            "BuildXL.Cache.ContentStore.Test",
             "BuildXL.Cache.ContentStore.Distributed",
             "BuildXL.Cache.ContentStore.Distributed.Test",
             "BuildXL.Cache.ContentStore.Interfaces.Test",

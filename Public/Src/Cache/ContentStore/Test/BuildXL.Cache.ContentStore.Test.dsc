@@ -31,7 +31,8 @@ namespace Test {
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("Google.Protobuf").pkg,
             importFrom("System.Threading.Tasks.Extensions").pkg,
-            
+            importFrom("Azure.Core").pkg,
+
             UtilitiesCore.dll,
             Hashing.dll,
             Distributed.dll,
@@ -49,6 +50,8 @@ namespace Test {
         runtimeContent: [
             Library.dll,
             ...getGrpcPackages(true),
+            // CODESYNC: Public/Src/Cache/ContentStore/Test/Auth/CodespacesCredentialsTests.cs
+            AzureAuthHelperMock.exe,
         ],
     });
 }

@@ -6,8 +6,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Utilities.Core;
 using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest
@@ -89,6 +91,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
 
         /// <inheritdoc cref="XUnitTestOutputTextWriter.GetOutputLines"/>
         protected IEnumerable<string> GetOutputLines() => _outputTextWriter?.GetOutputLines() ?? Enumerable.Empty<string>();
+
+        /// <summary>
+        /// The directory where the test binaries are deployed
+        /// </summary>
+        protected string TestDeploymentDir => Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(TestWithOutput).GetTypeInfo().Assembly));
 
         /// <nodoc />
         protected TestWithOutput(ITestOutputHelper output)

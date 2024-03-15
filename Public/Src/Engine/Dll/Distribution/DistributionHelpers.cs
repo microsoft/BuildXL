@@ -42,6 +42,7 @@ namespace BuildXL.Engine.Distribution
         public static readonly ReadOnlyArray<int> DistributionInfoMessages = ReadOnlyArray<int>.FromWithoutCopy(
                 (int)LogEventId.DistributionDisableServiceProxyInactive,
                 (int)LogEventId.DistributionWaitingForOrchestratorAttached,
+                (int)LogEventId.DistributionSayingHelloToOrchestrator,
                 (int)LogEventId.DistributionHostLog,
                 (int)LogEventId.DistributionDebugMessage,
                 (int)LogEventId.DistributionServiceInitializationError,

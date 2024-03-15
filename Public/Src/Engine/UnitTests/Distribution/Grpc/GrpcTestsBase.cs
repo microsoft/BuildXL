@@ -170,10 +170,10 @@ namespace Test.BuildXL.Distribution
                 ReceivedExitCall = true;
             }
 
-            public Task SayHelloAsync(IDistributionServiceLocation orchestratorLocation)
+            public Task<bool> SayHelloAsync(IDistributionServiceLocation orchestratorLocation)
             {
                 Delay();
-                return Task.CompletedTask;
+                return Task.FromResult(true);
             }
 
             #endregion

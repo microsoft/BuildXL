@@ -597,6 +597,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionOrchestratorExitBeforeAttachment(LoggingContext context, int timeinMs);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionSayingHelloToOrchestrator,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Connecting to the orchestrator to advertise location")]
+        public abstract void DistributionSayingHelloToOrchestrator(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionWaitingForOrchestratorAttached,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

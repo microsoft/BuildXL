@@ -33,9 +33,12 @@ namespace BuildXL.Engine.Distribution
     internal interface IWorkerService
     {
         /// <summary>
-        /// Inform the locaton of this worker to the orchestrator
+        /// Inform the locaton of this worker to the orchestrator. If the call fails, the exit logic is triggered and this method returns false.
         /// </summary>
-        Task SayHelloAsync(IDistributionServiceLocation orchestratorLocation);
+        /// <returns>
+        /// true if succesful, false when the call fails for whatever reason. 
+        /// </returns>
+        Task<bool> SayHelloAsync(IDistributionServiceLocation orchestratorLocation);
         
         /// <summary>
         /// Performs attachment 
@@ -213,10 +216,18 @@ namespace BuildXL.Engine.Distribution
         internal bool SayHello(IDistributionServiceLocation orchestratorLocation)
         {
             var timeout = GrpcSettings.WorkerAttachTimeout;
-            if(!((IWorkerService)this).SayHelloAsync(orchestratorLocation).Wait(timeout))
+            Logger.Log.DistributionSayingHelloToOrchestrator(m_appLoggingContext);
+            var helloTask = ((IWorkerService)this).SayHelloAsync(orchestratorLocation);
+            if (!helloTask.Wait(timeout))
             {
                 Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext, "trying to say hello to the orchestrator");
                 Exit(failure: $"Timed out saying hello to the orchestrator. Timeout: {timeout.TotalMinutes} min", isUnexpected: true);
+                return false;
+            }
+            else if(!helloTask.GetAwaiter().GetResult())
+            {
+                // Hello failed - Exit has been called already
+                Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, "Hello call to orchestrator failed");
                 return false;
             }
 
@@ -325,7 +336,7 @@ namespace BuildXL.Engine.Distribution
         }
 
 
-        async Task IWorkerService.SayHelloAsync(IDistributionServiceLocation orchestratorLocation)
+        async Task<bool> IWorkerService.SayHelloAsync(IDistributionServiceLocation orchestratorLocation)
         {
             m_orchestratorInitialized = true;
             m_orchestratorClient.Initialize(orchestratorLocation.IpAddress, orchestratorLocation.BuildServicePort, OnConnectionFailureAsync);
@@ -335,7 +346,7 @@ namespace BuildXL.Engine.Distribution
             {
                 // If we can't say hello there is no hope for attachment
                 Exit(failure: $"SayHello call failed. Details: {helloResult.Failure.Describe()}", isUnexpected: true);
-                return;
+                return false;
             }
 
             switch (helloResult.Result)
@@ -357,6 +368,7 @@ namespace BuildXL.Engine.Distribution
 					break;
             }
 
+            return true;
             void exit(string reason)
             {
                 var thisService = (IWorkerService)this;

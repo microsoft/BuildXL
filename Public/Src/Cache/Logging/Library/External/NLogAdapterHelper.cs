@@ -33,8 +33,8 @@ namespace BuildXL.Cache.Logging.External
             return CreateAdapterAsync(
                 logger,
                 telemetryFieldsProvider,
-                GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole),
-                GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.BuildId),
+                role: null,
+                buildId: null,
                 nLogConfigurationPath,
                 configurationContent: null,
                 configurationReplacements, log);
@@ -97,8 +97,9 @@ namespace BuildXL.Cache.Logging.External
             LayoutRenderer.Register("ConfigurationId", _ => telemetryFieldsProvider.ConfigurationId);
             LayoutRenderer.Register("CacheVersion", _ => Utilities.Branding.Version);
 
-            LayoutRenderer.Register("Role", _ => role);
-            LayoutRenderer.Register("BuildId", _ => buildId);
+            // GlobalInfoStorage values can be updated so we want to get the latest value when the log is written
+            LayoutRenderer.Register("Role", _ => role ?? GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole));
+            LayoutRenderer.Register("BuildId", _ => buildId ?? GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.BuildId));
 
             // Follows ISO8601 without timezone specification.
             // See: https://kusto.azurewebsites.net/docs/query/scalar-data-types/datetime.html

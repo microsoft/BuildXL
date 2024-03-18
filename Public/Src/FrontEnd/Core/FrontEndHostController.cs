@@ -1267,11 +1267,11 @@ namespace BuildXL.FrontEnd.Core
             AbsolutePath configFilePath = configuration.Layout.PrimaryConfigFile;
             var resolverSettings = new List<IResolverSettings>();
 
+            var resolverNames = new HashSet<string>();
             if (configuration.Resolvers != null)
             {
                 // Ensure all resolvers have a name.
                 int i = 0;
-                var resolverNames = new HashSet<string>();
                 foreach (var resolver in configuration.Resolvers)
                 {
                     if (!string.IsNullOrEmpty(resolver.Name))
@@ -1311,9 +1311,13 @@ namespace BuildXL.FrontEnd.Core
 
             // If configured, add an implicit DScript resolver that owns all in-box SDKs deployed
             // alongside bxl binaries
-            if (TryCreateInBoxSDKResolver(configFilePath, out IDScriptResolverSettings settings))
+            // The Ninja resolver is incompatible with the inbox SDK resolver so we disable it by default - see work item #1830391
+            if (!resolverNames.Contains(KnownResolverKind.NinjaResolverKind))
             {
-                resolverSettings.Add(settings);
+                if (TryCreateInBoxSDKResolver(configFilePath, out IDScriptResolverSettings settings))
+                {
+                    resolverSettings.Add(settings);
+                }
             }
 
             if (!existExplicitDefaultSourceResolver)

@@ -9,6 +9,8 @@ This script creates a blob storage account under the provided subscription and s
 Assumes scripts uploaded to https://bxlscripts.blob.core.windows.net/provisioning.
 This script should be run in a session that is already logged into Azure, with a user that has permissions to create a blob storage account under the specified subscription.
 
+Source of the script at https://github.com/microsoft/BuildXL/blob/main/Shared/Scripts/onboarding/provision-l3cache.ps1
+
 .PARAMETER resourceGroup
 
 The Azure resource group the created blob storage account will belong to. The resource group is created if it does not exist.

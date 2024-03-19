@@ -17,6 +17,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [Frontends - MSBuild](Wiki/Frontends/MSBuild/Main.md)
 * [Demos](../Public/Src/Demos/Demos.md)
 * [Configuring a shared cache using an Azure Blob Storage Account](Wiki/shared-cache.md)
+* [Configuring a developer cache using an Azure Blob Storage Account](Wiki/shared-cache.md#developer-cache)
 
 # Using BuildXL
 * [Breakway processes](Wiki/Advanced-Features/Process-breakaway.md)

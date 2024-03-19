@@ -7,36 +7,13 @@ An Azure Storage Blob account can be used to host a shared cache for BuildXL bui
 In this section we will explain how to create an Azure Storage Blob account that can host a BuildXL cache and how to configure BuildXL to use it.
 
 ## Creating a storage account
-Please follow the Azure [instructions](https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview) to create an account. Both a standard or premium account can host a BuildXL cache, but there are some considerations:
-* A premium account has lower latency and a higher throttling limit. Depending on the load of your builds, using one or the other can make a difference in end to end build time. The cost is also higher. Please check Azure blob storage SLAs for details.
-* If you decide to use a premium storage account, please pick a **block blob storage** one, which is optimized for the type of operations the BuildXL cache will perform.
-* If your build is running in Azure, create the storage account in the same Azure region as your agent pool to maximize performance.
+A cache provisioning script is available. The script creates a blob storage account and set proper lifetime management policies to evict content that is too old and prevent the storage account to grow unbounded. In order to create a shared cache, make sure you have installed the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli), open a PowerShell console and execute:
 
-After your account is created, the recommendation is to configure a [lifecycle management policy](https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-policy-configure?tabs=azure-portal) so the cache does not grow indefinitely. The overall retention policy to configure will depend on the type of builds and frequency of your scenarios. Cost is also a consideration, as billing includes used capacity, and a higher retention policy will incur in a high cost. An initial value can be around 3 or 4 days, but experimenting with this based on your particular scenarios is highly recommended.
-
-The first step is turning on `access tracking`. This enables setting lifecycle management rules that are based on `last access time`:
-
-![Enable access tracking](blob-access-tracking.png)
-
-The cache stores two type of information: metadata (e.g. pip fingerprints) and content (e.g. output files). In order to avoid unnecesary cache lookups that will end up in misses, two management rules should be created, so metadata will be evicted slighly faster than content. Let's assume we want to define an eviction policy so content that is not used in 4 days will be evicted. We will create two lifecycle management rules for that, one for metadata and one for content:
-
-![Two rules for lifecycle management](blob-lifecycle-policies.png)
-
-When creating the rules, select `Limit blobs with filters` and configure the `metadata-garbage-collection` rule such that if base blobs are `last accessed` more than `4` days ago, then `delete the blob`:
-
-![A four day eviction policy](blob-4-day-eviction.png)
-
-And then configure a filter by setting the `blob prefix` to be `metadata`:
-
-![A Blob 'metadata' filter](blob-metadata-filter.png)
-
-Now for the content rule. As mentioned above, we want content to be evicted with a slightly lower cadence, so we avoid the extra time it takes for a cache lookup to find a fingerprint but realize later that the corresponding content has been evicted. Therefore, we will set the base blobs to be deleted after not being accessed for `5` days.
-
-![A five day eviction policy](blob-5-day-eviction.png)
-
-And we will set a filter by setting `blob prefix` to be `content`:
-
-![A Blob 'content' filter](blob-content-filter.png)
+```
+az login
+iex "& { $(irm  https://bxlscripts.blob.core.windows.net/provisioning/provision-l3cache.ps1) } -resourceGroup <group> -subscription <guid> -azureRegion <region> -blobAccountName <name>"
+```
+Here `az login` is just one possible way to log into Azure. The login session needs to have sufficient permissions to create a blob account under the specified subscription.
 
 ## Configuring BuildXL to use a Blob-based shared cache
 
@@ -44,7 +21,6 @@ A cache configuration file should be provided to BuildXL so a blob-based cache i
 
 ```json
 {
-  "RemoteIsReadOnly": false,
   "SkipDeterminismRecovery": true,
   "WriteThroughCasData": true,
   "FailIfRemoteFails": true,
@@ -57,7 +33,7 @@ A cache configuration file should be provided to BuildXL so a blob-based cache i
     "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
     "CacheId": "remoteexamplecache",
     "Universe": "exampleuniverse",
-    "RetentionPolicyInDays": 4
+    "RetentionPolicyInDays": 6
   },
   "LocalCache": {
     "MaxCacheSizeInMB": 40480,
@@ -74,10 +50,60 @@ The relevant fields for the `RemoteCache` sections are:
 * The `Type`, which tells BuildXL this is a blob-based cache.
 * The `CacheId`, used for logging/error reporting to identify the cache in question.
 * The `Universe`, which defines the cache universe: builds sharing the same cache universe can actually interchange information.
-* The `RetentionPolicyInDays`. This is the retention policy configured in the section above. In the example, we created two rules which define 4 days of retention for metadata and 5 for content. It is important to set the **lowest** value here. It is also important to keep this value in sync with the management policies of the blob account, if they were to be changed. A blob retention policy lower than the value specified here can cause build failures.
+* The `RetentionPolicyInDays`. This is the retention policy configured in the section above. The above provisioning script defines 6 days of retention. It is important to keep this value in sync with the management policies of the blob account, if they were to be changed. A blob retention policy lower than the value specified here can cause build failures.
 
 The cache configuration file can then be passed to BuildXL via command line arguments:
 
 `bxl.exe /cacheConfigFilePath:<path to the cache config file>`
 
-Finally, the proper credentials need to be provided in order for the BuildXL cache to store and retrieve content from the blob storage account. The environment variable `BlobCacheFactoryConnectionString` has to be set in the context of the running BuildXL instance containing the connection string for the blob storage account. Please check [here](https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) for details. If you are running your build in an Azure pipeline, the recommendation is to securely store the environment variable containing the connection string in an [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview) and allow your pipeline to consume it.
+ ## Authenticating
+
+The proper credentials need to be provided in order for the BuildXL cache to store and retrieve content from the blob storage account. There are a number of supported auth mechanisms:
+
+### Using a managed identity
+ Create a [user-assigned](https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-manage-user-assigned-managed-identities) managed identity and configure it to have `Storage Blob Data Contributor` permissions to access the blob account. The context running the build then needs to be able to provide the created identity when authenticating against Azure. In order to instruct the cache to use managed identities, the identity to be used and the storage account endpoint need to be specified in the cache config:
+
+
+ ```json
+ "RemoteCache": {
+    "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
+    "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
+    "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
+    "CacheId": "remoteexamplecache",
+    "Universe": "exampleuniverse",
+    "RetentionPolicyInDays": 6,
+    "StorageAccountEndpoint": "https://exampleblobstorage.blob.core.windows.net",
+    "ManagedIdentityId": "012345678-01234-01234-01234-0123456789012"
+ }
+ ```
+
+### Using codespaces authentication
+Under github [codespaces](https://github.com/features/codespaces), a VSCode extension [Azure Devops Codespaces Authentication](https://github.com/microsoft/ado-codespaces-auth/) can be used for providing seamless authentication against Azure DevOps using Entra ID login. BuildXL will look for the `azure-auth-helper` tool under `PATH`, and interact with this auth helper in order to get a valid Entra ID token to use to access the blob account. The authenticated user (or containing security group) needs to have `Storage Blob Data Contributor` permissions to access the blob account. BuildXL will only use this auth method when the aforementioned tool is found in `PATH` and the `StorageAccountEndpoint` is provided.
+
+### Using interactive browser authentication
+A user-interactive authentication mechanism via a web browser can be used to acquire an Entra ID token. This auth mechanism will only be attempted if the `StorageAccountEndpoint` is provided and BuildXL is run with the `/interactive` flag, indicating that this is a developer build and therefore interactive prompts are allowed. The interactive prompt will try to acquier a token via Entra ID authentication. Similarly to the above auth method, the blob storage account needs to have configured access such that the authenticated user (or containing security group) has `Storage Blob Data Contributor` permissions.
+
+### Using a connection string
+The environment variable `BlobCacheFactoryConnectionString` has to be set in the context of the running BuildXL instance containing the connection string for the blob storage account. Please check [here](https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) for details. If you are running your build in an Azure pipeline, the recommendation is to securely store the environment variable containing the connection string in an [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview) and allow your pipeline to consume it. BuildXL will only use this method if the aforementioned environment variable is set.
+*Note*: This authentication mechanism is not recommended since it involves managing the secret on the running host.
+
+## Developer cache
+A developer cache is a configuration where local builds can benefit from cache hits coming from lab builds. The recommended configuration is such that:
+* Developer builds only 'pull' from the cache, but cannot write to it. This is in order to avoid security issues, where dev boxes are typically a less controlled environment than a lab build. Pushing bad content into the cache can have a ripple effect if a malicious actor takes control of a developer box.
+* The cache is regularly warmed up with a lab build. This can happen as part of running a regular baseline or CI build, or by having a dedicated pipeline that seeds the dev cache. This is usually called a 'publishing' build, and it naturally needs to have both read and write permissions to the cache.
+
+In order to configure a publishing build, the steps described above should be followed. The only relevant consideration is that in order to successfully get cross cache hits (from labs to dev boxes) pip fingerprints needs to match. These imply a uniform disk layout and matching environment variables, where used. You can use the [cache miss analysis](Documentation/Wiki/Advanced-Features/Cache-Miss-Analysis.md) tool in order to understand misses.
+
+On the developer side, the cache configuration file needs to specify the same `StorageAccountEndpoint` the publishing build will be using for seeding the content. The cache config should also set the remote cache to be 'read-only' so no pushes are attempted:
+
+```json
+ "RemoteCache": {
+    "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
+    "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
+    "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
+    "StorageAccountEndpoint": "https://exampleblobstorage.blob.core.windows.net",
+    "IsReadOnly": true
+ }
+ ```
+ 
+In order to do authentication, either [Codespaces](#using-codespaces-authentication) or [interactive browser](#using-interactive-browser-authentication) authentication are the recommended auth mechanisms. Both will try to acquire an Entra ID token. Make sure the destination blob storage account only has `Storage Blob Data Reader` permissions for that user/security group, in order to prevent any undesired writes.

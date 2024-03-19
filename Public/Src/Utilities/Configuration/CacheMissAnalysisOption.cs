@@ -43,9 +43,9 @@ namespace BuildXL.Utilities.Configuration
         }
 
         /// <nodoc />
-        public static CacheMissAnalysisOption AdoMode()
+        public static CacheMissAnalysisOption AdoMode(string keyPrefix = null)
         {
-            return new CacheMissAnalysisOption(CacheMissMode.AzureDevOps, new List<string>(), AbsolutePath.Invalid);
+            return new CacheMissAnalysisOption(CacheMissMode.AzureDevOps, keyPrefix == null ? [] : [ keyPrefix ], AbsolutePath.Invalid);
         }
 
         /// <nodoc />

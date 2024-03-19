@@ -1788,7 +1788,14 @@ namespace BuildXL
             }
             else
             {
-                loggingConfiguration.CacheMissAnalysisOption = CacheMissAnalysisOption.CustomPathMode(CommandLineUtilities.ParsePathOption(opt, pathTable));
+                if (runningInfra == Infra.Ado)
+                {
+                    loggingConfiguration.CacheMissAnalysisOption = CacheMissAnalysisOption.AdoMode(opt.Value);
+                }
+                else
+                {
+                    loggingConfiguration.CacheMissAnalysisOption = CacheMissAnalysisOption.CustomPathMode(CommandLineUtilities.ParsePathOption(opt, pathTable));
+                }
             }
         }
 

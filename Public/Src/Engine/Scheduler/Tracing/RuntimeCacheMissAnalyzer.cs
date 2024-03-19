@@ -89,7 +89,7 @@ namespace BuildXL.Scheduler.Tracing
                         if (option.Mode == CacheMissMode.AzureDevOps)
                         {
                             Contract.Assert(configuration.Infra == Infra.Ado);
-                            keys = GetKeysFromAdoEnvironment(keyOrigin, loggingContext);
+                            keys = GetKeysFromAdoEnvironment(keys.FirstOrDefault() ?? string.Empty, keyOrigin, loggingContext);
                         }
 
                         if (keys == null)
@@ -150,7 +150,7 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
-        private static IReadOnlyList<string> GetKeysFromAdoEnvironment(Dictionary<string, string> keyOrigin, LoggingContext loggingContext)
+        private static IReadOnlyList<string> GetKeysFromAdoEnvironment(string keyPrefix, Dictionary<string, string> keyOrigin, LoggingContext loggingContext)
         {
             var candidateList = new List<string>();
             // Retrieve contextual information about the branch the build is running from the Azure DevOps environment variables, and use those values as keys.
@@ -184,7 +184,7 @@ namespace BuildXL.Scheduler.Tracing
             void addCandidateFromAdoVariable(string variableName)
             {
 				// PR variables are not defined when the build is not triggered by a PR
-				var maybeVariableValue = GetKeyFromAdoEnvironment(variableName);
+				var maybeVariableValue = GetKeyFromAdoEnvironment(keyPrefix, variableName);
                 if (maybeVariableValue != null)
                 {
                     candidateList.Add(maybeVariableValue);
@@ -194,7 +194,7 @@ namespace BuildXL.Scheduler.Tracing
 
         }
 
-        private static string GetKeyFromAdoEnvironment(string variableName)
+        private static string GetKeyFromAdoEnvironment(string keyPrefix, string variableName)
         {
             var variableValue = Environment.GetEnvironmentVariable(variableName);
 
@@ -213,7 +213,7 @@ namespace BuildXL.Scheduler.Tracing
                 }
             }
 
-            return new string(chars);
+            return $"{keyPrefix}{new string(chars)}";
         }
 
         private readonly FingerprintStoreExecutionLogTarget m_logTarget;
@@ -589,7 +589,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             if (option.Mode == CacheMissMode.AzureDevOps)
             {
-                return GetKeyFromAdoEnvironment("BUILD_SOURCEBRANCH");
+                return GetKeyFromAdoEnvironment(option.Keys.FirstOrDefault() ?? string.Empty, "BUILD_SOURCEBRANCH");
             }
             else
             {

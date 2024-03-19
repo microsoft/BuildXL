@@ -24,7 +24,7 @@ The FingerprintStore is separate from the cache actually delivering cache hits. 
 The FingerprintStore database itself is stored in the content cache for use in future builds. This is useful when the build is configured to use a remote cache. The `/cachemiss` option can take a key to control which FingerprintStore database to use. The newest matching store will be used. For example a rolling build pipeline may want to use `/cachemiss:pipelineName` so it performs analysis on the last completed invocation of the pipeline. When the build is complete, it will add the FingerprintStore to the cache utilizing the same key (if the cache is configured to be writeable). When no key is specified, BuildXL will only ever utilize the local FingerprintStore even if BuildXL is configured to use a remote cache.
 
 ### Automatic baseline selection for builds running in Azure DevOps
-In Azure DevOps builds, the default `/cacheMiss+` runs with a heuristic in which multiple keys are selected automatically: this this find a baseline store in precedence order. For example, consider a rolling build that publishes to the cache and developer builds that pull from the same cache. When a developer publishes a pull request, they want the cache miss baseline to be the newest rolling build that is closest to their commit. We can use a series of recent commit hashes as candidate keys for the store, trying to pick candidate keys that might have been used to publish a fingerprint store for a build as "close" as the one running.
+In Azure DevOps builds, passing `/cacheMiss+` or `/cacheMiss:<string>` runs with a heuristic in which multiple keys are selected automatically: this this find a baseline store in precedence order. For example, consider a rolling build that publishes to the cache and developer builds that pull from the same cache. When a developer publishes a pull request, they want the cache miss baseline to be the newest rolling build that is closest to their commit. We can use a series of recent commit hashes as candidate keys for the store, trying to pick candidate keys that might have been used to publish a fingerprint store for a build as "close" as the one running.
 
 For this, candidate keys are considered in the following order:
 1. The current branch the build is running from (e.g: `/refs/heads/dev/foo/MyFeature`, or `/refs/heads/pull/129192`)
@@ -34,6 +34,8 @@ For this, candidate keys are considered in the following order:
 The rationale being:
 1. If a baseline build is ran regularly on the target branch, the first build in the PR branch will have a fingerprint store to compare
 1. Subsequent builds within a same branch (PR or otherwise) will find the fingerprint store produced by the last build in the branch
+
+If the argument is provided with a string value (e.g., `/cacheMiss:foo` or `/cacheMiss:bar`) rather than `/cacheMiss+`, this string is used as a prefix for all the selected keys, essentially acting as a salt for the keys: this is useful if builds share the same cache universe but want to be separated for cache miss analysis purposes.
 
 At the end of the build, the first key in the series is what is used to store the FingerprintStore in the cache (namely, using the current branch as a key). Subsequent builds in the same branch (PR or otherwise) will find the fingerprint store produced by the last build. 
 

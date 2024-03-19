@@ -207,9 +207,11 @@ namespace Test.BuildXL.FingerprintStore
         }
 
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void CacheMissAnalysisOnAdo(bool definePrVariables)
+        [InlineData(true, null)]
+        [InlineData(false, null)]
+        [InlineData(true, "myprefix")]
+        [InlineData(false, "myprefix")]
+        public void CacheMissAnalysisOnAdo(bool definePrVariables, string prefix)
         {
             var environmentToRestore = new Dictionary<string, string>();
             void overrideEnvironment(string var, string value)
@@ -227,7 +229,7 @@ namespace Test.BuildXL.FingerprintStore
 
             try
             {
-                EnableFingerprintStore(CacheMissAnalysisOption.AdoMode());
+                EnableFingerprintStore(CacheMissAnalysisOption.AdoMode(prefix));
                 Configuration.Infra = Infra.Ado;
 
                 var testHooks = new SchedulerTestHooks()
@@ -246,13 +248,14 @@ namespace Test.BuildXL.FingerprintStore
                 RunScheduler(testHooks).AssertSuccess();
                 var keys = testHooks.FingerprintStoreTestHooks.CandidateKeys;
 
+                var prefixStr = prefix ?? string.Empty;
                 var expectedKeys = definePrVariables ? new string[]
                 {
-                    "refs_heads_BuildSourceBranch",
-                    "refs_heads_PrSourceBranch",
-                    "refs_heads_PrTargetBranch",
+                    $"{prefixStr}refs_heads_BuildSourceBranch",
+                    $"{prefixStr}refs_heads_PrSourceBranch",
+                    $"{prefixStr}refs_heads_PrTargetBranch",
                 } :
-                new string[] { "refs_heads_BuildSourceBranch" };
+                new string[] { $"{prefixStr}refs_heads_BuildSourceBranch" };
 
                 XAssert.ArrayEqual(expectedKeys, keys.ToArray());
             }

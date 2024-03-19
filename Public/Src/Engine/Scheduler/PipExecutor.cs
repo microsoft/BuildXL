@@ -2085,10 +2085,10 @@ namespace BuildXL.Scheduler
                         start = DateTime.UtcNow;
                         prevResult = result;
                         result = await executor.RunAsync(
-                            linkedCancellationTokenSource.Token,
                             sandboxConnection: environment.SandboxConnection,
                             sidebandWriter: sidebandWriter,
-                            fileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null);
+                            fileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null,
+                            linkedCancellationTokenSource.Token);
                         result.PreviousResult = prevResult;
                         SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
                         staleDynamicOutputs = result.SharedDynamicDirectoryWriteAccesses;

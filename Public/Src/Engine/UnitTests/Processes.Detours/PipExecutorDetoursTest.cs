@@ -2179,65 +2179,28 @@ namespace Test.BuildXL.Processes.Detours
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
-
                 XAssert.IsTrue(File.Exists(executable));
+
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
+                AbsolutePath workingDirectory = AbsolutePath.Create(pathTable, tempFiles.RootDirectory);
 
-                string workingDirectory = tempFiles.RootDirectory;
-                Contract.Assume(workingDirectory != null);
-                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(pathTable, workingDirectory);
-
-                string testDirPath = Path.Combine(workingDirectory, "input");
-                tempFiles.GetDirectory("input");
+                string testDirPath = tempFiles.GetDirectory("input");
 
                 string firstTestFile = Path.Combine(testDirPath, "Test1.txt");
-                XAssert.IsFalse(File.Exists(firstTestFile));
                 AbsolutePath firstAbsPath = AbsolutePath.Create(pathTable, firstTestFile);
                 FileArtifact firstFileArtifact = FileArtifact.CreateSourceFile(firstAbsPath);
-                if (File.Exists(firstTestFile))
-                {
-                    File.Delete(firstTestFile);
-                }
-
-                // Create the file.
-                using (FileStream fs = File.Create(firstTestFile))
-                {
-                    byte[] info = new System.Text.UTF8Encoding(true).GetBytes("aaa");
-
-                    // Add some information to the file.
-                    await fs.WriteAsync(info, 0, info.Length);
-                    fs.Close();
-                }
-
-                XAssert.IsTrue(File.Exists(firstTestFile));
+                File.WriteAllText(firstTestFile, string.Empty);
 
                 string secondTestFile = Path.Combine(testDirPath, "Test2.txt");
-                XAssert.IsFalse(File.Exists(secondTestFile));
                 AbsolutePath secondAbsPath = AbsolutePath.Create(pathTable, secondTestFile);
                 FileArtifact secondFileArtifact = FileArtifact.CreateSourceFile(secondAbsPath);
-                if (File.Exists(secondTestFile))
+                File.WriteAllText(secondTestFile, string.Empty);
+
+                var allDependencies = new List<FileArtifact>(2)
                 {
-                    File.Delete(secondTestFile);
-                }
-
-                // Create the file.
-                using (FileStream fs = File.Create(secondTestFile))
-                {
-                    byte[] info = new System.Text.UTF8Encoding(true).GetBytes("bbb");
-
-                    // Add some information to the file.
-                    await fs.WriteAsync(info, 0, info.Length);
-                    fs.Close();
-                }
-
-                XAssert.IsTrue(File.Exists(secondTestFile));
-
-                var allDependencies = new List<FileArtifact>(2);
-                var allDirectoryDependencies = new List<DirectoryArtifact>(2);
-                allDependencies.Add(executableFileArtifact);
+                    executableFileArtifact
+                };
 
                 var arguments = new PipDataBuilder(pathTable.StringTable);
                 arguments.Add("CallDirectoryEnumerationTest");
@@ -2245,7 +2208,7 @@ namespace Test.BuildXL.Processes.Detours
                 var environmentVariables = new List<EnvironmentVariable>();
                 Process pip = new Process(
                     executableFileArtifact,
-                    workingDirectoryAbsolutePath,
+                    workingDirectory,
                     arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
                     FileArtifact.Invalid,
                     PipData.Invalid,
@@ -2264,15 +2227,12 @@ namespace Test.BuildXL.Processes.Detours
                     untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
                     tags: ReadOnlyArray<StringId>.Empty,
-
-                    // We expect the CreateFile call to fail, but with no monitoring error logged.
-                    successExitCodes: ReadOnlyArray<int>.FromWithoutCopy(new[] { 0 }),
+                    successExitCodes: ReadOnlyArray<int>.FromWithoutCopy([0]),
                     semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                     provenance: PipProvenance.CreateDummy(context),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                string errorString = null;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
                     pathTable: pathTable,
                     ignoreSetFileInformationByHandle: false,
@@ -2281,7 +2241,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreReparsePoints: false,
                     context: context,
                     pip: pip,
-                    errorString: out errorString);
+                    errorString: out _);
 
                 XAssert.AreEqual(1, result.ObservedFileAccesses.Count());
                 XAssert.AreEqual(testDirPath, result.ObservedFileAccesses[0].Path.ToString(pathTable));
@@ -2289,64 +2249,48 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [Fact]
-        public async Task TestDeleteFile()
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 3, MemberType = typeof(TruthTable))]
+        public async Task TestDeleteFile(bool unexpectedFileAccessesAreErrors, bool useStdRemove, bool existingFile)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
-                XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
+                AbsolutePath workingDirectory = AbsolutePath.Create(pathTable, tempFiles.RootDirectory);
 
-                string workingDirectory = tempFiles.RootDirectory;
-                Contract.Assume(workingDirectory != null);
-                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(pathTable, workingDirectory);
-
-                string testDirPath = Path.Combine(workingDirectory, "input");
-                tempFiles.GetDirectory("input");
+                string testDirPath = tempFiles.GetDirectory("input");
 
                 string firstTestFile = Path.Combine(testDirPath, "Test1.txt");
-                XAssert.IsFalse(File.Exists(firstTestFile));
                 AbsolutePath firstAbsPath = AbsolutePath.Create(pathTable, firstTestFile);
-                createdInputPaths[firstTestFile] = firstAbsPath;
-
                 FileArtifact firstFileArtifact = FileArtifact.CreateSourceFile(firstAbsPath);
-                if (File.Exists(firstTestFile))
+
+                if (existingFile)
                 {
-                    File.Delete(firstTestFile);
+                    File.WriteAllText(firstTestFile, string.Empty);
+                }
+                else
+                {
+                    XAssert.IsFalse(File.Exists(firstTestFile));
                 }
 
-                // Create the file.
-                using (FileStream fs = File.Create(firstTestFile))
+                var allDependencies = new List<FileArtifact>(2)
                 {
-                    byte[] info = new System.Text.UTF8Encoding(true).GetBytes("aaa");
-
-                    // Add some information to the file.
-                    await fs.WriteAsync(info, 0, info.Length);
-                    fs.Close();
-                }
-
-                XAssert.IsTrue(File.Exists(firstTestFile));
-
-                var allDependencies = new List<FileArtifact>(2);
-                var allDirectoryDependencies = new List<DirectoryArtifact>(2);
-                allDependencies.Add(executableFileArtifact);
+                    executableFileArtifact
+                };
 
                 var arguments = new PipDataBuilder(pathTable.StringTable);
-                arguments.Add("CallDeleteFileTest");
+                arguments.Add(useStdRemove ? "CallDeleteFileStdRemoveTest" : "CallDeleteFileTest");
 
                 var environmentVariables = new List<EnvironmentVariable>();
                 Process pip = new Process(
                     executableFileArtifact,
-                    workingDirectoryAbsolutePath,
+                    workingDirectory,
                     arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
                     FileArtifact.Invalid,
                     PipData.Invalid,
@@ -2365,304 +2309,105 @@ namespace Test.BuildXL.Processes.Detours
                     untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
                     tags: ReadOnlyArray<StringId>.Empty,
-
-                    // We expect the CreateFile call to fail, but with no monitoring error logged.
-                    successExitCodes: ReadOnlyArray<int>.FromWithoutCopy(new[] { 0 }),
+                    successExitCodes: ReadOnlyArray<int>.FromWithoutCopy([0]),
                     semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                     provenance: PipProvenance.CreateDummy(context),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                string errorString = null;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
                     pathTable,
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
                     ignoreReparsePoints: false,
+                    unexpectedFileAccessesAreErrors: unexpectedFileAccessesAreErrors,
                     context: context,
                     pip: pip,
-                    errorString: out errorString);
+                    errorString: out _);
 
-                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
-                SetExpectedFailures(1, 0);
-
-                VerifyAccessDenied(context, result);
-
-                XAssert.IsTrue(File.Exists(firstTestFile));
-
-                VerifyFileAccesses(
-                    context,
-                    result.AllReportedFileAccesses,
-                    new[]
+                if (existingFile)
+                {
+                    if (unexpectedFileAccessesAreErrors)
                     {
-                        (createdInputPaths[firstTestFile], RequestedAccess.Write, FileAccessStatus.Denied),
-                    });
+                        // Failed to delete existing file due to access denied.
+                        AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+                        SetExpectedFailures(1, 0);
+                        VerifyAccessDenied(context, result);
+
+                        XAssert.IsTrue(File.Exists(firstTestFile));
+                    }
+                    else
+                    {
+                        VerifyNormalSuccess(context, result);
+                        XAssert.IsFalse(File.Exists(firstTestFile));
+                    }
+
+                    // Deleting an existing file is considered a write access.
+                    VerifyFileAccesses(
+                        context,
+                        result.AllReportedFileAccesses,
+                        new[]
+                        {
+                            (firstAbsPath, RequestedAccess.Write, FileAccessStatus.Denied),
+                        });
+                }
+                else
+                {
+                    if (unexpectedFileAccessesAreErrors)
+                    {
+                        // There's no disallowed access because the file doesn't exist, so the delete operation is considered a probe access.
+                        SetExpectedFailures(1, 0);
+                        VerifyAccessDenied(context, result);
+                    }
+                    else
+                    {
+                        SetExpectedFailures(1, 0);
+                        VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
+                        VerifyExitCode(context, result, NativeIOConstants.ErrorFileNotFound);
+                    }
+
+                    XAssert.IsFalse(File.Exists(firstTestFile));
+
+                    // Deleting an absent file is considered a probe access.
+                    VerifyFileAccesses(
+                        context,
+                        result.AllReportedFileAccesses,
+                        new[]
+                        {
+                            (firstAbsPath, RequestedAccess.Probe, FileAccessStatus.Allowed),
+                        });
+                }
             }
         }
 
-        [Fact]
-        public async Task TestDeleteFileStdRemove()
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public async Task TestDeleteDirectory(bool unexpectedFileAccessesAreErrors)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
                 string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
-                XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
+                AbsolutePath workingDirectory = AbsolutePath.Create(pathTable, tempFiles.RootDirectory);
 
-                string workingDirectory = tempFiles.RootDirectory;
-                Contract.Assume(workingDirectory != null);
-                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(pathTable, workingDirectory);
-
-                string testDirPath = Path.Combine(workingDirectory, "input");
-                tempFiles.GetDirectory("input");
-
-                string firstTestFile = Path.Combine(testDirPath, "Test1.txt");
-                XAssert.IsFalse(File.Exists(firstTestFile));
-                AbsolutePath firstAbsPath = AbsolutePath.Create(pathTable, firstTestFile);
-                createdInputPaths[firstTestFile] = firstAbsPath;
-
-                FileArtifact firstFileArtifact = FileArtifact.CreateSourceFile(firstAbsPath);
-                if (File.Exists(firstTestFile))
-                {
-                    File.Delete(firstTestFile);
-                }
-
-                // Create the file.
-                using (FileStream fs = File.Create(firstTestFile))
-                {
-                    byte[] info = new System.Text.UTF8Encoding(true).GetBytes("aaa");
-
-                    // Add some information to the file.
-                    await fs.WriteAsync(info, 0, info.Length);
-                    fs.Close();
-                }
-
-                XAssert.IsTrue(File.Exists(firstTestFile));
-
-                var allDependencies = new List<FileArtifact>(2);
-                var allDirectoryDependencies = new List<DirectoryArtifact>(2);
-                allDependencies.Add(executableFileArtifact);
-
-                var arguments = new PipDataBuilder(pathTable.StringTable);
-                arguments.Add("CallDeleteFileStdRemoveTest");
-
-                var environmentVariables = new List<EnvironmentVariable>();
-                Process pip = new Process(
-                    executableFileArtifact,
-                    workingDirectoryAbsolutePath,
-                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
-                    FileArtifact.Invalid,
-                    PipData.Invalid,
-                    ReadOnlyArray<EnvironmentVariable>.From(environmentVariables),
-                    FileArtifact.Invalid,
-                    FileArtifact.Invalid,
-                    FileArtifact.Invalid,
-                    tempFiles.GetUniqueDirectory(pathTable),
-                    null,
-                    null,
-                    dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(allDependencies.ToArray<FileArtifact>()),
-                    outputs: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
-                    directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
-                    directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
-                    orderDependencies: ReadOnlyArray<PipId>.Empty,
-                    untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
-                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
-                    tags: ReadOnlyArray<StringId>.Empty,
-
-                    // We expect the CreateFile call to fail, but with no monitoring error logged.
-                    successExitCodes: ReadOnlyArray<int>.FromWithoutCopy(new[] { 0 }),
-                    semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
-                    provenance: PipProvenance.CreateDummy(context),
-                    toolDescription: StringId.Invalid,
-                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
-
-                string errorString = null;
-                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
-                    pathTable,
-                    ignoreSetFileInformationByHandle: false,
-                    ignoreZwRenameFileInformation: false,
-                    monitorNtCreate: true,
-                    ignoreReparsePoints: false,
-                    context: context,
-                    pip: pip,
-                    errorString: out errorString);
-
-                SetExpectedFailures(1, 0);
-
-                VerifyAccessDenied(context, result);
-
-                XAssert.IsTrue(File.Exists(firstTestFile));
-
-                VerifyFileAccesses(
-                    context,
-                    result.AllReportedFileAccesses,
-                    new[]
-                    {
-                        (createdInputPaths[firstTestFile], RequestedAccess.Write, FileAccessStatus.Denied),
-                    });
-            }
-        }
-
-        [Fact]
-        public async Task TestDeleteFileStdRemovenNoFile()
-        {
-            var context = BuildXLContext.CreateInstanceForTesting();
-            var pathTable = context.PathTable;
-
-            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
-            {
-                var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
-
-                XAssert.IsTrue(File.Exists(executable));
-                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
-
-                string workingDirectory = tempFiles.RootDirectory;
-                Contract.Assume(workingDirectory != null);
-                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(pathTable, workingDirectory);
-
-                string testDirPath = Path.Combine(workingDirectory, "input");
-                tempFiles.GetDirectory("input");
-
-                string firstTestFile = Path.Combine(testDirPath, "Test1.txt");
-                XAssert.IsFalse(File.Exists(firstTestFile));
-                AbsolutePath firstAbsPath = AbsolutePath.Create(pathTable, firstTestFile);
-                createdInputPaths[firstTestFile] = firstAbsPath;
-
-                FileArtifact firstFileArtifact = FileArtifact.CreateSourceFile(firstAbsPath);
-                if (File.Exists(firstTestFile))
-                {
-                    File.Delete(firstTestFile);
-                }
-
-                var allDependencies = new List<FileArtifact>(2);
-                var allDirectoryDependencies = new List<DirectoryArtifact>(2);
-                allDependencies.Add(executableFileArtifact);
-
-                var arguments = new PipDataBuilder(pathTable.StringTable);
-                arguments.Add("CallDeleteFileStdRemoveTest");
-
-                var environmentVariables = new List<EnvironmentVariable>();
-                Process pip = new Process(
-                    executableFileArtifact,
-                    workingDirectoryAbsolutePath,
-                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
-                    FileArtifact.Invalid,
-                    PipData.Invalid,
-                    ReadOnlyArray<EnvironmentVariable>.From(environmentVariables),
-                    FileArtifact.Invalid,
-                    FileArtifact.Invalid,
-                    FileArtifact.Invalid,
-                    tempFiles.GetUniqueDirectory(pathTable),
-                    null,
-                    null,
-                    dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(allDependencies.ToArray<FileArtifact>()),
-                    outputs: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
-                    directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
-                    directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
-                    orderDependencies: ReadOnlyArray<PipId>.Empty,
-                    untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
-                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
-                    tags: ReadOnlyArray<StringId>.Empty,
-
-                    // We expect the CreateFile call to fail, but with no monitoring error logged.
-                    successExitCodes: ReadOnlyArray<int>.FromWithoutCopy(new[] { 0 }),
-                    semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
-                    provenance: PipProvenance.CreateDummy(context),
-                    toolDescription: StringId.Invalid,
-                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
-
-                string errorString = null;
-                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
-                    pathTable,
-                    ignoreSetFileInformationByHandle: false,
-                    ignoreZwRenameFileInformation: false,
-                    monitorNtCreate: true,
-                    ignoreReparsePoints: false,
-                    context: context,
-                    pip: pip,
-                    errorString: out errorString);
-
-                SetExpectedFailures(1, 0);
-
-                VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
-                VerifyExitCode(context, result, 2);
-
-                XAssert.IsFalse(File.Exists(firstTestFile));
-
-                VerifyFileAccesses(
-                    context,
-                    result.AllReportedFileAccesses,
-                    new[]
-                    {
-                        (createdInputPaths[firstTestFile], RequestedAccess.Probe, FileAccessStatus.Allowed),
-                    });
-            }
-        }
-
-        [Fact]
-        public async Task TestDeleteDirectory()
-        {
-            var context = BuildXLContext.CreateInstanceForTesting();
-            var pathTable = context.PathTable;
-
-            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
-            {
-                var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
-                string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                Contract.Assume(currentCodeFolder != null);
-
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
-
-                XAssert.IsTrue(File.Exists(executable));
-                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
-
-                string workingDirectory = tempFiles.RootDirectory;
-                Contract.Assume(workingDirectory != null);
-                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(pathTable, workingDirectory);
-
-                string testDirPath = Path.Combine(workingDirectory, "input");
-                tempFiles.GetDirectory("input");
+                string testDirPath = tempFiles.GetDirectory("input");
                 AbsolutePath inputDirPath = AbsolutePath.Create(pathTable, testDirPath);
 
                 string firstTestFile = Path.Combine(testDirPath, "Test1.txt");
-                XAssert.IsFalse(File.Exists(firstTestFile));
                 AbsolutePath firstAbsPath = AbsolutePath.Create(pathTable, firstTestFile);
-                createdInputPaths[testDirPath] = inputDirPath;
-
                 FileArtifact firstFileArtifact = FileArtifact.CreateSourceFile(firstAbsPath);
-                if (File.Exists(firstTestFile))
+                File.WriteAllText(firstTestFile, string.Empty);
+
+                var allDependencies = new List<FileArtifact>(2)
                 {
-                    File.Delete(firstTestFile);
-                }
-
-                // Create the file.
-                using (FileStream fs = File.Create(firstTestFile))
-                {
-                    byte[] info = new System.Text.UTF8Encoding(true).GetBytes("aaa");
-
-                    // Add some information to the file.
-                    await fs.WriteAsync(info, 0, info.Length);
-                    fs.Close();
-                }
-
-                XAssert.IsTrue(File.Exists(firstTestFile));
-
-                var allDependencies = new List<FileArtifact>(2);
-                var allDirectoryDependencies = new List<DirectoryArtifact>(2);
-                allDependencies.Add(executableFileArtifact);
+                    executableFileArtifact
+                };
 
                 var arguments = new PipDataBuilder(pathTable.StringTable);
                 arguments.Add("CallDeleteDirectoryTest");
@@ -2670,7 +2415,7 @@ namespace Test.BuildXL.Processes.Detours
                 var environmentVariables = new List<EnvironmentVariable>();
                 Process pip = new Process(
                     executableFileArtifact,
-                    workingDirectoryAbsolutePath,
+                    workingDirectory,
                     arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
                     FileArtifact.Invalid,
                     PipData.Invalid,
@@ -2689,43 +2434,61 @@ namespace Test.BuildXL.Processes.Detours
                     untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
                     tags: ReadOnlyArray<StringId>.Empty,
-
-                    // We expect the CreateFile call to fail, but with no monitoring error logged.
-                    successExitCodes: ReadOnlyArray<int>.FromWithoutCopy(new[] { 0 }),
+                    successExitCodes: ReadOnlyArray<int>.FromWithoutCopy([0]),
                     semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                     provenance: PipProvenance.CreateDummy(context),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                string errorString = null;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
                     pathTable,
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
                     ignoreReparsePoints: false,
+                    unexpectedFileAccessesAreErrors: unexpectedFileAccessesAreErrors,
                     context: context,
                     pip: pip,
-                    errorString: out errorString);
+                    errorString: out _);
 
-                SetExpectedFailures(1, 0);
-                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+                if (unexpectedFileAccessesAreErrors)
+                {
+                    SetExpectedFailures(1, 0);
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
 
-                VerifyAccessDenied(context, result);
+                    VerifyAccessDenied(context, result);
 
-                XAssert.IsTrue(File.Exists(firstTestFile));
+                    XAssert.IsTrue(File.Exists(firstTestFile));
 
-                VerifyFileAccesses(
-                    context,
-                    result.AllReportedFileAccesses,
-                    new[]
-                    {
-                        (createdInputPaths[testDirPath], RequestedAccess.Write, FileAccessStatus.Denied),
-                    },
-                    new[]
-                    {
-                        firstAbsPath
-                    });
+                    VerifyFileAccesses(
+                        context,
+                        result.AllReportedFileAccesses,
+                        new[]
+                        {
+                            (inputDirPath, RequestedAccess.Write, FileAccessStatus.Denied),
+                        },
+                        [
+                            firstAbsPath
+                        ]);
+                }
+                else
+                {
+                    SetExpectedFailures(1, 0);
+
+                    VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
+                    VerifyExitCode(context, result, 145); // Directory is no empty.
+
+                    XAssert.IsTrue(File.Exists(firstTestFile));
+
+                    VerifyFileAccesses(
+                        context,
+                        result.AllReportedFileAccesses,
+                        new[]
+                        {
+                            (inputDirPath, RequestedAccess.Write, FileAccessStatus.Denied),
+                            (firstAbsPath, RequestedAccess.Write, FileAccessStatus.Denied),
+                        });
+                }
             }
         }
 
@@ -5136,8 +4899,6 @@ namespace Test.BuildXL.Processes.Detours
                     provenance: PipProvenance.CreateDummy(context),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
-
-                string errorString = null;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
                     pathTable: pathTable,
                     ignoreSetFileInformationByHandle: false,
@@ -5149,7 +4910,7 @@ namespace Test.BuildXL.Processes.Detours
                     // Use unsafe probe by default because this test probes parent directories that can be directory symlinks or junctions.
                     // E.g., 'd:\dbs\el\bxlint\Out' with [C:\Windows\system32\cmd.exe:52040](Probe) FindFirstFileEx(...)
                     probeDirectorySymlinkAsDirectory: true,
-                    errorString: out errorString);
+                    errorString: out _);
 
                 SetExpectedFailures(1, 0);
                 AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
@@ -5336,18 +5097,18 @@ namespace Test.BuildXL.Processes.Detours
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
-                var sourceOfSymlink = tempFiles.GetDirectory(pathTable, "SourceOfSymLink.link");
-                var intermediateSymlink = tempFiles.GetDirectory(pathTable, "IntermediateSymLink.link");
-                var intermediateSymlink1 = tempFiles.GetDirectory(pathTable, "IntermediateSymLink1.link");
+                var sourceJunction = tempFiles.GetDirectory(pathTable, "SourceJunction");
+                var intermediateJunction = tempFiles.GetDirectory(pathTable, "IntermediateJunction");
+                var targetDirectory = tempFiles.GetDirectory(pathTable, "TargetDirectory");
 
-                EstablishJunction(sourceOfSymlink.ToString(pathTable), intermediateSymlink.ToString(pathTable));
-                EstablishJunction(intermediateSymlink.ToString(pathTable), intermediateSymlink1.ToString(pathTable));
+                EstablishJunction(sourceJunction.ToString(pathTable), intermediateJunction.ToString(pathTable));
+                EstablishJunction(intermediateJunction.ToString(pathTable), targetDirectory.ToString(pathTable));
 
-                var targetFileStr = Path.Combine(intermediateSymlink1.ToString(pathTable), "Target.txt");
+                var targetFileStr = Path.Combine(targetDirectory.ToString(pathTable), "target.txt");
                 var targetFile = AbsolutePath.Create(pathTable, targetFileStr);
-                WriteFile(pathTable, targetFile, "target content");
+                WriteFile(pathTable, targetFile, string.Empty);
 
-                var srcFileStr = Path.Combine(sourceOfSymlink.ToString(pathTable), "Target.txt");
+                var srcFileStr = Path.Combine(targetDirectory.ToString(pathTable), "target.txt");
                 var srcFile = AbsolutePath.Create(pathTable, srcFileStr);
 
                 var process = CreateDetourProcess(
@@ -5363,16 +5124,17 @@ namespace Test.BuildXL.Processes.Detours
                     outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
 
-                string errorString;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
                     pathTable: pathTable,
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
                     ignoreReparsePoints: false,
+                    ignoreFullReparsePointResolving: false,
+                    unexpectedFileAccessesAreErrors: false,
                     context: context,
                     pip: process,
-                    errorString: out errorString);
+                    errorString: out _);
 
                 VerifyNormalSuccess(context, result);
 
@@ -5381,7 +5143,10 @@ namespace Test.BuildXL.Processes.Detours
                     result.AllReportedFileAccesses,
                     new[]
                     {
-                        (srcFile, RequestedAccess.Read, FileAccessStatus.Allowed)
+                        (sourceJunction,       RequestedAccess.Read, FileAccessStatus.Denied),       // Denied: reparse point, read for symlink resolution, being treated as a file.
+                        (intermediateJunction, RequestedAccess.Read, FileAccessStatus.Denied),       // Denied: reparse point, read for symlink resolution, being treated as a file.
+                        (targetDirectory,      RequestedAccess.Probe, FileAccessStatus.Allowed),     // Allowed: directory probe.
+                        (srcFile,              RequestedAccess.Read, FileAccessStatus.Allowed)
                     });
             }
         }
@@ -6671,6 +6436,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
                     ignoreReparsePoints: false,
+                    ignoreFullReparsePointResolving: false,
                     context: context,
                     pip: process,
                     probeDirectorySymlinkAsDirectory: probeDirectorySymlinkAsDirectory,
@@ -6807,13 +6573,14 @@ namespace Test.BuildXL.Processes.Detours
 
                 VerifyNormalSuccess(context, result);
 
-                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
-                {
-                    (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Allowed)
-                });
-
-                var allAccessPaths = result.AllReportedFileAccesses.Select(fa => fa.Path ?? fa.ManifestPath.ToString(pathTable));
-                XAssert.IsFalse(allAccessPaths.Any(p => p.Contains(targetDirectory.ToString(pathTable))));
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    new[]
+                    {
+                        (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Allowed)
+                    },
+                    [targetDirectory]);
             }
         }
 
@@ -6857,13 +6624,14 @@ namespace Test.BuildXL.Processes.Detours
 
                 VerifyNormalSuccess(context, result);
 
-                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
-                {
-                    (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Allowed)
-                });
-
-                var allAccessPaths = result.AllReportedFileAccesses.Select(fa => fa.Path ?? fa.ManifestPath.ToString(pathTable));
-                XAssert.IsFalse(allAccessPaths.Any(p => p.Contains(targetDirectory.ToString(pathTable))));
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    new[]
+                    {
+                        (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Denied) // Denied, because reparse point is treated as a file.
+                    },
+                    [targetDirectory]);
             }
         }
 
@@ -6890,26 +6658,25 @@ namespace Test.BuildXL.Processes.Detours
                     pathTable,
                     tempFiles,
                     argumentStr: withReparsePointFlag
-                    ? "CallProbeDirectorySymlinkTargetWithReparsePointFlag"
-                    : "CallProbeDirectorySymlinkTargetWithoutReparsePointFlag",
+                        ? "CallProbeDirectorySymlinkTargetWithReparsePointFlag"
+                        : "CallProbeDirectorySymlinkTargetWithoutReparsePointFlag",
                     inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
                     outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
-
-                string errorString;
-
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
                     pathTable: pathTable,
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
+                    ignoreFullReparsePointResolving: false,
                     ignoreReparsePoints: false,
+                    probeDirectorySymlinkAsDirectory: probeDirectorySymlinkAsDirectory,
+                    unexpectedFileAccessesAreErrors: false,
                     context: context,
                     pip: process,
-                    probeDirectorySymlinkAsDirectory: probeDirectorySymlinkAsDirectory,
-                    errorString: out errorString);
+                    errorString: out _);
 
                 if (withReparsePointFlag)
                 {
@@ -6925,31 +6692,28 @@ namespace Test.BuildXL.Processes.Detours
                                 // Access allowed on probing directory symlink because the symlink is treated as directory.
                                 (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Allowed)
                             },
-                            new[]
-                            {
+                            [
                                 // Due to reparse point flag, the target directory is not followed.
                                 targetDirectory
-                            });
+                            ]);
                     }
                     else
                     {
                         // Probe should succeed because the directory symlink exists, regardless the existence of its target.
                         // However, since the probe is treated as existing file probe, we should get access denied.
-                        VerifyAccessDenied(context, result);
+                        VerifyNormalSuccess(context, result);
                         VerifyFileAccesses(
                             context,
                             result.AllReportedFileAccesses,
                             new[]
                             {
-                                // Access denied on probing directory symlink.
+                                // Access denied on probing directory symlink because directory symlink is treated as a file.
                                 (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Denied)
                             },
-                            new[]
-                            {
+                            [
                                 // Due to reparse point flag, the target directory is not followed.
                                 targetDirectory
-                            });
-                        SetExpectedFailures(1, 0);
+                            ]);
                     }
                 }
                 else
@@ -6966,15 +6730,14 @@ namespace Test.BuildXL.Processes.Detours
                         SetExpectedFailures(1, 0);
                     }
 
-                    VerifyNoFileAccessViolation(result);
                     VerifyFileAccesses(
                         context,
                         result.AllReportedFileAccesses,
                         new[]
                         {
-                            // Without reparse point, regardless of the target's existence, both the directory symlinks
-                            // and the target are assumed to be probed.
-                            (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Allowed),
+                            // Without reparse point, the directory symlink is read for symlink resolution.
+                            (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Read, FileAccessStatus.Denied),
+                            // Without reparse point, regardless of the target's existence, the target is assumed to be probed
                             (targetDirectory, RequestedAccess.Probe, FileAccessStatus.Allowed)
                         });
                 }
@@ -7352,8 +7115,8 @@ namespace Test.BuildXL.Processes.Detours
                     pathTable,
                     tempFiles,
                     argumentStr: "CallDetoursResolvedPathCacheTests",
-                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(firstDirectorySymlink), FileArtifact.CreateSourceFile(secondDirectorySymlink) }),
-                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { targetDirectoryArtifact }),
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy([FileArtifact.CreateSourceFile(firstDirectorySymlink), FileArtifact.CreateSourceFile(secondDirectorySymlink)]),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy([targetDirectoryArtifact]),
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
                         FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(firstDirectorySymlink), FileExistence.Required),
                         FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(secondDirectorySymlink), FileExistence.Required),
@@ -7362,8 +7125,12 @@ namespace Test.BuildXL.Processes.Detours
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
 
                 var directlyReportedFileAccesses = new List<ReportedFileAccess>();
-                var accumulator = new AccessReportAccumulator(context, process.Executable, (ReportedFileAccess report) => directlyReportedFileAccesses.Add(report));
-                accumulator.SetMessageHandlingFlags(MessageHandlingFlags.FileAccessNotify | MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect);
+                var accumulator = new AccessReportAccumulator(context, process.Executable, directlyReportedFileAccesses.Add);
+                accumulator.SetMessageHandlingFlags(
+                    MessageHandlingFlags.FileAccessNotify
+                    | MessageHandlingFlags.FileAccessCollect
+                    | MessageHandlingFlags.ProcessDataCollect
+                    | MessageHandlingFlags.ProcessDetoursStatusCollect);
 
                 string errorString = null;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
@@ -7390,9 +7157,9 @@ namespace Test.BuildXL.Processes.Detours
                     (secondDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
                     (outputFile, RequestedAccess.Write, FileAccessStatus.Allowed, null),
 
-                    // ResolvedPathCache reports ReparsePointTargetCached reports
-                    (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
-                    (secondDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                    // There is no report with ReparsePointTargetCached because they have the same reported accesses as ReparsePointTarget ones, except the operation.
+                    // (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                    // (secondDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
                     (outputFile, RequestedAccess.Read, FileAccessStatus.Allowed, null),
                 });
 
@@ -7571,8 +7338,8 @@ namespace Test.BuildXL.Processes.Detours
                     pathTable,
                     tempFiles,
                     argumentStr: "CallDetoursResolvedPathCacheDealsWithUnicode",
-                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(firstDirectorySymlink) }),
-                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { targetDirectoryArtifact }),
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy([FileArtifact.CreateSourceFile(firstDirectorySymlink)]),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy([targetDirectoryArtifact]),
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
                         FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(firstDirectorySymlink), FileExistence.Required),
                         FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(outputFile), FileExistence.Required)),
@@ -7580,10 +7347,13 @@ namespace Test.BuildXL.Processes.Detours
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
 
                 var directlyReportedFileAccesses = new List<ReportedFileAccess>();
-                var accumulator = new AccessReportAccumulator(context, process.Executable, (ReportedFileAccess report) => directlyReportedFileAccesses.Add(report));
-                accumulator.SetMessageHandlingFlags(MessageHandlingFlags.FileAccessNotify | MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect);
+                var accumulator = new AccessReportAccumulator(context, process.Executable, directlyReportedFileAccesses.Add);
+                accumulator.SetMessageHandlingFlags(
+                    MessageHandlingFlags.FileAccessNotify
+                    | MessageHandlingFlags.FileAccessCollect
+                    | MessageHandlingFlags.ProcessDataCollect
+                    | MessageHandlingFlags.ProcessDetoursStatusCollect);
 
-                string errorString = null;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
                     pathTable: pathTable,
                     ignoreSetFileInformationByHandle: false,
@@ -7593,7 +7363,7 @@ namespace Test.BuildXL.Processes.Detours
                     disableDetours: false,
                     context: context,
                     pip: process,
-                    errorString: out errorString,
+                    errorString: out _,
                     unexpectedFileAccessesAreErrors: false,
                     ignoreFullReparsePointResolving: false,
                     detoursListener: accumulator);
@@ -7607,12 +7377,12 @@ namespace Test.BuildXL.Processes.Detours
                     (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
                     (outputFile, RequestedAccess.Write, FileAccessStatus.Allowed, null),
 
-                    // ResolvedPathCache reports ReparsePointTargetCached reports
-                    (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                    // No ReparsePointTargetCached is reported because it has the same reported file access as the previous ReparsePointTarget, except the operation.
+                    // (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
                     (outputFile, RequestedAccess.Read, FileAccessStatus.Allowed, null),
                 });
 
-                // We use a Detours event listener to get every reported file access to avoid deduplication in the sandboxed process results, if we don't the same reports after
+                // We use a Detours event listener to get every reported file access to avoid deduplication in the sandboxed process results, if we don't, the same reports after
                 // invalidating the cache only show up once.
                 XAssert.IsTrue(directlyReportedFileAccesses.Count > 0);
 
@@ -7699,16 +7469,14 @@ namespace Test.BuildXL.Processes.Detours
                     ExceptionUtilities.HandleRecoverableIOException(() => File.Delete(outputPath), exception => { });
                 }
 
-                File.WriteAllText(outputPath, "Some content");
-
                 var anotherDirectory = tempFiles.GetDirectory(pathTable, "AnotherDirectory");
                 var anotherDirectoryArtifact = CreateDirectory(pathTable, anotherDirectory);
                 var anotherExpandedDirectoryPath = anotherDirectory.Expand(pathTable).ToString();
 
-                var directorySymlink = tempFiles.GetFileName(anotherExpandedDirectoryPath, "Target_DirectorySymlink");
+                var directorySymlink = tempFiles.GetFileName(anotherExpandedDirectoryPath, "Target_Directory.lnk");
                 var directorySymlinkAbsolutePath = AbsolutePath.Create(pathTable, directorySymlink);
 
-                var fileSymlink = tempFiles.GetFileName(expandedDirectoryPath, "symlink.txt");
+                var fileSymlink = tempFiles.GetFileName(expandedDirectoryPath, "file.lnk");
                 var fileSymlinkAbsolutePath = AbsolutePath.Create(pathTable, fileSymlink);
 
                 XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(directorySymlink, $"..{Path.DirectorySeparatorChar}{Path.GetFileName(expandedDirectoryPath)}", false));
@@ -7719,9 +7487,14 @@ namespace Test.BuildXL.Processes.Detours
                     pathTable,
                     tempFiles,
                     argumentStr: "CallValidateFileSymlinkAccesses",
-                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(directorySymlinkAbsolutePath), FileArtifact.CreateSourceFile(fileSymlinkAbsolutePath) }),
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(
+                        [
+                            FileArtifact.CreateSourceFile(directorySymlinkAbsolutePath),
+                            FileArtifact.CreateSourceFile(fileSymlinkAbsolutePath)
+                        ]),
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
-                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                        FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateOutputFile(outputFile), FileExistence.Required)),
                     outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
 
@@ -7745,10 +7518,13 @@ namespace Test.BuildXL.Processes.Detours
                 {
                     // Intermediate directory symbolic links are always reported with Read access only
                     (directorySymlinkAbsolutePath, RequestedAccess.Read, FileAccessStatus.Allowed),
-                    // Make sure that both the output file and the symbolic file pointing to it have the same RequestedAccess
-                    // as specified in the native 'CallValidateFileSymlinkAccesses()' test harness
-                    (fileSymlinkAbsolutePath, RequestedAccess.ReadWrite, FileAccessStatus.Denied),
-                    (outputFile, RequestedAccess.ReadWrite, FileAccessStatus.Denied)
+
+                    // Symlink is read to get to the target file.
+                    // Note that, although the write will be through symlink, the symlink itself is not written to.
+                    (fileSymlinkAbsolutePath, RequestedAccess.Read, FileAccessStatus.Allowed),
+
+                    // The target file is opened for read and write, but is denied by the policy because no output file is specified.
+                    (outputFile, RequestedAccess.ReadWrite, FileAccessStatus.Allowed)
                 });
             }
         }

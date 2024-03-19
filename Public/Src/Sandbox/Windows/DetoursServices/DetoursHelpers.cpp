@@ -28,10 +28,7 @@ using std::basic_string;
 /// <summary>
 /// Gets the normalized (or subst'ed) path from a full path.
 /// </summary>
-/// <remarks>
-/// The debug parameter is temporary to catch non-deterministic bug 1027027
-/// </remarks>
-void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& outFileName, _In_ bool debug)
+void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& outFileName)
 {
     outFileName.assign(inFileName);
 
@@ -67,11 +64,6 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
     bool translated = false;
     bool needsTranslation = true;
 
-    if (debug)
-    {
-        Dbg(L"TranslateFilePath-0: initial: '%s'", tempStr.c_str());
-    }
-
     std::list<TranslatePathTuple*> manifestTranslatePathTuples(g_pManifestTranslatePathTuples->begin(), g_pManifestTranslatePathTuples->end());
 
     while (needsTranslation)
@@ -96,10 +88,6 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
             bool mayBeDirectoryPath = false;
 
             int comp = lowCaseFinalPath.compare(0, targetLen, lowCaseTargetPath);
-            if (debug)
-            {
-                Dbg(L"TranslateFilePath-.5: comparing: '%ws' and %ws", lowCaseFinalPath.c_str(), lowCaseTargetPath.c_str());
-            }
 
             if (comp != 0)
             {
@@ -135,16 +123,6 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
             std::wstring t(replacementTuple->GetToPath());
             t.append(tempStr, longestPath);
 
-            if (debug)
-            {
-                Dbg(
-                    L"TranslateFilePath-1: from: '%s', to '%s' (used mapping: '%s' --> '%s')",
-                    tempStr.c_str(),
-                    t.c_str(),
-                    replacementTuple->GetFromPath().c_str(),
-                    replacementTuple->GetToPath().c_str());
-            }
-
             tempStr.assign(t);
             manifestTranslatePathTuples.erase(replacementIt);
         }
@@ -169,11 +147,6 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
         }
 
         outFileName.append(tempStr);
-
-        if (debug)
-        {
-            Dbg(L"TranslateFilePath-2: final: '%s' --> '%s'", inFileName.c_str(), outFileName.c_str());
-        }
     }
 }
 
@@ -1090,7 +1063,7 @@ bool ParseFileAccessManifest(
         }
 
         std::wstring translatedName;
-        TranslateFilePath(fullyResolvedPath, translatedName, false);
+        TranslateFilePath(fullyResolvedPath, translatedName);
 
         std::wstring canonicalizedPathNoPrefix = std::wstring(CanonicalizedPath::Canonicalize(translatedName.c_str()).GetPathStringWithoutTypePrefix());
         std::wstring canonicalizedPath = std::wstring(CanonicalizedPath::Canonicalize(translatedName.c_str()).GetPathString());
@@ -1199,12 +1172,6 @@ void InitProcessKind()
 void ReportIfNeeded(AccessCheckResult const& checkResult, FileOperationContext const& context, PolicyResult const& policyResult, DWORD error, USN usn, wchar_t const* filter) {
     if (!checkResult.ShouldReport()) {
         return;
-    }
-
-    if (checkResult.ShouldDenyAccess()) {
-        // Although policyResult may have contained the translated path, TranslateFilePath is called again for debugging purpose.
-        std::wstring outFile;
-        TranslateFilePath(std::wstring(policyResult.GetCanonicalizedPath().GetPathString()), outFile, true);
     }
 
     ReportFileAccess(

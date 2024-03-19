@@ -31,8 +31,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MonitorZwCreateOpenQueryFile = true;
             IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes; // TODO: eventually change this to IgnoreNothing
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
-            ProbeDirectorySymlinkAsDirectory = true;
             DoNotApplyAllowListToDynamicOutputs = false;
+
+            // Note that this flag is only relevant for the Windows sandbox because directory symlink 
+            ProbeDirectorySymlinkAsDirectory = OperatingSystemHelper.IsWindowsOS;
 
             if (EngineVersion.Version < 1)
             {

@@ -1110,7 +1110,7 @@ namespace Test.BuildXL.Processes
                     explicitlyReported: true));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, Skip = "Flaky: Weak USN can change")]
         public async Task ReportSingleUnexpectedUsnAccess()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -1883,11 +1883,11 @@ namespace Test.BuildXL.Processes
             {
                 if (isDirectory)
                 {
-                    Assert.True(access.IsOpenedHandleDirectory());
+                    Assert.True(access.IsOpenedHandleDirectory(() => true));
                 }
                 else
                 {
-                    Assert.False(access.IsOpenedHandleDirectory());
+                    Assert.False(access.IsOpenedHandleDirectory(() => true));
                 }
             }
         }

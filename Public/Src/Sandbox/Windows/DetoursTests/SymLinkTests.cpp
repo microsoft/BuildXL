@@ -130,10 +130,10 @@ int CallMoveSymLinkOnFilesNotEnforceChainSymLinkAccesses()
 
 int CallAccessOnChainOfJunctions()
 {
-    // Open the junction to exercise the policy enforcement on junction.
+    // Probe the junction without reparse point flag to exercise the policy enforcement on junction.
     HANDLE hJunction = CreateFileW(
-        L"SourceOfSymLink.link",
-        GENERIC_READ,
+        L"SourceJunction",
+        0,
         FILE_SHARE_READ,
         0,
         OPEN_EXISTING,
@@ -148,7 +148,7 @@ int CallAccessOnChainOfJunctions()
     CloseHandle(hJunction);
 
     HANDLE hFile = CreateFileW(
-        L"SourceOfSymLink.link\\Target.txt",
+        L"SourceJunction\\target.txt",
         GENERIC_READ,
         FILE_SHARE_READ,
         0,
@@ -723,18 +723,13 @@ int CallProbeDirectorySymlink()
 
 int CallProbeDirectorySymlinkTarget(bool withReparsePointFlag)
 {
-    DWORD flagsAndAttributes = FILE_FLAG_BACKUP_SEMANTICS;
-    flagsAndAttributes = withReparsePointFlag
-        ? flagsAndAttributes | FILE_FLAG_OPEN_REPARSE_POINT
-        : flagsAndAttributes;
-
     HANDLE hFile = CreateFileW(
         L"directory.lnk",
         0,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         NULL,
         OPEN_EXISTING,
-        flagsAndAttributes,
+        FILE_FLAG_BACKUP_SEMANTICS | (withReparsePointFlag ? FILE_FLAG_OPEN_REPARSE_POINT : (DWORD)0),
         NULL);
 
     if (hFile == INVALID_HANDLE_VALUE) 
@@ -759,11 +754,11 @@ int CallProbeDirectorySymlinkTargetWithoutReparsePointFlag()
 int CallValidateFileSymlinkAccesses()
 {
     HANDLE hFile = CreateFileW(
-        L"AnotherDirectory\\Target_DirectorySymlink\\symlink.txt",
+        L"AnotherDirectory\\Target_Directory.lnk\\file.lnk",
         GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ,
         0,
-        OPEN_EXISTING,
+        CREATE_NEW,
         FILE_ATTRIBUTE_NORMAL,
         NULL);
 

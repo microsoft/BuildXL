@@ -70,6 +70,12 @@ namespace BuildXL.Processes
         FILE_ATTRIBUTE_TEMPORARY = 0x00000100,
 
         /// <summary>
+        /// A file or directory that has an associated reparse point, or a file that is a symbolic link
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400,
+
+        /// <summary>
         /// The data of a file is not immediately available. This attribute indicates that file data is physically moved to offline
         /// storage. This attribute is used by Remote Storage, the hierarchical storage management software. Applications should
         /// not arbitrarily change this attribute.

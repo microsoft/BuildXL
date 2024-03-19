@@ -41,7 +41,7 @@ void PolicyResult::InitializeFromCursor(CanonicalizedPathType const& canonicaliz
     // We will do so via special-case rules (no policy search or cursor) or via the policy tree (which is searched, producing a cursor).
     m_canonicalizedPath = canonicalizedPath;
 
-    TranslateFilePath(std::wstring(canonicalizedPath.GetPathString()), m_translatedPath, false);
+    TranslateFilePath(std::wstring(canonicalizedPath.GetPathString()), m_translatedPath);
     wchar_t const* translatedSearchSuffix = searchSuffix != nullptr ? searchSuffix : GetTranslatedPathWithoutTypePrefix();
     size_t searchSuffixLength = wcslen(translatedSearchSuffix);
 

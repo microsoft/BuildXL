@@ -538,9 +538,17 @@ namespace BuildXL.Processes
         /// <summary>
         /// Indicate whether the file handle that was opened for this operation was a directory using it's file attributes.
         /// </summary>
-        public bool IsOpenedHandleDirectory() =>
-            OpenedFileOrDirectoryAttributes != (FlagsAndAttributes)FlagsAndAttributesConstants.InvalidFileAttributes && 
-            OpenedFileOrDirectoryAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY);
+        /// <remarks>
+        /// CODESYNC: Public\Src\Sandbox\Windows\DetoursServices\DetouredFunctions.cpp, IsDirectoryFromAttributes
+        ///
+        /// Computing whether or not a directory reparse point should be treated as a file or a directory can be expensive.
+        /// Thus, the caller can provide a delegate to do this computation, and it will only be called if the file is a directory
+        /// and has a reparse point attribute.
+        /// </remarks>
+        public bool IsOpenedHandleDirectory(Func<bool> treatDirectoryReparsePointAsFile) =>
+            OpenedFileOrDirectoryAttributes != (FlagsAndAttributes)FlagsAndAttributesConstants.InvalidFileAttributes
+            && OpenedFileOrDirectoryAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY)
+            && (!OpenedFileOrDirectoryAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_REPARSE_POINT) || !treatDirectoryReparsePointAsFile());
 
         /// <summary>
         /// Creates an instance from an absolute path.

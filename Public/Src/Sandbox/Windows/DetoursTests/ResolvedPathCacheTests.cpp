@@ -68,7 +68,7 @@ int CallDetoursResolvedPathCacheTests()
     }
 
     DWORD bytes_read = 0;
-    char buffer[1024];
+    char buffer[1024]{};
 
     if (!ReadFile(hFile, buffer, 1024, &bytes_read, nullptr))
     {
@@ -201,7 +201,7 @@ int CallDetoursResolvedPathCacheDealsWithUnicode()
     }
 
     DWORD bytes_read = 0;
-    char buffer[1024];
+    char buffer[1024]{};
 
     if (!ReadFile(hFile, buffer, 1024, &bytes_read, nullptr))
     {

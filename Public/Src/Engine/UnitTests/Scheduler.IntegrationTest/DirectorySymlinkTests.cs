@@ -542,6 +542,69 @@ Versions/sym-sym-A -> sym-A/
                 .ToArray();
         }
 
+        /// <summary>
+        /// Reads a file through a directory symlink and then probes the directory symlink itself.
+        /// </summary>
+        /// <remarks>
+        /// This UT implements the small repro in [Bug 2154637](https://dev.azure.com/mseng/1ES/_workitems/edit/2154637).
+        ///
+        /// The read through directory symlink creates a read operation for the directory symlink. This is expected, and
+        /// this is needed so that the content of the directory symlink (i.e. the target of the symlink) is tracked; if
+        /// the content change, then the pip will have a cache miss.
+        ///
+        /// The probe operation can confuse BuildXL. Bug 2154637 shows that the probe operation makes the directory symlink
+        /// being treated as a directory location, and thus the content of the directory symlink is not tracked. Due to this,
+        /// underbuilds occurred.
+        /// </remarks>
+        [FactIfSupported(
+            requiresSymlinkPermission: true,
+            requiresWindowsBasedOperatingSystem: true /* Directory symlink is not relevant on non-Windows OS */)]
+        public void ReadThroughAndProbeDirectorySymlink()
+        {
+            // Make directory probe explicitly reported.
+            // Some customers need directory probe to be explicitly reported because their builds are sensitive to
+            // directory existence. This also makes the probe over directory symlink to be explicitly reported.
+            Configuration.Sandbox.ExplicitlyReportDirectoryProbes = true;
+
+            AbsolutePath sourceDir = CreateUniqueDirectory(ObjectRoot, "SourceDir");
+            FileArtifact sourceFile = CreateSourceFile(sourceDir);
+            PathAtom sourceFileName = sourceFile.Path.GetName(Context.PathTable);
+
+            string inputDirName = sourceDir.GetName(Context.PathTable).ToString(Context.StringTable);
+            string layout = $@"
+SubFolder/
+SubFolder/symlink -> ../../{inputDirName}/";
+
+            AbsolutePath outputDir = CreateUniqueObjPath("Import", root: ObjectRoot);
+            AbsolutePath symlinkPath = outputDir.Combine(Context.PathTable, RelativePath.Create(Context.StringTable, "SubFolder/symlink"));
+
+            // schedule producer pip: produce opaque directory with a bunch of symlinks
+            var operations = GetLayoutProducingOperationsWithDummyReadFile(outputDir.ToString(Context.PathTable), layout, "producer");
+            var producerPipBuilder = CreatePipBuilder(operations);
+            producerPipBuilder.ToolDescription = StringId.Create(Context.StringTable, "producer");
+
+            producerPipBuilder.AddOutputDirectory(outputDir);
+            Process producerPip = SchedulePipBuilder(producerPipBuilder).Process;
+            DirectoryArtifact outputDirArtifact = producerPip.DirectoryOutputs.First();
+
+            var consumerPipBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(FileArtifact.CreateSourceFile(symlinkPath.Combine(Context.PathTable, sourceFileName)), doNotInfer: true),
+                Operation.Probe(FileArtifact.CreateSourceFile(symlinkPath), doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact(prefix: OutPrefix + "consumer"))
+            });
+            consumerPipBuilder.AddInputDirectory(outputDirArtifact);
+            consumerPipBuilder.AddInputFile(sourceFile);
+            consumerPipBuilder.ToolDescription = StringId.Create(Context.StringTable, "consumer");
+            Process consumerPip = SchedulePipBuilder(consumerPipBuilder).Process;
+
+            var result = RunScheduler().AssertSuccess();
+            var consumerObservations = result.PathSets[consumerPip.PipId];
+
+            XAssert.IsTrue(consumerObservations.HasValue);
+            XAssert.IsTrue(consumerObservations.Value.Paths.Any(obs => obs.Path == symlinkPath && !obs.IsDirectoryPath));
+        }
+
         [FactIfSupported(requiresSymlinkPermission: true)]
         public void UserSpecifiesOutputPathContainingDirectorySymlinksFails()
         {

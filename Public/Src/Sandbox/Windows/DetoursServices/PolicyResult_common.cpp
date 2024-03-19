@@ -87,12 +87,12 @@ AccessCheckResult PolicyResult::CheckReadAccess(RequestedReadAccess readAccessRe
     //   Historically we did not track enumeration and so failures / reports from enumeration probes were never evident (so doing so would be a breaking change).
     //   Note that these probes can still be reported, for example ::ReportExplicit when the Report policy is present.
     //   TODO: Revisit this if BuildXL gains a way to declare an enumeration dependency (on the directory) or probe-only dependencies (on the known contents).
-    
+
     bool allowAccess = 
-        context.OpenedDirectory ||
-        (exists && AllowRead()) ||
-        (!exists && AllowReadIfNonexistent()) ||
-        (readAccessRequested == RequestedReadAccess::EnumerationProbe);
+        context.OpenedDirectory
+        || (exists && AllowRead())
+        || (!exists && AllowReadIfNonexistent())
+        || (readAccessRequested == RequestedReadAccess::EnumerationProbe);
 
     ResultAction result = allowAccess 
         ? ResultAction::Allow 

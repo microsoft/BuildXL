@@ -74,7 +74,23 @@ public:
             0x08100000,
             lpPath);
     }
-    
+
+    static FileOperationContext CreateForProbe(StrType lpOperation, StrType lpPath)
+    {
+        return FileOperationContext(
+            lpOperation,
+            // TODO: May be FILE_READ_ATTRIBUTES?
+            //       One thought is to make this parameterizable, so for API that is known to
+            //       use FILE_READ_ATTRIBUTES, like GetFileAttributes, we can get a precise desired access.
+            //       However, since the purpose of this context is just to identify probe operation,
+            //       using any desired access that indicates probe operation should be fine.
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            OPEN_EXISTING,
+            FILE_FLAG_OPEN_REPARSE_POINT, // Probing does not follow reparse points.
+            lpPath);
+    }
+
     static FileOperationContext CreateForWrite(StrType lpOperation, StrType lpPath)
     {
         return FileOperationContext(

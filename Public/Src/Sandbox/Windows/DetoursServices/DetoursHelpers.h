@@ -110,7 +110,7 @@ void WriteToInternalErrorsFile(PCWSTR format, ...);
 
 void InitProcessKind();
 
-void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& outFileName, _In_ bool debug);
+void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& outFileName);
 
 void ReportIfNeeded(
     AccessCheckResult const& checkResult,

@@ -340,7 +340,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(rfa1.Path, null);
             XAssert.AreEqual(A("t", "file1.txt"), rfa1.GetPath(pathTable));
             XAssert.AreEqual(rfa1.OpenedFileOrDirectoryAttributes, (FlagsAndAttributes)FlagsAndAttributesConstants.InvalidFileAttributes);
-            XAssert.IsFalse(rfa1.IsOpenedHandleDirectory());
+            XAssert.IsFalse(rfa1.IsOpenedHandleDirectory(() => true));
 
             ReportedFileAccess rfa2 = ReportedFileAccess.Create(
                 ReportedFileOperation.CreateFile,
@@ -362,7 +362,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(rfa2.Path, null);
             XAssert.AreEqual(A("t", "file1.txt"), rfa2.GetPath(pathTable));
             XAssert.AreEqual(rfa2.OpenedFileOrDirectoryAttributes, FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY);
-            XAssert.IsTrue(rfa2.IsOpenedHandleDirectory());
+            XAssert.IsTrue(rfa2.IsOpenedHandleDirectory(() => true));
 
             ReportedFileAccess rfa3 = ReportedFileAccess.Create(
                 ReportedFileOperation.CreateFile,
@@ -384,7 +384,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(rfa3.Path, A("t", "file2.txt"));
             XAssert.AreEqual(A("t", "file2.txt"), rfa3.GetPath(pathTable));
             XAssert.AreEqual(rfa3.OpenedFileOrDirectoryAttributes, FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL);
-            XAssert.IsFalse(rfa3.IsOpenedHandleDirectory());
+            XAssert.IsFalse(rfa3.IsOpenedHandleDirectory(() => true));
         }
     }
 }

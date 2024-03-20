@@ -608,7 +608,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.AbortObservedInputProcessorBecauseFileUntracked,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int) (Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Processing observed input is aborted because failure in computing the hash of '{path}'. The file is possibly untracked and under mount '{mount}' with hashing disabled.")]
         internal abstract void AbortObservedInputProcessorBecauseFileUntracked(LoggingContext loggingContext, string pipDescription, string path, string mount);

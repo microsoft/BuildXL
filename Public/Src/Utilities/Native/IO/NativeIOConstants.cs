@@ -218,6 +218,11 @@ namespace BuildXL.Native.IO
         public const int ErrorCantAccessFile = 0x780;
 
         /// <summary>
+        /// ERROR_CANT_RESOLVE_FILENAME
+        /// </summary>
+        public const int ErrorCantResolveFilename = 0x781;
+
+        /// <summary>
         /// ERROR_BAD_PATHNAME
         /// </summary>
         public const int ErrorBadPathname = 0xA1;

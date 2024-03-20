@@ -69,9 +69,29 @@ namespace BuildXL.Native.IO
         CannotAccessFile,
 
         /// <summary>
+        /// The name of the file cannot be resolved by the system.
+        /// </summary>
+        CannotResolveFilename,
+
+        /// <summary>
+        /// The parameter is incorrect.
+        /// </summary>
+        InvalidParameter,
+
+        /// <summary>
         /// The specified path is invalid. (from 'winerror.h')
         /// </summary>
         BadPathname,
+
+        /// <summary>
+        /// The filename, directory name, or volume label syntax is incorrect.
+        /// </summary>
+        InvalidName,
+
+        /// <summary>
+        /// The directory name is invalid.
+        /// </summary>
+        ErrorDirectory,
 
         /// <summary>
         /// Cannot access the file because another process has locked a portion of the file.
@@ -99,12 +119,16 @@ namespace BuildXL.Native.IO
         /// </remarks>
         public static bool IsNonexistent(this OpenFileStatus status)
         {
-            return status == OpenFileStatus.FileNotFound
-                || status == OpenFileStatus.PathNotFound
+            return status == OpenFileStatus.PathNotFound
+                || status == OpenFileStatus.FileNotFound
+                || status == OpenFileStatus.ErrorDirectory
                 || status == OpenFileStatus.ErrorNotReady
                 || status == OpenFileStatus.FveLockedVolume
+                || status == OpenFileStatus.BadPathname
+                || status == OpenFileStatus.InvalidName
                 || status == OpenFileStatus.CannotAccessFile
-                || status == OpenFileStatus.BadPathname;
+                || status == OpenFileStatus.CannotResolveFilename
+                || status == OpenFileStatus.InvalidParameter;
         }
 
         /// <summary>

@@ -380,13 +380,15 @@ namespace BuildXL.Native.IO.Windows
         /// </remarks>
         public static bool IsHresultNonexistent(int hr)
         {
-            return hr == NativeIOConstants.ErrorFileNotFound
-                || hr == NativeIOConstants.ErrorPathNotFound
+            return hr == NativeIOConstants.ErrorPathNotFound
+                || hr == NativeIOConstants.ErrorFileNotFound
+                || hr == NativeIOConstants.ErrorDirectory
                 || hr == NativeIOConstants.ErrorNotReady
                 || hr == NativeIOConstants.FveLockedVolume
-                || hr == NativeIOConstants.ErrorCantAccessFile
                 || hr == NativeIOConstants.ErrorBadPathname
                 || hr == NativeIOConstants.ErrorInvalidName
+                || hr == NativeIOConstants.ErrorCantAccessFile
+                || hr == NativeIOConstants.ErrorCantResolveFilename
                 || hr == NativeIOConstants.ErrorInvalidParameter;
         }
 

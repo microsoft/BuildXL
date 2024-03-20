@@ -147,7 +147,7 @@ namespace BuildXL.Native.IO
 
                     // Experimentally, it seems OpenFileById throws ERROR_INVALID_PARAMETER if the file ID doesn't exist.
                     // This is very unfortunate, since that is also used for e.g. invalid sizes for FILE_ID_DESCRIPTOR. Oh well.
-                    status = openingById ? OpenFileStatus.FileNotFound : OpenFileStatus.UnknownError;
+                    status = openingById ? OpenFileStatus.FileNotFound : OpenFileStatus.InvalidParameter;
                     break;
                 case NativeIOConstants.ErrorFileExists:
                 case NativeIOConstants.ErrorAlreadyExists:
@@ -170,8 +170,17 @@ namespace BuildXL.Native.IO
                 case NativeIOConstants.ErrorCantAccessFile:
                     status = OpenFileStatus.CannotAccessFile;
                     break;
+                case NativeIOConstants.ErrorCantResolveFilename:
+                    status = OpenFileStatus.CannotResolveFilename;
+                    break;
                 case NativeIOConstants.ErrorBadPathname:
                     status = OpenFileStatus.BadPathname;
+                    break;
+                case NativeIOConstants.ErrorInvalidName:
+                    status = OpenFileStatus.InvalidName;
+                    break;
+                case NativeIOConstants.ErrorDirectory:
+                    status = OpenFileStatus.ErrorDirectory;
                     break;
                 default:
                     Contract.Assume(!handleIsValid);

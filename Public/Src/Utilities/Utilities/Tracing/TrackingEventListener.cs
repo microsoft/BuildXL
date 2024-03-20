@@ -219,7 +219,7 @@ namespace BuildXL.Utilities.Tracing
 
             long keywords = (long)eventData.Keywords;
             if ((keywords & (long)Keywords.InfrastructureIssue) > 0 &&
-                !string.IsNullOrEmpty(InternalWarning))
+                string.IsNullOrEmpty(InternalWarning))
             {
                 InternalWarning = eventData.EventName;
             }

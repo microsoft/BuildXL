@@ -85,7 +85,7 @@ This page lists flags that can be used to configure BuildXL.
 | FileVerbosity | Sets the file logging verbosity. Allowed values are 'Off', 'Error', 'Warning', 'Informational' and 'Verbose', and the single-character prefixes of those values. Defaults to Verbose. (short form: /fv) |
 | Filter | Specifies a filter expression (short form: /f). See verbose help (/help:verbose) for details about constructing filter expressions. |
 | FilteringInfo | You can choose to build only a subset of available pips by using filtering. |
-| FingerprintSalt | Salts fingerprints used for caching. May be specified multiple times and values concatenate. An empty value clears previous values. |
+| FingerprintSalt | Salts fingerprints used for caching. May be specified multiple times and values concatenate with delimiter. Empty value clears previous values. '*' is unique each run. |
 | FlushPageCacheToFileSystemOnStoringOutputsToCache | Flush page cache to file system on storing outputs to cache. Defaults to off. |
 | ForceAddExecutionPermission | When set to true, it enables the execution permission for the root process of process pips in Linux builds. Defaults to true. |
 | ForceSkipDependencies | Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present. |

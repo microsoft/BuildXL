@@ -1211,6 +1211,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>The /exp:useDominoScriptv2 option has been deprecated. Remove any usage of this variable, it has no effect anymore</value>
   </data>
   <data name="HelpText_DisplayHelp_FingerprintSalt" xml:space="preserve">
-    <value>Salts fingerprints used for caching. May be specified multiple times and values concatenate. An empty value clears previous values.</value>
+    <value>Salts fingerprints used for caching. May be specified multiple times and values concatenate with delimiter. Empty value clears previous values. '*' is unique each run.</value>
   </data>
 </root>

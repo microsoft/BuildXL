@@ -282,5 +282,31 @@ namespace Test.BuildXL
             string[] args = new[] { @"/c:" + m_specFilePath, pipProperty };
             XAssert.IsFalse(argsParser.TryParse(args, pt, out var config));
         }
+
+        [Fact]
+        public void TestParseFingerprintSalt()
+        {
+            XAssert.AreEqual("12", ParseCacheSaltArgs("/fingerprintsalt:12"));
+
+            // '*' should be unique each time
+            XAssert.AreNotEqual(ParseCacheSaltArgs("/fingerprintsalt:*"), ParseCacheSaltArgs("/fingerprintsalt:*"));
+
+            // Same salt should match every time
+            XAssert.AreEqual(ParseCacheSaltArgs("/fingerprintsalt:12"), ParseCacheSaltArgs("/fingerprintsalt:12"));
+
+            // blank arg in the middle should clear prior salts
+            XAssert.AreEqual(ParseCacheSaltArgs("/fingerprintsalt:first"), ParseCacheSaltArgs("/fingerprintsalt:second", "/fingerprintsalt",  "/fingerprintsalt:first"));
+
+            // Concatenation of multiple args should be different that specifying both in a single arg (there should be a delimiter)
+            XAssert.AreNotEqual(ParseCacheSaltArgs("/fingerprintsalt:12"), ParseCacheSaltArgs("/fingerprintsalt:1", "/fingerprintsalt:2"));
+        }
+
+        private string ParseCacheSaltArgs(params string[] input)
+        {
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+            XAssert.IsTrue(argsParser.TryParse((new [] { @"/c:" + m_specFilePath }).Concat(input).ToArray(), pt, out var config));
+            return config.Cache.CacheSalt;
+        }
     }
 }

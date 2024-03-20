@@ -454,20 +454,7 @@ namespace BuildXL
                             opt => loggingConfiguration.FancyConsoleMaxStatusPips = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "fingerprintSalt",
-                            (opt) =>
-                            {
-                                if (string.IsNullOrWhiteSpace(opt.Value))
-                                {
-                                    // An empty argument resets the cache salt to nothing
-                                    cacheConfiguration.CacheSalt = null;
-                                }
-                                else
-                                {
-                                    // Non-empty values accumulate
-                                    cacheConfiguration.CacheSalt ??= string.Empty;
-                                    cacheConfiguration.CacheSalt += opt.Value;
-                                }
-                            }),
+                            (opt) => cacheConfiguration.CacheSalt = ParseFingerprintSalt(opt, cacheConfiguration.CacheSalt)),
                         OptionHandlerFactory.CreateOption(
                             "fileChangeTrackerInitializationMode",
                             opt => engineConfiguration.FileChangeTrackerInitializationMode = CommandLineUtilities.ParseEnumOption<FileChangeTrackerInitializationMode>(opt)),
@@ -1840,6 +1827,32 @@ namespace BuildXL
             }
 
             return logPrefix;
+        }
+
+        internal static string ParseFingerprintSalt(CommandLineUtilities.Option opt, string cacheSalt)
+        {
+            if (string.IsNullOrEmpty(opt.Value))
+            {
+                // An empty argument resets the cache salt to nothing
+                cacheSalt = null;
+            }
+            else if (opt.Value == "*")
+            {
+                // * is unique each time
+                cacheSalt = Guid.NewGuid().ToString();
+            }
+            else if (string.IsNullOrEmpty(cacheSalt))
+            {
+                cacheSalt = opt.Value;
+            }
+            else
+            {
+                // Append with a delimiter if there was already a salt
+                cacheSalt += "|";
+                cacheSalt += opt.Value;
+            }
+
+            return cacheSalt;
         }
 
         private static void ParsePathOption(CommandLineUtilities.Option opt, PathTable pathTable, List<AbsolutePath> list)

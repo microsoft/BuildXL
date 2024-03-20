@@ -475,11 +475,6 @@ namespace Tool.DropDaemon
                var logger = daemon.GetDropSpecificLogger(dropConfig);
 
                logger.Info($"[CREATE]: Started at '{name}'");
-               if (dropConfig.SignBuildManifest && !dropConfig.GenerateBuildManifest)
-               {
-                   logger.Warning("SignBuildManifest = true and GenerateBuildManifest = false. The BuildManifest will not be generated, and thus cannot be signed.");
-               }
-
                if (!BuildManifestHelper.VerifyBuildManifestRequirements(dropConfig, daemon.DropServiceConfig, out string errMessage))
                {
                    logger.Error($"[CREATE]: Cannot create drop due to an invalid build manifest configuration: {errMessage}");

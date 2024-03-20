@@ -2609,7 +2609,9 @@ namespace BuildXL.Scheduler
                         servicePipsRunning: m_serviceManager.RunningServicesCount,
                         perfInfoForConsole: m_perfInfo.ConsoleResourceSummary,
                         pipsWaitingOnResources: pipsWaitingOnResources,
-                        procsExecuting: processesExecutingOnWorkers,
+                        // For the worker machines in ADO, we need to use the DispatcherQueue to obtain the number of processesExecuting. 
+                        // While these counters represent the accurate values for the orchestrator machine, they do not for the worker machines.
+                        procsExecuting: (!IsDistributedWorker) ? processesExecutingOnWorkers : PipQueue.GetNumRunningPipsByKind(DispatcherKind.CPU),
                         procsSucceeded: m_processStateCountersSnapshot[PipState.Done],
                         procsFailed: m_processStateCountersSnapshot[PipState.Failed],
                         procsSkippedDueToFailedDependencies: m_processStateCountersSnapshot[PipState.Skipped],

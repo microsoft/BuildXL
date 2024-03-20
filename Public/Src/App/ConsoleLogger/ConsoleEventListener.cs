@@ -298,36 +298,43 @@ namespace BuildXL
                     {
                         StringBuilder sb = wrap.Instance;
 
-                        // Only show cache hits when this isn't a worker.
-                        sb.Append(m_notWorker ? @"{{8,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @"Processes:[{{4,{0}}} done,");
+                        // Only display cache hits when this isn't a worker.
+                        // For workers in the ADO console, we only display the process pips executing.
+                        // This is because most of the other counters are not calculated as expected on the worker machines.
+                        // In order to avoid projecting incorrect values, we eliminate them in the ADO console status of the workers.
+                        sb.Append(m_notWorker ? @"{{8,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @"Processes:[{{0,{0}}} executing]");
 
-                        if (pipsFailed > 0)
+                        // We display all the counters such as processes executing, waiting, skipped etc for dev machines(fancyConsole and non-fancyConsole scenarios) and ADO logs of the orchestrator machine.
+                        if(m_notWorker)
                         {
-                            sb.Append(@" {{0,{0}}} succeeded, {{1,{0}}} failed,");
-                        }
+                            if (pipsFailed > 0)
+                            {
+                                sb.Append(@" {{0,{0}}} succeeded, {{1,{0}}} failed,");
+                            }
 
-                        if (pipsSkipped > 0)
-                        {
-                            sb.Append(@" {{6,{0}}} skipped,");
-                        }
+                            if (pipsSkipped > 0)
+                            {
+                                sb.Append(@" {{6,{0}}} skipped,");
+                            }
 
-                        if (remoteProcs > 0)
-                        {
-                            sb.Append(@" {{7,{0}}} executing ({{13}} remote), {{2,{0}}} waiting]");
-                        }
-                        else
-                        {
-                            sb.Append(@" {{7,{0}}} executing, {{2,{0}}} waiting]");
-                        }
+                            if (remoteProcs > 0)
+                            {
+                                sb.Append(@" {{7,{0}}} executing ({{13}} remote), {{2,{0}}} waiting]");
+                            }
+                            else
+                            {
+                                sb.Append(@" {{7,{0}}} executing, {{2,{0}}} waiting]");
+                            }
 
-                        if (pipsWaitingOnSemaphore > 0)
-                        {
-                            sb.Append(@" ({{3,{0}}} on semaphores).");
-                        }
+                            if (pipsWaitingOnSemaphore > 0)
+                            {
+                                sb.Append(@" ({{3,{0}}} on semaphores).");
+                            }
 
-                        if (filePipsTotal > 0)
-                        {
-                            sb.Append(@" Files:[{{11}}/{{12}}]");
+                            if (filePipsTotal > 0)
+                            {
+                                sb.Append(@" Files:[{{11}}/{{12}}]");
+                            }
                         }
 
                         string statusLine = sb.ToString();
@@ -335,40 +342,55 @@ namespace BuildXL
                         string updatingStatus = null;
 
                         var format = FinalizeFormatStringLayout(sb, statusLine, 0);
-                        var waitingOnBackgroundOperations = (procsDone + filePipsDone == procsTotal + filePipsTotal) && servicePipsRunning != 0;
+                        bool waitingOnBackgroundOperations = false;
 
-                        sb.AppendFormat(
-                            CultureInfo.InvariantCulture,
-                            format,
-                            procsSucceeded,
-                            procsFailed,
-                            pendingAndWaiting,
-                            pipsWaitingOnSemaphore,
-                            procsDone,
-                            procsHit,
-                            procsSkipped,
-                            procsExecuting,
-                            ComputePercentDone(procsDone, procsTotal, filePipsDone, filePipsTotal),
-                            done,
-                            total,
-                            filePipsDone,
-                            filePipsTotal,
-                            remoteProcs);
+                        // We have a different format of the console status for the workers in ADO console, this is because we only display the process pips executing on the worker machine.
+                        if (m_notWorker)
+                        {
+                            waitingOnBackgroundOperations = (procsDone + filePipsDone == procsTotal + filePipsTotal) && servicePipsRunning != 0;
+
+                            sb.AppendFormat(
+                                CultureInfo.InvariantCulture,
+                                format,
+                                procsSucceeded,
+                                procsFailed,
+                                pendingAndWaiting,
+                                pipsWaitingOnSemaphore,
+                                procsDone,
+                                procsHit,
+                                procsSkipped,
+                                procsExecuting,
+                                ComputePercentDone(procsDone, procsTotal, filePipsDone, filePipsTotal),
+                                done,
+                                total,
+                                filePipsDone,
+                                filePipsTotal,
+                                remoteProcs);
+                        }
+                        else
+                        {
+                            sb.AppendFormat(
+                                CultureInfo.InvariantCulture,
+                                format);
+                        }
 
                         // Ensures backgroundTaskConsoleStatusMessage is displayed in ADO and when the fancyConsole option is disabled, when build progress is 100% and only service pips run.
                         // This is done to ensure that we do not include this message in updatableMessage twice when the fancyConsole option is enabled.
-                        if (waitingOnBackgroundOperations && !m_console.UpdatingConsole)
+                        // We do not display this message for the workers in ADO.
+                        if (m_notWorker && waitingOnBackgroundOperations && !m_console.UpdatingConsole)
                         {
                             sb.Append(" ");
                             sb.Append(Strings.BackgroundTaskConsoleStatusMessage);
                         }
 
                         string standardStatus = sb.ToString();
+
                         // We do not need to construct the fancy console message for ADO.
                         if (!m_optimizeForAzureDevOps)
                         {
                             updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo, waitingOnBackgroundOperations);
                         }
+
                         bool allowStatusThrottling = m_optimizeForAzureDevOps && eventData.EventId != (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable;
                         SendToConsole(eventData, "info", standardStatus, allowStatusThrottling: allowStatusThrottling, updatableMessage: updatingStatus);
                     }

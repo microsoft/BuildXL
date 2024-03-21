@@ -40,7 +40,7 @@ extern "C"
     void __cdecl ObserverFileAccessReports(SandboxConnectionInfo *info, AccessReportCallback callback, long accessReportSize);
 };
 
-bool Sandbox_SendPipStarted(const pid_t pid, pipid_t pipId, const char *const famBytes, int famBytesLength);
+bool Sandbox_SendPipStarted(const pid_t pid, pipid_t pipId, char *famBytes, int famBytesLength);
 bool Sandbox_SendPipProcessTerminated(pipid_t pipId, pid_t pid);
 
 class Sandbox final

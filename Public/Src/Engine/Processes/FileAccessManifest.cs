@@ -850,6 +850,7 @@ namespace BuildXL.Processes
         }
 
         // CODESYNC: FileAccessManifestParser.cpp :: init
+        // CODESYNC: Public/Src/Sandbox/Common/FileAccessManifest.cc FileAccessManifest::ParseFileAccessManifest
         private static void WriteChildProcessesToBreakAwayFromSandbox(
             BinaryWriter writer,
             IReadOnlyCollection<BreakawayChildProcess>? breakawayChildProcesses)

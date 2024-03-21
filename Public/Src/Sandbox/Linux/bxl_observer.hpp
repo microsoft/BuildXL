@@ -148,7 +148,7 @@ static const char GLIBC_23[] = "GLIBC_2.3";
             RenderSyscall(#name, result, std::forward<TArgs>(args)...).c_str(), \
             return_value.get_errno());                                          \
         return return_value;                                                    \
-    }                                                                           \  
+    }                                                                           \
     template<typename ...TArgs> ret check_fwd_and_report_##name(                \
         AccessReportGroup& report,                                              \
         AccessCheckResult &check,                                               \

@@ -5,7 +5,8 @@
 #define SandboxedPip_hpp
 
 #include "BuildXLSandboxShared.hpp"
-#include "FileAccessManifestParser.hpp"
+#include "FileAccessManifest.h"
+#include "FileAccessHelpers.h"
 
 /*!
  * Represents the root of the process tree being tracked.
@@ -30,7 +31,7 @@ private:
     char *payload_;
 
     /*! File access manifest (contains pointers into the 'payload_' byte array */
-    FileAccessManifestParseResult fam_;
+    std::unique_ptr<buildxl::common::FileAccessManifest> fam_;
 
     /*! Number of processses in this pip's process tree */
     std::atomic<int> processTreeCount_;
@@ -38,39 +39,40 @@ private:
 public:
 
     SandboxedPip() = delete;
-    SandboxedPip(pid_t pid, const char *payload, size_t length);
+    SandboxedPip(pid_t pid, char *payload, size_t length);
     ~SandboxedPip();
 
     /*! Process id of the root process of this pip. */
     inline const pid_t GetProcessId() const                            { return processId_; }
 
     /*! A unique identifier of this pip. */
-    inline const pipid_t GetPipId() const                              { return fam_.GetPipId()->PipId; }
+    inline const pipid_t GetPipId() const                              { return fam_->GetPipId(); }
 
     /*! File access manifest record for this pip (to be used for checking file accesses) */
-    inline const PCManifestRecord GetManifestRecord() const            { return fam_.GetUnixRootNode(); }
+    inline const PCManifestRecord GetManifestRecord() const            { return fam_->GetUnixManifestTreeRoot(); }
 
     /*! File access manifest flags */
-    inline const FileAccessManifestFlag GetFamFlags() const            { return fam_.GetFamFlags(); }
+    inline const FileAccessManifestFlag GetFamFlags() const            { return fam_->GetFlags(); }
 
     /*! File access manifest extra flags */
-    inline const FileAccessManifestExtraFlag GetFamExtraFlags() const  { return fam_.GetFamExtraFlags(); }
+    inline const FileAccessManifestExtraFlag GetFamExtraFlags() const  { return fam_->GetExtraFlags(); }
 
     /*!
      * Returns the full path of the root process of this pip.
      * The lenght of the path is stored in the 'length' argument because the path is not necessarily 0-terminated.
      */
-    inline const char* GetProcessPath(int *length) const               { return fam_.GetProcessPath(length); }
-    inline const char* GetReportsPath(int *length) const               { return fam_.GetReportsPath(length); }
+    inline const char* GetProcessPath(int *length) const               { return fam_->GetReportsPath(length); }
+    inline const char* GetReportsPath(int *length) const               { return fam_->GetReportsPath(length); }
 
     /*! Number of currently active processes in this pip's process tree */
     inline const int GetTreeSize() const                               { return processTreeCount_; }
 
     /*! When this returns true, child processes should not be tracked. */
-    bool AllowChildProcessesToBreakAway() const                        { return fam_.AllowChildProcessesToBreakAway(); }
+    bool AllowChildProcessesToBreakAway() const                        { return fam_->AllowChildProcessesToBreakAway(); }
 
-    inline const char* GetInternalDetoursErrorNotificationFile() const { return fam_.GetInternalDetoursErrorNotificationFile(); }
+    inline const char* GetInternalDetoursErrorNotificationFile() const { return fam_->GetInternalErrorDumpLocation(); }
 
+    inline const std::string GetManifestTreeString()                   { return fam_->ManifestTreeToString(); }
 
 #pragma mark Process Tree Tracking
 

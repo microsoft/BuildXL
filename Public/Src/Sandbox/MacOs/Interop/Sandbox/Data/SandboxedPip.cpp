@@ -6,24 +6,12 @@
 
 #pragma mark SandboxedPip Implementation
 
-SandboxedPip::SandboxedPip(pid_t pid, const char *payload, size_t length)
+SandboxedPip::SandboxedPip(pid_t pid, char *payload, size_t length)
 {
     log_debug("Initializing with pid (%d) from: %{public}s", pid, __FUNCTION__);
 
-    payload_ = (char *) malloc(length);
-    if (payload == NULL)
-    {
-        throw BuildXLException("Could not allocate memory for FAM payload storage!");
-    }
-
-    memcpy(payload_, payload, length);
-    fam_.init((BYTE*)payload_, length);
-
-    if (fam_.HasErrors())
-    {
-        std::string error= "FileAccessManifest parsing exception, error: ";
-        throw BuildXLException(error.append(fam_.Error()));
-    }
+    // If an error occurs with FAM parsing, then an assertion will be thrown
+    fam_ = std::make_unique<buildxl::common::FileAccessManifest>(payload, length);
 
     processId_ = pid;
     processTreeCount_ = 1;

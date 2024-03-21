@@ -199,25 +199,33 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
 }
 
 // Debugging helper
-void FileAccessManifestParseResult::PrintManifestTree(PCManifestRecord node,
+std::string FileAccessManifestParseResult::PrintManifestTree(PCManifestRecord node,
                                                       const int indent,
                                                       const int index)
 {
+    if (node == nullptr) node = root_;
     PathChar indentStr[indent+1];
     indentStr[indent] = L'\0';
     for (int i = 0; i < indent; i++) indentStr[i] = L' ';
 
-    printf("| %s [%d] '%s' (cone policy = %#x, node policy = %#x)\n",
-           indentStr,
-           index,
-           node->GetPartialPath(),
-           node->GetConePolicy() & FileAccessPolicy_ReportAccess,
-           node->GetNodePolicy() & FileAccessPolicy_ReportAccess);
+    std::string output("| ");
+    output.append(indentStr);
+    output.append(" [");
+    output.append(std::to_string(index));
+    output.append("] '");
+    output.append(node->GetPartialPath());
+    output.append("' (cone policy = ");
+    output.append(std::to_string(node->GetConePolicy() & FileAccessPolicy_ReportAccess));
+    output.append(", node policy = ");
+    output.append(std::to_string(node->GetNodePolicy() & FileAccessPolicy_ReportAccess));
+    output.append(")\n");
 
     for (int i = 0; i < node->BucketCount; i++)
     {
         PCManifestRecord child = node->GetChildRecord(i);
         if (child == nullptr) continue;
-        PrintManifestTree(child, indent + 2, i);
+        output.append(PrintManifestTree(child, indent + 2, i));
     }
+
+    return output;
 }

@@ -14,13 +14,13 @@ namespace Sandbox {
         ...glob(d`../MacOs/Interop/Sandbox/Data`, "*.cpp"),
         ...glob(d`../MacOs/Interop/Sandbox/Handlers`, "*.cpp"),
         f`../MacOs/Interop/Sandbox/Sandbox.cpp`,
-        f`../MacOs/Sandbox/Src/FileAccessManifest/FileAccessManifestParser.cpp`,
         f`../MacOs/Sandbox/Src/Kauth/Checkers.cpp`,
         f`../MacOs/Sandbox/Src/Kauth/OpNames.cpp`,
         f`../Windows/DetoursServices/PolicyResult_common.cpp`,
         f`../Windows/DetoursServices/PolicySearch.cpp`,
         f`../Windows/DetoursServices/StringOperations.cpp`,
-        f`../Windows/DetoursServices/FilesCheckedForAccess.cpp`
+        f`../Windows/DetoursServices/FilesCheckedForAccess.cpp`,
+        f`../Common/FileAccessManifest.cpp`
     ];
     const utilsSrc   = [ f`utils.c` ];
     const bxlEnvSrc  = [ f`bxl-env.c` ];
@@ -35,7 +35,8 @@ namespace Sandbox {
         d`../MacOs/Sandbox/Src`,
         d`../MacOs/Sandbox/Src/FileAccessManifest`,
         d`../MacOs/Sandbox/Src/Kauth`,
-        d`../Windows/DetoursServices`
+        d`../Windows/DetoursServices`,
+        d`../Common`
     ];
     const headers = incDirs.mapMany(d => ["*.h", "*.hpp"].mapMany(q => glob(d, q)));
 

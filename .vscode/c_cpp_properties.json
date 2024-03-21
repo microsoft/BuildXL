@@ -8,7 +8,8 @@
                 "${workspaceFolder}/Public/Src/Sandbox/MacOs/Sandbox/Src",
                 "${workspaceFolder}/Public/Src/Sandbox/MacOs/Sandbox/Src/FileAccessManifest",
                 "${workspaceFolder}/Public/Src/Sandbox/Windows/DetoursServices",
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/Public/Src/Sandbox/Common"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

@@ -29,7 +29,11 @@ extern "C"
                 return KEXT_SendPipStarted(processId, pipId, famBytes, famBytesLength, *context);
             }
             case GenericSandbox:
-                return Sandbox_SendPipStarted(processId, pipId, famBytes, famBytesLength);
+            {
+                char *famBytesCopy = new char[famBytesLength];
+                memcpy(famBytesCopy, famBytes, famBytesLength);
+                return Sandbox_SendPipStarted(processId, pipId, famBytesCopy, famBytesLength);
+            }
         }
 
         return false;

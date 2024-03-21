@@ -63,7 +63,7 @@ public:
     inline const char* GetInternalDetoursErrorNotificationFile() const { return internalDetoursErrorNotificationFile_; }
 
     // Debugging helper
-    static void PrintManifestTree(PCManifestRecord node, const int indent = 0, const int index = 0);
+    std::string PrintManifestTree(PCManifestRecord node = nullptr, const int indent = 0, const int index = 0);
 };
 
 #endif /* FileAccessManifestParser_hpp */

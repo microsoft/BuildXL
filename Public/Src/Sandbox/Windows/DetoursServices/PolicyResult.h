@@ -51,8 +51,10 @@ public:
 
 #if _WIN32
     CanonicalizedPathType Path() const        { return m_canonicalizedPath; }
+    size_t PathLength() const                 { return m_canonicalizedPath.Length(); }
 #else
-    PCPathChar Path() const       { return m_canonicalizedPath.c_str(); }
+    PCPathChar Path() const                   { return m_canonicalizedPath.c_str(); }
+    size_t PathLength() const                 { return m_canonicalizedPath.length(); }
 #endif // _WIN32
 
 #if _WIN32

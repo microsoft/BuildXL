@@ -133,13 +133,12 @@ void BxlObserver::InitFam(pid_t pid)
     long famLength = ftell(famFile);
     rewind(famFile);
 
-    char *famPayload = (char *)malloc(famLength);
+    auto famPayload = new char [famLength];
     real_fread(famPayload, famLength, 1, famFile);
     real_fclose(famFile);
 
     // create SandboxedPip (which parses FAM and throws on error)
     pip_ = shared_ptr<SandboxedPip>(new SandboxedPip(pid, famPayload, famLength));
-    free(famPayload);
 
     // create sandbox
     sandbox_ = new Sandbox(0, Configuration::DetoursLinuxSandboxType);

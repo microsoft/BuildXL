@@ -60,6 +60,8 @@
 		3CD0BB4222F2E84A008C0AC9 /* IOHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C44208022F1F5B1000E1003 /* IOHandler.cpp */; };
 		3CD0BB4322F2E84A008C0AC9 /* IOHandler.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C44208422F1F5B1000E1003 /* IOHandler.hpp */; };
 		3CE4B4752450724B00ACC220 /* ESConstants.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CE4B4742450724B00ACC220 /* ESConstants.hpp */; };
+		4E78D3A62BA4D24E00EAF7B0 /* FileAccessManifest.h in Headers */ = {isa = PBXBuildFile; fileRef = 4E78D3A52BA4D24E00EAF7B0 /* FileAccessManifest.h */; };
+		4E78D3A82BA4D25A00EAF7B0 /* FileAccessManifest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4E78D3A72BA4D25900EAF7B0 /* FileAccessManifest.cpp */; };
 		F588040520D03EB7006CF533 /* PolicyResult.h in Headers */ = {isa = PBXBuildFile; fileRef = F588040320D03EB7006CF533 /* PolicyResult.h */; };
 		F588040720D042FB006CF533 /* PolicyResult_common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F588040620D042FB006CF533 /* PolicyResult_common.cpp */; };
 		F58E9207220B5B3D0083C57E /* utf8proc.c in Sources */ = {isa = PBXBuildFile; fileRef = F58E9204220B5B3C0083C57E /* utf8proc.c */; };
@@ -148,6 +150,8 @@
 		3CF3733F20C1897400D14240 /* KextSandbox.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = KextSandbox.hpp; sourceTree = "<group>"; };
 		3CF74D9522F1C1A50018A1AF /* SandboxedProcess.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SandboxedProcess.cpp; sourceTree = "<group>"; };
 		3CF74D9622F1C1A50018A1AF /* SandboxedProcess.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = SandboxedProcess.hpp; sourceTree = "<group>"; };
+		4E78D3A52BA4D24E00EAF7B0 /* FileAccessManifest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FileAccessManifest.h; path = ../../Common/FileAccessManifest.h; sourceTree = "<group>"; };
+		4E78D3A72BA4D25900EAF7B0 /* FileAccessManifest.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = FileAccessManifest.cpp; path = ../../Common/FileAccessManifest.cpp; sourceTree = "<group>"; };
 		F588040320D03EB7006CF533 /* PolicyResult.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = PolicyResult.h; path = ../../Windows/DetoursServices/PolicyResult.h; sourceTree = "<group>"; };
 		F588040620D042FB006CF533 /* PolicyResult_common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = PolicyResult_common.cpp; path = ../../Windows/DetoursServices/PolicyResult_common.cpp; sourceTree = "<group>"; };
 		F58E9204220B5B3C0083C57E /* utf8proc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utf8proc.c; sourceTree = "<group>"; };
@@ -371,6 +375,8 @@
 		F5CF3B0720C1E35C00DC1B2E /* BuildXLSandbox */ = {
 			isa = PBXGroup;
 			children = (
+				4E78D3A72BA4D25900EAF7B0 /* FileAccessManifest.cpp */,
+				4E78D3A52BA4D24E00EAF7B0 /* FileAccessManifest.h */,
 				F5CF3B0C20C1E3DC00DC1B2E /* BuildXLSandboxShared.hpp */,
 				3C4C636622F386AE0014D9AA /* Checkers.cpp */,
 				3C4C636422F386AE0014D9AA /* Checkers.hpp */,
@@ -408,6 +414,7 @@
 				3C7237A623FD4483001B15CC /* Trie.hpp in Headers */,
 				3C3B60C922F1E2B400130AB3 /* Common.hpp in Headers */,
 				3C1D7C9320C03E830069CF65 /* Dependencies.h in Headers */,
+				4E78D3A62BA4D24E00EAF7B0 /* FileAccessManifest.h in Headers */,
 				3C7237A923FE9475001B15CC /* BuildXLException.hpp in Headers */,
 				3C3B60C322F1DEB200130AB3 /* KextSandbox.hpp in Headers */,
 				F588040520D03EB7006CF533 /* PolicyResult.h in Headers */,
@@ -559,6 +566,7 @@
 				F5CF3B1720C1E40C00DC1B2E /* StringOperations.cpp in Sources */,
 				3C1D7C8D20C0262B0069CF65 /* cpu.c in Sources */,
 				3C80E70921347B9700ECBD6E /* io.c in Sources */,
+				4E78D3A82BA4D25A00EAF7B0 /* FileAccessManifest.cpp in Sources */,
 				3C1FD6D520D3F766007A0C1A /* process.c in Sources */,
 				3C3B60CA22F1E2BC00130AB3 /* Common.cpp in Sources */,
 				F5CF3B1620C1E40C00DC1B2E /* PolicySearch.cpp in Sources */,

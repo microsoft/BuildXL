@@ -54,7 +54,7 @@ extern "C"
 
 #pragma mark Generic sandbox stubs
 
-bool Sandbox_SendPipStarted(const pid_t pid, pipid_t pipId, const char *const famBytes, int famBytesLength)
+bool Sandbox_SendPipStarted(const pid_t pid, pipid_t pipId, char *famBytes, int famBytesLength)
 {
     log_debug("Pip with PipId = %#llX, PID = %d launching", pipId, pid);
 

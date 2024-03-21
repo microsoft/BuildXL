@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#ifndef PUBLIC_SRC_SANDBOX_WINDOWS_DETOURSSERVICES_STDAFX_UNIX_COMMON_H
+#define PUBLIC_SRC_SANDBOX_WINDOWS_DETOURSSERVICES_STDAFX_UNIX_COMMON_H
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -223,3 +226,5 @@ inline ENUMTYPE &operator ^= (ENUMTYPE &a, ENUMTYPE b) { return (ENUMTYPE &)(((_
 
 #define WriteWarningOrErrorF(format, ...)
 #define MaybeBreakOnAccessDenied()
+
+#endif // PUBLIC_SRC_SANDBOX_WINDOWS_DETOURSSERVICES_STDAFX_UNIX_COMMON_H

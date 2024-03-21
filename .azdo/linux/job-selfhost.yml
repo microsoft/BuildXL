@@ -14,7 +14,6 @@ jobs:
     buildXLArguments: >-
       --use-dev
       /q:ReleaseLinux
-      /q:ReleaseLinuxNet8
       ${{ parameters.BxlCommonArgs }}
       "/f:tag='test'"
       /logToKusto

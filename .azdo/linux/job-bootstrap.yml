@@ -16,4 +16,4 @@ jobs:
       continueOnError: true
       displayName: Upload built engine for validations to consume
 
-    buildXLArguments: --minimal --deploy-dev-net8 --release ${{ parameters.BxlCommonArgs }}
+    buildXLArguments: --minimal --deploy-dev --release ${{ parameters.BxlCommonArgs }}

@@ -41,7 +41,7 @@ namespace BuildXL {
     @@public
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
         definition: deployment,
-        targetLocation: (qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework) // If targetFramework is not a default one (net7.0), then we put it in a separate directory.
+        targetLocation: (qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework) // If targetFramework is not a default one (net8.0), then we put it in a separate directory.
         ? r`${qualifier.configuration}/${qualifier.targetRuntime}`
         : r`${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`,
     });

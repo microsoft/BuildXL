@@ -267,14 +267,19 @@ export function compile(inputArgs: Arguments) : Result {
  */
 export function getDotNetCoreVersion(cscArguments: Arguments): Shared.DotNetCoreVersion {
     if (!cscArguments.defines) {
-        return "net7.0";
+        return "net8.0";
     }
 
     if (cscArguments.defines.some(e => e === "NET8_0")) {
         return "net8.0";
     }
 
-    return "net7.0";
+    // Now we can check whether net7 symbol is present.
+    if (cscArguments.defines.some(e => e === "NET7_0")) {
+        return "net7.0";
+    }
+
+    return "net8.0";
 }
 
 /**

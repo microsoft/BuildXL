@@ -18,12 +18,12 @@ namespace StandardSdk.Workflow {
         autoFixLkgs: false
     });
 
-    // Only run this test on a specific qualifier: Windows x64, .NET 6.0, and debug configuration.
+    // Only run this test on a specific qualifier: Windows x64, .NET 8.0, and debug configuration.
     // This is to avoid the test to fail on other platforms due to the use of absolute paths in the generated nuget.config when running the nuget restore
     // task. The absolute path is sensitive to the qualifier used to run the test.
     const shouldRunNuGetTest = Context.getCurrentHost().os === "win"
         && qualifier.targetRuntime === "win-x64"
-        && qualifier.targetFramework === "net7.0"
+        && qualifier.targetFramework === "net8.0"
         && qualifier.configuration === "debug";
 
     export const nugetTest = shouldRunNuGetTest && BuildXLSdk.sdkTest({

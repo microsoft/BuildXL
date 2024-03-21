@@ -63,7 +63,7 @@ extends:
       - template: /.azdo/linux/job-selfhost.yml@self
         parameters:
           BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
-    
+
     - stage: Verify_PTrace
       displayName: PTrace validation
       dependsOn: Bootstrap_Internal  

@@ -62,8 +62,8 @@ jobs:
       additionalFlags: >-
         /q:DebugNet472
         /q:ReleaseNet472
-        /q:ReleaseNet7
-        /q:DebugNet7
+        /q:ReleaseNet8
+        /q:DebugNet8
         /p:[Sdk.BuildXL]useManagedSharedCompilation=1
         /p:[BuildXL.Branding]PrereleaseTag=devBuild
         /p:[Sdk.BuildXL]microsoftInternal=1

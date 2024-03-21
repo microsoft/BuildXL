@@ -112,6 +112,17 @@ jobs:
       destinationPath: $(Agent.TempDirectory)/DownloadedDrop
       usePat: false
 
+    # Deletes outputs not needed in order to reduce the files sent to SDL binary scanning
+    # This filtering needs to be done after the drop validator task otherwise that would fail
+  - task: PowerShell@2
+    displayName: Delete extra outputs
+    inputs:
+      targetType: 'inline'
+      script: |
+        Remove-Item -Path "$(Agent.TempDirectory)/DownloadedDrop/debug" -Recurse -Force
+        Remove-Item -Path "$(Agent.TempDirectory)/DownloadedDrop/release/tests" -Recurse -Force
+      errorActionPreference: 'continue'
+
   # Set PAT to be able to publish to CB artifact feed. That step is injected by 1ESPT
   - template: ../../common/set-artifacts-pat.yml
     parameters:

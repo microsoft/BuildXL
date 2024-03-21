@@ -117,8 +117,8 @@ namespace BuildXL.FrontEnd.Script.Ambients
                     Function(GetSpecFileDirectoryFunctionName, GetSpecFileDirectory, GetSpecFileDirectorySignature),
 
                     // Aliased to the same implementation. TODO: 'BuildXL' older naming intended to be deprecated and removed.
-                    Function(GetDominoBinDirectoryFunctionName, GetBuildEngineDirectoryToBeDeprecated, GetBuildXLBinDirectorySignature),
-                    Function(GetBuildEngineDirectoryFunctionName, GetBuildEngineDirectoryToBeDeprecated, GetBuildXLBinDirectorySignature),
+                    Function(GetDominoBinDirectoryFunctionName, GetBuildEngineDirectory, GetBuildXLBinDirectorySignature),
+                    Function(GetBuildEngineDirectoryFunctionName, GetBuildEngineDirectory, GetBuildXLBinDirectorySignature),
 
                     Function(GetTemplateFunctionName, GetTemplate, GetTemplateSignature),
                     Function(GetCurrentHostName, GetCurrentHost, GetCurrentHostSignature),
@@ -255,7 +255,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             return EvaluationResult.Create(DirectoryArtifact.CreateWithZeroPartialSealId(context.LastActiveUsedPath.GetParent(context.FrontEndContext.PathTable)));
         }
 
-        private static EvaluationResult GetBuildEngineDirectoryToBeDeprecated(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        private static EvaluationResult GetBuildEngineDirectory(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             var pathTable = context.FrontEndContext.PathTable;
 

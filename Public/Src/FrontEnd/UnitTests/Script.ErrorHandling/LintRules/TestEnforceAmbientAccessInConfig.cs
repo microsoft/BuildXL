@@ -91,17 +91,16 @@ namespace Test.DScript.Ast.ErrorHandling
         public void ValidateCompleteness()
         {
             // TODO: Dig into whether ipcSend should be allowed in config
-            HashSet<string> ignoredMethods = new HashSet<string>()
+            var ignoredMethods = new HashSet<string>()
             {
                 "ScheduleProcessPip",
                 "WriteDataCore",
-                "GetBuildXLBinDirectoryToBeDeprecated",
                 "GetNewIpcMoniker",
-                "GetBuildEngineDirectoryToBeDeprecated",
+                "GetBuildEngineDirectory",
             };
 
             // Extract string parameter for each InlineDataAttribute for each method.
-            string[] inlineDataContent = this.GetType().GetMethods()
+            string[] inlineDataContent = GetType().GetMethods()
                 .SelectMany(mi => mi.GetCustomAttributes<InlineDataAttribute>().Select(attr => (string)attr?.GetData(null)?.FirstOrDefault()[0]))
                 .Select(s => s.Substring(0, s.IndexOf("(")))
                 .ToArray();

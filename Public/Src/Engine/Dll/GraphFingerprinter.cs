@@ -160,6 +160,22 @@ namespace BuildXL.Engine
                     AddText(topLevelHasher, "TempDirectoryPath", layout.TempDirectory.IsValid ? layout.TempDirectory.ToString(pathTable) : "::null::");
                     AddText(topLevelHasher, "SourceDirectoryPath", layout.SourceDirectory.IsValid ? layout.SourceDirectory.ToString(pathTable) : "::null::");
 
+                    // Build engine directory is included because user builds can use SDKs that are shipped with the build engine.
+                    // These SDKs mention relative paths pointing to the files (e.g., executables) in those SDKs.
+                    // A build break (or unexpected process execution) can occur if the build engine directory is not included in the graph fingerprint.
+                    // Consider the following scenario:
+                    // - A user has a build engine directory in the path "C:\BuildEngine\net7" and runs a build that reads
+                    //   the spec "C:\BuildEngine\net7\Sdk\Sdk.Symbols\Tool.SymbolDaemonTool.dsc". This spec has a relative path `f`bin/SymbolDaemon.exe` to
+                    //   the executable "SymbolDaemon.exe" in the SDK.
+                    // - The user runs another build with engine in "C:\BuildEngine\net8". This engine has the same commit id as the previous build engine, but has
+                    //   a different target framework, i.e., net7 vs. net8.
+                    // - If build engine directory is not included in the graph fingeerprint, the second build will get a graph cache hit and will use the graph.
+                    //   One of the graph cache key is the path "C:\BuildEngine\net7\Sdk\Sdk.Symbols\Tool.SymbolDaemonTool.dsc" and its content hash. The path still
+                    //   exists, and the content hash is the same. Thus, the build will have a graph cache hit.
+                    // - Due to graph cache hit, the second build will execute "bin\SymbolDaemon.exe" in "C:\BuildEngine\net7\Sdk\Sdk.Symbols\" because that path is
+                    //   in the cached graph. This is unexpected because the user expects to use the net8 version of SymbolDaemon.exe, but the one executed is the net7 one.
+                    AddText(topLevelHasher, "BuildEngineDirectory", layout.BuildEngineDirectory.IsValid ? layout.BuildEngineDirectory.ToString(pathTable) : "::null::");
+
                     // All paths in the graph are relative to 'substTarget' (hence, 'substTarget' must be a part of the fingerprint, but 'substSource' need not be).
                     AddText(topLevelHasher, "substTarget", logging.SubstTarget.IsValid ? logging.SubstTarget.ToString(pathTable) : "::null::");
                     AddText(topLevelHasher, "IsCompressed", config.Engine.CompressGraphFiles ? "true" : "false");

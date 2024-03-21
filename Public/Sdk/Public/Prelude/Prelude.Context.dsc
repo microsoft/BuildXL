@@ -48,7 +48,6 @@ namespace Context {
      * Returns the BuildXL bin directory. This legacy name will be deprecated in favor of
      * getBuildEngineDirectory(); see the description of that method for more complete notes.
      */
-    export declare function getBuildEngineDirectory(): Directory;
     export declare function getDominoBinDirectory(): Directory;
 
     /** 

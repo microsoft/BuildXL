@@ -29,7 +29,7 @@ namespace Test.BuildXL.Processes.Detours
             {
                 var sourceFile = tempFiles.GetFileName(pathTable, "SourceFile.txt");
                 var destinationFile = tempFiles.GetFileName(pathTable, "DestinationFile.txt");
-                WriteFile(pathTable, sourceFile, "content");
+                WriteFile(pathTable, sourceFile);
 
                 var process = CreateDetourProcess(
                     context,
@@ -87,7 +87,7 @@ namespace Test.BuildXL.Processes.Detours
             {
                 var sourceFile = tempFiles.GetFileName(pathTable, "SourceFile.txt");
                 var destinationFile = tempFiles.GetFileName(pathTable, "DestinationFile.txt");
-                WriteFile(pathTable, sourceFile, "content");
+                WriteFile(pathTable, sourceFile);
 
                 var process = CreateDetourProcess(
                     context,
@@ -146,7 +146,7 @@ namespace Test.BuildXL.Processes.Detours
                 AbsolutePath sourceDirectory = tempFiles.GetDirectory(pathTable, "Source");
                 AbsolutePath sourceFile = sourceDirectory.Combine(pathTable, "SourceFile.txt");
                 var destinationFile = tempFiles.GetFileName(pathTable, "DestinationFile.txt");
-                WriteFile(pathTable, sourceFile, "content");
+                WriteFile(pathTable, sourceFile);
 
                 var process = CreateDetourProcess(
                     context,
@@ -207,7 +207,7 @@ namespace Test.BuildXL.Processes.Detours
                 AbsolutePath workDirectory = tempFiles.GetDirectory(pathTable, "Directory");
                 AbsolutePath sourceDirectory = tempFiles.GetDirectory(pathTable, workDirectory, "SourceDirectory");
                 AbsolutePath sourceFile = sourceDirectory.Combine(pathTable, "SourceFile.txt");
-                WriteFile(pathTable, sourceFile, "content");
+                WriteFile(pathTable, sourceFile);
 
                 AbsolutePath destinationDirectory = workDirectory.Combine(pathTable, "DestinationDirectory");
                 AbsolutePath destinationFile = destinationDirectory.Combine(pathTable, "SourceFile.txt");

@@ -386,6 +386,7 @@ int CallDetouredZwSetFileDispositionByHandleEx()
         FILE_INFO_BY_HANDLE_CLASS::MaximumFileInfoByHandleClass,
         FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformationEx);
 }
+
 int CallDetouredGetFinalPathNameByHandle() 
 {
     // input\GetFinalPathNameByHandleTest.txt points to inputTarget\GetFinalPathNameByHandleTest.txt
@@ -1324,7 +1325,8 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallNtOpenNonExistentFileThroughDirectorySymlink);
     IF_COMMAND(CallDirectoryEnumerationThroughDirectorySymlink);
     IF_COMMAND(CallDeviceIOControlGetReparsePoint);
-    
+    IF_COMMAND(CallDeviceIOControlSetReparsePoint);
+
 #undef IF_COMMAND1
 #undef IF_COMMAND2
 #undef IF_COMMAND

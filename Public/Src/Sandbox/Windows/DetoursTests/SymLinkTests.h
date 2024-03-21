@@ -68,3 +68,4 @@ int CallOpenNonExistentFileThroughDirectorySymlink();
 int CallNtOpenNonExistentFileThroughDirectorySymlink();
 int CallDirectoryEnumerationThroughDirectorySymlink();
 int CallDeviceIOControlGetReparsePoint();
+int CallDeviceIOControlSetReparsePoint();

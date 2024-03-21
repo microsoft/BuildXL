@@ -973,13 +973,13 @@ int CallDeviceIOControlGetReparsePoint()
 {
     // Open source symlink
     HANDLE hFile = CreateFileW(
-            L"file.lnk",
-            0,
-            0,
-            NULL,
-            OPEN_EXISTING,
-            FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
-            NULL);
+        L"file.lnk",
+        0,
+        0,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+        nullptr);
     
     if (hFile == INVALID_HANDLE_VALUE)
     {
@@ -998,7 +998,7 @@ int CallDeviceIOControlGetReparsePoint()
     const bool result = DeviceIoControl(
         hFile, 
         FSCTL_GET_REPARSE_POINT, 
-        NULL, 
+        nullptr, 
         0,
         buffer, 
         sizeof(buffer), 
@@ -1018,14 +1018,116 @@ int CallDeviceIOControlGetReparsePoint()
     // actually translated
     std::wstring target;
     target.assign(
-            reparseData->SymbolicLinkReparseBuffer.PathBuffer + reparseData->SymbolicLinkReparseBuffer.PrintNameOffset / sizeof(WCHAR),
-            static_cast<size_t>(reparseData->SymbolicLinkReparseBuffer.PrintNameLength) / sizeof(WCHAR));
+        reparseData->SymbolicLinkReparseBuffer.PathBuffer + reparseData->SymbolicLinkReparseBuffer.PrintNameOffset / sizeof(WCHAR),
+        static_cast<size_t>(reparseData->SymbolicLinkReparseBuffer.PrintNameLength) / sizeof(WCHAR));
 
     FILE* output;
-    fopen_s(&output, "out.txt","w");
+    fopen_s(&output, "out.txt", "w");
     assert(output != nullptr);
     fprintf(output, "%ws", target.c_str());
     fclose(output);
+
+    return static_cast<int>(GetLastError());
+}
+
+int CallDeviceIOControlSetReparsePoint()
+{
+    // Open file_example.lnk just to get its reparse point data.
+    HANDLE hFile = CreateFileW(
+        L"file_example.lnk",
+        GENERIC_READ,
+        0,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+        nullptr);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    // Allocate MAX_PATH to be safe
+    constexpr DWORD neededBufSize =
+        FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer) +
+        2 * MAX_PATH * sizeof(WCHAR);
+
+    BYTE buffer[neededBufSize] = { 0 };
+
+    // Call DeviceIoControl to retrieve the target of the symlink
+    DWORD lpBytesReturned = 0;
+    bool result = DeviceIoControl(
+        hFile,
+        FSCTL_GET_REPARSE_POINT,
+        nullptr,
+        0,
+        buffer,
+        sizeof(buffer),
+        &lpBytesReturned,
+        nullptr);
+
+    CloseHandle(hFile);
+
+    if (!result)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    // const REPARSE_DATA_BUFFER* reparseData = (REPARSE_DATA_BUFFER*)buffer;
+    // std::wstring target;
+    // target.assign(
+    //     reparseData->SymbolicLinkReparseBuffer.PathBuffer + reparseData->SymbolicLinkReparseBuffer.PrintNameOffset / sizeof(WCHAR),
+    //     static_cast<size_t>(reparseData->SymbolicLinkReparseBuffer.PrintNameLength) / sizeof(WCHAR));
+    // wprintf(L"Target: %s\n", target.c_str());
+
+    // Use the extracted reparse point data to create a new symlink.
+    hFile = CreateFileW(
+        L"file.lnk",
+        FILE_WRITE_ATTRIBUTES | DELETE | SYNCHRONIZE,
+        0,
+        nullptr,
+        CREATE_NEW,
+        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+        nullptr);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+    
+    result = DeviceIoControl(
+        hFile,
+        FSCTL_SET_REPARSE_POINT,
+        buffer,
+        lpBytesReturned,
+        nullptr,
+        0,
+        nullptr,
+        nullptr);
+
+    CloseHandle(hFile);
+
+    if (!result)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    // Open the newly created symlink to verify that it was created successfully.
+    hFile = CreateFileW(
+        L"file.lnk",
+        GENERIC_READ,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    CloseHandle(hFile);
 
     return static_cast<int>(GetLastError());
 }

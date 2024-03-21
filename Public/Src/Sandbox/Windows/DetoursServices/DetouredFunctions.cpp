@@ -561,10 +561,15 @@ static bool ShouldResolveReparsePointsInPath(
 // If the given path does not contain reparse points but the handle was open for write and open reparse point flag was passed,
 // then this may be the step previous to turning that directory into a reparse point. We don't detour the actual ioctl call, but conservatively we
 // invalidate the path from the cache. Otherwise, if the ioctl call actually happens, all subsequent reads on the path won't be resolved.
-static void InvalidateReparsePointCacheIfNeeded(bool pathContainsReparsePoints, DWORD desiredAccess, DWORD flagsAndAttributes, bool isDirectory, const wchar_t* path, const PolicyResult& policyResult)
+static void InvalidateReparsePointCacheIfNeeded(
+    bool pathContainsReparsePoints,
+    DWORD desiredAccess,
+    DWORD flagsAndAttributes,
+    bool isDirectory,
+    const wchar_t* path,
+    const PolicyResult& policyResult)
 {
     if (!pathContainsReparsePoints
-        && isDirectory
         && !IgnoreReparsePoints()
         && !IgnoreFullReparsePointResolvingForPath(policyResult)
         && WantsWriteAccess(desiredAccess)
@@ -3248,8 +3253,8 @@ HANDLE WINAPI Detoured_CreateFileW(
 
     bool isHandleToReparsePoint = (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
     bool shouldReportAccessCheck = true;
-
     bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath(), opContext.FlagsAndAttributes, policyResult);
+
     if (shouldResolveReparsePointsInPath)
     {
         bool accessResult = EnforceChainOfReparsePointAccesses(
@@ -5846,7 +5851,7 @@ DWORD WINAPI Detoured_GetFinalPathNameByHandleW(
     {
         wstring normalizedPath;
         TranslateFilePath(wstring(lpszFilePath), normalizedPath);
-        DWORD copyPathLength = (DWORD)normalizedPath.length() + 1; //wcscpy_s expects the destination buffer to account for the null terminator
+        DWORD copyPathLength = (DWORD)normalizedPath.length() + 1; // wcscpy_s expects the destination buffer to account for the null terminator
 
         if (copyPathLength <= cchFilePath)
         {
@@ -7093,14 +7098,21 @@ BOOL WINAPI Detoured_DeviceIoControl(
     DetouredScope scope;
 
     auto result = Real_DeviceIoControl(
-        hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer, nOutBufferSize, lpBytesReturned, lpOverlapped);
+        hDevice,
+        dwIoControlCode,
+        lpInBuffer,
+        nInBufferSize,
+        lpOutBuffer,
+        nOutBufferSize,
+        lpBytesReturned,
+        lpOverlapped);
 
-    if (scope.Detoured_IsDisabled() ||
-        IgnoreDeviceIoControlGetReparsePoint() ||
+    if (scope.Detoured_IsDisabled()
+        || IgnoreDeviceIoControlGetReparsePoint() 
         // We are only interested in the FSCTL_GET_REPARSE_POINT control code.
-        dwIoControlCode != FSCTL_GET_REPARSE_POINT || 
+        || dwIoControlCode != FSCTL_GET_REPARSE_POINT
         // If the call fails, no need to translate anything
-        !result)
+        || !result)
     {
         return result;
     }

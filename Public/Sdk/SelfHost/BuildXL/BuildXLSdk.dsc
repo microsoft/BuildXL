@@ -292,7 +292,7 @@ namespace Flags {
      * in-process log generation based on the C# compiler will be used.
      */
     @@public
-    export const useInProcLogGen = Environment.getFlag("[Sdk.BuildXL]useInProcLogGen");
+    export const useInProcLogGen = Environment.hasVariable("[Sdk.BuildXL]useInProcLogGen") ? Environment.getFlag("[Sdk.BuildXL]useInProcLogGen") : true;
 
     /**
      * Gets the default value for whether to enable roslyn analyzer

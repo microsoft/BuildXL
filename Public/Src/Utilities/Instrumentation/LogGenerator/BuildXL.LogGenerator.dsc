@@ -3,7 +3,9 @@
 import * as Deployment from "Sdk.Deployment";
 
 namespace LogGenerator {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+    // As of March 2024, Roslyn Source Generators only supported netstandard2.0 assemblies.
+    // https://learn.microsoft.com/en-us/dotnet/csharp/roslyn-sdk/source-generators-overview
+    export declare const qualifier: BuildXLSdk.TargetFrameworks.MachineQualifier.CurrentWithStandard;
 
     @@public
     export const dll = BuildXLSdk.library({
@@ -25,14 +27,15 @@ namespace LogGenerator {
         analyzers: [importFrom("Microsoft.CodeAnalysis.Analyzers").pkg]
     });
 
-    const deployment: Deployment.Definition = {
+    const deployment : Deployment.Definition = {
         contents: [
             dll,
             Core.dll,
             AriaCommon.dll,
-            
+
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll
         ]
     };
 
@@ -42,12 +45,12 @@ namespace LogGenerator {
 
     /** Source generator should be referenced with all the required direct dependencies and all of that should be deployed into a separate folder. */
     @@public
-    export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
+    export const deployed = Deployment.deployToDisk({
         definition: deployment,
-        targetLocation: r`SourceLogGenerator/${qualifier.configuration}/${frameworkSpecificPart}`,
-        deploymentOptions: {
-            // Deploying only the dll's itself without extra dependencies
-            skipReferences: true
+        deploymentOptions: <Managed.Deployment.FlattenOptions>{
+            skipReferences: true,
+            skipXml: true
         },
+        targetDirectory: d`${Context.getNewOutputDirectory("SourceLogGenerator").path}/${qualifier.configuration}/${frameworkSpecificPart}`
     });
 }

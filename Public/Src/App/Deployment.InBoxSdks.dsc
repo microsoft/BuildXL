@@ -61,7 +61,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.Drop",
                                 contents: [ 
                                     importFrom("BuildXL.Tools.DropDaemon").withQualifier({
-                                        targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
+                                        targetFramework: "net7.0",
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(evaluationOnly)
                                 ]
@@ -70,7 +70,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.Symbols",
                                 contents: [
                                         importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
-                                            targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
+                                            targetFramework: "net7.0",
                                             targetRuntime: "win-x64"
                                         }).selectDeployment(evaluationOnly)
                                 ]
@@ -79,7 +79,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.Materialization",
                                 contents: [
                                     importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
-                                        targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
+                                        targetFramework: "net7.0",
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(evaluationOnly)
                                 ]

@@ -26,8 +26,6 @@ jobs:
     arguments:
       dropMetadataContainerName: SecondBuildFull
       additionalFlags: >-
-        /q:DebugDotNetCoreMac
-        /q:ReleaseDotNetCoreMac
         /q:ReleaseNet472
         /q:DebugNet472
         /q:DebugDotNet6
@@ -62,8 +60,6 @@ jobs:
     arguments:
       uploadDropMetadata: false
       additionalFlags: >-
-        /q:DebugDotNetCoreMac
-        /q:ReleaseDotNetCoreMac
         /q:DebugNet472
         /q:ReleaseNet472
         /q:ReleaseNet7

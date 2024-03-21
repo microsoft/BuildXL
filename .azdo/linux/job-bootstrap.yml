@@ -3,51 +3,17 @@ parameters:
   type: string
 
 jobs:
-- job: Selfhost_Bootstrap
-  displayName: Bootstrap internal
-  pool:
-    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
-    os: linux
-
-  templateContext:
-    inputs:
-    - input: checkout
-      repository: self
-      fetchDepth: 1
+- template: job-build-selfhost-base.yml
+  parameters:
+    validationName: Bootstrap
+    internal: true
+    
     outputs:
-    - output: pipelineArtifact
-      targetPath: $(Build.SourcesDirectory)/Out/Logs
-      artifactName: BuildXL-Bootstrap-Logs.$(System.JobName).$(System.JobAttempt)
-      condition: always()
-      continueOnError: true
-      displayName: Upload BuildXL Logs
     - output: pipelineArtifact
       targetPath: $(Build.SourcesDirectory)/Out/Selfhost/Dev
       artifactName: Dev
       condition: always()
       continueOnError: true
       displayName: Upload built engine for validations to consume
-    sdl:
-      credscan:
-        enabled: false
-      antimalwareScan:
-        enabled: false
-      publishLogs:
-        enabled: false
 
-  timeoutInMinutes: 90
-
-  steps:
-  - template: build-selfhost-base.yml
-    parameters:
-      cacheUniverse: blob3bxlselfhost
-      buildSteps:
-      - bash: |
-          set -eu
-          # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
-          timeout --signal 9 60m bash bxl.sh /logsDirectory:"Out/Logs/Build" --minimal --internal --deploy-dev-net8 --release /cacheConfigFilePath:Out/CacheConfig.json ${{ parameters.BxlCommonArgs }}
-        displayName: Build
-        workingDirectory: /home/subst
-        env:
-          PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
-          PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+    buildXLArguments: --minimal --deploy-dev-net8 --release ${{ parameters.BxlCommonArgs }}

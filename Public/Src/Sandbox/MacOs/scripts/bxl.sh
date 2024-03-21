@@ -60,10 +60,6 @@ function setBxlCmdArgs {
         )
     else
         g_adoBuildRunnerCmdArgs+=(
-            "/cacheConfigLogGeneratedConfiguration" 
-            "/cacheConfigStorageAccountEndpoint:https://l3bxlselfhost.blob.core.windows.net" 
-            "/cacheConfigManagedIdentityId:eb694749-b1d6-45bc-b7af-2bd81603968a" 
-            "/cacheConfigCacheType:EphemeralDatacenterWide" 
             "${arg_Runner[@]}"
         )
     fi

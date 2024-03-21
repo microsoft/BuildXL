@@ -1,93 +1,32 @@
 parameters:
 - name: BxlCommonArgs # We reuse these across jobs like a constant
   type: string
-- name: Role
-  type: string
-  default: SingleMachine
-  values:
-  - Orchestrator
-  - Worker
-  - SingleMachine
-# The following parameters change
-- name: BxlExtraArgs
-  type: string
-- name: ValidationName
-  type: string
 
 jobs:
-- job: Selfhost_${{ parameters.validationName }}
-  displayName: Build and Validate Selfhost (${{ parameters.validationName }})
-
-  ${{ if eq(parameters.Role, 'Worker') }}:
-    continueOnError: true
-
-  pool:
-    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
-    os: linux
-
-  templateContext:
-    inputs:
-    - input: checkout
-      repository: self
-      fetchDepth: 1
-    - input: pipelineArtifact
-      artifactName: 'Dev'
-      # Use the path that --deploy-dev would use, because we --use-dev in the validation
-      targetPath: "$(Build.SourcesDirectory)/Out/Selfhost/Dev"
-
-    outputs:
-    - output: pipelineArtifact
-      targetPath: $(Build.SourcesDirectory)/Out/Logs
-      artifactName: BuildXL-Logs.${{ parameters.validationName }}.${{ parameters.Role }}.$(System.JobName).$(System.JobAttempt)
-      condition: always()
-      continueOnError: true
-      displayName: Upload BuildXL Logs
-    sdl:
-      credscan:
-        enabled: false
-      antimalwareScan:
-        enabled: false
-      publishLogs:
-        enabled: false
-
-  timeoutInMinutes: 90
-
-  steps:
-  - template: build-selfhost-base.yml
-    parameters:
-      cacheUniverse: bxlselfhost
-      # if we are running single machine, write down a cache config file. Otherwise the adobuildrunner will generate one
-      writeCacheConfigFile: ${{ eq(parameters.Role, 'SingleMachine') }}
-      buildSteps:
-      - bash: |
-          set -eu
-          # - the disks on Azure Pipeline VMs are too small to build everything, so let's instead run tests
-          # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
-
-          USE_ADOBUILDRUNNER=""
-          DYNAMIC_WORKER_SLOTS=""
-
-          # if we are doing a distributed build, use the ado build runner and configure
-          # an extra worker
-          if [ "${{ parameters.Role }}" != "SingleMachine" ]; then
-            USE_ADOBUILDRUNNER="--use-adobuildrunner --runner-arg /cacheConfigUniverse:bxlselfhost"
-            DYNAMIC_WORKER_SLOTS="/dynamicBuildWorkerSlots:1"
-          fi
-
-          timeout --signal 9 60m ./bxl.sh $USE_ADOBUILDRUNNER --use-dev ${{ parameters.BxlCommonArgs }} /logsDirectory:"Out/Logs/${{ parameters.validationName }}" ${{ parameters.bxlExtraArgs }} "/f:tag='test'" /logToKusto /cacheLogToKusto /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51 /logToKustoTenantId:975f013f-7f24-47e8-a7d3-abc4752bf346 $DYNAMIC_WORKER_SLOTS
-        displayName: Test (${{ parameters.validationName }})
-        workingDirectory: /home/subst
-        env:
-          PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
-          PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
-          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-          AdoBuildRunnerInvocationKey: LinuxSelfhostDistributedValidation
-          AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
-
-      - task: PublishTestResults@2
-        displayName: Publish Test Results
-        inputs:
-          testResultsFormat: XUnit
-          testResultsFiles: 'Out/Objects/**/xunit-logs/**/xunit*.xml'
-        condition: always()
-        continueOnError: true
+- template: job-build-selfhost-base.yml
+  parameters:
+    validationName: InternalRelease
+    internal: true
+    publishTestResults: true
+    distribution:
+      enabled: true
+      workerCount: 1
+    buildXLArguments: >-
+      --use-dev
+      /q:ReleaseLinux
+      /q:ReleaseLinuxNet8
+      ${{ parameters.BxlCommonArgs }}
+      "/f:tag='test'"
+      /logToKusto
+      /cacheLogToKusto
+      /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages
+      /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51
+    
+    preBuildSteps:
+    # Get bootstrap
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download bootstrap'
+      inputs:
+        artifactName: Dev
+        # Use the path that --deploy-dev would use, because we --use-dev in the validation
+        targetPath: "$(Build.SourcesDirectory)/Out/Selfhost/Dev"

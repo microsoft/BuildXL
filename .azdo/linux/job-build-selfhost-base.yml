@@ -1,0 +1,119 @@
+# Template for all Linux selfhost builds, ran using the bxl_ado.sh wrapper script
+# These can be internal or external builds, distributed or single-machine: this is controlled
+# with the below parameters.
+parameters:
+- name: validationName
+  type: string
+
+- name: cacheUniverse
+  type: string
+  default: bxlselfhost
+
+# Additional outputs to set for the job (apart from logs, which are automatically uploaded)
+- name: outputs
+  type: object
+  default: []
+
+# Pre-build steps, including downloading BuildXL if needed
+- name: preBuildSteps
+  type: stepList
+  default: []
+
+- name: buildXLArguments
+  type: string
+
+# Whether this is an internal build: if true, PATs will be added to the environment
+- name: internal
+  type: boolean
+  default: false
+
+- name: publishTestResults
+  type: boolean
+  default: false
+
+# distribution:
+#   enabled: <bool>
+#   workerCount: <int>
+- name: distribution
+  type: object
+  default: {}
+
+- name: cacheType
+  type: string
+  default: EphemeralDatacenterWide
+
+jobs:
+- job: Selfhost_${{ parameters.validationName }}
+  displayName: Build and Validate Selfhost (${{ parameters.validationName }})
+
+  pool:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+  timeoutInMinutes: 90
+  templateContext:
+    sdl:
+      credscan:
+        enabled: false
+      antimalwareScan:
+        enabled: false
+      publishLogs:
+        enabled: false
+    
+    outputs:
+    - ${{ each output in parameters.outputs }}:
+      - ${{ output }}
+
+    # https://eng.ms/docs/cloud-ai-platform/devdiv/one-engineering-system-1es/1es-build/buildxl/ado-onboarding-steps/running-bxl
+    workflow: BuildXL
+    distribution: ${{ parameters.distribution }}
+    cache:
+      storageAccountEndpoint: https://l3bxlselfhost.blob.core.windows.net
+      managedIdentityClientId: eb694749-b1d6-45bc-b7af-2bd81603968a
+      universe: ${{ parameters.cacheUniverse }}
+      cacheType: ${{ parameters.cacheType }}
+      logGeneratedConfiguration: true
+      # retentionPolicyInDays: {default}
+
+    preBuildSteps: 
+    - template: /.azdo/common/use-latest-dotnet-sdk.yml@self
+
+    - bash: |
+        set -eu
+        # install mono
+        sudo apt-get update
+        sudo apt-get install -y mono-complete mono-devel
+        mono --version
+      displayName: Install Mono
+
+    - bash: |
+        sudo mkdir /home/subst
+        sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
+      displayName: Bind /home/subst to sources directory  
+      
+    - ${{ each step in parameters.preBuildSteps }}:
+      - ${{ step }}
+
+    buildXL:
+      invoker: custom
+      # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
+      invocationPrefix: timeout --signal 9 60m bash .azdo/bxl_ado.sh
+      ${{ if eq(parameters.internal, true) }}:
+        arguments: --internal ${{ parameters.buildXLArguments }}
+      ${{ else }}:
+        arguments: ${{ parameters.buildXLArguments }}
+      displayName: ${{ parameters.validationName }}
+      workingDirectory: /home/subst
+      ${{ if eq(parameters.internal, true) }}:
+        env:
+          PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
+          PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+
+    ${{ if parameters.publishTestResults }}:
+      postBuildSteps:
+      - task: PublishTestResults@2
+        displayName: Publish Test Results
+        inputs:
+          testResultsFormat: XUnit
+          testResultsFiles: 'Out/Objects/**/xunit-logs/**/xunit*.xml'
+        condition: always()
+        continueOnError: true

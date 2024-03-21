@@ -21,12 +21,8 @@ parameters:
   # We pass xunit semaphore `/p:[Sdk.BuildXL]xunitSemaphoreCount=8` to limit the number of parallel xunit pips.
   # Too many xunit pips running in parallel can cause the long running ones to hang. 
   default: '
-    --shared-comp 
-    /ado 
-    /cacheMiss:"[Bxl.Selfhost.Linux]" 
     /logObservedFileAccesses 
     /logoutput:FullOutputOnError 
-    /logsToRetain:10 
     /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
     /forceAddExecutionPermission-
   '
@@ -50,16 +46,15 @@ extends:
       # Build and test selfhost with BuildXL
       - template: /.azdo/linux/job-bootstrap.yml@self
         parameters:
-          BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
+          BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
     
-    - stage: Build_Public
-      displayName: Public validation
+    - stage: Build_External
+      displayName: External validation
       dependsOn: []
       jobs:
-        - template: /.azdo/linux/job-public.yml@self
+        - template: /.azdo/linux/job-external.yml@self
           parameters:
-            BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
-            ValidationName: PublicRelease
+            BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
 
     - stage: Build_Internal
       displayName: Internal validation
@@ -67,22 +62,8 @@ extends:
       jobs:
       - template: /.azdo/linux/job-selfhost.yml@self
         parameters:
-          BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
-          ValidationName: InternalRelease
-          BxlExtraArgs: --internal /q:ReleaseLinux /q:ReleaseLinuxNet8
-          Role: Orchestrator
+          BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
     
-    - stage: Build_Internal_Workers
-      displayName: "[Workers] Internal validation"
-      dependsOn: Bootstrap_Internal
-      jobs:
-      - template: /.azdo/linux/job-selfhost.yml@self
-        parameters:
-          BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
-          ValidationName: InternalRelease
-          BxlExtraArgs: --internal /q:ReleaseLinux /q:ReleaseLinuxNet8
-          Role: Worker
-
     - stage: Verify_PTrace
       displayName: PTrace validation
       dependsOn: Bootstrap_Internal  

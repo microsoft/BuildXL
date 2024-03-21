@@ -1,49 +1,27 @@
+parameters:
+- name: BxlCommonArgs # We reuse these across jobs like a constant
+  type: string
+
 jobs:
-- job: Selfhost_InternalPTrace
-  displayName: Build and Validate Selfhost with PTrace
-  pool:
-    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
-    os: linux
-
-  templateContext:
-    inputs:
-    - input: checkout
-      repository: self
-      fetchDepth: 1
-    - input: pipelineArtifact
-      artifactName: 'Dev'
-      # Use the path that --deploy-dev would use, because we --use-dev in the validation
-      targetPath: "$(Build.SourcesDirectory)/Out/Selfhost/Dev"
-
-    outputs:
-    - output: pipelineArtifact
-      targetPath: $(Build.SourcesDirectory)/Out/Logs
-      artifactName: BuildXL-Logs.InternalPTrace.$(System.JobName).$(System.JobAttempt)
-      condition: always()
-      continueOnError: true
-      displayName: Upload BuildXL Logs
-    sdl:
-      credscan:
-        enabled: false
-      antimalwareScan:
-        enabled: false
-      publishLogs:
-        enabled: false
-
-  timeoutInMinutes: 90
-
-  steps:
-  - template: build-selfhost-base.yml
-    parameters:
-      cacheUniverse: bxlselfhostptrace
-      buildSteps:
-      # This step currently only builds selfhost with the --minimal flag, but will be extended in the future to run more unit tests with ptrace
-      - bash: |
-          set -eu
-          bash bxl.sh --minimal --internal --use-dev /ado /cacheMiss:"[Bxl.Selfhost.Linux.PTrace]" /logObservedFileAccesses /cacheConfigFilePath:Out/CacheConfig.json /logoutput:FullOutputOnError /logsToRetain:10 /logsDirectory:"Out/Logs/Build" /forceEnableLinuxPTraceSandbox+ /injectCacheMisses:0.3
-        displayName: Build BXL with LKG and PTrace
-        workingDirectory: /home/subst
-        env:
-          PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
-          PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
-
+- template: job-build-selfhost-base.yml
+  parameters:
+    validationName: PTrace
+    cacheUniverse: bxlselfhostptrace
+    internal: true
+    publishTestResults: true
+    
+    buildXLArguments: >-
+      --minimal
+      --use-dev 
+      ${{ parameters.BxlCommonArgs }}
+      /cacheMiss:"[Bxl.Selfhost.Linux.PTrace]" 
+      /forceEnableLinuxPTraceSandbox+
+      /injectCacheMisses:0.3
+    preBuildSteps:
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: current
+        artifactName: Dev
+        # Use the path that --deploy-dev would use, because we --use-dev in the validation
+        targetPath: "$(Build.SourcesDirectory)/Out/Selfhost/Dev"
+      displayName: Download BuildXL

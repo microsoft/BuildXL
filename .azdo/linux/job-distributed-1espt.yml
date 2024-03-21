@@ -53,8 +53,6 @@ jobs:
     
     # Build parameters
     buildXL:
-      invocationKey: DistributedTest
-
       # invoker: exe means we need to provide the directory where AdoBuildRunner is located
       invoker: exe
       engineLocation: $(BootstrapLocation)

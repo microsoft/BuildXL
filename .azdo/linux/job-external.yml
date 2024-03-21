@@ -1,0 +1,52 @@
+parameters:
+- name: BxlCommonArgs # We reuse these across jobs like a constant
+  type: string
+
+jobs:
+- template: job-build-selfhost-base.yml
+  parameters:
+    validationName: ExternalRelease
+    cacheUniverse: bxlselfhostpublic
+    internal: false
+    publishTestResults: true
+
+    outputs:
+    - output: pipelineArtifact
+      targetPath: $(Build.SourcesDirectory)/Out/Logs/Bootstrap
+      artifactName: BuildXL-Logs.External.Bootstrap.$(System.JobAttempt)
+      condition: always()
+      continueOnError: true
+      displayName: Upload bootstrap Logs
+
+    buildXLArguments: >-
+      --use-dev 
+      ${{ parameters.BxlCommonArgs }}
+      /q:ReleaseLinux
+      "/f:tag='test'" 
+      /logToKusto
+      /cacheLogToKusto
+      /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages
+      /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51
+
+    preBuildSteps:
+      # 1. Bootstrap external bits manually - note this is a pre-build step for the actual "build" (which is running tests) 
+    - bash: >
+        set -eu
+
+        # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
+        
+        timeout --signal 9 60m bash bxl.sh 
+        --use-adobuildrunner 
+        --minimal
+        --deploy-dev --release
+        --runner-arg /cacheConfigLogGeneratedConfiguration:true 
+        --runner-arg /cacheConfigStorageAccountEndpoint:https://l3bxlselfhost.blob.core.windows.net
+        --runner-arg /cacheConfigManagedIdentityId:eb694749-b1d6-45bc-b7af-2bd81603968a
+        /logsDirectory:"Out/Logs/Bootstrap"
+        /forceAddExecutionPermission-
+        ${{ parameters.BxlCommonArgs }}
+      displayName: Build
+      env:
+        AdoBuildRunnerInvocationKey: BuildExternal
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+        workingDirectory: /home/subst

@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -234,6 +235,31 @@ public record UpdateLocationsRequest
         }
 
         return this with { TimeToLive = TimeToLive - 1 };
+    }
+
+    internal static UpdateLocationsRequest Merge(IEnumerable<UpdateLocationsRequest> enumerable)
+    {
+        var entries = new List<ContentEntry>();
+        var ttl = -1;
+        foreach (var request in enumerable)
+        {
+            if (ttl == -1)
+            {
+                ttl = request.TimeToLive;
+            }
+            else
+            {
+                Contract.Assert(ttl == request.TimeToLive, "Can't merge requests with different TTLs");
+            }
+
+            entries.AddRange(request.Entries);
+        }
+
+        return new UpdateLocationsRequest
+        {
+            Entries = entries,
+            TimeToLive = ttl
+        };
     }
 }
 

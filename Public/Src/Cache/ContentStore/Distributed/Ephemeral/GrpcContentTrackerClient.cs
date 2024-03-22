@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -41,32 +42,40 @@ public class GrpcContentTrackerClient : GrpcCodeFirstClient<IGrpcContentTracker>
 
     public Task<BoolResult> UpdateLocationsAsync(OperationContext context, UpdateLocationsRequest request)
     {
-        // TODO: this class should batch requests and send them in a single operation
+        if (request.Drop)
+        {
+            Contract.Requires(!request.Drop, $"A request that should have been dropped made it to the gRPC layer. Request=[{request}]");
+        }
+
         return ExecuteAsync(
             context,
             async (context, options, service) =>
             {
-                // TODO: what we really want is to have a background operation that sends these instead of doing tons of ops
                 await service.UpdateLocationsAsync(request, options);
                 return BoolResult.Success;
             },
-            extraEndMessage: _ => $"Request=[{request}]");
+            extraEndMessage: _ => $"Request=[{request}]",
+            caller: nameof(UpdateLocationsAsync));
     }
 
     public Task<Result<GetLocationsResponse>> GetLocationsAsync(OperationContext context, GetLocationsRequest request)
     {
         return ExecuteAsync(
             context,
-            async (context, options, service) => Result.Success(await service.GetLocationsAsync(request, options)),
+            async (context, options, service) =>
+            {
+                return Result.Success(await service.GetLocationsAsync(request, options));
+            },
             extraEndMessage: result =>
-                             {
-                                 var response = string.Empty;
-                                 if (result.Succeeded)
-                                 {
-                                     response = $" Response=[{result.Value}]";
-                                 }
+            {
+                var response = string.Empty;
+                if (result.Succeeded)
+                {
+                    response = $" Response=[{result.Value}]";
+                }
 
-                                 return $"Request=[{request}]{response}";  
-                             });
+                return $"Request=[{request}]{response}";
+            },
+            caller: nameof(GetLocationsAsync));
     }
 }

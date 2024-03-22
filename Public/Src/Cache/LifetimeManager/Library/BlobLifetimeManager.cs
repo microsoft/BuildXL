@@ -162,6 +162,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     {
                         await checkpointManager.RestoreCheckpointAsync(context, checkpointStateResult.Value!).ThrowIfFailure();
                         db = checkpointable.GetDatabase();
+
+                        // The checkpoint might not have been compacted when uploaded, so we should do it here.
+                        // This could happen if a checkpoint was created mid-run and GC didn't run to completion.
+                        db.Compact(context).ThrowIfFailure();
                     }
                     else
                     {
@@ -219,6 +223,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         if (!dryRun)
                         {
                             context.Token.ThrowIfCancellationRequested();
+
+                            // Make sure to compact the database before creating a checkpoint to ensure we are being optimal
+                            // with the space we are using.
+                            db.Compact(context).ThrowIfFailure();
 
                             await checkpointManager.CreateCheckpointAsync(
                                 context,

@@ -12,7 +12,6 @@ using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -215,6 +214,27 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             Directory.CreateDirectory(configuration.DatabasePath);
             var db = RocksDb.Open(options, path: configuration.DatabasePath, columnFamilies);
             return db;
+        }
+
+        public BoolResult Compact(OperationContext context)
+        {
+            Dictionary<string, ColumnFamilyStats>? statsBeforeCompaction = null;
+            Dictionary<string, ColumnFamilyStats>? statsAfterCompaction = null;
+            return context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    statsBeforeCompaction = _db.GetStatisticsByColumnFamily(context);
+
+                    // By specifying no start and no limit, we compact the entire database.
+                    _db.CompactRange(start: (byte[]?)null, limit: null);
+
+                    statsAfterCompaction = _db.GetStatisticsByColumnFamily(context);
+
+                    return BoolResult.Success;
+                },
+                messageFactory: _ => $"Before compaction: {string.Join(", ", statsBeforeCompaction?.Select(kvp => $"{kvp.Key}=[{kvp.Value}]") ?? [])}. " +
+                    $"After compaction: {string.Join(", ", statsAfterCompaction?.Select(kvp => $"{kvp.Key}=[{kvp.Value}]") ?? [])}");
         }
 
         public IAccessor GetAccessor(BlobNamespaceId namespaceId)

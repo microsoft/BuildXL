@@ -18,7 +18,9 @@ jobs:
   templateContext:
     sdl:
       binskim:
+        enabled: true
         scanOutputDirectoryOnly: true
+        break: false
       spotBugs:
         enabled: false
 

@@ -1,6 +1,8 @@
 jobs:
 - job: SetBuildNumber
   displayName: Set build number
+  variables:
+    skipComponentGovernanceDetection: true # Skip component governance detection because the job does not use any code or produce any output.
   steps:  
   - checkout: none
 

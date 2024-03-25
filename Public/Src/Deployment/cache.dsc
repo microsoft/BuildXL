@@ -46,5 +46,6 @@ namespace Cache {
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
         definition: deployment,
         targetLocation: r`${qualifier.configuration}/cache/${qualifier.targetFramework}/${qualifier.targetRuntime}`,
+        omitFromDrop: true,
     });
 }

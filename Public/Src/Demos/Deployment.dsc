@@ -22,5 +22,6 @@ namespace Deployment {
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
         definition: deployment,
         targetLocation: r`Demos/${qualifier.configuration}/${frameworkSpecificPart}`,
+        omitFromDrop: true,
     });
 }

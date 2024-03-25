@@ -13,6 +13,7 @@ namespace DeploymentHelpers {
         definition: Deployment.Definition,
         targetLocation: RelativePath,
         deploymentOptions?: Managed.Deployment.FlattenOptions,
+        omitFromDrop?: boolean,
     }) : Deployment.OnDiskDeployment {
 
         const deploymentOptions = Object.merge<Deployment.DeploymentOptions>(
@@ -31,7 +32,7 @@ namespace DeploymentHelpers {
             ]
         });
 
-        if (Drop.enabled) {
+        if (Drop.enabled && !args.omitFromDrop) {
             // Create a deployment that places the one in a subtree.
             const deploymentInSubFolder: Deployment.Definition = {
                 contents: [

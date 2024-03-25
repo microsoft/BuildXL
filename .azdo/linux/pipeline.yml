@@ -2,15 +2,10 @@ trigger: none  # Explicitly scheduled for PRs
 
 resources:
   repositories:
-  # Temporarily use the private repo until buildJob with BuildXL gets released 
-  # - repository: 1esPipelines
-  #   type: git
-  #   name: 1ESPipelineTemplates/1ESPipelineTemplates
-  #   ref: refs/tags/release
-  - repository: 1ESPipelines
+  - repository: 1esPipelines
     type: git
-    name: Domino/1ESPipelines
-    ref: main
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
 
 parameters:
 - name: BuildSelfhost

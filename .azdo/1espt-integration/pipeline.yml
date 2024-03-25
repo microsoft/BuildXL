@@ -1,0 +1,39 @@
+# Pipeline to serve as canary test for 1ESPipelines.
+# This pipeline exercises the Unofficial template with the BuildXL workflow, running a distributed linux build
+variables:
+  Codeql.Enabled: false
+trigger: none  # Explicitly scheduled
+parameters:
+- name: type
+  type: string
+  default: Unofficial
+  values:
+  - Unofficial
+  - Official
+
+resources:
+  repositories:
+  - repository: 1ESPipelines
+    type: git
+    name: Domino/1ESPipelines
+    ref: main
+
+extends:
+  template: v1/1ES.${{ parameters.type }}.PipelineTemplate.yml@1esPipelines
+  parameters:
+    sdl:
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        image: Windows-SDL-Image
+        os: windows
+
+    stages:
+    - stage: Linux
+      dependsOn: []
+      jobs:
+      - template: /.azdo/1espt-integration/job.yml@self
+        parameters:
+          validationName: ${{ parameters.type }}
+          ${{ if eq(parameters.type, 'Unofficial')}}:
+            sdl:
+              enableAllTools: false

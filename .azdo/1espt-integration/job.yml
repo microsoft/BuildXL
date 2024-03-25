@@ -1,0 +1,68 @@
+parameters:
+- name: validationName
+  type: string
+- name: sdl
+  type: object
+  default: {}
+
+jobs:
+- job: Validation_1ESPT_${{ parameters.validationName }}
+  variables:
+  - group: "BuildXL Secrets"
+  displayName: 1ESPipelines BuildXL workflow [Linux] (${{ parameters.validationName }})
+  pool:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+  timeoutInMinutes: 90
+  templateContext:
+    sdl: ${{ parameters.sdl }}
+    # https://eng.ms/docs/cloud-ai-platform/devdiv/one-engineering-system-1es/1es-build/buildxl/ado-onboarding-steps/running-bxl
+    workflow: BuildXL
+    distribution:
+      enabled: true
+      workerCount: 1
+    cache:
+      storageAccountEndpoint: https://l3bxlselfhost.blob.core.windows.net
+      managedIdentityClientId: eb694749-b1d6-45bc-b7af-2bd81603968a
+      universe: ptintegrationtests
+      logGeneratedConfiguration: true
+      # cacheType: {default}
+      # retentionPolicyInDays: {default}
+
+    preBuildSteps: 
+    - template: /.azdo/common/use-latest-dotnet-sdk.yml@self
+
+    - bash: |
+        set -eu
+        # install mono
+        sudo apt-get update
+        sudo apt-get install -y mono-complete mono-devel
+        mono --version
+      displayName: Install Mono
+
+    - bash: |
+        sudo mkdir /home/subst
+        sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
+      displayName: Bind /home/subst to sources directory  
+      
+    buildXL:
+      # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
+      invocationPrefix: timeout --signal 9 60m bash .azdo/bxl_ado.sh
+      arguments: >-
+        --internal
+        --minimal
+        "/p:BUILDXL_FINGERPRINT_SALT=*"
+        /q:ReleaseLinux
+        /logToKusto
+        /cacheLogToKusto
+        /logObservedFileAccesses 
+        /logoutput:FullOutputOnError
+        /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
+        /forceAddExecutionPermission-
+        /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages
+        /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51
+      displayName: 1ESPT Integration Test (${{ parameters.validationName }})
+      workingDirectory: /home/subst
+      env:
+        PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
+        PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)

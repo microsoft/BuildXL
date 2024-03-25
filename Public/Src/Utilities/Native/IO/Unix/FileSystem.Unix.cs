@@ -664,17 +664,33 @@ namespace BuildXL.Native.IO.Unix
             if (result != 0)
             {
                 var errno = Marshal.GetLastWin32Error();
+                // For correspondence, see: https://www.man7.org/linux/man-pages/man2/link.2.html#ERRORS
                 switch (errno)
                 {
                     case (int)Errno.EACCES:
+                        // write access to the directory containing newpath is denied
+                    case (int)Errno.EPERM:
+                        // oldpath is a directory
+                        // the filesystem containing either src or dest does not support hard links
+                        // caller does not have permission to create a hardlink to file
+                        // oldpath is marked immutable or append-only
+                    case (int)Errno.EROFS:
+                        // read-only file system
                         return CreateHardLinkStatus.FailedAccessDenied;
                     case (int)Errno.ELOOP:
+                        // too many symbolic links encountered
                     case (int)Errno.EMLINK:
+                        // too many hard links to oldpath
                         return CreateHardLinkStatus.FailedDueToPerFileLinkLimit;
-                    case (int)Errno.EPERM:
-                        return CreateHardLinkStatus.FailedAccessDenied;
                     case (int)Errno.EEXIST:
+                        // newpath already exists
                         return CreateHardLinkStatus.FailedDestinationExists;
+                    case (int)Errno.EXDEV:
+                        // oldpath and newpath are on different filesystems
+                        return CreateHardLinkStatus.FailedSinceDestinationIsOnDifferentVolume;
+                    case (int)Errno.ENOENT:
+                        // oldpath does not exist
+                        return CreateHardLinkStatus.FailedSourceDoesNotExist;
                     default:
                         return CreateHardLinkStatus.Failed;
                 }

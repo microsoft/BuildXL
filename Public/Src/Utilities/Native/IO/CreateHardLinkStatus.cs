@@ -42,5 +42,10 @@ namespace BuildXL.Native.IO
         /// Destination already exists.
         /// </summary>
         FailedDestinationExists,
+
+        /// <summary>
+        /// Source does not exist.
+        /// </summary>
+        FailedSourceDoesNotExist
     }
 }

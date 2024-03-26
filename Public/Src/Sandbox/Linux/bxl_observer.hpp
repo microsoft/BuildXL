@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#pragma once
+#ifndef BUILDXL_SANDBOX_LINUX_BXL_OBSERVER_H
+#define BUILDXL_SANDBOX_LINUX_BXL_OBSERVER_H
 
 #include "dirent.h"
 #include <sched.h>
@@ -36,6 +37,7 @@
 #include "SandboxedPip.hpp"
 #include "utils.h"
 #include "common.h"
+#include "SandboxEvent.h"
 
 /*
  * This header is compiled into two different libraries: libDetours.so and libAudit.so.
@@ -130,7 +132,7 @@ static const char GLIBC_23[] = "GLIBC_2.3";
 // (or it does not get updated at all). Therefore, only report errno when   
 // the operation fails, and otherwise return 0. This allows the managed     
 // side of BuildXL to interpret when an operation succeeds or fails, and    
-// to retrieve the details in case of the failure.                                                                                         
+// to retrieve the details in case of the failure.
 #define GEN_FN_DEF(ret, name, ...)                                              \
     GEN_FN_DEF_REAL(ret, name, __VA_ARGS__)                                     \
     GEN_FN_FWD(ret, name, __VA_ARGS__)
@@ -331,6 +333,10 @@ private:
 
     void relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullPath);
     void resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid);
+    /**
+     * Resolves relative or file descriptor paths to absolute paths in a SandboxEvent.
+     */
+    void ResolveEventPaths(buildxl::linux::SandboxEvent &event);
     
     // Builds the report to be sent over the FIFO in the given buffer
     inline int BuildReport(char* buffer, int maxMessageLength, const AccessReport &report, const char *path, bool unexpectedReport = false)
@@ -387,6 +393,25 @@ public:
     { 
         return remove_path_from_LDPRELOAD(envp, detoursLibFullPath_);
     }
+
+    /**
+     * Performs an access check on the provided SandboxEvent and produces an access report.
+     * If a file descriptor or relative paths are provided in the event, this function will also resolve those to full paths.
+     * @param syscall_name The name of the syscall that triggered the access check.
+     * @param event The IOEvent to check.
+     * @param report The AccessReportGroup to populate with the access report.
+     */
+    AccessCheckResult CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, AccessReportGroup& report_group);
+
+    /**
+     * Sends a file access report to the managed side of the sandbox using the provided access report. 
+     */
+    void ReportAccess(const AccessReportGroup& report_group);
+
+    /**
+     * Performs an access check, builds a report, and then sends the report to the managed side of the sandbox.
+     */
+    void CheckAndReportAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event);
 
     // The following functions create an access report and performs an access check. They do not report the created access to managed BuildXL.
     // The created access report is returned as an out param in the given 'report' param. The returned report is ready to be sent with the exception of
@@ -685,3 +710,5 @@ public:
     GEN_FN_DEF(int, getdents64, unsigned int fd, struct linux_dirent64 *dirp, unsigned int count);
     =================================================================== */
 };
+
+#endif // BUILDXL_SANDBOX_LINUX_BXL_OBSERVER_H

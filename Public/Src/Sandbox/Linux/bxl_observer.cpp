@@ -177,6 +177,108 @@ void BxlObserver::Init()
     bxlObserverInitialized_= true;
 }
 
+// Access Reporting
+AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent &event, AccessReportGroup &report_group) {
+    // Resolve paths if needed
+    ResolveEventPaths(event);
+    
+    // Check cache and return early if this access has already been checked.
+    if (IsCacheHit(event.GetEventType(), event.GetSrcPath(), event.GetDstPath())) {
+        return sNotChecked;
+    }
+
+    // Get mode if not already set by caller
+    if (event.GetMode() == 0) {
+        event.SetMode(get_mode(event.GetSrcPath().c_str()));
+    }
+    
+    // Check if non-file, we don't want to report these.
+    if (is_non_file(event.GetMode())
+        || is_anonymous_file(event.GetSrcPath())
+        || is_anonymous_file(event.GetDstPath())) {
+        return sNotChecked;
+    }
+
+    // Perform access check
+    auto result = sNotChecked;
+    auto access_should_be_blocked = false;
+
+    if (IsEnabled(event.GetPid())) {
+        IOHandler handler(sandbox_);
+        handler.SetProcess(process_);
+
+        // We convert this to an IOEvent here because the macos handler expects an IOEvent. This can be removed once that dependency is removed
+        // TODO [pgunasekara]: Remove this once we remove IOEvent
+        IOEvent io_event(
+            /* pid */       event.GetPid(),
+            /* ppid */      event.GetEventType() == ES_EVENT_TYPE_NOTIFY_FORK ? event.GetPid() : 0,
+            /* ppid */      0,
+            /* type */      event.GetEventType(),
+            /* action */    ES_ACTION_TYPE_NOTIFY,
+            /* src */       event.GetSrcPath(),
+            /* dst */       event.GetDstPath(),
+            /* exec */      event.GetEventType() == ES_EVENT_TYPE_NOTIFY_FORK ? event.GetSrcPath() : progFullPath_,
+            /* mode */      event.GetMode(),
+            /* modified */  false,
+            /* error */     event.GetError());
+
+        result = handler.CheckAccessAndBuildReport(io_event, report_group);
+        access_should_be_blocked = result.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
+        report_group.SetErrno(event.GetError());
+
+        if (!access_should_be_blocked) {
+            // This access won't be blocked, so let's cache it.
+            // We cache event types that are always a miss in IsCacheHit, but this also should be fine.
+            CheckCache(event.GetEventType(), event.GetSrcPath(), /* addEntryIfMissing */ true);
+        }
+    }
+
+    // Log path
+    LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscall_name, event.GetEventType(), event.GetSrcPath(),
+        !result.ShouldReport() ? "[Ignored]" : result.ShouldDenyAccess() ? "[Denied]" : "[Allowed]",
+        access_should_be_blocked ? "[Blocked]" : "");
+
+    return result;
+}
+
+void BxlObserver::ReportAccess(const AccessReportGroup& report_group) {
+    SendReport(report_group);
+}
+
+void BxlObserver::CheckAndReportAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event) {
+    auto report_group = AccessReportGroup();
+    CreateAccess(syscall_name, event, report_group);
+    ReportAccess(report_group);
+}
+
+void BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
+    switch (event.GetPathType()) {
+        case buildxl::linux::SandboxEventPathType::kFileDescriptors: {
+            event.UpdatePaths(fd_to_path(event.GetSrcFd()), fd_to_path(event.GetDstFd()));
+            break;
+        }
+        case buildxl::linux::SandboxEventPathType::kRelativePaths: {
+            char resolved_path_src[PATH_MAX] = { 0 };
+            char resolved_path_dst[PATH_MAX] = { 0 };
+
+            // TODO: do we need to normalize these paths?
+            relative_to_absolute(event.GetSrcPath().c_str(), event.GetSrcFd(), event.GetPid(), resolved_path_src);
+            if (event.GetDstFd() != -1) {
+                relative_to_absolute(event.GetDstPath().c_str(), event.GetDstFd(), event.GetPid(), resolved_path_dst);
+            }
+
+            event.UpdatePaths(resolved_path_src, resolved_path_dst);
+            break;
+        } 
+        case buildxl::linux::SandboxEventPathType::kAbsolutePaths: {
+            // Paths already resolved
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...)
 {
     if (LogDebugEnabled())
@@ -680,6 +782,10 @@ bool BxlObserver::is_non_file(const mode_t mode)
 
 bool BxlObserver::is_anonymous_file(string path)
 {
+    if (path.empty()) {
+        return false;
+    }
+
     // The path to an anonymous file reported by stat will always be '/memfd:<fileName> (deleted)'
     // the length of the string prefix '/memfd:', 7, is used as the max for characters to compare in strncmp
     return strncmp(path.c_str(), "/memfd:", 7) == 0;
@@ -1026,8 +1132,12 @@ std::string BxlObserver::fd_to_path(int fd, pid_t associatedPid)
 {
     char path[PATH_MAX] = {0};
 
+    if (fd < 0) {
+        return "";
+    }
+
     // ignore if fd is out of range
-    if (fd < 0 || fd >= MAX_FD)
+    if (fd >= MAX_FD)
     {
         read_path_for_fd(fd, path, PATH_MAX, associatedPid);
         return path;

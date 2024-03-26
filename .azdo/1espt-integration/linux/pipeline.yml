@@ -31,7 +31,7 @@ extends:
     - stage: Linux
       dependsOn: []
       jobs:
-      - template: /.azdo/1espt-integration/job.yml@self
+      - template: /.azdo/1espt-integration/linux/job.yml@self
         parameters:
           validationName: ${{ parameters.type }}
           ${{ if eq(parameters.type, 'Unofficial')}}:

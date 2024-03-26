@@ -348,7 +348,7 @@ config({
                 { id: "Crc32.NET", version: "1.2.0" },
 
                 // Windows CoW on ReFS
-                { id: "CopyOnWrite", version: "0.3.7" },
+                { id: "CopyOnWrite", version: "0.3.8" },
 
                 // Windows SDK
                 // CODESYNC: This version should be updated together with the version number in Public/Sdk/Experimental/Msvc/WindowsSdk/windowsSdk.dsc

@@ -4299,7 +4299,10 @@ BOOL WINAPI Detoured_DeleteFileW(_In_ LPCWSTR lpFileName)
     }
 
     BOOL result = Real_DeleteFileW(lpFileName);
-    error = GetLastError();
+    if (!result)
+    {
+        error = GetLastError();
+    }
 
     if (!result && accessCheck.Result != ResultAction::Allow)
     {
@@ -4479,8 +4482,6 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
             dwFlags);
     }
 
-    DWORD lastError = GetLastError();
-
     // Check to see if we can write at the symlink location.
     FileOperationContext opContextSrc = FileOperationContext(
         L"CreateSymbolicLink_Source",
@@ -4518,21 +4519,25 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
         | FILE_ATTRIBUTE_REPARSE_POINT
         | ((dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0 ? FILE_ATTRIBUTE_DIRECTORY : 0UL);
 
+    DWORD error = ERROR_SUCCESS;
+
     if (accessCheckSrc.ShouldDenyAccess())
     {
-        lastError = accessCheckSrc.DenialError();
-        ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, lastError);
-        SetLastError(lastError);
+        error = accessCheckSrc.DenialError();
+        ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, error);
+        SetLastError(error);
         return FALSE;
     }
 
-    DWORD error = ERROR_SUCCESS;
     BOOLEAN result = Real_CreateSymbolicLinkW(
         lpSymlinkFileName,
         lpTargetFileName,
         dwFlags);
 
-    error = GetLastError();
+    if (!result)
+    {
+        error = GetLastError();
+    }
 
     // We do not report directory only for ReadAccess. So there is no need to enforce report level to ReportLevel::Report.
 
@@ -4840,7 +4845,11 @@ BOOL WINAPI Detoured_FindNextFileW(
     DetouredScope scope;
     DWORD error = ERROR_SUCCESS;
     BOOL result = Real_FindNextFileW(hFindFile, lpFindFileData);
-    error = GetLastError();
+
+    if (!result)
+    {
+        error = GetLastError();
+    }
 
     if (scope.Detoured_IsDisabled() || IsNullOrInvalidHandle(hFindFile) || lpFindFileData == nullptr)
     {
@@ -4930,7 +4939,10 @@ BOOL WINAPI Detoured_GetFileInformationByHandleEx(
             lpFileInformation,
             dwBufferSize);
 
-    error = GetLastError();
+    if (!result)
+    {
+        error = GetLastError();
+    }
 
     if (scope.Detoured_IsDisabled() || IsNullOrInvalidHandle(hFile) || fileInformationClass != FileBasicInfo || lpFileInformation == nullptr)
     {
@@ -4974,7 +4986,11 @@ BOOL WINAPI Detoured_FindClose(_In_ HANDLE handle)
     CloseHandleOverlay(handle, true);
 
     BOOL result = Real_FindClose(handle);
-    error = GetLastError();
+
+    if (!result)
+    {
+        error = GetLastError();
+    }
 
     if (scope.Detoured_IsDisabled() || IsNullOrInvalidHandle(handle))
     {
@@ -4994,7 +5010,10 @@ BOOL WINAPI Detoured_GetFileInformationByHandle(
 
     DWORD error = ERROR_SUCCESS;
     BOOL result = Real_GetFileInformationByHandle(hFile, lpFileInformation);
-    error = GetLastError();
+    if (!result)
+    {
+        error = GetLastError();
+    }
 
     if (scope.Detoured_IsDisabled() || IsNullOrInvalidHandle(hFile) || lpFileInformation == nullptr)
     {
@@ -5496,7 +5515,10 @@ BOOL WINAPI Detoured_CreateDirectoryW(
     }
 
     BOOL result = Real_CreateDirectoryW(lpPathName, lpSecurityAttributes);
-    error = GetLastError();
+    if (!result)
+    {
+        error = GetLastError();
+    }
 
     if (!result && accessCheck.Result != ResultAction::Allow)
     {

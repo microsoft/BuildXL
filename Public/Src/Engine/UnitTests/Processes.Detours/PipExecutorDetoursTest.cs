@@ -709,6 +709,63 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        /// <summary>
+        /// Intentionally call Windows API erroneously before successfully deleting a file.
+        /// </summary>
+        /// <remarks>
+        /// DeleteFileW apparently does not set last error to ERROR_SUCCESS on successful call.
+        /// Detours before Commit 6f91c0bf corrected it. With that commit, Detours simply sets it with whatever the last error in the system.
+        /// Consider the following scenario where a call to DeleteFileW follows an erroneous API call. 
+        ///
+        ///     HANDLE hFile = CreateFileW("nonexistent-file"); // last error code should be 2 after this call
+        ///     BOOL result = DeleteFileW("existing-file");       // successful
+        ///     wprintf(L"Result: %d, Last error: %d", GetLastError());
+        ///
+        /// A. Without Detours: "Result: 1, Last error: 2" -- file not found, due to CreateFileW("nonexistent-file");
+        /// B. With Detours before commit 6f91c0bf: "Result: 1, Last error: 0" -- Detours corrected the error by setting ERROR_SUCCESS
+        /// C. With Detours with commit 6f91c0bf: "Result: 1, Last error: 2" -- Detours simply set with whatever last error is.
+        ///
+        /// Unfortunately, customers are relying on the fact that if an API call is successful, which in this case `result != 0`, then the expected error code is ERROR_SUCCESS.
+        /// </remarks>
+        [Fact]
+        public async Task CallCreateErrorBeforeDeleteFile()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string testFile = tempFiles.GetFileName("toDelete.txt");
+
+                WriteFile(testFile);
+                AbsolutePath deletedFile = AbsolutePath.Create(pathTable, testFile);
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallCreateErrorBeforeDeleteFileTest",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                        FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(deletedFile), FileExistence.Optional)),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out _);
+
+                VerifyNormalSuccess(context, result);
+            }
+        }
+
         [Fact]
         public async Task CallDetouredZwCreateFile()
         {

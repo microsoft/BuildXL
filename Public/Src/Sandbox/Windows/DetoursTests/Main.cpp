@@ -128,6 +128,33 @@ int CallDeleteFileStdRemoveTest()
     return static_cast<int>(GetLastError());
 }
 
+int CallCreateErrorBeforeDeleteFileTest()
+{
+    HANDLE hFile = CreateFileW(
+        L"nonExistent.txt",
+        0,
+        FILE_SHARE_READ,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        // Expect invalid handle.
+        return -1;
+    }
+
+    const BOOL result = DeleteFileW(L"toDelete.txt");
+    if (!result)
+    {
+        // Expect file was found and got deleted.
+        return -2;
+    }
+
+    // Expect that the last error is ERROR_SUCCESS.
+    return static_cast<int>(GetLastError());
+}
+
 int CallDeleteDirectoryTest()
 {
     RemoveDirectory(L"input\\");
@@ -1411,6 +1438,7 @@ static void LoggingTests(const string& verb)
     IF_COMMAND(CallDeleteFileTest);
     IF_COMMAND(CallDeleteDirectoryTest);
     IF_COMMAND(CallDeleteFileStdRemoveTest);
+    IF_COMMAND(CallCreateErrorBeforeDeleteFileTest);
     IF_COMMAND(CallCreateDirectoryTest);
 
 #undef IF_COMMAND1

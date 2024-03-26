@@ -8,6 +8,7 @@ int CallCreatePipeTest();
 int CallDirectoryEnumerationTest();
 int CallDeleteFileTest();
 int CallDeleteFileStdRemoveTest();
+int CallCreateErrorBeforeDeleteFileTest();
 int CallDeleteDirectoryTest();
 int CallCreateDirectoryTest();
 int CallDetouredZwCreateFile();

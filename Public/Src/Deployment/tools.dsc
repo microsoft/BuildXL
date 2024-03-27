@@ -88,7 +88,8 @@ namespace Tools {
             definition: deployment,
             targetLocation: (qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework) // If targetFramework is not a default one (net8.0), then we put it in a separate directory.
             ? r`${qualifier.configuration}/tools/DistributedBuildRunner/${frameworkSpecificPart}` 
-            : r`${qualifier.targetFramework}/${qualifier.configuration}/tools/DistributedBuildRunner/${qualifier.targetRuntime}`    
+            : r`${qualifier.targetFramework}/${qualifier.configuration}/tools/DistributedBuildRunner/${qualifier.targetRuntime}`,
+            omitFromDrop: true,
         });
     }
 }

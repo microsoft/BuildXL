@@ -120,7 +120,6 @@ jobs:
       targetType: 'inline'
       script: |
         Remove-Item -Path "$(Agent.TempDirectory)/DownloadedDrop/debug" -Recurse -Force
-        Remove-Item -Path "$(Agent.TempDirectory)/DownloadedDrop/release/tests" -Recurse -Force
       errorActionPreference: 'continue'
 
   # Set PAT to be able to publish to CB artifact feed. That step is injected by 1ESPT

@@ -74,6 +74,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteOption("includeProcessTree", "Optional. Include a field with information of all reported processes under that pip.", shortName: "pt");
             writer.WriteOption("useOriginalPaths", "Optional. Use original (non-subst'd) paths for tool paths and arguments in the process tree breakdown.");
             writer.WriteOption("csv", "Optional. The output will be simplified and written to a csv file.", shortName: "c");
+            writer.WriteOption("resultFilter", "Optional. Filter to pips with a specific result (e.g.: `Executed` for just PIPs that were executed).", shortName: "rf");
         }
     }
 

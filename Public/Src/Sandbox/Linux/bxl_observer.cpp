@@ -178,12 +178,12 @@ void BxlObserver::Init()
 }
 
 // Access Reporting
-AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent &event, AccessReportGroup &report_group) {
+AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, AccessReportGroup& report_group, bool check_cache) {
     // Resolve paths if needed
     ResolveEventPaths(event);
     
     // Check cache and return early if this access has already been checked.
-    if (IsCacheHit(event.GetEventType(), event.GetSrcPath(), event.GetDstPath())) {
+    if (check_cache && IsCacheHit(event.GetEventType(), event.GetSrcPath(), event.GetDstPath())) {
         return sNotChecked;
     }
 
@@ -245,9 +245,9 @@ void BxlObserver::ReportAccess(const AccessReportGroup& report_group) {
     SendReport(report_group);
 }
 
-void BxlObserver::CheckAndReportAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event) {
+void BxlObserver::CreateAndReportAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, bool check_cache) {
     auto report_group = AccessReportGroup();
-    CreateAccess(syscall_name, event, report_group);
+    CreateAccess(syscall_name, event, report_group, check_cache);
     ReportAccess(report_group);
 }
 

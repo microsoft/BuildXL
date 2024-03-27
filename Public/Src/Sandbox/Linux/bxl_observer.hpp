@@ -398,10 +398,11 @@ public:
      * Performs an access check on the provided SandboxEvent and produces an access report.
      * If a file descriptor or relative paths are provided in the event, this function will also resolve those to full paths.
      * @param syscall_name The name of the syscall that triggered the access check.
-     * @param event The IOEvent to check.
+     * @param event The SandboxEvent to check.
      * @param report The AccessReportGroup to populate with the access report.
+     * @param check_cache Whether to cache events. Events are cached based on event type and path.
      */
-    AccessCheckResult CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, AccessReportGroup& report_group);
+    AccessCheckResult CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, AccessReportGroup& report_group, bool check_cache = true);
 
     /**
      * Sends a file access report to the managed side of the sandbox using the provided access report. 
@@ -409,9 +410,10 @@ public:
     void ReportAccess(const AccessReportGroup& report_group);
 
     /**
-     * Performs an access check, builds a report, and then sends the report to the managed side of the sandbox.
+     * Creates and sends a file access report to the managed side based on a sandbox event, ignoring the result of the access check.
+     * Used for interposings that we don't need to block (like stats) or where we can't block (like the PTrace sandbox) 
      */
-    void CheckAndReportAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event);
+    void CreateAndReportAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, bool check_cache = true);
 
     // The following functions create an access report and performs an access check. They do not report the created access to managed BuildXL.
     // The created access report is returned as an out param in the given 'report' param. The returned report is ready to be sent with the exception of

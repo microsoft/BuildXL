@@ -392,7 +392,9 @@ export namespace DropDaemonRunner {
             additionalEnvironmentVars: args.additionalEnvironmentVars,
             untrackedDirectoryScopes: args.untrackedDirectoryScopes,
             timeoutInMilliseconds: args.timeoutInMilliseconds,
-            warningTimeoutInMilliseconds: args.warningTimeoutInMilliseconds
+            warningTimeoutInMilliseconds: args.warningTimeoutInMilliseconds,
+            operationTimeoutMinutes: args.operationTimeoutMinutes,
+            maxOperationRetries: args.maxOperationRetries
         };
     }
 

@@ -1981,25 +1981,15 @@ namespace BuildXL.Scheduler
                 IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleDynamicOutputs = null;
 
                 // A collection of formatted semistable hashes for pips which will have verbose sandbox logging enabled. 
-                var isVerboseLoggingEnabled = environment.PipSpecificPropertiesConfig?.PipHasProperty(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, pip.SemiStableHash) == true;
+                var isVerboseLoggingEnabled = 
+                    environment.PipSpecificPropertiesConfig?.PipHasProperty(PipSpecificPropertiesConfig.PipSpecificProperty.EnableVerboseProcessLogging, pip.SemiStableHash) == true
+                    || configuration.Sandbox.LogObservedFileAccesses;
 
                 // Retry pip count up to limit if we produce result without detecting file access.
                 // There are very rare cases where a child process is started not Detoured and we don't observe any file accesses from such process.
                 while (true)
                 {
                     lastObservedMemoryCounters = default(ProcessMemoryCountersSnapshot);
-
-                    var verboseLogging = false;
-
-                    if (isVerboseLoggingEnabled)
-                    {
-                        verboseLogging = true;
-                    }
-
-                    if (userRetry && EngineEnvironmentSettings.VerboseModeForPipsOnRetry)
-                    {
-                        verboseLogging = true;
-                    }
 
                     var executor = new SandboxedProcessPipExecutor(
                         context,
@@ -2031,7 +2021,7 @@ namespace BuildXL.Scheduler
                         pipGraphFileSystemView: environment.PipGraphView,
                         runLocation: runLocation,
                         sandboxFileSystemView: environment.State.FileSystemView,
-                        verboseProcessLogging: verboseLogging);
+                        verboseProcessLogging: isVerboseLoggingEnabled || (userRetry && EngineEnvironmentSettings.VerboseModeForPipsOnRetry));
 
                     resourceScope.RegisterQueryRamUsageMb(
                         () =>

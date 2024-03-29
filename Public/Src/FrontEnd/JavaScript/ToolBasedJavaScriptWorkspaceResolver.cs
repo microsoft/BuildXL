@@ -174,8 +174,8 @@ namespace BuildXL.FrontEnd.JavaScript
             }
             else
             {
-                // We always use cmd.exe as the tool so if the node.exe location is not provided we can just pass 'node.exe' and let PATH do the work.
-                nodeExeLocation = "node.exe";
+                // We always use cmd/bash as the tool so if the node location is not provided we can just pass 'node.exe'/'node' and let PATH do the work.
+                nodeExeLocation = OperatingSystemHelper.IsWindowsOS ? "node.exe" : "node";
             }
 
             SandboxedProcessResult result = await RunJavaScriptGraphBuilderAsync(nodeExeLocation, outputFile, buildParameters, foundLocation);

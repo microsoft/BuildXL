@@ -9,6 +9,7 @@
 #include <sys/ptrace.h>
 #include <sys/reg.h>
 #include <sys/wait.h>
+#include <sys/user.h>
 
 #define SYSCALL_NAME_TO_NUMBER(name) __NR_##name
 #define SYSCALL_NAME_STRING(name) #name
@@ -341,57 +342,120 @@ void *PTraceSandbox::GetArgumentAddr(int index)
     return (void *)addr;
 }
 
+unsigned long long PTraceSandbox::ArgumentIndexToRegister(int index, struct user_regs_struct *regs)
+{
+    // Order of the arguments on the stack: %rdi, %rsi, %rdx, %rcx, %r8, and %r9
+    // Reference: http://6.s081.scripts.mit.edu/sp18/x86-64-architecture-guide.html#:~:text=The%20caller%20uses%20registers%20to,off%20the%20stack%20in%20order.
+    switch (index)
+    {
+        case 0: // Return value
+            return regs->rax;
+        case 1:
+            return regs->rdi;
+        case 2:
+            return regs->rsi;
+        case 3:
+            return regs->rdx;
+        case 4:
+            return regs->r10;
+        case 5:
+            return regs->r8;
+        case 6:
+            return regs->r9;
+        default:
+            // We don't currently support reading more than the 6 arguments above with ptrace
+            return 0;
+    }
+}
+
 std::string PTraceSandbox::ReadArgumentString(char *syscall, int argumentIndex, bool nullTerminated, int length)
 {
     void *addr = GetArgumentAddr(argumentIndex);
-    // We are only interested in reading paths from the arguments so PATH_MAX (+1 for null terminator) should be safe to use here
-    char argument[PATH_MAX + 1];
     char *addrRegValue = (char *)ptrace(PTRACE_PEEKUSER, m_traceePid, addr, 0);
+    
+    return ReadArgumentStringAtAddr(syscall, addrRegValue, nullTerminated, length);
+}
+
+std::string PTraceSandbox::ReadArgumentStringAtAddr(char *syscall, char *addr, bool nullTerminated, int length) {
     int currentStringLength = 0;
+    std::string argument;
+
+    argument.reserve(PATH_MAX); // We are mostly interested in reading paths from the arguments so PATH_MAX should be enough here for most cases
 
     while (true)
     {
-        long addrMemoryLocation = ptrace(PTRACE_PEEKTEXT, m_traceePid, addrRegValue, NULL);
+        long addrMemoryLocation = ptrace(PTRACE_PEEKTEXT, m_traceePid, addr, NULL);
         if (addrMemoryLocation == -1)
         {
-            BXL_LOG_DEBUG(m_bxl, "[PTrace] Error occured while executing PTRACE_PEEKTEXT for syscall '%s' argument '%d' : '%s'", syscall, argumentIndex, strerror(errno));
-            argument[currentStringLength] = '\0';
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] Error occured while executing PTRACE_PEEKTEXT for syscall '%s' : '%s'", syscall, strerror(errno));
             break;
         }
 
-        addrRegValue += sizeof(long);
+        addr += sizeof(long);
 
         char *currentArgReadChar = (char *)&addrMemoryLocation;
         bool finishedReadingArgument = false;
 
         for (int i = 0; i < sizeof(long); i++)
         {
-            argument[currentStringLength] = *currentArgReadChar;
-            currentStringLength++;
-
             if ((nullTerminated && *currentArgReadChar == '\0') || (length > 0 && currentStringLength == length))
             {
                 finishedReadingArgument = true;
                 break;
             }
 
+            argument.push_back(*currentArgReadChar);
+            currentStringLength++;
             currentArgReadChar++;
         }
 
         if (finishedReadingArgument)
         {
-            argument[currentStringLength] = '\0';
             break;
         }
     }
 
-    return std::string(argument);
+    return argument;
 }
 
 unsigned long PTraceSandbox::ReadArgumentLong(int argumentIndex)
 {
     void *addr = GetArgumentAddr(argumentIndex);
     return ptrace(PTRACE_PEEKUSER, m_traceePid, addr, NULL);
+}
+
+std::string PTraceSandbox::ReadArgumentVector(char *syscall, int argumentIndex)
+{
+    struct user_regs_struct regs;
+    ptrace(PTRACE_GETREGS, m_traceePid, 0, &regs);
+
+    auto addr = ArgumentIndexToRegister(argumentIndex, &regs); // Pointer to argv
+    bool firstArgument = true;
+    std::string arguments;
+    arguments.reserve(PATH_MAX);
+
+    while (true) {
+        // Pointer to each individual element in the argv array
+        auto argPtr = ptrace(PTRACE_PEEKTEXT, m_traceePid, addr, NULL);
+        if (argPtr == -1) {
+            BXL_LOG_DEBUG(m_bxl, "[PTrace] Error occured while parsing arguments for syscall '%s' with error %s", syscall, strerror(errno));
+            break;
+        }
+
+        if (argPtr == 0) {
+            // End of the argv array
+            break;
+        }
+
+        arguments.append((!firstArgument ? " " : "") + ReadArgumentStringAtAddr(syscall, (char *)argPtr, /* nullTerminated */ true, /* length */ 0));
+        addr += sizeof(unsigned long long);
+
+        if (firstArgument) {
+            firstArgument = false;
+        }
+    }
+
+    return arguments;
 }
 
 int PTraceSandbox::GetErrno()
@@ -563,6 +627,10 @@ HANDLER_FUNCTION(execveat)
     UpdateTraceeTableForExec(exePath);
 
     m_bxl->report_exec(SYSCALL_NAME_STRING(execveat), basename(mutableExePath), exePath.c_str(), /* error*/ 0, /* mode */ 0, m_traceePid);
+    if (m_bxl->IsReportingProcessArgs()) {
+        m_bxl->report_exec_args(m_traceePid, ReadArgumentVector(SYSCALL_NAME_STRING(execveat), /* argumentIndex */ 3).c_str());
+    }
+    
 }
 
 HANDLER_FUNCTION(execve)
@@ -574,7 +642,10 @@ HANDLER_FUNCTION(execve)
 
     UpdateTraceeTableForExec(file);
 
-    m_bxl->report_exec(SYSCALL_NAME_STRING(execve), basename(mutableFilePath), file.c_str(), /* error*/ 0, /* mode */ 0, m_traceePid);
+    m_bxl->report_exec(SYSCALL_NAME_STRING(execve), basename(mutableFilePath), file.c_str(), /* error */ 0, /* mode */ 0, m_traceePid);
+    if (m_bxl->IsReportingProcessArgs()) {
+        m_bxl->report_exec_args(m_traceePid, ReadArgumentVector(SYSCALL_NAME_STRING(execve), /* argumentIndex */ 2).c_str());
+    }
 }
 
 HANDLER_FUNCTION(stat)

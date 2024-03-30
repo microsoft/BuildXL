@@ -584,6 +584,13 @@ void BxlObserver::report_exec_args(pid_t pid)
         }
         close(fd);
 
+        report_exec_args(pid, cmdLine.c_str());
+    }
+}
+
+void BxlObserver::report_exec_args(pid_t pid, const char *args) {
+    if (IsReportingProcessArgs())
+    {
         AccessReport report =
         {
             .operation        = kOpProcessCommandLine,
@@ -600,7 +607,8 @@ void BxlObserver::report_exec_args(pid_t pid)
             .shouldReport     = true,
         };
 
-        strlcpy(report.path, cmdLine.c_str(), sizeof(report.path));
+        // This may truncate the path but that's okay because it's the process command line.
+        strlcpy(report.path, args, sizeof(report.path));
         SendReport(report, /* isDebugMessage */ false, /* useSecondaryPipe */ false);
     }
 }

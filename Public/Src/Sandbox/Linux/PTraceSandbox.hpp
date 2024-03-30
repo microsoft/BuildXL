@@ -61,8 +61,18 @@ private:
 
     void *GetArgumentAddr(int index);
 
+    /*
+     * Given a set of registers from PTRACE_GETREGS, this function will return the value of the argument at the given index.
+    */
+    static unsigned long long ArgumentIndexToRegister(int index, struct user_regs_struct *regs);
+
     // @brief Gets the offset to read an argument at a given index starting from 1 (0 is used for the return value of the function)
     std::string ReadArgumentString(char *syscall, int argumentIndex, bool nullTerminated, int length = 0);
+
+    /*
+     * Gets a string at the provided address.
+     */
+    std::string ReadArgumentStringAtAddr(char *syscall, char *addr, bool nullTerminated, int length);
     /*
      * @brief Reads an argument string at a given address with ptrace
      * @param argumentIndex Index of the argument to read starting from 1 (or 0 for the return value)
@@ -71,6 +81,12 @@ private:
      * @return String containing the argument
      */
     unsigned long ReadArgumentLong(int argumentIndex);
+
+    /**
+     * Reads a set of arguments provided to an execve or an execveat call.
+     */
+    std::string ReadArgumentVector(char *syscall, int argumentIndex);
+
     void ReportOpen(std::string path, int oflag, std::string syscallName);
     void ReportCreate(std::string syscallName, int dirfd, const char *pathname, mode_t mode, long returnValue = 0, bool checkCache = true);
     int GetErrno();

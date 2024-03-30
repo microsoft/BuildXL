@@ -297,7 +297,6 @@ private:
     bool IsMonitoringChildProcesses() const { return !pip_ || CheckMonitorChildProcesses(pip_->GetFamFlags()); }
     bool IsPTraceEnabled() const { return pip_ && (CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()) || CheckUnconditionallyEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags())); }
     bool IsPTraceForced(const char *path);
-    bool IsReportingProcessArgs() const { return !pip_ || CheckReportProcessArgs(pip_->GetFamFlags()); }
 
     inline bool IsValid() const             { return sandbox_ != NULL; }
     inline bool IsEnabled(pid_t pid) const
@@ -378,8 +377,11 @@ public:
     const char* GetSecondaryReportsPath() { return secondaryReportPath_; }
     const char* GetDetoursLibPath() { return detoursLibFullPath_; }
 
+    bool IsReportingProcessArgs() const { return !pip_ || CheckReportProcessArgs(pip_->GetFamFlags()); }
+
     void report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode = 0, pid_t associatedPid = 0);
     void report_exec_args(pid_t pid);
+    void report_exec_args(pid_t pid, const char *args);
     void report_audit_objopen(const char *fullpath)
     {
         IOEvent event(ES_EVENT_TYPE_NOTIFY_OPEN, ES_ACTION_TYPE_NOTIFY, fullpath, progFullPath_, S_IFREG);

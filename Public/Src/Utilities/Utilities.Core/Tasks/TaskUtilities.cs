@@ -155,24 +155,6 @@ namespace BuildXL.Utilities.Core.Tasks
         }
 
         /// <summary>
-        /// Creates a task that will complete when either <paramref name="task"/> is completed, or when <paramref name="cancellationToken"/> is cancelled.
-        /// </summary>
-        public static async Task<T> AwaitWithCancellationAsync<T>(Task<T> task, CancellationToken cancellationToken)
-        {
-            using var cancellable = ToAwaitable(cancellationToken);
-            await Task.WhenAny(task, cancellable.CompletionTask);
-
-            // We will always prefer to await the task itself if possible.
-            if (task.IsCompleted)
-            {
-                return await task;
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-            return await task;
-        }
-
-        /// <summary>
         /// Gets <see cref="CancellationTokenAwaitable"/> from a given <paramref name="token"/> that can be used in async methods to await the cancellation.
         /// </summary>
         /// <remarks>

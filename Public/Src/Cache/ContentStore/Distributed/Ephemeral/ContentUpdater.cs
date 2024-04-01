@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
@@ -36,7 +35,7 @@ public abstract class ForwardingContentUpdaterBase : StartupShutdownComponentBas
 
     public record Configuration
     {
-        public TimeSpan UpdateLocationsTimeout { get; set; }
+        public TimeSpan UpdateLocationsTimeout { get; set; } = TimeSpan.FromMilliseconds(100);
 
         public TimeSpan? UpdateLocationsTracingInterval { get; set; }
     }
@@ -179,15 +178,7 @@ public class ShardedContentUpdater : ForwardingContentUpdaterBase
 {
     public new record Configuration : ForwardingContentUpdaterBase.Configuration
     {
-        public required int WriteCandidates { get; init; }
-
-        public required TimeSpan BatchingUpdateLocationsTimeout { get; init; }
-
-        public required int BatchingMaxDegreeOfParallelism { get; init; }
-
-        public required int BatchingMaxBatchSize { get; init; }
-
-        public required TimeSpan BatchingInterval { get; init; }
+        public int WriteCandidates { get; set; } = 2;
     }
 
     protected override Tracer Tracer { get; } = new(nameof(ShardedContentUpdater));
@@ -196,10 +187,6 @@ public class ShardedContentUpdater : ForwardingContentUpdaterBase
     private readonly IMultiCandidateShardingScheme<int, MachineId> _scheme;
     private readonly ClusterState _clusterState;
 
-    private readonly BatchingQueue<MachineLocation, UpdateLocationsRequest, BoolResult> _batchingQueue;
-
-    new internal Configuration Settings;
-
     public ShardedContentUpdater(
         Configuration settings,
         IClientAccessor<MachineLocation, IContentUpdater> clients,
@@ -207,61 +194,19 @@ public class ShardedContentUpdater : ForwardingContentUpdaterBase
         ClusterState clusterState)
     : base(settings)
     {
-        Settings = settings;
         _clients = clients;
         _scheme = scheme;
         _clusterState = clusterState;
 
-        _batchingQueue = new BatchingQueue<MachineLocation, UpdateLocationsRequest, BoolResult>(ProcessBatch, settings.BatchingInterval, settings.BatchingMaxBatchSize, settings.BatchingMaxDegreeOfParallelism);
         LinkLifetime(_clients);
-    }
-
-    protected override Task<BoolResult> ShutdownComponentAsync(OperationContext context)
-    {
-        _batchingQueue.Dispose();
-        return base.ShutdownComponentAsync(context);
-    }
-
-    private async Task ProcessBatch(MachineLocation location, IReadOnlyList<BatchingQueue<MachineLocation, UpdateLocationsRequest, BoolResult>.Item> pending, CancellationToken cancellationToken)
-    {
-        using var context = TrackShutdown(StartupContext, cancellationToken);
-
-        var request = UpdateLocationsRequest.Merge(pending.Select(item => item.Value));
-
-        try
-        {
-            var task = _clients.WithClientAsync(
-                context,
-                request,
-                location,
-                (context, client, request) => client.UpdateLocationsAsync(context, request),
-                Counters[Counter.UpdateLocationsSuccess],
-                Counters[Counter.UpdateLocationsFailure],
-                Counters[Counter.UpdateLocationsTotal]);
-
-            var result = await TaskUtilities.WithTimeoutAsync(task, Settings.BatchingUpdateLocationsTimeout, context.Context.Token);
-
-            foreach (var item in pending)
-            {
-                item.Succeed(result);
-            }
-        }
-        catch (Exception ex)
-        {
-            var result = new BoolResult(ex, $"Batch request against {location} failed");
-            foreach (var item in pending)
-            {
-                item.Fail(ex);
-            }
-        }
     }
 
     /// <inheritdoc />
     public override async Task<BoolResult> ForwardUpdatedLocationsAsync(OperationContext context, UpdateLocationsRequest request)
     {
+        var pending = new List<Task<BoolResult>>();
         var candidates = ((Configuration)Settings).WriteCandidates;
 
-        var tasks = new List<Task<BoolResult>>(capacity: candidates);
         foreach (var entry in request.Entries)
         {
             var hash = entry.Hash;
@@ -287,11 +232,18 @@ public class ShardedContentUpdater : ForwardingContentUpdaterBase
                     continue;
                 }
 
-                tasks.Add(_batchingQueue.Enqueue(location, singleton, context.Token));
+                pending.Add(_clients.WithClientAsync(
+                    context,
+                    singleton,
+                    location,
+                    (context, client, request) => client.UpdateLocationsAsync(context, request),
+                    Counters[Counter.UpdateLocationsSuccess],
+                    Counters[Counter.UpdateLocationsFailure],
+                    Counters[Counter.UpdateLocationsTotal]));
             }
         }
 
-        var results = await TaskUtilities.SafeWhenAll(tasks);
+        var results = await TaskUtilities.SafeWhenAll(pending);
         return results.And();
     }
 }

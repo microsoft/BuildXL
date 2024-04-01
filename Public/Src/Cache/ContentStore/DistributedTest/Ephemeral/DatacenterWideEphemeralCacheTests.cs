@@ -19,7 +19,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
 
 [TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
 [Collection("Redis-based tests")]
-[Trait("DisableFailFast", "true")]
 public class DatacenterWideEphemeralCacheTests : EphemeralCacheTestsBase
 {
     protected override Mode TestMode => Mode.DatacenterWide;

@@ -1155,7 +1155,7 @@ void PTraceSandbox::HandleChildProcess(const char *syscall)
     // When PTRACE_O_TRACEFORK/CLONE/VFORK is set, the child process is automatically ptraced as well
     m_traceeTable.push_back(std::make_tuple(childpid, exePath));
 
-    BXL_LOG_DEBUG(m_bxl, "[PTrace] Added new tracee with PID '%d'", childpid);
+    BXL_LOG_DEBUG(m_bxl, "[PTrace] Added new tracee with PID '%d', parent PID: '%d'", childpid, m_traceePid);
 }
 
 HANDLER_FUNCTION(fork)

@@ -644,7 +644,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExecutePipFailedDistributionFailureWarning,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureIssue,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Failing pip step {step} by {callerName} because execution request could not be sent to worker {workerName}: {errorMessage}. Because it still fails after {maxRetryLimit} retries, the scheduler will execute the step on the orchestrator.")]

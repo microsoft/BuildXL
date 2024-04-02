@@ -62,7 +62,7 @@ namespace BuildXL.Scheduler.Fingerprints
     /// </remarks>
     public static class ObservedInputProcessor
     {
-        private static readonly Task<FileContentInfo?> s_nullFileContentInfoTask = Task.FromResult<FileContentInfo?>(null);
+        private static readonly Task<FileMaterializationInfo?> s_nullFileMaterializationInfoTask = Task.FromResult<FileMaterializationInfo?>(null);
 
         /// <summary>
         /// Processes the paths in an <see cref="ObservedPathSet"/>. In two-phase lookup, this is used to derive a strong fingerprint
@@ -307,7 +307,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 {
                     for (int i = 0; i < observations.Length; i++)
                     {
-                        observationInfos[i] = GetObservationInfo(environment, target, observations[i], allowUndeclaredSourceReads);
+                        observationInfos[i] = GetObservationInfo(environment, target, observations[i], allowUndeclaredSourceReads, alwaysGetInputContent: false);
                     }
                 }
 
@@ -330,11 +330,13 @@ namespace BuildXL.Scheduler.Fingerprints
                         AbsolutePath path = observationInfo.Path;
                         ObservationFlags observationFlags = observationInfo.ObservationFlags;
                         FileArtifact fakeArtifact = FileArtifact.CreateSourceFile(path);
+                        FileMaterializationInfo? fileMaterializationInfo;
                         FileContentInfo? pathContentInfo;
 
                         using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorTryQuerySealedInputContentDuration, fakeArtifact))
                         {
-                            pathContentInfo = await observationInfos[i].FileContentInfoTask;
+                            fileMaterializationInfo = await observationInfo.FileMaterializationInfoTask;
+                            pathContentInfo = fileMaterializationInfo?.FileContentInfo;
                         }
 
                         // TODO: Don't use UntrackedFile for this...
@@ -422,7 +424,15 @@ namespace BuildXL.Scheduler.Fingerprints
                             }
                             else
                             {
-                                type = MapPathExistenceToObservedInputType(pathTable, path, maybeType.Result, observationFlags);
+                                type = MapPathExistenceToObservedInputType(
+                                    pathTable,
+                                    path,
+                                    maybeType.Result,
+                                    observationFlags,
+                                    () => fileMaterializationInfo.HasValue || observationFlags.IsHashingRequired()
+                                        ? fileMaterializationInfo
+                                        : GetObservationInfo(environment, target, observation, allowUndeclaredSourceReads, alwaysGetInputContent: true)
+                                            .FileMaterializationInfoTask.GetAwaiter().GetResult());
                             }
                         }
 
@@ -560,7 +570,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         var flags = observationInfos[i].ObservationFlags;
 
                         // Call GetAwaiter().GetResult() since we awaited above so we know the task has completed successfully
-                        FileContentInfo? pathContentInfo = observationInfos[i].FileContentInfoTask.GetAwaiter().GetResult();
+                        FileContentInfo? pathContentInfo = observationInfos[i].FileMaterializationInfoTask.GetAwaiter().GetResult()?.FileContentInfo;
                         var type = observationTypes[i];
 
                         if (type == ObservedInputType.FileContentRead && !pathContentInfo.HasValue)
@@ -947,20 +957,21 @@ namespace BuildXL.Scheduler.Fingerprints
             TEnv environment,
             TTarget target,
             TObservation observation,
-            bool allowUndeclaredSourceReads)
+            bool allowUndeclaredSourceReads,
+            bool alwaysGetInputContent)
             where TTarget : struct, IObservedInputProcessingTarget<TObservation>
             where TEnv : IObservedInputProcessingEnvironment
         {
             AbsolutePath path = target.GetPathOfObservation(observation);
             var flags = target.GetObservationFlags(observation);
-            if (flags.IsHashingRequired())
+            if (flags.IsHashingRequired() || alwaysGetInputContent)
             {
-                var fileContentInfoTask = environment.TryQuerySealedOrUndeclaredInputContent(path, target.Description, allowUndeclaredSourceReads);
-                return new ObservationInfo(path, flags, fileContentInfoTask);
+                var fileMaterializationInfoTask = environment.TryQuerySealedOrUndeclaredInputContent(path, target.Description, allowUndeclaredSourceReads);
+                return new ObservationInfo(path, flags, fileMaterializationInfoTask);
             }
 
             // If flags have FileProbe, DirectoryLocation, or Enumeration, we do not need to hash the path.
-            return new ObservationInfo(path, flags, s_nullFileContentInfoTask);
+            return new ObservationInfo(path, flags, s_nullFileMaterializationInfoTask);
         }
 
         /// <summary>
@@ -1099,7 +1110,12 @@ namespace BuildXL.Scheduler.Fingerprints
             }
         }
 
-        private static ObservedInputType MapPathExistenceToObservedInputType(PathTable pathTable, AbsolutePath path, PathExistence pathExistence, ObservationFlags observationFlags)
+        private static ObservedInputType MapPathExistenceToObservedInputType(
+            PathTable pathTable,
+            AbsolutePath path,
+            PathExistence pathExistence,
+            ObservationFlags observationFlags,
+            Func<FileMaterializationInfo?> getMaterializationInfo)
         {
             switch (pathExistence)
             {
@@ -1108,7 +1124,9 @@ namespace BuildXL.Scheduler.Fingerprints
                 case PathExistence.ExistsAsFile:
                     if ((observationFlags & (ObservationFlags.DirectoryLocation | ObservationFlags.Enumeration)) != 0)
                     {
-                        if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(pathTable)))
+                        FileMaterializationInfo? fileMaterializationInfo;
+                        if ((fileMaterializationInfo = getMaterializationInfo()).HasValue && isDirectorySymlinkOrJunction(fileMaterializationInfo.Value)
+                            || FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(pathTable)))
                         {
                             if ((observationFlags & ObservationFlags.Enumeration) != 0)
                             {
@@ -1148,6 +1166,15 @@ namespace BuildXL.Scheduler.Fingerprints
 
                 default:
                     throw Contract.AssertFailure("Unhandled PathExistence value");
+            }
+
+            // CODESYNC: Sync this code with FileUtilities.IsDirectorySymlinkOrJunction
+            static bool isDirectorySymlinkOrJunction(FileMaterializationInfo materializationInfo)
+            {
+                var reparsePointType = materializationInfo.ReparsePointInfo.ReparsePointType;
+                return reparsePointType == ReparsePointType.DirectorySymlink
+                    || reparsePointType == ReparsePointType.Junction
+                    || reparsePointType == ReparsePointType.UnixSymlink;
             }
         }
 
@@ -1190,24 +1217,24 @@ namespace BuildXL.Scheduler.Fingerprints
             public readonly ObservationFlags ObservationFlags;
 
             /// <summary>
-            /// Task for computing file content info.
+            /// Task for computing file materialization info.
             /// </summary>
             /// <remarks>
             /// If an observation is a file and it exists, then file content info cannot be null.
             /// </remarks>
-            public readonly Task<FileContentInfo?> FileContentInfoTask;
+            public readonly Task<FileMaterializationInfo?> FileMaterializationInfoTask;
 
             public ObservationInfo(
                 AbsolutePath path,
                 ObservationFlags observationFlags,
-                Task<FileContentInfo?> fileContentInfoTask)
+                Task<FileMaterializationInfo?> fileMaterializationInfo)
             {
                 Contract.Requires(path.IsValid);
-                Contract.Requires(fileContentInfoTask != null);
+                Contract.Requires(fileMaterializationInfo != null);
 
                 Path = path;
                 ObservationFlags = observationFlags;
-                FileContentInfoTask = fileContentInfoTask;
+                FileMaterializationInfoTask = fileMaterializationInfo;
             }
         }
     }
@@ -1301,12 +1328,12 @@ namespace BuildXL.Scheduler.Fingerprints
             bool trackPathExistence);
 
         /// <summary>
-        /// See <see cref="FileContentManager.TryQuerySealedOrUndeclaredInputContentAsync"/>
+        /// See <see cref="FileContentManager.TryQuerySealedOrUndeclaredMaterializationInfoAsync"/>
         /// </summary>
-        Task<FileContentInfo?> TryQuerySealedOrUndeclaredInputContent(AbsolutePath sealedPath, string consumerDescription, bool allowUndeclaredSourceReads);
+        Task<FileMaterializationInfo?> TryQuerySealedOrUndeclaredInputContent(AbsolutePath sealedPath, string consumerDescription, bool allowUndeclaredSourceReads);
 
         /// <summary>
-        /// See <see cref="BuildXL.Scheduler.Artifacts.FileContentManager.ListSealedDirectoryContents"/>
+        /// See <see cref="FileContentManager.ListSealedDirectoryContents"/>
         /// </summary>
         SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealedDirectoryContents(DirectoryArtifact directoryArtifact);
 
@@ -1617,14 +1644,14 @@ namespace BuildXL.Scheduler.Fingerprints
     /// </remarks>
     internal class ObservedInputProcessingEnvironmentAdapter : IObservedInputProcessingEnvironment, IDisposable
     {
-        private static readonly ObjectPool<PipFileSystemView> s_pool = new ObjectPool<PipFileSystemView>(
+        private static readonly ObjectPool<PipFileSystemView> s_pool = new(
             () => new PipFileSystemView(),
             state => state.Clear());
 
-        private static readonly ConcurrentBigSet<AbsolutePath> RegexFilterPaths = new ConcurrentBigSet<AbsolutePath>();
-        private static readonly ConcurrentBigSet<AbsolutePath> UnionFilterPaths = new ConcurrentBigSet<AbsolutePath>();
-        private static readonly ConcurrentBigSet<AbsolutePath> AllowAllFilterPaths = new ConcurrentBigSet<AbsolutePath>();
-        private static readonly ConcurrentBigSet<AbsolutePath> SearchPathFilterPaths = new ConcurrentBigSet<AbsolutePath>();
+        private static readonly ConcurrentBigSet<AbsolutePath> s_regexFilterPaths = new();
+        private static readonly ConcurrentBigSet<AbsolutePath> s_unionFilterPaths = new();
+        private static readonly ConcurrentBigSet<AbsolutePath> s_allowAllFilterPaths = new();
+        private static readonly ConcurrentBigSet<AbsolutePath> s_searchPathFilterPaths = new();
 
         private FileSystemView FileSystemView => m_env.State.FileSystemView;
 
@@ -1980,19 +2007,19 @@ namespace BuildXL.Scheduler.Fingerprints
                 bool cacheableFingerprint = !eventData.IsSearchPath && enumerationMode != DirectoryEnumerationMode.MinimalGraph && enumerationMode != DirectoryEnumerationMode.MinimalGraphWithAlienFiles;
                 eventData.EnumerationMode = enumerationMode;
 
-                if (filter == DirectoryMembershipFilter.AllowAllFilter && AllowAllFilterPaths.Add(directoryPath))
+                if (filter == DirectoryMembershipFilter.AllowAllFilter && s_allowAllFilterPaths.Add(directoryPath))
                 {
                     Counters.IncrementCounter(PipExecutorCounter.UniqueDirectoriesAllowAllFilter);
                 }
-                else if (filter is RegexDirectoryMembershipFilter && RegexFilterPaths.Add(directoryPath))
+                else if (filter is RegexDirectoryMembershipFilter && s_regexFilterPaths.Add(directoryPath))
                 {
                     Counters.IncrementCounter(PipExecutorCounter.UniqueDirectoriesRegexFilter);
                 }
-                else if (filter is SearchPathDirectoryMembershipFilter && SearchPathFilterPaths.Add(directoryPath))
+                else if (filter is SearchPathDirectoryMembershipFilter && s_searchPathFilterPaths.Add(directoryPath))
                 {
                     Counters.IncrementCounter(PipExecutorCounter.UniqueDirectoriesSearchPathFilter);
                 }
-                else if (filter is UnionDirectoryMembershipFilter && UnionFilterPaths.Add(directoryPath))
+                else if (filter is UnionDirectoryMembershipFilter && s_unionFilterPaths.Add(directoryPath))
                 {
                     Counters.IncrementCounter(PipExecutorCounter.UniqueDirectoriesUnionFilter);
                 }
@@ -2082,9 +2109,9 @@ namespace BuildXL.Scheduler.Fingerprints
             }
         }
 
-        public Task<FileContentInfo?> TryQuerySealedOrUndeclaredInputContent(AbsolutePath sealedPath, string consumerDescription, bool allowUndeclaredSourceReads)
+        public Task<FileMaterializationInfo?> TryQuerySealedOrUndeclaredInputContent(AbsolutePath sealedPath, string consumerDescription, bool allowUndeclaredSourceReads)
         {
-            return m_env.State.FileContentManager.TryQuerySealedOrUndeclaredInputContentAsync(sealedPath, consumerDescription, allowUndeclaredSourceReads);
+            return m_env.State.FileContentManager.TryQuerySealedOrUndeclaredMaterializationInfoAsync(sealedPath, consumerDescription, allowUndeclaredSourceReads);
         }
 
         private Action<AbsolutePath, string> FilteredHandledEntry(AbsolutePath directory, Action<AbsolutePath, string> handleEntry)

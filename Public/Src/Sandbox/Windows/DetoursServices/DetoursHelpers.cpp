@@ -1082,7 +1082,7 @@ bool ParseFileAccessManifest(
         std::wstring oldPolicyPath = std::wstring(policyResult.GetCanonicalizedPath().GetPathString());
         size_t oldLen = oldPolicyPath.length();
 
-        Dbg(L",Resolved reparse point from:\t'%ws' to '%ws'\ttranslated to:\t%ws\tcanonicalized to:\t%ws\twithout prefix: %ws\tnew policy path:\t%ws %zu [%wc]\told policy result path:\t%ws %zu [%wc] [%wc] [%wc] [%wc] [%wc]",
+        Dbg(L"Resolved reparse point from:\t'%ws' to '%ws'\ttranslated to:\t%ws\tcanonicalized to:\t%ws\twithout prefix: %ws\tnew policy path:\t%ws %zu [%wc]\told policy result path:\t%ws %zu [%wc] [%wc] [%wc] [%wc] [%wc]",
             wszFileName,
             fullyResolvedPath.c_str(),
             translatedName.c_str(),

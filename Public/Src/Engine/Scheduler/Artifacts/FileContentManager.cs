@@ -55,7 +55,7 @@ namespace BuildXL.Scheduler.Artifacts
     ///
     /// Querying:
     /// * <see cref="GetInputContent"/> retrieves hash of reported content
-    /// * <see cref="TryQuerySealedOrUndeclaredInputContentAsync"/> gets the hash of the input file inside a sealed directory or a file that
+    /// * <see cref="TryQuerySealedOrUndeclaredMaterializationInfoAsync"/> gets the hash of the input file inside a sealed directory or a file that
     /// is outside any declared containers, but allowed undeclared reads are on.
     /// This may entail hashing the file.
     /// * <see cref="ListSealedDirectoryContents"/> gets the files inside a sealed directory (including dynamic directories which
@@ -1062,14 +1062,6 @@ namespace BuildXL.Scheduler.Artifacts
         /// - that path is not under any sealed container (source or full/partial seal directory), but undeclared source reads are allowed. In that
         /// case the path is also unversioned because immutability is also guaranteed by dynamic enforcements.
         /// This method always succeeds or fails synchronously.
-        /// </summary>
-        public async Task<FileContentInfo?> TryQuerySealedOrUndeclaredInputContentAsync(AbsolutePath path, string consumerDescription, bool allowUndeclaredSourceReads)
-        {
-            return (await TryQuerySealedOrUndeclaredInputContentInternalAsync(path, consumerDescription, allowUndeclaredSourceReads)).fileMaterialization?.FileContentInfo;
-        }
-
-        /// <summary>
-        /// <see cref="TryQueryUndeclaredInputContentAsync(AbsolutePath, string)"/>
         /// </summary>
         public async Task<FileMaterializationInfo?> TryQuerySealedOrUndeclaredMaterializationInfoAsync(AbsolutePath path, string consumerDescription, bool allowUndeclaredSourceReads)
         {

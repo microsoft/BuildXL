@@ -9,9 +9,9 @@ using BuildXL.Native.IO;
 using BuildXL.Native.IO.Unix;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -809,7 +809,56 @@ SubFolder/symlink -> ../../{inputDirName}/";
             }
         }
 
-        
+        [TheoryIfSupported(requiresSymlinkPermission:true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void ProbingDirectorySymlinkUnderOutputDirectoryWithLazyMiminalMaterialization(bool enableLazyMinimalOutputMaterialization)
+        {
+            // This test is doing directory symlink probing under an output directory, so explicit directory probe reporting should be enabled.
+            Configuration.Sandbox.ExplicitlyReportDirectoryProbes = true;
+
+            if (enableLazyMinimalOutputMaterialization)
+            {
+                Configuration.Schedule.RequiredOutputMaterialization = global::BuildXL.Utilities.Configuration.RequiredOutputMaterialization.Minimal;
+            }
+
+            var targetDirectory = CreateUniqueDirectoryArtifact(ObjectRoot, "Target");
+            var outputDirectory = CreateOutputDirectoryArtifact();
+            var directorySymlink = CreateOutputFileArtifact(outputDirectory, "dirSymlink");
+
+            var symlinkProducerBuilder = CreatePipBuilder(
+            [
+                Operation.CreateSymlink(directorySymlink, targetDirectory, Operation.SymbolicLinkFlag.DIRECTORY, doNotInfer: true),
+            ]);
+            symlinkProducerBuilder.AddOutputDirectory(outputDirectory);
+            var symlinkProducer = SchedulePipBuilder(symlinkProducerBuilder).Process;
+
+            var proberBuilder = CreatePipBuilder(
+            [
+                Operation.Probe(directorySymlink, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            ]);
+            proberBuilder.AddInputDirectory(outputDirectory);
+            var prober = SchedulePipBuilder(proberBuilder).Process;
+
+            RunScheduler().AssertSuccess();
+            var maybeSymlinkExists = FileUtilities.TryProbePathExistence(ArtifactToString(directorySymlink), followSymlink: false);
+            XAssert.PossiblySucceeded(maybeSymlinkExists);
+            XAssert.AreEqual(PathExistence.ExistsAsFile, maybeSymlinkExists.Result);
+
+            Directory.Delete(ArtifactToString(directorySymlink));
+            XAssert.IsTrue(Directory.Exists(ArtifactToString(targetDirectory)));
+            maybeSymlinkExists = FileUtilities.TryProbePathExistence(ArtifactToString(directorySymlink), followSymlink: false);
+            XAssert.PossiblySucceeded(maybeSymlinkExists);
+            XAssert.AreEqual(PathExistence.Nonexistent, maybeSymlinkExists.Result);
+
+            var runResult = RunScheduler().AssertSuccess().AssertCacheHit(symlinkProducer.PipId, prober.PipId);
+
+            // Bug 2165434: prober actually executed, but on storing two-phase cache entry to the cache, it got converged, so it is reported as a cache hit
+            //              Without the fix, the convergence will happen and so the ProcessPipDeterminismRecoveredFromCache counter will be 1.
+            XAssert.AreEqual(0, runResult.PipExecutorCounters.GetCounterValue(PipExecutorCounter.ProcessPipDeterminismRecoveredFromCache));
+        }
+
+
         public void EnumeratingAndDeletingDirectoriesWithDirectorySymlinks()
         {
             AbsolutePath rootDirAbsPath = CreateUniqueObjPath("layout");

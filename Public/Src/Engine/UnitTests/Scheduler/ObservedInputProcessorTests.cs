@@ -780,7 +780,7 @@ namespace Test.BuildXL.Scheduler
                     return m_harness.m_enumerableDirectories[directoryPath];
                 }
 
-                public Task<FileContentInfo?> TryQuerySealedOrUndeclaredInputContent(AbsolutePath sealedPath, string consumerDescription = null, bool allowUndeclaredSourceReads = false)
+                public Task<FileMaterializationInfo?> TryQuerySealedOrUndeclaredInputContent(AbsolutePath sealedPath, string consumerDescription = null, bool allowUndeclaredSourceReads = false)
                 {
                     // We only allow queries of files actually named by the test.
                     if (!m_harness.m_fileContent.ContainsKey(sealedPath) && !m_harness.m_directories.Contains(sealedPath))
@@ -791,7 +791,7 @@ namespace Test.BuildXL.Scheduler
                     FileContentInfo versionedHash;
                     if (m_harness.m_sealedPathContentHashes.TryGetValue(sealedPath, out versionedHash))
                     {
-                        return Task.FromResult<FileContentInfo?>(m_harness.m_sealedPathContentHashes[sealedPath]);
+                        return Task.FromResult<FileMaterializationInfo?>(FileMaterializationInfo.CreateWithUnknownName(versionedHash));
                     }
 
                     var pathTable = Context.PathTable;
@@ -804,19 +804,19 @@ namespace Test.BuildXL.Scheduler
                         {
                             if (m_harness.m_directories.Contains(sealedPath))
                             {
-                                return Task.FromResult<FileContentInfo?>(null);
+                                return Task.FromResult<FileMaterializationInfo?>(null);
                             }
 
                             FileContentInfo fileContentInfo;
                             return m_harness.m_fileContent.TryGetValue(sealedPath, out fileContentInfo)
-                                ? Task.FromResult<FileContentInfo?>(fileContentInfo)
-                                : Task.FromResult<FileContentInfo?>(null);
+                                ? Task.FromResult<FileMaterializationInfo?>(FileMaterializationInfo.CreateWithUnknownName(fileContentInfo))
+                                : Task.FromResult<FileMaterializationInfo?>(null);
                         }
 
                         currentPath = currentPath.GetParent(pathTable);
                     }
 
-                    return Task.FromResult<FileContentInfo?>(null);
+                    return Task.FromResult<FileMaterializationInfo?>(null);
                 }
 
                 public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealedDirectoryContents(DirectoryArtifact directoryArtifact)

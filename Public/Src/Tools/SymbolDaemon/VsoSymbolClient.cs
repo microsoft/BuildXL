@@ -201,6 +201,23 @@ namespace Tool.SymbolDaemon
 
             m_logger.Verbose(requestDetails);
 
+            // Set temporary expiration to 24h (this should be enough as long as we don't have builds that run longer than a day).
+            // This way if a request is not finalized, it won't use the default expiration which is too long.
+            // The proper (user-defined) expiration will be set during the finalize call.
+            //
+            // Ideally, we'd call SymbolServiceClient.UpdateRequestAsync to set the expiration, however, that method is not
+            // a part of ISymbolServiceClient interface that we use here. Luckily, ISymbolServiceClient.FinalizeRequestAsync
+            // can be used instead. Under the hood, when isUpdateOperation is set to true, it's essentially executing the
+            // same code as UpdateRequestAsync would execute.
+            var updateResult = await m_symbolClient.FinalizeRequestAsync(
+                m_requestId,
+                expirationDate: DateTime.UtcNow.AddDays(1),
+                isUpdateOperation: true,
+                cancellationToken: token);
+
+            // As a sanity check, confirm that the request has not been finalized.
+            Contract.Assert(updateResult.Status == RequestStatus.Created);
+
             return result;
         }
 

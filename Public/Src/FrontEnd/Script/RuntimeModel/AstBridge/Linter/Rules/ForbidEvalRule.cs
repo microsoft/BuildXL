@@ -13,6 +13,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidEvalRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         public static ForbidEvalRule CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidEvalRule();

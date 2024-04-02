@@ -13,6 +13,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidThrowRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         /// <nodoc />
         public static ForbidThrowRule CreateAndRegister(AnalysisContext context)
         {
@@ -31,8 +34,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
                 TypeScript.Net.Types.SyntaxKind.ThrowStatement);
         }
 
-        /// <inheritdoc />
-        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.SpecFile;
 
         private static void LogThrowIsNotAllowed(INode node, DiagnosticContext context)
         {

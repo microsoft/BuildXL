@@ -24,6 +24,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidClassRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         public static ForbidClassRule CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidClassRule();

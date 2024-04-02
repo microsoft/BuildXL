@@ -13,6 +13,10 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidLabelRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
+
         public static ForbidLabelRule CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidLabelRule();

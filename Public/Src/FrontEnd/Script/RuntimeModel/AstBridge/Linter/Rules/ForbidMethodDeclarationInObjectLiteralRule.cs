@@ -16,6 +16,10 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidMethodDeclarationInObjectLiteralRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
+
         public static ForbidMethodDeclarationInObjectLiteralRule CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidMethodDeclarationInObjectLiteralRule();

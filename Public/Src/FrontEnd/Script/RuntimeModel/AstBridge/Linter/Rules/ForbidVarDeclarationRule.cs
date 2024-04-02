@@ -13,6 +13,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidVarDeclarationRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         public static ForbidVarDeclarationRule CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidVarDeclarationRule();

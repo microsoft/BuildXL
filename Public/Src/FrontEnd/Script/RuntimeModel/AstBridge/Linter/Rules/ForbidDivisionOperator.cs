@@ -13,6 +13,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidDivisionOperator()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         public static ForbidDivisionOperator CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidDivisionOperator();
@@ -28,10 +31,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
                 TypeScript.Net.Types.SyntaxKind.BinaryExpression);
         }
 
-        /// <inheritdoc />
-        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.SpecFile;
-
-        private static void CheckDivisionIsNotAllowed(INode node, DiagnosticContext context)
+          private static void CheckDivisionIsNotAllowed(INode node, DiagnosticContext context)
         {
             var binaryExpression = node.As<BinaryExpression>();
             if (binaryExpression.OperatorToken.Kind == TypeScript.Net.Types.SyntaxKind.SlashToken)

@@ -29,7 +29,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         }
 
         /// <inheritdoc />
-        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.SpecFile;
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
 
         private static void CheckEqualsEqualsIsNotAllowed(INode node, DiagnosticContext context)
         {

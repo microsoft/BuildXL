@@ -25,6 +25,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private EnforceSimplifiedForRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         public static EnforceSimplifiedForRule CreateAndRegister(AnalysisContext context)
         {
             var result = new EnforceSimplifiedForRule();

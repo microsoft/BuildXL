@@ -17,6 +17,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidBindingPatternInDeclarationRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         public static ForbidBindingPatternInDeclarationRule CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidBindingPatternInDeclarationRule();

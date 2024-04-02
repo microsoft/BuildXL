@@ -25,6 +25,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidSomeTopLevelDeclarationsRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.SpecFile | RuleAnalysisScope.BuildListFile;
+
         public static ForbidSomeTopLevelDeclarationsRule CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidSomeTopLevelDeclarationsRule();

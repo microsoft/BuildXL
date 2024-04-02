@@ -13,6 +13,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private EnforceVariableInitializationRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         public static EnforceVariableInitializationRule CreateAndRegister(AnalysisContext context)
         {
             var result = new EnforceVariableInitializationRule();

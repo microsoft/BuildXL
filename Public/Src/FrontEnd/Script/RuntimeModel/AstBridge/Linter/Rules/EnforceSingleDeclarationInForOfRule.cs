@@ -14,6 +14,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private EnforceSingleDeclarationInForOfRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         public static EnforceSingleDeclarationInForOfRule CreateAndRegister(AnalysisContext context)
         {
             var result = new EnforceSingleDeclarationInForOfRule();

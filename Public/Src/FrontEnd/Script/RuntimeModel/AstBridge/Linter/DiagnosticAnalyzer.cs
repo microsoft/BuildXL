@@ -83,6 +83,16 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         }
 
         /// <summary>
+        /// Analyze a configuration file (referenced via importFile from the main config file).
+        /// </summary>
+        public bool AnalyzeSpecConfigurationFile(ISourceFile file, Logger logger, LoggingContext loggingContext, PathTable pathTable)
+        {
+            Contract.Requires(file != null);
+
+            return AnalyzeSourceFile(file, RuleAnalysisScope.BuildListFile, logger, loggingContext, pathTable);
+        }
+
+        /// <summary>
         /// Analyze package configuration file (a.k.a. package.config.dsc).
         /// </summary>
         public bool AnalyzePackageConfigurationFile(ISourceFile file, Logger logger, LoggingContext loggingContext, PathTable pathTable)

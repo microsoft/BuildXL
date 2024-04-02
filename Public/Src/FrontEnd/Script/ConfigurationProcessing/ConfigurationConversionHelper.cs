@@ -25,6 +25,7 @@ using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Binder = TypeScript.Net.Binding.Binder;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.FrontEnd.Script.Constants;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -54,6 +55,11 @@ namespace BuildXL.FrontEnd.Script
             /// Module configuration.
             /// </summary>
             ModuleConfig,
+
+            /// <summary>
+            /// Additional configuration file (referenced from the primary configuration via importFile).
+            /// </summary>
+            SpecConfig,
         }
 
         private ConfigurationKind Kind { get; }
@@ -120,7 +126,32 @@ namespace BuildXL.FrontEnd.Script
 
             if (validate)
             {
-                ValidateConfigFile(specFileMap[configPath]);
+                // If it is the primary configuration file, we need to make sure we also validate any other
+                // file that is imported via importFile from it.
+                if (ExtensionUtilities.IsGlobalConfigurationFile(configPath.GetName(Context.PathTable).ToString(Context.StringTable)))
+                {
+                    // In some tests the source file is null.
+                    foreach (var kvp in specFileMap.Where(kvp => kvp.Value != null))
+                    {
+                        var filename = kvp.Key.GetName(Context.PathTable).ToString(Context.StringTable);
+                        // Skip module configuration files, they are validated independently
+                        if (ExtensionUtilities.IsModuleConfigurationFile(filename))
+                        {
+                            continue;
+                        }
+
+                        var kind = ExtensionUtilities.IsGlobalConfigurationFile(filename) 
+                            ? ConfigurationKind.PrimaryConfig 
+                            : ConfigurationKind.SpecConfig;
+
+                        ValidateConfigFile(kvp.Value, kind);
+                    }
+                }
+                else
+                {
+                    // Otherwise we just need to validate that single file
+                    ValidateConfigFile(specFileMap[configPath], Kind);
+                }
             }
 
             if (Logger.HasErrors)
@@ -387,15 +418,18 @@ namespace BuildXL.FrontEnd.Script
             }
         }
 
-        private void ValidateConfigFile(ISourceFile sourceFile)
+        private void ValidateConfigFile(ISourceFile sourceFile, ConfigurationKind kind)
         {
-            switch (Kind)
+            switch (kind)
             {
                 case ConfigurationKind.PrimaryConfig:
                     Linter.Value.AnalyzeRootConfigurationFile(sourceFile, Logger, Context.LoggingContext, Context.PathTable);
                     break;
                 case ConfigurationKind.ModuleConfig:
                     Linter.Value.AnalyzePackageConfigurationFile(sourceFile, Logger, Context.LoggingContext, Context.PathTable);
+                    break;
+                case ConfigurationKind.SpecConfig:
+                    Linter.Value.AnalyzeSpecConfigurationFile(sourceFile, Logger, Context.LoggingContext, Context.PathTable);
                     break;
                 default:
                     throw Contract.AssertFailure(UnimplementedOperationForConfigKindErrorMessage);

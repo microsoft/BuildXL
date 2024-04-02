@@ -13,6 +13,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidDefaultArgumentRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
         public static ForbidDefaultArgumentRule CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidDefaultArgumentRule();

@@ -13,6 +13,10 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
         private ForbidNullRule()
         { }
 
+        /// <inheritdoc />
+        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.All;
+
+
         public static ForbidNullRule CreateAndRegister(AnalysisContext context)
         {
             var result = new ForbidNullRule();
@@ -27,9 +31,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
                 CheckNullIsNotAllowed,
                 TypeScript.Net.Types.SyntaxKind.NullKeyword);
         }
-
-        /// <inheritdoc />
-        public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.SpecFile;
 
         private static void CheckNullIsNotAllowed(INode node, DiagnosticContext context)
         {

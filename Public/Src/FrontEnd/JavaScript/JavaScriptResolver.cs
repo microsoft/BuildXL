@@ -589,9 +589,9 @@ namespace BuildXL.FrontEnd.JavaScript
 
             var passThroughVars = process.EnvironmentVariables
                 .Where(var => var.IsPassThrough)
-                .Select(var => (Name: var.Name.ToString(Context.StringTable), Value: var.Value.ToString(Context.PathTable)))
-                .Where(tuple => !BuildParameters.DisallowedTempVariables.Contains(tuple.Name.ToUpper()))
-                .Select(tuple => new EvaluationResult(tuple.Name))
+                .Select(var => var.Name.ToString(Context.StringTable))
+                .Where(name => !BuildParameters.DisallowedTempVariables.Contains(name.ToUpper()))
+                .Select(name => new EvaluationResult(name))
                 .ToArray();
 
             // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc (JavaScriptProject)

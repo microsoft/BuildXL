@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
@@ -113,10 +114,12 @@ export function custom(project: JavaScriptProject) : TransformerExecuteResult {
         [Fact]
         public void JavaScriptProjectEnvFiltering()
         {
-            Dictionary<string, string> envVars = new Dictionary<string, string>();
-            envVars.Add("TMP", "/SamplePath");      // Should be filtered
-            envVars.Add("TEMP", "/SamplePath");     // Should be filtered
-            envVars.Add("NOTTEMP", "/SamplePath");  // Should not be filtered
+            Dictionary<string, DiscriminatingUnion<string, UnitValue>> envVars = new Dictionary<string, DiscriminatingUnion<string, UnitValue>>();
+            envVars.Add("TMP", new DiscriminatingUnion<string, UnitValue>("/SamplePath"));      // Should be filtered
+            envVars.Add("TEMP", new DiscriminatingUnion<string, UnitValue>("/SamplePath"));     // Should be filtered
+            envVars.Add("NOTTEMP", new DiscriminatingUnion<string, UnitValue>("/SamplePath"));  // Should not be filtered
+            envVars.Add("PASSTHROUGH", new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit));  // Should not be filtered
+
 
             var config =
                 Build(
@@ -135,6 +138,8 @@ export function custom(project: JavaScriptProject) : TransformerExecuteResult {
     Contract.requires(!project.environmentVariables.some(envVar => envVar.name === 'TEMP'));
     Contract.requires(!project.environmentVariables.some(envVar => envVar.name === 'TMP'));
     Contract.requires(project.tempDirectory.name === a`t`);
+
+    Contract.requires(project.passThroughEnvironmentVariables.some(envVar => envVar === 'PASSTHROUGH'));
 
     return undefined;
 }

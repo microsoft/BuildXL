@@ -151,7 +151,7 @@ int CallCreateErrorBeforeDeleteFileTest()
         return -2;
     }
 
-    // Expect that the last error is ERROR_SUCCESS.
+    // Expect that the last error is *not* ERROR_SUCCESS, but ERROR_FILE_NOT_FOUND.
     return static_cast<int>(GetLastError());
 }
 

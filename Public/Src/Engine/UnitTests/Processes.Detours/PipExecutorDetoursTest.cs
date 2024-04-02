@@ -725,7 +725,8 @@ namespace Test.BuildXL.Processes.Detours
         /// B. With Detours before commit 6f91c0bf: "Result: 1, Last error: 0" -- Detours corrected the error by setting ERROR_SUCCESS
         /// C. With Detours with commit 6f91c0bf: "Result: 1, Last error: 2" -- Detours simply set with whatever last error is.
         ///
-        /// Unfortunately, customers are relying on the fact that if an API call is successful, which in this case `result != 0`, then the expected error code is ERROR_SUCCESS.
+        /// QuickBuild tracker relies on behavior B, i.e., it only considers accesses with exit code 0 for its observations.
+        /// However, Detours should not lie about the last error code, and so it is expected to return whatever the last error code is.
         /// </remarks>
         [Fact]
         public async Task CallCreateErrorBeforeDeleteFile()
@@ -762,7 +763,12 @@ namespace Test.BuildXL.Processes.Detours
                     pip: process,
                     errorString: out _);
 
-                VerifyNormalSuccess(context, result);
+                // Expect ERROR_FILE_NOT_FOUND from probing non-existent file CreateFileW("nonexistent-file") although
+                // the subsequent file deletion is successful.
+                VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
+                VerifyExitCode(context, result, NativeIOConstants.ErrorFileNotFound);
+
+                SetExpectedFailures(1, 0);
             }
         }
 

@@ -690,11 +690,11 @@ namespace BuildXL.Pips.Builders
                 directoryOutputMap
                 );
 
-            
+
             // Trusting statically declared accesses is not compatible with declaring opaque or source sealed directories
             if ((Options & Options.TrustStaticallyDeclaredAccesses) != Options.None && 
                     (directoryOutputs.Length > 0 || 
-                    m_inputDirectories.Instance.Any(directory => pipConstructionHelper.PipGraph.TryGetSealDirectoryKind(directory, out var kind) && kind.IsSourceSeal()))
+                    m_inputDirectories.Instance.Any(directory => pipConstructionHelper.TryGetSealDirectoryKind(directory, out var kind) && kind.IsSourceSeal()))
             )
             {
                 processOutputs = null;

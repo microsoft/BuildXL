@@ -60,7 +60,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private static EvaluationResult GetIpcServerMoniker(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
-            return EvaluationResult.Create(context.GetPipConstructionHelper().PipGraph.GetApiServerMoniker());
+            return EvaluationResult.Create(context.GetPipConstructionHelper().GetApiServerMoniker());
         }
 
         private void IntializeIpcNames()

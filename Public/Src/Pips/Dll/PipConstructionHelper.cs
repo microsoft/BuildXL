@@ -16,6 +16,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Ipc.Common;
 
 namespace BuildXL.Pips
 {
@@ -43,7 +44,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// The graph
         /// </summary>
-        public IMutablePipGraph PipGraph { get; }
+        private readonly IMutablePipGraph m_pipGraph;
 
         /// <summary>
         /// A unique relative path for this value pip
@@ -94,7 +95,7 @@ namespace BuildXL.Pips
             m_objectRoot = objectRoot;
             m_redirectedRoot = redirectedRoot;
             m_tempRoot = tempRoot.IsValid ? tempRoot : objectRoot;
-            PipGraph = pipGraph;
+            m_pipGraph = pipGraph;
             m_moduleId = moduleId;
             m_moduleName = moduleName;
             m_valuePip = valuePip;
@@ -230,9 +231,9 @@ namespace BuildXL.Pips
                 CreatePipProvenance(description),
                 options);
 
-            if (PipGraph != null)
+            if (m_pipGraph != null)
             {
-                return PipGraph.AddCopyFile(pip, GetValuePipId());
+                return m_pipGraph.AddCopyFile(pip, GetValuePipId());
             }
 
             return true;
@@ -260,9 +261,9 @@ namespace BuildXL.Pips
                 CreatePipProvenance(description),
                 options);
 
-            if (PipGraph != null)
+            if (m_pipGraph != null)
             {
-                return PipGraph.AddWriteFile(pip, GetValuePipId());
+                return m_pipGraph.AddWriteFile(pip, GetValuePipId());
             }
 
             return true;
@@ -299,9 +300,9 @@ namespace BuildXL.Pips
                 ToStringIds(patterns),
                 scrub);
 
-            if (PipGraph != null)
+            if (m_pipGraph != null)
             {
-                sealedDirectory = PipGraph.AddSealDirectory(pip, GetValuePipId());
+                sealedDirectory = m_pipGraph.AddSealDirectory(pip, GetValuePipId());
                 if (!sealedDirectory.IsValid)
                 {
                     return false;
@@ -329,7 +330,7 @@ namespace BuildXL.Pips
             Contract.Requires(contents != null);
             Contract.Requires(actionKind.IsComposite());
 
-            if (PipGraph == null)
+            if (m_pipGraph == null)
             {
                 sharedOpaqueDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(directoryRoot);
                 return true;
@@ -339,7 +340,7 @@ namespace BuildXL.Pips
                 ? new PipDataAtom[] { description }
                 : generatePipDescription());
 
-            sharedOpaqueDirectory = PipGraph.ReserveSharedOpaqueDirectory(directoryRoot);
+            sharedOpaqueDirectory = m_pipGraph.ReserveSharedOpaqueDirectory(directoryRoot);
 
             var pip = new CompositeSharedOpaqueSealDirectory(
                     directoryRoot,
@@ -352,7 +353,7 @@ namespace BuildXL.Pips
             // The seal directory is ready to be initialized, since the directory artifact has been reserved already
             pip.SetDirectoryArtifact(sharedOpaqueDirectory);
 
-            sharedOpaqueDirectory = PipGraph.AddSealDirectory(pip, GetValuePipId());
+            sharedOpaqueDirectory = m_pipGraph.AddSealDirectory(pip, GetValuePipId());
             if (!sharedOpaqueDirectory.IsValid)
             {
                 return false;
@@ -400,14 +401,14 @@ namespace BuildXL.Pips
             Contract.Requires(outputInOpaque.IsValid);
 
             // A null pip graph is the case of, for example, /phase:evaluate. Since there is no real execution going on, let's pretend the asserted file exists
-            if (PipGraph is null)
+            if (m_pipGraph is null)
             {
                 // Outputs in opaques always have rewrite count 1
                 fileArtifact = FileArtifact.CreateOutputFile(outputInOpaque);
                 return true;
             }
 
-            return PipGraph.TryAssertOutputExistenceInOpaqueDirectory(outputDirectoryArtifact, outputInOpaque, out fileArtifact);
+            return m_pipGraph.TryAssertOutputExistenceInOpaqueDirectory(outputDirectoryArtifact, outputInOpaque, out fileArtifact);
         }
 
         /// <summary>
@@ -418,7 +419,7 @@ namespace BuildXL.Pips
             // Applying defaults can fail if, for example, a source sealed directory cannot be 
             // created because it is not under a mount.  That error must be propagated, because
             // otherwise an error will be logged but the evaluation will succeed.
-            if (PipGraph?.ApplyCurrentOsDefaults(processBuilder) == false)
+            if (m_pipGraph?.ApplyCurrentOsDefaults(processBuilder) == false)
             {
                 pip = null;
                 processOutputs = null;
@@ -439,9 +440,9 @@ namespace BuildXL.Pips
         /// </summary>
         public bool TryAddFinishedProcessToGraph(Process pip, ProcessOutputs processOutputs)
         {
-            if (PipGraph != null)
+            if (m_pipGraph != null)
             {
-                var success = PipGraph.AddProcess(pip, GetValuePipId());
+                var success = m_pipGraph.AddProcess(pip, GetValuePipId());
                 processOutputs.ProcessPipId = pip.PipId;
                 return success;
             }
@@ -478,9 +479,9 @@ namespace BuildXL.Pips
                 provenance: CreatePipProvenance(string.Empty)
             );
 
-            if (PipGraph != null)
+            if (m_pipGraph != null)
             {
-                var success = PipGraph.AddIpcPip(ipcPip, GetValuePipId());
+                var success = m_pipGraph.AddIpcPip(ipcPip, GetValuePipId());
                 return success;
             }
 
@@ -488,11 +489,26 @@ namespace BuildXL.Pips
         }
 
         /// <nodoc />
+        public IpcMoniker GetApiServerMoniker() => m_pipGraph?.GetApiServerMoniker() ?? default;
+
+        /// <nodoc />
+        public bool TryGetSealDirectoryKind(DirectoryArtifact directory, out SealDirectoryKind kind)
+        {
+            if (m_pipGraph != null)
+            {
+                return m_pipGraph.TryGetSealDirectoryKind(directory, out kind);
+            }
+
+            kind = SealDirectoryKind.Full; // Irrelevant value.
+            return false;
+        }
+
+        /// <nodoc />
         public DirectoryArtifact ReserveSharedOpaqueDirectory(AbsolutePath directoryArtifactRoot)
         {
-            if (PipGraph != null)
+            if (m_pipGraph != null)
             {
-                return PipGraph.ReserveSharedOpaqueDirectory(directoryArtifactRoot);
+                return m_pipGraph.ReserveSharedOpaqueDirectory(directoryArtifactRoot);
             }
 
             // If the pip graph is not available (e.g. /phase:evaluate was passed)
@@ -553,11 +569,11 @@ namespace BuildXL.Pips
 
         private PipId GetValuePipId()
         {
-            if (PipGraph != null)
+            if (m_pipGraph != null)
             {
                 if (!m_valuePip.PipId.IsValid)
                 {
-                    PipGraph.AddOutputValue(m_valuePip);
+                    m_pipGraph.AddOutputValue(m_valuePip);
                 }
 
                 Contract.Assert(m_valuePip.PipId.IsValid);

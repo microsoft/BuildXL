@@ -2249,6 +2249,7 @@ namespace BuildXL
             if (ExceptionUtilities.IsKnownUnobservedException(exception))
             {
                 // Avoid crashing on well know innocuous unobserved exceptions
+                OnUnexpectedCondition($"Ignoring known unobserved exception: {exception}");
                 return;
             }
 

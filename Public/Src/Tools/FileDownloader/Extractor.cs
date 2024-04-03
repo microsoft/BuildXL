@@ -21,12 +21,6 @@ namespace Tool.Download
     /// </summary>
     internal sealed class Extractor : ToolProgram<ExtractorArgs>
     {
-        private static readonly Dictionary<string, string> s_packagesToBeChecked = new Dictionary<string, string>
-        {
-            { "NodeJs.linux-x64", "node" },
-            { "DotNet-Runtime.linux", "dotnet" }
-        };
-
         private Extractor() : base("Extractor")
         {
         }
@@ -63,7 +57,6 @@ namespace Tool.Download
         {
             var archive = arguments.PathToFileToExtract;
             var target = arguments.ExtractDirectory;
-
             try
             {
                 FileUtilities.DeleteDirectoryContents(target, false);
@@ -134,16 +127,6 @@ namespace Tool.Download
                         using (var tar = TarArchive.CreateInputTarArchive(gzipStream, nameEncoding: null))
                         {
                             tar.ExtractContents(target);
-                            if (OperatingSystemHelper.IsLinuxOS)
-                            {
-                                foreach (var packageName in s_packagesToBeChecked.Keys)
-                                {
-                                    if (target.Contains(packageName))
-                                    {
-                                        SetExecutePermissionsForExtractedFiles(target, s_packagesToBeChecked[packageName]);
-                                    }
-                                }
-                            }
                         }
                     }
                     catch (GZipException e)
@@ -165,6 +148,8 @@ namespace Tool.Download
                     throw Contract.AssertFailure($"Unexpected archive type '{arguments.ArchiveType}'");
             }
 
+            // Need to set the execute permissions bit for all the extracted files.
+            SetExecutePermissionsForExtractedFiles(target);
             try
             {
                 if (!FileUtilities.DirectoryExistsNoFollow(target))
@@ -196,22 +181,23 @@ namespace Tool.Download
         /// This method is used to set the execute permissions bit for the extracted files.
         /// </summary>
         /// <remarks>
-        /// In the method below we are adding the bit specifically for Node and Dotnet package in linux, as they are causing the issue.
-        /// This is only set for the BuildXL.Internal repo build and is not expected to kick in for end user builds.
-        /// It is expected to be shortlived and probably generalized to setting the execute permission for all extractor output.
-        /// TODO: Need to remove this hack once the bug is fixed. Refer bug https://dev.azure.com/mseng/1ES/_workitems/edit/2073919 for further information.
+        /// The reason for doing this being:
+        /// ZIP files and other archive formats may not preserve the executable bit, leading to lost permissions upon extraction.
+        /// Files are often transited through Windows OS, where these executable permissions are not natively supported, potentially stripping these permissions.
+        /// Without execute permissions, files like node.exe won't run after they are retrieved via DownloadResolver, impacting the build. Given the difficulty in identifying executables, all files are granted execute permissions to avoid this issue.
+        /// Also this change also makes the DownloadResolver to be reliably used by our customers.
         /// </remarks>
-        private bool SetExecutePermissionsForExtractedFiles(string target, string executableName)
+        private void SetExecutePermissionsForExtractedFiles(string target)
         {
-            string fullPathForExecutableFile = new DirectoryInfo(target).EnumerateFiles(executableName, SearchOption.AllDirectories).FirstOrDefault().FullName;
-
-            if (File.Exists(fullPathForExecutableFile))
+            if (OperatingSystemHelper.IsLinuxOS)
             {
-                _ = FileUtilities.SetExecutePermissionIfNeeded(fullPathForExecutableFile);
-            }
+                var files = Directory.EnumerateFiles(target, "*", SearchOption.AllDirectories);
 
-            return true;
+                foreach (var file in files)
+                {
+                    _ = FileUtilities.SetExecutePermissionIfNeeded(file);
+                }
+            }
         }
     }
 }
-

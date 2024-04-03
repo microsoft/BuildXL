@@ -3237,11 +3237,10 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = EventConstants.ProvenancePrefix +
-                "Pip '{pipDescription}' had an expectedly small observed input count. The largest pathset for this fingerprint had: [AbsentFileProbes:{maxAbsentFileProbe}, DirectoryEnumerationCount:{maxDirectoryEnumerations}, ExistingDirectoryProbeCount,{maxDirectoryProbes}, FileContentReadCount:{maxFileContentReads}]. " +
-            "The pathset for this run had: [AbsentFileProbes:{currentAbsentFileProbe}, DirectoryEnumerationCount:{currentDirectoryEnumerations}, ExistingDirectoryProbeCount,{currentDirectoryProbes}, FileContentReadCount:{currentFileContentReads}], ExistingFileProbeCount:{currentExistingFileProbes}].")]
-        public abstract void UnexpectedlySmallObservedInputCount(LoggingContext loggingContext, string pipDescription, int maxAbsentFileProbe, int maxDirectoryEnumerations, int maxDirectoryProbes, int maxFileContentReads,
-            int currentAbsentFileProbe, int currentDirectoryEnumerations, int currentDirectoryProbes, int currentFileContentReads, int currentExistingFileProbes);
+            Message = "Pip '{pipDescription}' had an expectedly small observed input count. The largest pathset for this fingerprint had: [AbsentFileProbes:{maxAbsentFileProbes}, DirectoryEnumerationCount:{maxDirectoryEnumerations}, ExistingDirectoryProbeCount:{maxDirectoryProbes}, FileContentReadCount:{maxFileContentReads}]. " +
+                      "The pathset for this run had: [AbsentFileProbes:{currentAbsentFileProbes}, DirectoryEnumerationCount:{currentDirectoryEnumerations}, ExistingDirectoryProbeCount:{currentDirectoryProbes}, FileContentReadCount:{currentFileContentReads}, ExistingFileProbeCount:{currentExistingFileProbes}].")]
+        public abstract void UnexpectedlySmallObservedInputCount(LoggingContext loggingContext, string pipDescription, int maxAbsentFileProbes, int maxDirectoryEnumerations, int maxDirectoryProbes, int maxFileContentReads,
+            int currentAbsentFileProbes, int currentDirectoryEnumerations, int currentDirectoryProbes, int currentFileContentReads, int currentExistingFileProbes);
 
         [GeneratedEvent(
             (int)LogEventId.HistoricPerfDataCacheTrace,

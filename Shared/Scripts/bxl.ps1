@@ -161,6 +161,9 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$GenerateFlagsMd = $true,
 
+    [Parameter(Mandatory = $false)]
+    [string]$ProduceResponseFile,
+
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$DominoArguments
 )
@@ -272,6 +275,10 @@ $AdditionalBuildXLArguments = @()
 if ($DeployDev) {
     $Deploy = "Dev";
     $Minimal = $true;
+}
+
+if ($Deploy -and $ProduceResponseFile) {
+    throw "-ProduceResponseFile is incompatible with -Deploy"
 }
 
 $BuildXLExeName = "bxl.exe";
@@ -512,7 +519,12 @@ function Get-SubstArguments {
     $remappedArgs += @(Remap-PathToNormalizedDrive $processArgs);
     $remappedArgs += "/substTarget:$NormalizationDrive /substSource:$enlistmentrootTrimmed"
     $remappedArgs += " /logProcessDetouringStatus+ /logProcessData+ /logProcesses+";
-    return $remappedArgs.Replace("""", "\""")
+    if ($ProduceResponseFile) {
+        return $remappedArgs
+    }
+    else {
+        return $remappedArgs.Replace("""", "\""")
+    }
 }
 
 function Run-Process {
@@ -894,35 +906,62 @@ if ($UseAdoBuildRunner) {
     $executable = $useDeployment.adoBuildRunner
 }
 
-$bxlExitCode = Run-Process $executable $arguments;
-$bxlSuccess = ($bxlExitCode -eq 0);
+if ($ProduceResponseFile) {
+    # Don't run BuildXL - instead, produce a file with the arguments
+    Log "Creating response file at $ProduceResponseFile"
+    # A response file has to have one argument per line, make sure
+    # that we're doing that correctly by splitting the flat arguments
+    # that we constructed above by '/' and reconstructing them separately
+    $sanitizedRspArgs = @()
+    foreach ($arg in $arguments) {
+      $maybeMultipleArgs = $arg -split "/"
+      foreach ($individualArg in $maybeMultipleArgs) 
+      {
+        $individualArg = $individualArg.Trim();
+        if ($individualArg -ne ""){
+           $sanitizedRspArgs += "/$individualArg"
+        }
+      }
+    }
 
-if ($bxlSuccess) {
-    Log "Done.";
+    New-Item -ItemType File -Path $ProduceResponseFile -Force | Out-Null
+    Set-Content -Path $ProduceResponseFile -Value $sanitizedRspArgs
+    Log "Contents:"
+    # Print contents indented with 4 spaces
+    (Get-Content -Path $ProduceResponseFile -Raw) -replace '(?m)^', '    '
+    Log "Created response file with the selected arguments at $ProduceResponseFile"
 }
 else {
-    Log-Error "The BuildXL build failed with exit code $bxlExitCode";
-}
-
-# BuildXL has now exited. If deploying, we can now copy the new binaries such that this script may find them.
-if ($shouldDeploy) {
+    # Run BuildXL
+    $bxlExitCode = Run-Process $executable $arguments;
+    $bxlSuccess = ($bxlExitCode -eq 0);
     if ($bxlSuccess) {
-        Log "Deploying $Deploy from $($deployDeployment.buildDir)";
-
-        $builtBuildXL = Join-Path $deployDeployment.buildDir $BuildXLExeName;
-        if (! (Test-Path -PathType Leaf $builtBuildXL)) {
-            throw "The BuildXL executable was not found at $builtBuildXL. This file should have been built (the build appears to have succeeded)";
-        }
-
-        Mirror-Directory $deployDeployment.buildDir $deployDeployment.dir;
-
-        Log "Done. You can use the binaries with 'bxl -Use $Deploy'";
+        Log "Done.";
     }
     else {
-        Log-Error "Deployment cancelled since the build failed; see above."
+        Log-Error "The BuildXL build failed with exit code $bxlExitCode";
     }
-}
-
-if (! $bxlSuccess) {
-    $host.SetShouldExit($bxlExitCode);
+    
+    # BuildXL has now exited. If deploying, we can now copy the new binaries such that this script may find them.
+    if ($shouldDeploy) {
+        if ($bxlSuccess) {
+            Log "Deploying $Deploy from $($deployDeployment.buildDir)";
+    
+            $builtBuildXL = Join-Path $deployDeployment.buildDir $BuildXLExeName;
+            if (! (Test-Path -PathType Leaf $builtBuildXL)) {
+                throw "The BuildXL executable was not found at $builtBuildXL. This file should have been built (the build appears to have succeeded)";
+            }
+    
+            Mirror-Directory $deployDeployment.buildDir $deployDeployment.dir;
+    
+            Log "Done. You can use the binaries with 'bxl -Use $Deploy'";
+        }
+        else {
+            Log-Error "Deployment cancelled since the build failed; see above."
+        }
+    }
+    
+    if (! $bxlSuccess) {
+        $host.SetShouldExit($bxlExitCode);
+    }    
 }

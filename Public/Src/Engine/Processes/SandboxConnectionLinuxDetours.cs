@@ -325,6 +325,16 @@ namespace BuildXL.Processes
             private bool m_rootProcessWasRemoved = false;
             private readonly object m_removePidLock = new object();
 
+            /// <summary>
+            /// Whether the ptrace runner was requested to start for the given pip at least once.
+            /// </summary>
+            /// <remarks>
+            /// Multiple runners can be started for the same pip (for disjoint parts of the process tree). This is just used
+            /// as a minor perf optimization when trying to avoid a race related to the ptrace sandbox tracing the interpose sandbox 
+            /// before the latter gets torn down.
+            /// </remarks>
+            private bool m_ptraceRunnerWasRequestedForPip = false; 
+
             private readonly CancellableTimedAction m_activeProcessesChecker;
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
             private readonly Lazy<SafeFileHandle> m_lazySecondaryFifoWriteHandle;
@@ -662,6 +672,14 @@ namespace BuildXL.Processes
                         UnexpectedReport = unexpectedReport,
                     };
 
+                    // Flag that a ptrace runner was requested for this pip at least once.
+                    // Observe the first time this is set to true, it is guaranteed that ptrace is not tracing any part
+                    // of the process tree since this just-created report has yet to be posted in order for the ptrace runner to start.
+                    if (report.Operation == FileOperation.OpProcessRequiresPtrace)
+                    {
+                        m_ptraceRunnerWasRequestedForPip = true;
+                    }
+
                     // update active processes
                     if (report.Operation == FileOperation.OpProcessStart)
                     {
@@ -676,6 +694,13 @@ namespace BuildXL.Processes
                     {
                         LogDebug($"Received FileOperation.OpProcessExit for pid {report.Pid})");
                         RemovePid(report.Pid);
+                    }
+
+                    // Let's check for linux-specific reports that we want to ignore
+                    if (IgnoreLinuxSpecificReports(item.processor, path, report))
+                    {
+                        LogDebug($"Ignored access for pid {report.Pid} on '{path.ToString()}'");
+                        return;
                     }
 
                     // post the AccessReport
@@ -697,6 +722,34 @@ namespace BuildXL.Processes
                     rest = ReadOnlySpan<char>.Empty;
                     return message;
                 }
+            }
+
+            private bool IgnoreLinuxSpecificReports(ReportProcessor reportProcessor, ReadOnlySpan<char> path, AccessReport report)
+            {
+                // We have an inherent race when we the ptrace sandbox starts tracing a process and we are still interposing that same process.
+                // The code under PTraceSandbox::ExecuteWithPTraceSandbox (Public/Src/Sandbox/Linux/PTraceSandbox.cpp) is executed while the ptrace runner
+                // is trying to seize the current process under ptrace. There are some semaphore prep operations under ExecuteWithPTraceSandbox which get interposed,
+                // and if ptrace is already attached, will be observed. This is not a problem per se, since semaphore related operations happen under /dev, which is a scope
+                // that is always ignored. However, the interpose sandbox will try to report those operations through the FIFO, and those will get observed as well by ptrace.
+                // The FIFO(s) live under /tmp, which is not ignored. We want to ignore reporting those operations, not only because those files shouldn't part of any fingerprint,
+                // but also because those are not real files (so hashing those will make bxl crash).
+                // Here we are checking first whether ptrace was requested at least once for this pip just as a minor optimization to avoid path comparisons if ptrace is not even present. 
+                // Something finer-grained could be done as well, but these path comparison operations are probably very cheap to begin with, so it is probably not worth it.
+                if (m_ptraceRunnerWasRequestedForPip &&
+                    (System.MemoryExtensions.Equals(path, reportProcessor.Info.ReportsFifoPath.AsSpan(), StringComparison.Ordinal)
+                    || System.MemoryExtensions.Equals(path, reportProcessor.Info.SecondaryFifoPath.AsSpan(), StringComparison.Ordinal)))
+                {
+                    return true;
+                }
+
+                // Check whether a given path is an anonymous file (a file that lives in RAM and only exists until all references to that file are dropped)
+                // The path to an anonymous file reported by stat will always be '/memfd:<fileName> (deleted)'
+                if (System.MemoryExtensions.StartsWith(path, "/memfd:".AsSpan(), StringComparison.Ordinal))
+                {                     
+                    return true;
+                }
+
+                return false;
             }
 
             private uint AssertInt(ReadOnlySpan<char> str)

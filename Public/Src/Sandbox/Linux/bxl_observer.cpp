@@ -193,9 +193,7 @@ AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::l
     }
     
     // Check if non-file, we don't want to report these.
-    if (is_non_file(event.GetMode())
-        || is_anonymous_file(event.GetSrcPath())
-        || is_anonymous_file(event.GetDstPath())) {
+    if (is_non_file(event.GetMode())) {
         return sNotChecked;
     }
 
@@ -688,12 +686,6 @@ AccessCheckResult BxlObserver::create_access(const char *syscallName, IOEvent &e
         return sNotChecked;
     }
 
-    // Aviod reporting/blocking anonymous files
-    if (is_anonymous_file(event.GetSrcPath()) || (event.GetDstPath().length() > 0 && is_anonymous_file(event.GetDstPath())))
-    {
-        return sNotChecked;
-    }
-
     AccessCheckResult result = sNotChecked;
     pid_t pid = event.GetPid() == 0 ? getpid() : event.GetPid();
     bool accessShouldBeBlocked = false;
@@ -786,17 +778,6 @@ bool BxlObserver::is_non_file(const mode_t mode)
 {
     // Observe we don't care about block devices here. It is unlikely that we'll support them e2e, this is just an FYI.
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
-}
-
-bool BxlObserver::is_anonymous_file(string path)
-{
-    if (path.empty()) {
-        return false;
-    }
-
-    // The path to an anonymous file reported by stat will always be '/memfd:<fileName> (deleted)'
-    // the length of the string prefix '/memfd:', 7, is used as the max for characters to compare in strncmp
-    return strncmp(path.c_str(), "/memfd:", 7) == 0;
 }
 
 AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &report, int flags, bool getModeWithFd, pid_t associatedPid)

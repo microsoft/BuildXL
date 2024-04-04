@@ -443,6 +443,8 @@ public:
     void report_firstAllowWriteCheck(const char *fullPath);
 
     // Checks and reports when a process that requires ptrace is about to be executed
+    // Observe that as soon as this method determines ptrace is required and sends the corresponding report
+    // ptrace runner is started and will try to seize the current process under ptrace
     bool check_and_report_process_requires_ptrace(const char *path);
     bool check_and_report_process_requires_ptrace(int fd);
     bool is_statically_linked(const char *path);
@@ -469,9 +471,6 @@ public:
 
     // Whether the given descriptor is a non-file (e.g., a pipe, or socket, etc.)
     static bool is_non_file(const mode_t mode);
-
-    // Checks whether a given path is an anonymous file (a file that lives in RAM and only exists until all references to that file are dropped)
-    bool is_anonymous_file(string path);
 
     // Enumerates a specified directory
     bool EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);

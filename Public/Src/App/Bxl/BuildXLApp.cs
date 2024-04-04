@@ -105,7 +105,7 @@ namespace BuildXL
         public readonly string ErrorBucket;
         public readonly string BucketMessage;
         public readonly bool DoNotReuseServer;
-        public readonly string InternalWarning;
+        public readonly string InternalWarnings;
 
         private AppResult(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage, bool doNotSaveServerState, string internalWarnings)
         {
@@ -114,12 +114,12 @@ namespace BuildXL
             ErrorBucket = errorBucket;
             BucketMessage = bucketMessage;
             DoNotReuseServer = doNotSaveServerState;
-            InternalWarning = internalWarnings;
+            InternalWarnings = internalWarnings;
         }
 
-        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool doNotSaveServerState = false, string internalWarning = "")
+        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool doNotSaveServerState = false, string internalWarnings = "")
         {
-            return new AppResult(exitKind, engineState, errorBucket, bucketMessage, doNotSaveServerState, internalWarning);
+            return new AppResult(exitKind, engineState, errorBucket, bucketMessage, doNotSaveServerState, internalWarnings);
         }
     }
 
@@ -730,7 +730,7 @@ namespace BuildXL
                         }
 
                         // Empty string if there are no internal warnings
-                        string internalWarning = appLoggers.TrackingEventListener.InternalWarning;
+                        string internalWarnings = string.Join(',', appLoggers.TrackingEventListener.InternalWarnings);
 
                         if (appLoggers.TrackingEventListener.HasFailures)
                         {
@@ -745,7 +745,7 @@ namespace BuildXL
                                 // Some L3 cache initialization failures relating to auth are sticky and will not succeed if retried from
                                 // within the same process. Make sure not to reuse the server process when the cache fails to init for safety.
                                 doNotSaveServerState: appLoggers.TrackingEventListener.CountsPerEventId((int)BuildXL.Engine.Tracing.LogEventId.StorageCacheStartupError) > 0,
-                                internalWarning: internalWarning);
+                                internalWarnings: internalWarnings);
                         }
 
                         WriteToConsole(Strings.App_Main_BuildSucceeded);
@@ -773,7 +773,7 @@ namespace BuildXL
 
                         return AppResult.Create(ExitKind.BuildSucceeded, newEngineState, 
                             errorBucket: string.Empty,
-                            internalWarning: internalWarning);
+                            internalWarnings: internalWarnings);
                     }
                     finally
                     {
@@ -1127,7 +1127,7 @@ namespace BuildXL
                 // This isn't a command line but it should still be sanatized for sake of not overflowing in telemetry
                 ScrubCommandLine(result.BucketMessage, 1000, 1000),
                 processRunningTime,
-                result.InternalWarning);
+                result.InternalWarnings);
 
             // Sending a different event to CloudBuild ETW listener.
             if (inCloudBuild)

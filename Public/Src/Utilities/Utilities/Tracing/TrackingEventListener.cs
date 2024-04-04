@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ namespace BuildXL.Utilities.Tracing
     public sealed class TrackingEventListener : BaseEventListener
     {
         private const int MaxEventIdExclusive = ushort.MaxValue;
+        private const int MaxInternalWarningCount = 5;
 
         private int m_numAlways;
         private int m_numCriticals;
@@ -42,8 +44,12 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         private readonly DateTime m_baseTime;
 
-        /// <nodoc/>
-        public string InternalWarning { get; private set; }
+        private readonly HashSet<string> m_internalWarnings = new HashSet<string>();
+
+        /// <summary>
+        /// List of the internal warnings. The max count is <see cref="MaxInternalWarningCount"/>.
+        /// </summary>
+        public IList<string> InternalWarnings => m_internalWarnings.ToList();
 
         /// <summary>
         /// Initializes an instance.
@@ -219,9 +225,9 @@ namespace BuildXL.Utilities.Tracing
 
             long keywords = (long)eventData.Keywords;
             if ((keywords & (long)Keywords.InfrastructureIssue) > 0 &&
-                string.IsNullOrEmpty(InternalWarning))
+                m_internalWarnings.Count < MaxInternalWarningCount)
             {
-                InternalWarning = eventData.EventName;
+                m_internalWarnings.Add(eventData.EventName);
             }
         }
 

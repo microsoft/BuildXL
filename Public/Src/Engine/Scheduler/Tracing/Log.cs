@@ -82,7 +82,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  Reason: {reason}. Error: {message}")]
+            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  Reason: {reason}. Error: {message}" +
+                      "\r\n...\r\nCheck service pip log for more details.")]
         internal abstract void PipIpcFailed(
             LoggingContext loggingContext,
             string pipDescription,
@@ -97,7 +98,9 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  IPC operation input is invalid. Error: {message}")]
+            // CODESYNC: /Public/Src/App/Bxl/BuildXLApp.cs - If the message is changed, check whether a regex processing this message needs to be updated.
+            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  IPC operation input is invalid. Error: {message}" +
+                      "\r\n...\r\nCheck service pip log for more details.")]  
         internal abstract void PipIpcFailedDueToInvalidInput(
             LoggingContext loggingContext,
             string pipDescription,
@@ -111,12 +114,73 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}' because of an infrastructure error. Error: {message}")]
+            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}' because of an infrastructure error. Error: {message}" +
+                      "\r\n...\r\nCheck service pip log for more details.")]
         internal abstract void PipIpcFailedDueToInfrastructureError(
             LoggingContext loggingContext,
             string pipDescription,
             string operation,
             string moniker,
+            string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipIpcFailedDueToBuildManifestGenerationError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Encountered an error while trying to create a build manifest. IPC operation '{operation}'. Moniker: {moniker}. Error: {message}")]
+        internal abstract void PipIpcFailedDueToBuildManifestGenerationError(
+            LoggingContext loggingContext,
+            string pipDescription,
+            string operation,
+            string moniker,
+            string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipIpcFailedDueToBuildManifestSigningError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Encountered an error while trying to sign a build manifest. IPC operation '{operation}'. Moniker: {moniker}. Error: {message}")]
+        internal abstract void PipIpcFailedDueToBuildManifestSigningError(
+            LoggingContext loggingContext,
+            string pipDescription,
+            string operation,
+            string moniker,
+            string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipIpcFailedDueToExternalServiceError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] An error occurred while a service pip was communicating with an external service. The external service may be having an outage. " +
+                      "IPC operation '{operation}'. Moniker '{moniker}'. Error: {message}" +
+                      "\r\n...\r\nCheck service pip log for more details.")]
+        internal abstract void PipIpcFailedDueToExternalServiceError(
+            LoggingContext loggingContext,
+            string pipDescription,
+            string operation,
+            string moniker,
+            string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipIpcFailedWhileShedulerWasTerminating,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'. An error occurred while the execution schedule was being terminated. Reason: {reason}. Error: {message}" +
+                      "\r\n...\r\nCheck service pip log for more details.")]
+        internal abstract void PipIpcFailedWhileSheduleWasTerminating(
+            LoggingContext loggingContext,
+            string pipDescription,
+            string operation,
+            string moniker,
+            string reason,
             string message);
 
         [GeneratedEvent(

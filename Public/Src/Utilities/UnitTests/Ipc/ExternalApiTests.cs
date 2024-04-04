@@ -477,11 +477,18 @@ namespace Test.BuildXL.Ipc
         [Theory]
         [MemberData(nameof(CrossProduct),
             new object[] { IpcResultStatus.Success, IpcResultStatus.ConnectionError, IpcResultStatus.ExecutionError },
-            new object[] { "", @"payload 123123 #$%^[]{}<>/\;:""'?,." + "\0\r\n\t" })]
-        public async Task TestIpcResultSerializationAsync(IpcResultStatus status, string payload)
+            new object[] { "", @"payload 123123 #$%^[]{}<>/\;:""'?,." + "\0\r\n\t" },
+            new object[] { true, false })]
+        public async Task TestIpcResultSerializationAsync(IpcResultStatus status, string payload, bool merge)
         {
             var duration = TimeSpan.FromMilliseconds(1234);
             var ipcResult = new IpcResult(status, payload, duration);
+
+            if (merge)
+            {
+                ipcResult = (IpcResult)IpcResult.Merge(ipcResult, IpcResult.Success());
+                payload = $"{payload}{Environment.NewLine}";
+            }
 
             // serialize
             using var stream = new MemoryStream();
@@ -512,13 +519,58 @@ namespace Test.BuildXL.Ipc
         [InlineData(IpcResultStatus.InvalidInput, IpcResultStatus.InvalidInput, IpcResultStatus.InvalidInput)]
         public void TestIpcResultMerge(IpcResultStatus lhsStatus, IpcResultStatus rhsStatus, IpcResultStatus mergeStatus)
         {
-            var lhs = new IpcResult(lhsStatus, "lhs");
-            var rhs = new IpcResult(rhsStatus, "rhs");
+            var lhs = new IpcResult(lhsStatus, "lhs", TimeSpan.FromSeconds(1));
+            var rhs = new IpcResult(rhsStatus, "rhs", TimeSpan.FromSeconds(2));
             var merged = IpcResult.Merge(lhs, rhs);
             // contains both payloads
             XAssert.Contains(merged.Payload, lhs.Payload, rhs.Payload);
             // has correct status
             XAssert.AreEqual(merged.ExitCode, mergeStatus);
+            // action durations were added together
+            XAssert.AreEqual(merged.ActionDuration, TimeSpan.FromSeconds(3));
+        }
+
+        [Fact]
+        public void TestMergeOfMergedIpcResult()
+        {
+            var r1 = new IpcResult(IpcResultStatus.TransmissionError, "1", TimeSpan.FromSeconds(1));
+            var r2 = new IpcResult(IpcResultStatus.TransmissionError, "2", TimeSpan.FromSeconds(1));
+            var r3 = new IpcResult(IpcResultStatus.TransmissionError, "3", TimeSpan.FromSeconds(1));
+            var r4 = new IpcResult(IpcResultStatus.TransmissionError, "4", TimeSpan.FromSeconds(1));
+
+            var m1 = IpcResult.Merge(r1, r2);
+            var m2 = IpcResult.Merge(r3, r4);
+
+            // merge as pair
+            var merged = IpcResult.Merge(m1, m2);
+            XAssert.Contains(merged.Payload, r1.Payload, r2.Payload, r3.Payload, r4.Payload);
+            XAssert.AreEqual(merged.ExitCode, IpcResultStatus.TransmissionError);
+            XAssert.AreEqual(merged.ActionDuration, TimeSpan.FromSeconds(4));
+
+            // merge as IEnumerable
+            merged = IpcResult.Merge(new[] { m1, m2 });
+            XAssert.Contains(merged.Payload, r1.Payload, r2.Payload, r3.Payload, r4.Payload);
+            XAssert.AreEqual(merged.ExitCode, IpcResultStatus.TransmissionError);
+            XAssert.AreEqual(merged.ActionDuration, TimeSpan.FromSeconds(4));
+        }
+
+        [Fact]
+        public void TestFirstError()
+        {
+            var first = new IpcResult(IpcResultStatus.Success, "first", TimeSpan.FromSeconds(1));
+            var second = new IpcResult(IpcResultStatus.ExecutionError, "second", TimeSpan.FromSeconds(2));
+            var third = new IpcResult(IpcResultStatus.InvalidInput, "third", TimeSpan.FromSeconds(4));
+
+            var merged = IpcResult.Merge(new[] { first, second, third });
+            XAssert.Contains(merged.Payload, first.Payload, second.Payload, third.Payload);
+            // two different errors => IpcResultStatus.GenericError
+            XAssert.AreEqual(merged.ExitCode, IpcResultStatus.GenericError);
+            XAssert.AreEqual(merged.ActionDuration, TimeSpan.FromSeconds(7));
+
+            var firstError = ((IpcResult)merged).GetFirstErrorResult();
+            XAssert.AreEqual(firstError.Payload, second.Payload);
+            XAssert.AreEqual(firstError.ExitCode, IpcResultStatus.GenericError);
+            XAssert.AreEqual(firstError.ActionDuration, TimeSpan.FromSeconds(7));
         }
 
         private class UnknownCommand : Command

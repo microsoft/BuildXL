@@ -20,11 +20,6 @@ namespace Tool.SymbolDaemon
     /// </summary>
     public sealed class SymbolFile
     {
-        /// <summary>
-        /// Prefix for the error message of the exception that gets thrown when a materialized file is a symlink.
-        /// </summary>
-        private const string MaterializationResultIsSymlinkErrorPrefix = "File materialization succeeded, but file found on disk is a symlink: ";
-
         private readonly Func<string, bool> m_symlinkTester;
         private readonly FileArtifact m_file;
         private readonly Client m_bxlClient;
@@ -109,7 +104,7 @@ namespace Tool.SymbolDaemon
             FileLength = fileLength;
         }
 
-        /// <nodoc/>    
+        /// <nodoc/>
         public void SetDebugEntries(List<DebugEntryData> entries)
         {
             Contract.Requires(entries != null);
@@ -140,17 +135,17 @@ namespace Tool.SymbolDaemon
 
             if (!maybeResult.Result)
             {
-                throw new DaemonException("File materialization failed");
+                throw new DaemonException($"{Statics.MaterializationResultMaterializationFailedErrorPrefix}{FullFilePath}");
             }
 
             if (!File.Exists(FullFilePath))
             {
-                throw new DaemonException("File materialization succeeded, but file is not found on disk: " + FullFilePath);
+                throw new DaemonException($"{Statics.MaterializationResultFileNotFoundErrorPrefix}{FullFilePath}");
             }
 
             if (m_symlinkTester(FullFilePath))
             {
-                throw new DaemonException(MaterializationResultIsSymlinkErrorPrefix + FullFilePath);
+                throw new DaemonException($"{Statics.MaterializationResultIsSymlinkErrorPrefix}{FullFilePath}");
             }
 
             return new FileInfo(FullFilePath);

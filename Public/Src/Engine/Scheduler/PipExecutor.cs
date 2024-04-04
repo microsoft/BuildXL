@@ -708,8 +708,22 @@ namespace BuildXL.Scheduler
             {
                 var pipDescription = pip.GetDescription(environment.Context);
 
+                if (environment.IsTerminatingWithInternalError)
+                {
+                    // Schedule is terminating due to an internal error. This is an aggressive termination and
+                    // service pips are likely to be killed. All IPC errors received after the termination was
+                    // started are very likely were caused by that termination. Downgrade all these errors to
+                    // warnings to make error log more readable and reduce confusion.
+                    Logger.Log.PipIpcFailedWhileSheduleWasTerminating(
+                        operationContext,
+                        pipDescription,
+                        operation.Payload,
+                        connectionString,
+                        ipcResult.ExitCode.ToString(),
+                        ipcResult.Payload);
+                }
                 // log error if execution failed
-                if (ipcResult.ExitCode == IpcResultStatus.InvalidInput)
+                else if (ipcResult.ExitCode == IpcResultStatus.InvalidInput)
                 {
                     // we separate the 'invalid input' errors here, so they can be classified as 'user errors'
                     Logger.Log.PipIpcFailedDueToInvalidInput(
@@ -729,6 +743,36 @@ namespace BuildXL.Scheduler
                         connectionString,
                         ipcResult.Payload);
                 }
+                else if (ipcResult.ExitCode == IpcResultStatus.ManifestGenerationError)
+                {
+                    // we separate build manifest-related errors here, so they can be properly tracked/reported
+                    Logger.Log.PipIpcFailedDueToBuildManifestGenerationError(
+                        operationContext,
+                        pipDescription,
+                        operation.Payload,
+                        connectionString,
+                        ipcResult.Payload);
+                }
+                else if (ipcResult.ExitCode == IpcResultStatus.SigningError)
+                {
+                    // we separate build manifest-related errors here, so they can be properly tracked/reported
+                    Logger.Log.PipIpcFailedDueToBuildManifestSigningError(
+                        operationContext,
+                        pipDescription,
+                        operation.Payload,
+                        connectionString,
+                        ipcResult.Payload);
+                }
+                else if (ipcResult.ExitCode == IpcResultStatus.ExternalServiceError)
+                {
+                    // separate external errors for proper tracking
+                    Logger.Log.PipIpcFailedDueToExternalServiceError(
+                        operationContext,
+                        pipDescription,
+                        operation.Payload,
+                        connectionString,
+                        ipcResult.Payload);
+                }
                 else
                 {
                     Logger.Log.PipIpcFailed(
@@ -740,6 +784,7 @@ namespace BuildXL.Scheduler
                         ipcResult.Payload);
                 }
 
+                // Mark the pip as failed even if we logged a warning above instead of an error (due to schedule termination).
                 executionResult.SetResult(operationContext, PipResultStatus.Failed);
             }
 

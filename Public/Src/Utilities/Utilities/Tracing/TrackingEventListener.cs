@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
-using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
@@ -248,6 +248,32 @@ namespace BuildXL.Utilities.Tracing
                     eventMessage = (string)eventData.Payload[0];
                     eventName = (string)eventData.Payload[2];
                     keywords = (long)eventData.Payload[3];
+                }
+
+                // If it's an IPC pip failure, check if we can make massage the message a bit.
+                // Use eventName instead of eventData.EventId in case this an error sent from a worker.
+                if (eventName == SharedLogEventId.PipIpcFailed.ToString())
+                {
+                    // IPC pip failure message is too verbose and too long, so let's shorten it a bit. The message has the following format:
+                    // [{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  Reason: {reason}. Error: {message}
+                    // For the purpose of creating a message for tracking/bucketing, the only useful component here is 'reason'.
+                    // Both 'operation' and 'message' can be arbitrarily long and have limited value.
+                    // If regex cannot find a match (this will happen if an error was not handled by a daemon and instead was handled by IServer),
+                    // it's not a big deal, we'll just fall back to using the full error message.
+                    try
+                    {
+                        var regex = new Regex(@" Reason: (?<reason>\w+)\. ", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                        var match = regex.Match(eventMessage);
+                        if (match.Success)
+                        {
+                            // If there is a match, create a new bucket message.
+                            eventMessage = $"{SharedLogEventId.PipIpcFailed}.{match.Groups["reason"].Value}";
+                        }
+                    }
+                    catch (RegexMatchTimeoutException)
+                    {
+                        // If there is a timeout, just fall back to using the full error message.
+                    }
                 }
 
                 wasInfrastructureOrInternal = BucketError(keywords, eventName, eventMessage);

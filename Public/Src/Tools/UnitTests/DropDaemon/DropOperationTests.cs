@@ -417,7 +417,7 @@ namespace Test.Tool.DropDaemon
                         // addfile files
                         IIpcResult result = daemon.AddFileAsync(addFileItem).GetAwaiter().GetResult();
                         XAssert.IsFalse(result.Succeeded, "expected addfile to fail; instead it succeeded and returned payload: " + result.Payload);
-                        XAssert.IsTrue(result.Payload.Contains(DropItemForBuildXLFile.MaterializationResultIsSymlinkErrorPrefix));
+                        XAssert.IsTrue(result.Payload.Contains(Statics.MaterializationResultIsSymlinkErrorPrefix));
                     });
             });
         }

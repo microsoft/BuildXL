@@ -384,6 +384,7 @@ namespace Tool.DropDaemon
                 // compute blobs for associate
                 using (m_counters.StartStopwatch(DropClientCounter.TotalComputeFileBlobDescriptorForAssociate))
                 {
+                    // CODESYNC: Update DropDaemon.HandleKnownErrorsAsync when this is changed to TaskUtilities.SafeWhenAll
                     blobsForAssociate = await Task.WhenAll(dedupedBatch.Select(item => item.FileBlobDescriptorForAssociateAsync(m_config.EnableChunkDedup, Token)));
                 }
 
@@ -395,6 +396,7 @@ namespace Tool.DropDaemon
                 FileBlobDescriptor[] blobsForUpload;
                 using (m_counters.StartStopwatch(DropClientCounter.TotalComputeFileBlobDescriptorForUpload))
                 {
+                    // CODESYNC: Update DropDaemon.HandleKnownErrorsAsync when this is changed to TaskUtilities.SafeWhenAll
                     blobsForUpload = await Task.WhenAll(itemsLeftToUpload.Select(item => item.FileBlobDescriptorForUploadAsync(m_config.EnableChunkDedup, Token)));
                 }
 

@@ -20,12 +20,12 @@ using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.SBOMUtilities;
-using BuildXL.Utilities.Core.Tasks;
 using Microsoft.ManifestGenerator;
 using Microsoft.Sbom.Adapters;
 using Microsoft.Sbom.Adapters.Report;
@@ -571,7 +571,7 @@ namespace Tool.DropDaemon
                 var dropItem = new DropItemForFile(DropDaemon.FullyQualifiedDropName(dropConfig), filePath, conf.Get(RelativeDropPath), contentInfo);
                 IIpcResult result = System.IO.File.Exists(filePath)
                     ? await daemon.AddFileAsync(dropItem)
-                    : new IpcResult(IpcResultStatus.ExecutionError, "file '" + filePath + "' does not exist");
+                    : new IpcResult(IpcResultStatus.InvalidInput, "file '" + filePath + "' does not exist");
                 LogIpcResult(logger, LogLevel.Verbose, "[ADDFILE] ", result);
                 return result;
             });
@@ -593,7 +593,8 @@ namespace Tool.DropDaemon
                 var result = await AddArtifactsToDropInternalAsync(conf, daemon, logger, commandId);
 
                 LogIpcResult(logger, LogLevel.Verbose, $"{commandId} [ADDARTIFACTS]: ", result);
-                return result;
+                // Trim the payload before sending the result.
+                return SuccessOrFirstError(result);
             });
 
         #endregion
@@ -697,7 +698,7 @@ namespace Tool.DropDaemon
             // Check if the file is a symlink, only if the file exists on disk at this point; if it is a symlink, reject it outright.
             if (System.IO.File.Exists(dropItem.FullFilePath) && symlinkTester(dropItem.FullFilePath))
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, SymlinkAddErrorMessagePrefix + dropItem.FullFilePath);
+                return new IpcResult(IpcResultStatus.InvalidInput, SymlinkAddErrorMessagePrefix + dropItem.FullFilePath);
             }
 
             if (!m_vsoClients.TryGetValue(dropItem.FullyQualifiedDropName, out var configAndClient))
@@ -795,7 +796,7 @@ namespace Tool.DropDaemon
 
             if (!System.IO.File.Exists(DropServiceConfig.BsiFileLocation))
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"BuildSessionInfo not found at provided BsiFileLocation: '{DropServiceConfig.BsiFileLocation}'");
+                return new IpcResult(IpcResultStatus.ManifestGenerationError, $"BuildSessionInfo not found at provided BsiFileLocation: '{DropServiceConfig.BsiFileLocation}'");
             }
 
             var bsiDropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), DropServiceConfig.BsiFileLocation, relativeDropPath: BuildManifestHelper.DropBsiPath);
@@ -894,23 +895,23 @@ namespace Tool.DropDaemon
 
                 if (!maybePackages.Succeeded)
                 {
-					return new IpcResult(IpcResultStatus.ExecutionError, $"Errors were encountered in ComponentDetectionToSBOMPackageAdapter. Details: {maybePackages.Failure.Describe()}");
-				}
+                    return new IpcResult(IpcResultStatus.ManifestGenerationError, $"Errors were encountered in ComponentDetectionToSBOMPackageAdapter. Details: {maybePackages.Failure.Describe()}");
+                }
 
                 var packages = maybePackages.Result;
-				logger.Verbose("Starting SBOM Generation");
+                logger.Verbose("Starting SBOM Generation");
                 var specs = new List<SbomSpecification>() { new("SPDX", "2.2") };
                 var result = await m_sbomGenerator.GenerateSbomAsync(sbomGenerationRootDirectory, manifestFileList, packages, metadata, specs);
                 logger.Verbose("Finished SBOM Generation");
 
                 if (!result.IsSuccessful)
                 {
-                    return new IpcResult(IpcResultStatus.ExecutionError, $"Errors were encountered during SBOM generation. Details: {GetSbomGenerationErrorDetails(result.Errors)}");
+                    return new IpcResult(IpcResultStatus.ManifestGenerationError, $"Errors were encountered during SBOM generation. Details: {GetSbomGenerationErrorDetails(result.Errors)}");
                 }
             }
             catch (Exception ex)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"Exception while generating an SBOM locally before drop upload: {ex}");
+                return new IpcResult(IpcResultStatus.ManifestGenerationError, $"Exception while generating an SBOM locally before drop upload: {ex}");
             }
 
             // Drop all generated files
@@ -934,7 +935,6 @@ namespace Tool.DropDaemon
 
             foreach (var item in dropItems)
             {
-
                 var buildManifestUploadResult = await AddFileAsync(item);
                 if (!buildManifestUploadResult.Succeeded)
                 {
@@ -947,10 +947,9 @@ namespace Tool.DropDaemon
                 return IpcResult.Success("Unsigned Build Manifest generated and uploaded successfully");
             }
 
-            var startTime = DateTime.UtcNow;
+            var sw = Stopwatch.StartNew();
             var signManifestResult = await GenerateAndSignBuildManifestCatalogFileAsync(dropConfig, filesToSign);
-            long signTimeMs = (long)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
-            logger.Info($"Build Manifest signing via EsrpManifestSign completed in {signTimeMs} ms. Succeeded: {signManifestResult.Succeeded}");
+            logger.Info($"Build Manifest signing via EsrpManifestSign completed in {sw.ElapsedMilliseconds} ms. Succeeded: {signManifestResult.Succeeded}");
 
             return signManifestResult;
         }
@@ -967,7 +966,7 @@ namespace Tool.DropDaemon
             return sb.ToString();
         }
 
-		private SbomFile ToSbomFile(BuildXL.Ipc.ExternalApi.Commands.BuildManifestFileInfo fileInfo)
+        private SbomFile ToSbomFile(BuildXL.Ipc.ExternalApi.Commands.BuildManifestFileInfo fileInfo)
         {
             return new()
             {
@@ -1028,7 +1027,7 @@ namespace Tool.DropDaemon
             int failureCount = 0;
             int warningCount = 0;
             StringBuilder adapterReportFailureDetails = new();
-			StringBuilder adapterReportWarnings = new();
+            StringBuilder adapterReportWarnings = new();
             foreach (var reportItem in adapterReport.Report)
             {
                 switch (reportItem.Type)
@@ -1089,18 +1088,18 @@ namespace Tool.DropDaemon
             Contract.Requires(dropConfig.GenerateBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though Build Manifest Generation is Disabled in DropConfig");
             Contract.Requires(dropConfig.SignBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though SignBuildManifest is Disabled in DropConfig");
 
-            var generateCatalogResult = await BuildManifestHelper.GenerateSignedCatalogAsync(
+            var possibleGenerateCatalogResult = await BuildManifestHelper.GenerateSignedCatalogAsync(
                 DropServiceConfig.MakeCatToolPath,
                 DropServiceConfig.EsrpManifestSignToolPath,
                 buildManifestLocalFiles,
                 DropServiceConfig.BsiFileLocation);
 
-            if (!generateCatalogResult.Success)
+            if (!possibleGenerateCatalogResult.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, generateCatalogResult.Payload);
+                return new IpcResult(IpcResultStatus.SigningError, possibleGenerateCatalogResult.Failure.Describe());
             }
 
-            string catPath = generateCatalogResult.Payload;
+            string catPath = possibleGenerateCatalogResult.Result;
 
             var dropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), catPath, relativeDropPath: BuildManifestHelper.DropCatalogFilePath);
             var uploadCatFileResult = await AddFileAsync(dropItem);
@@ -1339,6 +1338,10 @@ namespace Tool.DropDaemon
         ///   - <see cref="IpcResultStatus.TransmissionError"/> --> <see cref="Keywords.InfrastructureIssue"/>
         ///   - all other errors                                --> InternalError
         /// </summary>
+        /// <remarks>
+        /// Note that some exceptions will not be handled here. Everything that is not listed here will bubble up to
+        /// IServer and will be handled there.
+        /// </remarks>
         private static async Task<TResult> HandleKnownErrorsAsync<TResult>(Func<Task<TResult>> factory, ErrorFactory<TResult> errorValueFactory)
         {
             try
@@ -1351,18 +1354,36 @@ namespace Tool.DropDaemon
             }
             catch (VssResourceNotFoundException e)
             {
-                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message, IpcResultStatus.TransmissionError);
+                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message, IpcResultStatus.ExternalServiceError);
             }
             catch (DropServiceException e)
             {
                 var status = e.Message.Contains("already exists")
                     ? IpcResultStatus.InvalidInput
-                    : IpcResultStatus.TransmissionError;
+                    : IpcResultStatus.ExternalServiceError;
                 return errorValueFactory("[DROP SERVICE ERROR] " + e.Message, status);
             }
             catch (DaemonException e)
             {
-                return errorValueFactory("[DAEMON ERROR] " + e.Message, IpcResultStatus.ExecutionError);
+                var status = IpcResultStatus.ExecutionError;
+                if (e.Message.Contains(Statics.MaterializationResultIsSymlinkErrorPrefix))
+                {
+                    // Symlinks are not supported and any attempts to upload one are user errors.
+                    status = IpcResultStatus.InvalidInput;
+                }
+                else if (e.Message.Contains(Statics.MaterializationResultFileNotFoundErrorPrefix)
+                    || e.Message.Contains(Statics.MaterializationResultMaterializationFailedErrorPrefix))
+                {
+                    status = IpcResultStatus.ApiServerError;
+                }
+
+                return errorValueFactory("[DAEMON ERROR] " + e.Message, status);
+            }
+            catch(TimeoutException e)
+            {
+                // On the code path that is using this method, TimeoutException can only be thrown by
+                // ReloadingDropServiceClient, i.e., a timed out call to an endpoint.
+                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message, IpcResultStatus.ExternalServiceError);
             }
         }
 
@@ -1530,7 +1551,8 @@ namespace Tool.DropDaemon
             var possibleFilters = InitializeFilters(directoryFilters);
             if (!possibleFilters.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, possibleFilters.Failure.Describe());
+                // bad regex can only be caused by bad input
+                return new IpcResult(IpcResultStatus.InvalidInput, possibleFilters.Failure.Describe());
             }
 
             var possibleRelativePathReplacementArguments = InitializeRelativePathReplacementArguments(directoryRelativePathsReplaceSerialized);
@@ -1777,7 +1799,7 @@ namespace Tool.DropDaemon
             return (createDropItemsResults.SelectMany(r => r.Item1), null);
         }
 
-        private static (IEnumerable<DropItemForBuildXLFile>, string error) DedupeDropItems(IEnumerable<DropItemForBuildXLFile> dropItems)
+        private static Possible<IEnumerable<DropItemForBuildXLFile>> DedupeDropItems(IEnumerable<DropItemForBuildXLFile> dropItems)
         {
             var dropItemsByDropPaths = new Dictionary<string, DropItemForBuildXLFile>(OperatingSystemHelper.PathComparer);
 
@@ -1787,9 +1809,8 @@ namespace Tool.DropDaemon
                 {
                     if (!string.Equals(dropItem.FullFilePath, existingDropItem.FullFilePath, OperatingSystemHelper.PathComparison))
                     {
-                        return (
-                          null,
-                          I($"'{dropItem.FullFilePath}' cannot be added to drop because it has the same drop path '{dropItem.RelativeDropPath}' as '{existingDropItem.FullFilePath}'"));
+                        return new Failure<string>(
+                            I($"'{dropItem.FullFilePath}' cannot be added to drop because it has the same drop path '{dropItem.RelativeDropPath}' as '{existingDropItem.FullFilePath}'"));                        
                     }
                 }
                 else
@@ -1798,19 +1819,19 @@ namespace Tool.DropDaemon
                 }
             }
 
-            return (dropItemsByDropPaths.Select(kvp => kvp.Value).ToArray(), null);
+            return dropItemsByDropPaths.Select(kvp => kvp.Value).ToArray();
         }
 
         private static async Task<IIpcResult> AddDropItemsAsync(DropDaemon daemon, IEnumerable<DropItemForBuildXLFile> dropItems)
         {
-            (IEnumerable<DropItemForBuildXLFile> dedupedDropItems, string error) = DedupeDropItems(dropItems);
+            var possibleItems = DedupeDropItems(dropItems);
 
-            if (error != null)
+            if (!possibleItems.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, error);
+                return new IpcResult(IpcResultStatus.InvalidInput, possibleItems.Failure.Describe());
             }
 
-            var ipcResultTasks = dedupedDropItems.Select(d => daemon.AddFileAsync(d)).ToArray();
+            var ipcResultTasks = possibleItems.Result.Select(daemon.AddFileAsync).ToArray();
 
             var ipcResults = await TaskUtilities.SafeWhenAll(ipcResultTasks);
 

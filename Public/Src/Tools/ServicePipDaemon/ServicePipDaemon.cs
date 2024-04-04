@@ -688,7 +688,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <summary>
-        /// Takes a list of strings and returns a initialized regular expressions
+        /// Takes a list of strings and returns a list of initialized regular expressions
         /// </summary>
         protected static Possible<Regex[]> InitializeFilters(string[] filters)
         {
@@ -794,6 +794,28 @@ namespace Tool.ServicePipDaemon
             return Enum.TryParse<IpcResultStatus>(statusString, out var value)
                 ? value
                 : defaultValue;
+        }
+
+        /// <summary>
+        /// Creates a result with a limited payload that can be sent back to the caller (BuildXL).
+        /// In a successful case, the caller does not care about detailed summary, and in a failed case, the first
+        /// error should be enough for logging (other errors are still discoverable in the daemon's log).
+        /// </summary>
+        protected static IIpcResult SuccessOrFirstError(IIpcResult result)
+        {
+            if (result.Succeeded)
+            {
+                return new IpcResult(IpcResultStatus.Success, "Success", result.ActionDuration);
+            }
+
+            if (result is IpcResult ipcResult)
+            {
+                return ipcResult.GetFirstErrorResult();
+            }
+            else
+            {
+                return result;
+            }
         }
     }
 }

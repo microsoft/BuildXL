@@ -323,7 +323,8 @@ namespace Tool.SymbolDaemon
 
                 var result = await AddSymbolFilesInternalAsync(files, fileIds, hashes, symbolMetadataFile, symbolDaemon);
                 LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[ADDSYMBOLS] ", result);
-                return result;
+                // Trim the payload before sending the result.
+                return SuccessOrFirstError(result);
             });
 
         internal static readonly Command IndexFilesCmd = RegisterCommand(
@@ -357,6 +358,11 @@ namespace Tool.SymbolDaemon
                 symbolDaemon.Logger.Verbose("[GetDirectoriesContentAsync] Started");
                 var result = await GetDirectoriesContentAsync(conf, symbolDaemon);
                 LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[GetDirectoriesContentAsync] ", result);
+                // Do not change this result (it contains a list of files under a dir artifact). The result will
+                // become a real build artifact when this pip completes. The "symbol indexer" pip consumes this
+                // artifact (it's a part of its fingerprint) and uses it to learn which files under a root are
+                // a part of a given SOD it needs to index (this is done this was so the pip could benefit from
+                // caching).
                 return result;
             });
 
@@ -398,7 +404,8 @@ namespace Tool.SymbolDaemon
                 symbolDaemon.Logger.Verbose("[ADDSYMBOLSFROMDIRECTORIES] Started");
                 var result = await AddDirectoriesInternalAsync(conf, symbolDaemon);
                 LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[ADDSYMBOLSFROMDIRECTORIES] ", result);
-                return result;
+                // Trim the payload before sending the result.
+                return SuccessOrFirstError(result);
             });
 
         private static void IndexFilesAndStoreMetadataToFile(string[] files, ContentHash[] hashes, string outputFile)
@@ -781,9 +788,74 @@ namespace Tool.SymbolDaemon
 
                 return IpcResult.Success(I($"File '{file.FullFilePath}' {result} in request '{RequestName}'."));
             }
+            // Because we use TaskUtilities.SafeWhenAll in multiple places in VsoSymbolClient, exceptions
+            // will be wrapped in AggregateException (even if it's a single exception).
+            catch (AggregateException e)
+            {
+                var result = IpcResult.Success();
+
+                // AggregateException can contain any number of different exceptions. However, in this particular case,
+                // all inner exceptions are expected to be of the same type. For example, if we hit materialization issues
+                // we will likely have several materialization-related inner exceptions, but they all will be of the same type
+                // and they represent the same issue.
+                //
+                // Exceptions here come from the same batch; so, while it's more than fine to do the merging of IpcResults here,
+                // we might end up with IpcResultStatus.GenericError when we merge results for a single pip. This might happen if
+                // pip's files were processed in different batches and batches failed for different reasons. This will throw off
+                // our classification, but this should be a rather rare event.
+                e.Handle(x => 
+                {
+                    if (x is DaemonException daemonException)
+                    {
+                        var status = IpcResultStatus.ExecutionError;
+                        if (daemonException.Message.Contains(Statics.MaterializationResultIsSymlinkErrorPrefix))
+                        {
+                            // Symlinks are not supported and any attempts to upload one are user errors.
+                            status = IpcResultStatus.InvalidInput;
+                        }
+                        else if (daemonException.Message.Contains(Statics.MaterializationResultFileNotFoundErrorPrefix)
+                            || daemonException.Message.Contains(Statics.MaterializationResultMaterializationFailedErrorPrefix))
+                        {
+                            status = IpcResultStatus.ApiServerError;
+                        }
+
+                        result = IpcResult.Merge(result, new IpcResult(status, $"[DAEMON ERROR] {daemonException.Message}"));
+                    }
+                    else if (x is TimeoutException timeoutException)
+                    {
+                        // TimeoutException can only originate from ReloadingSymbolClient.
+                        result = IpcResult.Merge(result, new IpcResult(IpcResultStatus.ExternalServiceError, $"[SYMBOL SERVICE ERROR] {timeoutException.Message}"));
+                    }
+                    else if (x is RequestSealedException requestSealedException)
+                    {
+                        // RequestSealedException happens when we try to add a file after the request was finalized. Our graph construction ensures that finalize pip
+                        // is the last pip to run; so, when we hit this exception, it's likely caused by an error on the symbol service side.
+                        result = IpcResult.Merge(result, new IpcResult(IpcResultStatus.ExternalServiceError, requestSealedException.Message));
+                    }
+                    else if (x is DebugEntryExistsException debugEntryExistsException)
+                    {
+                        result = IpcResult.Merge(result, new IpcResult(IpcResultStatus.InvalidInput, debugEntryExistsException.Message));
+                    }
+                    else
+                    {
+                        // All possible exceptions that can happen during AddFileAsync are listed above.
+                        // This block is mainly to prevent Handle from throwing.
+                        result = IpcResult.Merge(result, new IpcResult(IpcResultStatus.ExecutionError, x.DemystifyToString()));
+                    }
+
+                    return true;
+                });
+
+                Contract.Assert(result.ExitCode != IpcResultStatus.Success, $"Processed an AggregateException, but IpcResultStatus is 'Success'. Exception: {e.DemystifyToString()}");
+                return result;
+            }
+            catch (DebugEntryExistsException e)
+            {
+                return new IpcResult(IpcResultStatus.InvalidInput, e.Message);
+            }
             catch (Exception e)
             {
-                return new IpcResult(IpcResultStatus.GenericError, e.DemystifyToString());
+                return new IpcResult(IpcResultStatus.ExecutionError, e.DemystifyToString());
             }
         }
 

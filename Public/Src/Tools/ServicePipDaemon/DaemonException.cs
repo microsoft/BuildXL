@@ -6,7 +6,7 @@ using System;
 namespace Tool.ServicePipDaemon
 {
     /// <summary>
-    /// Generic DropDaemon exception.
+    /// Generic ServicePipDaemon exception.
     /// </summary>
     public sealed class DaemonException : Exception
     {

@@ -11,6 +11,15 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     public static class Statics
     {
+        /// <nodoc/>
+        public const string MaterializationResultIsSymlinkErrorPrefix = "File materialization succeeded, but file found on disk is a symlink: ";
+        
+        /// <nodoc/>
+        public const string MaterializationResultFileNotFoundErrorPrefix = "File materialization succeeded, but file is not found on disk: ";
+        
+        /// <nodoc/>
+        public const string MaterializationResultMaterializationFailedErrorPrefix = "File materialization failed: ";
+
         /// <summary>
         ///     Logs an error as a line of text.  Currently prints out to <code>Console.Error</code>.
         ///     to use whatever other

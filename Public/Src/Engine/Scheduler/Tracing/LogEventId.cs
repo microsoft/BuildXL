@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Utilities.Instrumentation.Common;
+
 namespace BuildXL.Scheduler.Tracing
 {
     // disable warning regarding 'missing XML comments on public API'. We don't need docs for these values
@@ -13,7 +15,7 @@ namespace BuildXL.Scheduler.Tracing
     {
         None = 0,
 
-        PipIpcFailed = 5,
+        PipIpcFailed = SharedLogEventId.PipIpcFailed,
         PipWriteFileFailed = 6,
         PipCopyFileFromUntrackableDir = 7,
         PipCopyFileFailed = 8,
@@ -281,6 +283,11 @@ namespace BuildXL.Scheduler.Tracing
 
         PipIpcFailedDueToInfrastructureError = 3701,
         PipTimedOutDueToSuspend = 3702,
+        PipIpcFailedDueToBuildManifestGenerationError = 3703,
+        PipIpcFailedDueToBuildManifestSigningError = 3704,
+        PipIpcFailedDueToExternalServiceError = 3705,
+        PipIpcFailedWhileShedulerWasTerminating = 3706,
+
 
         // RESERVED TO [5000, 5050] (BuildXL.Scheduler.dll)
 

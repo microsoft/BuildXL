@@ -44,6 +44,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
         GrpcEventHandlerExceptionOccurred = 7067,
         CbTimeoutReached = 15001,
         CbTimeoutTooLow = 15002,
+
+        // Moved from BuildXL.Scheduler.Tracing.LogEventId
+        PipIpcFailed = 5,
+
         /*
          *********************************************
          * README:

@@ -30,19 +30,49 @@ namespace BuildXL.Ipc.Interfaces
         ConnectionError = 2,
 
         /// <summary>
-        /// Indicates that an error occured on the client while communicating with the server.
+        /// Indicates that an error occurred on the client while communicating with the server.
         /// </summary>
         TransmissionError = 3,
 
         /// <summary>
-        /// Indicates that an error occured on the server while executing the operation.
+        /// Indicates that an error occurred on the server while executing the operation.
         /// </summary>
         ExecutionError = 4,
 
         /// <summary>
         /// Indicates that the user input is invalid.
         /// </summary>
-        InvalidInput = 5
+        InvalidInput = 5,
+
+        /// <summary>
+        /// Indicates an error that occurred on the server and was associated with a BuildXL API Server.
+        /// </summary>
+        /// <remarks>
+        /// This a generic bucket. Every bad state that somehow can be linked to API Server goes here (e.g.,
+        /// a call could not be made, returned value is unexpected, file materialization failed, etc.).
+        /// </remarks>
+        ApiServerError = 6,
+
+        // ----------------------------- external error codes ------------------------------
+        
+        // The idea behind these error codes is to allow service pips to signal BuildXL about
+        // errors that are beyond their control. This should also enable us to better logging
+        // and tracking of such errors.
+
+        /// <summary>
+        /// Indicates that an error occurred on the server while generating an SBOM.
+        /// </summary>
+        ManifestGenerationError = 7,
+
+        /// <summary>
+        /// Indicates that an error occurred while the server was executing signing-related operation.
+        /// </summary>
+        SigningError = 8,
+
+        /// <summary>
+        /// Indicates that an error occurred while the server was communicating with an external service.
+        /// </summary>
+        ExternalServiceError = 9,
     }
 
     /// <summary>

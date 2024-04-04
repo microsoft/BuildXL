@@ -43,7 +43,7 @@ namespace Tool.DropDaemon
         /// Generates a local catalog file and signs it using EsrpManifestSign.exe from CloudBuild.
         /// </summary>
         /// <returns>Payload contains errorMessage if !Success, else contains local path to cat file</returns>
-        public async static Task<(bool Success, string Payload)> GenerateSignedCatalogAsync(
+        public async static Task<Possible<string>> GenerateSignedCatalogAsync(
             string makeCatToolPath,
             string esrpSignToolPath,
             IList<(string Path, string FileName)> buildManifestLocalFiles,
@@ -84,11 +84,11 @@ HashAlgorithms=SHA256
                 var makeCatExecutionResult = await TryExecuteProcessAsync(makeCatToolPath, $@"-v ""{cdfPath}""", tempDir);
                 if (!makeCatExecutionResult.Succeeded)
                 {
-                    return (false, $"Failure occurred during Build Manifest CAT file generation at path '{catPath}'. Failure: {makeCatExecutionResult.Failure.DescribeIncludingInnerFailures()}");
+                    return new Failure<string>($"Failure occurred during Build Manifest CAT file generation at path '{catPath}'. Failure: {makeCatExecutionResult.Failure.DescribeIncludingInnerFailures()}");
                 }
                 else if (!File.Exists(catPath))
                 {
-                    return (false, $"The process responsible for creating a Build Manifest CAT file at path '{catPath}' exited cleanly, however the file does not exist.");
+                    return new Failure<string>($"The process responsible for creating a Build Manifest CAT file at path '{catPath}' exited cleanly, however the file does not exist.");
                 }
 
                 // Sign the .cat file using EsrpManifestSign.exe from CloudBuild
@@ -97,16 +97,16 @@ HashAlgorithms=SHA256
                     tempDir);
                 if (!esrpSignExecutionResult.Succeeded)
                 {
-                    return (false, $"Unable to sign Manifest.cat at path '{catPath}' using EsrpManifestSign.exe. Failure: {esrpSignExecutionResult.Failure.DescribeIncludingInnerFailures()}");
+                    return new Failure<string>($"ESRP signing manifest '{catPath}' with EsrpManifestSign.exe failed. Failure: {esrpSignExecutionResult.Failure.DescribeIncludingInnerFailures()}");
                 }
                 else if (!File.Exists(catPath))
                 {
-                    return (false, $"The process responsible for signing a Build Manifest CAT file at path '{catPath}' exited cleanly, however the file does not exist.");
+                    return new Failure<string>($"The process responsible for signing a Build Manifest CAT file at path '{catPath}' exited cleanly, however the file does not exist.");
                 }
             }
             catch (IOException e)
             {
-                return (false, $"Exception occurred during GenerateSignedCatalogAsync :{e.Message}");
+                return new Failure<string>($"Exception occurred during GenerateSignedCatalogAsync :{e.Message}");
             }
             finally
             {
@@ -121,7 +121,7 @@ HashAlgorithms=SHA256
                 }
             }
 
-            return (true, catPath);
+            return catPath;
         }
 
         /// <summary>

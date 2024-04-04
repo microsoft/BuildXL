@@ -170,7 +170,8 @@ namespace Tool.MaterializationDaemon
                materializationDaemon.Logger.Verbose("[REGISTERMANIFEST] Started");
                var result = await materializationDaemon.RegisterManifestInternalAsync(conf);
                LogIpcResult(materializationDaemon.Logger, LogLevel.Verbose, "[REGISTERMANIFEST] ", result);
-               return result;
+               // Trim the payload before sending the result.
+               return SuccessOrFirstError(result);
            });
 
         internal static readonly Command FinalizeCmd = RegisterCommand(
@@ -197,7 +198,8 @@ namespace Tool.MaterializationDaemon
                 materializationDaemon.Logger.Verbose("[MATERIALIZEDIRECTORIES] Started");
                 var result = await materializationDaemon.MaterializeDirectoriesAsync(conf);
                 LogIpcResult(materializationDaemon.Logger, LogLevel.Verbose, "[MATERIALIZEDIRECTORIES] ", result);
-                return result;
+                // Trim the payload before sending the result.
+                return SuccessOrFirstError(result);
             });
 
         #endregion

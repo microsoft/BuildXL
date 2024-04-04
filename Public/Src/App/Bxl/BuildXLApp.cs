@@ -11,10 +11,13 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.App.Tracing;
+using BuildXL.Cache.Logging;
 using BuildXL.Engine;
 using BuildXL.Engine.Distribution;
 using BuildXL.Engine.Recovery;
@@ -29,34 +32,27 @@ using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.CrashReporting;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
-using Logger = BuildXL.App.Tracing.Logger;
 using AppLogEventId = BuildXL.App.Tracing.LogEventId;
-using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using EngineLogEventId = BuildXL.Engine.Tracing.LogEventId;
-using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
-using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
-using TracingLogEventId = BuildXL.Tracing.LogEventId;
+using Logger = BuildXL.App.Tracing.Logger;
 using PipsLogEventId = BuildXL.Pips.Tracing.LogEventId;
 using PluginLogEventId = BuildXL.Plugin.Tracing.LogEventId;
-using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
-
-using Strings = bxl.Strings;
-#pragma warning disable SA1649 // File name must match first type name
-using BuildXL.Utilities.CrashReporting;
-using System.Runtime.InteropServices;
-using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Cache.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using Statistic = BuildXL.Tracing.Statistic;
-using Azure.Identity;
-using Azure.Storage.Blobs;
-using Azure.Core.Pipeline;
-using BuildXL.ConsoleRedirector;
+using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
+using Strings = bxl.Strings;
+using TracingLogEventId = BuildXL.Tracing.LogEventId;
+
+#pragma warning disable SA1649 // File name must match first type name
 
 namespace BuildXL
 {
@@ -105,17 +101,15 @@ namespace BuildXL
     internal readonly struct AppResult
     {
         public readonly ExitKind ExitKind;
-        public readonly ExitKind CloudBuildExitKind;
         public readonly EngineState EngineState;
         public readonly string ErrorBucket;
         public readonly string BucketMessage;
         public readonly bool DoNotReuseServer;
         public readonly string InternalWarning;
 
-        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage, bool doNotSaveServerState, string internalWarnings)
+        private AppResult(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage, bool doNotSaveServerState, string internalWarnings)
         {
             ExitKind = exitKind;
-            CloudBuildExitKind = cloudBuildExitKind;
             EngineState = engineState;
             ErrorBucket = errorBucket;
             BucketMessage = bucketMessage;
@@ -125,12 +119,7 @@ namespace BuildXL
 
         public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool doNotSaveServerState = false, string internalWarning = "")
         {
-            return new AppResult(exitKind, exitKind, engineState, errorBucket, bucketMessage, doNotSaveServerState, internalWarning);
-        }
-
-        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage, bool doNotReuseServer, string internalWarning)
-        {
-            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, bucketMessage, doNotReuseServer, internalWarning);
+            return new AppResult(exitKind, engineState, errorBucket, bucketMessage, doNotSaveServerState, internalWarning);
         }
     }
 
@@ -750,13 +739,12 @@ namespace BuildXL
                             LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
 
                             var classification = ClassifyFailureFromLoggedEvents(appLoggers.TrackingEventListener);
-                            var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
 
-                            return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket,
+                            return AppResult.Create(classification.ExitKind, newEngineState, classification.ErrorBucket,
                                 bucketMessage: classification.BucketMessage,
                                 // Some L3 cache initialization failures relating to auth are sticky and will not succeed if retried from
                                 // within the same process. Make sure not to reuse the server process when the cache fails to init for safety.
-                                doNotReuseServer: appLoggers.TrackingEventListener.CountsPerEventId((int)BuildXL.Engine.Tracing.LogEventId.StorageCacheStartupError) > 0,
+                                doNotSaveServerState: appLoggers.TrackingEventListener.CountsPerEventId((int)BuildXL.Engine.Tracing.LogEventId.StorageCacheStartupError) > 0,
                                 internalWarning: internalWarning);
                         }
 
@@ -914,41 +902,6 @@ namespace BuildXL
             {
                 return (ExitKind: ExitKind.UserError, ErrorBucket: listener.UserErrorDetails.FirstErrorName, BucketMessage: listener.UserErrorDetails.FirstErrorMessage);
             }
-        }
-
-        /// <summary>
-        /// Computes the legacy ExitKind used for CloudBuild integration. This needs to exist until GBR understands
-        /// the simpler InternalError/InfrastructureError/UserError categorization.
-        /// </summary>
-        private static ExitKind GetExitKindForCloudBuild(TrackingEventListener listener)
-        {
-            foreach (var item in listener.CountsPerEvent)
-            {
-                if (item.Value > 0)
-                {
-                    // Pick the best bucket by the type of events that were logged. First wins.
-                    switch (item.Key)
-                    {
-                        case (int)BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringError:
-                            return ExitKind.BuildFailedWithFileMonErrors;
-                        case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs:
-                            return ExitKind.BuildFailedWithMissingOutputErrors;
-                        case (int)BuildXL.Pips.Tracing.LogEventId.InvalidOutputDueToSimpleDoubleWrite:
-                            return ExitKind.BuildFailedSpecificationError;
-                        case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessError:
-                        case (int)SharedLogEventId.DistributionWorkerForwardedError:
-                            return ExitKind.BuildFailedWithPipErrors;
-                        case (int)AppLogEventId.CancellationRequested:
-                            return ExitKind.BuildCancelled;
-                        case (int)BuildXL.Pips.Tracing.LogEventId.NoPipsMatchedFilter:
-                            return ExitKind.NoPipsMatchFilter;
-                        case (int)BuildXL.App.Tracing.LogEventId.CbTimeoutReached:
-                            return ExitKind.BuildTimeout;
-                    }
-                }
-            }
-
-            return ExitKind.BuildFailedWithGeneralErrors;
         }
 
         private void LogGeneratedFiles(LoggingContext loggingContext, TrackingEventListener trackingListener, PathTranslator translator)

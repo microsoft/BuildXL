@@ -19,9 +19,6 @@ namespace Tool.DropDaemon
     /// </summary>
     public sealed class DropItemForBuildXLFile : DropItemForFile
     {
-        /// <summary>Prefix for the error message of the exception that gets thrown when a materialized file is a symlink.</summary>
-        internal const string MaterializationResultIsSymlinkErrorPrefix = "File materialization succeeded, but file found on disk is a symlink: ";
-
         /// <summary>
         /// File content hash
         /// </summary>
@@ -90,17 +87,17 @@ namespace Tool.DropDaemon
 
             if (!maybeResult.Result)
             {
-                throw new DaemonException("File materialization failed");
+                throw new DaemonException($"{Statics.MaterializationResultMaterializationFailedErrorPrefix}{FullFilePath}");
             }
 
             if (!System.IO.File.Exists(FullFilePath))
             {
-                throw new DaemonException("File materialization succeeded, but file is not found on disk: " + FullFilePath);
+                throw new DaemonException($"{Statics.MaterializationResultFileNotFoundErrorPrefix}{FullFilePath}");
             }
 
             if (m_symlinkTester(FullFilePath))
             {
-                throw new DaemonException(MaterializationResultIsSymlinkErrorPrefix + FullFilePath);
+                throw new DaemonException($"{Statics.MaterializationResultIsSymlinkErrorPrefix}{FullFilePath}");
             }
 
 #if DEBUG

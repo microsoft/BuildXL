@@ -257,8 +257,7 @@ namespace BuildXL.Processes.Internal
                     return -1;
                 }
 
-                int exitCode;
-                if (!Native.Processes.ProcessUtilities.GetExitCodeProcess(m_processHandle, out exitCode))
+                if (!ProcessUtilities.GetExitCodeProcess(m_processHandle, out int exitCode))
                 {
                     throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get exit code.");
                 }
@@ -284,8 +283,7 @@ namespace BuildXL.Processes.Internal
                 Contract.Assume(!m_disposed);
                 Contract.Assume(m_processHandle != null, "Process not yet started.");
 
-                long creation, exit, kernel, user;
-                if (!Native.Processes.ProcessUtilities.GetProcessTimes(m_processHandle.DangerousGetHandle(), out creation, out exit, out kernel, out user))
+                if (!ProcessUtilities.GetProcessTimes(m_processHandle.DangerousGetHandle(), out long creation, out long exit, out long kernel, out long user))
                 {
                     throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get times.");
                 }
@@ -308,6 +306,9 @@ namespace BuildXL.Processes.Internal
                 if (m_standardInputWriter != null)
                 {
                     await m_standardInputWriter.WriteLineAsync(line);
+
+                    // Standard input writer is not set to auto flush; need to flush manually.
+                    await m_standardInputWriter.FlushAsync();
                 }
             }
         }
@@ -429,10 +430,10 @@ namespace BuildXL.Processes.Internal
                 // - We use CREATE_NO_WINDOW when redirecting stdout/err/in and there is a parent console (to prevent creating extra conhost.exe
                 //   processes on Windows when running headless) or when console sharing is disabled (typical for BuildXL which takes over
                 //   management of the console). Otherwise we use the parent console for output.
-                int creationFlags = Native.Processes.ProcessUtilities.CREATE_DEFAULT_ERROR_MODE;
+                int creationFlags = ProcessUtilities.CREATE_DEFAULT_ERROR_MODE;
                 if (redirectStreams && (s_consoleWindow != IntPtr.Zero || m_disableConHostSharing))
                 {
-                    creationFlags |= Native.Processes.ProcessUtilities.CREATE_NO_WINDOW;
+                    creationFlags |= ProcessUtilities.CREATE_NO_WINDOW;
                 }
 
                 bool useManagedPipeReader = !PipeReaderFactory.ShouldUseLegacyPipeReader();
@@ -459,7 +460,7 @@ namespace BuildXL.Processes.Internal
                         IntPtr environmentPtr = IntPtr.Zero;
                         if (m_unicodeEnvironmentBlock != null)
                         {
-                            creationFlags |= Native.Processes.ProcessUtilities.CREATE_UNICODE_ENVIRONMENT;
+                            creationFlags |= ProcessUtilities.CREATE_UNICODE_ENVIRONMENT;
                             environmentHandle = GCHandle.Alloc(m_unicodeEnvironmentBlock, GCHandleType.Pinned);
                             environmentPtr = environmentHandle.AddrOfPinnedObject();
                         }
@@ -557,9 +558,9 @@ namespace BuildXL.Processes.Internal
                         m_processInjector.Listen();
 
                         // The call to the CreateDetouredProcess below will add a newly created process to the job.
-                        System.Diagnostics.Stopwatch m_startUpTimeWatch = System.Diagnostics.Stopwatch.StartNew();
+                        System.Diagnostics.Stopwatch startUpTimeWatch = System.Diagnostics.Stopwatch.StartNew();
                         var detouredProcessCreationStatus =
-                            Native.Processes.ProcessUtilities.CreateDetouredProcess(
+                            ProcessUtilities.CreateDetouredProcess(
                                 m_commandLine,
                                 creationFlags,
                                 environmentPtr,
@@ -573,8 +574,8 @@ namespace BuildXL.Processes.Internal
                                 out threadHandle,
                                 out m_processId,
                                 out int errorCode);
-                        m_startUpTimeWatch.Stop();
-                        m_startUpTime = m_startUpTimeWatch.ElapsedMilliseconds;
+                        startUpTimeWatch.Stop();
+                        m_startUpTime = startUpTimeWatch.ElapsedMilliseconds;
 
                         if (detouredProcessCreationStatus != CreateDetouredProcessStatus.Succeeded)
                         {
@@ -655,7 +656,15 @@ namespace BuildXL.Processes.Internal
                     if (standardInputWritePipeHandle != null)
                     {
                         var standardInputStream = new FileStream(standardInputWritePipeHandle, FileAccess.Write, m_bufferSize, isAsync: true);
-                        m_standardInputWriter = new StreamWriter(standardInputStream, m_standardInputEncoding, m_bufferSize) { AutoFlush = true };
+
+                        // Do not set auto flush to true because, if it is set to true, StreamWriter would immediately do a write operation to the pipe (although the data is empty).
+                        // When the pipe is closed (or is being closed), the write operation would fail and throw an exception. This can happen if the detoured process does not need
+                        // any standard input, and the process terminates quickly before this pipe setup is completed.
+                        // It was not an issue before .NET 8 because when writing to a FileStream that represented a closed or disconnected pipe, the underlying operating system
+                        // error was ignored and the write was reported as successful. However, nothing was written to the pipe. Starting in .NET 8, when writing to a FileStream whose
+                        // underlying pipe is closed or disconnected, the write fails and an IOException is thrown.
+                        // See breaking changes in .NET 8: https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/8.0/filestream-disposed-pipe
+                        m_standardInputWriter = new StreamWriter(standardInputStream, m_standardInputEncoding, m_bufferSize) { AutoFlush = false };
                     }
 
                     if (standardOutputReadPipeHandle != null)
@@ -1065,6 +1074,6 @@ namespace BuildXL.Processes.Internal
             }
         }
 
-        public long StartTime { get { return m_startUpTime; } }
+        public long StartTime => m_startUpTime;
     }
 }

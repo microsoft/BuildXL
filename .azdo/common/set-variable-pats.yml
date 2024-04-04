@@ -1,0 +1,19 @@
+# Sets pipeline variables with appropriate PATs to use as environment variables in internal selfhost builds 
+# Note this task assumes the variable group "BuildXL Secrets" is available
+parameters:
+- name: workingDirectory
+  type: string
+  default: $(Build.SourcesDirectory)
+
+steps:
+- task: PowerShell@2
+  displayName: Set environment for the job with necessary PATs 
+  inputs:
+    workingDirectory: ${{ parameters.workingDirectory }}
+    targetType: filePath
+    filePath: .azdo/scripts/SetVariablePats.ps1
+    arguments: >-
+      -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
+      -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+      -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode)
+      -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache)

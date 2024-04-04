@@ -13,12 +13,28 @@ jobs:
 
   - template: ../common/journaling.yml # Enable journaling
   
-  - task: PowerShell@2
-    displayName: Build MacOS Test Binaries
-    inputs:
-        targetType: filePath
-        filePath: ./RunBxlWithPat.ps1
-        arguments: /f:"output='$(Build.SourcesDirectory)\Out\Bin\Release\tests\*'" -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache) -CacheNamespace BuildXL.MacOS -SharedCacheMode ConsumeAndPublish /p:[Sdk.BuildXL]microsoftInternal=1 /q:ReleaseDotNetCoreMac /server- /logOutput:FullOutputOnWarningOrError /ado /scrubDirectory:Out\objects /cachemiss:[BxlMacOSPRValidation]
+  - template: /.azdo/common/set-variable-pats.yml
+  - script: >-
+      bxl.cmd
+      /f:output='$(Build.SourcesDirectory)\Out\Bin\Release\tests\*'
+      -CacheNamespace BuildXL.MacOS
+      -SharedCacheMode ConsumeAndPublish
+      /p:[Sdk.BuildXL]microsoftInternal=1
+      /q:ReleaseDotNetCoreMac
+      /server-
+      /logOutput:FullOutputOnWarningOrError
+      /ado
+      /scrubDirectory:Out\objects
+      /cachemiss:[BxlMacOSPRValidation]
+    displayName: 'Build MacOS Test Binaries'
+    env:
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+      CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
+      MSENG_GIT_PAT: $(MSENG_GIT_PAT)
+      VSTSPERSONALACCESSTOKEN: $(VSTSPERSONALACCESSTOKEN)
+      ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
+      CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
 
   - task: PublishBuildArtifacts@1
     displayName: Publish Test Binaries

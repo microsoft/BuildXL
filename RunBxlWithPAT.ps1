@@ -3,6 +3,9 @@
 
 Script for BuildXL self-hosting with specified PATs. This script is used to perform BuildXL self-hosting in Azure pipeline.
 
+NOTE: This script is deprecated. 
+      The way to run BuildXL on ADO is just including .azdo/common/set-variable-pats.yml to set up the environment
+      as a pre-build step of the 1ESPT BuildXL workflow (or before running bxl.cmd directly).
 #>
 
 [CmdletBinding(PositionalBinding=$false)]
@@ -47,66 +50,33 @@ Param(
  [string[]]$BxlArgs
 )
 
-[Environment]::SetEnvironmentVariable("1ESSHAREDASSETS_BUILDXL_FEED_PAT", $OneEsPat, "Process")
-[Environment]::SetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT", $CbPat, "Process")
-[Environment]::SetEnvironmentVariable("MSENG_GIT_PAT", $MsEngGitPat, "Process")
-[Environment]::SetEnvironmentVariable("VSTSPERSONALACCESSTOKEN", $VstsPat, "Process")
-[Environment]::SetEnvironmentVariable("ARTIFACT_CREDENTIALPROVIDERS_PATH", $VstsCredProviderPath, "Process")
+Write-Warning "This script is deprecated."
+Write-Warning "The way to run BuildXL on ADO is just including .azdo/common/set-variable-pats.yml to set up the environment as a pre-build step of the 1ESPT BuildXL workflow (or before running bxl.cmd directly)."
 
-# NPM authentication requires the PAT to be base64 encoded first
-$cbPatBytes = [System.Text.Encoding]::UTF8.GetBytes($CbPat)
-$b64CloudbuildPat = [Convert]::ToBase64String($cbPatBytes)
-# CODESYNC: Keep this variable name in sync with Public/Src/FrontEnd/UnitTests/Rush/IntegrationTests/RushIntegrationTestBase.cs
-[Environment]::SetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64", $b64CloudbuildPat, "Process")
-
-if ($NcPath)
-{
-    [Environment]::SetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH", $NcPath, "Process")
-}
-
-# CODESYNC: Keep this variable name in sync with Public/Src/FrontEnd/UnitTests/Nuget/Test.BuildXL.FrontEnd.Nuget.dsc
-[Environment]::SetEnvironmentVariable("VSS_NUGET_EXTERNAL_FEED_ENDPOINTS", "
-{
-    `"endpointCredentials`": [
-        {`"endpoint`":`"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json`", `"password`":`"$OneEsPat`"}, 
-        {`"endpoint`":`"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json`", `"password`":`"$CbPat`"}
-    ]
-}", "Process")
-
-$BxlCmdArgs = @(
-    "-Use", $Use,
-    "-DeployConfig", $DeployConfig,
-    "-DeployRuntime", $DeployRuntime
-    "-SharedCacheMode", $SharedCacheMode
+# 1. Set PATs
+$PatArgs = @(
+    "-OneEsPat", $OneEsPat,
+    "-CbPat", $CbPat,
+    "-MsEngGitPat", $MsEngGitPat
 )
 
-if (-not [string]::IsNullOrEmpty($Deploy))
+if (-not [string]::IsNullOrEmpty($NcPath))
 {
-    $BxlCmdArgs += @("-Deploy", $Deploy)
+    $PatArgs += @("-NcPath", $NcPath)
 }
 
-if ($Minimal)
+if (-not [string]::IsNullOrEmpty($VstsPat))
 {
-    $BxlCmdArgs += "-Minimal"
+    $PatArgs += @("-VstsPat", $VstsPat)
 }
 
-if ($EnableProcessRemoting)
+if (-not [string]::IsNullOrEmpty($VstsCredProviderPath))
 {
-    $BxlCmdArgs += "-EnableProcessRemoting"
+    $PatArgs += @("-VstsCredProviderPath", $VstsCredProviderPath)
 }
 
-if (-not [string]::IsNullOrEmpty($AnyBuildClientDir))
-{
-    $BxlCmdArgs += @("-AnyBuildClientDir", "$AnyBuildClientDir")
-}
+$PatArgsStr = $PatArgs -Join " "
+Invoke-Expression ".azdo/scripts/SetVariablePats.ps1 $PatArgsStr"
 
-if (-not [string]::IsNullOrEmpty($CacheNamespace))
-{
-    $BxlCmdArgs += @("-CacheNamespace", "$CacheNamespace")
-}
-
-$BxlCmdArgs += $BxlArgs
-
-Write-Host "Call bxl.cmd $BxlCmdArgs"
-
-.\bxl.cmd $BxlCmdArgs
+Write-Host "Call bxl.cmd $BxlArgs"
+.\bxl.cmd $BxlArgs

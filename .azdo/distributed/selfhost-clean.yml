@@ -20,8 +20,6 @@ variables:
     value: $(Build.Repository.LocalPath)
   - name: BuildXL.LogsDirectory
     value: $(BuildXL.RepoDirectory)\Out\Logs
-  - name: PatArgs
-    value: -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
   - name: BxlScriptArgs
     value: -UseAdoBuildRunner -SharedCacheMode ConsumeAndPublish -Use Dev -DevRoot $(Domino.DogfoodPackagePath)\release\win-x64
   - name: BuildXLArgs
@@ -82,20 +80,24 @@ jobs:
       netsh advfirewall firewall add rule name="Open Cache outbound port" protocol=TCP localport=7089 action=allow dir=OUT
     displayName: Setup firewall rules
 
-  - task: PowerShell@2
-    inputs:
-      targetType: filePath
-      filePath: 'RunBxlWithPAT.ps1'
-      arguments: '$(PatArgs) $(BxlScriptArgs) $(BuildXLArgs) /logsDirectory:$(BuildXL.LogsDirectory) /ado'
-      workingDirectory: $(BuildXL.RepoDirectory)
+  - template: /.azdo/common/set-variable-pats.yml
+
+  - script: bxl.cmd $(BxlScriptArgs) $(BuildXLArgs) /logsDirectory:$(BuildXL.LogsDirectory)
+    workingDirectory: $(BuildXL.RepoDirectory)
     displayName: 'Run clean selfhost build distributed'
     env:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
       AdoBuildRunnerInvocationKey: SelfhostClean
       BlobCacheFactoryConnectionString: $(BuildXL-Selfhost-L3-ConnectionString)
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+      CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
+      MSENG_GIT_PAT: $(MSENG_GIT_PAT)
+      VSTSPERSONALACCESSTOKEN: $(VSTSPERSONALACCESSTOKEN)
+      ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
+      CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
 
-  
   - ${{ if eq(parameters.Role, 'Orchestrator') }}:
     - powershell: |
         $bxlWithRemotingLogDir = "$(BuildXL.LogsDirectory)"

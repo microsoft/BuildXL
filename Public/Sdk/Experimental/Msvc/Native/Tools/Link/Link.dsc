@@ -46,6 +46,7 @@ export const defaultLinkArguments = <Arguments>{
     // Control Flow Guard required by SDL. It needs /DYNAMICBASE (randomizedBaseAddress).
     cfGuard: true,
     randomizedBaseAddress: true,
+    enableCetcompat: true,
 };
 
 /**
@@ -136,7 +137,6 @@ export function evaluate(args: Arguments): Result {
         Cmd.args(Artifact.outputs(midlHeaderOutFiles)),
         Cmd.args(Artifact.outputs(midlIidOutFiles)),
         Cmd.args(Artifact.outputs(midlDllOutFiles)),
-
         Cmd.args(Artifact.inputs(midlIncludeDirs)),
         // inputs
         ...getInputCmdLineArgs(args),
@@ -353,6 +353,7 @@ function optionsToCmdLineArgs(args: Arguments): Argument[] {
         Cmd.flag("/DLL", args.projectType === LinkProjectType.dynamicLinkLibrary),
         Cmd.option("/SWAPRUN:", Shared.enumConstToUpperCase(args.swapLocation)),
         Cmd.flag("/LARGEADDRESSAWARE", args.largeAddressAware),
+        Cmd.flag("/CETCOMPAT", args.enableCetcompat),
 
         // output information
         (args.driverType !== DriverTypes.none ?
@@ -1226,6 +1227,10 @@ export interface Arguments extends Transformer.RunnerArguments {
 
     /** Additional dependencies to be read by compiler or linker such as pdb files. */
     additionalDependencies?: File[];
+
+    /** Marks an executable image as compatible with Control-flow Enforcement Technology (SET) Shadow stack. */
+    @@Tool.option("/CETCOMPAT")
+    enableCetcompat?: boolean;
 }
 
 /**

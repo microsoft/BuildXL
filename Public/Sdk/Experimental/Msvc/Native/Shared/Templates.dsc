@@ -72,6 +72,7 @@ namespace Templates {
         sources: undefined,
         languageVersion: ClQ.LanguageVersion.cpp20,
         externalHeaderDiagnostics: [ "anglebrackets", "W0" ], // Disables warnings from headers included with angle brackets
+        useSha256ForChecksum: true,
     };
 
     @@public

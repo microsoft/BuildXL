@@ -159,6 +159,7 @@ namespace Binary {
         enableSpectreVariantOneMitigation: true,
         languageVersion: Cl.LanguageVersion.cpp20,
         externalHeaderDiagnostics: [ "anglebrackets", "W0" ], // Disables warnings from headers included with angle brackets
+        useSha256ForChecksum: true,
     };
 
     /** Computes all the include search paths from the NativeBinaryArguments */

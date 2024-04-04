@@ -13,14 +13,17 @@ namespace Test.DScript.Ast.ErrorHandling
         public TestSpecConfigFilesAreValidated(ITestOutputHelper output) : base(output)
         { }
 
-        [Fact]
-        public void ValidateDisallowedAmbientAccessInConfigString()
+        [Theory]
+        [InlineData("configFile.dsc")]
+        [InlineData("configFile.bc")]
+        [InlineData("configFile.bl")]
+        public void ValidateDisallowedAmbientAccessInConfigString(string configurationFileName)
         {
             // Here we just pick a random error code that we know applies to spec config files.
             // What we want to validate is that extra configuration files are actually validated, we are not after this specific error.
             var result = Build()
-                .LegacyConfiguration($"config({{ qualifiers: {{ defaultQualifier: {{ platform: importFile(f`configFile.dsc`).platform, configuration: \"foo\", targetFramework: \"foo\" }}, }} }});")
-                .AddFile("configFile.dsc",
+                .LegacyConfiguration($"config({{ qualifiers: {{ defaultQualifier: {{ platform: importFile(f`{configurationFileName}`).platform, configuration: \"foo\", targetFramework: \"foo\" }}, }} }});")
+                .AddFile(configurationFileName,
 @"
 export const platform = 'win';
 function foo() {

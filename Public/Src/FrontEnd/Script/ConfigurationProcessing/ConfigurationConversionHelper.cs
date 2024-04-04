@@ -111,6 +111,9 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// Parses config only for the purpose of getting the configuration object.
         /// </summary>
+        /// <remarks>
+        /// The config path represents either the primary configuration file or a package/module configuration file.
+        /// </remarks>
         public async Task<Workspace> ParseAndValidateConfigFileAsync(AbsolutePath configPath, bool typecheck, bool validate = true)
         {
             Contract.Requires(configPath.IsValid);
@@ -131,6 +134,9 @@ namespace BuildXL.FrontEnd.Script
                 if (ExtensionUtilities.IsGlobalConfigurationFile(configPath.GetName(Context.PathTable).ToString(Context.StringTable)))
                 {
                     // In some tests the source file is null.
+                    // The specFileMap represents the config workspace, and therefore it contains the main configuration file,
+                    // package/module configuration files and additional configuration files imported via importFile from the main
+                    // configuration file.
                     foreach (var kvp in specFileMap.Where(kvp => kvp.Value != null))
                     {
                         var filename = kvp.Key.GetName(Context.PathTable).ToString(Context.StringTable);
@@ -140,7 +146,8 @@ namespace BuildXL.FrontEnd.Script
                             continue;
                         }
 
-                        var kind = ExtensionUtilities.IsGlobalConfigurationFile(filename) 
+                        // What remains should be either the main configuration file (passed by the caller) or additional configuration files.
+                        var kind = configPath == kvp.Key 
                             ? ConfigurationKind.PrimaryConfig 
                             : ConfigurationKind.SpecConfig;
 

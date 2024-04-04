@@ -492,18 +492,6 @@ namespace BuildXL.Pips
         public IpcMoniker GetApiServerMoniker() => m_pipGraph?.GetApiServerMoniker() ?? default;
 
         /// <nodoc />
-        public bool TryGetSealDirectoryKind(DirectoryArtifact directory, out SealDirectoryKind kind)
-        {
-            if (m_pipGraph != null)
-            {
-                return m_pipGraph.TryGetSealDirectoryKind(directory, out kind);
-            }
-
-            kind = SealDirectoryKind.Full; // Irrelevant value.
-            return false;
-        }
-
-        /// <nodoc />
         public DirectoryArtifact ReserveSharedOpaqueDirectory(AbsolutePath directoryArtifactRoot)
         {
             if (m_pipGraph != null)

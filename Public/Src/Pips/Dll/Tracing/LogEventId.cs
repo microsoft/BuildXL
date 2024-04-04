@@ -43,6 +43,7 @@ namespace BuildXL.Pips.Tracing
         InvalidPipDueToInvalidServicePipDependency = 296,
         ScheduleFailAddPipDueToInvalidPreserveOutputAllowlist = 302,
         ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag = 303,
+        ScheduleFailAddPipDueToIncompatibleTrustStaticallyDeclaredAccessesWithOpaqueOrSourceSeal = 304,
         InvalidInputSinceCorrespondingOutputIsTemporary = 310,
 
         InvalidOutputUnderNonWritableRoot = 2000,

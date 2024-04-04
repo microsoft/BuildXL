@@ -1374,6 +1374,15 @@ namespace BuildXL.Pips.Graph
                     }
                 }
 
+                // Trusting statically declared accesses is not compatible with declaring opaque or source sealed directories
+                if ((process.ProcessOptions & Process.Options.TrustStaticallyDeclaredAccesses) != Process.Options.None
+                    && (process.DirectoryOutputs.Length > 0
+                        || process.DirectoryDependencies.Any(directory => TryGetSealDirectoryKind(directory, out var kind) && kind.IsSourceSeal())))
+                {
+                    LogEventWithPipProvenance(Logger.ScheduleFailAddPipDueToIncompatibleTrustStaticallyDeclaredAccessesWithOpaqueOrSourceSeal, process);
+                    return false;
+                }
+
                 Contract.Assert(
                     !process.StandardOutput.IsValid || outputsByPath.ContainsKey(process.StandardOutput.Path),
                     "Output set must contain the standard output file, if specified.");

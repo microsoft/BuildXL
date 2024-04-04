@@ -685,23 +685,7 @@ namespace BuildXL.Pips.Builders
                        displayNameForTag: m_serviceTrackableTagDisplayName,
                        monikerId: monikerId);
 
-            processOutputs = new ProcessOutputs(
-                outputFileMap,
-                directoryOutputMap
-                );
-
-
-            // Trusting statically declared accesses is not compatible with declaring opaque or source sealed directories
-            if ((Options & Options.TrustStaticallyDeclaredAccesses) != Options.None && 
-                    (directoryOutputs.Length > 0 || 
-                    m_inputDirectories.Instance.Any(directory => pipConstructionHelper.TryGetSealDirectoryKind(directory, out var kind) && kind.IsSourceSeal()))
-            )
-            {
-                processOutputs = null;
-                process = null;
-
-                return false;
-            }
+            processOutputs = new ProcessOutputs(outputFileMap, directoryOutputMap);
 
             process = new Process(
                 executable: Executable,

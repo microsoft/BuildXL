@@ -330,7 +330,7 @@ namespace BuildXL.Pips.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Scheduler,
-            Message = "The pip '{pipDescription}' could not be added because one of its service pip dependencies is not a service pip).")]
+            Message = "The pip '{pipDescription}' cannot be added because one of its service pip dependencies is not a service pip).")]
         public abstract void ScheduleFailAddPipDueToInvalidServicePipDependency(
             LoggingContext context,
             string file,
@@ -348,7 +348,7 @@ namespace BuildXL.Pips.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 EventConstants.ProvenancePrefix +
-                "The pip '{pipDescription}' could not be added because it depends on multiple versions (different rewrite counts) of file '{dependencyFile}'.")]
+                "The pip '{pipDescription}' cannot be added because it depends on multiple versions (different rewrite counts) of file '{dependencyFile}'.")]
         public abstract void ScheduleFailAddPipInvalidInputDueToMultipleConflictingRewriteCounts(
             LoggingContext context,
             string file,
@@ -367,7 +367,7 @@ namespace BuildXL.Pips.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 EventConstants.ProvenancePrefix +
-                "The process pip '{pipDescription}' could not be added because it does not specify any output file or opaque directory in a non-temp location. At least one output file or opaque directory is required.")]
+                "The process pip '{pipDescription}' cannot be added because it does not specify any output file or opaque directory in a non-temp location. At least one output file or opaque directory is required.")]
         public abstract void ScheduleFailAddProcessPipProcessDueToNoOutputArtifacts(
             LoggingContext context,
             string file,
@@ -385,7 +385,7 @@ namespace BuildXL.Pips.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 EventConstants.ProvenancePrefix +
-                "The process pip '{pipDescription}' could not be added because it outputs multiple versions (different rewrite counts) of file '{outputFile}'.")]
+                "The process pip '{pipDescription}' cannot be added because it outputs multiple versions (different rewrite counts) of file '{outputFile}'.")]
         public abstract void ScheduleFailAddPipInvalidOutputDueToMultipleConflictingRewriteCounts(
             LoggingContext context,
             string file,
@@ -421,7 +421,7 @@ namespace BuildXL.Pips.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Scheduler,
-            Message = "The pip '{pipDescription}' could not be added because PreserveOutputAllowlist is set even though AllowPreserveOutputs is false for the pip).")]
+            Message = "The pip '{pipDescription}' cannot be added because PreserveOutputAllowlist is set even though AllowPreserveOutputs is false for the pip.")]
         public abstract void ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag(
             LoggingContext context,
             string file,
@@ -437,8 +437,24 @@ namespace BuildXL.Pips.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Scheduler,
-            Message = "The pip '{pipDescription}' could not be added because one of PreserveOutputAllowlist is neither static file output nor directory output).")]
+            Message = "The pip '{pipDescription}' cannot be added because one of PreserveOutputAllowlist is neither static file output nor directory output.")]
         public abstract void ScheduleFailAddPipDueToInvalidPreserveOutputAllowlist(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId);
+
+        [GeneratedEvent(
+            (int)LogEventId.ScheduleFailAddPipDueToIncompatibleTrustStaticallyDeclaredAccessesWithOpaqueOrSourceSeal,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message = "The pip '{pipDescription}' cannot be added because trusting statically declared accesses is not compatible with declaring opaque or source sealed directories.")]
+        public abstract void ScheduleFailAddPipDueToIncompatibleTrustStaticallyDeclaredAccessesWithOpaqueOrSourceSeal(
             LoggingContext context,
             string file,
             int line,
@@ -455,7 +471,7 @@ namespace BuildXL.Pips.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 EventConstants.ProvenancePrefix +
-                "The copy-file pip '{pipDescription}' could not be added because the path '{filePath}' was used as both its source and destination.")]
+                "The copy-file pip '{pipDescription}' cannot be added because the path '{filePath}' was used as both its source and destination.")]
         public abstract void ScheduleFailAddCopyFilePipDueToSameSourceAndDestinationPath(
             LoggingContext context,
             string file,
@@ -474,7 +490,7 @@ namespace BuildXL.Pips.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 EventConstants.ProvenancePrefix +
-                "The write-file pip '{pipDescription}' could not be added since it rewrites its destination '{rewrittenFile}'. Write-file pips are not allowed to rewrite outputs, since they do not have any inputs by which to order the rewrite.")]
+                "The write-file pip '{pipDescription}' cannot be added since it rewrites its destination '{rewrittenFile}'. Write-file pips are not allowed to rewrite outputs, since they do not have any inputs by which to order the rewrite.")]
         public abstract void ScheduleFailAddWriteFilePipSinceOutputIsRewritten(
             LoggingContext context,
             string file,

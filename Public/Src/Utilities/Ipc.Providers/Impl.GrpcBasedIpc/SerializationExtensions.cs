@@ -17,7 +17,7 @@ namespace BuildXL.Ipc.GrpcBasedIpc
     {
         /// <nodoc />
         public static IpcResult FromGrpc(this Grpc.IpcResult result) => new(result.ExitCode.FromGrpc(), result.Payload);
-        
+
         /// <nodoc />
         public static Grpc.IpcResult AsGrpc(this IIpcResult result) => new() { ExitCode = result.ExitCode.AsGrpc(), Payload = result.Payload };
 
@@ -36,6 +36,10 @@ namespace BuildXL.Ipc.GrpcBasedIpc
             Grpc.IpcResultStatus.TransmissionError => Interfaces.IpcResultStatus.TransmissionError,
             Grpc.IpcResultStatus.ExecutionError => Interfaces.IpcResultStatus.ExecutionError,
             Grpc.IpcResultStatus.InvalidInput => Interfaces.IpcResultStatus.InvalidInput,
+            Grpc.IpcResultStatus.ApiServerError => Interfaces.IpcResultStatus.ApiServerError,
+            Grpc.IpcResultStatus.ManifestGenerationError => Interfaces.IpcResultStatus.ManifestGenerationError,
+            Grpc.IpcResultStatus.SigningError => Interfaces.IpcResultStatus.SigningError,
+            Grpc.IpcResultStatus.ExternalServiceError => Interfaces.IpcResultStatus.ExternalServiceError,
             _ => throw new ArgumentOutOfRangeException($"Unkown enum value for Grpc.IpcResultStatus: {grpcResultStatus}")
         };
 
@@ -48,6 +52,10 @@ namespace BuildXL.Ipc.GrpcBasedIpc
             Interfaces.IpcResultStatus.TransmissionError => Grpc.IpcResultStatus.TransmissionError,
             Interfaces.IpcResultStatus.ExecutionError => Grpc.IpcResultStatus.ExecutionError,
             Interfaces.IpcResultStatus.InvalidInput => Grpc.IpcResultStatus.InvalidInput,
+            Interfaces.IpcResultStatus.ApiServerError => Grpc.IpcResultStatus.ApiServerError,
+            Interfaces.IpcResultStatus.ManifestGenerationError => Grpc.IpcResultStatus.ManifestGenerationError,
+            Interfaces.IpcResultStatus.SigningError => Grpc.IpcResultStatus.SigningError,
+            Interfaces.IpcResultStatus.ExternalServiceError => Grpc.IpcResultStatus.ExternalServiceError,
             _ => throw new ArgumentOutOfRangeException($"Unkown enum value for IpcResultStatus: {ipcResultStatus}")
         };
     }

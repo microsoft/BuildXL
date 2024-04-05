@@ -22,6 +22,18 @@ enum IpcResultStatus {
 
     // Indicates that the user input is invalid.
     InvalidInput = 5;
+
+    // Indicates an error that occurred on the server and was associated with a BuildXL API Server.
+    ApiServerError = 6;
+
+    // Indicates that an error occurred on the server while generating an SBOM.
+    ManifestGenerationError = 7;
+
+    // Indicates that an error occurred while the server was executing signing-related operation.
+    SigningError = 8;
+
+    // Indicates that an error occurred while the server was communicating with an external service.
+    ExternalServiceError = 9;
 }
 
 message IpcResult {

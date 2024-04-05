@@ -11,6 +11,7 @@ namespace Ipc {
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
+            importFrom("BuildXL.Utilities").Ipc.Grpc.dll,
             importFrom("BuildXL.Utilities").Ipc.Providers.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,

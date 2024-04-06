@@ -121,6 +121,7 @@ namespace BuildXL.Utilities.Configuration
             config.Schedule.UseHistoricalCpuUsageInfo = true;
             config.Schedule.UseHistoricalRamUsageInfo = false;
             config.FrontEnd.EnableCredScan = true;
+            config.Sandbox.RetryOnAzureWatsonExitCode = true;
             config.Server = ServerMode.Disabled;
 
             return config;

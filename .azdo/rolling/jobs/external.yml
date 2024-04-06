@@ -21,9 +21,11 @@ jobs:
         enabled: true
         scanOutputDirectoryOnly: true
         break: false
+        severity: error
       spotBugs:
         enabled: false
 
+    outputParentDirectory: $(Build.SourcesDirectory)\Out\ExtractedPackagesForBinSkimScan
     outputs:
     - output: pipelineArtifact
       displayName: '[OnFailure] Upload logs'
@@ -78,6 +80,10 @@ jobs:
         /processRetries:3
         /nowarn:2841 /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
 
+  - template: ../../common/extract-nupkg-packages.yml
+    parameters:
+      SourceDirectory: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
+      DestinationDirectory: $(Build.SourcesDirectory)\Out\ExtractedPackagesForBinSkimScan
     
 - job: External_Build
   displayName: 'Build and test qualifier:'

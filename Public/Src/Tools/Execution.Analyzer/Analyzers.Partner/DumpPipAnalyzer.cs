@@ -29,6 +29,7 @@ namespace BuildXL.Execution.Analyzer
             bool useOriginalPaths = false;
             bool launchHtmlViewer = false;
             DirectoryArtifact outputDirectory = default;
+            bool includeStaticMembers = false;
 
             foreach (var opt in AnalyzerOptions)
             {
@@ -57,6 +58,11 @@ namespace BuildXL.Execution.Analyzer
                 {
                     launchHtmlViewer = ParseBooleanOption(opt);
                 }
+                else if (opt.Name.Equals("includeStaticMembers", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("i", StringComparison.OrdinalIgnoreCase))
+                {
+                    includeStaticMembers = ParseBooleanOption(opt);
+                }
                 else
                 {
                     throw Error("Unknown option for dump pip analysis: {0}", opt.Name);
@@ -68,7 +74,7 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("Either /pip or /directory parameter must be specified");
             }
 
-            return new DumpPipAnalyzer(GetAnalysisInput(), outputFilePath, launchHtmlViewer, semiStableHash, outputDirectory, useOriginalPaths);
+            return new DumpPipAnalyzer(GetAnalysisInput(), outputFilePath, launchHtmlViewer, semiStableHash, outputDirectory, useOriginalPaths, includeStaticMembers);
 
             DirectoryArtifact parseDirectoryArtifact(Option opt)
             {
@@ -87,6 +93,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteModeOption(nameof(AnalysisMode.DumpPip), "Generates an html file containing information about the requested pip");
             writer.WriteOption("outputFile", "Required. The location of the output file for critical path analysis.", shortName: "o");
             writer.WriteOption("pip", "Required. The formatted semistable hash of a pip to dump (must start with 'Pip', e.g., 'PipC623BCE303738C69')");
+            writer.WriteOption("includeStaticMembers", "Optional. For directory dependencies print the statically known members (only applies to Full/Partial sealed directories)");
         }
     }
 
@@ -107,8 +114,9 @@ namespace BuildXL.Execution.Analyzer
 
         private BxlInvocationEventData m_invocationData;
         private readonly bool m_useOriginalPaths;
+        private readonly bool m_includeStaticMembers;
 
-        public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, bool launchHtmlViewer, long semiStableHash, DirectoryArtifact directory, bool useOriginalPaths, bool logProgress = false)
+        public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, bool launchHtmlViewer, long semiStableHash, DirectoryArtifact directory, bool useOriginalPaths, bool includeStaticMembers, bool logProgress = false)
             : base(input)
         {
             if (string.IsNullOrEmpty(outputFilePath))
@@ -120,6 +128,7 @@ namespace BuildXL.Execution.Analyzer
             m_outputFilePath = outputFilePath;
             m_launchHtmlViewer = launchHtmlViewer;
             m_useOriginalPaths = useOriginalPaths;
+            m_includeStaticMembers = includeStaticMembers;
 
             if (logProgress)
             {
@@ -726,11 +735,12 @@ namespace BuildXL.Execution.Analyzer
             while (directories.Count > 0)
             {
                 var directory = directories.Pop();
-                result.Add(directory.tabCount == 0
-                    ? FormattableStringEx.I($"{directory.path} (DirectoryArtifact: {SerializeDirectoryArtifact(directory.artifact)}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})")
-                    : FormattableStringEx.I($"|{string.Concat(Enumerable.Repeat("---", directory.tabCount))}{directory.path} (DirectoryArtifact: {SerializeDirectoryArtifact(directory.artifact)}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})"));
-
                 var sealPipId = CachedGraph.PipGraph.GetSealedDirectoryNode(directory.artifact).ToPipId();
+                var sealDirectoryKind = PipTable.GetSealDirectoryKind(sealPipId);
+
+                result.Add(directory.tabCount == 0
+                    ? FormattableStringEx.I($"{directory.path} (DirectoryArtifact: {SerializeDirectoryArtifact(directory.artifact)}, Kind:{sealDirectoryKind} IsSharedOpaque: {directory.artifact.IsSharedOpaque})")
+                    : FormattableStringEx.I($"|{string.Concat(Enumerable.Repeat("---", directory.tabCount))}{directory.path} (DirectoryArtifact: {SerializeDirectoryArtifact(directory.artifact)}, Kind:{sealDirectoryKind}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})"));
 
                 if (PipTable.IsSealDirectoryComposite(sealPipId))
                 {
@@ -739,6 +749,17 @@ namespace BuildXL.Execution.Analyzer
                     foreach (var nestedDirectory in sealPip.ComposedDirectories.Select(d => (artifact: d, path: d.Path.ToString(PathTable))).OrderByDescending(tupple => tupple.path))
                     {
                         directories.Push((nestedDirectory.artifact, $"{(isSubDir ? "subdirectory of " : "")}{nestedDirectory.path}", directory.tabCount + 1));
+                    }
+                }
+
+                if (m_includeStaticMembers && (sealDirectoryKind == SealDirectoryKind.Partial || sealDirectoryKind == SealDirectoryKind.Full))
+                {
+                    var sealDirectory = PipTable.HydratePip(sealPipId, PipQueryContext.ViewerAnalyzer) as SealDirectory;
+
+                    result.Add(FormattableStringEx.I($"  Members:"));
+                    foreach (var member in sealDirectory.Contents)
+                    {
+                        result.Add(FormattableStringEx.I($"    {member.Path.ToString(PathTable)}"));
                     }
                 }
             }

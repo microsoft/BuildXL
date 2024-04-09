@@ -55,6 +55,7 @@ int main(int argc, char **argv)
     }
 
     BxlObserver *bxl = BxlObserver::GetInstance();
+    bxl->Init();
     PTraceSandbox sandbox(bxl);
 
     // FAM path will be verified by the BxlObserver constructor

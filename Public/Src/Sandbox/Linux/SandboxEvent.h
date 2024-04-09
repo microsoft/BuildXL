@@ -30,6 +30,8 @@ private:
     int dst_fd_;
     pid_t pid_;
     pid_t child_pid_;
+    // If a normalization flag is set, then the paths on this event need to be normalized before performing an access check.
+    int normalization_flags_;
     mode_t mode_;
     uint error_;
 
@@ -52,7 +54,8 @@ private:
             child_pid_(child_pid),
             mode_(0),
             error_(error),
-            path_type_(path_type) { }
+            path_type_(path_type),
+            normalization_flags_(-1) { }
 
 public:
     /**
@@ -80,6 +83,23 @@ public:
         uint error,
         const std::string& src_path,
         const std::string& dst_path = "") {
+        // If the path isn't rooted, then it isn't an absolute path.
+        // We will treat this as a relative path from the current working directory.
+        // The source path cannot be empty, but the dst path can be empty if a dst path is never passed in and the default value is used.
+        bool is_src_relative = src_path.empty() || src_path[0] != '/';
+        bool is_dst_relative = !dst_path.empty() && dst_path[0] != '/';
+
+        if (is_src_relative || is_dst_relative) {
+            return RelativePathSandboxEvent(
+                event_type,
+                pid,
+                error,
+                src_path,
+                is_src_relative ? AT_FDCWD : -1,
+                dst_path,
+                is_dst_relative ? AT_FDCWD : -1);
+        }
+
         return SandboxEvent(
             /* event_type */ event_type,
             /* src_path */ src_path,
@@ -138,6 +158,7 @@ public:
 
     // Getters
     pid_t GetPid() const { return pid_; }
+    pid_t GetChildPid() const { return child_pid_; }
     es_event_type_t GetEventType() const { return event_type_; }
     mode_t GetMode() const { return mode_; }
     const std::string& GetSrcPath() const { return src_path_; }
@@ -145,20 +166,24 @@ public:
     int GetSrcFd() const { return src_fd_; }
     int GetDstFd() const { return dst_fd_; }
     uint GetError() const { return error_; }
-    bool IsDirectory() const { return S_ISDIR(mode_); }
     SandboxEventPathType GetPathType() const { return path_type_; }
+    int GetNormalizationFlags() const { return normalization_flags_; }
+    bool IsDirectory() const { return S_ISDIR(mode_); }
+    bool PathNeedsNormalization() const { return normalization_flags_ != -1; }
 
     // Setters
     void SetMode(mode_t mode) { mode_ = mode; }
+    void SetNormalizeFlags(int flags) { normalization_flags_ = flags; }
 
     /**
-     * Updates the source and destination paths to fully resolved paths.
+     * Updates the source and destination paths to be absolute paths.
      */
     void UpdatePaths(const std::string& src_path, const std::string& dst_path) {
         src_path_ = src_path;
         dst_path_ = dst_path;
         src_fd_ = -1;
         dst_fd_ = -1;
+        normalization_flags_ = -1;
         path_type_ = SandboxEventPathType::kAbsolutePaths;
     }
 };

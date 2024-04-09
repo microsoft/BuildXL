@@ -335,8 +335,19 @@ private:
     /**
      * Resolves relative or file descriptor paths to absolute paths in a SandboxEvent.
      */
-    void ResolveEventPaths(buildxl::linux::SandboxEvent &event);
-    
+    void ResolveEventPaths(buildxl::linux::SandboxEvent& event);
+
+    /**
+     * Normalizes the paths in a SandboxEvent if they are not already by following any symlinks if specified on the normalization flags
+     * in the SandboxEvent, and expanding references to /./, /../, and //
+     */
+    void NormalizeEventPaths(buildxl::linux::SandboxEvent& event, char *src_path, char *dst_path);
+
+    /**
+     * Converts a file descriptor associated with the provided PID to a path.
+     */
+    void FileDescriptorToPath(int fd, pid_t pid, char *out_path_buffer, size_t buffer_size);
+
     // Builds the report to be sent over the FIFO in the given buffer
     inline int BuildReport(char* buffer, int maxMessageLength, const AccessReport &report, const char *path, bool unexpectedReport = false)
     {

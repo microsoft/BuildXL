@@ -44,7 +44,6 @@ public:
 private:
     BxlObserver *m_bxl;
     pid_t m_traceePid = 0;
-    const char* const m_emptyStr = "";
     std::vector<std::tuple<pid_t, std::string>> m_traceeTable; // tracee pid, tracee exe path
 
     /**
@@ -146,5 +145,5 @@ private:
     MAKE_HANDLER_FN_DEF(clone);
     void HandleChildProcess(const char *syscall);
     void HandleRenameGeneric(const char *syscall, int olddirfd, const char *oldpath, int newdirfd, const char *newpath);
-    void HandleReportAccessFd(const char *syscall, int fd, es_event_type_t event = ES_EVENT_TYPE_NOTIFY_WRITE);
+    void HandleReportAccessFd(const char *syscall, int fd, es_event_type_t eventType = ES_EVENT_TYPE_NOTIFY_WRITE);
 };

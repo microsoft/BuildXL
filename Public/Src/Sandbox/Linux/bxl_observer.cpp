@@ -209,7 +209,7 @@ AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::l
         // TODO [pgunasekara]: Remove this once we remove IOEvent
         IOEvent io_event(
             /* pid */       event.GetPid(),
-            /* ppid */      event.GetEventType() == ES_EVENT_TYPE_NOTIFY_FORK ? event.GetPid() : 0,
+            /* cpid */      event.GetEventType() == ES_EVENT_TYPE_NOTIFY_FORK ? event.GetChildPid() : 0,
             /* ppid */      0,
             /* type */      event.GetEventType(),
             /* action */    ES_ACTION_TYPE_NOTIFY,
@@ -232,7 +232,7 @@ AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::l
     }
 
     // Log path
-    LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscall_name, event.GetEventType(), event.GetSrcPath(),
+    LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscall_name, event.GetEventType(), event.GetSrcPath().c_str(),
         !result.ShouldReport() ? "[Ignored]" : result.ShouldDenyAccess() ? "[Denied]" : "[Allowed]",
         access_should_be_blocked ? "[Blocked]" : "");
 
@@ -252,28 +252,96 @@ void BxlObserver::CreateAndReportAccess(const char *syscall_name, buildxl::linux
 void BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
     switch (event.GetPathType()) {
         case buildxl::linux::SandboxEventPathType::kFileDescriptors: {
-            event.UpdatePaths(fd_to_path(event.GetSrcFd()), fd_to_path(event.GetDstFd()));
+            char resolved_path_src[PATH_MAX] = { 0 };
+            char resolved_path_dst[PATH_MAX] = { 0 };
+
+            if (event.GetSrcFd() != -1) {
+                FileDescriptorToPath(event.GetSrcFd(), event.GetPid(), resolved_path_src, PATH_MAX);
+            }
+
+            if (event.GetDstFd() != -1) {
+                FileDescriptorToPath(event.GetDstFd(), event.GetPid(), resolved_path_dst, PATH_MAX);
+            }
+
+            NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
+
+            event.UpdatePaths(resolved_path_src, resolved_path_dst);
             break;
         }
         case buildxl::linux::SandboxEventPathType::kRelativePaths: {
             char resolved_path_src[PATH_MAX] = { 0 };
             char resolved_path_dst[PATH_MAX] = { 0 };
 
-            // TODO: do we need to normalize these paths?
-            relative_to_absolute(event.GetSrcPath().c_str(), event.GetSrcFd(), event.GetPid(), resolved_path_src);
+            if (event.GetSrcFd() != -1) {
+                relative_to_absolute(event.GetSrcPath().c_str(), event.GetSrcFd(), event.GetPid(), resolved_path_src);
+            }
+
             if (event.GetDstFd() != -1) {
                 relative_to_absolute(event.GetDstPath().c_str(), event.GetDstFd(), event.GetPid(), resolved_path_dst);
             }
+
+            NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
 
             event.UpdatePaths(resolved_path_src, resolved_path_dst);
             break;
         } 
         case buildxl::linux::SandboxEventPathType::kAbsolutePaths: {
-            // Paths already resolved
+            // Paths already resolved but may need to be normalized
+            if (event.PathNeedsNormalization()) {
+                char resolved_path_src[PATH_MAX] = { 0 };
+                char resolved_path_dst[PATH_MAX] = { 0 };
+
+                strncpy(resolved_path_src, event.GetSrcPath().c_str(), PATH_MAX);
+                strncpy(resolved_path_dst, event.GetDstPath().c_str(), PATH_MAX);
+
+                NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
+                event.UpdatePaths(resolved_path_src, resolved_path_dst);
+            }
             break;
         }
         default:
             break;
+    }
+}
+
+void BxlObserver::NormalizeEventPaths(buildxl::linux::SandboxEvent& event, char *src_path, char *dst_path) {
+    // Normalize paths if a normalization flag was set
+    if (event.PathNeedsNormalization()) {
+        bool follow_symlink = (event.GetNormalizationFlags() & O_NOFOLLOW) == 0;
+        resolve_path(src_path, follow_symlink, event.GetPid());
+
+        if (!event.GetDstPath().empty()) {
+            resolve_path(dst_path, follow_symlink, event.GetPid());
+        }
+    }
+}
+
+// TODO [pgunasekara]: This function duplicates the functionality of another function in this class that will be cleaned up in a future change.
+void BxlObserver::FileDescriptorToPath(int fd, pid_t pid, char *out_path_buffer, size_t buffer_size) {
+    if (fd < 0) {
+        return;
+    }
+
+    if (fd >= MAX_FD) {
+        read_path_for_fd(fd, out_path_buffer, buffer_size, pid);
+        return;
+    }
+
+    if (useFdTable_) {
+        // check the file descriptor table
+        if (fdTable_[fd].length() > 0) {
+            strncpy(out_path_buffer, fdTable_[fd].c_str(), buffer_size);
+            return;
+        }
+    }
+
+    // read from the filesystem and update the file descriptor table
+    auto result = read_path_for_fd(fd, out_path_buffer, buffer_size, pid);
+    if (result != -1) {
+        // Only cache if read_path_for_fd succeeded.
+        if (useFdTable_) {
+            fdTable_[fd] = out_path_buffer;
+        }
     }
 }
 

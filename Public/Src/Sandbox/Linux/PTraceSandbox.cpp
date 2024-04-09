@@ -528,46 +528,31 @@ void PTraceSandbox::HandleSysCallGeneric(int syscallNumber)
 
 void PTraceSandbox::ReportOpen(std::string path, int oflag, std::string syscallName)
 {
-    int status = 0;
     mode_t pathMode = m_bxl->get_mode(path.c_str());
     bool pathExists = pathMode != 0;
     bool isCreate = !pathExists && (oflag & (O_CREAT|O_TRUNC));
     bool isWrite = pathExists && (oflag & (O_CREAT|O_TRUNC) && ((oflag & O_ACCMODE == O_WRONLY) || (oflag & O_ACCMODE == O_RDWR)));
+    auto eventType = isCreate ? ES_EVENT_TYPE_NOTIFY_CREATE : isWrite ? ES_EVENT_TYPE_NOTIFY_WRITE : ES_EVENT_TYPE_NOTIFY_OPEN;
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    eventType,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      path);
+    event.SetMode(pathMode);
 
-    IOEvent event(
-        m_traceePid,
-        /* cpid */ 0,
-        /* ppid */ 0,
-        isCreate ? ES_EVENT_TYPE_NOTIFY_CREATE : isWrite ? ES_EVENT_TYPE_NOTIFY_WRITE : ES_EVENT_TYPE_NOTIFY_OPEN,
-        ES_ACTION_TYPE_NOTIFY,
-        path,
-        /* dest */ "",
-        m_bxl->GetProgramPath(),
-        pathMode,
-        /* modified */ false,
-        /* error */ 0
-    );
-
-    m_bxl->report_access(syscallName.c_str(), event);
+    m_bxl->CreateAndReportAccess(syscallName.c_str(), event);
 }
 
 void PTraceSandbox::ReportCreate(std::string syscallName, int dirfd, const char *pathname, mode_t mode, long returnValue, bool checkCache)
 {
-    IOEvent event(
-        m_traceePid,
-        /* cpid */ 0,
-        /* ppid */ 0,
-        ES_EVENT_TYPE_NOTIFY_CREATE,
-        ES_ACTION_TYPE_NOTIFY,
-        m_bxl->normalize_path_at(dirfd, pathname, /*oflags*/0, m_traceePid),
-        /* dest */ "",
-        m_bxl->GetProgramPath(),
-        mode,
-        /* modified */ false,
-        /* error */ returnValue
-    );
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
+        /* pid */           m_traceePid,
+        /* error */         returnValue,
+        /* src_path */      m_bxl->normalize_path_at(dirfd, pathname, /* oflags */ 0, m_traceePid));
+    event.SetMode(mode);
     
-    m_bxl->report_access(syscallName.c_str(), event, checkCache);
+    m_bxl->CreateAndReportAccess(syscallName.c_str(), event, /* check_cache */ false);
 }
 
 std::vector<std::tuple<pid_t, std::string>>::iterator PTraceSandbox::FindProcess(pid_t pid)
@@ -602,8 +587,9 @@ void PTraceSandbox::UpdateTraceeTableForExec(std::string exePath)
         // the parent will be blocked on the child process to execve
         // and the execve on the child will be blocked by a SIGSTOP from ptrace because the child is automatically traced by ptrace
         // which ptrace can't handle because it's blocked on the waitpid for the parent.
-        IOEvent event(m_traceePid, m_traceePid, /* traceeppid */ 0, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, /* mode */ 0, false, /* error */ 0);
-        m_bxl->report_access("vfork", event, /* checkCache */ false);
+        auto event = buildxl::linux::SandboxEvent::ForkSandboxEvent(m_traceePid, m_traceePid, exePath);
+        
+        m_bxl->CreateAndReportAccess("vfork", event, /* check_cache */ false);
         m_traceeTable.push_back(std::make_tuple(m_traceePid, exePath));
 
         BXL_LOG_DEBUG(m_bxl, "[PTrace] Added new tracee with PID '%d'", m_traceePid);
@@ -613,36 +599,40 @@ void PTraceSandbox::UpdateTraceeTableForExec(std::string exePath)
 // Syscall Handlers
 HANDLER_FUNCTION(execveat)
 {
-    // TODO: Is this syscall obsolete?
     int dirfd = ReadArgumentLong(1);
-    std::string pathname = ReadArgumentString(SYSCALL_NAME_STRING(execveat), 2, /*nullTerminated*/ true);
+    std::string pathname = ReadArgumentString(SYSCALL_NAME_STRING(execveat), 2, /* nullTerminated */ true);
     int flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
     std::string exePath = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid);
-    char mutableExePath[exePath.length() + 1];
-
-    strcpy(mutableExePath, exePath.c_str());
 
     UpdateTraceeTableForExec(exePath);
 
-    m_bxl->report_exec(SYSCALL_NAME_STRING(execveat), basename(mutableExePath), exePath.c_str(), /* error*/ 0, /* mode */ 0, m_traceePid);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_EXEC,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      exePath);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(execveat), event);
     if (m_bxl->IsReportingProcessArgs()) {
         m_bxl->report_exec_args(m_traceePid, ReadArgumentVector(SYSCALL_NAME_STRING(execveat), /* argumentIndex */ 3).c_str());
     }
-    
 }
 
 HANDLER_FUNCTION(execve)
 {
-    std::string file = ReadArgumentString(SYSCALL_NAME_STRING(execve), 1, /*nullTerminated*/ true);
-    char mutableFilePath[file.length() + 1];
-
-    strcpy(mutableFilePath, file.c_str());
+    std::string file = ReadArgumentString(SYSCALL_NAME_STRING(execve), 1, /* nullTerminated */ true);
 
     UpdateTraceeTableForExec(file);
 
-    m_bxl->report_exec(SYSCALL_NAME_STRING(execve), basename(mutableFilePath), file.c_str(), /* error */ 0, /* mode */ 0, m_traceePid);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_EXEC,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      file);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(execve), event);
     if (m_bxl->IsReportingProcessArgs()) {
         m_bxl->report_exec_args(m_traceePid, ReadArgumentVector(SYSCALL_NAME_STRING(execve), /* argumentIndex */ 2).c_str());
     }
@@ -650,14 +640,26 @@ HANDLER_FUNCTION(execve)
 
 HANDLER_FUNCTION(stat)
 {
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(stat), 1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(stat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(stat), 1, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(stat), event);
 }
 
 HANDLER_FUNCTION(lstat)
 {
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(lstat), 1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(lstat), ES_EVENT_TYPE_NOTIFY_STAT, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(lstat), 1, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(lstat), event);
 }
 
 HANDLER_FUNCTION(fstat)
@@ -671,38 +673,58 @@ HANDLER_FUNCTION(fstat)
 HANDLER_FUNCTION_NEW(fstatat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fstatat), 2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fstatat), 2, /* nullTerminated */ true);
     auto flags = ReadArgumentLong(4);
 
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(fstatat), ES_EVENT_TYPE_NOTIFY_STAT, dirfd, pathname.c_str(), flags, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
+    auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname,
+        /* src_fd */        dirfd);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(fstatat), event);
 }
 
 HANDLER_FUNCTION(access)
 {
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(access), 1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(access), ES_EVENT_TYPE_NOTIFY_ACCESS, pathname.c_str(), /* mode */ 0U, /* flags */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(access), 1, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_ACCESS,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname);
+    event.SetNormalizeFlags(0);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(access), event);
 }
 
 HANDLER_FUNCTION(faccessat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(faccessat), 2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(faccessat), 2, /* nullTerminated */ true);
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(faccessat), ES_EVENT_TYPE_NOTIFY_ACCESS, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
+    auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_ACCESS,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname,
+        /* src_fd */        dirfd);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(faccessat), event);
 }
 
 HANDLER_FUNCTION(creat)
 {
-    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(creat), 1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
+    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(creat), 1, /* nullTerminated */ true).c_str(), /* oflags */ 0, m_traceePid);
     auto oflag = O_CREAT | O_WRONLY | O_TRUNC;
     ReportOpen(path, oflag, SYSCALL_NAME_STRING(creat));
-
 }
 
 HANDLER_FUNCTION(open)
 {
-    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(open), 1, /*nullTerminated*/ true).c_str(), /*oflags*/0, m_traceePid);
+    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(open), 1, /* nullTerminated */ true).c_str(), /* oflags */ 0, m_traceePid);
     auto oflag = ReadArgumentLong(2);
     ReportOpen(path, oflag, SYSCALL_NAME_STRING(open));
 }
@@ -710,20 +732,25 @@ HANDLER_FUNCTION(open)
 HANDLER_FUNCTION(openat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathName = ReadArgumentString(SYSCALL_NAME_STRING(openat), 2, /*nullTerminated*/ true);
-    auto path = m_bxl->normalize_path_at(dirfd, pathName.c_str(), /*oflags*/0, m_traceePid);
+    auto pathName = ReadArgumentString(SYSCALL_NAME_STRING(openat), 2, /* nullTerminated */ true);
+    auto path = m_bxl->normalize_path_at(dirfd, pathName.c_str(), /* oflags */ 0, m_traceePid);
     auto flags = ReadArgumentLong(3);
     ReportOpen(path, flags, SYSCALL_NAME_STRING(openat));
 }
 
-void PTraceSandbox::HandleReportAccessFd(const char *syscall, int fd, es_event_type_t event /*ES_EVENT_TYPE_NOTIFY_WRITE*/)
+void PTraceSandbox::HandleReportAccessFd(const char *syscall, int fd, es_event_type_t eventType /*ES_EVENT_TYPE_NOTIFY_WRITE*/)
 {
     auto path = m_bxl->fd_to_path(fd, m_traceePid);
 
     // Readlink returns type:[inode] if the path is not a file (files will return absolute paths)
     if (path[0] == '/')
     {
-        m_bxl->report_access(syscall, event, path.c_str(), m_emptyStr, /*mode*/0, /* error */ 0, /* checkCache */ true, m_traceePid);
+        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+            /* event_type */    eventType,
+            /* pid */           m_traceePid,
+            /* error */         0,
+            /* src_path */      path);
+        m_bxl->CreateAndReportAccess(syscall, event);
     }
 }
 
@@ -759,8 +786,14 @@ HANDLER_FUNCTION(pwrite64)
 
 HANDLER_FUNCTION(truncate)
 {
-    auto path = ReadArgumentString(SYSCALL_NAME_STRING(truncate), 1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(truncate), ES_EVENT_TYPE_NOTIFY_WRITE, path.c_str(), /* mode */ 0, /* oflags */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(truncate), 1, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      path);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(truncate), event);
 }
 
 HANDLER_FUNCTION(ftruncate)
@@ -771,7 +804,7 @@ HANDLER_FUNCTION(ftruncate)
 
 HANDLER_FUNCTION(rmdir)
 {
-    auto path = ReadArgumentString(SYSCALL_NAME_STRING(rmdir), 1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(rmdir), 1, /* nullTerminated */ true);
 
     // See comment about the need to propagate the returned value under HANDLER_FUNCTION(mkdir)
     int status = 0;
@@ -779,13 +812,20 @@ HANDLER_FUNCTION(rmdir)
     waitpid(m_traceePid, &status, 0);
 
     // We don't want to use the cache since we want to distinguish between creation and deletion of directories
-    m_bxl->report_access(SYSCALL_NAME_STRING(rmdir), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), m_emptyStr, /*mode*/ S_IFDIR, /* error */ GetErrno(), /*checkCache */ false, m_traceePid);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
+        /* pid */           m_traceePid,
+        /* error */         GetErrno(),
+        /* src_path */      path);
+    event.SetMode(S_IFDIR);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(rmdir), event, /* check_cache */ false);
 }
 
 HANDLER_FUNCTION(rename)
 {
-    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(rename), 1, /*nullTerminated*/ true);
-    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(rename), 2, /*nullTerminated*/ true);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(rename), 1, /* nullTerminated */ true);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(rename), 2, /* nullTerminated */ true);
 
     HandleRenameGeneric(SYSCALL_NAME_STRING(rename), AT_FDCWD, oldpath.c_str(), AT_FDCWD, newpath.c_str());
 }
@@ -793,9 +833,9 @@ HANDLER_FUNCTION(rename)
 HANDLER_FUNCTION(renameat)
 {
     auto olddirfd = ReadArgumentLong(1);
-    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat), 2, /*nullTerminated*/ true);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat), 2, /* nullTerminated */ true);
     auto newdirfd = ReadArgumentLong(3);
-    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat), 4, /*nullTerminated*/ true);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat), 4, /* nullTerminated */ true);
     
     HandleRenameGeneric(SYSCALL_NAME_STRING(renameat), olddirfd, oldpath.c_str(), newdirfd, newpath.c_str());
 }
@@ -803,9 +843,9 @@ HANDLER_FUNCTION(renameat)
 HANDLER_FUNCTION(renameat2)
 {
     auto olddirfd = ReadArgumentLong(1);
-    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat2), 2, /*nullTerminated*/ true);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat2), 2, /* nullTerminated */ true);
     auto newdirfd = ReadArgumentLong(3);
-    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat2), 4, /*nullTerminated*/ true);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(renameat2), 4, /* nullTerminated */ true);
     
     HandleRenameGeneric(SYSCALL_NAME_STRING(renameat2), olddirfd, oldpath.c_str(), newdirfd, newpath.c_str());
 }
@@ -817,7 +857,8 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
 
     mode_t mode = m_bxl->get_mode(oldStr.c_str());    
     std::vector<std::string> filesAndDirectories;
-    
+
+    // TODO [pgunasekara]: A follow up change to handle paths that require normalization.
     if (S_ISDIR(mode))
     {
         bool enumerateResult = m_bxl->EnumerateDirectory(oldStr, /*recursive*/ true, filesAndDirectories);
@@ -827,7 +868,13 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
             {
                 // Source
                 auto mode = m_bxl->get_mode(fileOrDirectory.c_str());
-                m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, fileOrDirectory.c_str(), mode, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
+                auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+                    /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
+                    /* pid */           m_traceePid,
+                    /* error */         mode,
+                    /* src_path */      fileOrDirectory);
+                event.SetNormalizeFlags(O_NOFOLLOW);
+                m_bxl->CreateAndReportAccess(syscall, event);
 
                 // Destination
                 fileOrDirectory.replace(0, oldStr.length(), newStr);
@@ -839,45 +886,47 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
     {
         auto mode = m_bxl->get_mode(oldStr.c_str());
         // Source
-        m_bxl->report_access(syscall, ES_EVENT_TYPE_NOTIFY_UNLINK, oldStr.c_str(), mode, O_NOFOLLOW, /* error*/ 0, /* checkCache */ true, m_traceePid);
+        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+            /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
+            /* pid */           m_traceePid,
+            /* error */         mode,
+            /* src_path */      oldStr);
+        event.SetNormalizeFlags(O_NOFOLLOW);
+        m_bxl->CreateAndReportAccess(syscall, event);
 
         // Destination
-        ReportOpen(newStr, O_CREAT, std::string(syscall));
+        ReportOpen(newStr, O_CREAT, syscall);
     }
 }
 
 HANDLER_FUNCTION(link)
 {
-    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(link), 1, /*nullTerminated*/ true);
-    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(link), 2, /*nullTerminated*/ true);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(link), 1, /* nullTerminated */ true);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(link), 2, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_LINK,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_traceePid),
+        /* dest_path */     m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_traceePid));
 
-    m_bxl->report_access(
-        SYSCALL_NAME_STRING(link),
-        ES_EVENT_TYPE_NOTIFY_LINK,
-        m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
-        m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(), 
-        /* mode */ 0,
-        /* error */ 0,
-        /* checkCache */ true,
-        m_traceePid);
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(link), event);
 }
 
 HANDLER_FUNCTION(linkat)
 {
     auto olddirfd = ReadArgumentLong(1);
-    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(linkat), 2, /*nullTerminated*/ true);
+    auto oldpath = ReadArgumentString(SYSCALL_NAME_STRING(linkat), 2, /* nullTerminated */ true);
     auto newdirfd = ReadArgumentLong(3);
-    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(linkat), 4, /*nullTerminated*/ true);
+    auto newpath = ReadArgumentString(SYSCALL_NAME_STRING(linkat), 4, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_LINK,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid),
+        /* dest_path */     m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid));
 
-    m_bxl->report_access(
-        SYSCALL_NAME_STRING(linkat),
-        ES_EVENT_TYPE_NOTIFY_LINK,
-        m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
-        m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
-        /* mode */ 0,
-        /* error */ 0,
-        /* checkCache */ true,
-        m_traceePid);
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(linkat), event);
 }
 
 HANDLER_FUNCTION(unlink)
@@ -886,7 +935,14 @@ HANDLER_FUNCTION(unlink)
 
     if (path[0] != '\0')
     {
-        m_bxl->report_access(SYSCALL_NAME_STRING(unlink), ES_EVENT_TYPE_NOTIFY_UNLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
+        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+            /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
+            /* pid */           m_traceePid,
+            /* error */         0,
+            /* src_path */      path);
+        event.SetNormalizeFlags(O_NOFOLLOW);
+
+        m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(unlink), event);
     }
 }
 
@@ -900,77 +956,92 @@ HANDLER_FUNCTION(unlinkat)
     {
         int oflags = (flags & AT_REMOVEDIR) ? 0 : O_NOFOLLOW;
         // TODO: Figure out how to report the errno
-        m_bxl->report_access_at(SYSCALL_NAME_STRING(unlinkat), ES_EVENT_TYPE_NOTIFY_UNLINK, dirfd, path.c_str(), oflags, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
+        auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+            /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
+            /* pid */           m_traceePid,
+            /* error */         0,
+            /* src_path */      path,
+            /* src_fd */        dirfd);
+        event.SetNormalizeFlags(oflags);
+
+        m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(unlinkat), event);
     }
 }
 
 HANDLER_FUNCTION(symlink)
 {
-    auto linkPath = ReadArgumentString(SYSCALL_NAME_STRING(symlink), 2, /*nullTerminated*/ true);
+    auto linkPath = ReadArgumentString(SYSCALL_NAME_STRING(symlink), 2, /* nullTerminated */ true);
 
     // TODO: Figure out how to report the errno
-    IOEvent event(
-        m_traceePid,
-        /* cpid */ 0,
-        /* ppid */ 0,
-        ES_EVENT_TYPE_NOTIFY_CREATE, 
-        ES_ACTION_TYPE_NOTIFY,
-        m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_traceePid),
-        /* dest */ "",
-        m_bxl->GetProgramPath(),
-        S_IFLNK,
-        /* modified */ false,
-        /* error */ 0
-    );
-    
-    m_bxl->report_access(SYSCALL_NAME_STRING(symlink), event);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_traceePid));
+    event.SetMode(S_IFLNK);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(symlink), event);
 }
 
 HANDLER_FUNCTION(symlinkat)
 {
     auto dirfd = ReadArgumentLong(2);
-    auto linkPath = ReadArgumentString(SYSCALL_NAME_STRING(symlinkat), 3, /*nullTerminated*/ true);
+    auto linkPath = ReadArgumentString(SYSCALL_NAME_STRING(symlinkat), 3, /* nullTerminated */ true);
 
     // TODO: Figure out how to report the errno
-    IOEvent event(
-        m_traceePid,
-        /* cpid */ 0,
-        /* ppid */ 0,
-        ES_EVENT_TYPE_NOTIFY_CREATE, 
-        ES_ACTION_TYPE_NOTIFY,
-        m_bxl->normalize_path_at(dirfd, linkPath.c_str(), O_NOFOLLOW, m_traceePid),
-        /* dest */ "",
-        m_bxl->GetProgramPath(),
-        S_IFLNK,
-        /* modified */ false,
-        /* error */ 0
-    );
-    
-    m_bxl->report_access(SYSCALL_NAME_STRING(symlinkat), event);
+    auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      linkPath,
+        /* src_fd */        dirfd);
+    event.SetMode(S_IFLNK);
 
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(fstatat), event);
 }
 
 HANDLER_FUNCTION(readlink)
 {
-    auto path = ReadArgumentString(SYSCALL_NAME_STRING(readlink), 1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(readlink), 1, /* nullTerminated */ true);
 
-    m_bxl->report_access(SYSCALL_NAME_STRING(readlink), ES_EVENT_TYPE_NOTIFY_READLINK, path.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
+    // TODO [pgunasekara]: A follow up change to handle paths that require normalization.
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READLINK,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      path);
+    event.SetNormalizeFlags(O_NOFOLLOW);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(readlink), event);
 }
 
 HANDLER_FUNCTION(readlinkat)
 {
     auto fd = ReadArgumentLong(1);
-    auto path = ReadArgumentString(SYSCALL_NAME_STRING(readlinkat), 2, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(readlinkat), 2, /* nullTerminated */ true);
 
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(readlinkat), ES_EVENT_TYPE_NOTIFY_READLINK, fd, path.c_str(), O_NOFOLLOW, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
+    auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+            /* event_type */    ES_EVENT_TYPE_NOTIFY_READLINK,
+            /* pid */           m_traceePid,
+            /* error */         0,
+            /* src_path */      path,
+            /* src_fd */        fd);
+    event.SetNormalizeFlags(O_NOFOLLOW);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(readlinkat), event);
 }
 
 HANDLER_FUNCTION(utime)
 {
-    auto filename = ReadArgumentString(SYSCALL_NAME_STRING(utime), 1, /*nullTerminated*/ true);
+    auto filename = ReadArgumentString(SYSCALL_NAME_STRING(utime), 1, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      filename);
 
-    m_bxl->report_access(SYSCALL_NAME_STRING(utime), ES_EVENT_TYPE_NOTIFY_SETTIME, filename.c_str(), "", /* mode */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(utime), event);
 }
 
 HANDLER_FUNCTION(utimes)
@@ -981,24 +1052,40 @@ HANDLER_FUNCTION(utimes)
 HANDLER_FUNCTION(utimensat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(utimensat), 2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(utimensat), 2, /* nullTerminated */ true);
 
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(utimensat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
+    auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname,
+        /* src_fd */        dirfd);
+    event.SetNormalizeFlags(0);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(utimensat), event);
 }
 
 HANDLER_FUNCTION(futimesat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(futimesat), 2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(futimesat), 2, /* nullTerminated */ true);
 
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(futimesat), ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname.c_str(), /*oflags*/ 0, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
+    auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname,
+        /* src_fd */        dirfd);
+    event.SetNormalizeFlags(0);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(futimesat), event);
 }
 
 HANDLER_FUNCTION(mkdir)
 {
-    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mkdir), 1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mkdir), 1, /* nullTerminated */ true);
 
     // For mkdir (also for rmdir and mkdirat) we want to report the return value of the function as part of the
     // report since on managed side bxl needs to understand whether the directory creation succeeded.
@@ -1015,7 +1102,7 @@ HANDLER_FUNCTION(mkdir)
 HANDLER_FUNCTION(mkdirat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mkdirat), 2, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mkdirat), 2, /* nullTerminated */ true);
 
     // See comment about the need to propagate the returned value under HANDLER_FUNCTION(mkdir)
     int status = 0;
@@ -1028,7 +1115,7 @@ HANDLER_FUNCTION(mkdirat)
 
 HANDLER_FUNCTION(mknod)
 {
-    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mknod), 1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mknod), 1, /* nullTerminated */ true);
 
     ReportCreate(SYSCALL_NAME_STRING(mknod), AT_FDCWD, path.c_str(), S_IFREG);
 }
@@ -1036,7 +1123,7 @@ HANDLER_FUNCTION(mknod)
 HANDLER_FUNCTION(mknodat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mknodat), 2, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(mknodat), 2, /* nullTerminated */ true);
 
     ReportCreate(SYSCALL_NAME_STRING(mknodat), dirfd, path.c_str(), S_IFREG);
 
@@ -1044,9 +1131,14 @@ HANDLER_FUNCTION(mknodat)
 
 HANDLER_FUNCTION(chmod)
 {
-    auto path = ReadArgumentString(SYSCALL_NAME_STRING(chmod), 1, /*nullTerminated*/ true);
+    auto path = ReadArgumentString(SYSCALL_NAME_STRING(chmod), 1, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETMODE,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      path);
 
-    m_bxl->report_access(SYSCALL_NAME_STRING(chmod), ES_EVENT_TYPE_NOTIFY_SETMODE, path.c_str(), /* mode */ 0, /* oflags */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(chmod), event);
 }
 
 HANDLER_FUNCTION(fchmod)
@@ -1058,18 +1150,32 @@ HANDLER_FUNCTION(fchmod)
 HANDLER_FUNCTION(fchmodat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fchmodat), 2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fchmodat), 2, /* nullTerminated */ true);
     auto flags = ReadArgumentLong(4);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
     // TODO: Figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(fchmodat), ES_EVENT_TYPE_NOTIFY_SETMODE, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
+    auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETMODE,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname,
+        /* src_fd */        dirfd);
+    event.SetNormalizeFlags(oflags);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(fchmodat), event);
 }
 
 HANDLER_FUNCTION(chown)
 {
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(chown), 1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(chown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), "", /* mode */ 0, /* error */ 0, /* checkCache */ true, m_traceePid);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(chown), 1, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname);
+    
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(chown), event);
 }
 
 HANDLER_FUNCTION(fchown)
@@ -1080,19 +1186,34 @@ HANDLER_FUNCTION(fchown)
 
 HANDLER_FUNCTION(lchown)
 {
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(lchown), 1, /*nullTerminated*/ true);
-    m_bxl->report_access(SYSCALL_NAME_STRING(lchown), ES_EVENT_TYPE_AUTH_SETOWNER, pathname.c_str(), /*mode*/ 0, O_NOFOLLOW, /* error */ 0, /* checkCache */ true, m_traceePid);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(lchown), 1, /* nullTerminated */ true);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname);
+    event.SetNormalizeFlags(O_NOFOLLOW);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(lchown), event);
 }
 
 HANDLER_FUNCTION(fchownat)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fchownat), 2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fchownat), 2, /* nullTerminated */ true);
     auto flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
     // TODO: figure out how to report the errno
-    m_bxl->report_access_at(SYSCALL_NAME_STRING(fchownat), ES_EVENT_TYPE_AUTH_SETOWNER, dirfd, pathname.c_str(), oflags, /*getModeWithFd*/ false, m_traceePid, /* error */ 0);
+    auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
+        /* pid */           m_traceePid,
+        /* error */         0,
+        /* src_path */      pathname,
+        /* src_fd */        dirfd);
+    event.SetNormalizeFlags(oflags);
+
+    m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(fchownat), event);
 }
 
 HANDLER_FUNCTION(sendfile)
@@ -1110,7 +1231,7 @@ HANDLER_FUNCTION(copy_file_range)
 HANDLER_FUNCTION(name_to_handle_at)
 {
     auto dirfd = ReadArgumentLong(1);
-    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(name_to_handle_at), 2, /*nullTerminated*/ true);
+    auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(name_to_handle_at), 2, /* nullTerminated */ true);
     auto flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_FOLLOW) ? 0 : O_NOFOLLOW;
@@ -1147,9 +1268,10 @@ void PTraceSandbox::HandleChildProcess(const char *syscall)
         // This case isn't expected to happen as long as ptrace works properly, but in case it does, we will report 0 as the ppid.
         exePath = m_bxl->GetProgramPath();
     }
+    
+    auto event = buildxl::linux::SandboxEvent::ForkSandboxEvent(m_traceePid, childpid, exePath);
 
-    IOEvent event(m_traceePid, childpid, /* traceeppid */ 0, ES_EVENT_TYPE_NOTIFY_FORK, ES_ACTION_TYPE_NOTIFY, exePath, std::string(""), exePath, /* mode */ 0, false, /* error */ 0);
-    m_bxl->report_access(syscall, event, /* checkCache */ false);
+    m_bxl->CreateAndReportAccess(syscall, event, /* checkCache */ false);
 
     // Record the new child tracee
     // When PTRACE_O_TRACEFORK/CLONE/VFORK is set, the child process is automatically ptraced as well

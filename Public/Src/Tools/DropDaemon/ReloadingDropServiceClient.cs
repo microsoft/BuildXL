@@ -280,11 +280,11 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<ClientSettingsInfo> GetDropSettingsAsync(CancellationToken cancellationToken)
+        public Task<ClientSettingsInfo> TryGetDropSettingsAsync(CancellationToken cancellationToken)
         {
             return RetryAsync(
-                nameof(IDropServiceClient.GetDropSettingsAsync),
-                (client, ct) => client.GetDropSettingsAsync(cancellationToken),
+                nameof(IDropServiceClient.TryGetDropSettingsAsync),
+                (client, ct) => client.TryGetDropSettingsAsync(cancellationToken),
                 cancellationToken);
         }
 

@@ -307,7 +307,7 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        public Task<ClientSettingsInfo> GetDropSettingsAsync(CancellationToken cancellationToken)
+        public Task<ClientSettingsInfo> TryGetDropSettingsAsync(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

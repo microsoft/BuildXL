@@ -1,15 +1,14 @@
-# Makes sure that when we are updating ADO packages, we don't have to do it manually. This is done because we can't upstream their NuGet source (juguzman)
+# This script is used to update Artifacts/ADO packages.
+# Currently, we have to run this script manually every time we update those packages because we can't upstream their NuGet source (juguzman)
 
 $destination = 'https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json'
 $source = 'https://pkgs.dev.azure.com/mseng/_packaging/VSOnline-Internal/nuget/v3/index.json'
 
-$nugetPath = "nuget.exe"
-
 $tempDirectory = Join-Path $env:TEMP "adoUpdateTemp"
 New-Item -Path $tempDirectory -ItemType Directory -Force
 
-$artifactVersion = '19.224.33830-buildid20442787'
-$adoVersion = '19.224.0-internal202306303'
+$artifactVersion = '19.238.34809-buildid27706596'
+$adoVersion = '19.238.0-internal202404091'
 
 $adoPackages = @(
     'Microsoft.VisualStudio.Services.Client'
@@ -43,19 +42,27 @@ $artifactPackages = @(
 
 Foreach ($package in $adoPackages) {
     $version = $adoVersion
+    Write-Host ""
+    Write-Host "-- Installing $package version $version"
     Invoke-Expression "$nugetPath install $package -Version $version -DependencyVersion Ignore -DirectDownload -Source $source -OutputDirectory $tempDirectory"
 
     $packageDirectory = "$package.$version"
     $packageFile = "$packageDirectory.nupkg"
+    Write-Host ""
+    Write-Host "-- Pushing $packageFile to $destination"
     Invoke-Expression "$nugetPath push '$tempDirectory\$packageDirectory\$packageFile' -ApiKey ado -Source $destination -Timeout 3600 -SkipDuplicate"
 }
 
 Foreach ($package in $artifactPackages) {
     $version = $artifactVersion
+    Write-Host ""
+    Write-Host "-- Installing $package version $version"
     Invoke-Expression "$nugetPath install $package -Version $version -DependencyVersion Ignore -DirectDownload -Source $source -OutputDirectory $tempDirectory"
 
     $packageDirectory = "$package.$version"
     $packageFile = "$packageDirectory.nupkg"
+    Write-Host ""
+    Write-Host "-- Pushing $packageFile to $destination"
     Invoke-Expression "$nugetPath push '$tempDirectory\$packageDirectory\$packageFile' -ApiKey ado -Source $destination -Timeout 3600 -SkipDuplicate"
 }
 

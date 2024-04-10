@@ -427,9 +427,9 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.HostApplication,
-            Message = "Uncacheable Pips: This build had {count} pips that are not cacheable and will be unconditionally run. See related DX0269 messages earlier in the log for details.",
+            Message = "Uncacheable Pips: This build had {count} pips that are not cacheable and will be unconditionally run. See related {relatedDxCodes} messages earlier in the log for details.",
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void ProcessPipsUncacheable(LoggingContext context, long count);
+        public abstract void ProcessPipsUncacheable(LoggingContext context, long count, string relatedDxCodes);
 
         [GeneratedEvent(
             (ushort)LogEventId.NoCriticalPathTableHits,

@@ -2661,7 +2661,8 @@ namespace BuildXL
 
                 if (schedulerInfo.ProcessPipsUncacheable > 0)
                 {
-                    LogPerfSmell(context, () => Logger.Log.ProcessPipsUncacheable(context, schedulerInfo.ProcessPipsUncacheable));
+                    string relatedDxCodes = $"DX{(int)ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable:D4} or DX{(int)SchedulerLogEventId.ProcessNotStoredToCachedDueToItsInherentUncacheability:D4}";
+                    LogPerfSmell(context, () => Logger.Log.ProcessPipsUncacheable(context, schedulerInfo.ProcessPipsUncacheable, relatedDxCodes));
                 }
 
                 // Make sure there were some misses since a complete noop with incremental scheduling shouldn't cause this to trigger

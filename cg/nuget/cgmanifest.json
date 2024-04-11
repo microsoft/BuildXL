@@ -726,7 +726,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Azure.Storage.Common",
-          "Version": "11.2.2"
+          "Version": "11.2.3"
         }
       }
     },

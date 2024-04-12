@@ -393,8 +393,8 @@ namespace BuildXL.Pips.Operations
                         break;
                     case PipType.Ipc:
                         var ipcPip = this as IpcPip;
-                        sb.Append(", moniker id '").Append(ipcPip.IpcInfo.IpcMonikerId.ToString(pathTable.StringTable));
-                        sb.Append("', config ").Append(ipcPip.IpcInfo.IpcClientConfig.ToJson());
+                        sb.Append(", moniker id \"").Append(ipcPip.IpcInfo.IpcMonikerId.ToString(pathTable.StringTable));
+                        sb.Append("\", config ").Append(ipcPip.IpcInfo.IpcClientConfig.ToJson());
                         sb.Append(", => ");
                         sb.Append(stringTable.GetString(pathTable.GetFinalComponent(ipcPip.OutputFile.Path.Value)));
                         break;

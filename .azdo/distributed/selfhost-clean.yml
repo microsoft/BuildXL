@@ -89,7 +89,6 @@ jobs:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AdoBuildRunnerWorkerPipelineRole: ${{ parameters.Role }}
       AdoBuildRunnerInvocationKey: SelfhostClean
-      BlobCacheFactoryConnectionString: $(BuildXL-Selfhost-L3-ConnectionString)
       1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
       CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
       MSENG_GIT_PAT: $(MSENG_GIT_PAT)

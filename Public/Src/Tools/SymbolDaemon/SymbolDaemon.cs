@@ -862,7 +862,7 @@ namespace Tool.SymbolDaemon
         /// <summary>
         /// Finalizes the symbol request. 
         /// </summary>
-        protected override async Task<IIpcResult> DoFinalizeAsync()
+        protected override async Task<IIpcResult> DoFinalizeAsync(bool isFinalizeOnStop)
         {
             var dropFinalizationEvent = await HandleResultAndSendSymbolEtwEventAsync(InternalFinalizeAsync());
 

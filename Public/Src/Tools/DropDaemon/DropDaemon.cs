@@ -64,6 +64,9 @@ namespace Tool.DropDaemon
         /// <nodoc/>
         public const string DropDLogPrefix = "(DropD) ";
 
+        private const string IncompleteDropMarkerFileContent = "The build that produced this drop encountered some errors. This drop might be missing some files.";
+        private const string IncompleteDropMarkerFileDropPath = "_INCOMPLETE_DROP_MARKER.txt";
+
         private static readonly int s_minIoThreadsForDrop = Environment.ProcessorCount * 10;
 
         private static readonly int s_minWorkerThreadsForDrop = Environment.ProcessorCount * 10;
@@ -1123,11 +1126,11 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        /// Finalizes the drop.  Handles drop-related exceptions by omitting their stack traces.
+        /// Finalizes the drop. Handles drop-related exceptions by omitting their stack traces.
         /// In all cases emits an appropriate <see cref="DropFinalizationEvent"/> indicating the
         /// result of this operation.
         /// </summary>
-        protected override async Task<IIpcResult> DoFinalizeAsync()
+        protected override async Task<IIpcResult> DoFinalizeAsync(bool isFinalizeOnStop)
         {
             var finalizationTasks = m_vsoClients.Values.Select(async client =>
                {
@@ -1137,14 +1140,14 @@ namespace Tool.DropDaemon
                        return IpcResult.Success(I($"An attempt to finalize drop {client.dropConfig.Name} has already been made; skipping this finalization."));
                    }
 
-                   return await FinalizeSingleDropAsync(client.dropConfig, client.lazyVsoClientTask.Value);
+                   return await FinalizeSingleDropAsync(client.dropConfig, client.lazyVsoClientTask.Value, isFinalizeOnStop);
                }).ToArray();
 
             var results = await TaskUtilities.SafeWhenAll(finalizationTasks);
             return IpcResult.Merge(results);
         }
 
-        private async Task<IIpcResult> FinalizeSingleDropAsync(DropConfig dropConfig, Task<IDropClient> dropClientTask = null)
+        private async Task<IIpcResult> FinalizeSingleDropAsync(DropConfig dropConfig, Task<IDropClient> dropClientTask = null, bool isFinalizeOnStop = false)
         {
             await Task.Yield();
             if (dropClientTask == null)
@@ -1156,6 +1159,42 @@ namespace Tool.DropDaemon
                 }
 
                 dropClientTask = configAndClient.lazyVsoClientTask.Value;
+            }
+
+            if (isFinalizeOnStop)
+            {
+                try
+                {
+                    // Finalize operation was triggered by FinalizedByCreatorServicePipDaemon and not by BuildXL.
+                    // It means that the finalize command was not received (either the finalize pip did not run or
+                    // the command could not be sent). In such a scenario, there is no guarantee that this particular
+                    // drop contains all the files it is expected to contain. Add a marker file to signal this to a user.
+                    var dropClient = await dropClientTask;
+                    var markerFile = Path.GetTempFileName();
+                    await System.IO.File.WriteAllTextAsync(markerFile, IncompleteDropMarkerFileContent);
+                    var markerFileItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), markerFile, IncompleteDropMarkerFileDropPath);
+                    var uploadResult = await AddFileAsync(markerFileItem);
+                    // Clean the temp file. We proceed regardless whether the file was deleted or not.
+                    _ = FileUtilities.TryDeleteFile(markerFile);
+                    if (uploadResult.Succeeded)
+                    {
+                        m_logger.Verbose(uploadResult.ToString());
+                    }
+                    else
+                    {
+                        // We failed to upload the marker file (this should be quite a rare event).
+                        // We now have a choice to make - do we proceed or do we abort. If we proceed with finalization,
+                        // a consumer of a drop might not be able to tell that the drop is incomplete (because the signals
+                        // are misleading, i.e., the drop is finalized and the file that is meant to indicate incomplete
+                        // drops is absent). It's safer to abort finalization in this case.
+                        return uploadResult;
+                    }
+                }
+                catch (Exception e)
+                {
+                    // No marker file - no finalization.
+                    return new IpcResult(IpcResultStatus.ExecutionError, $"An error occurred while uploading an incomplete drop marker file. Error: {e.DemystifyToString()}");
+                }
             }
 
             // We invoke 'finalize' regardless whether the drop is finalize (dropClient.IsFinalized) or not.
@@ -1379,7 +1418,7 @@ namespace Tool.DropDaemon
 
                 return errorValueFactory("[DAEMON ERROR] " + e.Message, status);
             }
-            catch(TimeoutException e)
+            catch (TimeoutException e)
             {
                 // On the code path that is using this method, TimeoutException can only be thrown by
                 // ReloadingDropServiceClient, i.e., a timed out call to an endpoint.
@@ -1810,7 +1849,7 @@ namespace Tool.DropDaemon
                     if (!string.Equals(dropItem.FullFilePath, existingDropItem.FullFilePath, OperatingSystemHelper.PathComparison))
                     {
                         return new Failure<string>(
-                            I($"'{dropItem.FullFilePath}' cannot be added to drop because it has the same drop path '{dropItem.RelativeDropPath}' as '{existingDropItem.FullFilePath}'"));                        
+                            I($"'{dropItem.FullFilePath}' cannot be added to drop because it has the same drop path '{dropItem.RelativeDropPath}' as '{existingDropItem.FullFilePath}'"));
                     }
                 }
                 else

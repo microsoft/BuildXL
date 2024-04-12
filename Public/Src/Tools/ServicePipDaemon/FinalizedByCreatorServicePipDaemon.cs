@@ -64,13 +64,13 @@ namespace Tool.ServicePipDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, "Finalize was called more than once");
             }
 
-            return await DoFinalizeAsync();
+            return await DoFinalizeAsync(isFinalizeOnStop: false);
         }
 
         /// <summary>
         /// Implementation of the finalization command.  
         /// </summary>
-        protected abstract Task<IIpcResult> DoFinalizeAsync();
+        protected abstract Task<IIpcResult> DoFinalizeAsync(bool isFinalizeOnStop);
 
         /// <summary>
         /// Implementation of the creation command 
@@ -112,7 +112,7 @@ namespace Tool.ServicePipDaemon
                 m_logger.Log(LogLevel.Info, $"{LogPrefix}Issuing the 'Finalize' command before shutting down: this means the command wasn't explicitly issued before.");
                 try
                 {
-                    var result = DoFinalizeAsync().GetAwaiter().GetResult();
+                    var result = DoFinalizeAsync(isFinalizeOnStop: true).GetAwaiter().GetResult();
                     m_logger.Log(LogLevel.Info, $"{LogPrefix}[FINALIZE] result: {result}");
                 }
                 catch (Exception e)

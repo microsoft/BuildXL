@@ -119,7 +119,7 @@ jobs:
       script: $(BuildXL.DropPath)\release\win-x64\RunInSubst.exe B=$(Build.SourcesDirectory) $(BuildXL.DropPath)\release\win-x64\bxl.exe /c:B:\complianceConfig.dsc /cachemiss:[BxlPrComplianceBuild] /p:[Sdk.BuildXL]microsoftInternal=1 /enableLazyOutputs:Minimal /p:[Tool.Guardian]enabledTools=credscan,policheck /p:TOOLPATH_GUARDIAN=$(Guardian.DropPath)\Guardian /p:BUILDXL_ENLISTMENT_ROOT=B:\ /p:BUILDXL_ENLISTMENT_DATA_DIR=B:\EnlistmentData /logsDirectory:$(ComplianceBuild.LogsDirectory) /cacheConfigFilePath:B:\Out\CacheConfig.json /substTarget:B:\ /substSource:$(Build.SourcesDirectory) /verifyJournalForEngineVolumes- /logOutput:fulloutputalways /p:[Tool.Guardian]complianceLogLevel=Trace
 
     env:
-      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
+      VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
       
   # Publish compliance build logs
   - task: CopyFiles@2

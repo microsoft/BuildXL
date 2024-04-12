@@ -49,7 +49,7 @@ jobs:
     env:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
-      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache) # TODO [maly]: do we really need this?
+      VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
   
   - task: Bash@3
     displayName: Build Debug/Release Binaries for Drop/Nuget/NPM using LKG
@@ -72,7 +72,7 @@ jobs:
     env:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
-      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache) # TODO [maly]: do we really need this?
+      VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
 
   - task: Bash@3
     displayName: Run ReleaseLinux unit tests with LKG
@@ -92,7 +92,7 @@ jobs:
     env:
       PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
-      VSTSPERSONALACCESSTOKEN: $(PAT-TseBuild-AzureDevOps-mseng-buildcache) # TODO [maly]: do we really need this?
+      VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
 
   - task: Bash@3
     displayName: Clean bin directory for Drop

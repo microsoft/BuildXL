@@ -23,7 +23,7 @@ variables:
   - name: BxlScriptArgs
     value: -UseAdoBuildRunner -SharedCacheMode ConsumeAndPublish -Use Dev -DevRoot $(Domino.DogfoodPackagePath)\release\win-x64
   - name: BuildXLArgs
-    value: /q:ReleaseNet8 /server- /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=* /dynamicBuildWorkerSlots:2 /p:BuildXLWorkerAttachTimeoutMin=5 /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceinfo:valdation=ReleasePipelineDistribution /enableIncrementalFrontEnd- /p:xunitSemaphoreCount=12
+    value: /q:ReleaseNet8 /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=* /dynamicBuildWorkerSlots:2 /p:BuildXLWorkerAttachTimeoutMin=5 /logOutput:FullOutputOnWarningOrError /p:RetryXunitTests=1 /processRetries:3 /traceinfo:valdation=ReleasePipelineDistribution /enableIncrementalFrontEnd- /p:xunitSemaphoreCount=12
   - name: Codeql.Enabled
     value: false
 pool:

@@ -123,7 +123,6 @@ jobs:
         -deploy dev
         -minimal
         -deployconfig $(QualifierToBuild)
-        /server-
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
@@ -143,7 +142,6 @@ jobs:
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
-        /server-
         /logOutput:FullOutputOnWarningOrError
         /p:RetryXunitTests=1
         /processRetries:3

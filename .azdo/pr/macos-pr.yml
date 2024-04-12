@@ -21,9 +21,7 @@ jobs:
       -SharedCacheMode ConsumeAndPublish
       /p:[Sdk.BuildXL]microsoftInternal=1
       /q:ReleaseDotNetCoreMac
-      /server-
       /logOutput:FullOutputOnWarningOrError
-      /ado
       /scrubDirectory:Out\objects
       /cachemiss:[BxlMacOSPRValidation]
     displayName: 'Build MacOS Test Binaries'

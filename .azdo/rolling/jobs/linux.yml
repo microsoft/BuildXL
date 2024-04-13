@@ -81,7 +81,7 @@ jobs:
       script: >-
         set -eu
 
-        bash bxl.sh --use-dev --shared-comp --internal
+        bash bxl.sh --use-dev --shared-comp
         /cacheMiss:"[Bxl.Selfhost.Linux]"
         /cacheConfigFilePath:Out/CacheConfig.json
         /logoutput:FullOutputOnError

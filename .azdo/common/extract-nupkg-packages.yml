@@ -5,5 +5,5 @@ parameters:
   type: string
 
 steps:
-  - pwsh: Shared/Scripts/ExtractNupkgPackages.ps1 -sourceDirectory ${{ parameters.SourceDirectory }} -destinationDirectory ${{ parameters.DestinationDirectory }}
+  - pwsh: Shared/Scripts/ExtractNupkgPackages.ps1 -sourceDirectory ${{ parameters.SourceDirectory }} -destinationDirectory ${{ parameters.DestinationDirectory }} -buildNumber ${{ parameters.BuildNumber }}
     displayName: 'Extract NuGet Packages'

@@ -3,6 +3,8 @@ parameters:
   type: string
 - name: DestinationDirectory
   type: string
+- name: BuildNumber
+  type: string
 
 steps:
   - pwsh: Shared/Scripts/ExtractNupkgPackages.ps1 -sourceDirectory ${{ parameters.SourceDirectory }} -destinationDirectory ${{ parameters.DestinationDirectory }} -buildNumber ${{ parameters.BuildNumber }}

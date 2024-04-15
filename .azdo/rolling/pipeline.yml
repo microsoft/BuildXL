@@ -39,6 +39,8 @@ extends:
         os: windows
       spotBugs:
         enabled: false
+      baseline:
+        baselineFile: $(Build.SourcesDirectory)\.config\guardian\.gdnbaselines
       codeql:
         compiled:
           enabled: false

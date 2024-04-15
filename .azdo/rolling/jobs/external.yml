@@ -17,11 +17,13 @@ jobs:
 
   templateContext:
     sdl:
+      baseline:
+        baselineFile: $(Build.SourcesDirectory)\.config\guardian\.gdnbaselines
       binskim:
         enabled: true
         scanOutputDirectoryOnly: true
-        break: false
-        severity: error
+        break: true
+        severity: warning
       spotBugs:
         enabled: false
 

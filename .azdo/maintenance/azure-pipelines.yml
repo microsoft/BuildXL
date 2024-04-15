@@ -36,10 +36,15 @@ stages:
           arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
           zipAfterPublish: false
       - template: ../common/journaling.yml # Enable journaling
+      - template: ../common/generate-access-token.yml
+        parameters:
+          ServiceConnection: 'mseng-Domino-BuildXL-Pipelines'
+          Resource: 'https://cloudbuild.microsoft.com/'
+          AccessTokenVariable: 'CloudBuildAccessToken'
       - task: PowerShell@2
         inputs:
           targetType: 'inline'
-          script: .\BuildXLReleaseManagement.exe updatePackages --Packages Microsoft.SBOMCore@latest@1essharedassets@Packaging@$(PAT-TseBuild-AzureDevOps-1EsSharedAssets) Microsoft.Parsers.ManifestGenerator@latest@1essharedassets@Packaging@$(PAT-TseBuild-AzureDevOps-1EsSharedAssets) Microsoft.Sbom.Parsers.Spdx22SbomParser@latest@nuget.org Microsoft.SBOM.Adapters@latest@nuget.org Microsoft.ManifestInterface@latest@1essharedassets@Packaging@$(PAT-TseBuild-AzureDevOps-1EsSharedAssets) Microsoft.Sbom.Contracts@latest@nuget.org Microsoft.ComponentDetection.Contracts@latest@nuget.org python@latest@nuget.org Microsoft.VisualStudio.Services.Governance.ComponentDetection@latest@mseng@ComponentGovernance@$(PAT-TseBuild-AzureDevOps-MsEng-Package-Read) Microsoft.Sbom.Extensions@latest@nuget.org --OneEsPat $(PAT-TseBuild-AzureDevOps-1EsSharedAssets) --CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild) --MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng) --ClientSecret $(AzureApp-BuildXL-Pipelines) --BuildXLSourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal" --CloudbuildSourceRoot "$(Build.SourcesDirectory)/CloudBuild"
+          script: .\BuildXLReleaseManagement.exe updatePackages --Packages Microsoft.SBOMCore@latest@1essharedassets@Packaging@$(PAT-TseBuild-AzureDevOps-1EsSharedAssets) Microsoft.Parsers.ManifestGenerator@latest@1essharedassets@Packaging@$(PAT-TseBuild-AzureDevOps-1EsSharedAssets) Microsoft.Sbom.Parsers.Spdx22SbomParser@latest@nuget.org Microsoft.SBOM.Adapters@latest@nuget.org Microsoft.ManifestInterface@latest@1essharedassets@Packaging@$(PAT-TseBuild-AzureDevOps-1EsSharedAssets) Microsoft.Sbom.Contracts@latest@nuget.org Microsoft.ComponentDetection.Contracts@latest@nuget.org python@latest@nuget.org Microsoft.VisualStudio.Services.Governance.ComponentDetection@latest@mseng@ComponentGovernance@$(PAT-TseBuild-AzureDevOps-MsEng-Package-Read) Microsoft.Sbom.Extensions@latest@nuget.org --OneEsPat $(PAT-TseBuild-AzureDevOps-1EsSharedAssets) --CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild) --MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng) --ClientSecret $(CloudBuildAccessToken) --BuildXLSourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal" --CloudbuildSourceRoot "$(Build.SourcesDirectory)/CloudBuild"
           showWarnings: true
           pwsh: false
           workingDirectory: '$(Build.ArtifactStagingDirectory)/BuildXLReleaseManagement'

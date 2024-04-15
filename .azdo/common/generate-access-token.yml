@@ -1,0 +1,23 @@
+## This template is used to generate an access token for a service principal using the provided service connection.
+parameters:
+- name: ServiceConnection
+  type: string
+  default: 'mseng-Domino-BuildXL-Pipelines' # Service connection used by most BuildXL pipelines that need an authentication token
+- name: Resource
+  type: string
+  default: '499b84ac-1321-427f-aa17-267ca6975798' # Azure DevOps resource UUID
+- name: AccessTokenVariable
+  type: string
+  default: 'GeneratedAccessToken' # Name of the pipeline variable that will store the generated access token
+
+steps:
+  - task: AzureCLI@2
+    displayName: 'Acquire Access Token'
+    inputs:
+      azureSubscription: ${{ parameters.ServiceConnection }}
+      addSpnToEnvironment: true
+      scriptType: pscore
+      scriptLocation: inlineScript
+      inlineScript: |
+        $token = az account get-access-token --resource ${{ parameters.Resource }} --output tsv --query accessToken
+        Write-Host "##vso[task.setvariable variable=${{ parameters.AccessTokenVariable }};issecret=true]$token"

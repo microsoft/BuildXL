@@ -16,4 +16,4 @@ steps:
       -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
       -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
       -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode)
-      -VstsPat $(PAT-TseBuild-AzureDevOps-mseng-buildcache)
+      -VstsPat $(System.AccessToken)

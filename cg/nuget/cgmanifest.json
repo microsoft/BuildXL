@@ -60,7 +60,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Azure.Core",
-          "Version": "1.36.0"
+          "Version": "1.38.0"
         }
       }
     },
@@ -78,7 +78,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Azure.Identity",
-          "Version": "1.10.4"
+          "Version": "1.11.0"
         }
       }
     },
@@ -1266,7 +1266,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client",
-          "Version": "4.59.0"
+          "Version": "4.60.1"
         }
       }
     },
@@ -1284,7 +1284,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client.Extensions.Msal",
-          "Version": "4.59.0"
+          "Version": "4.60.1"
         }
       }
     },
@@ -2761,6 +2761,15 @@
         "NuGet": {
           "Name": "System.Buffers",
           "Version": "4.5.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ClientModel",
+          "Version": "1.0.0"
         }
       }
     },

@@ -30,6 +30,8 @@ jobs:
   cancelTimeoutInMinutes: 1
   pool:
     name: BuildXL-DevOpsAgents-PME
+    demands: ImageOverride -equals 1ESPT-Win2022-PME-2
+
   steps:
   - checkout: self
     fetchDepth: 3
@@ -143,6 +145,8 @@ jobs:
 
   pool:
     name: BuildXL-DevOpsAgents-PME
+    demands: ImageOverride -equals 1ESPT-Win2022-PME-2
+
   steps:
   - checkout: self
     fetchDepth: 1

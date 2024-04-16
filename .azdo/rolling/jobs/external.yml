@@ -14,6 +14,7 @@ jobs:
   pool:
     name: BuildXL-DevOpsAgents-PME
     os: windows
+    demands: ImageOverride -equals 1ESPT-Win2022-PME-2
 
   templateContext:
     sdl:

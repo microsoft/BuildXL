@@ -27,11 +27,8 @@ jobs:
       
   - checkout: self
     fetchDepth: 1
+    fetchTags: false
   
-  - template: ../common/set-artifacts-pat.yml
-    parameters:
-      AzDevPAT: $(PAT-TseBuild-AzureDevOps-MsEng)
-
   - template: ../common/journaling.yml
 
   - script: |

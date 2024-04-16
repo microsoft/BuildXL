@@ -580,7 +580,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Sets message count semaphore.
         /// </summary>
-        public bool SetMessageCountSemaphore(string semaphoreName)
+        public bool SetMessageCountSemaphore(string semaphoreName, out string? errorMessage)
         {
             Contract.Requires(semaphoreName.Length > 0);
 
@@ -591,6 +591,7 @@ namespace BuildXL.Processes
 
             if (!maybeSemaphore.Succeeded)
             {
+                errorMessage = maybeSemaphore.Failure?.DescribeIncludingInnerFailures();
                 return false;
             }
 
@@ -602,14 +603,15 @@ namespace BuildXL.Processes
                 string messageSentCountSemaphoreName = semaphoreName + "_2";
                 var maybeMessageSentSemaphore = SemaphoreFactory.CreateNew(messageSentCountSemaphoreName, 0, int.MaxValue);
                 if (!maybeMessageSentSemaphore.Succeeded)
-                { 
+                {
+                    errorMessage = maybeSemaphore.Failure?.DescribeIncludingInnerFailures();
                     return false; 
                 }
 
                 MessageSentCountSemaphore = maybeMessageSentSemaphore.Result;
                 m_messageSentCountSemaphoreName = messageSentCountSemaphoreName;
             }
-
+            errorMessage = null;
             return true;
         }
 

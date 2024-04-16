@@ -41,6 +41,20 @@ namespace BuildXL.Interop.Unix
         private static long TicksPerSecond;
 
         /// <summary>
+        /// glibc 2.34 consolidated libpthread into the libc shared object.
+        /// Use LibC for 2.34 and higher version.
+        /// </summary>
+        public static bool UseLibC()
+        {
+            string libcVersionString = Marshal.PtrToStringAnsi(gnu_get_libc_version());
+            var components = libcVersionString.Split('.');
+            int majorVersion = Convert.ToInt32(components[0]);
+            int minorVersion = Convert.ToInt32(components[1]);
+
+            return majorVersion >= 2 && minorVersion >= 34;
+        }
+
+        /// <summary>
         /// Statx is supported starting from kernel 4.11 and library support was added in glibc 2.28.
         /// </summary>
         /// <remarks>
@@ -816,31 +830,60 @@ namespace BuildXL.Interop.Unix
         [DllImport(LibC, SetLastError = true)]
         internal static extern IntPtr realpath(string path, StringBuilder resolved_path);
 
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_open")]
+        public static extern IntPtr sem_open_libc([MarshalAs(UnmanagedType.LPStr)] string name, int oflag, int mode, uint value);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_wait")]
+        public static extern int sem_wait_libc(IntPtr sem);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_timedwait")]
+        public static extern int sem_timedwait_libc(IntPtr sem, Timespec abs_timeout);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_trywait")]
+        public static extern int sem_trywait_libc(IntPtr sem);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_post")]
+        public static extern int sem_post_libc(IntPtr sem);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_getvalue")]
+        public static extern int sem_getvalue_libc(IntPtr sem, out int sval);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_close")]
+        public static extern int sem_close_libc(IntPtr sem);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_unlink")]
+        public static extern int sem_unlink_libc([MarshalAs(UnmanagedType.LPStr)] string name);
+
         [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_open")]
-        public static extern IntPtr sem_open([MarshalAs(UnmanagedType.LPStr)] string name, int oflag, int mode, uint value);
+        public static extern IntPtr sem_open_libpthread([MarshalAs(UnmanagedType.LPStr)] string name, int oflag, int mode, uint value);
 
         [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_wait")]
-        public static extern int sem_wait(IntPtr sem);
+        public static extern int sem_wait_libpthread(IntPtr sem);
 
         [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_timedwait")]
-        public static extern int sem_timedwait(IntPtr sem, Timespec abs_timeout);
+        public static extern int sem_timedwait_libpthread(IntPtr sem, Timespec abs_timeout);
 
         [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_trywait")]
-        public static extern int sem_trywait(IntPtr sem);
+        public static extern int sem_trywait_libpthread(IntPtr sem);
 
         [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_post")]
-        public static extern int sem_post(IntPtr sem);
+        public static extern int sem_post_libpthread(IntPtr sem);
 
         [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_getvalue")]
-        public static extern int sem_getvalue(IntPtr sem, out int sval);
+        public static extern int sem_getvalue_libpthread(IntPtr sem, out int sval);
 
         [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_close")]
-        public static extern int sem_close(IntPtr sem);
+        public static extern int sem_close_libpthread(IntPtr sem);
 
         [DllImport(LibPthread, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "sem_unlink")]
-        public static extern int sem_unlink([MarshalAs(UnmanagedType.LPStr)] string name);
-
+        public static extern int sem_unlink_libpthread([MarshalAs(UnmanagedType.LPStr)] string name);
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+
+        /// <summary>
+        /// Get glibc version
+        /// </summary>
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "gnu_get_libc_version")]
+        public static extern IntPtr gnu_get_libc_version();
 
         #endregion
     }

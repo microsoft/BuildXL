@@ -566,7 +566,7 @@ namespace BuildXL.SandboxedProcessExecutor
                     }
 #pragma warning restore CA1416 // Validate platform compatibility
 
-                    while (!fam.SetMessageCountSemaphore(semaphoreName))
+                    while (!fam.SetMessageCountSemaphore(semaphoreName, out string? errorMessage))
                     {
                         m_logger.LogInfo($"Semaphore '{semaphoreName}' for counting Detours messages is already opened");
                         fam.UnsetMessageCountSemaphore();

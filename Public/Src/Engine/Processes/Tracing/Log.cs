@@ -599,11 +599,12 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Semaphore for counting Detours messages is already opened.")]
-        public abstract void LogMessageCountSemaphoreExists(
+            Message = EventConstants.PipPrefix + "Can't open semaphore for counting Detours messages. Full failure message: {2}")]
+        public abstract void LogMessageCountSemaphoreOpenFailure(
             LoggingContext context,
             long pipSemiStableHash,
-            string pipDescription);
+            string pipDescription,
+            string failureMessage);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessCommandLineTooLong,

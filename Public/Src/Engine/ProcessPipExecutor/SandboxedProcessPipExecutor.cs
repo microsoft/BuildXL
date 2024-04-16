@@ -2331,9 +2331,9 @@ namespace BuildXL.ProcessPipExecutor
             if ((OperatingSystemHelper.IsWindowsOS || OperatingSystemHelper.IsLinuxOS) && !SandboxedProcessNeedsExecuteExternal)
             {
                 // Semaphore names don't allow '\\' chars.
-                if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))
+                if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_'), out string message))
                 {
-                    Logger.Log.LogMessageCountSemaphoreExists(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
+                    Logger.Log.LogMessageCountSemaphoreOpenFailure(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, message);
                     return false;
                 }
             }

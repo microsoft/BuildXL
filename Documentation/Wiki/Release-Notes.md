@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240412.16 (Release [375925](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=375925))
+-	Retry by default processes that exited with Azure Watson 0xDEAD code on ADO.
+-	Linux sandbox refactoring work.
+-	Produce a valid statsperf.json JSON file
+-	Bug fixes
+
 # 0.1.0-20240223.2 (Release [365241](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=365241))
 - Modified the build status line for IPC pips progress
 - Add net8 support for NugetSpecGenerator

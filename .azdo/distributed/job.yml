@@ -24,12 +24,12 @@ jobs:
       buildNumber: '${{ parameters.DropName }}'
       destinationPath: '$(Domino.DogfoodPackagePath)'
       rootPaths: 'release/win-x64'
-      
+
   - checkout: self
     fetchDepth: 1
     fetchTags: false
-  
-  - template: ../common/journaling.yml
+
+  - template: /.azdo/common/journaling.yml
 
   - script: |
       netsh advfirewall firewall add rule name="Open BuildXL inbound port" dir=in action=allow protocol=TCP localport=6979
@@ -69,7 +69,7 @@ jobs:
             Write-Error "##[error]No process pip ran in distributed workers."
             exit 1
         }
-              
+
         exit 0
       displayName: 'Validate that distribution happened'
 

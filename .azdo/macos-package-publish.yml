@@ -35,25 +35,41 @@ steps:
     workingDirectory: '$(Agent.TempDirectory)/BuildXLMacOS'
 
 - task: NuGetCommand@2
-  displayName: Pack Nuget Package
+  displayName: '📦 Pack Nuget Package'
   inputs:
     command: 'pack'
     packagesToPack: '$(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary/nugetpkg/Microsoft.BuildXL.Interop.Runtime.osx-x64.nuspec'
     packDestination: '$(Agent.TempDirectory)/BuildXLMacOS/pkg'
     versioningScheme: 'off'
 
+- template: /.azdo/common/generate-access-token.yml
+  parameters:
+    AccessTokenVariable: BuildXL-Pipeline-AccessToken
+
+- template: /.azdo/common/set-nuget-endpoint.yml
+  parameters:
+    NuGetServiceConnectionId: 'af9cb8db-5f2f-4b3e-b436-e1ff62614888'
+    NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
+    AccessToken: $(BuildXL-Pipeline-AccessToken)
+
 - task: NuGetCommand@2
-  displayName: Push Nuget Package to Public 1EsSharedAssets Feed
+  displayName: '📦 Push NuGet packages to to 1essharedassets/BuildXL feed'
   inputs:
     command: 'push'
     packagesToPush: '$(Agent.TempDirectory)/BuildXLMacOS/pkg/*.nupkg'
     nuGetFeedType: 'external'
-    publishFeedCredentials: 'BuildXL__PAT-TseBuild-AzureDevOps-1EsSharedAssets__BuildXL 1essharedassets public feed (PAT exp 05/24/2022)'
-    
+    publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
+
+- template: /.azdo/common/set-nuget-endpoint.yml
+  parameters:
+    NuGetServiceConnectionId: 'b1f5597b-366e-4e8a-9e2a-5d3fc870947a'
+    NuGetServiceConnectionName: 'mseng-Domino-BuildXL-ms_BuildXL_BuildXL'
+    AccessToken: $(BuildXL-Pipeline-AccessToken)
+
 - task: NuGetCommand@2
-  displayName: Push Nuget Package to Public ms feed
+  displayName: '📦 Push NuGet packages to to ms/BuildXL/BuildXL feed'
   inputs:
     command: 'push'
     packagesToPush: '$(Agent.TempDirectory)/BuildXLMacOS/pkg/*.nupkg'
     nuGetFeedType: 'external'
-    publishFeedCredentials: 'BuildXL__PAT-TseBuild-AzureDevOps-ms__BuildXL @ ms (PAT exp 05/24/2022)'
+    publishFeedCredentials: 'mseng-Domino-BuildXL-ms_BuildXL_BuildXL'

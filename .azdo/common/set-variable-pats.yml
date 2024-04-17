@@ -6,14 +6,18 @@ parameters:
   default: $(Build.SourcesDirectory)
 
 steps:
+- template: /.azdo/common/generate-access-token.yml
+  parameters:
+    AccessTokenVariable: BuildXL-Pipeline-AccessToken
+
 - task: PowerShell@2
-  displayName: Set environment for the job with necessary PATs 
+  displayName: Set environment variables for the job with necessary access tokens
   inputs:
     workingDirectory: ${{ parameters.workingDirectory }}
     targetType: filePath
     filePath: .azdo/scripts/SetVariablePats.ps1
     arguments: >-
-      -OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
-      -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+      -OneEsPat    $(BuildXL-Pipeline-AccessToken)
+      -CbPat       $(BuildXL-Pipeline-AccessToken)
       -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode)
-      -VstsPat $(System.AccessToken)
+      -VstsPat     $(System.AccessToken)

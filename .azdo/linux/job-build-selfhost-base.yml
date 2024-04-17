@@ -85,6 +85,10 @@ jobs:
         mono --version
       displayName: Install Mono
 
+    - template: /.azdo/common/generate-access-token.yml@self
+      parameters:
+        AccessTokenVariable: BuildXL-Pipeline-AccessToken
+
     - bash: |
         sudo mkdir /home/subst
         sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
@@ -105,8 +109,8 @@ jobs:
       workingDirectory: /home/subst
       ${{ if eq(parameters.internal, true) }}:
         env:
-          PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
-          PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+          PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
+          PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
 
     ${{ if parameters.publishTestResults }}:
       postBuildSteps:

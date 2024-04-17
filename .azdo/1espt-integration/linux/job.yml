@@ -40,11 +40,15 @@ jobs:
         mono --version
       displayName: Install Mono
 
+    - template: /.azdo/common/generate-access-token.yml@self
+      parameters:
+        AccessTokenVariable: BuildXL-Pipeline-AccessToken
+
     - bash: |
         sudo mkdir /home/subst
         sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
       displayName: Bind /home/subst to sources directory  
-      
+
     buildXL:
       # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
       invocationPrefix: timeout --signal 9 60m bash .azdo/bxl_ado.sh
@@ -64,5 +68,5 @@ jobs:
       displayName: 1ESPT Integration Test (${{ parameters.validationName }})
       workingDirectory: /home/subst
       env:
-        PAT1esSharedAssets: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read)
-        PATCloudBuild: $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read)
+        PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
+        PATCloudBuild: $(BuildXL-Pipeline-AccessToken)

@@ -11,9 +11,10 @@ jobs:
   steps:
   - checkout: self
 
-  - template: ../common/journaling.yml # Enable journaling
-  
+  - template: /.azdo/common/journaling.yml # Enable journaling
+
   - template: /.azdo/common/set-variable-pats.yml
+
   - script: >-
       bxl.cmd
       /f:output='$(Build.SourcesDirectory)\Out\Bin\Release\tests\*'

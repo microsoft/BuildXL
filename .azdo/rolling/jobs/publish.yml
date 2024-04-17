@@ -6,22 +6,21 @@ jobs:
   pool:
     name: BuildXL-DevOpsAgents-PME
     os: windows
-
   templateContext:
     outputParentDirectory: $(Agent.TempDirectory)/DownloadedDrop
     outputs:
     - output: artifactsDrop
-      displayName: Publish BuildXL to mseng Artifact Services Drop (mseng.visualstudio.com)
+      displayName: '📤 Publish BuildXL to mseng Artifact Services Drop (mseng.visualstudio.com)'
       dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
-      buildNumber: buildxl.dogfood.$(Build.BuildNumber)  
+      buildNumber: buildxl.dogfood.$(Build.BuildNumber)
       sourcePath: $(Agent.TempDirectory)/DownloadedDrop
       detailedLog: true
       retentionDays: 180
       dropMetadataContainerName: DropMetadata-mseng
       sbomEnabled: false
-    
+
     - output: artifactsDrop
-      displayName: Publish BuildXL to CB Artifact Services Drop (cloudbuild.visualstudio.com)
+      displayName: '📤 Publish BuildXL to CB Artifact Services Drop (cloudbuild.visualstudio.com)'
       dropServiceURI: https://cloudbuild.artifacts.visualstudio.com/DefaultCollection
       buildNumber: buildxl.dogfood.$(Build.BuildNumber)
       sourcePath: $(Agent.TempDirectory)/DownloadedDrop
@@ -32,34 +31,38 @@ jobs:
       sbomEnabled: false
 
     - output: nuget
-      displayName: Push private nuget packages to feed
+      displayName: '📦 Push private NuGet packages to 1essharedassets/BuildXL.Internal feed'
       packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/private/pkgs 
       packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/private/pkgs/*.nupkg
       nuGetFeedType: external
-      publishFeedCredentials: 1924030c-ebba-4483-ada7-b3a1aa99ee84 # BuildXL__PAT-TseBuild-AzureDevOps-1EsSharedAssets__BuildXL.Internal @ 1essharedassets
+      publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
       sbomEnabled: false
   
     - output: nuget
-      displayName: Push public nuget packages to feed
+      displayName: '📦 Push public NuGet packages to 1essharedassets/BuildXL feed'
       condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
       packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs 
       packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs/*.nupkg
       nuGetFeedType: external
-      publishFeedCredentials: bad95911-cdf1-4bad-9311-99b0848872d4 # BuildXL__PAT-TseBuild-AzureDevOps-1EsSharedAssets__BuildXL 1essharedassets public feed
+      publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
       sbomEnabled: false
-  
-  steps:     
+
+  steps:
   - checkout: self  # We need this to call the SBOM validation script
     fetchDepth: 1
     fetchTags: false
 
-  # Set PAT to pull from CB
-  - template: ../../common/set-artifacts-pat.yml
+  # Set access token to pull/push artifacts from CB and mseng.
+  - template: /.azdo/common/generate-access-token.yml
     parameters:
-      AzDevPAT: $(PAT-TseBuild-AzureDevOps-CloudBuild)
+      AccessTokenVariable: BuildXL-Pipeline-AccessToken
+
+  - template: /.azdo/common/set-artifacts-pat.yml
+    parameters:
+      AzDevPAT: $(BuildXL-Pipeline-AccessToken)
 
   - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@0
-    displayName: Download candidate BuildXL
+    displayName: '📥 Download candidate BuildXL'
     inputs:
       dropMetadataContainerName: SecondBuildFull
       dropServiceURI: ''
@@ -87,46 +90,54 @@ jobs:
       filePath: Shared/Scripts/SBOMValidation.ps1
       arguments: -SBOMManifestFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/spdx_2.2/manifest.spdx.json -BcdeOutputFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/bcde-output.json
 
-  # Set PAT to pull from mseng
-  - template: ../../common/set-artifacts-pat.yml
-    parameters:
-      AzDevPAT: $(PAT-TseBuild-AzureDevOps-MsEng)
-
   # Add MacOS and Linux artifacts to the DownloadedDrop directory, so they will be included in the
   # final drop produced by this pipeline. This way the release pipeline has everything it needs in
   # a single drop.
-
+  #
+  # TODO: In the following drop download task, 'usePat' is set to false.
+  #       May be this can be removed (or set to true) because the system access token should be sufficient.
+  #       Note that, when set to 'false', the task will use the environment variable 'ArtifactServices.Drop.PAT' set by set-artifacts-pat.yml,
+  #       otherwise, it will use the system access token. Because the following drop download tasks are downloading from the same organization,
+  #       the system access token should be (in theory) sufficient.
   - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@0
-    displayName: Download MacOS Runtime Nuget Package
+    displayName: '📥 Download MacOS Runtime NuGet Package'
     inputs:
       dropMetadataContainerName: DropMetadata-MacOS-Intermediate
       dropServiceURI: ''
       destinationPath: $(Agent.TempDirectory)/DownloadedDrop
-      usePat: false
+      usePat: false # TODO: May be this can be removed (or set to true) because system access token is sufficient.
 
   - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
-    displayName: Download Internal Linux Intermediate Artifacts
+    displayName: '📥 Download Internal Linux Intermediate Artifacts'
     inputs:
       dropMetadataContainerName: DropMetadata-Linux-Intermediate-Internal
       dropServiceURI: ''
       destinationPath: $(Agent.TempDirectory)/DownloadedDrop
       usePat: false
 
-    # Deletes outputs not needed in order to reduce the files sent to SDL binary scanning
-    # This filtering needs to be done after the drop validator task otherwise that would fail
+  # Deletes outputs not needed in order to reduce the files sent to SDL binary scanning
+  # This filtering needs to be done after the drop validator task otherwise that would fail
   - task: PowerShell@2
-    displayName: Delete extra outputs
+    displayName: 'Delete extra outputs'
     inputs:
       targetType: 'inline'
       script: |
         Remove-Item -Path "$(Agent.TempDirectory)/DownloadedDrop/debug" -Recurse -Force
       errorActionPreference: 'continue'
 
-  # Set PAT to be able to publish to CB artifact feed. That step is injected by 1ESPT
-  - template: ../../common/set-artifacts-pat.yml
+  # Set NuGet endpoints for the feeds we are going to push to. The NuGet push tasks are injected by 1ESPT using the 'output: nuget' context.
+  - template: /.azdo/common/set-nuget-endpoint.yml
     parameters:
-      AzDevPAT: $(PAT-TseBuild-AzureDevOps-CloudBuild)
-  
+      NuGetServiceConnectionId: 'bf3972a0-77c4-4dd8-8f89-cf4399bc0658'
+      NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
+      AccessToken: $(BuildXL-Pipeline-AccessToken)
+
+  - template: /.azdo/common/set-nuget-endpoint.yml
+    parameters:
+      NuGetServiceConnectionId: 'af9cb8db-5f2f-4b3e-b436-e1ff62614888'
+      NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
+      AccessToken: $(BuildXL-Pipeline-AccessToken)
+
 - job: GitHubForcePush
   displayName: Force Push BuildXL.Internal to GitHub Main
   timeoutInMinutes: 180

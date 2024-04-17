@@ -1,7 +1,7 @@
 # Shared tasks for external validation
 steps:
 # Enable journaling
-- template: ../../common/journaling.yml 
+- template: /.azdo/common/journaling.yml 
 
 - task: CmdLine@2
   displayName: Remove pkgs folder copy

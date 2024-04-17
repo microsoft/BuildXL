@@ -12,7 +12,7 @@ parameters:
 
 steps:
   - task: AzureCLI@2
-    displayName: 'Acquire Access Token'
+    displayName: '🪙 Acquire access token for ${{ parameters.ServiceConnection }}'
     inputs:
       azureSubscription: ${{ parameters.ServiceConnection }}
       addSpnToEnvironment: true

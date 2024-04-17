@@ -23,6 +23,7 @@ variables:
     value: $(Agent.TempDirectory)\Drops\GuardianDrop
   - name: ComplianceBuild.LogsDirectory
     value: $(Build.SourcesDirectory)\Out\Logs\ComplianceBuild-$(Build.BuildNumber)
+
 jobs:
 - job: Compliance_Build
   displayName: Compliance Build
@@ -36,9 +37,14 @@ jobs:
   - checkout: self
     fetchDepth: 3
 
-  - template: ../common/set-artifacts-pat.yml
+  # Set access token to pull/push artifacts from CB
+  - template: /.azdo/common/generate-access-token.yml
     parameters:
-      AzDevPAT: $(PAT-TseBuild-AzureDevOps-CloudBuild)
+      AccessTokenVariable: BuildXL-Pipeline-AccessToken
+
+  - template: /.azdo/common/set-artifacts-pat.yml
+    parameters:
+      AzDevPAT: $(BuildXL-Pipeline-AccessToken)
 
   # Download BuildXL drop
   - task: artifactDropDownloadTask@1
@@ -49,7 +55,7 @@ jobs:
       destinationPath: $(BuildXL.DropPath)
       rootPaths: release/win-x64
       usePat: false
-      
+
   # Download CloudBuild Drop
   - task: artifactDropDownloadTask@0
     displayName: Download CloudBuild drop
@@ -59,7 +65,7 @@ jobs:
       destinationPath: $(CloudBuild.DropPath)
       rootPaths: retail/amd64/App/BuildRunners/GenericBuildRunner/BuildXLRunner/ComplianceBuildConfig
       usePat: false
-  
+
   # Download Guardian Drop
   - task: artifactDropDownloadTask@0
     displayName: Download Guardian drop
@@ -69,7 +75,7 @@ jobs:
       destinationPath: $(Guardian.DropPath)
       rootPaths: Guardian
       usePat: false
-      
+
    # Copy compliance config to source repo and run compliance build
   - task: CmdLine@2
     displayName: Copy Compliance config to source
@@ -119,10 +125,9 @@ jobs:
     displayName: Run Compliance Build
     inputs:
       script: $(BuildXL.DropPath)\release\win-x64\RunInSubst.exe B=$(Build.SourcesDirectory) $(BuildXL.DropPath)\release\win-x64\bxl.exe /c:B:\complianceConfig.dsc /cachemiss:[BxlPrComplianceBuild] /p:[Sdk.BuildXL]microsoftInternal=1 /enableLazyOutputs:Minimal /p:[Tool.Guardian]enabledTools=credscan,policheck /p:TOOLPATH_GUARDIAN=$(Guardian.DropPath)\Guardian /p:BUILDXL_ENLISTMENT_ROOT=B:\ /p:BUILDXL_ENLISTMENT_DATA_DIR=B:\EnlistmentData /logsDirectory:$(ComplianceBuild.LogsDirectory) /cacheConfigFilePath:B:\Out\CacheConfig.json /substTarget:B:\ /substSource:$(Build.SourcesDirectory) /verifyJournalForEngineVolumes- /logOutput:fulloutputalways /p:[Tool.Guardian]complianceLogLevel=Trace
-
     env:
       VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
-      
+
   # Publish compliance build logs
   - task: CopyFiles@2
     displayName: Copy compliance build intermediate files
@@ -152,10 +157,11 @@ jobs:
     fetchDepth: 1
     fetchTags: false
 
-  - template: ../common/journaling.yml # Enable journaling
+  - template: /.azdo/common/journaling.yml # Enable journaling
 
   # Step 1. Build bits and deploy to dev
   - template: /.azdo/common/set-variable-pats.yml
+
   - script: >-
       .\bxl.cmd
       -minimal
@@ -191,7 +197,7 @@ jobs:
       artifactName: BuildXL -Deploy Dev logs
 
   # Step 2. Build microsoftInternal=0 using the built bits
-  - template: ../common/set-msvc-version.yml
+  - template: /.azdo/common/set-msvc-version.yml
   - task: CmdLine@2
     displayName: BuildXL -Use Dev (microsoftInternal=0) 
     inputs:
@@ -240,4 +246,3 @@ jobs:
     inputs:
       path: $(BuildXL.LogsDirectory)
       artifactName: BuildXL -Use Dev logs
-...

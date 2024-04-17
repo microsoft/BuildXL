@@ -83,7 +83,7 @@ jobs:
         /processRetries:3
         /nowarn:2841 /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
 
-  - template: ../../common/extract-nupkg-packages.yml
+  - template: /.azdo/common/extract-nupkg-packages.yml
     parameters:
       SourceDirectory: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
       DestinationDirectory: $(Build.SourcesDirectory)\Out\Bin\release\public\ExtractedPackagesForBinSkimScan

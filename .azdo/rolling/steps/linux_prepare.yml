@@ -4,7 +4,11 @@ parameters:
 
 steps:
   # Set DotNet SDK version
-  - template: ../../common/use-latest-dotnet-sdk.yml 
+  - template: /.azdo/common/use-latest-dotnet-sdk.yml 
+
+  - template: /.azdo/common/generate-access-token.yml
+    parameters:
+      AccessTokenVariable: BuildXL-Pipeline-AccessToken
 
   # TODO [maly]: Auto cache config via adobuildrunner
   - task: Bash@3

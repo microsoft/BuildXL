@@ -32,7 +32,7 @@ jobs:
     fetchTags: false
   
   # Enable journaling
-  - template: ../../common/journaling.yml 
+  - template: /.azdo/common/journaling.yml 
   
   - task: CmdLine@2
     displayName: 'Nuget Hack: Nuget has auth problems and a terrible CLI. Have to kill old nuget.config first'
@@ -53,7 +53,11 @@ jobs:
         )
 
   # Set DotNet SDK version
-  - template: ../../common/use-latest-dotnet-sdk.yml 
+  - template: /.azdo/common/use-latest-dotnet-sdk.yml 
+
+  - template: /.azdo/common/generate-access-token.yml
+    parameters:
+      AccessTokenVariable: BuildXL-Pipeline-AccessToken
 
   - task: DotNetCoreCLI@2
     displayName: Build BuildXL.Tools.CredentialProvider
@@ -72,7 +76,7 @@ jobs:
     displayName: RunCheckInTests with PAT
     inputs:
       filePath: RunCheckInTestsWithPAT.ps1
-      arguments: $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) $(NugetCredentialProviderPath) $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) /partB
+      arguments: $(BuildXL-Pipeline-AccessToken) $(BuildXL-Pipeline-AccessToken) $(NugetCredentialProviderPath) $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) /partB
 
   - task: CmdLine@2
     displayName: Run script RunCheckInTests.cmd
@@ -80,7 +84,7 @@ jobs:
     inputs:
       script: RunCheckInTests.cmd /lab /partB /internal
   
-  - template: ../../common/kill-bxl.yml 
+  - template: /.azdo/common/kill-bxl.yml 
 
   # Stage logs for upload on failure
   - task: CopyFiles@2

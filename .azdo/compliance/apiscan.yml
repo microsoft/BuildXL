@@ -23,8 +23,8 @@ jobs:
   - checkout: self
     fetchDepth: 1
 
-  - template: ../common/journaling.yml # Enable journaling
-  - template: ../common/set-msvc-version.yml
+  - template: /.azdo/common/journaling.yml # Enable journaling
+  - template: /.azdo/common/set-msvc-version.yml
 
   # It should give us enough coverage to run with the default qualifier
   # We only care to scan binaries we produce, so we are using an output filter pointing to the Out\Bin\$(BuildXL.Configuration)\win-x64 folder

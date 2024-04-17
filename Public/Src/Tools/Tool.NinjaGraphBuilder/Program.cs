@@ -32,10 +32,8 @@ namespace NinjaGraphBuilderTool
         private const string BUILD_NINJA_DEFAULT = "build.ninja";
         private static string Usage => $"Usage: {Process.GetCurrentProcess().MainModule.ModuleName} <path to argument file>";
 
-        // This assumes that Ninjson is deployed as ninjson.exe alongide this NinjaGraphBuilder.exe
-        // This should be kept in sync with this tool's deployment scheme in Public/Src/Deployment/buildXL.dsc
-        // (and in the Ninja test module)
-        private string NinjsonPath => Path.Combine(Path.GetDirectoryName(GetAssemblyLocation(GetExecutingAssembly())), OperatingSystemHelper.IsWindowsOS ? "ninjson.exe" : "ninjson");
+        // This should be kept in sync with this tool's deployment scheme in Public/Src/Deployment/buildXL.dsc (and in the Ninja test module)
+        private string NinjsonPath => Path.Combine(Path.GetDirectoryName(GetAssemblyLocation(GetExecutingAssembly())), OperatingSystemHelper.IsWindowsOS ? @"..\Ninjson\win-x64\ninjson.exe" : "../Ninjson/linux-x64/ninjson");
 
         private Program()
             : base("NinjaGraphBuilder")

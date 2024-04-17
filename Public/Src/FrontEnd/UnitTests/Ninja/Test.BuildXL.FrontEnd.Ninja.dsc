@@ -42,13 +42,14 @@ namespace Test.Ninja {
             importFrom("BuildXL.Pips").dll,
         ],
         runtimeContent: [
-            importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
-            ...addIfLazy(Context.getCurrentHost().os === "win", () => [
-                importFrom("BuildXL.Tools.Ninjson").pkg.contents
-            ]),
-            ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
-                importFrom("BuildXL.Tools.Ninjson.linux-x64").pkg.contents
-            ])
+            {
+                subfolder: "tools/Ninjson",
+                contents: [ importFrom("BuildXL.Tools.Ninjson").pkg.contents ]
+            },
+            {
+                subfolder: "tools/NinjaGraphBuilder",
+                contents: [ importFrom("BuildXL.Tools").NinjaGraphBuilder.exe ]
+            }
         ]
     });
 }

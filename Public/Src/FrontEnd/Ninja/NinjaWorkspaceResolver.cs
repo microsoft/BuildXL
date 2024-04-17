@@ -49,7 +49,7 @@ namespace BuildXL.FrontEnd.Ninja
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool (\Public\Src\Deployment\buildXL.dsc)
         /// </summary>
-        private readonly string m_ninjaGraphBuilderRelativePath = OperatingSystemHelper.IsWindowsOS ? @"NinjaGraphBuilder.exe" : @"NinjaGraphBuilder";
+        private readonly string m_ninjaGraphBuilderRelativePath = OperatingSystemHelper.IsWindowsOS ? @"tools\NinjaGraphBuilder\NinjaGraphBuilder.exe" : @"tools/NinjaGraphBuilder/NinjaGraphBuilder";
 
         /// <inheritdoc/>
         public NinjaWorkspaceResolver()
@@ -123,6 +123,11 @@ namespace BuildXL.FrontEnd.Ninja
         {
             Possible<NinjaGraphResult> maybeGraph = await ComputeBuildGraphAsync();
             
+            if (!maybeGraph.Succeeded)
+            {
+                return maybeGraph.Failure;
+            }
+
             var result = maybeGraph.Result;
             var specFileConfig = SpecFile.ChangeExtension(Context.PathTable, PathAtom.Create(Context.StringTable, ".ninja.dsc")); // It needs to be a .dsc for the parsing to work
 

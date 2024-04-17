@@ -27,14 +27,14 @@ namespace BuildXL {
 
             importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
 
-            // tools
-            importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
-            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
-                importFrom("BuildXL.Tools.Ninjson").pkg.contents
-            ]), 
-            ...addIfLazy(qualifier.targetRuntime === "linux-x64", () => [
-                importFrom("BuildXL.Tools.Ninjson.linux-x64").pkg.contents
-            ]),            
+            {
+                subfolder: "tools/NinjaGraphBuilder",
+                contents: [ importFrom("BuildXL.Tools").NinjaGraphBuilder.exe ]
+            },
+            {
+                subfolder: "tools/Ninjson",
+                contents: [ importFrom("BuildXL.Tools.Ninjson").pkg.contents ]
+            }
         ]
     };
 

@@ -93,7 +93,7 @@ function getMsvcPackage() : StaticDirectory {
     }
     else {
         let msvcVersions = [
-            "14.29.30133"
+            "14.39.33519"
         ];
 
         // ADO will set this variable if the version above is not installed

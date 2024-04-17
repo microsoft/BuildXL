@@ -408,7 +408,7 @@ int CallDetouredFileCreateOnSymlink(bool openWithReparsePoint)
         FILE_SHARE_READ,
         0,
         OPEN_EXISTING,
-        (DWORD)(openWithReparsePoint ? FILE_FLAG_OPEN_REPARSE_POINT : FILE_ATTRIBUTE_NORMAL),
+        static_cast<DWORD>(openWithReparsePoint ? FILE_FLAG_OPEN_REPARSE_POINT : FILE_ATTRIBUTE_NORMAL),
         NULL);
 
     if (hFile == INVALID_HANDLE_VALUE)
@@ -446,9 +446,9 @@ int CallDetouredCopyFileNotFollowingChainOfSymlinks()
     CopyFileExW(
         L"SourceOfSymLink.link",
         L"CopiedFile.txt",
-        (LPPROGRESS_ROUTINE)NULL,
-        (LPVOID)NULL,
-        (LPBOOL)NULL,
+        static_cast<LPPROGRESS_ROUTINE>(NULL),
+        static_cast<LPVOID>(NULL),
+        static_cast<LPBOOL>(NULL),
         COPY_FILE_COPY_SYMLINK);
 
     return static_cast<int>(GetLastError());
@@ -464,9 +464,9 @@ int CallDetouredCopyFileToExistingSymlink(bool copySymlink)
     CopyFileExW(
         L"LinkToSource.link",
         L"LinkToDestination.link",
-        (LPPROGRESS_ROUTINE)NULL,
-        (LPVOID)NULL,
-        (LPBOOL)NULL,
+        static_cast<LPPROGRESS_ROUTINE>(NULL),
+        static_cast<LPVOID>(NULL),
+        static_cast<LPBOOL>(NULL),
         copySymlink ? COPY_FILE_COPY_SYMLINK : (DWORD)0x0);
 
     return static_cast<int>(GetLastError());
@@ -636,7 +636,7 @@ int CallDetouredNtCreateFileOnSymlink(bool withReparsePointFlag)
         FILE_ATTRIBUTE_NORMAL,
         FILE_SHARE_READ,
         FILE_OPEN,
-        FILE_NON_DIRECTORY_FILE | (DWORD)(withReparsePointFlag ? FILE_OPEN_REPARSE_POINT : 0),
+        FILE_NON_DIRECTORY_FILE | static_cast<DWORD>(withReparsePointFlag ? FILE_OPEN_REPARSE_POINT : 0),
         NULL,
         NULL);
 

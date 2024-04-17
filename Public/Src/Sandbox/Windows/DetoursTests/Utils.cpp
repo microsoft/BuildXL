@@ -211,8 +211,8 @@ NTSTATUS ZwSetFileDispositionByHandle(HANDLE hFile, FILE_INFORMATION_CLASS_EXTRA
         hFile,
         &ioStatusBlock,
         fileInfo,
-        (ULONG)bufferSize,
-        (FILE_INFORMATION_CLASS)fileInfoClass);
+        static_cast<ULONG>(bufferSize),
+        static_cast<FILE_INFORMATION_CLASS>(fileInfoClass));
 }
 
 NTSTATUS OpenFileWithNtCreateFile(

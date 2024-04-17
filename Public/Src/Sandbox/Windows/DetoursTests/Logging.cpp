@@ -172,7 +172,7 @@ int GetFileAttributesExWLogging(void)
 {
     GetFileAttributesExW(
         L"GetFileAttributesALoggingTest.txt",
-        (GET_FILEEX_INFO_LEVELS)GetFileExInfoStandard,
+        static_cast<GET_FILEEX_INFO_LEVELS>(GetFileExInfoStandard),
         NULL
         );
 
@@ -183,7 +183,7 @@ int GetFileAttributesExALogging(void)
 {
     GetFileAttributesExA(
         "GetFileAttributesALoggingTest.txt",
-        (GET_FILEEX_INFO_LEVELS)GetFileExInfoStandard,
+        static_cast<GET_FILEEX_INFO_LEVELS>(GetFileExInfoStandard),
         NULL
         );
 
@@ -412,9 +412,9 @@ int FindFirstFileExWLogging(void)
 {
     FindFirstFileExW(
         L"FindFirstFileExWLoggingTest.txt",
-        (FINDEX_INFO_LEVELS)FindExInfoStandard,
+        static_cast<FINDEX_INFO_LEVELS>(FindExInfoStandard),
         NULL,
-        (FINDEX_SEARCH_OPS)FindExSearchNameMatch,
+        static_cast<FINDEX_SEARCH_OPS>(FindExSearchNameMatch),
         NULL,
         0
         );
@@ -426,9 +426,9 @@ int FindFirstFileExALogging(void)
 {
     FindFirstFileExA(
         "FindFirstFileExALoggingTest.txt",
-        (FINDEX_INFO_LEVELS)FindExInfoStandard,
+        static_cast<FINDEX_INFO_LEVELS>(FindExInfoStandard),
         NULL,
-        (FINDEX_SEARCH_OPS)FindExSearchNameMatch,
+        static_cast<FINDEX_SEARCH_OPS>(FindExSearchNameMatch),
         NULL,
         0
         );
@@ -441,7 +441,7 @@ int GetFileInformationByHandleExLogging(void)
     HANDLE hFile = NULL;
     GetFileInformationByHandleEx(
         hFile,
-        (FILE_INFO_BY_HANDLE_CLASS)FileBasicInfo,
+        static_cast<FILE_INFO_BY_HANDLE_CLASS>(FileBasicInfo),
         NULL,
         100
         );
@@ -454,7 +454,7 @@ int SetFileInformationByHandleLogging(void)
     HANDLE hFile = NULL;
     SetFileInformationByHandle(
         hFile,
-        (FILE_INFO_BY_HANDLE_CLASS)FileBasicInfo,
+        static_cast<FILE_INFO_BY_HANDLE_CLASS>(FileBasicInfo),
         NULL,
         100
         );

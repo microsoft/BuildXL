@@ -214,9 +214,10 @@ namespace BuildXL.Utilities.Configuration
         /// Allows to overwrite the current system username with a custom value. If present, Aria telemetry and BuildXL.Native.UserUtilities
         /// will return this value. Often lab build machines are setup / provisioned with the same system username (e.g. in Apex builds) so we allow
         /// for this to be settable from the outside, thus partners can provide more fine grained telemetry data.
+        /// On ADO, we try to override the username with BUILD_REQUESTEDFOR so instead of using Environment.UserName in our telemetry, which is always 'cloudtest'
+        /// we use the actual username of whoever is requesting the build.
         /// </summary>
-        // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => value);
+        public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => value ?? Environment.GetEnvironmentVariable("BUILD_REQUESTEDFOR"));
 
         /// <summary>
         /// Specifies whether a new pip should not be inlined if it runs on the same queue with the pip that schedules it.

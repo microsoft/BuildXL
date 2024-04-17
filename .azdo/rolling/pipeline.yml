@@ -33,6 +33,8 @@ extends:
       name: BuildXL-DevOpsAgents-PME
       os: windows
       demands: ImageOverride -equals 1ESPT-Win2022-PME-2
+    featureFlags:
+      autoBaseline: false
     sdl:
       sourceAnalysisPool:
         name: Windows-SDL-Agents

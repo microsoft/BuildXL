@@ -151,14 +151,8 @@ jobs:
   - checkout: self
     fetchTags: true
   
-  - task: DownloadSecureFile@1
-    name: File_Known_Hosts
-    displayName: Download secure file
-    inputs:
-      secureFile: buildxl_github_known_hosts
-  
   - task: PowerShell@2
     displayName: Force push to GitHub master SSH
     inputs:
       filePath: Shared/Scripts/github/PushToGHWithDeployKey.ps1
-      arguments: '"$(Key-Github-DeployKey-PrivateKey)" "$(Key-Github-DeployKey-PublicKey)" "$(File_Known_Hosts.secureFilePath)"'
+      arguments: '"$(Github-DeployKey-PrivateKey)" "$(Github-DeployKey-PublicKey)" "$(Build.SourcesDirectory)\Shared\Scripts\github\known_hosts"'

@@ -94,7 +94,7 @@ extends:
     - stage: publish
       displayName: Publish
       variables:
-      - group: "BuildXL Secrets"
+      - group: "BuildXL GitHub Secrets"
       dependsOn: [CB, RCIT, External, Linux, Mac]
       condition: and(succeeded(), eq(variables.isPublishingBranch, true))
       jobs:

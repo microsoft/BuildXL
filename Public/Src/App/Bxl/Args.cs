@@ -684,7 +684,7 @@ namespace BuildXL
                             opt => loggingConfiguration.LogToKusto = opt),
                         OptionHandlerFactory.CreateBoolOption(
                             "cacheLogToKusto",
-                            opt => cacheConfiguration.CacheLogToKusto = opt),
+                            opt => {/* DO NOTHING - Flag is deprecated. LogToKusto drives this decision now */}),
                          OptionHandlerFactory.CreateOption(
                             "logToKustoBlobUri",
                             opt => loggingConfiguration.LogToKustoBlobUri = opt.Value),

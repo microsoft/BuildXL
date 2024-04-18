@@ -2921,6 +2921,15 @@ namespace BuildXL.Scheduler
 
                                 try
                                 {
+                                    if (result == null)
+                                    {
+                                        // The recursive call can return null when observed input processor aborts (see innerCheckRunnableFromCacheAsync).
+                                        // An error has already been logged - we should have asserted this already in the inner call before returning null
+                                        // but it doesn't hurt to double-check.
+                                        Contract.Assume(operationContext.LoggingContext.ErrorWasLogged);
+                                        return null;
+                                    }
+
                                     if (result.CanRunFromCache)
                                     {
                                         // Fetch the augmenting path set entry to keep it alive

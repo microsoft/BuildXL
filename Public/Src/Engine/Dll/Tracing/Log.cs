@@ -838,16 +838,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerForwardedEvent(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionPipFailedOnWorker,
-            EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Failed pip execution of step {step} on worker {workerName}.",
-            EventLevel = Level.Error,
-            EventTask = (ushort)Tasks.Distribution,
-            EventOpcode = (byte)EventOpcode.Info,
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void DistributionPipFailedOnWorker(LoggingContext context, long pipSemiStableHash, string pipDescription, string step, string workerName);
-
-        [GeneratedEvent(
             (ushort)LogEventId.GrpcTrace,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{address}] {message}",

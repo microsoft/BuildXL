@@ -885,8 +885,7 @@ namespace BuildXL
             }
             // Set the errorbucket to WorkerFailedDueToLowDiskSpace to reduce confusion in reliability dashboard
             else if (listener.CountsPerEventId((int)SchedulerLogEventId.WorkerFailedDueToLowDiskSpace) >= 1
-                && listener.InternalErrorDetails.Count > 0
-                && listener.InternalErrorDetails.FirstErrorName == EngineLogEventId.DistributionPipFailedOnWorker.ToString())
+                && listener.InternalErrorDetails.Count > 0)
             {
                 return (ExitKind: ExitKind.InternalError, ErrorBucket: SchedulerLogEventId.WorkerFailedDueToLowDiskSpace.ToString(), BucketMessage: string.Empty);
             }

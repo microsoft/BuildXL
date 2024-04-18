@@ -1018,6 +1018,7 @@ namespace BuildXL.Engine.Distribution
                     step: pipCompletionTask.Step.AsString(),
                     callerName: callerName);
 
+            // Return 'DistributionFailure' so it can be retried only on the orchestrator machine next time.
             result = ExecutionResult.GetRetryableNotRunResult(operationContext, RetryInfo.GetDefault(RetryReason.DistributionFailure));
 
             pipCompletionTask.TrySet(result);
@@ -1085,8 +1086,8 @@ namespace BuildXL.Engine.Distribution
 
                 if (!m_appLoggingContext.ErrorWasLogged)
                 {
-                    // If error still was not logged (worker may have crashed or lost connectivity), log generic error
-                    Logger.Log.DistributionPipFailedOnWorker(operationContext, runnable.Pip.SemiStableHash, runnable.Description, pipCompletionTask.Step.AsString(), Name);
+                    // If error still was not logged (worker may have crashed or lost connectivity), retry the pip.
+                    return ExecutionResult.GetRetryableNotRunResult(m_appLoggingContext, RetryInfo.GetDefault(RetryReason.RemoteWorkerFailure));
                 }
             }
 

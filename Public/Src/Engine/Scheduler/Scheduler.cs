@@ -3226,6 +3226,12 @@ namespace BuildXL.Scheduler
                 Logger.Log.TerminatingDueToInternalError(m_executePhaseLoggingContext);
                 m_scheduleTerminatingWithInternalError = true;
                 RequestTermination(cancelQueue: true, cancelRunningPips: true, cancelQueueTimeout: TimeSpan.FromMinutes(2));
+
+                // Early-released workers can prevent the build from terminating if we do not complete DrainCompletion task source. 
+                foreach (var worker in m_remoteWorkers)
+                {
+                    worker.DrainCompletion.TrySetResult(false);
+                }
             }
         }
 

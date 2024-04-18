@@ -74,7 +74,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Whether the worker has finished all pending requests after stop is initiated.
         /// </summary>
-        protected readonly TaskSourceSlim<bool> DrainCompletion;
+        public readonly TaskSourceSlim<bool> DrainCompletion;
 
         /// <summary>
         /// Whether scheduler decided to release this worker early.

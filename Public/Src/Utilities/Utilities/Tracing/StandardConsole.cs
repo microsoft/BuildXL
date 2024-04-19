@@ -238,7 +238,9 @@ namespace BuildXL.Utilities.Tracing
                     // Notice the cursor is no longer at the beginning of the text we want to overwrite. In order to
                     // account for this, we must track the width of the first line and move the cursor back again if
                     // the window size is smaller than it was when the first line was written.
-                    if (m_lastOverwriteableLine != null)
+                    // Check is the console overwriting supported and if the last line was an overwriteable line.
+                    // If so, we need to adjust the cursor position to account for the window resizing.
+                    if (overwritable && m_lastOverwriteableLine != null)
                     {
                         int bufferWidth = GetConsoleWidth();
 

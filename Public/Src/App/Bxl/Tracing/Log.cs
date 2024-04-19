@@ -263,6 +263,15 @@ namespace BuildXL.App.Tracing
         public abstract void CatastrophicFailure(LoggingContext context, string message, string commitId, string build);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ConsoleNotConnected,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,  
+            Message = "Error encountered when writing to console from BuildXL server process. This likely means the client BuildXL process was killed by the user in attempt to kill the build. The build running in this service process will now terminate.")]
+        public abstract void ConsoleNotConnected(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.CatastrophicFailureCausedByDiskSpaceExhaustion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Critical,

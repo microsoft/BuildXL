@@ -2831,22 +2831,37 @@ namespace BuildXL
 
         private void WriteToConsole(string format, params object[] args)
         {
-            m_console.WriteOutputLine(MessageLevel.Info, string.Format(CultureInfo.InvariantCulture, format, args));
+            WriteOutputLineWithMessageLevel(MessageLevel.Info, format, args);
         }
 
         private void WriteWarningToConsole(string format, params object[] args)
         {
-            m_console.WriteOutputLine(MessageLevel.Warning, string.Format(CultureInfo.InvariantCulture, format, args));
+            WriteOutputLineWithMessageLevel(MessageLevel.Warning, format, args);
         }
 
         private void WriteErrorToConsole(string format, params object[] args)
         {
-            m_console.WriteOutputLine(MessageLevel.Error, string.Format(CultureInfo.InvariantCulture, format, args));
+            WriteOutputLineWithMessageLevel(MessageLevel.Error, format, args);
         }
 
         private void WriteErrorToConsoleWithDefaultColor(string format, params object[] args)
         {
-            m_console.WriteOutputLine(MessageLevel.ErrorNoColor, string.Format(CultureInfo.InvariantCulture, format, args));
+            WriteOutputLineWithMessageLevel(MessageLevel.ErrorNoColor, format, args);
+        }
+
+        private void WriteOutputLineWithMessageLevel(MessageLevel level, string format, params object[] args)
+        {
+            try
+            {
+                m_console.WriteOutputLine(level, string.Format(CultureInfo.InvariantCulture, format, args));
+            }
+            catch (BuildXLException)
+            {
+                // StandardConsole may throw BuildXLException if the console is not connected.
+                // In this case, we should log the message to the log file and exit the process.
+                Logger.Log.ConsoleNotConnected(m_appLoggingContext);
+                Environment.Exit(ExitCode.FromExitKind(ExitKind.Aborted));
+            }
         }
 
         private void SetCbTimeoutCleanExit()

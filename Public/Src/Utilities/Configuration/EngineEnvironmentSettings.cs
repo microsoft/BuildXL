@@ -254,11 +254,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Maximum time waiting for a pip to be executed remotely. If this timeout is hit the worker is disconnected, so this number should be conservative
         /// </summary>
-        /// <remarks>
-        /// Defaults to 5.25 hours
-        /// </remarks>
-        public static readonly Setting<TimeSpan> RemotePipTimeout = CreateSetting("BuildXLRemotePipTimeoutMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)) ??
-        TimeSpan.FromHours(5.25));
+        public static readonly Setting<TimeSpan?> RemotePipTimeout = CreateSetting("BuildXLRemotePipTimeoutMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)));
 
         /// <summary>
         /// Minimum waiting time for a remote worker to attach.

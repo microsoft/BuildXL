@@ -28,6 +28,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Google.Protobuf;
@@ -1036,23 +1037,30 @@ namespace BuildXL.Engine.Distribution
 
             using (operationContext.StartOperation(PipExecutorCounter.AwaitRemoteResultDuration))
             {
-                executionResult = await m_pipCompletionTasks[pipId].Completion.Task;
+                if (!EngineEnvironmentSettings.RemotePipTimeout.Value.HasValue)
+                {
+                    executionResult = await m_pipCompletionTasks[pipId].Completion.Task;
+                }
+                else
+                { 
+                    var completionTask = m_pipCompletionTasks[pipId].Completion.Task;
 
-                // Remote Pip Timeout logic: disable until we fix bug #1860596
-                //
-                //var completionTask = m_pipCompletionTasks[pipId].Completion.Task;
-                //if (await Task.WhenAny(completionTask, Task.Delay(EngineEnvironmentSettings.RemotePipTimeout)) != completionTask)
-                //{
-                //    // Delay task completed first
-                //    operationTimedOut = true;
-                //    Logger.Log.PipTimedOutRemotely(m_appLoggingContext, runnable.Pip.FormattedSemiStableHash, runnable.Step.AsString(), Name);
-                //    environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
-                //}
-                //else
-                //{
-                //    // Task already completed
-                //    executionResult = await completionTask;
-                //}
+                    var timeoutWatch = new StopwatchVar();
+                    using (timeoutWatch.Start())
+                    {
+                        if (await Task.WhenAny(completionTask, Task.Delay(EngineEnvironmentSettings.RemotePipTimeout.Value.Value)) != completionTask)
+                        {
+                            // Delay task completed first
+                            operationTimedOut = true;
+                            Logger.Log.PipTimedOutRemotely(m_appLoggingContext, runnable.Pip.FormattedSemiStableHash, runnable.Step.AsString(), Name, timeoutWatch.TotalElapsed.Minutes, (int)EngineEnvironmentSettings.RemotePipTimeout.Value.Value.TotalMinutes);
+                        }
+                        else
+                        {
+                            // Task already completed
+                            executionResult = await completionTask;
+                        }
+                    }
+                }
             }
 
             m_pipCompletionTasks.TryRemove(runnable.PipId, out var pipCompletionTask);
@@ -1066,7 +1074,7 @@ namespace BuildXL.Engine.Distribution
                 Environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
 
                 // We assume the worker is in a bad state and abandon it so we can schedule pips elsewhere
-                OnConnectionFailureAsync(null, new ConnectionFailureEventArgs(ConnectionFailureType.RemotePipTimeout, $"Pip {runnable.Pip.FormattedSemiStableHash} timed out remotely on step {pipCompletionTask.Step.AsString()}. Timeout: {EngineEnvironmentSettings.RemotePipTimeout.Value.TotalMilliseconds} ms"));
+                OnConnectionFailureAsync(null, new ConnectionFailureEventArgs(ConnectionFailureType.RemotePipTimeout, $"Pip {runnable.Pip.FormattedSemiStableHash} timed out remotely on step {pipCompletionTask.Step.AsString()}."));
 
                 // We consider the pip not run so we can retry it elsewhere
                 return ExecutionResult.GetRetryableNotRunResult(m_appLoggingContext, RetryInfo.GetDefault(RetryReason.RemoteWorkerFailure));

@@ -19,5 +19,5 @@ steps:
     arguments: >-
       -OneEsPat    $(BuildXL-Pipeline-AccessToken)
       -CbPat       $(BuildXL-Pipeline-AccessToken)
-      -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode)
+      -MsEngGitPat $(System.AccessToken)
       -VstsPat     $(System.AccessToken)

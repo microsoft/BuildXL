@@ -76,7 +76,7 @@ jobs:
     displayName: RunCheckInTests with PAT
     inputs:
       filePath: RunCheckInTestsWithPAT.ps1
-      arguments: $(BuildXL-Pipeline-AccessToken) $(BuildXL-Pipeline-AccessToken) $(NugetCredentialProviderPath) $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) /partB
+      arguments: $(BuildXL-Pipeline-AccessToken) $(BuildXL-Pipeline-AccessToken) $(NugetCredentialProviderPath) $(System.AccessToken) /partB
 
   - task: CmdLine@2
     displayName: Run script RunCheckInTests.cmd

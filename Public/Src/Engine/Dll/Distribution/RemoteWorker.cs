@@ -215,13 +215,12 @@ namespace BuildXL.Engine.Distribution
                             m_buildRequestList.Add(item.Item2);
                         }
                     }
-                    catch (InvalidOperationException)
+                    catch (Exception e)
                     {
                         // We might have disconnected the worker. We should check the loop condition (buildRequests.IsCompleted) again.
+                        failRemotePips($"Exception occurred when sending the pip build request: {e}");
                         continue;
                     }
-
-                    m_currentBatchSize = m_pipCompletionTaskList.Count;
 
                     if (!EverAvailable || m_isConnectionLost)
                     {
@@ -236,6 +235,8 @@ namespace BuildXL.Engine.Distribution
                             ExtractHashes(task.RunnablePip, m_hashList);
                         });
                     }
+
+                    m_currentBatchSize = m_pipCompletionTaskList.Count;
 
                     var dateTimeBeforeSend = DateTime.UtcNow;
                     TimeSpan sendDuration;
@@ -822,9 +823,13 @@ namespace BuildXL.Engine.Distribution
 
             try
             {
-                m_buildRequests.Add(ValueTuple.Create(pipCompletionTask, pipBuildRequest));    
+                var isAdded = m_buildRequests.TryAdd(ValueTuple.Create(pipCompletionTask, pipBuildRequest));
+                if (!isAdded)
+                {
+                    FailRemotePip(pipCompletionTask, $"The pip build request could not be added to the send list.");
+                }
             }
-            catch (InvalidOperationException)
+            catch (Exception e)
             {
                 // We cannot send the pip build request as the connection has been lost with the worker. 
 
@@ -833,8 +838,7 @@ namespace BuildXL.Engine.Distribution
                 // and before we add those build requests to blocking collection(m_buildRequests), 
                 // we will try to add the build request to the blocking collection which is marked as completed 
                 // It will throw InvalidOperationException. 
-                FailRemotePip(pipCompletionTask, $"Connection was lost. Was the worker ever available: {EverAvailable}");
-                return;
+                FailRemotePip(pipCompletionTask, $"Connection was lost. Was the worker ever available: {EverAvailable}. The exception: {e}");
             }
         }
 

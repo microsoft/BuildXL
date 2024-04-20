@@ -8,10 +8,6 @@ trigger:
     - Examples
   
 variables:
-# [NOTE]: We intentionally not include the "BuildXL Secrets" variable group here,
-#         and rather do it individually for every job that actually requires it:
-#         we especially want to avoid the external validations to access those secrets,
-#         which give access to internal resources.
 - group: "BuildXL Common variables"
 - template: variables.yml
 - name: isPublishingBranch
@@ -63,16 +59,12 @@ extends:
 
     - stage: RCIT
       displayName: RunCheckInTests
-      variables:
-      - group: "BuildXL Secrets"
       dependsOn: prepare
       jobs:
       - template: .azdo/rolling/jobs/run-checkin-tests.yml@self
 
     - stage: Linux
       displayName: Linux
-      variables:
-       - group: "BuildXL Secrets"
       dependsOn: prepare
       jobs:
       - template: .azdo/rolling/jobs/linux.yml@self

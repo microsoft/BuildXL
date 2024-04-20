@@ -10,7 +10,6 @@ parameters:
 
 variables:
   - group: "BuildXL Common variables"
-  - group: "BuildXL Secrets"
   - name: Domino.DogfoodPackagePath
     value: $(Build.StagingDirectory)\$(Build.BuildId)\Dogfood
   - name: BuildXL.RepoDirectory

@@ -1,5 +1,4 @@
 # Sets pipeline variables with appropriate PATs to use as environment variables in internal selfhost builds 
-# Note this task assumes the variable group "BuildXL Secrets" is available
 parameters:
 - name: workingDirectory
   type: string

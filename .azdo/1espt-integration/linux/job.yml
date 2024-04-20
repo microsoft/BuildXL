@@ -7,8 +7,6 @@ parameters:
 
 jobs:
 - job: Validation_1ESPT_${{ parameters.validationName }}
-  variables:
-  - group: "BuildXL Secrets"
   displayName: 1ESPipelines BuildXL workflow [Linux] (${{ parameters.validationName }})
   pool:
     name: BuildXL-DevOpsAgents-Linux-Stateless-PME

@@ -1,7 +1,6 @@
 trigger: none  # Explicitly scheduled for PRs
 
 variables:
-  - group: "BuildXL Secrets"
   - group: "BuildXL Common variables"
   - name: BuildXL.LogsDirectory.LKG
     value: $(Build.SourcesDirectory)\Out\Logs\pr-$(Build.BuildNumber)-lkg

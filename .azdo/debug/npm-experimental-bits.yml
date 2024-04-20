@@ -26,8 +26,6 @@ resources:
 
 jobs:
 - job: Build_Linux
-  variables:
-  - group: "BuildXL Secrets"
   displayName: Build linux NPM package (${{ parameters.Flavor }})
   pool:
     name: BuildXL-DevOpsAgents-Linux-Stateless-PME

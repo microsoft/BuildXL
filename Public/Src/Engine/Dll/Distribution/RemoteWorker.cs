@@ -631,18 +631,16 @@ namespace BuildXL.Engine.Distribution
             string infraFailure = string.Empty;
             if (!EverAvailable && !IsEarlyReleaseInitiated)
             {
-                infraFailure = $"Worker did not get attached until Scheduler was completed and the given timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} min) expired";
+                infraFailure = $"{Name} failed to connect to the orchestrator within the timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} minutes), typically due to a delay between orchestrator startup and worker bxl process initiation. Such delays can be expected in certain multi-stage distributed builds.";
             }
             else if (m_materializeOutputFailed)
             {
-                infraFailure = "Some materialize output requests could not be sent";
+                infraFailure = "Some materialize output requests could not be sent.";
             }
             else if (m_isConnectionLost)
             {
-                infraFailure = "The connection got lost with the worker";
+                infraFailure = $"The connection got lost with the worker. Is ever connected: {EverConnected}. Is early-release initiated: {IsEarlyReleaseInitiated}";
             }
-
-            RpcCallResult<Unit> exitCallResult = null;
 
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
             if (!m_isConnectionLost && EverConnected)
@@ -650,17 +648,22 @@ namespace BuildXL.Engine.Distribution
                 var buildEndData = new BuildEndData();
 
                 buildEndData.Failure = buildFailure ?? infraFailure;
-                exitCallResult = await m_workerClient.ExitAsync(buildEndData);
+                var exitCallResult = await m_workerClient.ExitAsync(buildEndData);
+                if (!exitCallResult.Succeeded)
+                {
+                    infraFailure += $" Exit call failed with {exitCallResult.LastFailure?.DescribeIncludingInnerFailures() ?? "gRPC call failed"}.";
+                }
             }
 
-            if (!string.IsNullOrEmpty(infraFailure) || exitCallResult?.Succeeded == false)
+            if (!string.IsNullOrEmpty(infraFailure))
             {
                 // We log the following message for each worker if any of these occurs:
                 // (i) The worker has not been ever attached to the orchestrator at any part of the build and the early release has not been initiated for this worker.
                 // (ii) The worker has been connected to the orchestrator at one point, but then we lost the connection with the worker.
                 // (iii) The worker failed to materialize all outputs.
                 // (iv) The exit call fails to be sent.
-                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, Name, m_isConnectionLost, EverConnected, EverAvailable, IsEarlyReleaseInitiated, infraFailure);
+
+                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, infraFailure);
                 m_orchestratorService.Counters.IncrementCounter(DistributionCounter.NumProblematicWorkers);
             }
 

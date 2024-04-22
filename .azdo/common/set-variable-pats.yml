@@ -3,6 +3,15 @@ parameters:
 - name: workingDirectory
   type: string
   default: $(Build.SourcesDirectory)
+# This buildXLSourceDirectory parameter is introduced to handle the case when a pipeline checkouts multiple sources causing the PowerShell script file not found.
+# When a pipeline checkouts a single source, then $(Build.SourcesDirectory) points to the local path on the agent where your source code files
+# are downloaded, for example, c:\agent_work\1\s. However, if a pipeline checkouts multiple sources, for example, BuildXL.Internal and CloudBuild,
+# then $(Build.SourcesDirectory) points to the parent directory of the checkout locations. For example, the BuildXL.Internal and CloudBuild repositories
+# will be checked out, respectively, to c:\agent_work\1\s\BuildXL.Internal and to c:\agent_work\1\s\CloudBuild, while $(Build.SourcesDirectory) points
+# $(Build.SourcesDirectory).
+- name: buildXLSourceDirectory
+  type: string
+  default: $(Build.SourcesDirectory)
 
 steps:
 - template: /.azdo/common/generate-access-token.yml
@@ -14,7 +23,10 @@ steps:
   inputs:
     workingDirectory: ${{ parameters.workingDirectory }}
     targetType: filePath
-    filePath: .azdo/scripts/SetVariablePats.ps1
+    # The filePath parameter is either an absolute path or a path relative to $(System.DefaultWorkingDirectory), which coincides
+    # with $(Build.SourcesDirectory). If the filePath is only specified as a relative path r, then it points to $(Build.SourcesDirectory)/r.
+    # However, if the pipeline checksout multiple sources (see above comment for buildXLSourceDirectory parameter), the file path will not exist.
+    filePath: ${{ parameters.buildXLSourceDirectory }}/.azdo/scripts/SetVariablePats.ps1
     arguments: >-
       -OneEsPat    $(BuildXL-Pipeline-AccessToken)
       -CbPat       $(BuildXL-Pipeline-AccessToken)

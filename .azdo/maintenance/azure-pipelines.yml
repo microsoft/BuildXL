@@ -44,6 +44,7 @@ stages:
       - template: /.azdo/common/set-variable-pats.yml
         parameters:
           workingDirectory: $(Build.SourcesDirectory)/BuildXL.Internal
+          buildXLSourceDirectory: $(Build.SourcesDirectory)/BuildXL.Internal
       - template: /.azdo/common/generate-access-token.yml
         parameters:
           AccessTokenVariable: BuildXL-Pipeline-AccessToken

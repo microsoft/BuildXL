@@ -1001,7 +1001,7 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
     // if the full path is a symlink, we will report a readlink in the logic below,
     // but when it's not, we must count this as a probe because realpath will
     // indicate to the caller if this path was absent or not. 
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, path);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, path, /* mode */ 0, /* flags */ O_NOFOLLOW);
 
     if (result == nullptr)
     {

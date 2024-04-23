@@ -81,12 +81,18 @@ namespace Test.BuildXL.Processes
             XAssert.IsNotNull(result.AllUnexpectedFileAccesses);
             var accesses = result.ExplicitlyReportedFileAccesses!.Union(result.AllUnexpectedFileAccesses!).Select(a => (Path: a.GetPath(Context.PathTable), Access: a.DesiredAccess, IsNonexistent: a.IsNonexistent));
             
-            foreach (var symlink in new [] { symlinkPath1, symlinkPath2, symlinkPath3, symlinkPath4 })
+            foreach (var symlink in new [] { symlinkPath1, symlinkPath2, symlinkPath3 })
             {
                 var symlinkAccesses = accesses.Where(a => a.Path.Equals(symlink));
                 XAssert.AreEqual(1, symlinkAccesses.Count());
                 XAssert.AreEqual(DesiredAccess.GENERIC_READ, symlinkAccesses.Single().Access);
             }
+
+            // For symlink4, we should get a probe on the full path (because realpath implies a probe), plus a readlink on the symlink
+            var symlink4Accesses = accesses.Where(a => a.Path.Equals(symlinkPath4)).ToList();
+            XAssert.AreEqual(2, symlink4Accesses.Count);
+            XAssert.AreEqual(DesiredAccess.GENERIC_READ, symlink4Accesses[0].Access);
+            XAssert.AreEqual(DesiredAccess.GENERIC_READ, symlink4Accesses[1].Access);
 
             // We get probes on the queried and returned paths
             XAssert.AreEqual(1, accesses.Where(a => a.Path == filePath).Count());

@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.IO;
+using System;
 using BuildXL;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -22,8 +22,26 @@ namespace Test.BuildXL
         [Fact]
         public void DefaultsMatch()
         {
-            // Need to always provide a config file otherwise the arg parser fails
+            // Run a test case to match each default config variant. In all cases a config files is required
+            // otherwise the arg parser fails
+            
+            // Infra = dev by default
             RunCongruentTest(new[] { @"/c:" + m_specFilePath });
+
+            // Infra = CloudBuild
+            RunCongruentTest(new[] { @"/c:" + m_specFilePath , "/incloudbuild"});
+
+            // Infra = Azure DevOps
+            var original = Environment.GetEnvironmentVariable(CaptureBuildInfo.AdoEnvVariableForInfra);
+            try
+            {
+                Environment.SetEnvironmentVariable(CaptureBuildInfo.AdoEnvVariableForInfra, "TotallyRunningInADO");
+                RunCongruentTest(new[] { @"/c:" + m_specFilePath });
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(CaptureBuildInfo.AdoEnvVariableForInfra, original);
+            }
         }
 
         [Fact]

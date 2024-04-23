@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.IO;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Core;
@@ -22,7 +23,7 @@ namespace BuildXL
         /// stays in sync with the full blown configuration
         /// </summary>
         #region options
-        public ServerMode Server = OperatingSystemHelper.IsUnixOS ? ServerMode.Disabled : ServerMode.Enabled;
+        public ServerMode? Server;
         public string ServerDeploymentDirectory;
         public string Config;
         public bool NoLogo;
@@ -35,6 +36,7 @@ namespace BuildXL
         public bool DisablePathTranslation;
         public bool EnableDedup;
         public string HashType;
+        public bool InCloudbuild;
         public bool RunInSubst;
 
         // Strangely, this is not configurable via Args.cs
@@ -95,6 +97,9 @@ namespace BuildXL
                     case "HASHTYPE":
                         lightConfig.HashType = CommandLineUtilities.ParseStringOption(option);
                         break;
+                    case "INCLOUDBUILD":
+                        lightConfig.InCloudbuild = CommandLineUtilities.ParseBooleanOption(option);
+                        break;
                     case "SERVER":
                         lightConfig.Server = CommandLineUtilities.ParseBoolEnumOption(option, true, ServerMode.Enabled, ServerMode.Disabled);
                         break;
@@ -123,6 +128,33 @@ namespace BuildXL
                     case "RUNINSUBST-":
                         lightConfig.RunInSubst = false;
                         break;
+                }
+            }
+
+            // Process Infra specific defaults.
+            // CODESYNC This is the counterpart to ConfigurationProvider.GetMutableDefaultConfig()
+            if (lightConfig.InCloudbuild)
+            {
+                // CloudBuild
+                if (!lightConfig.Server.HasValue)
+                {
+                    lightConfig.Server = ServerMode.Disabled;
+                }
+            }
+            else if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(CaptureBuildInfo.AdoEnvVariableForInfra)))
+            {
+                // Azure DevOps
+                if (!lightConfig.Server.HasValue)
+                {
+                    lightConfig.Server = ServerMode.Disabled;
+                }
+            }
+            else
+            {
+                // Dev
+                if (!lightConfig.Server.HasValue)
+                {
+                    lightConfig.Server = OperatingSystemHelper.IsUnixOS ? ServerMode.Disabled : ServerMode.Enabled;
                 }
             }
 

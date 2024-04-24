@@ -24,7 +24,6 @@ namespace Sandbox {
     ];
     const utilsSrc   = [ f`utils.c` ];
     const bxlEnvSrc  = [ f`bxl-env.c` ];
-    const auditSrc   = [ f`bxl_observer.cpp`, f`audit.cpp`, f`observer_utilities.cpp` ];
     const detoursSrc = [ f`bxl_observer.cpp`, f`detours.cpp`, f`PTraceSandbox.cpp`, f`observer_utilities.cpp` ];
     const ptraceRunnerSrc = [ f`ptracerunner.cpp`, f`bxl_observer.cpp`, f`PTraceSandbox.cpp`, f`observer_utilities.cpp` ];
     const incDirs    = [
@@ -41,12 +40,8 @@ namespace Sandbox {
     const headers = incDirs.mapMany(d => ["*.h", "*.hpp"].mapMany(q => glob(d, q)));
 
     function compile(sourceFile: SourceFile) {
-        return compileWithDefines(sourceFile, []);
-    }
-
-    function compileWithDefines(sourceFile: SourceFile, defines?: string[]): DerivedFile {
         const compilerArgs : Native.Linux.Compilers.CompilerArguments =  {
-            defines: defines || [],
+            defines: [],
             headers: headers,
             includeDirectories: incDirs,
             sourceFile: sourceFile
@@ -58,9 +53,8 @@ namespace Sandbox {
     export const commonObj  = commonSrc.map(compile);
     export const utilsObj   = utilsSrc.map(compile);
     export const bxlEnvObj  = bxlEnvSrc.map(compile);
-    export const auditObj   = auditSrc.map(compile);
-    export const detoursObj = detoursSrc.map(f => compileWithDefines(f, [ "ENABLE_INTERPOSING" ]));
-    export const ptraceRunnerObj = ptraceRunnerSrc.map(f => compileWithDefines(f, [ "ENABLE_INTERPOSING" ]));
+    export const detoursObj = detoursSrc.map(compile);
+    export const ptraceRunnerObj = ptraceRunnerSrc.map(compile);
 
     const gccTool = Native.Linux.Compilers.gccTool;
     const gxxTool = Native.Linux.Compilers.gxxTool;
@@ -76,13 +70,6 @@ namespace Sandbox {
         outputName: a`bxl-env`, 
         tool: gccTool, 
         objectFiles: bxlEnvObj});
-
-    @@public
-    export const libBxlAudit = Native.Linux.Compilers.link({
-        outputName: a`libBxlAudit.so`, 
-        tool: gxxTool, 
-        objectFiles: [...commonObj, ...utilsObj, ...auditObj], 
-        libraries: [ "dl" ]});
 
     @@public
     export const libDetours = Native.Linux.Compilers.link({

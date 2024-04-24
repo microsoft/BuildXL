@@ -39,38 +39,6 @@
 #include "common.h"
 #include "SandboxEvent.h"
 
-/*
- * This header is compiled into two different libraries: libDetours.so and libAudit.so.
- *
- * When compiling libDetours.so, the ENABLE_INTERPOSING macro is defined, otherwise it is not.
- *
- * When ENABLE_INTERPOSING is defined, we do not need static declarations for the system calls of interest, because
- * we resolve those dynamically via `dlsym(name)` calls.  That means that, even though we compile libDetours.so against
- * glibc 2.17 (where, for example, `copy_file_range` is not defined), when our libDetours.so is loaded into a process that
- * runs against a newer version of glibc, `dlsym("copy_file_range")` will still return a valid function pointer and we 
- * will be able to interpose system calls that are not necessarily present in the glibc 2.17.
- * 
- * When ENABLE_INTERPOSING is not defined, we need static definitions for all the system calls we reference.  Therefore, 
- * here we need to add fake definitions for the calls that we want to reference (because of libDetours) which are not present
- * in glibc we are compiling against.  Adding empty definitions here is fine as long as in our code we never explicitly call
- * the corresponding real_<missing-syscall> instance methods in the BxlObserver class.
- */
-#ifndef ENABLE_INTERPOSING
-    // Library support for copy_file_range was added in glibc 2.27 (https://man7.org/linux/man-pages/man2/copy_file_range.2.html)
-    #if __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 27)
-    inline ssize_t copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags) {
-        return -1;
-    }
-    #endif
-
-    // Library support for pwritev2 was added in glibc 2.26 (https://man7.org/linux/man-pages/man2/pwritev2.2.html)
-    #if __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 26)
-    inline ssize_t pwritev2(int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags) {
-        return -1;
-    }
-    #endif
-#endif
-
 using namespace std;
 
 extern const char *__progname;
@@ -89,43 +57,31 @@ static const char GLIBC_23[] = "GLIBC_2.3";
  * 
  * To check what version of a libc function a binary is using, dump it with the following command: objdump -t </path/to/binary> | grep <function_name>
  */
-#ifdef ENABLE_INTERPOSING
-    #define GEN_FN_DEF_REAL(ret, name, ...)                                         \
-        typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
-        const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name);
+#define GEN_FN_DEF_REAL(ret, name, ...)                                         \
+    typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
+    const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name);
 
-    #define GEN_FN_DEF_REAL_VERSIONED(version, ret, name, ...)                      \
-        typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
-        const fn_real_##name real_##name = (fn_real_##name)dlvsym(RTLD_NEXT, #name, version);
+#define GEN_FN_DEF_REAL_VERSIONED(version, ret, name, ...)                      \
+    typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
+    const fn_real_##name real_##name = (fn_real_##name)dlvsym(RTLD_NEXT, #name, version);
 
-    #define MAKE_BODY(B) \
-        B \
-    }
+#define MAKE_BODY(B) \
+    B \
+}
 
-    // It's important to have an option to bail out early, *before*
-    // the call to BxlObserver::GetInstance() because we might not
-    // have the process initialized far enough for that call to succeed.
-    #define INTERPOSE_SOMETIMES(ret, name, short_circuit_check, ...) \
-        DLL_EXPORT ret name(__VA_ARGS__) {                           \
-            short_circuit_check                                      \
-            BxlObserver *bxl = BxlObserver::GetInstance();           \
-            BXL_LOG_DEBUG(bxl, "Intercepted %s", #name);             \
-            MAKE_BODY
+// It's important to have an option to bail out early, *before*
+// the call to BxlObserver::GetInstance() because we might not
+// have the process initialized far enough for that call to succeed.
+#define INTERPOSE_SOMETIMES(ret, name, short_circuit_check, ...) \
+    DLL_EXPORT ret name(__VA_ARGS__) {                           \
+        short_circuit_check                                      \
+        BxlObserver *bxl = BxlObserver::GetInstance();           \
+        BXL_LOG_DEBUG(bxl, "Intercepted %s", #name);             \
+        MAKE_BODY
 
-    #define INTERPOSE(ret, name, ...) \
-        INTERPOSE_SOMETIMES(ret, name, ;, __VA_ARGS__)
-#else
-    #define GEN_FN_DEF_REAL(ret, name, ...)         \
-        typedef ret (*fn_real_##name)(__VA_ARGS__); \
-        const fn_real_##name real_##name = (fn_real_##name)name;
+#define INTERPOSE(ret, name, ...) \
+    INTERPOSE_SOMETIMES(ret, name, ;, __VA_ARGS__)
 
-    #define GEN_FN_DEF_REAL_VERSIONED(version, ret, name, ...)       \
-        GEN_FN_DEF_REAL(ret, name)
-
-    #define IGNORE_BODY(B)
-
-    #define INTERPOSE(ret, name, ...) IGNORE_BODY
-#endif
 
 // Linux libraries are required to set errno only when the operation fails. 
 // In most cases, when the operation succeeds errno is set to a random value
@@ -395,17 +351,6 @@ public:
     void report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode = 0, pid_t associatedPid = 0);
     void report_exec_args(pid_t pid);
     void report_exec_args(pid_t pid, const char *args);
-    void report_audit_objopen(const char *fullpath)
-    {
-        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-            /* event_type */    ES_EVENT_TYPE_NOTIFY_OPEN,
-            /* pid */           getpid(),
-            /* error */         0,
-            /* src_path */      fullpath);
-        event.SetMode(S_IFREG);
-        CreateAndReportAccess("la_objopen", event);
-    }
-
     void report_intermediate_symlinks(const char *pathname, pid_t associatedPid);
 
     // Removes detours path from LD_PRELOAD from the given environment and returns the modified environment

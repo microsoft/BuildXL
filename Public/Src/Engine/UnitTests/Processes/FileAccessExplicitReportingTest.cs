@@ -132,7 +132,7 @@ namespace Test.BuildXL.Processes
             }
 
             var proc = ToProcess(Operation.Echo("hi"));
-            var info = ToProcessInfo(proc, nameof(TestDynamicallyLoadedLibrariesReportedOnLinux), enableLinuxSandboxAuditing: true);
+            var info = ToProcessInfo(proc, nameof(TestDynamicallyLoadedLibrariesReportedOnLinux));
             info.FileAccessManifest.ReportFileAccesses = true;
             info.FileAccessManifest.FailUnexpectedFileAccesses = false;
             using ISandboxedProcess process = await StartProcessAsync(info);

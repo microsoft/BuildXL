@@ -34,25 +34,18 @@ namespace BuildXL.Processes
         public bool DisableSandboxing { get; }
 
         /// <summary>
-        /// An option to disable reporting dynamically loaded shared libraries.
-        /// Provided because enabling auditing may add considerable overhead.
-        /// </summary>
-        public bool DisableAuditing { get; }
-
-        /// <summary>
         /// Program to use to enter root jail. Defaults to <c>sudo chroot</c>, which requires NOPASSWD sudo privileges.
         /// </summary>
         public (string program, string[] args) RootJailProgram { get; init; } = ("/usr/bin/sudo", new[] { "/usr/sbin/chroot" });
 
         /// <nodoc />
-        public RootJailInfo(string rootJail, int? userId = null, int? groupId = null, bool disableSandboxing = false, bool disableAuditing = false)
+        public RootJailInfo(string rootJail, int? userId = null, int? groupId = null, bool disableSandboxing = false)
         {
             Contract.RequiresNotNull(rootJail);
             RootJail = rootJail;
             UserId = userId;
             GroupId = groupId;
             DisableSandboxing = disableSandboxing;
-            DisableAuditing = disableAuditing;
         }
 
         /// <nodoc />
@@ -62,7 +55,6 @@ namespace BuildXL.Processes
             writer.Write(UserId, static (w, v) => w.WriteCompact(v));
             writer.Write(GroupId, static (w, v) => w.WriteCompact(v));
             writer.Write(DisableSandboxing);
-            writer.Write(DisableAuditing);
             writer.Write(RootJailProgram.program);
             writer.Write(RootJailProgram.args, static (w, a) => w.Write(a));
         }
@@ -74,8 +66,7 @@ namespace BuildXL.Processes
                 rootJail: reader.ReadString(),
                 userId: reader.ReadNullableStruct(static r => r.ReadInt32Compact()),
                 groupId: reader.ReadNullableStruct(static r => r.ReadInt32Compact()),
-                disableSandboxing: reader.ReadBoolean(),
-                disableAuditing: reader.ReadBoolean())
+                disableSandboxing: reader.ReadBoolean())
             {
                 RootJailProgram = (reader.ReadString(), reader.ReadArray(static r => r.ReadString())),
             };

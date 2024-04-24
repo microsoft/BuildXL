@@ -12,7 +12,6 @@ namespace Deployment {
         contents: [
             Sandbox.libBxlUtils,
             Sandbox.bxlEnv,
-            Sandbox.libBxlAudit,
             Sandbox.libDetours,
             Sandbox.ptraceRunner
         ]

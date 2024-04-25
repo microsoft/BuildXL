@@ -625,10 +625,12 @@ namespace BuildXL.Native.IO
         string GetFinalPathNameByHandle(SafeFileHandle handle, bool volumeGuidPath = false);
 
         /// <summary>
-        /// Attempts to open a handle to the given path and then calls <see cref="GetFinalPathNameByHandle(SafeFileHandle, bool)"/>
+        /// Returns a fully-normalized path corresponding to the given file path.
         /// </summary>
         /// <remarks>
         /// This function never throws. On failure <paramref name="nativeErrorCode"/> contains the error.
+        /// On Windows, if <paramref name="volumeGuidPath"/> is requested, the returned path will start with an NT-style path with a volume guid. On Linux
+        /// this parameter is ignored.
         /// </remarks>
         bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false);
 

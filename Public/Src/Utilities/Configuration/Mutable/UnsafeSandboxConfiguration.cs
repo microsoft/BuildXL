@@ -15,7 +15,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MonitorNtCreateFile = true;
             UnexpectedFileAccessesAreErrors = true;
             IgnoreReparsePoints = false;
-            IgnoreFullReparsePointResolving = true;
+            // On Windows, full reparse point resolution is turned off by default. On Linux,
+            // the sandbox always resolves reparse points and this flag is ignored. However,
+            // the flag is inspected on managed side to resolve absent-and-later-present probes
+            IgnoreFullReparsePointResolving = OperatingSystemHelper.IsWindowsOS;
             IgnorePreloadedDlls = false;
             SandboxKind = SandboxKind.Default;
 

@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
@@ -349,7 +350,20 @@ namespace BuildXL.Native.IO.Unix
         public string GetFinalPathNameByHandle(SafeFileHandle handle, bool volumeGuidPath = false) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false) => throw new NotImplementedException();
+        public bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false) 
+        {
+            var sb = new StringBuilder(MaxDirectoryPathLength());
+            nativeErrorCode = RealPath(path, sb);
+
+            if (nativeErrorCode != 0)
+            {
+                finalPath = null;
+                return false;
+            }
+
+            finalPath = sb.ToString();
+            return true;
+        }
 
         /// <inheritdoc />
         public OpenFileResult TryOpenFileById(

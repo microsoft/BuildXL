@@ -15,7 +15,8 @@ jobs:
         /p:[Sdk.BuildXL]microsoftInternal=1
         /logoutput:FullOutputAlways
       genericRunnerOptions: '{ "IsDropEnabled": "true", "DropName": "$(BuildXL.Candidate.DropName)", "ContentWriteMode": "WriteThrough" }'
-      specificRunnerOptions: '{ "EnableComplianceBuild": "true", "GuardianBuildFlags": "/p:[Tool.Guardian]enabledTools=credscan,eslint,policheck,psscriptanalyzer /nowarn:222" }'
+      # Disabling compliance build in CB because some analysis, like policheck, does not work in network isolation.
+      specificRunnerOptions: '{ "EnableComplianceBuild": "false" }'
 
 - template: cb-rolling.yml
   parameters: 

@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240419.10 (Release [377534](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=377534))
+- Fix issue in file tracking on Ubuntu 22.04
+- Update Ninja integration for Ninja resolver
+- Correct requesting user in telemetry for AzureDevOps builds
+- Update MSVC version from 14.37 to 14.39 and fix binskim issues
+- Deprecate /cacheLogToKusto command line arg
+- Fixes for various build hang scenarios in CloudBuild
+- Misc crash fixes
+
 # 0.1.0-20240412.16 (Release [375925](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=375925))
 -	Retry by default processes that exited with Azure Watson 0xDEAD code on ADO.
 -	Linux sandbox refactoring work.

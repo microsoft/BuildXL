@@ -143,6 +143,7 @@ private:
     MAKE_HANDLER_FN_DEF(exit);
     MAKE_HANDLER_FN_DEF(fork);
     MAKE_HANDLER_FN_DEF(clone);
+    MAKE_HANDLER_FN_DEF(clone3);
     void HandleChildProcess(const char *syscall);
     void HandleRenameGeneric(const char *syscall, int olddirfd, const char *oldpath, int newdirfd, const char *newpath);
     void HandleReportAccessFd(const char *syscall, int fd, es_event_type_t eventType = ES_EVENT_TYPE_NOTIFY_WRITE);

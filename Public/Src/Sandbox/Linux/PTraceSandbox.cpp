@@ -115,6 +115,7 @@ int PTraceSandbox::ExecuteWithPTraceSandbox(const char *file, char *const argv[]
         // NOTE: vfork is explicitly not traced here, see PTraceSandbox::UpdateTraceeTableForExec for more details
         TRACE_SYSCALL(fork),
         TRACE_SYSCALL(clone),
+        TRACE_SYSCALL(clone3),
         // SECCOMP_RET_ALLOW tells seccomp to allow all of the calls that were being filtered above (as opposed to killing them)
         // This would happen if none of the syscall numbers above get matched, and therefore should not stop the tracee
         BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
@@ -518,6 +519,7 @@ void PTraceSandbox::HandleSysCallGeneric(int syscallNumber)
         CHECK_AND_CALL_HANDLER(name_to_handle_at);
         CHECK_AND_CALL_HANDLER(fork);
         CHECK_AND_CALL_HANDLER(clone);
+        CHECK_AND_CALL_HANDLER(clone3);
         default:
             // This should not happen in theory with filtering enabled
             // However if it does occur, we can ignore this syscall and log a message for debugging if necessary
@@ -1288,6 +1290,11 @@ HANDLER_FUNCTION(fork)
 HANDLER_FUNCTION(clone)
 {
     HandleChildProcess(SYSCALL_NAME_STRING(clone));
+}
+
+HANDLER_FUNCTION(clone3)
+{
+    HandleChildProcess(SYSCALL_NAME_STRING(clone3));
 }
 
 HANDLER_FUNCTION(exit)

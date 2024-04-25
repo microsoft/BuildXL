@@ -26,6 +26,7 @@
 GEN_TEST_FN(fork);
 GEN_TEST_FN(vfork);
 GEN_TEST_FN(clone);
+GEN_TEST_FN(clone3);
 GEN_TEST_FN(_exit);
 GEN_TEST_FN(fexecve);
 GEN_TEST_FN(execv);

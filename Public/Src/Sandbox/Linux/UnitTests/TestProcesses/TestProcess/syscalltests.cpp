@@ -1,7 +1,15 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include <linux/sched.h>
+#include <sys/syscall.h>
+
 #include "syscalltests.hpp"
+
+// clone3 is available on linux kernel 5.3+
+#ifndef __NR_clone3
+#define __NR_clone3 -1
+#endif
 
 #define GET_CWD                                                                                     \
     char cwd[PATH_MAX] = { 0 };                                                                     \
@@ -65,10 +73,20 @@ GEN_TEST_FN(clone)
     return HandleChild(clone(CloneChild, stackTop, SIGCHLD, nullptr));
 }
 
-// GEN_TEST_FN(_exit)
-// {
+GEN_TEST_FN(clone3)
+{
+    // Example source: https://lkml.org/lkml/2019/10/25/184
+    int pidfd = -1;
+	pid_t parent_tid = -1, pid = -1;
+	struct clone_args args = {0};
 
-// }
+	args.parent_tid = ((__u64)((uintptr_t)(&parent_tid))); /* CLONE_PARENT_SETTID */
+	args.pidfd = ((__u64)((uintptr_t)(&pidfd))); /* CLONE_PIDFD */
+	args.flags = CLONE_PIDFD | CLONE_PARENT_SETTID;
+	args.exit_signal = SIGCHLD;
+
+    return HandleChild(syscall(SYS_clone3, &args, sizeof(struct clone_args)));
+}
 
 int GetCurrentExe(char *buf, int bufsize)
 {

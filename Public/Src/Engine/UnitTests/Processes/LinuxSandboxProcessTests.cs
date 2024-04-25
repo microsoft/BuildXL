@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities;
@@ -896,6 +897,18 @@ namespace Test.BuildXL.Processes
             }
         }
 
+        [Fact]
+        public void CallTestclone3()
+        {
+            // This test only applies to ptrace because we can't interpose clone3
+            // clone3 was introduced in Linux kernel 5.3
+            if (OperatingSystemHelperExtension.IsLinuxKernelVersionSameOrNewer(5, 3, 0))
+            {
+                var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name), unconditionallyEnableLinuxPTraceSandbox: true);
+                AssertLogContains(GetRegex(GetSyscallName(MethodBase.GetCurrentMethod().Name), TestProcessExe));
+            }
+        }
+
         /// <summary>
         /// Some stat tests don't run depending on the glibc version on the machine
         /// </summary>
@@ -917,7 +930,7 @@ namespace Test.BuildXL.Processes
             return functionName.Replace("CallTest", "");
         }
 
-        private (SandboxedProcessResult result, string rootDirectory) RunNativeTest(string testName)
+        private (SandboxedProcessResult result, string rootDirectory) RunNativeTest(string testName, bool unconditionallyEnableLinuxPTraceSandbox = false)
         {
             using var tempFiles = new TempFileStorage(canGetFileNames: true);
             var process = CreateTestProcess(
@@ -935,6 +948,7 @@ namespace Test.BuildXL.Processes
             processInfo.FileAccessManifest.MonitorChildProcesses = true;
             processInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
             processInfo.FileAccessManifest.EnableLinuxSandboxLogging = true;
+            processInfo.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox = unconditionallyEnableLinuxPTraceSandbox;
 
             var result = RunProcess(processInfo).Result;
 

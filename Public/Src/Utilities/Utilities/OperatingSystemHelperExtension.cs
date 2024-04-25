@@ -373,6 +373,21 @@ namespace BuildXL.Utilities
                    linuxDistroInfo.distroVersionId.Minor == m_supportedLinuxDistroVersionId.Minor;
         }
 
+        /// <summary>
+        /// Checks whether the provided kernel version is newer or the same as the current kernel version.
+        /// </summary>
+        public static bool IsLinuxKernelVersionSameOrNewer(int kernelVersion, int majorRevision, int minorRevision)
+        {
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                return false;
+            }
+
+            var kernel = LinuxSystemInfo.GetLinuxKernelVersion();
+
+            return kernel.kernelVersion != 0 && kernel.kernelVersion >= kernelVersion && kernel.majorRevision >= majorRevision && kernel.minorRevision >= minorRevision;
+        }
+
         #region macOS Helpers
 
         private static Version GetOSVersionMacOS()

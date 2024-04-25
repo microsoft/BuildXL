@@ -171,6 +171,30 @@ namespace BuildXL.Utilities.Core
 
             return (distroName, distroVersionId);
         }
+
+        /// <summary>
+        /// Parses the Linux Kernel version.
+        /// </summary>
+        /// <returns>Kernel version, major revision, and minor revision</returns>
+        public static (int kernelVersion, int majorRevision, int minorRevision) GetLinuxKernelVersion()
+        {
+            // Parse kernel version by reading /proc/version
+            // Example output: Linux version 5.15.146.1-microsoft-standard-WSL2 (root@65c757a075e2) (gcc (GCC) 11.2.0, GNU ld (GNU Binutils) 2.37) #1 SMP Thu Jan 11 04:09:03 UTC 2024
+            // We are interested in the major and minor parts of the kernel version.
+            var procVersion = GetOSVersion();
+            var kernelVersionPattern = @"Linux\sversion\s[0-9]+\.[0-9]+\.[0-9]+";
+            var match = Regex.Match(procVersion, kernelVersionPattern, RegexOptions.IgnoreCase);
+
+            if (match.Success)
+            {
+                var kernelVersion = match.Value.Replace("Linux version ", "");
+                var kernelVersionParts = kernelVersion.Split('.');
+
+                return (int.Parse(kernelVersionParts[0]), int.Parse(kernelVersionParts[1]), int.Parse(kernelVersionParts[2]));
+            }
+
+            return (0, 0, 0);
+        }
     }
 
 }

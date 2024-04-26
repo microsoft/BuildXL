@@ -179,17 +179,21 @@ void BxlObserver::Init()
 
 // Access Reporting
 AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, AccessReportGroup& report_group, bool check_cache) {
-    // Get mode if not already set by caller
-    // Resolve paths and mode
-    bool isFileEvent = ResolveEventPaths(event);
-
-    // Check if non-file, we don't want to report these.
-    if (!isFileEvent) {
-        return sNotChecked;
-    }
+    // Resolve paths if needed
+    ResolveEventPaths(event);
     
     // Check cache and return early if this access has already been checked.
     if (check_cache && IsCacheHit(event.GetEventType(), event.GetSrcPath(), event.GetDstPath())) {
+        return sNotChecked;
+    }
+
+    // Get mode if not already set by caller
+    if (event.GetMode() == 0) {
+        event.SetMode(get_mode(event.GetSrcPath().c_str()));
+    }
+    
+    // Check if non-file, we don't want to report these.
+    if (is_non_file(event.GetMode())) {
         return sNotChecked;
     }
 
@@ -245,29 +249,9 @@ void BxlObserver::CreateAndReportAccess(const char *syscall_name, buildxl::linux
     ReportAccess(report_group);
 }
 
-// This method:
-//  1. Normalizes the paths of an event, effectively turning the event to one with path type kAbsolutePaths,
-//     except in the case where the file descriptor does not refer to a file (so absolute paths would be semantically incorrect).
-//  2. Resolves and sets the mode of the source path for the event. 
-//     We need to do this along with path resolution because we need to trace how the path was originally specified:
-//     it is important to resolve the mode using the file descriptor if the original system call used one,
-//     because the resolved absolute path might be ficticious (for example, for a file descriptor that 
-//     is a socket, the 'absolute path' looks something like 'socket:[12345]', and get_mode on that path
-//     returns an incorrect result). Note that after this function the event path type collapses to 
-//     'kAbsolutePaths', as mentioned above, so that fact would be lost.
-bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
+void BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
     switch (event.GetPathType()) {
         case buildxl::linux::SandboxEventPathType::kFileDescriptors: {
-            // Update the mode using the file descriptor before resolving any paths
-            if (event.GetMode() == 0) {
-                event.SetMode(get_mode(event.GetSrcFd()));
-            }
-
-            if (is_non_file(event.GetMode())) {
-                // don't bother normalizing the paths: making the event an absolute path event would be wrong here
-                return false;
-            }
-
             char resolved_path_src[PATH_MAX] = { 0 };
             char resolved_path_dst[PATH_MAX] = { 0 };
 
@@ -278,8 +262,10 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
             if (event.GetDstFd() != -1) {
                 FileDescriptorToPath(event.GetDstFd(), event.GetPid(), resolved_path_dst, PATH_MAX);
             }
+
             NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
-            event.UpdatePaths(resolved_path_src, resolved_path_dst);        
+
+            event.UpdatePaths(resolved_path_src, resolved_path_dst);
             break;
         }
         case buildxl::linux::SandboxEventPathType::kRelativePaths: {
@@ -297,11 +283,6 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
             NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
 
             event.UpdatePaths(resolved_path_src, resolved_path_dst);
-
-            // Update the mode after normalization, so we use an absolute path for it
-            if (event.GetMode() == 0) {
-                event.SetMode(get_mode(event.GetSrcPath().c_str()));
-            }
             break;
         } 
         case buildxl::linux::SandboxEventPathType::kAbsolutePaths: {
@@ -316,18 +297,11 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
                 NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
                 event.UpdatePaths(resolved_path_src, resolved_path_dst);
             }
-
-            // Update the mode after normalization
-            if (event.GetMode() == 0) {
-                event.SetMode(get_mode(event.GetSrcPath().c_str()));
-            }
             break;
         }
         default:
             break;
     }
-
-    return true;
 }
 
 void BxlObserver::NormalizeEventPaths(buildxl::linux::SandboxEvent& event, char *src_path, char *dst_path) {
@@ -636,15 +610,9 @@ void BxlObserver::report_exec(const char *syscallName, const char *procName, con
 {
     if (IsMonitoringChildProcesses())
     {
-        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* event_type */    ES_EVENT_TYPE_NOTIFY_EXEC,
-        /* pid */           associatedPid,
-        /* error */         error,
-        /* src_path */      file);
-        event.SetMode(mode);
-
-        CreateAndReportAccess(syscallName, event);
-        report_exec_args(associatedPid);
+        // first report 'procName' as is (without trying to resolve it) to ensure that a process name is reported before anything else
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, procName, empty_str_, mode, error, /* checkCache */ true, associatedPid);
+        report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file, mode, /*flags*/ 0, error, /* checkCache */ true, associatedPid);
     }
 }
 
@@ -711,10 +679,247 @@ void BxlObserver::report_exec_args(pid_t pid, const char *args) {
     }
 }
 
+void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode, int error, bool checkCache, pid_t associatedPid)
+{
+    if (reportPath == nullptr || secondPath == nullptr) 
+    {
+        // If we're given null paths, we can't really build a report. Just return.
+        LOG_DEBUG("Can't report an access for syscall %s with a null path. reportPath = %p, secondPath %p", syscallName, reportPath, secondPath); 
+        return;
+    }
+    
+    report_access_internal(syscallName, eventType, reportPath, secondPath, mode, error, checkCache, associatedPid);
+}
+
+void BxlObserver::report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode, int error, bool checkCache, pid_t associatedPid)
+{
+    AccessReportGroup report;
+    create_access_internal(syscallName, eventType, reportPath, secondPath, report, mode, checkCache, associatedPid);
+    report.SetErrno(error);
+    SendReport(report);
+}
+
+AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache, pid_t associatedPid)
+{
+    if (reportPath == nullptr || secondPath == nullptr)
+    {
+        LOG_DEBUG("Can't create an access for syscall %s with a null path. reportPath = %p, secondPath %p", syscallName, reportPath, secondPath); 
+        return sNotChecked;
+    }
+
+    return create_access_internal(syscallName, eventType, reportPath, secondPath, reportGroup, mode, checkCache, associatedPid);
+}
+
+AccessCheckResult BxlObserver::create_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode, bool checkCache, pid_t associatedPid)
+{
+    secondPath = secondPath == nullptr ? empty_str_ : secondPath;  
+    if (checkCache && IsCacheHit(eventType, std::move(std::string(reportPath)), std::move(std::string(secondPath))))
+    {
+        return sNotChecked;
+    }
+
+    if (mode == 0)
+    {
+        // Mode hasn't been computed yet. Let's do it here.
+        mode = get_mode(reportPath);
+    }
+
+    // If this file descriptor is a non-file (e.g., a pipe, or socket, etc.) then we don't care about it
+    if (is_non_file(mode))
+    {
+        return sNotChecked;
+    }
+
+    std::string execPath = eventType == ES_EVENT_TYPE_NOTIFY_EXEC
+        ? std::string(reportPath)
+        : std::string(progFullPath_);
+
+    IOEvent event(associatedPid == 0 ? getpid() : associatedPid, 0, getppid(), eventType, ES_ACTION_TYPE_NOTIFY, std::move(std::string(reportPath)), std::move(std::string(secondPath)), std::move(execPath), mode, false);
+    return create_access(syscallName, event, reportGroup, /* checkCache */ false /* because already checked cache above */);
+}
+
+void BxlObserver::report_access(const char *syscallName, IOEvent &event, bool checkCache)
+{
+    AccessReportGroup report;
+    create_access(syscallName, event, report, checkCache);
+    SendReport(report);
+}
+
+AccessCheckResult BxlObserver::create_access(const char *syscallName, IOEvent &event, AccessReportGroup &reportGroup, bool checkCache)
+{
+    es_event_type_t eventType = event.GetEventType();
+    
+    if (checkCache && IsCacheHit(eventType, event.GetSrcPath(), event.GetDstPath()))
+    {
+        return sNotChecked;
+    }
+
+    AccessCheckResult result = sNotChecked;
+    pid_t pid = event.GetPid() == 0 ? getpid() : event.GetPid();
+    bool accessShouldBeBlocked = false;
+
+    if (IsEnabled(pid))
+    {
+        IOHandler handler(sandbox_);
+        handler.SetProcess(process_);
+        result = handler.CheckAccessAndBuildReport(event, reportGroup);
+        accessShouldBeBlocked = result.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
+        if (!accessShouldBeBlocked) 
+        {
+            // This access won't be blocked, so let's cache it.
+            // We populate cache even if checkCache is false, but this should be ok.
+            // We cache event types that are always a miss in IsCacheHit, but this also shoulld be fine.
+            CheckCache(eventType, event.GetSrcPath(), /* addEntryIfMissing */ true);
+        }
+    }
+
+    LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscallName, event.GetEventType(), event.GetEventPath(),
+        !result.ShouldReport() ? "[Ignored]" : result.ShouldDenyAccess() ? "[Denied]" : "[Allowed]",
+        accessShouldBeBlocked ? "[Blocked]" : "");
+
+    return result;
+}
+
+void BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode, int flags, int error, bool checkCache, pid_t associatedPid)
+{
+    // If the path is null or if we can't normalize it, we have no meaningful way of reporting this access
+    if (pathname == nullptr)
+    {
+        LOG_DEBUG("Can't report an access for syscall %s with a null path.", syscallName); 
+        return;
+    }
+
+    auto normalized = normalize_path(pathname, flags, associatedPid);
+    if (normalized.length() == 0) 
+    {
+        LOG_DEBUG("Couldn't normalize path %s", pathname);
+        return;
+    }
+
+    report_access_internal(syscallName, eventType, normalized.c_str(), /*secondPath*/ nullptr , mode, error, checkCache, associatedPid);
+}
+
+AccessCheckResult BxlObserver::create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &reportGroup, mode_t mode, int flags, bool checkCache, pid_t associatedPid)
+{
+    // If the path is null or if we can't normalize it, we have no meaningful way of reporting this access
+    if (pathname == nullptr) 
+    {
+        return sNotChecked;
+    }
+
+    auto normalized = normalize_path(pathname, flags, associatedPid);
+    if (normalized.length() == 0)
+    {
+        return sNotChecked;
+    }
+
+    return create_access_internal(syscallName, eventType, normalized.c_str(), /* secondPath */ nullptr, reportGroup, mode, checkCache, associatedPid);
+}
+
+void BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error, pid_t associatedPid)
+{   
+    AccessReportGroup report;
+    create_access_fd(syscallName, eventType, fd, report, associatedPid);
+    report.SetErrno(error);
+    SendReport(report);
+}
+
+AccessCheckResult BxlObserver::create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &report, pid_t associatedPid)
+{   
+    mode_t mode = get_mode(fd);
+
+    // If this file descriptor is a non-file (e.g., a pipe, or socket, etc.) then we don't care about it
+    if (is_non_file(mode))
+    {
+        return sNotChecked; 
+    }
+
+    std::string fullpath = fd_to_path(fd, associatedPid);
+
+    // Only reports when fd_to_path succeeded.
+    return fullpath.length() > 0
+        ? create_access_internal(syscallName, eventType, fullpath.c_str(), /* secondPath */ nullptr, report, mode, /* checkCache */ true, associatedPid)
+        : sNotChecked;
+}
+
 bool BxlObserver::is_non_file(const mode_t mode)
 {
     // Observe we don't care about block devices here. It is unlikely that we'll support them e2e, this is just an FYI.
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
+}
+
+AccessCheckResult BxlObserver::create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &report, int flags, bool getModeWithFd, pid_t associatedPid)
+{
+    if (pathname == nullptr)
+    {
+        LOG_DEBUG("Can't create an access for syscall %s with a null path.", syscallName); 
+        return sNotChecked;
+    }
+
+    if (pathname[0] == '/')
+    {
+        return create_access(syscallName, eventType, pathname, report, /* mode */0, flags, /* checkCache */ true, associatedPid);
+    }
+
+    char fullpath[PATH_MAX] = {0};
+    ssize_t len = 0;
+
+    mode_t mode = 0;
+
+    if (dirfd == AT_FDCWD)
+    {
+        if (!getcurrentworkingdirectory(fullpath, PATH_MAX, associatedPid))
+        {
+            return sNotChecked;
+        }
+        len = strlen(fullpath);
+    }
+    else
+    {
+        std::string dirPath;
+
+        // If getModeWithFd is set, then we can call get_mode directly with the file descriptor instead of a path
+        // If false, then use the provided associatedPid to convert the fd to a path and the get_mode on the path
+        if (getModeWithFd)
+        {
+            mode = get_mode(dirfd);
+        }
+        else
+        {
+            dirPath = fd_to_path(dirfd, associatedPid);
+            mode = get_mode(dirPath.c_str());
+        }
+
+        // If this file descriptor is a non-file (e.g., a pipe, or socket, etc.) then we don't care about it
+        if (is_non_file(mode)) 
+        {
+            return sNotChecked;
+        }
+
+        if (dirPath.empty())
+        {
+            dirPath = fd_to_path(dirfd);
+        }
+        
+        len = dirPath.length();
+        strcpy(fullpath, dirPath.c_str());
+    }
+
+    if (len <= 0)
+    {
+        _fatal("Could not get path for fd %d; errno: %d", dirfd, errno);
+    }
+
+    snprintf(&fullpath[len], PATH_MAX - len, "/%s", pathname);
+    return create_access(syscallName, eventType, fullpath, report, mode, flags, /* checkCache */ true, associatedPid);
+}
+
+void BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags, bool getModeWithFd, pid_t associatedPid, int error)
+{
+    AccessReportGroup report;
+    create_access_at(syscallName, eventType, dirfd, pathname, report, flags, getModeWithFd, associatedPid);
+    report.SetErrno(error);
+    SendReport(report);
 }
 
 void BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
@@ -1183,14 +1388,7 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
         *pFullpath = '\0';
         // break if the same symlink has already been visited (breaks symlink loops)
         if (!visited.insert(fullpath).second) break;
-        
-        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-            /* event_type */    ES_EVENT_TYPE_NOTIFY_READLINK,
-            /* pid */           associatedPid,
-            /* error */         0,
-            /* src_path */      fullpath);
-        CreateAndReportAccess("_readlink", event);
-        
+        report_access_internal("_readlink", ES_EVENT_TYPE_NOTIFY_READLINK, fullpath, /* secondPath */ (const char *)nullptr, /* mode */ 0, /* error */ 0, /* checkCache */ true, associatedPid);
         *pFullpath = ch;
 
         // append the rest of the original path to the readlink target

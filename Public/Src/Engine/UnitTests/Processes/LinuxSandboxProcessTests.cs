@@ -634,26 +634,26 @@ namespace Test.BuildXL.Processes
         public void CallTestmkdir()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("ReportCreate", Path.Combine(result.rootDirectory, "testdirectory")));
+            AssertLogContains(GetRegex("report_create", Path.Combine(result.rootDirectory, "testdirectory")));
         }
 
         [Fact]
         public void CallTestmkdirat()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("ReportCreate", Path.Combine(result.rootDirectory, "testdirectory")));
+            AssertLogContains(GetRegex("report_create", Path.Combine(result.rootDirectory, "testdirectory")));
         }
 
         public void CallTestmknod()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("ReportCreate", Path.Combine(result.rootDirectory, "testfile")));
+            AssertLogContains(GetRegex("report_create", Path.Combine(result.rootDirectory, "testfile")));
         }
 
         public void CallTestmknodat()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("ReportCreate", Path.Combine(result.rootDirectory, "testfile")));
+            AssertLogContains(GetRegex("report_create", Path.Combine(result.rootDirectory, "testfile")));
         }
 
         [Fact]

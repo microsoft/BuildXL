@@ -246,6 +246,8 @@ private:
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
     bool CheckCache(es_event_type_t event, const string &path, bool addEntryIfMissing);
     char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
+    void report_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath = nullptr, mode_t mode = 0, int error = 0, bool checkCache = true, pid_t associatedPid = 0);
+    AccessCheckResult create_access_internal(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true, pid_t associatedPid = 0);
     ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t associatedPid = 0);
 
     bool IsMonitoringChildProcesses() const { return !pip_ || CheckMonitorChildProcesses(pip_->GetFamFlags()); }
@@ -286,14 +288,10 @@ private:
 
     void relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullPath);
     void resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid);
-    
     /**
-     * If possible, resolves relative or file descriptor paths to absolute paths in a SandboxEvent, and returns true. 
-     * This might not be possible if the event is a file-descriptor specified event and the file descriptors
-     * do not correspond to real paths. In this case, the function returns false and the event is unmodified.
-     * In both cases, the mode of the source path of the event is updated.
+     * Resolves relative or file descriptor paths to absolute paths in a SandboxEvent.
      */
-    bool ResolveEventPaths(buildxl::linux::SandboxEvent& event);
+    void ResolveEventPaths(buildxl::linux::SandboxEvent& event);
 
     /**
      * Normalizes the paths in a SandboxEvent if they are not already by following any symlinks if specified on the normalization flags
@@ -380,6 +378,27 @@ public:
      */
     void CreateAndReportAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, bool check_cache = true);
 
+    // The following functions create an access report and performs an access check. They do not report the created access to managed BuildXL.
+    // The created access report is returned as an out param in the given 'report' param. The returned report is ready to be sent with the exception of
+    // setting the operation error. In operations where the error is reported back, the typical flow is creating the report, performing the operation, 
+    // setting errno in the report and sending out the report.
+    AccessCheckResult create_access(const char *syscallName, IOEvent &event, AccessReportGroup &report, bool checkCache = true);
+    // In this method (and immediately below) 'mode' is provided on a best effort basis. If 0 is passed for mode, it will be
+    // explicitly computed
+    // NOTE: The associatedPid value for the create_access and report_access functions below take a default value of 0 because they are only set by the ptrace sandbox.
+    //       If a value of 0 is set for associatedPid, then it is safe to assume that the report is from the interpose sandbox.
+    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *pathname, AccessReportGroup &report, mode_t mode = 0, int oflags = 0, bool checkCache = true, pid_t associatedPid = 0);
+    AccessCheckResult create_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, AccessReportGroup &reportGroup, mode_t mode = 0, bool checkCache = true, pid_t associatedPid = 0);
+    AccessCheckResult create_access_fd(const char *syscallName, es_event_type_t eventType, int fd, AccessReportGroup &reportGroup, pid_t associatedPid = 0);
+    AccessCheckResult create_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, AccessReportGroup &reportGroup, int oflags = 0, bool getModeWithFd = true, pid_t associatedPid = 0);
+
+    // The following functions are the create_* equivalent of the ones above but the access is reported to managed BuildXL
+    void report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
+    void report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, mode_t mode = 0, int oflags = 0, int error = 0, bool checkCache = true, pid_t associatedPid = 0);
+    void report_access(const char *syscallName, es_event_type_t eventType, const char *reportPath, const char *secondPath, mode_t mode = 0, int error = 0, bool checkCache = true, pid_t associatedPid = 0);
+    void report_access_fd(const char *syscallName, es_event_type_t eventType, int fd, int error, pid_t associatedPid = 0);
+    void report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags, bool getModeWithFd = true, pid_t associatedPid = 0, int error = 0);
+
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy
     void report_firstAllowWriteCheck(const char *fullPath);
@@ -432,7 +451,7 @@ public:
     }
 
     void LogDebug(pid_t pid, const char *fmt, ...);
-    
+
     mode_t get_mode(const char *path)
     {
         int old = errno;

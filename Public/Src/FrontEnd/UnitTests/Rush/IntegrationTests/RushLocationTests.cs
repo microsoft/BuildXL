@@ -22,10 +22,14 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
         // We don't actually need to execute anything, scheduling is enough
         protected override EnginePhases Phase => EnginePhases.Schedule;
 
-        [Fact]
-        public void ExplicitInvalidRushLibLocationIsHandled()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(true)]
+        public void ExplicitInvalidRushLocationOrLibLocationIsHandled(bool useRushLibLocation)
         {
-            var config = Build(rushBaseLibLocation: "/path/to/foo")
+            var config = (useRushLibLocation
+                    ? Build(rushBaseLibLocation: "/path/to/foo")
+                    : Build(rushLocation: "/path/to/foo"))
                     .AddJavaScriptProject("@ms/project-A", "src/A")
                     .PersistSpecsAndGetConfiguration();
 

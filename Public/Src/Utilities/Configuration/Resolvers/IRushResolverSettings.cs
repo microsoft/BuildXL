@@ -11,12 +11,31 @@ namespace BuildXL.Utilities.Configuration
     public interface IRushResolverSettings : IJavaScriptResolverSettings
     {
         /// <summary>
-        /// The base directory location to look for @microsoft/rush-lib module, used to build the project graph
+        /// The base directory location to look for @microsoft/rush-lib module, used to build the project-to-project graph
         /// </summary>
         /// <remarks>
         /// If not provided, BuildXL will try to find it based on Rush installation location
+        /// Cannot be specified together with <see cref="RushLocation"/>. This is enforced by the DScript type checker.
         /// </remarks>
         DirectoryArtifact? RushLibBaseLocation { get; }
+
+        /// <summary>
+        /// The location of Rush (with rush-build-graph-plugin), used to build the script-to-script graph.
+        /// </summary>
+        /// <remarks>
+        /// If not provided, BuildXL will try to find it based on Rush installation location
+        /// Cannot be specified together with <see cref="RushLibBaseLocation"/>. This is enforced by the DScript type checker.
+        /// </remarks>
+        FileArtifact? RushLocation { get; }
+
+        /// <summary>
+        /// Whether to use rush-lib or rush build graph plugin to build the graph.
+        /// </summary>
+        /// <remarks>
+        /// If not specified (and it cannot be inferred from other fields), rush-lib is used.
+        /// When not null, the value can be "rush-lib" or "rush-build-graph", enforced by the DScript type checker.
+        /// </remarks>
+        string GraphConstructionMode { get; }
 
         /// <summary>
         /// Uses each project shrinkwrap-deps.json as a way to track changes in dependencies instead of actually tracking 

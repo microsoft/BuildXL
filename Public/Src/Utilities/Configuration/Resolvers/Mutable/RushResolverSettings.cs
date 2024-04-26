@@ -22,13 +22,21 @@ namespace BuildXL.Utilities.Configuration.Mutable
             : base(resolverSettings, pathRemapper)
         {
             RushLibBaseLocation = resolverSettings.RushLibBaseLocation;
+            RushLocation = resolverSettings.RushLocation;
             TrackDependenciesWithShrinkwrapDepsFile = resolverSettings.TrackDependenciesWithShrinkwrapDepsFile;
+            GraphConstructionMode = resolverSettings.GraphConstructionMode;
         }
 
         /// <inheritdoc/>
         public DirectoryArtifact? RushLibBaseLocation { get; set; }
 
         /// <inheritdoc/>
+        public FileArtifact? RushLocation { get; set; }
+
+        /// <inheritdoc/>
         public bool? TrackDependenciesWithShrinkwrapDepsFile { get; set; }
+
+        /// <inheritdoc/>
+        public string GraphConstructionMode { get; set; }
     }
 }

@@ -44,6 +44,14 @@ namespace Test.BuildXL.FrontEnd.Rush
         protected string PathToNodeFolder => Path.GetDirectoryName(PathToNode).Replace("\\", "/");
 
         /// <summary>
+        /// CODESYNC Public\Src\FrontEnd\UnitTests\Rush\Test.BuildXL.FrontEnd.Rush.dsc
+        /// </summary>
+        protected string PathToBuildGraphPluginMockTool => Path.Combine(TestDeploymentDir, "rushBuildGraphMock", OperatingSystemHelper.IsLinuxOS 
+            ? "Test.BuildXL.FrontEnd.BuildGraphPluginMock" 
+            : "Test.BuildXL.FrontEnd.BuildGraphPluginMock.exe")
+            .Replace("\\", "/");
+
+        /// <summary>
         /// Default out dir to use in projects
         /// </summary>
         protected string OutDir { get; }
@@ -106,7 +114,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string additionalDependencies = null,
             string additionalOutputDirectories = null,
             bool? enableFullReparsePointResolving = null,
-            string nodeExeLocation = null)
+            string nodeExeLocation = null,
+            string rushLocation = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -127,7 +136,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 additionalDependencies,
                 additionalOutputDirectories,
                 enableFullReparsePointResolving,
-                nodeExeLocation);
+                nodeExeLocation,
+                rushLocation);
         }
 
         /// <inheritdoc/>
@@ -145,7 +155,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string additionalDependencies = null,
             string additionalOutputDirectories = null,
             bool? enableFullReparsePointResolving = null,
-            string nodeExeLocation = null)
+            string nodeExeLocation = null,
+            string rushLocation = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -182,7 +193,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                     additionalDependencies,
                     additionalOutputDirectories,
                     enableFullReparsePointResolving,
-                    nodeExeLocation));
+                    nodeExeLocation,
+                    rushLocation));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -213,6 +225,11 @@ namespace Test.BuildXL.FrontEnd.Rush
                 throw new InvalidOperationException("Rush update failed.");
             }
 
+            return RunEngine(config, testCache, detoursListener);
+        }
+
+        protected BuildXLEngineResult RunEngine(ICommandLineConfiguration config, TestCache testCache = null, IDetoursEventListener detoursListener = null)
+        {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
             {
                 var appDeployment = CreateAppDeployment(tempFiles);
@@ -283,7 +300,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string additionalDependencies,
             string additionalOutputDirectories,
             bool? enableFullReparsePointResolving = null,
-            string nodeExeLocation = null) => $@"
+            string nodeExeLocation = null,
+            string rushLocation = null) => $@"
 config({{
     resolvers: [
         {{
@@ -301,6 +319,7 @@ config({{
             {(customScripts != null ? $"customScripts: {customScripts}," : string.Empty)}
             {(additionalDependencies != null ? $"additionalDependencies: {additionalDependencies}," : string.Empty)}
             {(additionalOutputDirectories != null ? $"additionalOutputDirectories: {additionalOutputDirectories}," : string.Empty)}
+            {(rushLocation != null ? $"rushLocation: f`{rushLocation}`," : string.Empty)}        
         }},
         {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],

@@ -1,7 +1,10 @@
-import * as path from 'path';
+import { execSync } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
 import * as semver from 'semver';
 import * as BxlConfig from './BuildXLConfigurationReader';
-import {JavaScriptGraph, JavaScriptProject} from './BuildGraph';
+import {JavaScriptGraph, JavaScriptProject, ScriptCommands} from './BuildGraph';
+import {RushBuildPluginGraph, RushBuildPluginNode} from './RushBuildPluginGraph'
 
 /**
  * A Rush graph, for what matters to BuildXL, is just a collection of projects and some graph-level configuration data
@@ -20,8 +23,79 @@ export interface RushConfiguration {
 /**
  * Builds a RushGraph from a valid rush configuration file
  */
-export function buildGraph(rushConfigurationFile: string, pathToRushLib:string): RushGraph
+export function buildGraph(rushConfigurationFile: string, pathToRushOrRushLib: string, useBuildGraphPlugin: boolean, outputGraphFile: string): RushGraph
 {
+    if (useBuildGraphPlugin) {
+        return buildRushPluginGraph(rushConfigurationFile, pathToRushOrRushLib, outputGraphFile);
+    }
+    else {
+        return buildRushLibGraph(rushConfigurationFile, pathToRushOrRushLib);
+    }
+}
+
+export function buildRushPluginGraph(rushConfigurationFile: string, pathToRush: string, outputGraphFile: string): RushGraph {
+    
+    let errorFd = 0;
+    try {
+        let root = path.dirname(rushConfigurationFile);
+        let script  = `"${pathToRush}" build --drop-graph "${outputGraphFile}"`;
+
+        // A file with the same name as the output graph file but with a .err extension
+        // will be picked up on managed side and displayed to the user in case of errors.
+        const outputDirectory = path.dirname(outputGraphFile);
+        const errorFileName = `${path.basename(outputGraphFile)}.err`;
+        errorFd = fs.openSync(path.join(outputDirectory, errorFileName), 'w')
+
+        // The graph sometimes is big enough to exceed the default stdio buffer (200kb). In order to workaround this issue, output the raw
+        // report to the output graph file and immediately read it back for post-processing. The final graph (in the format bxl expects)
+        // will be rewritten into the same file
+        execSync(script, {stdio: ["ignore", "ignore", errorFd], cwd: root});
+    
+        const rushJson = fs.readFileSync(outputGraphFile, "utf8");
+
+        const rushGraph = JSON.parse(rushJson) as RushBuildPluginGraph;
+
+        let projects: JavaScriptProject[] = [];
+        for (const node of rushGraph.nodes) {
+            let bxlConfig : BxlConfig.BuildXLConfiguration = BxlConfig.getBuildXLConfiguration(root, node.workingDirectory);
+
+            // There is always a single command available
+            let commands : ScriptCommands = {};
+            commands[node.task] = node.command;
+
+            let p: JavaScriptProject = {
+                name: node.package,
+                projectFolder: node.workingDirectory,
+                dependencies: node.dependencies,
+                availableScriptCommands: commands,
+                // TODO: the build-graph plugin should be exposing the project temp folder. This is not the case today, but the
+                // current design guarantees that folder is under the project root, so declaring a containing one should be enough
+                // The resolver uses this today to add a shared opaque for it, so we should be covered.
+                tempFolder: node.workingDirectory,
+                outputDirectories: bxlConfig.outputDirectories,
+                sourceFiles: bxlConfig.sourceFiles
+                };
+    
+            projects.push(p);
+        }
+
+        return {
+            projects: projects, 
+            configuration: {commonTempFolder: rushGraph.repoSettings.commonTempFolder}
+        };
+
+    } catch (Error) {
+        // Standard error from this tool is exposed directly to the user.
+        // Catch any exceptions and just print out the message.
+        console.error(Error.message);
+        process.exit(1);
+    }
+    finally {
+        fs.closeSync(errorFd);
+    }
+}
+
+export function buildRushLibGraph(rushConfigurationFile: string, pathToRushLib: string): RushGraph {
     let rushLib;
     try {
         rushLib = require(path.join(pathToRushLib, "@microsoft/rush-lib"));

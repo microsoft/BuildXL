@@ -321,16 +321,54 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
 }
 
 /**
- * Resolver for Rush project-level build execution
+ * A Rush resolver can either use rush-lib or @rushstack/rush-build-graph-plugin to construct a build graph.
  */
-interface RushResolver extends JavaScriptResolverWithExecutionSemantics {
-    kind: "Rush";
+type RushResolver = RushLibResolver | RushBuildGraphPluginResolver;
+
+/**
+ * Resolver for Rush project-level build execution. This flavor of the Rush resolver uses rush-lib
+ * to retrieve the graph, which returns project-level information. Script-to-script dependencies
+ * can be specified as a refinement at the BuildXL config level. See JavaScriptResolverWithExecutionSemantics.
+ */
+interface RushLibResolver extends RushResolverBase, JavaScriptResolverWithExecutionSemantics {
+    graphConstructionMode?: "rush-lib";
 
     /**
      * The base directory location to look for @microsoft/rush-lib module, used to build the project graph
      * If not provided, BuildXL will try to look for a rush installation under PATH.
      */
     rushLibBaseLocation?: Directory;
+}
+
+/**
+ * Resolver for Rush script-level build execution. This flavor of the Rush resolver uses @rushstack/rush-build-graph-plugin
+ * to retrieve a graph that returns script-level information. See JavaScriptResolverWithoutExecutionSemantics.
+ */
+interface RushBuildGraphPluginResolver extends RushResolverBase, JavaScriptResolverWithoutExecutionSemantics {
+
+    graphConstructionMode?: "rush-build-graph";
+
+    /**
+     * The location of Rush used to build the project graph. The provided instance is assumed to have 
+     * @rushstack/rush-build-graph-plugin installed, so --drop-graph is an available CLI that can be used to pass to Rush.
+     * If not provided, BuildXL will try to look for a rush installation under PATH.
+     */
+    rushLocation?: File;
+}
+
+/**
+ * Base interface for a rush-based resolver, which defines
+ * the resolver kind and common configuration across the different
+ * flavors of a Rush resolver.
+ */
+interface RushResolverBase extends JavaScriptResolver {
+    kind: "Rush";
+
+    /**
+     * The graph construction mode to use. See RushBuildGraphPluginResolver and RushLibResolver.
+     * If not specified (and it cannot be inferred from other fields), rush-lib is used.
+     */
+    graphConstructionMode?: "rush-build-graph" | "rush-lib";
 
     /**
      * Uses each project shrinkwrap-deps.json as a way to track changes in dependencies instead of tracking all actual file dependencies 
@@ -377,18 +415,8 @@ interface CustomJavaScriptResolver extends JavaScriptResolverWithExecutionSemant
 /**
  * Resolver for Lage project-level build execution
  */
-interface LageResolver extends JavaScriptResolver {
+interface LageResolver extends JavaScriptResolverWithoutExecutionSemantics {
     kind: "Lage";
-
-    /**
-     * The script command names to execute.
-     * Individual names can be provided, e.g. ["build", "test"] to indicate what script commands to include in the build. The
-     * dependencies across script commands will honor what Lage specifies.
-     * Script commands can also be grouped, e.g. ["prepare", {commandName:"build-and-postbuild", commands:["build", "postbuild"], "test"}]. This
-     * instructs BuildXL to treat the command group as a single unit of scheduling, which sequentially executes each command. Any other build
-     * script depending on the individual commands of a group will be depending on the group itself
-     */
-    execute?: (string | JavaScriptCommandGroup)[];
 
     /**
      * The location of NPM.  If not provided, BuildXL will try to look for it under PATH.
@@ -574,8 +602,7 @@ interface JavaScriptDependency {
 /**
  * The list of commands to execute can be specified with finer-grained detail
  */
-interface JavaScriptResolverWithExecutionSemantics extends JavaScriptResolver
-{
+interface JavaScriptResolverWithExecutionSemantics extends JavaScriptResolver {
     /**
      * The list of command script names to execute on each project. 
      * Dependencies across commands can be specified. If a simple string is provided in the list, the command with that name will depend 
@@ -590,6 +617,23 @@ interface JavaScriptResolverWithExecutionSemantics extends JavaScriptResolver
      */
     execute?: (string | JavaScriptCommand | JavaScriptCommandGroupWithDependencies)[];   
 }
+
+/**
+ * The list of commands to execute already represent script-level execution (as opposed to project-level). There is no
+ * additional dependency semantics described at BuildXL level.
+ */
+interface JavaScriptResolverWithoutExecutionSemantics extends JavaScriptResolver {
+    /**
+     * The script command names to execute.
+     * Individual names can be provided, e.g. ["build", "test"] to indicate what script commands to include in the build. The
+     * dependencies across script commands will honor what the build graph specifies.
+     * Script commands can also be grouped, e.g. ["prepare", {commandName:"build-and-postbuild", commands:["build", "postbuild"], "test"}]. This
+     * instructs BuildXL to treat the command group as a single unit of scheduling, which sequentially executes each command. Any other build
+     * script depending on the individual commands of a group will be depending on the group itself
+     */
+    execute?: (string | JavaScriptCommandGroup)[];
+}
+
 
 /**
  * An exported value to other resolvers. 

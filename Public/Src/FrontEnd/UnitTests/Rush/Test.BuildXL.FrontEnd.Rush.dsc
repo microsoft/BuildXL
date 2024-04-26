@@ -43,7 +43,8 @@ namespace Test.Rush {
                  "RushSchedulingTests",
                  "RushCustomSchedulingTests",
                  "RushCustomScriptsTests",
-                 "RushAdditionalDependenciesTests"
+                 "RushAdditionalDependenciesTests",
+                 "RushBuildGraphPluginTests"
             ],
             tools: {
                 exec: {
@@ -109,6 +110,11 @@ namespace Test.Rush {
             {
                 subfolder: r`Sdk/Sdk.Json`,
                 contents: glob(d`../DscLibs/Json`, "*.dsc"),
+            },
+            {
+                // CODESYNC Public\Src\FrontEnd\UnitTests\Rush\IntegrationTests\RushBuildGraphPluginTests.cs
+                subfolder: a`rushBuildGraphMock`,
+                contents: [BuildGraphPluginMock.exe]
             }
         ],
     });

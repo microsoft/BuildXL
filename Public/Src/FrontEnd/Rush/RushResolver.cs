@@ -46,6 +46,20 @@ namespace BuildXL.FrontEnd.Rush
                 return false;
             }
 
+            // If the rush location is specified, it has to be valid
+            if (rushResolverSettings.RushLocation?.IsValid == false)
+            {
+                Tracing.Logger.Log.InvalidRushResolverSettings(Context.LoggingContext, Location.FromFile(rushResolverSettings.File.ToString(Context.PathTable)), "The specified location for 'rush' is invalid.");
+                return false;
+            }
+
+            // Just being defensive here, rush location and rush-lib base location cannot be specified together. This should be enforced by the DScript type checker already.
+            if (rushResolverSettings.RushLocation?.IsValid == true && rushResolverSettings.RushLibBaseLocation?.IsValid == true)
+            {
+                Tracing.Logger.Log.InvalidRushResolverSettings(Context.LoggingContext, Location.FromFile(rushResolverSettings.File.ToString(Context.PathTable)), "Both rush location and rush-lib base location cannot be specified together.");
+                return false;
+            }
+
             if (!base.ValidateResolverSettings(rushResolverSettings))
             {
                 return false;

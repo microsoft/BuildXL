@@ -25,12 +25,19 @@ namespace BuildXL.FrontEnd.JavaScript
     /// </summary>
     /// <remarks>
     /// Extenders should define where the bxl graph construction tool is located and the parameters to pass to it
+    /// Some graph (nodejs-based) construction tools may decide to produce an error file instead of using stderr. The convention is to append a .err to the output file. This is because if standard error is too big,
+    /// the process may wait for it to be drained before it can exit. See https://nodejs.org/api/child_process.html#optionsstdio.
     /// </remarks>
     public abstract class ToolBasedJavaScriptWorkspaceResolver<TGraphConfiguration, TResolverSettings> : JavaScriptWorkspaceResolver<TGraphConfiguration, TResolverSettings>
         where TGraphConfiguration: class 
         where TResolverSettings : class, IJavaScriptResolverSettings
     {
 
+        /// <summary>
+        /// Some graph construction tools produce an error file. The convention is to append a .err to the output file name.
+        /// </summary>
+        private static string GetErrorFile(AbsolutePath outputFile, PathTable pathTable) => outputFile.ChangeExtension(pathTable, PathAtom.Create(pathTable.StringTable, ".err")).ToString(pathTable); 
+        
         /// <summary>
         /// The BuildXL tool relative location that is used to construct the graph 
         /// </summary>
@@ -181,6 +188,13 @@ namespace BuildXL.FrontEnd.JavaScript
             SandboxedProcessResult result = await RunJavaScriptGraphBuilderAsync(nodeExeLocation, outputFile, buildParameters, foundLocation);
 
             string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
+            
+            // Check whether the graph construction tool produced an error file, and in that case attach it to the standard error.
+            string errorFile = GetErrorFile(outputFile, Context.PathTable);
+            if (FileUtilities.Exists(errorFile) && await File.ReadAllTextAsync(errorFile) is var errorText && !string.IsNullOrEmpty(errorText))
+            {
+                standardError += Environment.NewLine + errorText;
+            }
 
             if (result.ExitCode != 0)
             {
@@ -397,6 +411,8 @@ namespace BuildXL.FrontEnd.JavaScript
             try
             {
                 FileUtilities.DeleteFile(outputFile.ToString(Context.PathTable));
+                // The error file may not always be present, but we want to delete it if that's the case.
+                FileUtilities.DeleteFile(GetErrorFile(outputFile, Context.PathTable));
             }
             catch (BuildXLException ex)
             {

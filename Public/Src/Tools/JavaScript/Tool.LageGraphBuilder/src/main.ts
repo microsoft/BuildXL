@@ -88,16 +88,22 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
      };
   }
 
-
+let errorFd = 0;
 try {
     let script  = lageLocation === undefined ? `"${npmLocation}" run lage --silent --` : `"${lageLocation}"`;
     script  = `${script} info ${targets} --reporter json ${since}> "${outputGraphFile}"`;
     console.log(`Starting lage export: ${script}`);
 
+    // A file with the same name as the output graph file but with a .err extension 
+    // will be picked up on managed side and displayed to the user in case of errors.
+    const outputDirectory = path.dirname(outputGraphFile);
+    const errorFileName = `${path.basename(outputGraphFile)}.err`;
+    errorFd = fs.openSync(path.join(outputDirectory, errorFileName), 'w')
+
     // The graph sometimes is big enough to exceed the default stdio buffer (200kb). In order to workaround this issue, output the raw
     // report to the output graph file and immediately read it back for post-processing. The final graph (in the format bxl expects)
     // will be rewritten into the same file
-    execSync(script, {stdio: "ignore"});
+    execSync(script, {stdio: ["ignore", "ignore", errorFd], cwd: repoFolder});
  
     const lageJson = fs.readFileSync(outputGraphFile, "utf8");
 
@@ -112,4 +118,7 @@ try {
     // Catch any exceptions and just print out the message.
     console.error(Error.message);
     process.exit(1);
+}
+finally {
+  fs.closeSync(errorFd);
 }

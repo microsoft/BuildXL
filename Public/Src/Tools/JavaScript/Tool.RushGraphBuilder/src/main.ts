@@ -2,17 +2,19 @@ import { buildGraph } from "./RushGraphBuilder";
 import { serializeGraph } from "./GraphSerializer";
 
 if (process.argv.length < 5) {
-    console.log("Expected arguments: <path-to-rush.json> <path-to-output-graph> <path-to-rush-lib>");
+    console.log("Expected arguments: <path-to-rush.json> <path-to-output-graph> <path-to-rush-or-rush-lib> <use-build-graph-plugin>");
     process.exit(1);
 }
 
 // argv[0] is 'node', argv[1] is 'main.js'
 let rushJsonFile = process.argv[2];
 let outputGraphFile = process.argv[3];
-let pathToRushLibBase = process.argv[4];
+// If useBuildGraphPlugin is true, this parameter is the path to rush. Otherwise, the path to rush-lib
+let pathToRushOrRushLibBase = process.argv[4];
+let useBuildGraphPlugin = process.argv[5] == "True";
 
 try {
-    let graph = buildGraph(rushJsonFile, pathToRushLibBase);
+    let graph = buildGraph(rushJsonFile, pathToRushOrRushLibBase, useBuildGraphPlugin, outputGraphFile);
     serializeGraph(graph, outputGraphFile);
 }
 catch(Error)

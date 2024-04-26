@@ -42,13 +42,18 @@ parameters:
   type: string
   default: EphemeralDatacenterWide
 
+- name: pool
+  type: object
+  default:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+
 jobs:
 - job: Selfhost_${{ parameters.validationName }}
   displayName: Build and Validate Selfhost (${{ parameters.validationName }})
 
-  pool:
-    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
-    os: linux
+  pool: ${{ parameters.pool }}
+
   timeoutInMinutes: 90
   templateContext:
     sdl:

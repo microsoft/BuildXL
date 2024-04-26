@@ -1,0 +1,65 @@
+parameters:
+- name: BuildSelfhost
+  type: boolean
+  default: true
+- name: BxlCommonArgs
+  type: string
+  # We pass xunit semaphore `/p:[Sdk.BuildXL]xunitSemaphoreCount=8` to limit the number of parallel xunit pips.
+  # Too many xunit pips running in parallel can cause the long running ones to hang. 
+  default: '
+    /logObservedFileAccesses 
+    /logoutput:FullOutputOnError 
+    /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
+    /forceAddExecutionPermission-
+  '
+- name: pool
+  type: object
+  default: 
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+
+stages:
+- stage: Bootstrap_Internal
+  displayName: Bootstrap engine for validations
+  dependsOn: []
+  jobs:
+  # Build and test selfhost with BuildXL
+  - template: /.azdo/linux/job-bootstrap.yml@self
+    parameters:
+      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+      pool: ${{ parameters.pool }}
+
+- stage: Build_External
+  displayName: External validation
+  dependsOn: []
+  jobs:
+    - template: /.azdo/linux/job-external.yml@self
+      parameters:
+        BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+        pool: ${{ parameters.pool }}
+
+- stage: Build_Internal
+  displayName: Internal validation
+  dependsOn: Bootstrap_Internal
+  jobs:
+  - template: /.azdo/linux/job-selfhost.yml@self
+    parameters:
+      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+      pool: ${{ parameters.pool }}
+
+- stage: Verify_PTrace
+  displayName: PTrace validation
+  dependsOn: Bootstrap_Internal  
+  jobs:
+  - template: /.azdo/linux/job-ptrace.yml@self
+    parameters:
+      BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
+      pool: ${{ parameters.pool }}
+
+- stage: Build_Distributed
+  displayName: Distributed test
+  dependsOn: [Build_Internal, Verify_PTrace] 
+  jobs:
+  - template: /.azdo/linux/job-distributed-1espt.yml@self
+    parameters:
+      pool: ${{ parameters.pool }}

@@ -1,0 +1,45 @@
+trigger: none  # Explicitly scheduled for PRs
+
+parameters:
+- name: BxlCommonArgs
+  type: string
+  # We pass xunit semaphore `/p:[Sdk.BuildXL]xunitSemaphoreCount=8` to limit the number of parallel xunit pips.
+  # Too many xunit pips running in parallel can cause the long running ones to hang. 
+  default: '
+    /logObservedFileAccesses 
+    /logoutput:FullOutputOnError 
+    /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
+    /forceAddExecutionPermission-
+  '
+
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+extends:
+  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+      os: linux
+      demands:
+      - ImageOverride -equals ubuntu-22.04-PME-GPT
+
+    sdl:
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        image: Windows-SDL-Image
+        os: windows
+
+    stages:
+    - template: /.azdo/linux/job-stages-template.yml
+      parameters:
+        pool:
+          name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+          os: linux
+          demands:
+          - ImageOverride -equals ubuntu-22.04-PME-GPT
+        BxlCommonArgs: ${{ parameters.BxlCommonArgs }}

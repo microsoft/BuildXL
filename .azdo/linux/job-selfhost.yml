@@ -2,12 +2,20 @@ parameters:
 - name: BxlCommonArgs # We reuse these across jobs like a constant
   type: string
 
+- name: pool
+  type: object
+  default:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+
+
 jobs:
 - template: job-build-selfhost-base.yml
   parameters:
     validationName: InternalRelease
     internal: true
     publishTestResults: true
+    pool: ${{ parameters.pool }}
     distribution:
       enabled: true
       workerCount: 1

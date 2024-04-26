@@ -1,10 +1,15 @@
+parameters:
+- name: pool
+  type: object
+  default:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+
 jobs:
 - job: TestDistributed
   displayName: Test distributed build
 
-  pool:
-    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
-    os: linux
+  pool: ${{ parameters.pool }}
 
   variables:
     - name: BootstrapLocation

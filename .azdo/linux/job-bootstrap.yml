@@ -2,11 +2,18 @@ parameters:
 - name: BxlCommonArgs # We reuse these across jobs like a constant
   type: string
 
+- name: pool
+  type: object
+  default:
+    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    os: linux
+
 jobs:
 - template: job-build-selfhost-base.yml
   parameters:
     validationName: Bootstrap
     internal: true
+    pool: ${{ parameters.pool }}
     
     outputs:
     - output: pipelineArtifact

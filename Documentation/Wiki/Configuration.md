@@ -192,6 +192,20 @@ Here is an example allowlist entry to allow accesses to vsjitdebugger.exe. There
     ]
 ```
 
+1. We can also specify an allowlist entry without the toolPath or valuePath as follows:
+In this case any tool that accesses the path which matches with the pathRegex is allowed.
+
+```ts
+    cacheableFileAccessAllowlist:
+    [
+        // Allow the debugger to be able to be launched from BuildXL Builds
+        {
+            name: "JitDebugger",
+            pathRegex: `.*${Environment.getStringValue("CommonProgramFiles").replace("\\", "\\\\")}\\\\Microsoft Shared\\\\VS7Debug\\\\.*`
+        }
+    ]
+```
+
 # Example
 When deciding how to organize a build (and all of its modules and projects), the most relevant configuration fields are `modules` and `resolvers`.  In this example, let's assume the build consists of 3 modules, defined in files `NodPublishers/module.config.bm`, `ReleCloud/module.config.bm`, and `WingtipToys/module.config.bm`.  To be included in a BuildXL build, they should be listed under the `modules` field:
 ```ts

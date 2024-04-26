@@ -9,6 +9,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using System.Linq;
 
 namespace Test.BuildXL.Processes
 {
@@ -60,6 +61,16 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(2, allowlist.CacheableEntryCount);
             XAssert.AreEqual("Unnamed", valueEntry.Name);
 
+            var executableEntry5 = new ExecutablePathAllowlistEntry(
+                executable: null, new SerializableRegex("testPattern"), false, "entry7");
+            var serializableRegex1 = new SerializableRegex("testPattern");
+            allowlist.Add(executableEntry5);
+
+            var executableEntry6 = new ExecutablePathAllowlistEntry(
+                executable: null, new SerializableRegex("anotherTestPattern"), true, "entry8");
+            var serializableRegex2 = new SerializableRegex("anotherTestPattern");
+            allowlist.Add(executableEntry6);
+
             using (var ms = new MemoryStream())
             {
                 BuildXLWriter writer = new BuildXLWriter(true, ms, true, true);
@@ -93,8 +104,13 @@ namespace Test.BuildXL.Processes
                 XAssert.AreEqual(valueEntry.Name, deserialized.ValuePathEntries[symbol1][0].Name);
                 XAssert.AreEqual(valueEntry2.Name, deserialized.ValuePathEntries[symbol2][0].Name);
 
-                XAssert.AreEqual(4, deserialized.UncacheableEntryCount);
-                XAssert.AreEqual(2, deserialized.CacheableEntryCount);
+                XAssert.AreEqual(5, deserialized.UncacheableEntryCount);
+                XAssert.AreEqual(3, deserialized.CacheableEntryCount);
+
+                // These test cases are used to check the scenarios where we do not pass the toolPath in the allowList.
+                XAssert.AreEqual(2, deserialized.ExecutableNoToolPathEntries.Count);
+                XAssert.AreEqual(executableEntry6.Name, deserialized.ExecutableNoToolPathEntries.FirstOrDefault(e => e.Name == executableEntry6.Name).Name);
+                XAssert.AreEqual(executableEntry5.PathRegex.ToString(), deserialized.ExecutableNoToolPathEntries.FirstOrDefault(e => e.Name == executableEntry5.Name).PathRegex.ToString());
             }
         }
     }

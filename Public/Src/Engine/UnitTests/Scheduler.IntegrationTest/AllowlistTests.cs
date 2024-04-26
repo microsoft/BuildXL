@@ -15,8 +15,12 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Utilities.Configuration.Mutable;
+using System.Collections.Generic;
+using System.Linq;
 using Configuration = BuildXL.Utilities.Configuration;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using Processes = BuildXL.ProcessPipExecutor;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -505,6 +509,83 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             CreateAndScheduleOsShellPip(exe, output);
 
+            RunScheduler().AssertSuccess();
+            XAssert.AreEqual("hi", File.ReadAllText(ArtifactToString(output)).Trim().Trim('\''));
+        }
+
+        /// <summary>
+        /// Verifies if the FileAccessAllowListEntries are added to their respective allowLists as expected and also performs an end to end check for allowListEntry with no toolPath.
+        /// There are three entries in the allowListEntries here: entries with no toolPath, with a toolPath and with a valuePath.
+        /// We do not expect the respective collections created in FileAccessAllowlist for these three entries to overlap.
+        /// </summary>
+        [Fact]
+        public void ValidateAllowlistWithNoToolPathSpecified()
+        {
+            FileArtifact exe = GetOsShell();
+            var exeLinkFullPath = new DiscriminatingUnion<FileArtifact, PathAtom>(exe);
+
+            var noToolPathEntryName = "NoToolPathEntry";
+
+            var symbolTable = Context.SymbolTable;
+            FullSymbol allowlistedValue;
+            int characterWithError;
+            if (FullSymbol.TryCreate(symbolTable, "AllowlistedValue", out allowlistedValue, out characterWithError) !=
+                FullSymbol.ParseResult.Success)
+            {
+                XAssert.Fail("Could not construct a FullSymbol from a string.");
+            }
+
+            // Create the AllowListEntries for three cases - with no toolPath, with toolPath and with ValuePath.
+            var allowlistEntries = new List<FileAccessAllowlistEntry>
+            {
+                new FileAccessAllowlistEntry
+                {
+                    PathRegex = ".*",
+                    Name = noToolPathEntryName,
+                },
+                new FileAccessAllowlistEntry
+                {
+                    PathRegex = "testPattern2",
+                    Name = "ToolPathEntry",
+                    ToolPath = exeLinkFullPath
+                },
+                new FileAccessAllowlistEntry
+                {
+                    PathRegex = "testPattern3",
+                    Name = "ValuePathEntry",
+                    Value = allowlistedValue.ToString(Context.SymbolTable)
+                }
+            };
+
+            // Add all the allowlistEntries to the CacheableFileAccessAllowlist since in this test we made all as cacheable accesses.
+            foreach (var allowlistEntry in allowlistEntries)
+            {
+                Configuration.CacheableFileAccessAllowlist.Add(allowlistEntry);
+            }
+
+            // Initialize the FileAccessAllowList object, once Intialize() is invoked, the above FileAccessAllowListEntries are added to their respective lists accordingly.
+            Processes.FileAccessAllowlist allowlist = new Processes.FileAccessAllowlist(Context);
+            allowlist.Initialize(Configuration);
+
+            // Ensure that the only entry with no toolPath is added to ExecutableNoToolPathEntries
+            XAssert.AreEqual(1, allowlist.ExecutableNoToolPathEntries.Count);
+            XAssert.AreEqual(noToolPathEntryName, allowlist.ExecutableNoToolPathEntries.FirstOrDefault(e => e.Name == noToolPathEntryName).Name);
+
+            // Ensure that the ExecutableToolPathEntries collection has only one entry as expected.
+            // We should not see the allowList entry without the toolPath added to this list.
+            XAssert.AreEqual(1, allowlist.ExecutablePathEntries.Count);
+            XAssert.AreNotEqual(noToolPathEntryName, allowlist.ExecutablePathEntries[exe.Path][0].Name);
+            XAssert.AreEqual("ToolPathEntry", allowlist.ExecutablePathEntries[exe.Path][0].Name);
+
+            // Ensure that the ValueToolPathEntries collection has only one entry as expected.
+            // We should not see the allowList entry without the toolPath added to this list.
+            XAssert.AreEqual(1, allowlist.ValuePathEntries.Count);
+            XAssert.AreNotEqual(noToolPathEntryName, allowlist.ValuePathEntries[allowlistedValue][0].Name);
+            XAssert.AreEqual("ValuePathEntry", allowlist.ValuePathEntries[allowlistedValue][0].Name);
+
+            // We have the FileAccessAllowListEntry which does not have a toolPath and the pathRegex matches with the path accessed by the tool, and this access should be allowlisted.
+            FileArtifact output = CreateOutputFileArtifact();
+            CreateAndScheduleOsShellPip(exe, output);
             RunScheduler().AssertSuccess();
             XAssert.AreEqual("hi", File.ReadAllText(ArtifactToString(output)).Trim().Trim('\''));
         }

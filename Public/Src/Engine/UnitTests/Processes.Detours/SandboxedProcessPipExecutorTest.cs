@@ -866,8 +866,15 @@ namespace Test.BuildXL.Processes.Detours
             AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable);
         }
 
-        [Fact]
-        public async Task ProcessUnexpectedFileAccessAllowlistedByExecutable()
+        /// <summary>
+        /// The test checks for two scenarios of FileAccessAllowLists.
+        /// a.) We specify the toolPath in the allowList. We expect the verbose event logged stating the file access.
+        /// b.) We do not specify the toolPath, we expect the same results as in the first scenario.
+        /// </summary>
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ProcessUnexpectedFileAccessAllowlistedByExecutable(bool isToolPathSpecifiedInTheAllowList)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var loggingContext = CreateLoggingContextForTest();
@@ -931,12 +938,24 @@ namespace Test.BuildXL.Processes.Detours
 
                 var fileAccessAllowlist = new FileAccessAllowlist(context);
 
-                fileAccessAllowlist.Add(
-                    new ExecutablePathAllowlistEntry(
-                        executableFileArtifact.Path,
-                        FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
-                        allowsCaching: false,
-                        name: "name"));
+                if (isToolPathSpecifiedInTheAllowList)
+                {
+                    fileAccessAllowlist.Add(
+                        new ExecutablePathAllowlistEntry(
+                            executableFileArtifact.Path,
+                            FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
+                            allowsCaching: false,
+                            name: "name"));
+                }
+                else
+                {
+                    fileAccessAllowlist.Add(
+                        new ExecutablePathAllowlistEntry(
+                            null,
+                            FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
+                            allowsCaching: false,
+                            name: "name"));
+                }
 
                 await AssertProcessSucceedsAsync(
                     context,

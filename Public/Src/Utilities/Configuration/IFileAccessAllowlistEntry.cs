@@ -16,12 +16,13 @@ namespace BuildXL.Utilities.Configuration
         string Name { get; }
 
         /// <summary>
-        /// Value allowed to have an exception.  Cannot be combined with ToolPath.
+        /// Value allowed to have an exception. Cannot be combined with ToolPath.
         /// </summary>
         string Value { get; }
 
         /// <summary>
-        /// Full path or executable name to misbehaving tool allowed to have an exception.  Cannot be combined with Value.
+        /// Full path or executable name to misbehaving tool allowed to have an exception. Cannot be combined with Value.
+        /// It is not mandatory to provide the ToolPath in the AllowList.
         /// </summary>
         DiscriminatingUnion<FileArtifact, PathAtom> ToolPath { get; }
 

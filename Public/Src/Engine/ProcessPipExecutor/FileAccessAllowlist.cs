@@ -49,6 +49,11 @@ namespace BuildXL.ProcessPipExecutor
         private readonly MultiValueDictionary<StringId, ExecutablePathAllowlistEntry> m_executableToolExeEntries;
 
         /// <summary>
+        /// This collection holds entries for ExecutablePathAllowLists whose toolPaths have not been specified in the allowList.
+        /// </summary>
+        private readonly List<ExecutablePathAllowlistEntry> m_allowListEntriesWithNoToolPath;
+
+        /// <summary>
         /// The parent allowlist
         /// If this is a module specific allowlist, parent is the root allowlist
         /// Otherwise, if this is the root allowlist, this is null
@@ -72,13 +77,14 @@ namespace BuildXL.ProcessPipExecutor
         {
             Contract.Requires(context != null);
 
-            m_context = context;    
+            m_context = context;
 
             m_valuePathEntries = new MultiValueDictionary<FullSymbol, ValuePathFileAccessAllowlistEntry>();
             m_executablePathEntries = new MultiValueDictionary<AbsolutePath, ExecutablePathAllowlistEntry>();
             m_executableToolExeEntries = InitializeExecutableToolEntries();
             m_counts = new ConcurrentDictionary<string, int>();
             m_moduleAllowlists = new Dictionary<ModuleId, FileAccessAllowlist>();
+            m_allowListEntriesWithNoToolPath = new List<ExecutablePathAllowlistEntry>();
         }
 
         /// <summary>
@@ -96,6 +102,7 @@ namespace BuildXL.ProcessPipExecutor
             m_counts = new ConcurrentDictionary<string, int>();
             m_moduleAllowlists = null;
             m_parent = parent;
+            m_allowListEntriesWithNoToolPath = new List<ExecutablePathAllowlistEntry>();
         }
 
         /// <summary>
@@ -212,16 +219,15 @@ namespace BuildXL.ProcessPipExecutor
             }
             else
             {
-                object toolPath = allowlistEntry.ToolPath.GetValue();
-                var executablePath =
-                    toolPath switch 
-                    {
-                        FileArtifact file => new DiscriminatingUnion<AbsolutePath, PathAtom>(file.Path),
-                        PathAtom toolName => new DiscriminatingUnion<AbsolutePath, PathAtom>(toolName),
-                        _ => null,
-                    };
-
-                Contract.RequiresNotNull(executablePath);
+                // It is not mandatory to specify the toolPath in the allowList.
+                 object toolPath = allowlistEntry.ToolPath?.GetValue();
+                 DiscriminatingUnion<AbsolutePath, PathAtom> executablePath =
+                        toolPath switch
+                        {
+                            FileArtifact file => new DiscriminatingUnion<AbsolutePath, PathAtom>(file.Path),
+                            PathAtom toolName => new DiscriminatingUnion<AbsolutePath, PathAtom>(toolName),
+                            _ => null,
+                        };
 
                 Add(
                     new ExecutablePathAllowlistEntry(
@@ -251,15 +257,23 @@ namespace BuildXL.ProcessPipExecutor
         {
             Contract.Requires(entry != null);
 
-            var toolPath = entry.Executable.GetValue();
+            var toolPath = entry.Executable?.GetValue();
 
-            if (toolPath is AbsolutePath absolutePath)
+            if (toolPath != null)
             {
-                m_executablePathEntries.Add(absolutePath, entry);
+                if (toolPath is AbsolutePath absolutePath)
+                {
+                    m_executablePathEntries.Add(absolutePath, entry);
+                }
+                else if (toolPath is PathAtom pathAtom)
+                {
+                    m_executableToolExeEntries.Add(pathAtom.StringId, entry);
+                }
             }
-            else if (toolPath is PathAtom pathAtom)
+            else
             {
-                m_executableToolExeEntries.Add(pathAtom.StringId, entry);
+                // If the toolPath is not provided, we add every such allowList entry to the list.
+                m_allowListEntriesWithNoToolPath.Add(entry);
             }
 
             m_counts.AddOrUpdate(entry.Name, 0, (k, v) => v);
@@ -337,11 +351,14 @@ namespace BuildXL.ProcessPipExecutor
                 PathAtom toolExecutableName = toolPath.GetName(m_context.PathTable);
                 IReadOnlyList<ExecutablePathAllowlistEntry> executablePathAllowlistList;
 
-                if (m_executablePathEntries.TryGetValue(toolPath, out executablePathAllowlistList) || 
+                if (m_executablePathEntries.TryGetValue(toolPath, out executablePathAllowlistList) ||
                     m_executableToolExeEntries.TryGetValue(toolExecutableName.StringId, out executablePathAllowlistList))
                 {
                     possibleEntries = possibleEntries.Concat(executablePathAllowlistList);
                 }
+
+                // For entries with no toolPath we append the entire list as it is later filtered based on the PathRegex.
+                possibleEntries = possibleEntries.Concat(m_allowListEntriesWithNoToolPath);        
             }
         }
 
@@ -365,20 +382,15 @@ namespace BuildXL.ProcessPipExecutor
         private void SerializeCore(BuildXLWriter writer)
         {
             ValuePathFileAccessAllowlistEntry[] valuePathEntries = m_valuePathEntries.Values.SelectMany((e) => { return e; }).ToArray();
-            writer.WriteCompact(valuePathEntries.Length);
-            foreach (ValuePathFileAccessAllowlistEntry entry in valuePathEntries)
-            {
-                entry.Serialize(writer);
-            }
+            writer.Write(valuePathEntries, (writer, entry) => entry.Serialize(writer));
 
             var pathEntries = m_executablePathEntries.Values.SelectMany((e) => { return e; });
             var toolEntries = m_executableToolExeEntries.Values.SelectMany((e) => { return e; });
-            ExecutablePathAllowlistEntry[] entries = pathEntries.Concat(toolEntries).ToArray();
-            writer.WriteCompact(entries.Length);
-            foreach (ExecutablePathAllowlistEntry entry in entries)
-            {
-                entry.Serialize(writer);
-            }
+            ExecutablePathAllowlistEntry[] executablePathEntries = pathEntries.Concat(toolEntries).ToArray();
+            writer.Write(executablePathEntries, (writer, entry) => entry.Serialize(writer));
+
+            ExecutablePathAllowlistEntry[] allowListEntriesWithNoToolPath = m_allowListEntriesWithNoToolPath.ToArray();
+            writer.Write(allowListEntriesWithNoToolPath, (writer, entry) => entry.Serialize(writer));
         }
 
         /// <summary>
@@ -415,18 +427,25 @@ namespace BuildXL.ProcessPipExecutor
 
         private static void DeserializeCore(BuildXLReader reader, FileAccessAllowlist allowlist)
         {
-            var valuePathEntryCount = reader.ReadInt32Compact();
-            for (int i = 0; i < valuePathEntryCount; i++)
+            ValuePathFileAccessAllowlistEntry[] valuePathFileAccessAllowlistEntries = reader.ReadArray(ValuePathFileAccessAllowlistEntry.Deserialize);
+            foreach (var valuePathFileAccessAllowlistEntry in valuePathFileAccessAllowlistEntries)
             {
-                allowlist.Add(ValuePathFileAccessAllowlistEntry.Deserialize(reader));
+                allowlist.Add(valuePathFileAccessAllowlistEntry);
             }
 
             // Execute this part twice, first time for m_executablePathEntries (Absolute Path) and a second time for m_executablePathAtomEntries (Path Atom)
-            var executablePathEntryCount = reader.ReadInt32Compact();
-            for (int j = 0; j < executablePathEntryCount; j++)
+            ExecutablePathAllowlistEntry[] executablePathEntriesWithAbsolutePathAndPathAtom = reader.ReadArray(ExecutablePathAllowlistEntry.Deserialize);
+            foreach (var executablePathEntryWithAbsolutePathAndPathAtom in executablePathEntriesWithAbsolutePathAndPathAtom)
             {
-                allowlist.Add(ExecutablePathAllowlistEntry.Deserialize(reader));
+                allowlist.Add(executablePathEntryWithAbsolutePathAndPathAtom);
             }
+
+            // Add the entries of ExecutablePathAllowList whose toolPaths have not been specified.
+            ExecutablePathAllowlistEntry[] allowListEntriesWithNoToolPath = reader.ReadArray(ExecutablePathAllowlistEntry.Deserialize);
+            foreach (var allowListEntryWithNoToolPath in allowListEntriesWithNoToolPath)
+            {
+                allowlist.Add(allowListEntryWithNoToolPath);
+            }             
         }
 
         /// <summary>
@@ -523,7 +542,8 @@ namespace BuildXL.ProcessPipExecutor
             {
                 return m_valuePathEntries.SelectMany(e => e.Value.Where(e2 => e2.AllowsCaching)).Count() +
                     m_executablePathEntries.SelectMany(e => e.Value.Where(e2 => e2.AllowsCaching)).Count() +
-                    m_executableToolExeEntries.SelectMany(e => e.Value.Where(e2 => e2.AllowsCaching)).Count();
+                    m_executableToolExeEntries.SelectMany(e => e.Value.Where(e2 => e2.AllowsCaching)).Count() +
+                    m_allowListEntriesWithNoToolPath.Count(e => e.AllowsCaching);
             }
         }
 
@@ -536,7 +556,8 @@ namespace BuildXL.ProcessPipExecutor
             {
                 return m_valuePathEntries.SelectMany(e => e.Value.Where(e2 => !e2.AllowsCaching)).Count() +
                     m_executablePathEntries.SelectMany(e => e.Value.Where(e2 => !e2.AllowsCaching)).Count() +
-                    m_executableToolExeEntries.SelectMany(e => e.Value.Where(e2 => !e2.AllowsCaching)).Count();
+                    m_executableToolExeEntries.SelectMany(e => e.Value.Where(e2 => !e2.AllowsCaching)).Count() +
+                    m_allowListEntriesWithNoToolPath.Count(e => !e.AllowsCaching);
             }
         }
 
@@ -564,5 +585,10 @@ namespace BuildXL.ProcessPipExecutor
         /// The per-module allowlists (may be null)
         /// </summary>
         public IReadOnlyDictionary<ModuleId, FileAccessAllowlist> ModuleAllowlists => m_moduleAllowlists;
+
+        /// <summary>
+        /// ExecutableNoToolPathEntries collection. For testing only
+        /// </summary>
+        internal IReadOnlyList<ExecutablePathAllowlistEntry> ExecutableNoToolPathEntries => m_allowListEntriesWithNoToolPath.ToList();
     }
 }

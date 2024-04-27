@@ -50,7 +50,7 @@ extends:
         os: windows
 
     stages:
-    - template: /.azdo/linux/job-stages-template.yml
+    - template: /.azdo/linux/linux-stages-template.yml
       parameters:
         pool:
           name: BuildXL-DevOpsAgents-Linux-Stateless-PME

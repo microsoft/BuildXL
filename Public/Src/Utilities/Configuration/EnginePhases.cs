@@ -71,6 +71,10 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Run engine until evaluation of unresolved values is done.
         /// </summary>
+        /// <remarks>
+        /// This phase is still referenced in the codebase, but it is known to be error-prone.
+        /// Users are suggested to use the Schedule phase instead.
+        /// </remarks>
         Evaluate = ConstructEvaluationModel << 1 | ConstructEvaluationModel,
 
         /// <summary>

@@ -856,7 +856,15 @@ namespace BuildXL
                             opt => loggingConfiguration.PerfCollectorFrequencyMs = CommandLineUtilities.ParseInt32Option(opt, 1000, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "phase",
-                            opt => engineConfiguration.Phase = CommandLineUtilities.ParseEnumOption<EnginePhases>(opt)),
+                            opt =>
+                            {
+                                engineConfiguration.Phase = CommandLineUtilities.ParseEnumOption<EnginePhases>(opt);
+                                // The Evaluate phase is not supported anymore, it is known to be error-prone. Users can opt for Schedule phase instead.
+                                if (engineConfiguration.Phase.Equals(EnginePhases.Evaluate))
+                                {
+                                   throw CommandLineUtilities.Error(Strings.Args_EnginePhases_UnsupportedPhase);
+                                }
+                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "pinCachedOutputs",
                             sign => schedulingConfiguration.PinCachedOutputs = sign),

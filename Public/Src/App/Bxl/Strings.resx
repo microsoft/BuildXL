@@ -331,7 +331,7 @@
     <value>Unsupported value for phase {0}, should be either None, Parse, Evaluate, ScheduleExecute</value>
   </data>
   <data name="HelpText_DisplayHelp_Phase" xml:space="preserve">
-    <value>Specifies the phase until which {ShortProductName} runs. Allowed values are None (no phase is run), Parse (run until parsing is done), Evaluate (run until value evaluation is done), Schedule (run until scheduling is done), Execute (run until execution is done). Default is Execute.</value>
+    <value>Specifies the phase until which {ShortProductName} runs. Allowed values are None (no phase is run), Parse (run until parsing is done), Schedule (run until scheduling is done), Execute (run until execution is done). Default is Execute.</value>
   </data>
   <data name="HelpText_DisplayHelp_Channel" xml:space="preserve">
     <value>Identifies a communication channel. If not specified, the default channel name is derived from the main configuration file. Use together with /listen.</value>
@@ -1212,5 +1212,8 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_FingerprintSalt" xml:space="preserve">
     <value>Salts fingerprints used for caching. May be specified multiple times and values concatenate with delimiter. Empty value clears previous values. '*' is unique each run.</value>
+  </data>
+  <data name="Args_EnginePhases_UnsupportedPhase" xml:space="preserve">
+    <value>phase:Evaluate is not supported, please use /phase:Schedule</value>
   </data>
 </root>

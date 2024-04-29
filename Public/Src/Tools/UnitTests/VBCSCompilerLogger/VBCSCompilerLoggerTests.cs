@@ -47,7 +47,7 @@ namespace Test.VBCSCompilerLogger
         public VBCSCompilerLoggerTests(ITestOutputHelper output) : base(output)
         {}
 
-        [Fact]
+        [Theory]
         [MemberData(nameof(HappyArgumentParsingData))]
         public void HappyArgumentParsing(bool isCscTask, string commandLine)
         {
@@ -56,7 +56,7 @@ namespace Test.VBCSCompilerLogger
             XAssert.IsEmpty(error);
         }
 
-        [Fact]
+        [Theory]
         [MemberData(nameof(ErroneousArgumentParsingData))]
         public void ErroneousArgumentParsing(bool isCscTask, string commandLine)
         {

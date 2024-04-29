@@ -46,7 +46,6 @@ namespace Test.BuildXL.Engine
             base.Dispose(disposing);
         }
 
-        [Fact]
         [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         public void OutputsUnderSharedOpaqueAreSelectivelyScrubbed()
         {

@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -109,10 +110,13 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
                     }
 
                     // Unset any synchronization restrictions set by the caller (looking at you, xunit)
-                    SynchronizationContext.SetSynchronizationContext(null);
+                    if (OperatingSystemHelper.IsWindowsOS)
+                    {
+                        SynchronizationContext.SetSynchronizationContext(null);
+                    }
 
                     // You can disable the entire new set of runners if something acts weirdly.
-                    bool useDemystifier = true;
+                    bool useDemystifier = OperatingSystemHelper.IsWindowsOS; // true;
 
                     RunSummary result;
 

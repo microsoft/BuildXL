@@ -1184,7 +1184,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Test ObservedInputs are logged for file monitoring pips
         /// </summary>
-        [Fact]
+        [Theory]
         [InlineData(false)]
         [InlineData(true)]
         public Task ObservedInputsLoggedForFileMonitoringViolationsProcess(bool unexpectedFileAccessesAreErrors)

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "bxl_observer.hpp"
 #include "IOHandler.hpp"
+#include "observer_utilities.hpp"
 #include <stack>
 #include <sys/prctl.h>
 #include <sys/wait.h>
@@ -1078,6 +1079,11 @@ void BxlObserver::set_ptrace_permissions()
 // Executes objdump against the provided path to determine whether the binary is statically linked.
 bool BxlObserver::is_statically_linked(const char *path)
 {
+    // Before running objdump, lets check if the path exists
+    if (real_access(path, F_OK) != 0) {
+        return false;
+    }
+
     char *args[] = {"", "-p", (char *)path, NULL};
     std::string result = execute_and_pipe_stdout(path, "/usr/bin/objdump", args);
 
@@ -1092,6 +1098,11 @@ bool BxlObserver::is_statically_linked(const char *path)
 
 bool BxlObserver::contains_capabilities(const char *path)
 {
+    // Before running getcap, lets check if the path exists
+    if (real_access(path, F_OK) != 0) {
+        return false;
+    }
+
     char *args[] = {"", (char *)path, NULL};
     std::string result = execute_and_pipe_stdout(path, "/usr/sbin/getcap", args);
 

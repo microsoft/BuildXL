@@ -539,7 +539,7 @@ void PTraceSandbox::ReportOpen(std::string path, int oflag, std::string syscallN
         /* event_type */    eventType,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      path);
+        /* src_path */      path.c_str());
     event.SetMode(pathMode);
 
     m_bxl->CreateAndReportAccess(syscallName.c_str(), event);
@@ -551,7 +551,7 @@ void PTraceSandbox::ReportCreate(std::string syscallName, int dirfd, const char 
         /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
         /* pid */           m_traceePid,
         /* error */         returnValue,
-        /* src_path */      m_bxl->normalize_path_at(dirfd, pathname, /* oflags */ 0, m_traceePid));
+        /* src_path */      m_bxl->normalize_path_at(dirfd, pathname, /* oflags */ 0, m_traceePid).c_str());
     event.SetMode(mode);
     
     m_bxl->CreateAndReportAccess(syscallName.c_str(), event, /* check_cache */ false);
@@ -614,7 +614,7 @@ HANDLER_FUNCTION(execveat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_EXEC,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      exePath);
+        /* src_path */      exePath.c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(execveat), event);
     if (m_bxl->IsReportingProcessArgs()) {
@@ -632,7 +632,7 @@ HANDLER_FUNCTION(execve)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_EXEC,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      file);
+        /* src_path */      file.c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(execve), event);
     if (m_bxl->IsReportingProcessArgs()) {
@@ -647,7 +647,7 @@ HANDLER_FUNCTION(stat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname);
+        /* src_path */      pathname.c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(stat), event);
 }
@@ -659,7 +659,7 @@ HANDLER_FUNCTION(lstat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname);
+        /* src_path */      pathname.c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(lstat), event);
 }
@@ -683,7 +683,7 @@ HANDLER_FUNCTION_NEW(fstatat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname,
+        /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(fstatat), event);
@@ -696,7 +696,7 @@ HANDLER_FUNCTION(access)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_ACCESS,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname);
+        /* src_path */      pathname.c_str());
     event.SetNormalizeFlags(0);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(access), event);
@@ -711,7 +711,7 @@ HANDLER_FUNCTION(faccessat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_ACCESS,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname,
+        /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(faccessat), event);
@@ -751,7 +751,7 @@ void PTraceSandbox::HandleReportAccessFd(const char *syscall, int fd, es_event_t
             /* event_type */    eventType,
             /* pid */           m_traceePid,
             /* error */         0,
-            /* src_path */      path);
+            /* src_path */      path.c_str());
         m_bxl->CreateAndReportAccess(syscall, event);
     }
 }
@@ -793,7 +793,7 @@ HANDLER_FUNCTION(truncate)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      path);
+        /* src_path */      path.c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(truncate), event);
 }
@@ -818,7 +818,7 @@ HANDLER_FUNCTION(rmdir)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
         /* pid */           m_traceePid,
         /* error */         GetErrno(),
-        /* src_path */      path);
+        /* src_path */      path.c_str());
     event.SetMode(S_IFDIR);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(rmdir), event, /* check_cache */ false);
@@ -874,7 +874,7 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
                     /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
                     /* pid */           m_traceePid,
                     /* error */         mode,
-                    /* src_path */      fileOrDirectory);
+                    /* src_path */      fileOrDirectory.c_str());
                 event.SetNormalizeFlags(O_NOFOLLOW);
                 m_bxl->CreateAndReportAccess(syscall, event);
 
@@ -892,7 +892,7 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
             /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
             /* pid */           m_traceePid,
             /* error */         mode,
-            /* src_path */      oldStr);
+            /* src_path */      oldStr.c_str());
         event.SetNormalizeFlags(O_NOFOLLOW);
         m_bxl->CreateAndReportAccess(syscall, event);
 
@@ -909,8 +909,8 @@ HANDLER_FUNCTION(link)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_LINK,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_traceePid),
-        /* dest_path */     m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_traceePid));
+        /* src_path */      m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
+        /* dest_path */     m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_traceePid).c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(link), event);
 }
@@ -925,8 +925,8 @@ HANDLER_FUNCTION(linkat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_LINK,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid),
-        /* dest_path */     m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid));
+        /* src_path */      m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
+        /* dest_path */     m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid).c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(linkat), event);
 }
@@ -941,7 +941,7 @@ HANDLER_FUNCTION(unlink)
             /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
             /* pid */           m_traceePid,
             /* error */         0,
-            /* src_path */      path);
+            /* src_path */      path.c_str());
         event.SetNormalizeFlags(O_NOFOLLOW);
 
         m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(unlink), event);
@@ -962,7 +962,7 @@ HANDLER_FUNCTION(unlinkat)
             /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
             /* pid */           m_traceePid,
             /* error */         0,
-            /* src_path */      path,
+            /* src_path */      path.c_str(),
             /* src_fd */        dirfd);
         event.SetNormalizeFlags(oflags);
 
@@ -979,7 +979,7 @@ HANDLER_FUNCTION(symlink)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_traceePid));
+        /* src_path */      m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_traceePid).c_str());
     event.SetMode(S_IFLNK);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(symlink), event);
@@ -995,7 +995,7 @@ HANDLER_FUNCTION(symlinkat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      linkPath,
+        /* src_path */      linkPath.c_str(),
         /* src_fd */        dirfd);
     event.SetMode(S_IFLNK);
 
@@ -1011,7 +1011,7 @@ HANDLER_FUNCTION(readlink)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_READLINK,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      path);
+        /* src_path */      path.c_str());
     event.SetNormalizeFlags(O_NOFOLLOW);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(readlink), event);
@@ -1027,7 +1027,7 @@ HANDLER_FUNCTION(readlinkat)
             /* event_type */    ES_EVENT_TYPE_NOTIFY_READLINK,
             /* pid */           m_traceePid,
             /* error */         0,
-            /* src_path */      path,
+            /* src_path */      path.c_str(),
             /* src_fd */        fd);
     event.SetNormalizeFlags(O_NOFOLLOW);
 
@@ -1041,7 +1041,7 @@ HANDLER_FUNCTION(utime)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      filename);
+        /* src_path */      filename.c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(utime), event);
 }
@@ -1061,7 +1061,7 @@ HANDLER_FUNCTION(utimensat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname,
+        /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
     event.SetNormalizeFlags(0);
 
@@ -1078,7 +1078,7 @@ HANDLER_FUNCTION(futimesat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname,
+        /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
     event.SetNormalizeFlags(0);
 
@@ -1138,7 +1138,7 @@ HANDLER_FUNCTION(chmod)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_SETMODE,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      path);
+        /* src_path */      path.c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(chmod), event);
 }
@@ -1161,7 +1161,7 @@ HANDLER_FUNCTION(fchmodat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_SETMODE,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname,
+        /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
     event.SetNormalizeFlags(oflags);
 
@@ -1175,7 +1175,7 @@ HANDLER_FUNCTION(chown)
         /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname);
+        /* src_path */      pathname.c_str());
     
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(chown), event);
 }
@@ -1193,7 +1193,7 @@ HANDLER_FUNCTION(lchown)
         /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname);
+        /* src_path */      pathname.c_str());
     event.SetNormalizeFlags(O_NOFOLLOW);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(lchown), event);
@@ -1211,7 +1211,7 @@ HANDLER_FUNCTION(fchownat)
         /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      pathname,
+        /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
     event.SetNormalizeFlags(oflags);
 

@@ -180,21 +180,22 @@ void BxlObserver::Init()
 
 // Access Reporting
 AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, AccessReportGroup& report_group, bool check_cache) {
-    // Resolve paths if needed
-    ResolveEventPaths(event);
-    
-    // Check cache and return early if this access has already been checked.
-    if (check_cache && IsCacheHit(event.GetEventType(), event.GetSrcPath(), event.GetDstPath())) {
+    if (!event.IsValid()) {
+        LOG_DEBUG("Won't report an access for syscall %s because the event is invalid.", syscall_name); 
         return sNotChecked;
     }
 
     // Get mode if not already set by caller
-    if (event.GetMode() == 0) {
-        event.SetMode(get_mode(event.GetSrcPath().c_str()));
+    // Resolve paths and mode
+    bool isFileEvent = ResolveEventPaths(event);
+
+    // Check if non-file, we don't want to report these.
+    if (!isFileEvent) {
+        return sNotChecked;
     }
     
-    // Check if non-file, we don't want to report these.
-    if (is_non_file(event.GetMode())) {
+    // Check cache and return early if this access has already been checked.
+    if (check_cache && IsCacheHit(event.GetEventType(), event.GetSrcPath(), event.GetDstPath())) {
         return sNotChecked;
     }
 
@@ -250,9 +251,29 @@ void BxlObserver::CreateAndReportAccess(const char *syscall_name, buildxl::linux
     ReportAccess(report_group);
 }
 
-void BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
+// This method:
+//  1. Normalizes the paths of an event, effectively turning the event to one with path type kAbsolutePaths,
+//     except in the case where the file descriptor does not refer to a file (so absolute paths would be semantically incorrect).
+//  2. Resolves and sets the mode of the source path for the event. 
+//     We need to do this along with path resolution because we need to trace how the path was originally specified:
+//     it is important to resolve the mode using the file descriptor if the original system call used one,
+//     because the resolved absolute path might be ficticious (for example, for a file descriptor that 
+//     is a socket, the 'absolute path' looks something like 'socket:[12345]', and get_mode on that path
+//     returns an incorrect result). Note that after this function the event path type collapses to 
+//     'kAbsolutePaths', as mentioned above, so that fact would be lost.
+bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
     switch (event.GetPathType()) {
         case buildxl::linux::SandboxEventPathType::kFileDescriptors: {
+            // Update the mode using the file descriptor before resolving any paths
+            if (event.GetMode() == 0) {
+                event.SetMode(get_mode(event.GetSrcFd()));
+            }
+
+            if (is_non_file(event.GetMode())) {
+                // don't bother normalizing the paths: making the event an absolute path event would be wrong here
+                return false;
+            }
+
             char resolved_path_src[PATH_MAX] = { 0 };
             char resolved_path_dst[PATH_MAX] = { 0 };
 
@@ -263,10 +284,8 @@ void BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
             if (event.GetDstFd() != -1) {
                 FileDescriptorToPath(event.GetDstFd(), event.GetPid(), resolved_path_dst, PATH_MAX);
             }
-
             NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
-
-            event.UpdatePaths(resolved_path_src, resolved_path_dst);
+            event.UpdatePaths(resolved_path_src, resolved_path_dst);        
             break;
         }
         case buildxl::linux::SandboxEventPathType::kRelativePaths: {
@@ -284,6 +303,11 @@ void BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
             NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
 
             event.UpdatePaths(resolved_path_src, resolved_path_dst);
+
+            // Update the mode after normalization, so we use an absolute path for it
+            if (event.GetMode() == 0) {
+                event.SetMode(get_mode(event.GetSrcPath().c_str()));
+            }
             break;
         } 
         case buildxl::linux::SandboxEventPathType::kAbsolutePaths: {
@@ -298,11 +322,18 @@ void BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
                 NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
                 event.UpdatePaths(resolved_path_src, resolved_path_dst);
             }
+
+            // Update the mode after normalization
+            if (event.GetMode() == 0) {
+                event.SetMode(get_mode(event.GetSrcPath().c_str()));
+            }
             break;
         }
         default:
             break;
     }
+
+    return true;
 }
 
 void BxlObserver::NormalizeEventPaths(buildxl::linux::SandboxEvent& event, char *src_path, char *dst_path) {

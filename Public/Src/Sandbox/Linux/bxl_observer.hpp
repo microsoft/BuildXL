@@ -288,10 +288,14 @@ private:
 
     void relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullPath);
     void resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid);
+    
     /**
-     * Resolves relative or file descriptor paths to absolute paths in a SandboxEvent.
+     * If possible, resolves relative or file descriptor paths to absolute paths in a SandboxEvent, and returns true. 
+     * This might not be possible if the event is a file-descriptor specified event and the file descriptors
+     * do not correspond to real paths. In this case, the function returns false and the event is unmodified.
+     * In both cases, the mode of the source path of the event is updated
      */
-    void ResolveEventPaths(buildxl::linux::SandboxEvent& event);
+    bool ResolveEventPaths(buildxl::linux::SandboxEvent& event);
 
     /**
      * Normalizes the paths in a SandboxEvent if they are not already by following any symlinks if specified on the normalization flags
@@ -451,7 +455,7 @@ public:
     }
 
     void LogDebug(pid_t pid, const char *fmt, ...);
-
+    
     mode_t get_mode(const char *path)
     {
         int old = errno;

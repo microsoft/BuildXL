@@ -890,7 +890,10 @@ namespace BuildXL.Processes
 
             // If no active ReportedProcess is found (e.g., because it already completed but we are still processing its access reports),
             // try to see the latest exiting process with the same process id. Otherwise, it's ok to just create an unnamed one since ReportedProcess is used for descriptive purposes only
-            if (process == null && (!m_processesExits.TryGetValue(processId, out process) || process == null))
+            // Operations like ProcessRequiresPTrace and FirstAllowWriteCheckInProcess are sometimes sent before the corresponding process creation message, so we don't want to log those.
+            if (operation != ReportedFileOperation.ProcessRequiresPTrace &&
+                operation != ReportedFileOperation.FirstAllowWriteCheckInProcess &&
+                (process == null && (!m_processesExits.TryGetValue(processId, out process) || process == null)))
             {
                 // This is just an info message for debugging purposes. We are interested in spotting reports without an associated process
                 // because it means that the process creation message was not received.

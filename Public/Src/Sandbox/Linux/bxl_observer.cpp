@@ -191,6 +191,7 @@ AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::l
 
     // Check if non-file, we don't want to report these.
     if (!isFileEvent) {
+        LOG_DEBUG("Won't report an access for syscall %s because the paths for the event couldn't be resolved.", syscall_name); 
         return sNotChecked;
     }
     
@@ -262,7 +263,8 @@ void BxlObserver::CreateAndReportAccess(const char *syscall_name, buildxl::linux
 //     returns an incorrect result). Note that after this function the event path type collapses to 
 //     'kAbsolutePaths', as mentioned above, so that fact would be lost.
 bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
-    switch (event.GetPathType()) {
+    auto pathType = event.GetPathType();
+    switch (pathType) {
         case buildxl::linux::SandboxEventPathType::kFileDescriptors: {
             // Update the mode using the file descriptor before resolving any paths
             if (event.GetMode() == 0) {
@@ -331,6 +333,21 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
         }
         default:
             break;
+    }
+    
+    // After normalization, we should have valid absolute paths. If not, the file descriptor or paths were not associated to files to begin with, and we shouldn't proceed with the report
+    if (event.GetSrcPath().empty()) {
+        LOG_DEBUG("[ResolveEventPaths] Empty src path after normalization. Original event had path type %d", pathType);
+        return false;
+    }
+    else if (event.GetSrcPath()[0] != '/') {
+        LOG_DEBUG("[ResolveEventPaths] Non-absolute src path '%s' after normalization. Original event had path type %d", event.GetSrcPath().c_str(), pathType);
+        return false;
+    }
+
+    if (!event.GetDstPath().empty() && event.GetDstPath()[0] != '/') {
+        LOG_DEBUG("[ResolveEventPaths] Non-absolute dst path '%s' after normalization. Original event had path type %d", event.GetDstPath().c_str(), pathType);
+        return false;
     }
 
     return true;

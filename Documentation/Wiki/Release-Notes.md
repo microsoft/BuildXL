@@ -2,6 +2,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+
+# 0.1.0-20240426.5.1 (Release [379849](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=379849))
+-	Improved debuggability for “Problematic Workers” with multi-build synchronization issues in CloudBuild
+-	Update msvc version used for compiling RocksDB
+-	Fixes for reparse point handling on linux
+-	Security update for QTest package
+-	Improved clone3 API support for linux sandbox
+-	Crash fixes for linux
+-	Make toolpath non-mandatory in file access allowlists
+
 # 0.1.0-20240419.10 (Release [377534](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=377534))
 - Fix issue in file tracking on Ubuntu 22.04
 - Update Ninja integration for Ninja resolver
@@ -12,10 +22,68 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Misc crash fixes
 
 # 0.1.0-20240412.16 (Release [375925](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=375925))
--	Retry by default processes that exited with Azure Watson 0xDEAD code on ADO.
--	Linux sandbox refactoring work.
--	Produce a valid statsperf.json JSON file
--	Bug fixes
+- Retry by default processes that exited with Azure Watson 0xDEAD code on ADO.
+- Linux sandbox refactoring work.
+- Produce a valid statsperf.json JSON file
+- Bug fixes
+
+# 0.1.0-20240405.5 (Release [374323](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=374323))
+- Fix passthrough env var treatment under JS custom scheduler
+- Set shorter expiration for non-finalized symbol publishing requests
+- Better IPC error handling
+- Various fixes and improvements
+
+# 0.1.0-20240329.3 (Release [372820](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=372820))
+- Update Unix hard link error codes.
+- Correct DeleteFIleW error code returned by detours.
+- Refactoring Linux Sandbox.
+- Add helptext for result filter on the pip execution performance analyzer.
+- Pass operation timeout and max operation retries to drop daemon start arguments.
+- Enable sandbox logging if log observed file accesses flag is set.
+- Use OS specific node executable name in tool based JavaScript resolver.
+
+# 0.1.0-20230317.0 (Release [284911](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=284911))
+- [Linux sandbox] Propagate __BUILDXL_PTRACE_MQ_NAME through the process tree
+- Spanify parsing of the Linux sandbox reports
+- Decouple SandboxProcessPipExecutor out of Processes
+- Track the time it takes to push outputs to the cache as part of perf info
+- [Linux sandbox] Process pending reports from the FIFO even after the pip process tree has exited
+- Capture observed inputs for failed & retried pips in the XLG
+- Fix a crash caused by a race during build cancellation
+- [Linux sandbox] Generate write accesses for destination on rewrite interposing
+- Run ptrace sandbox as a daemon
+- Add error handling to CreateFileStream() GraphAgnosticIncrementalSchedulingState.cs in to avoid crashing on failure during incremental scheduling.
+- Handle pips that are too large to serialize to fingerprint store
+
+# 0.1.0-20240314.11 (Release [369658](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=369658))
+- Relax config calls so arbitrary expressions are accepted
+- Add read-only mode to the blob cache client
+- Add internalWarnings to DominoCompletion event
+- Update BuildXL.Tools.Ninjson version
+- Update APIScan yml to avoid using secret
+- Change 1ESPT BuildXL parameters after schema changes
+- Always report symbol publishing in CB
+- Publish new external cache packages
+- Hook up command line fingerprint salt that accumulates
+- Some bug fixes
+
+# 0.1.0-20240307.8.1 (Release [369197](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=369197))
+- Perf improvements in cache stack for file copies in local builds
+- Improvements for cache hit rate on serviceless BlobL3 cache (1ES HP cache scenarios)
+- Crash fixes
+- Improvements for distributed worker connectivity rate for Office builds
+- Update to net8
+
+# 0.1.0-20240301.2  (Release [366837](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=366837))
+- Add a lage location to the lage resolver
+- Fix crash when we receive the ack for Attach call after AttachCompleted
+- Stop using legacy .net symbols
+- Add AAD support to blob-based cache clients
+- Logging improvements on ADO
+- Add open file descriptors counter to status.csv file
+- Improve logging for ProcessAddFiles in DropDaemon
+- Add option to specify timeout and retry intervals in drop config
+- Reduce cache telemetry in BuildXL
 
 # 0.1.0-20240223.2 (Release [365241](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=365241))
 - Modified the build status line for IPC pips progress
@@ -38,7 +106,6 @@ This page is a curated list of the release notes for releases after 0.20170619.4
   - ignore absent files,
   - treat request for existing symbol as user error.
 - Avoid logging full (big) message payload received by ApiServer.
-
 
 # 0.1.0-20240202.1.1 (Release [361581](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=361581))
 - BXL bits are now using Net 7

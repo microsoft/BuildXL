@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using BuildXL.Utilities.Core;
@@ -214,10 +215,9 @@ namespace BuildXL.Utilities.Configuration
         /// Allows to overwrite the current system username with a custom value. If present, Aria telemetry and BuildXL.Native.UserUtilities
         /// will return this value. Often lab build machines are setup / provisioned with the same system username (e.g. in Apex builds) so we allow
         /// for this to be settable from the outside, thus partners can provide more fine grained telemetry data.
-        /// On ADO, we try to override the username with BUILD_REQUESTEDFOR so instead of using Environment.UserName in our telemetry, which is always 'cloudtest'
-        /// we use the actual username of whoever is requesting the build.
+        /// We overwrite this value for ADO and Codespaces environment.
         /// </summary>
-        public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => value ?? Environment.GetEnvironmentVariable("BUILD_REQUESTEDFOR"));
+        public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => GetUserName(value));
 
         /// <summary>
         /// Specifies whether a new pip should not be inlined if it runs on the same queue with the pip that schedules it.
@@ -523,6 +523,17 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> CancelLargestRamUseFirst = CreateSetting("BuildXLCancelLargestRamUseFirst", value => value == "1");
 
         /// <summary>
+        /// List of env variables if present are used to override the BUILDXL_USERNAME.
+        /// </summary>
+        /// <remarks>
+        /// BUILD_REQUESTEDFOR - This variable contains the username associated with the person who initiated the build.
+        /// For more info refer to - https://learn.microsoft.com/en-us/dotnet/api/microsoft.teamfoundation.build.webapi.build.requestedfor?view=azure-devops-dotnet
+        /// GITHUB_USER - The name of the user that initiated the codespace.
+        /// For more info refer to - https://docs.github.com/en/codespaces/developing-in-a-codespace/default-environment-variables-for-your-codespace#:~:text=GitHub%20Codespaces.%22-,GITHUB_USER,-The%20name%20of
+        /// </remarks>
+        private static readonly string[] s_envVarsForUserNames = ["BUILD_REQUESTEDFOR", "GITHUB_USER"];
+
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)
@@ -630,6 +641,21 @@ namespace BuildXL.Utilities.Configuration
         {
             return new Setting<T>(name, valueFactory);
         }
+
+        /// <summary>
+        /// Retrieves the UserName in the environments where we want to override the Environment.UserName.
+        /// </summary>
+        /// <remarks>
+        /// If the user has not provided a custom UserName we can override it in the following cases:
+        /// On ADO, we try to override the username with BUILD_REQUESTEDFOR so instead of using Environment.UserName in our telemetry, which is always 'cloudtest'
+        /// we use the actual username of whoever is requesting the build.
+        /// For Codespaces we try to override the UserName with the value of GITHUB_USER env var.
+        /// </remarks>
+        public static string GetUserName(string customValue) =>
+            customValue ??
+            s_envVarsForUserNames
+                .Select(Environment.GetEnvironmentVariable)
+                .FirstOrDefault(envVar => !string.IsNullOrEmpty(envVar));
 
         private static class SettingsEnvironment
         {

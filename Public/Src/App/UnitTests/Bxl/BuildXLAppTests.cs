@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using System.Reflection;
@@ -143,6 +144,60 @@ namespace Test.BuildXL
 
             XAssert.AreNotEqual(stringGuid[..firstDash], sessionId[..firstDash], "The first blocks should not match");
             XAssert.AreEqual(expectedString, sessionId[firstDash..]);
+        }
+
+
+        /// <summary>
+        /// This unit test is used to check the functionality of GetUserName method.
+        /// For Codespaces - We use the GITHUB_USER env var to capture the UserName value.
+        /// For ADO - We use the BUILD_REQUESTEDFOR env var to capture the UserName value.
+        /// </summary>
+        [Theory]
+        [InlineData("GITHUB_USER", "User1_microsoft")]
+        [InlineData("BUILD_REQUESTEDFOR", "User2")]
+        public void TestGetUserNameForTelemetry(string envVar, string envVarValue)
+        {
+            var originalEnvVarValue = Environment.GetEnvironmentVariable(envVar);
+
+            try
+            {
+                Environment.SetEnvironmentVariable(envVar, envVarValue);
+                XAssert.AreEqual(EngineEnvironmentSettings.GetUserName(null), envVarValue);
+            }
+            finally
+            {
+                // Reset the env var values, so that they are not modified in the unit test.
+                Environment.SetEnvironmentVariable(envVar, originalEnvVarValue);
+            }
+        }
+
+        /// <summary>
+        /// This unit test is used to check the functionality of GetUserName method, when the user has provided custom value.
+        /// If the user has provided the UserName value then it takes precedence over the other env vars.
+        /// </summary>
+        [Fact]
+        public void TestGetUserNameForCustomUsernameValue()
+        {
+            var envVar1 = "BUILDXL_USERNAME";
+            var envVar2 = "GITHUB_USER";
+
+            var customEnvVarValue = "customValue";
+
+            var originalEnvVarValue1 = Environment.GetEnvironmentVariable(envVar1);
+            var originalEnvVarValue2 = Environment.GetEnvironmentVariable(envVar2);
+
+            try
+            {
+                Environment.SetEnvironmentVariable(envVar1, customEnvVarValue);
+                Environment.SetEnvironmentVariable(envVar2, "user2");
+                XAssert.AreEqual(EngineEnvironmentSettings.GetUserName(customEnvVarValue), customEnvVarValue);
+            }
+            finally
+            {
+                // Reset the env var values, so that they are not modified in the unit test.
+                Environment.SetEnvironmentVariable(envVar1, originalEnvVarValue1);
+                Environment.SetEnvironmentVariable(envVar2, originalEnvVarValue2);
+            }
         }
     }
 }

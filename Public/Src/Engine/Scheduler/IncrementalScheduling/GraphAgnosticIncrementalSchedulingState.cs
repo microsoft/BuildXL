@@ -234,11 +234,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private readonly ITempCleaner m_tempDirectoryCleaner;
 
         /// <summary>
-        /// If true, don't automatically dirty downstream pips of succeed fast pips.
-        /// </summary>
-        private readonly bool m_stopDirtyOnSucceedFast;
-
-        /// <summary>
         /// Envelope for serialization
         /// </summary>
         private static readonly FileEnvelope s_fileEnvelope = new FileEnvelope(name: nameof(GraphAgnosticIncrementalSchedulingState), version: (int) PipFingerprintingVersion.TwoPhaseV2 + 5);
@@ -294,8 +289,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             PipGraphSequenceNumber pipGraphSequenceNumber,
             int indexToGraphLogs,
             Guid engineStateId,
-            ITempCleaner tempDirectoryCleaner,
-            bool stopDirtyOnSucceedFast)
+            ITempCleaner tempDirectoryCleaner)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(atomicSaveToken.IsValid);
@@ -337,7 +331,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             m_pipGraphSequenceNumber = pipGraphSequenceNumber;
             m_indexToGraphLogs = indexToGraphLogs;
             m_tempDirectoryCleaner = tempDirectoryCleaner;
-            m_stopDirtyOnSucceedFast = stopDirtyOnSucceedFast;
         }
 
         /// <summary>
@@ -358,7 +351,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             GraphAgnosticIncrementalSchedulingStateId incrementalSchedulingStateId = 
                 GraphAgnosticIncrementalSchedulingStateId.Create(pipGraph.Context.PathTable, configuration, preserveOutputSalt);
-            DirtyNodeTracker initialDirtyNodeTracker = CreateInitialDirtyNodeTracker(pipGraph, false, configuration.Schedule.StopDirtyOnSucceedFastPips);
+            DirtyNodeTracker initialDirtyNodeTracker = CreateInitialDirtyNodeTracker(pipGraph, false);
 
             var internalPathTable = new PathTable();
             var pipProducers = PipProducers.CreateNew();
@@ -392,14 +385,13 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 pipGraphSequenceNumber,
                 indexToGraphLogs,
                 Guid.NewGuid(),
-                tempDirectoryCleaner,
-                configuration.Schedule.StopDirtyOnSucceedFastPips);
+                tempDirectoryCleaner);
         }
 
         /// <summary>
         /// Gets initial dirty node tracker based on the given <see cref="PipGraph"/>.
         /// </summary>
-        private static DirtyNodeTracker CreateInitialDirtyNodeTracker(PipGraph pipGraph, bool dirtyNodeChanged, bool stopOnSucceedFastPips)
+        private static DirtyNodeTracker CreateInitialDirtyNodeTracker(PipGraph pipGraph, bool dirtyNodeChanged)
         {
             Contract.Requires(pipGraph != null);
 
@@ -425,8 +417,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 dirtyNodes,
                 perpetualDirtyNodes,
                 dirtyNodeChanged,
-                materializedNodes,
-                CreateDirtyNodeTrackerTraversal(pipGraph, stopOnSucceedFastPips));
+                materializedNodes);
         }
 
         /// <summary>
@@ -492,7 +483,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             DirtyGraphAgnosticState();
         }
 
-        private void DirtyGraphSpecificState() => DirtyNodeTracker = CreateInitialDirtyNodeTracker(PipGraph, true, m_stopDirtyOnSucceedFast);
+        private void DirtyGraphSpecificState() => DirtyNodeTracker = CreateInitialDirtyNodeTracker(PipGraph, true);
 
         private void DirtyGraphAgnosticState()
         {
@@ -1518,7 +1509,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 PipGraph,
                 m_internalPathTable,
                 newIncrementalSchedulingStateId,
-                new DirtyNodeTracker(pipGraph.DirectedGraph, DirtyNodeTracker.CreateSerializedState(), CreateDirtyNodeTrackerTraversal(pipGraph, configuration.Schedule.StopDirtyOnSucceedFastPips)),
+                new DirtyNodeTracker(pipGraph.DirectedGraph, DirtyNodeTracker.CreateSerializedState()),
                 m_pipProducers,
                 m_cleanPips,
                 m_materializedPips,
@@ -1534,8 +1525,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 m_pipGraphSequenceNumber,
                 m_indexToGraphLogs,
                 Guid.NewGuid(), // Renew engine state id to avoid cross talk with different build server.
-                tempDirectoryCleaner,
-                configuration.Schedule.StopDirtyOnSucceedFastPips);
+                tempDirectoryCleaner);
         }
 
         /// <summary>
@@ -1676,19 +1666,17 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             pipGraphSequenceNumber = loadedGraphId != pipGraph.GraphId ? pipGraphSequenceNumber.Increment() : pipGraphSequenceNumber;
 
-            // configuration.Schedule is null in analysisMode and this boolean doesn't do anything in that case.
-            bool stopDirtyOnSuccceedFastPips = analysisModeOnly ? false : configuration.Schedule.StopDirtyOnSucceedFastPips;
             if (loadedGraphId == pipGraph.GraphId)
             {
                 // Loaded graph id matches the graph id of the current graph, which means that
                 // the dirty node tracker can be reused. Other states do not need to be changed.
                 Contract.Assert(dirtyNodeTrackerSerializedState != null);
-                dirtyNodeTracker = new DirtyNodeTracker(pipGraph.DirectedGraph, dirtyNodeTrackerSerializedState, CreateDirtyNodeTrackerTraversal(pipGraph, stopDirtyOnSuccceedFastPips));
+                dirtyNodeTracker = new DirtyNodeTracker(pipGraph.DirectedGraph, dirtyNodeTrackerSerializedState);
             }
             else
             {
                 // Re-initialize dirty node tracker.
-                dirtyNodeTracker = CreateInitialDirtyNodeTracker(pipGraph, false, stopDirtyOnSuccceedFastPips);
+                dirtyNodeTracker = CreateInitialDirtyNodeTracker(pipGraph, false);
 
                 var processGraphChangeStopwatch = new StopwatchVar();
 
@@ -1744,8 +1732,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 pipGraphSequenceNumber,
                 indexToGraphLogs,
                 analysisModeOnly ? engineStateId : Guid.NewGuid(), // Renew if not analysis mode.
-                tempDirectoryCleaner,
-                stopDirtyOnSuccceedFastPips);
+                tempDirectoryCleaner);
 
             StateStats.LogStats(state, Tracing.Logger.Log.IncrementalSchedulingStateStatsAfterLoad);
 
@@ -2533,8 +2520,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         #endregion
 
         #region Helpers
-
-        private static DirtyNodeTracker.TraversalController CreateDirtyNodeTrackerTraversal(PipGraph pipGraph, bool stopOnSucceedFast) => !stopOnSucceedFast ? null : new (node => pipGraph.IsSucceedFast(node.ToPipId()));
 
         private static AbsolutePath MapPath(PathTable originPathTable, AbsolutePath path, PathTable targetPathTable)
         {

@@ -959,6 +959,7 @@ ENDLOCAL && EXIT /b 1
             IgnoreWarnings();
         }
 
+        [FactIfSupported(requiresJournalScan: true)]
         public void TransistiveNotDirtyUsingSucceedFast()
         {
             IncrementalSchedulingSetup();
@@ -977,8 +978,8 @@ ENDLOCAL && EXIT /b 1
             //           o3
             //
             //
-            // Modifying s1 should not dirty p3 because s1 is succeed fast.
-            // Modifying s2 should dirty p3 because p2 is not succeed fast and p3 is downstream of p2
+            // Modifying s1 should dirty p1 and p3 regardless of succeedfast
+            // Modifying s2 should dirty p2 and p3
             //
             ///
 
@@ -1018,9 +1019,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
             iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S1"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S1"]);
-            XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
-            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
-            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
+            XAssert.AreEqual(3, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
 
             foreach (var n in iss.DirtyNodeTracker.AllDirtyNodes)
             {
@@ -1030,9 +1032,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
             iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S2"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S2"]);
-            XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
-            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
-            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
+            XAssert.AreEqual(3, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
 
             // Now that StopDirtyOnSucceedFastPips, invalidating S1 should not invalidate P3.
             m_configuration.Schedule.StopDirtyOnSucceedFastPips = true;
@@ -1045,8 +1048,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
             iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S1"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S1"]);
-            XAssert.AreEqual(1, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
-            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+            XAssert.AreEqual(3, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
 
             foreach (var n in iss.DirtyNodeTracker.AllDirtyNodes)
             {
@@ -1056,9 +1061,10 @@ ENDLOCAL && EXIT /b 1
             XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
             iss.DirtyNodeTracker.MarkNodeNonMaterialized(nodes["S2"]);
             iss.DirtyNodeTracker.MarkNodeDirty(nodes["S2"]);
-            XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
-            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
-            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
+            XAssert.AreEqual(3, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
         }
 
         /// <summary>

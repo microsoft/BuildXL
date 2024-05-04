@@ -3457,6 +3457,16 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void MinimumWorkersNotSatisfied(LoggingContext context, int minimumWorkers, int connectedWorkers);
 
         [GeneratedEvent(
+            (int)LogEventId.HighCountProblematicWorkers,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
+            Message = "The number of problematic workers ({problematicWorkers}) exceeds half of the total remote workers ({remoteWorkers}). You can find the reason for each disconnected worker in the warning file. \r\n"
+                       + "The build will self-terminate because it is likely to timeout. Internal error retry should kick in where available.")]
+        public abstract void HighCountProblematicWorkers(LoggingContext context, int problematicWorkers, int remoteWorkers);
+
+        [GeneratedEvent(
             (int)LogEventId.WorkerCountBelowWarningThreshold,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

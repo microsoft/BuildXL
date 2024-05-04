@@ -665,6 +665,7 @@ namespace BuildXL.Engine.Distribution
 
                 Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, infraFailure);
                 m_orchestratorService.Counters.IncrementCounter(DistributionCounter.NumProblematicWorkers);
+                Environment.ReportProblematicWorker();
             }
 
             if (EverConnected)

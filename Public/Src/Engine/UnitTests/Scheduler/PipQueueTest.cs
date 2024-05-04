@@ -660,6 +660,11 @@ namespace Test.BuildXL.Scheduler
             public bool ShouldCreateHandleWithSequentialScan(FileArtifact file) => false;
             public Task<Optional<IEnumerable<AbsolutePath>>> GetReadPathsAsync(OperationContext context, Pip pip) => throw new NotImplementedException();
 
+            public void ReportProblematicWorker()
+            {
+                throw new NotImplementedException();
+            }
+
             IArtifactContentCache IFileContentManagerHost.ArtifactContentCache => Cache.ArtifactContentCache;
 
             IExecutionLogTarget IFileContentManagerHost.ExecutionLog => State.ExecutionLog;

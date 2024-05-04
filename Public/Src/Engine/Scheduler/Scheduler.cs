@@ -350,6 +350,11 @@ namespace BuildXL.Scheduler
         private ObjectPool<Task[]> m_taskArrayPool;
 
         /// <summary>
+        /// The number of problematic remote workers
+        /// </summary>
+        private int m_numProblematicWorkers;
+
+        /// <summary>
         /// Enables distribution for the orchestrator node
         /// </summary>
         public void EnableDistribution(RemoteWorkerBase[] remoteWorkers)
@@ -8178,6 +8183,20 @@ namespace BuildXL.Scheduler
             {
                 // Cancel actively running external processes.
                 m_schedulerCancellationTokenSource?.Cancel();
+            }
+        }
+
+        /// <inheritdoc />
+        public void ReportProblematicWorker()
+        {
+            int numProblematicWorkers = Interlocked.Increment(ref m_numProblematicWorkers);
+
+            if (EngineEnvironmentSettings.LimitProblematicWorkerCount &&
+                m_remoteWorkers.Length >= 4 &&
+                numProblematicWorkers > m_remoteWorkers.Length / 2)
+            {
+                Logger.Log.HighCountProblematicWorkers(m_loggingContext, numProblematicWorkers, m_remoteWorkers.Length);
+                TerminateForInternalError();
             }
         }
 

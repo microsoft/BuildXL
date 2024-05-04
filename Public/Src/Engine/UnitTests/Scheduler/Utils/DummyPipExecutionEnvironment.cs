@@ -769,6 +769,11 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         public Task<Optional<IEnumerable<AbsolutePath>>> GetReadPathsAsync(OperationContext context, Pip pip) => throw new NotImplementedException();
+
+        public void ReportProblematicWorker()
+        {
+            throw new NotImplementedException();
+        }
     }
 
     internal sealed class DummyServiceManager : ServiceManager

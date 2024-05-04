@@ -468,6 +468,7 @@ namespace BuildXL.Scheduler.Tracing
         BuildSetCalculatorStats = 14210,
         BuildSetCalculatorProcessStats = 14211,
         BuildSetCalculatorScheduleDependenciesUntilCleanAndMaterializedStats = 14212,
+        HighCountProblematicWorkers = 14213,
 
         FailedToDuplicateSchedulerFile = 14400,
 

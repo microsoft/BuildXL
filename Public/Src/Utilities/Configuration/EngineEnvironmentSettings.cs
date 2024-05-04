@@ -279,6 +279,14 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         public static readonly Setting<bool> AlwaysEnsureMinimumWorkers = CreateSetting("BuildXLAlwaysEnsureMinimumWorkers", value => value == "1");
 
+        /// <summary>
+        /// If true, the build will fail early with an internal error when the number of problematic workers exceeds half of the remote workers.
+        /// </summary>
+        /// <remarks>
+        /// Enabled by default
+        /// </remarks>
+        public static readonly Setting<bool> LimitProblematicWorkerCount = CreateSetting("BuildXLLimitProblematicWorkerCount", value => string.IsNullOrWhiteSpace(value) || value == "1");
+
         #endregion
 
         #region Grpc related settings

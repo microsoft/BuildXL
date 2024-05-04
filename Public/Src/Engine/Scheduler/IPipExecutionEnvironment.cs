@@ -256,6 +256,10 @@ namespace BuildXL.Scheduler
         /// <nodoc />
         PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; set; }
 
+        /// <summary>
+        /// Report a problematic worker
+        /// </summary>
+        void ReportProblematicWorker();
     }
 
     /// <summary>

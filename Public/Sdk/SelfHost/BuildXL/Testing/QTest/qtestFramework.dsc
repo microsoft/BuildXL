@@ -63,7 +63,6 @@ export function getFramework(frameworkToWrap: Managed.TestFramework) : Managed.T
                 // hand picking files to avoid collisions with xunit assemblies specified elsewhere
                 ...importFrom("xunit.runner.visualstudio").Contents.all.getFiles([
                     r`build/net6.0/xunit.runner.reporters.netcoreapp10.dll`,
-                    r`build/net6.0/xunit.runner.visualstudio.dotnetcore.testadapter.deps.json`,
                     r`build/net6.0/xunit.runner.visualstudio.dotnetcore.testadapter.dll`,
                     r`build/net6.0/xunit.runner.visualstudio.props`
                 ]),
@@ -177,6 +176,13 @@ function runTest(args : TestRunArguments) : File[] {
         qTestEnvironmentVariables = [
             ...dotNetTool.environmentVariables,
             {name: "PATH", value: dotNetTool.tool.exe.parent}];
+    }
+
+    if (args.envVars !== undefined) {
+        qTestEnvironmentVariables = [
+            ...(qTestEnvironmentVariables ? qTestEnvironmentVariables : []),
+            ...(args.envVars)
+        ];
     }
 
     let result = Qtest.runQTest({

@@ -980,7 +980,6 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 /** Returns true if test should use QTest framework. */
 function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
     return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
-        && !isDotNetCore                                      // Disable QTest for .net 6 & 7 & 8 for now.
         && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
 }
 

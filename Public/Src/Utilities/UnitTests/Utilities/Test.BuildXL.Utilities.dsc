@@ -3,6 +3,7 @@
 
 import * as Managed from "Sdk.Managed";
 import {Transformer} from "Sdk.Transformers";
+import * as XUnit from "Sdk.Managed.Testing.XUnit";
 
 namespace Core {
     export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
@@ -12,17 +13,20 @@ namespace Core {
         assemblyName: "Test.BuildXL.Utilities",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
-		runTestArgs: {
-			unsafeTestRunArguments: {
-				untrackedScopes: [
-					 ...addIfLazy(Context.getCurrentHost().os === "win", () => [
-						   d`${Context.getMount("ProgramFiles").path}/Git/etc/gitconfig`,
-						   d`${Context.getMount("SourceRoot").path}/.git`,
-					 ]),
-					 ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp/.dotnet/shm`])
-				]
-			},
-		},
+        // TODO - there is some issue with deploying the git binaries to the unit test directory under QTest.
+        // Leave this as xunit for now
+        testFramework: XUnit.framework,
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                untrackedScopes: [
+                     ...addIfLazy(Context.getCurrentHost().os === "win", () => [
+                           d`${Context.getMount("ProgramFiles").path}/Git/etc/gitconfig`,
+                           d`${Context.getMount("SourceRoot").path}/.git`,
+                     ]),
+                     ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp/.dotnet/shm`])
+                ]
+            },
+        },
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Utilities").dll,

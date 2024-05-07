@@ -12,7 +12,7 @@ jobs:
   cancelTimeoutInMinutes: 1
   condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
   pool:
-    name: BuildXL-DevOpsAgents-PME
+    name: BuildXL-DevOpsAgents-Selfhost
     os: windows
 
   templateContext:
@@ -93,7 +93,7 @@ jobs:
   timeoutInMinutes: 180
   condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
   pool:
-    name: BuildXL-DevOpsAgents-PME
+    name: BuildXL-DevOpsAgents-Selfhost
     os: windows
 
   strategy:
@@ -156,7 +156,8 @@ jobs:
   timeoutInMinutes: 180
   condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
   pool:
-    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    name: BuildXL-DevOpsAgents-Selfhost
+    image: linux-PME-GPT
     os: linux
   
   templateContext:

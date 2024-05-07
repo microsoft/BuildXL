@@ -1,7 +1,8 @@
 trigger: none
 
 pool:
-  name: BuildXL-DevOpsAgents-PME
+  name: BuildXL-DevOpsAgents-Selfhost
+  os: windows
 
 resources:
   repositories:

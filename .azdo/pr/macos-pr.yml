@@ -7,7 +7,8 @@ jobs:
 - job: buildTests
   displayName: Build Unit Test Deployment with BuildXL on Windows
   pool:
-    name: BuildXL-DevOpsAgents-PME
+    name: BuildXL-DevOpsAgents-Selfhost
+    os: windows
   steps:
   - checkout: self
 

@@ -20,7 +20,8 @@ jobs:
   cancelTimeoutInMinutes: 1
 
   pool:
-    name: BuildXL-DevOpsAgents-PME
+    name: BuildXL-DevOpsAgents-Selfhost
+    os: windows
 
   steps:
   - checkout: self

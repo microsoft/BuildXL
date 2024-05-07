@@ -23,7 +23,7 @@ extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
     pool:
-      name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+      name: BuildXL-DevOpsAgents-Selfhost
       os: linux
       demands:
       - ImageOverride -equals ubuntu-22.04-PME-GPT
@@ -38,8 +38,8 @@ extends:
     - template: /.azdo/linux/linux-stages-template.yml
       parameters:
         pool:
-          name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+          name: BuildXL-DevOpsAgents-Selfhost
           os: linux
-          demands:
-          - ImageOverride -equals ubuntu-22.04-PME-GPT
+      demands:
+      - ImageOverride -equals ubuntu-22.04-PME-GPT
         BxlCommonArgs: ${{ parameters.BxlCommonArgs }}

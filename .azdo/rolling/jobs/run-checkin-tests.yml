@@ -5,7 +5,8 @@ jobs:
   cancelTimeoutInMinutes: 1
   condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
   pool:
-    name: BuildXL-DevOpsAgents-PME
+    name: BuildXL-DevOpsAgents-Selfhost
+    os: windows
   templateContext:
     sdl:
       binskim:

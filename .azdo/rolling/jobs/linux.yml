@@ -4,7 +4,8 @@ jobs:
   timeoutInMinutes: 180
 
   pool:
-    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    name: BuildXL-DevOpsAgents-Selfhost
+    image: linux-PME-GPT
     os: linux
 
   templateContext:

@@ -2,7 +2,8 @@ parameters:
 - name: pool
   type: object
   default:
-    name: BuildXL-DevOpsAgents-Linux-Stateless-PME
+    name: BuildXL-DevOpsAgents-Selfhost
+    image: linux-PME-GPT
     os: linux
 
 jobs:

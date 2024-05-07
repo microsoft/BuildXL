@@ -77,7 +77,5 @@ namespace BuildXL.App.Tracing
         FoundGitConfigFile = 15009,
         IncompatibleLinuxDistroVersionDetected = 15010,
         FailedToObtainLinuxDistroInfo = 15011,
-
-        ConsoleNotConnected = 15012,
     }
 }

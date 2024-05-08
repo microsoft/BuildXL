@@ -40,6 +40,6 @@ extends:
         pool:
           name: BuildXL-DevOpsAgents-Selfhost
           os: linux
-      demands:
-      - ImageOverride -equals ubuntu-22.04-PME-GPT
+          demands:
+          - ImageOverride -equals ubuntu-22.04-PME-GPT
         BxlCommonArgs: ${{ parameters.BxlCommonArgs }}

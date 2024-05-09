@@ -165,7 +165,7 @@ export interface SymbolRunner {
     /** 
      * Indexes and publishes files.
      */
-    addFilesToSymbol: (createResult: SymbolCreateResult, args: OperationArguments, fileInfos: File[]) => Result;
+    addFilesToSymbol: (createResult: SymbolCreateResult, args: OperationArguments, fileInfos: File[], clientKeys?: string[]) => Result;
 
     /**
      * Indexes and publishes files withing the specified directories.

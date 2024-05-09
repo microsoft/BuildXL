@@ -156,7 +156,7 @@ function createSymbol(args: SymbolCreateArguments): SymbolCreateResult {
     return <SymbolCreateResult>{serviceStartInfo: symbolStartResult, outputs: result.outputs};
 }
 
-function addFiles(createResult: SymbolCreateResult, args: OperationArguments, files: File[]): Result {
+function addFiles(createResult: SymbolCreateResult, args: OperationArguments, files: File[], clientKeys?: string[]): Result {
     Contract.requires(
         files !== undefined,
         "files to add to a symbol request must be defined"
@@ -170,7 +170,7 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
         return undefined;
     }
 
-    const symbolMetadataFile = indexSymbolFiles(files, args);
+    const symbolMetadataFile = indexSymbolFiles(files, args, clientKeys);
 
     const fileMessageBody = files.length !== 0
         ? [
@@ -238,7 +238,7 @@ function addDirectories(createResult: SymbolCreateResult, args: OperationArgumen
     );
 }
 
-function indexSymbolFiles(files: File[], args: OperationArguments) : DerivedFile {
+function indexSymbolFiles(files: File[], args: OperationArguments, clientKeys?: string[]) : DerivedFile {
     const symbolDataFileName = "symbol_data.txt";
 
     Contract.requires(
@@ -260,6 +260,7 @@ function indexSymbolFiles(files: File[], args: OperationArguments) : DerivedFile
             Cmd.startUsingResponseFile(false),
             Cmd.options("--file ", files.map(f => Artifact.input(f))),
             Cmd.options("--hash ", files.map(f => Artifact.vsoHash(f))),
+            Cmd.options("--customClientKey ", clientKeys),
             Cmd.option("--symbolMetadata ", Artifact.output(outputPath)),
         ],
         unsafe: {

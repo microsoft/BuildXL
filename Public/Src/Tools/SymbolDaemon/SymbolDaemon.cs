@@ -116,6 +116,14 @@ namespace Tool.SymbolDaemon
             IsMultiValue = false,
         };
 
+        internal static readonly StrOption ClientKeyForSymbol = new StrOption("customClientKey")
+        {
+            ShortName = "ck",
+            HelpText = "Custom client key for indexFiles. When this is provided, the logic for generate clientkey to files should be bypassed. This option only works for IndexFilesCmd",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
         internal static readonly StrOption InputDirectoriesContent = new StrOption("inputDirectoriesContent")
         {
             ShortName = "idc",
@@ -330,7 +338,7 @@ namespace Tool.SymbolDaemon
         internal static readonly Command IndexFilesCmd = RegisterCommand(
             name: "indexFiles",
             description: "Indexes the specified files and saves SymbolData into a file.",
-            options: new Option[] { File, HashOptional, SymbolMetadataFile },
+            options: new Option[] { File, HashOptional, SymbolMetadataFile, ClientKeyForSymbol },
             needsIpcClient: false,
             clientAction: (ConfiguredCommand conf, IClient rpc) =>
             {
@@ -339,10 +347,11 @@ namespace Tool.SymbolDaemon
                 // hashes are sent from BXL by serializing FileContentInfo
                 var hashesWithLength = HashOptional.GetValues(conf.Config);
                 var hashesOnly = hashesWithLength.Select(h => FileContentInfo.Parse(h).Hash).ToArray();
+                var customClientKeys = ClientKeyForSymbol.GetValues(conf.Config).ToArray();
 
                 var outputFile = SymbolMetadataFile.GetValue(conf.Config);
 
-                IndexFilesAndStoreMetadataToFile(files, hashesOnly, outputFile);
+                IndexFilesAndStoreMetadataToFile(files, hashesOnly, outputFile, customClientKeys);
 
                 return 0;
             });
@@ -388,7 +397,7 @@ namespace Tool.SymbolDaemon
 
                 var outputFile = SymbolMetadataFile.GetValue(conf.Config);
 
-                IndexFilesAndStoreMetadataToFile(files.ToArray(), hashes.ToArray(), outputFile);
+                IndexFilesAndStoreMetadataToFile(files.ToArray(), hashes.ToArray(), outputFile, customClientKeys: null);
 
                 return 0;
             });
@@ -408,10 +417,15 @@ namespace Tool.SymbolDaemon
                 return SuccessOrFirstError(result);
             });
 
-        private static void IndexFilesAndStoreMetadataToFile(string[] files, ContentHash[] hashes, string outputFile)
+        private static void IndexFilesAndStoreMetadataToFile(string[] files, ContentHash[] hashes, string outputFile, string[] customClientKeys)
         {
             Contract.Assert(files.Length == hashes.Length, "Array lengths must match.");
             Contract.Assert(!string.IsNullOrEmpty(outputFile), "Output file path must be provided.");
+
+            if(customClientKeys?.Length > 0)
+            {
+                Contract.Assert(files.Length == customClientKeys.Length, "customClientKeys length must equal files length.");
+            }
 
             var indexer = new SymbolIndexer(SymbolAppTraceSource.SingleInstance);
             var symbolsMetadata = new Dictionary<ContentHash, HashSet<DebugEntryData>>(files.Length);
@@ -429,8 +443,26 @@ namespace Tool.SymbolDaemon
                 // of them mainly for DFA purposes). Since there is no actual file, there is nothing for us to index.
                 if (!WellKnownContentHashUtilities.IsAbsentFileHash(hashes[i]))
                 {
+                    var debugEntries = Enumerable.Empty<DebugEntryData>();
+
+                    // customClientKeys can have null/empty entries implying that BXL should generate a client key.
+                    if (customClientKeys?.Length > 0 && !string.IsNullOrEmpty(customClientKeys[i]))
+                    {
+                        debugEntries = [
+                            new DebugEntryData()
+                            {
+                                InformationLevel = (int)DebugInformationLevel.None,
+                                ClientKey = customClientKeys[i],
+                                BlobIdentifier = null
+                            }
+                        ];
+                    }
+                    else
+                    {
+                        debugEntries = indexer.GetDebugEntries(new System.IO.FileInfo(files[i]), calculateBlobId: false);
+                    }
                     // Index the file. It might not contain any symbol data. In this case, we will have an empty set.
-                    symbols.UnionWith(indexer.GetDebugEntries(new System.IO.FileInfo(files[i]), calculateBlobId: false));
+                    symbols.UnionWith(debugEntries);
                 }
             }
 

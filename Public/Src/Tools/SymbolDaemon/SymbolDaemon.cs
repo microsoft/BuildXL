@@ -459,9 +459,10 @@ namespace Tool.SymbolDaemon
                     }
                     else
                     {
+                        // Index the file. It might not contain any symbol data. In this case, we will have an empty set.
                         debugEntries = indexer.GetDebugEntries(new System.IO.FileInfo(files[i]), calculateBlobId: false);
                     }
-                    // Index the file. It might not contain any symbol data. In this case, we will have an empty set.
+                    
                     symbols.UnionWith(debugEntries);
                 }
             }

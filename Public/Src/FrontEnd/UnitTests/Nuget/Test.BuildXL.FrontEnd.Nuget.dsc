@@ -1,11 +1,15 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+import * as XUnit from "Sdk.Managed.Testing.XUnit";
+
 namespace Nuget {
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.FrontEnd.Nuget",
         sources: globR(d`.`, "*.cs"),
+        // TODO - there is an outstanding issue with passing the credential provider environment variables down to this test
+        testFramework: XUnit.framework,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,

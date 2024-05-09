@@ -161,14 +161,17 @@ namespace BuildXL.Scheduler
             if (Interlocked.CompareExchange(ref m_historicMetadataCacheCheckComplete, 1, 0) == 0)
             {
                 // It's the first time this API is called. We need to check that the historic metadata cache is available.
-                // The cache is vital to the perf of build manifest, so we need to emit a warning if it cannot be used.
+                // Not having a historic metadata cache means that files will be downloaded to get hashes necessary for the
+                // build manifest. This is suboptimal. Previously a warning was logged here but with newer
+                // cache topologies this is less noticeable, so it is just a verbose message now.
+                
                 // CompareExchange ensures that we do this check at most one time.
                 var hmc = m_pipTwoPhaseCache as HistoricMetadataCache;
                 // Need to make sure the loading task is complete before checking whether the cache is valid.
                 hmc?.StartLoading(waitForCompletion: true);
                 if (hmc == null || !hmc.Valid)
                 {
-                    Tracing.Logger.Log.ApiServerReceivedWarningMessage(m_loggingContext, "Build manifest requires historic metadata cache; however, it is not available in this build. This will negatively affect build performance.");
+                    Tracing.Logger.Log.ApiServerReceivedMessage(m_loggingContext, "Historic Metadata Cache was not available for hash to hash lookups when generating SBOM. This can impact performance of that step.");
                 }
             }
 

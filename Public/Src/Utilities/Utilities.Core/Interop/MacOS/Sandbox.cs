@@ -75,8 +75,6 @@ namespace BuildXL.Interop.Unix
             [MarshalAs(UnmanagedType.ByValArray, SizeConst=Constants.MaxPathLength)]
             public byte[] PathOrPipStats;   // TODO [maly]: we only use this for path, so we can optimize the pipstats thing away (I think!)
 
-            public AccessReportStatistics Statistics;
-
             public uint IsDirectory;
 
             /// <summary>

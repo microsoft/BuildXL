@@ -504,11 +504,6 @@ namespace BuildXL.Processes
         public string Provenance => $"[Pip{PipSemiStableHash:X16} -- {PipDescription}] ";
 
         /// <summary>
-        /// Overrides <see cref="SandboxedProcessUnix.ReportQueueProcessTimeout"/> when running tests
-        /// </summary>
-        public TimeSpan? ReportQueueProcessTimeoutForTests { get; internal set; }
-
-        /// <summary>
         /// This contains a set of stale outputs from a previous external vm run of this pip that must
         /// be cleaned before performing a retry.
         /// </summary>

@@ -21,16 +21,6 @@ namespace BuildXL.Processes
         SandboxKind Kind { get; }
 
         /// <summary>
-        /// Reports the earliest (minimum) enqueue time received from all the sandbox report queues available
-        /// </summary>
-        ulong MinReportQueueEnqueueTime { get; }
-
-        /// <summary>
-        /// Timespan between now and when the last report was received (from any queue).
-        /// </summary>
-        TimeSpan CurrentDrought { get; }
-
-        /// <summary>
         /// Notifies the sandbox of:
         ///   (1) the current CPU usage (in basis points), and
         ///   (2) amount of available physical memory (in megabytes).
@@ -84,12 +74,6 @@ namespace BuildXL.Processes
         /// Notification that a pip process was forcefully terminated.
         /// </summary>
         void NotifyPipProcessTerminated(long pipId, int processId);
-
-        /// <summary>
-        /// Releases all resources held by the sandbox connection including all unmanaged references too. This is only for unit testing and should not
-        /// be called directly at any time! Unit tests need this as they reference a static sandbox connection instance that is torn down on process exit.
-        /// </summary>
-        void ReleaseResources();
 
         /// <summary>
         /// Indicates if the SandboxConnection is running for unit-test mode.

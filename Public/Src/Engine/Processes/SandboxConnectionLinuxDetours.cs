@@ -773,10 +773,6 @@ namespace BuildXL.Processes
         public SandboxKind Kind => SandboxKind.LinuxDetours;
 
         /// <inheritdoc />
-        /// <remarks>Unimportant</remarks>
-        public ulong MinReportQueueEnqueueTime => (ulong)DateTime.UtcNow.Ticks;
-
-        /// <inheritdoc />
         public bool IsInTestMode { get; }
 
         /// <summary>
@@ -790,10 +786,6 @@ namespace BuildXL.Processes
 
         private static readonly Encoding s_encoding = Encoding.UTF8;
 
-        /// <inheritdoc />
-        /// <remarks>Unimportant</remarks>
-        public TimeSpan CurrentDrought => TimeSpan.FromSeconds(0);
-
         /// <nodoc />
         public SandboxConnectionLinuxDetours(ManagedFailureCallback failureCallback = null, bool isInTestMode = false)
         {
@@ -803,14 +795,8 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public void ReleaseResources()
-        {
-        }
-
-        /// <inheritdoc />
         public void Dispose()
         {
-            ReleaseResources();
         }
 
         /// <inheritdoc />

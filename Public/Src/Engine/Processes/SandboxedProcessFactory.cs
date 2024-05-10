@@ -32,26 +32,6 @@ namespace BuildXL.Processes
             HandleAccessReportDuration,
 
             /// <summary>
-            /// Sum of all per-process-average report queue times (in microseconds).
-            /// 
-            /// "Report queue time" is the time from enqueuing an access report (happens inside the kernel) until 
-            /// dequeuing it (happens in the interop layer).  To compute an approximation of the average across 
-            /// all access reports, devide this number by <see cref="SandboxedProcessCount"/>.
-            /// </summary>
-            [CounterType(CounterType.Numeric)]
-            SumOfAccessReportAvgQueueTimeUs,
-
-            /// <summary>
-            /// Sum of all per-process-average report creation times (in microseconds).
-            /// 
-            /// "Report creation time" is the time from intercepting a file operation (inside the kernel) until
-            /// enqueuing an access report corresponding to that file operation.  To compute an approximation
-            /// of the average across all access reports, devide this number by <see cref="SandboxedProcessCount"/>.
-            /// </summary>
-            [CounterType(CounterType.Numeric)]
-            SumOfAccessReportAvgCreationTimeUs,
-
-            /// <summary>
             /// Total number of access reports received from the sandbox.
             /// </summary>
             [CounterType(CounterType.Numeric)]

@@ -47,10 +47,8 @@ namespace BuildXL.Processes
         private IEnumerable<ReportedProcess>? m_survivingChildProcesses;
 
         private long m_processKilledFlag;
-
-        private ulong m_processExitTimeNs = ulong.MaxValue;
-
-        private bool HasProcessExitBeenReceived => m_processExitTimeNs != ulong.MaxValue;
+        
+        private bool m_processExitReceived = false;
 
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
@@ -67,25 +65,6 @@ namespace BuildXL.Processes
         private ISandboxConnection SandboxConnection { get; }
 
         internal TimeSpan ChildProcessTimeout { get; }
-
-        private TimeSpan? ReportQueueProcessTimeoutForTests { get; }
-
-        /// <summary>
-        /// Accumulates the time (in microseconds) access reports spend in the report queue
-        /// </summary>
-        private ulong m_sumOfReportQueueTimesUs;
-
-        /// <summary>
-        /// Accumulates the time (in microseconds) access reports need from kernel callbacks, over creation to the moment they are enqueued
-        /// </summary>
-        private ulong m_sumOfReportCreationTimesUs;
-
-        /// <summary>
-        /// Timeout period for inactivity from the sandbox connection.
-        /// </summary>
-        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode
-            ? ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100)
-            : TimeSpan.FromMinutes(45);
 
         private Task? m_processTreeTimeoutTask;
 
@@ -166,7 +145,6 @@ namespace BuildXL.Processes
             SandboxConnection = info.SandboxConnection!;
             ChildProcessTimeout = info.NestedProcessTerminationTimeout;
             AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
-            ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
             m_loggingContext = info.LoggingContext;
             m_ptraceRunners = new List<Task<AsyncProcessExecutor>>();
             m_pathCache = new Dictionary<string, PathCacheRecord>();
@@ -406,15 +384,7 @@ namespace BuildXL.Processes
             m_perfCollector?.Cancel();
             m_perfCollector?.Join();
             m_perfCollector?.Dispose();
-
             m_timeoutTaskCancelationSource.Cancel();
-
-            ulong reportCount = (ulong)Counters.GetCounterValue(SandboxedProcessCounters.AccessReportCount);
-            if (reportCount > 0)
-            {
-                Counters.AddToCounter(SandboxedProcessCounters.SumOfAccessReportAvgQueueTimeUs, (long)(m_sumOfReportQueueTimesUs / reportCount));
-                Counters.AddToCounter(SandboxedProcessCounters.SumOfAccessReportAvgCreationTimeUs, (long)(m_sumOfReportCreationTimesUs / reportCount));
-            }
 
             if (!Killed)
             {
@@ -669,45 +639,18 @@ namespace BuildXL.Processes
                         break;
                     }
 
-                    var minEnqueueTime = SandboxConnection.MinReportQueueEnqueueTime;
-
-                    // Ensure we time out if the sandbox stops sending any events within ReportQueueProcessTimeout
-                    if (minEnqueueTime != 0 &&
-                        SandboxConnection.CurrentDrought >= ReportQueueProcessTimeout &&
-                        CurrentRunningTime() >= ReportQueueProcessTimeout)
-                    {
-                        LogProcessState("Process timed out due to inactivity from sandbox kernel extension report queue: " +
-                                        $"the process has been running for {CurrentRunningTime().TotalSeconds} seconds " +
-                                        $"and no reports have been received for over {ReportQueueProcessTimeout.TotalSeconds} seconds!");
-
-                        m_pendingReports.Complete();
-                        // This is a corner case about the sandbox connection not responding, and therefore an unusual case.
-                        // Let's dump the process tree in order to help debug this scenario.
-                        await KillAsyncInternal(dumpProcessTree: true);
-                        processTreeTimeoutSource.SetResult(Unit.Void);
-                        break;
-                    }
-
-                    if (HasProcessExitBeenReceived && !Killed)
+                    if (m_processExitReceived && !Killed)
                     {
                         // Proceed if the event queue is beyond the point when ProcessExit was received
-                        if (m_processExitTimeNs <= minEnqueueTime)
+                        bool shouldWait = ShouldWaitForSurvivingChildProcesses();
+                        if (shouldWait)
                         {
-                            bool shouldWait = ShouldWaitForSurvivingChildProcesses();
-                            if (shouldWait)
-                            {
-                                LogDebug($"Main process exited but some child processes are still alive. Waiting the specified nested child process timeout to see whether they end naturally.");
-                                await Task.Delay(ChildProcessTimeout);
-                            }
+                            LogDebug($"Main process exited but some child processes are still alive. Waiting the specified nested child process timeout to see whether they end naturally.");
+                            await Task.Delay(ChildProcessTimeout);
+                        }
 
-                            processTreeTimeoutSource.SetResult(Unit.Void);
-                            break;
-                        }
-                        else
-                        {
-                            LogDebug($"Process exited but still waiting for reports :: exit time = {m_processExitTimeNs}, " +
-                                $"min enqueue time = {minEnqueueTime}, current drought = {SandboxConnection.CurrentDrought.TotalMilliseconds}ms");
-                        }
+                        processTreeTimeoutSource.SetResult(Unit.Void);
+                        break;
                     }
 
                     await Task.Delay(SandboxConnection.IsInTestMode ? 5 : 250);
@@ -715,12 +658,6 @@ namespace BuildXL.Processes
             }, m_timeoutTaskCancelationSource.Token).IgnoreErrorsAndReturnCompletion();
 
             return processTreeTimeoutSource.Task.IgnoreErrorsAndReturnCompletion();
-        }
-
-        private void UpdateAverageTimeSpentInReportQueue(AccessReportStatistics stats)
-        {
-            m_sumOfReportCreationTimesUs += (stats.EnqueueTime - stats.CreationTime) / 1000;
-            m_sumOfReportQueueTimesUs += (stats.DequeueTime - stats.EnqueueTime) / 1000;
         }
 
         private void HandleAccessReport(AccessReport report, bool forceAddExecutionPermission)
@@ -733,8 +670,6 @@ namespace BuildXL.Processes
             Counters.IncrementCounter(SandboxedProcessCounters.AccessReportCount);
             using (Counters.StartStopwatch(SandboxedProcessCounters.HandleAccessReportDuration))
             {
-                UpdateAverageTimeSpentInReportQueue(report.Statistics);
-
                 // caching path existence checks would speed things up, but it would not be semantically sound w.r.t. our unit tests
                 // TODO: check if the tests are over specified because in practice BuildXL doesn't really rely much on the outcome of this check
                 var reportPath = report.DecodePath();
@@ -794,10 +729,10 @@ namespace BuildXL.Processes
                     Logger.Log.ReceivedFileAccessReportBeforeSemaphoreInit(m_loggingContext, reportPath);
                 }
 
-                // Set the process exit time once we receive it from the sandbox kernel extension report queue
+                // Set the process exit time once we receive it from the native side
                 if (report.Operation == FileOperation.OpProcessExit && report.Pid == Process.Id)
                 {
-                    m_processExitTimeNs = report.Statistics.EnqueueTime;
+                    m_processExitReceived = true;
                 }
 
                 // The process requires ptrace, a ptrace runner needs to be started up
@@ -994,11 +929,8 @@ namespace BuildXL.Processes
             var error = report.Error;
             var path = report.DecodePath();
             var isDirectory = report.IsDirectory;
-            ulong processTime = (report.Statistics.EnqueueTime - report.Statistics.CreationTime) / 1000;
-            ulong queueTime = (report.Statistics.DequeueTime - report.Statistics.EnqueueTime) / 1000;
 
-            return
-                I($"{operation}:{pid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{path}|{isDirectory}|e:{report.Statistics.EnqueueTime}|h:{processTime}us|q:{queueTime}us");
+            return I($"{operation}:{pid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{path}|{isDirectory}");
         }
 
         private void StartPTraceRunner(int pid, string path, bool forceAddExecutionPermission)

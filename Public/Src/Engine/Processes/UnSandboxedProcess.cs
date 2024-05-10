@@ -223,7 +223,6 @@ namespace BuildXL.Processes
         internal bool DebugLogEnabled => IsInDebugMode || ShouldReportFileAccesses;
 
         /// <nodoc />
-        /// TODO [maly] - does this belong somewhere else?
         public static bool IsInDebugMode { get; } =
 #if DEBUG
             true;

@@ -368,11 +368,11 @@ namespace BuildXL.FrontEnd.Nuget
 
         private Possible<AbsolutePath> TryResolveCredentialProvider()
         {
-            if (!m_host.Engine.TryGetBuildParameter(NugetCredentialProviderEnv, nameof(NugetFrontEnd), out string credentialProvidersPaths))
+            if (!m_host.Engine.TryGetBuildParameter(NugetCredentialProviderEnv, nameof(NugetFrontEnd), out string credentialProvidersPaths) || string.IsNullOrEmpty(credentialProvidersPaths))
             {
                 return new NugetFailure(NugetFailure.FailureType.FetchCredentialProvider, $"Environment variable {NugetCredentialProviderEnv} is not set");
             }
-            
+
             // Here we do something slightly simpler than what NuGet does and just look for the first credential
             // provider we can find
             AbsolutePath credentialProviderPath = AbsolutePath.Invalid;

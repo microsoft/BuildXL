@@ -3553,22 +3553,22 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void FailedToDuplicateSchedulerFile(LoggingContext context, string sourcePath, string destinationPath, string reason);
 
         [GeneratedEvent(
-            (int)LogEventId.KextFailedToInitializeConnectionManager,
+            (int)LogEventId.FailedToInitializeSandboxConnection,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
-            Message = "Failed to initialize the sandbox connection manager: {reason}")]
-        public abstract void KextFailedToInitializeConnectionManager(LoggingContext context, string reason);
+            Message = "Failed to initialize the sandbox connection: {reason}")]
+        public abstract void FailedToInitializeSandboxConnection(LoggingContext context, string reason);
 
         [GeneratedEvent(
-            (int)LogEventId.KextFailureNotificationReceived,
+            (int)LogEventId.SandboxFailureNotificationReceived,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
-             Message = "Received unrecoverable error from sandbox connection, please reload the extension and retry, tweaking configuration parameters if necessary (e.g., /numberOfKextConnections, /reportQueueSizeMb).  Error code: {errorCode}.  Additional description: {description}.")]
-        public abstract void KextFailureNotificationReceived(LoggingContext context, int errorCode, string description);
+            Message = "Received unrecoverable error from sandbox connection.  Error code: {errorCode}.  Additional description: {description}.")]
+        public abstract void SandboxFailureNotificationReceived(LoggingContext context, int errorCode, string description);
 
         [GeneratedEvent(
             (ushort)LogEventId.LowRamMemory,

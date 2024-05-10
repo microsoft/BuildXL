@@ -34,7 +34,6 @@ namespace BuildXL.SandboxedProcessExecutor
         private OutputErrorObserver? m_outputErrorObserver;
         private readonly ConsoleLogger m_logger = new ();
         private ISandboxConnection? m_sandboxConnection = null;
-        private const int ReportQueueSizeForKextMB = 1024;
         private readonly bool m_isRunningInCloudBuildVm = false;
 
         /// <summary>
@@ -431,21 +430,6 @@ namespace BuildXL.SandboxedProcessExecutor
             if (OperatingSystemHelper.IsLinuxOS)
             {
                 m_sandboxConnection = new SandboxConnectionLinuxDetours(SandboxConnectionFailureCallback);
-            }
-            else if (OperatingSystemHelper.IsMacOS)
-            {
-                m_sandboxConnection = new SandboxConnectionKext(
-                    new SandboxConnectionKext.Config
-                    {
-                        FailureCallback = SandboxConnectionFailureCallback,
-                        KextConfig = new Interop.Unix.Sandbox.KextConfig
-                        {
-                            ReportQueueSizeMB = ReportQueueSizeForKextMB,
-#if PLATFORM_OSX
-                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport
-#endif
-                        }
-                    });
             }
 
             info.SandboxConnection = m_sandboxConnection;

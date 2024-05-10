@@ -472,9 +472,9 @@ namespace BuildXL.Scheduler.Tracing
 
         FailedToDuplicateSchedulerFile = 14400,
 
-        // Sandbox kernel extension connection manger errors
-        KextFailedToInitializeConnectionManager = 14500,
-        KextFailureNotificationReceived = 14501,
+        // Sandbox connection errors
+        FailedToInitializeSandboxConnection = 14500,
+        SandboxFailureNotificationReceived = 14501,
 
         FailedToLoadPipGraphFragment = 14502,
         PipCacheLookupStats = 14503,

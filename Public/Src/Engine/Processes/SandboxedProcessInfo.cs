@@ -80,9 +80,7 @@ namespace BuildXL.Processes
         /// </summary>
         public IDetoursEventListener? DetoursEventListener { get; private set; }
 
-        /// <summary>
-        /// A macOS kernel extension connection.
-        /// </summary>
+        /// <nodoc />
         public ISandboxConnection? SandboxConnection;
 
         /// <summary>

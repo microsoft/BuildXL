@@ -844,24 +844,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_AllowInternalDetoursErrorNotificationFile" xml:space="preserve">
     <value>When enabled, the detoured processes will store internal errors in a special file. If this file contains data at the end of pip execution, the pip (build) will fail. Defaults to on.</value>
   </data>
-  <data name="HelpText_DisplayHelp_KextNumberOfKextConnections" xml:space="preserve">
-    <value>[macOS] Specifies the number of connections that drain the sandbox kernel extension file access reports on macOS systems - the sandbox kernel extension allocates one report queue per connection to balance the system load when reporting file accesses.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_KextReportQueueSizeMb" xml:space="preserve">
-    <value>[macOS] Specifies the size in MB of a sandbox kernel extension report queue. Use this cautiously, because it allocates the specified size in wired system memory multiplied by the number of kernel extension connections.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_KextThrottleCpuUsageBlockThresholdPercent" xml:space="preserve">
-    <value>[macOS] Causes throttling to be triggered whenever CPU usage is above this value.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_KextThrottleCpuUsageWakeupThresholdPercent" xml:space="preserve">
-    <value>[macOS] A blocked process can be awakened only when CPU usage drops below this value (defaults to /KextThrottleCpuUsageBlockThresholdPercent).</value>
-  </data>
-  <data name="HelpText_DisplayHelp_KextThrottleMinAvailableRamMB" xml:space="preserve">
-    <value>[macOS] Causes throttling to be triggered whenever available RAM drops below this value. (takes precedence over CPU usage thresholds)</value>
-  </data>
-  <data name="HelpText_DisplayHelp_MaxMemoryPressureLevel" xml:space="preserve">
-    <value>[macOS] Causes scheduling to pause / cancel pips to free up system resources if specified maximum pressure level is overstepped. Allowed values are 'Normal' (Default), 'Warning' and 'Critical'. NOTE: Using 'Critical' can lead to system instablities and eventual kernel panics due to resource starvation!</value>
-  </data>
   <data name="HelpText_DisplayHelp_LogMemory" xml:space="preserve">
     <value>Collects actual memory usage when collection performance counters. This has a negaitve performance impact and should only be used when analyzing memory consumption. Defaults to off.</value>
   </data>

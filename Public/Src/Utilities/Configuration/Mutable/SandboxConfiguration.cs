@@ -37,11 +37,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AllowInternalDetoursErrorNotificationFile = true;
             EnforceAccessPoliciesOnDirectoryCreation = false;
             MeasureProcessCpuTimes = true;                  // always measure process times + ram consumption
-            KextReportQueueSizeMb = 0;                      // let the sandbox kernel extension apply defaults
-            KextEnableReportBatching = true;                // use lock-free queue for batching access reports
-            KextThrottleCpuUsageBlockThresholdPercent = 0;  // no throttling by default
-            KextThrottleCpuUsageWakeupThresholdPercent = 0; // no throttling by default
-            KextThrottleMinAvailableRamMB = 0;              // no throttling by default
             AdminRequiredProcessExecutionMode = AdminRequiredProcessExecutionMode.Internal;
             RedirectedTempFolderRootForVmExecution = AbsolutePath.Invalid;
             RetryOnAzureWatsonExitCode = false;
@@ -94,11 +89,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AllowInternalDetoursErrorNotificationFile = template.AllowInternalDetoursErrorNotificationFile;
             EnforceAccessPoliciesOnDirectoryCreation = template.EnforceAccessPoliciesOnDirectoryCreation;
             MeasureProcessCpuTimes = template.MeasureProcessCpuTimes;
-            KextReportQueueSizeMb = template.KextReportQueueSizeMb;
-            KextEnableReportBatching = template.KextEnableReportBatching;
-            KextThrottleCpuUsageBlockThresholdPercent = template.KextThrottleCpuUsageBlockThresholdPercent;
-            KextThrottleCpuUsageWakeupThresholdPercent = template.KextThrottleCpuUsageWakeupThresholdPercent;
-            KextThrottleMinAvailableRamMB = template.KextThrottleMinAvailableRamMB;
             AdminRequiredProcessExecutionMode = template.AdminRequiredProcessExecutionMode;
             RedirectedTempFolderRootForVmExecution = pathRemapper.Remap(template.RedirectedTempFolderRootForVmExecution);
             RetryOnAzureWatsonExitCode = template.RetryOnAzureWatsonExitCode;

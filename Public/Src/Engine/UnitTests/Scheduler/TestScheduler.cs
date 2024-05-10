@@ -34,18 +34,6 @@ namespace Test.BuildXL.Scheduler
 
         public ScheduleRunData RunData { get; } = new ScheduleRunData();
 
-        public bool SandboxingWithKextEnabled => OperatingSystemHelper.IsUnixOS;
-
-        protected override bool InitSandboxConnectionKext(LoggingContext loggingContext, ISandboxConnection SandboxConnectionKext = null)
-        {
-            if (SandboxingWithKextEnabled)
-            {
-                SandboxConnection = SandboxConnectionKext ?? XunitBuildXLTest.GetSandboxConnection();
-            }
-
-            return false;
-        }
-
         private readonly TestPipQueue m_testPipQueue;
 
         public TestScheduler(

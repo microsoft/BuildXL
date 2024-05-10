@@ -27,9 +27,6 @@ using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
 using System.Text.RegularExpressions;
 using BuildXL.Processes;
-#if PLATFORM_OSX
-using static BuildXL.Interop.Unix.Memory;
-#endif
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -532,48 +529,6 @@ namespace BuildXL
                                 ContentHashingUtilities.SetDefaultHashType(hashType);
                                 cacheConfiguration.UseDedupStore = hashType.IsValidDedup();
                             }),
-#if PLATFORM_OSX
-                        OptionHandlerFactory.CreateOption(
-                            "numberOfKextConnections", // TODO: deprecate and remove
-                            opt =>
-                            {
-                                Console.WriteLine("*** WARNING: deprecated switch /numberOfKextConnections; don't use it as it has no effect any longer");
-                            }),
-                        OptionHandlerFactory.CreateOption(
-                            "reportQueueSizeMb", // TODO: deprecate and remove
-                            opt =>
-                            {
-                                Console.WriteLine("*** WARNING: deprecated switch /reportQueueSizeMb; please use /kextReportQueueSizeMb instead");
-                                sandboxConfiguration.KextReportQueueSizeMb = CommandLineUtilities.ParseUInt32Option(opt, 16, 2048);
-                            }),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "kextEnableReportBatching",
-                            sign => sandboxConfiguration.KextEnableReportBatching = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "measureProcessCpuTimes",
-                            sign => sandboxConfiguration.MeasureProcessCpuTimes = sign),
-                        OptionHandlerFactory.CreateOption(
-                            "kextNumberOfConnections",
-                            opt =>
-                            {
-                                Console.WriteLine("*** WARNING: deprecated switch /kextNumberOfKextConnections; don't use it as it has no effect any longer");
-                            }),
-                        OptionHandlerFactory.CreateOption(
-                            "kextReportQueueSizeMb",
-                            opt => sandboxConfiguration.KextReportQueueSizeMb = CommandLineUtilities.ParseUInt32Option(opt, 16, 2048)),
-                        OptionHandlerFactory.CreateOption(
-                            "kextThrottleCpuUsageBlockThresholdPercent",
-                            opt => sandboxConfiguration.KextThrottleCpuUsageBlockThresholdPercent = CommandLineUtilities.ParseUInt32Option(opt, 0, 100)),
-                        OptionHandlerFactory.CreateOption(
-                            "kextThrottleCpuUsageWakeupThresholdPercent",
-                            opt => sandboxConfiguration.KextThrottleCpuUsageWakeupThresholdPercent = CommandLineUtilities.ParseUInt32Option(opt, 0, 100)),
-                        OptionHandlerFactory.CreateOption(
-                            "kextThrottleMinAvailableRamMB",
-                            opt => sandboxConfiguration.KextThrottleMinAvailableRamMB = CommandLineUtilities.ParseUInt32Option(opt, 0, uint.MaxValue)),
-                        OptionHandlerFactory.CreateOption(
-                            "maxMemoryPressureLevel",
-                            opt => schedulingConfiguration.MaximumAllowedMemoryPressureLevel = CommandLineUtilities.ParseEnumOption<PressureLevel>(opt)),
-#endif
                         OptionHandlerFactory.CreateOption2(
                             "help",
                             "?",
@@ -981,13 +936,6 @@ namespace BuildXL
                             opt =>
                             {
                                 var parsedOption = CommandLineUtilities.ParseEnumOption<SandboxKind>(opt);
-#if PLATFORM_OSX
-                                var isEndpointSecurityOrHybridSandboxKind = (parsedOption == SandboxKind.MacOsEndpointSecurity || parsedOption == SandboxKind.MacOsHybrid);
-                                if (isEndpointSecurityOrHybridSandboxKind && !OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport)
-                                {
-                                    parsedOption = SandboxKind.MacOsKext;
-                                }
-#endif
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.SandboxKind = parsedOption;
                                 if ((parsedOption.ToString().StartsWith("Win") && OperatingSystemHelper.IsUnixOS) ||
                                     (parsedOption.ToString().StartsWith("Mac") && !OperatingSystemHelper.IsUnixOS))

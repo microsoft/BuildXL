@@ -67,7 +67,7 @@ namespace Test.BuildXL.Scheduler.Utils
         private readonly bool m_allowUnspecifiedSealedDirectories;
         private IReadOnlyDictionary<PipId, IReadOnlyCollection<Pip>> m_servicePipToClientProcesses;
         private readonly IFileMonitoringViolationAnalyzer m_disabledFileMonitoringViolationAnalyzer = new DisabledFileMonitoringViolationAnalyzer();
-        private readonly ISandboxConnection m_sandboxConnectionKext;
+        private readonly ISandboxConnection m_sandboxConnection;
 
         public Dictionary<FileArtifact, string> HostMaterializedFileContents = new Dictionary<FileArtifact, string>();
 
@@ -134,7 +134,7 @@ namespace Test.BuildXL.Scheduler.Utils
             Cache = pipCache;
             FileAccessAllowlist = fileAccessAllowlist;
             m_allowUnspecifiedSealedDirectories = allowUnspecifiedSealedDirectories;
-            m_sandboxConnectionKext = sandboxConnection;
+            m_sandboxConnection = sandboxConnection;
 
             if (Cache == null)
             {
@@ -638,7 +638,7 @@ namespace Test.BuildXL.Scheduler.Utils
 
         SemanticPathExpander IFileContentManagerHost.SemanticPathExpander => PathExpander;
 
-        public ISandboxConnection SandboxConnection => m_sandboxConnectionKext;
+        public ISandboxConnection SandboxConnection => m_sandboxConnection;
 
         public VmInitializer VmInitializer { get; }
 

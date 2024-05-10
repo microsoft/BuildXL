@@ -220,7 +220,16 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public int ProcessId => m_processExecutor.ProcessId;
 
-        internal bool DebugLogEnabled => SandboxConnection.IsInDebugMode || ShouldReportFileAccesses;
+        internal bool DebugLogEnabled => IsInDebugMode || ShouldReportFileAccesses;
+
+        /// <nodoc />
+        /// TODO [maly] - does this belong somewhere else?
+        public static bool IsInDebugMode { get; } =
+#if DEBUG
+            true;
+#else
+            false;
+#endif
 
         /// <inheritdoc />
         public virtual void Dispose()

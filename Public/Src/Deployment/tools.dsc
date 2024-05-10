@@ -18,23 +18,7 @@ namespace Tools {
             return r`${qualifier.targetFramework}/${qualifier.configuration}/tools/${toolName}/${qualifier.targetRuntime}`;
         }
     }
-
-    namespace SandboxExec {
-
-        export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
-
-        export const deployment : Deployment.Definition = {
-            contents: [
-                importFrom("BuildXL.Tools").SandboxExec.exe
-            ]
-        };
-
-        const deployed = BuildXLSdk.DeploymentHelpers.deploy({
-            definition: deployment,
-            targetLocation: Helpers.getTargetLocation("SandboxExec"),
-        });
-    }
-
+    
     namespace AdoBuildRunner {
 
         export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;

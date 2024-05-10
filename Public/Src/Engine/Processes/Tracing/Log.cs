@@ -480,19 +480,6 @@ namespace BuildXL.Processes.Tracing
         public abstract void ExecuteAnyBuildBootstrapper(LoggingContext context, string command);
 
         [GeneratedEvent(
-            (int)LogEventId.LogMacKextFailure,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "{message}")]
-        public abstract void LogMacKextFailure(
-            LoggingContext context,
-            long pipSemiStableHash,
-            string pipDescription,
-            string message);
-
-        [GeneratedEvent(
             (int)LogEventId.LogAppleSandboxPolicyGenerated,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

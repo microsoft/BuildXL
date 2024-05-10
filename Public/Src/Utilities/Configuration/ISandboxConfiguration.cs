@@ -177,31 +177,6 @@ namespace BuildXL.Utilities.Configuration
         bool MeasureProcessCpuTimes { get; }
 
         /// <summary>
-        /// Indicates how big a single sandbox kernel extension report queue is in MB when it is allocated in the sandbox kernel extension
-        /// </summary>
-        uint KextReportQueueSizeMb { get; }
-
-        /// <summary>
-        /// Tells the sandbox kernel extension whether or not to batch reports.
-        /// </summary>
-        bool KextEnableReportBatching { get; }
-
-        /// <summary>
-        /// Throttling can be triggered when CPU usage is above this value.
-        /// </summary>
-        uint KextThrottleCpuUsageBlockThresholdPercent { get; }
-
-        /// <summary>
-        /// A blocked process can be awakened only when CPU usage is below this value.
-        /// </summary>
-        uint KextThrottleCpuUsageWakeupThresholdPercent { get; }
-
-        /// <summary>
-        /// Throttling can be triggered only when available RAM drops below this value.
-        /// </summary>
-        uint KextThrottleMinAvailableRamMB { get; }
-
-        /// <summary>
         /// Execution mode for processes that require admin privilege.
         /// </summary>
         AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; }

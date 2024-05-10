@@ -26,11 +26,6 @@ namespace BuildXL.Utilities
         private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
             OperatingSystemHelper.IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(string.Empty, string.Empty);
 
-        /// <summary>
-        /// Indicates if BuildXL can only run with non-kernel extension sandboxing on macOS - that is the case on Catalina (10.15+) or newer
-        /// </summary>
-        public static readonly bool IsMacWithoutKernelExtensionSupport = OperatingSystemHelper.IsMacOS && (CurrentMacOSVersion.Value.Major >= 11 || (CurrentMacOSVersion.Value.Major == 10 && CurrentMacOSVersion.Value.Minor >= 15));
-
         // Sysctl constants to query CPU information
         private static readonly string MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string";
         private static readonly string MACHDEP_CPU_MODEL = "machdep.cpu.model";

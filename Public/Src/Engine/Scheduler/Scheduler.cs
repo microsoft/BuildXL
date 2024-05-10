@@ -229,14 +229,14 @@ namespace BuildXL.Scheduler
         private readonly List<Worker> m_workers;
 
         /// <summary>
-        /// Indicates if processes should be scheduled using the macOS sandbox when BuildXL is executing
+        /// Indicates if processes should be scheduled using a unix sandbox when BuildXL is executing
         /// </summary>
-        protected virtual bool MacOsSandboxingEnabled =>
+        protected virtual bool UnixSandboxingEnabled =>
             OperatingSystemHelper.IsUnixOS &&
             m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind != SandboxKind.None;
 
         /// <summary>
-        /// A kernel extension connection object for macOS sandboxing
+        /// A connection to a sandbox (for unix sandboxing)
         /// </summary>
         [AllowNull]
         protected ISandboxConnection SandboxConnection;
@@ -5403,7 +5403,7 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        ISandboxConnection IPipExecutionEnvironment.SandboxConnection => !MacOsSandboxingEnabled ? null : SandboxConnection;
+        ISandboxConnection IPipExecutionEnvironment.SandboxConnection => !UnixSandboxingEnabled ? null : SandboxConnection;
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
@@ -6154,7 +6154,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Initialize runtime state, optionally apply a filter and schedule all ready pips
         /// </summary>
-        public bool InitForOrchestrator(LoggingContext loggingContext, RootFilter filter = null, SchedulerState schedulerState = null, ISandboxConnection sandboxConnectionKext = null)
+        public bool InitForOrchestrator(LoggingContext loggingContext, RootFilter filter = null, SchedulerState schedulerState = null, ISandboxConnection sandboxConnection = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Assert(!IsInitialized);
@@ -6192,8 +6192,7 @@ namespace BuildXL.Scheduler
                 // This logging context must be set prior to any scheduling, as it might be accessed.
                 m_executePhaseLoggingContext = pm.LoggingContext;
 
-                m_hasFailures = m_hasFailures || InitSandboxConnectionKext(loggingContext, sandboxConnectionKext);
-               
+                m_hasFailures = m_hasFailures || InitSandboxConnection(loggingContext, sandboxConnection);
                 // Start workers after scheduler runtime state is successfully established and we have some build to run
                 if (!HasFailed && IsDistributedOrchestrator)
                 {
@@ -6274,82 +6273,30 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Initilizes the kernel extension connection if required and reports back success or failure, allowing
+        /// Initilizes the sandbox connection if required and reports back success or failure, allowing
         /// for a graceful terminaton of BuildXL.
         /// </summary>
-        protected virtual bool InitSandboxConnectionKext(LoggingContext loggingContext, ISandboxConnection sandboxConnection = null)
+        protected virtual bool InitSandboxConnection(LoggingContext loggingContext, ISandboxConnection sandboxConnection = null)
         {
-            if (MacOsSandboxingEnabled)
+            if (UnixSandboxingEnabled)
             {
                 try
                 {
-                    // Setup the kernel extension connection so we can potentially execute pips later
+                    // Setup the sandbox connection so we can potentially execute pips later
                     if (sandboxConnection == null)
                     {
-                        var config = new SandboxConnectionKext.Config
-                        {
-                            MeasureCpuTimes = m_configuration.Sandbox.MeasureProcessCpuTimes,
-                            FailureCallback = sandboxFailureCallback,
-                            KextConfig = new Sandbox.KextConfig
-                            {
-                                ReportQueueSizeMB = m_configuration.Sandbox.KextReportQueueSizeMb,
-                                EnableReportBatching = m_configuration.Sandbox.KextEnableReportBatching,
-#if !PLATFORM_WIN
-                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport,
-#endif
-                                ResourceThresholds = new Sandbox.ResourceThresholds
-                                {
-                                    CpuUsageBlockPercent = m_configuration.Sandbox.KextThrottleCpuUsageBlockThresholdPercent,
-                                    CpuUsageWakeupPercent = m_configuration.Sandbox.KextThrottleCpuUsageWakeupThresholdPercent,
-                                    MinAvailableRamMB = m_configuration.Sandbox.KextThrottleMinAvailableRamMB,
-                                }
-                            }
-                        };
-
-                        switch (m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind)
-                        {
-                            case SandboxKind.LinuxDetours:
-                            {
-                                sandboxConnection = new SandboxConnectionLinuxDetours(sandboxFailureCallback);
-                                break;
-                            }
-                            case SandboxKind.MacOsEndpointSecurity:
-                            case SandboxKind.MacOsDetours:
-                            case SandboxKind.MacOsHybrid:
-                            {
-                                sandboxConnection =
-                                    (ISandboxConnection)new SandboxConnection(m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind, isInTestMode: false);
-
-                                break;
-                            }
-                            default:
-                            {
-                                sandboxConnection = OperatingSystemHelper.IsLinuxOS
-                                    ? new SandboxConnectionLinuxDetours(sandboxFailureCallback)
-                                    : (ISandboxConnection)new SandboxConnectionKext(config);
-                                break;
-                            }
-                        }
-
-                        if (m_performanceAggregator != null && config.KextConfig.Value.ResourceThresholds.IsProcessThrottlingEnabled())
-                        {
-                            m_performanceAggregator.MachineCpu.OnChange += (aggregator) =>
-                            {
-                                double availableRam = m_performanceAggregator.MachineAvailablePhysicalMB.Latest;
-                                uint cpuUsageBasisPoints = Convert.ToUInt32(Math.Round(aggregator.Latest * 100));
-                                uint availableRamMB = double.IsNaN(availableRam) || double.IsInfinity(availableRam)
-                                    ? 0
-                                    : Convert.ToUInt32(Math.Round(availableRam));
-                                sandboxConnection.NotifyUsage(cpuUsageBasisPoints, availableRamMB);
-                            };
-                        }
+                        // The only unix sandbox supported at the moment:
+                        var sandboxKind = m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind;
+                        Contract.Assert(sandboxKind == SandboxKind.Default || sandboxKind == SandboxKind.LinuxDetours, 
+                                        $"Unknown Unix sandbox kind: {m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind}");
+                        sandboxConnection = new SandboxConnectionLinuxDetours(sandboxFailureCallback);
                     }
 
                     SandboxConnection = sandboxConnection;
                 }
                 catch (BuildXLException ex)
                 {
-                    Logger.Log.KextFailedToInitializeConnectionManager(loggingContext, (ex.InnerException ?? ex).Message);
+                    Logger.Log.FailedToInitializeSandboxConnection(loggingContext, (ex.InnerException ?? ex).Message);
                     return true; // Indicates error
                 }
             }
@@ -6358,7 +6305,7 @@ namespace BuildXL.Scheduler
 
             void sandboxFailureCallback(int status, string description)
             {
-                Logger.Log.KextFailureNotificationReceived(loggingContext, status, description);
+                Logger.Log.SandboxFailureNotificationReceived(loggingContext, status, description);
                 RequestTermination();
             }
         }
@@ -6596,7 +6543,7 @@ namespace BuildXL.Scheduler
 
             m_hasFailures = m_hasFailures || !TryInitSchedulerRuntimeState(loggingContext, schedulerState: null);
             InitPipStates(loggingContext);
-            m_hasFailures = m_hasFailures || InitSandboxConnectionKext(loggingContext);
+            m_hasFailures = m_hasFailures || InitSandboxConnection(loggingContext);
 
             Contract.Assert(!HasFailed || loggingContext.ErrorWasLogged, "Scheduler encountered errors during initialization, but none were logged.");
             return !HasFailed;

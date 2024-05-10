@@ -273,7 +273,7 @@ namespace BuildXL.Processes
             }
             else if (OperatingSystemHelper.IsUnixOS)
             {
-                return new SandboxedProcessUnix(sandboxedProcessInfo, ignoreReportedAccesses: sandboxKind == SandboxKind.MacOsKextIgnoreFileAccesses);
+                return new SandboxedProcessUnix(sandboxedProcessInfo);
             }
             else
             {

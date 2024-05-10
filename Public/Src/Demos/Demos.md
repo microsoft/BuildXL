@@ -63,8 +63,7 @@ var info =
         Arguments = arguments,
         WorkingDirectory = workingDirectory,
         PipSemiStableHash = 0,
-        PipDescription = "Simple sandbox demo",
-        SandboxConnection = OperatingSystemHelper.IsUnixOS ? new SandboxConnectionKext() : null
+        PipDescription = "Simple sandbox demo"
     };
 ``` 
 
@@ -84,40 +83,6 @@ We are creating a manifest that configures the sandbox so:
 * Child processes are also monitored (`MonitorChildProcesses = true`)
 
 As a result of this configuration, all file accesses are allowed and reported. Each file access carries structured information that includes the type of operation, disposition, attributes, etc. In this simple demo we are just printing out the path of each access.
-
-This demo works on macOS as well, but only supports absolute paths in the arguments.
-
-```
-~/BuildXL$ <bxl_repo_root>/out/bin/Demos/Debug/osx-x64/ReportAccesses /bin/echo
-Process '/bin/echo' ran under BuildXL sandbox with arguments '' and returned with exit code '0'. Sandbox reports 48 file accesses:
-/bin/echo
-/usr/lib/dyld
-/private/var/db/dyld/dyld_shared_cache_x86_64h
-/usr/lib/libSystem.B.dylib
-/usr/lib/system/libcache.dylib
-/usr/lib/system/libcommonCrypto.dylib
-/usr/lib/system/libcompiler_rt.dylib
-/usr/lib/system/libcopyfile.dylib
-...
-...
-...
-...
-/usr/lib/system/libsystem_notify.dylib
-/usr/lib/system/libsystem_sandbox.dylib
-/dev/dtracehelper
-/usr/lib/system/libsystem_secinit.dylib
-/usr/lib/system/libsystem_kernel.dylib
-/usr/lib/system/libsystem_platform.dylib
-/AppleInternal
-/usr/lib/system/libsystem_pthread.dylib
-/usr/lib/system/libsystem_symptoms.dylib
-/usr/lib/system/libsystem_trace.dylib
-/usr/lib/system/libunwind.dylib
-/usr/lib/system/libxpc.dylib
-/usr/lib/libobjc.A.dylib
-/usr/lib/libc++abi.dylib
-/usr/lib/libc++.1.dylib
-```
 
 ## Blocking accesses (`Public/Src/Demos/BlockAccesses`)
 
@@ -215,41 +180,6 @@ var allAccesses = result
 
 `SandboxedProcessResult.FileAccesses` contains all the reported accesses. So we just iterate over them and print some of the details.
 
-This demo works on mac as well (with the same directory structure as before)
-
-```
-~/BuildXL$ <bxl_repo_root>/out/bin/Demos/Debug/BlockAccesses ~/test/ ~/test/obj/ ~/test/bin/
-Enumerated the directory '/Users/BuildXLUser/test/'. The following accesses were reported:
-Allowed -> [Read] /usr/bin/find
-Allowed -> [Read] /usr/lib/dyld
-Allowed -> [Probe] /usr/bin/find
-Allowed -> [Probe] /private/var/db/dyld/dyld_shared_cache_x86_64h
-Allowed -> [Probe] /usr/lib/libSystem.B.dylib
-...
-...
-...
-...
-Allowed -> [Probe] /usr/lib/libc++.1.dylib
-Allowed -> [Probe] /AppleInternal/XBS/.isChrooted
-Allowed -> [Read] find
-Allowed -> [Read] /bin/cat
-Allowed -> [Probe] /bin/cat
-Allowed -> /bin/cat
-Allowed -> /usr/bin/find
-Allowed -> [Probe] /Users/BuildXLUser/test
-Allowed -> [Enumerate] /Users/BuildXLUser/test
-Allowed -> [Enumerate] /Users/BuildXLUser/test/obj
-Allowed -> [Probe] /Users/BuildXLUser/test/obj
-Allowed -> [Probe] /Users/BuildXLUser/test/bin
-Allowed -> [Probe] /Users/BuildXLUser/test/source
-Denied -> [Read] /Users/BuildXLUser/test/obj/t1.obj
-Allowed -> [Enumerate] /Users/BuildXLUser/test/bin
-Denied -> [Read] /Users/BuildXLUser/test/obj/src2.txt
-Denied -> [Read] /Users/BuildXLUser/test/bin/t1
-Allowed -> [Enumerate] /Users/BuildXLUser/test/source
-Allowed -> [Read] /Users/BuildXLUser/test/source/t1.txt
-```
-
 ## Retrieving the process list (`Public/Src/Demos/ReportProcesses`)
 
 The last demo shows how the sandbox can be used to retrieve the list of processes spawned by a process that was run under the sandbox. All child processes that are created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.
@@ -300,18 +230,4 @@ All the processes (main and children) are reported in ``SandboxedProcessResult.P
 ```cs
 /// Public/Src/Demos/ReportProcesses/Program.cs
 Console.WriteLine($"{reportedProcess.Path} [ran {(reportedProcess.ExitTime - reportedProcess.CreationTime).TotalMilliseconds}ms]");
-```
-
-Here is the process list reported on Mac
-
-```
-~/BuildXL$ ./out/bin/Demos/debug/osx-x64/ReportProcesses /usr/bin/git fetch
-Process '/usr/bin/git' ran under the sandbox. These processes were launched in the sandbox:
-/usr/bin/git [ran 0ms]
-/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git-remote-http [ran 0ms]
-/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0ms]
-/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0ms]
-/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0ms]
-/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0ms]
-/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0.001ms]
 ```

@@ -145,21 +145,6 @@ namespace BuildXL.FrontEnd.Utilities
                 {
                     info.SandboxConnection = new SandboxConnectionLinuxDetours(sandboxConnectionFailureCallback);
                 }
-                else if (OperatingSystemHelper.IsMacOS)
-                {
-                    info.SandboxConnection = new SandboxConnectionKext(
-                        new SandboxConnectionKext.Config
-                        {
-                            FailureCallback = sandboxConnectionFailureCallback,
-                            KextConfig = new Interop.Unix.Sandbox.KextConfig
-                            {
-                                ReportQueueSizeMB = 1024,
-#if PLATFORM_OSX
-                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport
-#endif
-                            }
-                        });
-                }
 
                 var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);
 

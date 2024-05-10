@@ -1122,40 +1122,6 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_AllowInternalDetoursErrorNotificationFile,
                 HelpLevel.Verbose);
 
-#if PLATFORM_OSX
-
-            hw.WriteOption(
-                "/kextNumberOfKextConnections:<number>",
-                Strings.HelpText_DisplayHelp_KextNumberOfKextConnections,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/kextReportQueueSizeMb:<number>",
-                Strings.HelpText_DisplayHelp_KextReportQueueSizeMb,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-               "/kextThrottleCpuUsageBlockThresholdPercent:<number>",
-               Strings.HelpText_DisplayHelp_KextThrottleCpuUsageBlockThresholdPercent,
-               HelpLevel.Verbose);
-
-            hw.WriteOption(
-               "/kextThrottleCpuUsageWakeupThresholdPercent:<number>",
-               Strings.HelpText_DisplayHelp_KextThrottleCpuUsageWakeupThresholdPercent,
-               HelpLevel.Verbose);
-
-            hw.WriteOption(
-               "/KextThrottleMinAvailableRamMB:<number>",
-               Strings.HelpText_DisplayHelp_KextThrottleMinAvailableRamMB,
-               HelpLevel.Verbose);
-
-            hw.WriteOption(
-               "/maxMemoryPressureLevel:<option>",
-               Strings.HelpText_DisplayHelp_MaxMemoryPressureLevel,
-               HelpLevel.Verbose);
-
-#endif
-
             hw.WriteOption(
                 "/unsafe_ExistingDirectoryProbesAsEnumerations[+|-]",
                 Strings.HelpText_DisplayHelp_ExistingDirectoryProbesAsEnumerations,

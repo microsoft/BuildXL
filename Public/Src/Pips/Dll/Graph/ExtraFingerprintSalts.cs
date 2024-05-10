@@ -19,11 +19,6 @@ namespace BuildXL.Pips.Graph
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
     public struct ExtraFingerprintSalts : IEquatable<ExtraFingerprintSalts>
     {
-        // For non-Unix platforms, this is an arbitrary fixed value
-        private static readonly string s_requiredKextVersionNumber = OperatingSystemHelper.IsUnixOS
-            ? KextInfo.RequiredKextVersionNumber
-            : "0";
-
         private static readonly ExtraFingerprintSalts s_defaultValue = new ExtraFingerprintSalts(
                         ignoreSetFileInformationByHandle: false,
                         ignoreZwRenameFileInformation: false,
@@ -46,7 +41,6 @@ namespace BuildXL.Pips.Graph
                         normalizeReadTimestamps: true,
                         pipWarningsPromotedToErrors: false,
                         validateDistribution: false,
-                        requiredKextVersionNumber: s_requiredKextVersionNumber,
                         explicitlyReportDirectoryProbes: false,
                         ignoreDeviceIoControlGetReparsePoint: true, // Remove this flag from the fingerprint once we validated there are no breaking changes
                         honorDirectoryCasingOnDisk: false
@@ -93,7 +87,6 @@ namespace BuildXL.Pips.Graph
                 PipFingerprintingVersion.TwoPhaseV2,
                 fingerprintSalt,
                 searchPathToolsHash,
-                requiredKextVersionNumber: s_requiredKextVersionNumber,
                 config.Sandbox.ExplicitlyReportDirectoryProbes,
                 config.Sandbox.IgnoreDeviceIoControlGetReparsePoint,
                 config.Cache.HonorDirectoryCasingOnDisk
@@ -137,7 +130,6 @@ namespace BuildXL.Pips.Graph
         /// <param name="fingerprintVersion">The fingerprint version.</param>
         /// <param name="fingerprintSalt">The extra, optional fingerprint salt.</param>
         /// <param name="searchPathToolsHash">The extra, optional salt of path fragments of tool locations for tools using search path enumeration.</param>
-        /// <param name="requiredKextVersionNumber">The required kernel extension version number.</param>
         /// <param name="explicitlyReportDirectoryProbes">Whether /unsafe_explicitlyReportDirectoryProbes was passed to BuildXL.</param>
         /// <param name="ignoreDeviceIoControlGetReparsePoint">Whether /ignoreDeviceIoControlGetReparsePoint was passed to BuildXL.</param>
         /// <param name="honorDirectoryCasingOnDisk">Whether /honorDirectoryCasingOnDisk was passed to BuildXL.</param>
@@ -163,7 +155,6 @@ namespace BuildXL.Pips.Graph
             PipFingerprintingVersion fingerprintVersion,
             string fingerprintSalt,
             ContentHash? searchPathToolsHash,
-            string requiredKextVersionNumber,
             bool explicitlyReportDirectoryProbes,
             bool ignoreDeviceIoControlGetReparsePoint,
             bool honorDirectoryCasingOnDisk
@@ -190,7 +181,6 @@ namespace BuildXL.Pips.Graph
             SearchPathToolsHash = searchPathToolsHash;
             IgnoreGetFinalPathNameByHandle = ignoreGetFinalPathNameByHandle;
             PipWarningsPromotedToErrors = pipWarningsPromotedToErrors;
-            RequiredKextVersionNumber = requiredKextVersionNumber;
             m_calculatedSaltsFingerprint = null;
             ExplicitlyReportDirectoryProbes = explicitlyReportDirectoryProbes;
             IgnoreDeviceIoControlGetReparsePoint = ignoreDeviceIoControlGetReparsePoint;
@@ -312,12 +302,6 @@ namespace BuildXL.Pips.Graph
         public bool PipWarningsPromotedToErrors { get; }
 
         /// <summary>
-        /// The required kernel extension version number. We want to make sure the fingerprints are locked to the
-        /// sandbox kernel extension version and invalidate if it changes on subsequent builds.
-        /// </summary>
-        public string RequiredKextVersionNumber { get; set; }
-
-        /// <summary>
         /// Whether /unsafe_explicitlyReportDirectoryProbes flag was passed to BuildXL. (disabled by default)
         /// </summary>
         public bool ExplicitlyReportDirectoryProbes { get; set; }
@@ -373,7 +357,6 @@ namespace BuildXL.Pips.Graph
                 && SearchPathToolsHash.Value.Equals(SearchPathToolsHash.Value)
                 && other.PipWarningsPromotedToErrors == PipWarningsPromotedToErrors
                 && other.ValidateDistribution == ValidateDistribution
-                && other.RequiredKextVersionNumber.Equals(RequiredKextVersionNumber)
                 && other.ExplicitlyReportDirectoryProbes.Equals(ExplicitlyReportDirectoryProbes)
                 && other.IgnoreDeviceIoControlGetReparsePoint.Equals(IgnoreDeviceIoControlGetReparsePoint)
                 && other.HonorDirectoryCasingOnDisk.Equals(HonorDirectoryCasingOnDisk);
@@ -410,7 +393,6 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ NormalizeReadTimestamps.GetHashCode();
                 hashCode = (hashCode * 397) ^ PipWarningsPromotedToErrors.GetHashCode();
                 hashCode = (hashCode * 397) ^ ValidateDistribution.GetHashCode();
-                hashCode = (hashCode * 397) ^ (RequiredKextVersionNumber?.GetHashCode() ?? 0);
                 hashCode = (hashCode * 397) ^ IgnoreFullReparsePointResolving.GetHashCode();
                 hashCode = (hashCode * 397) ^ ExplicitlyReportDirectoryProbes.GetHashCode();
                 hashCode = (hashCode * 397) ^ IgnoreDeviceIoControlGetReparsePoint.GetHashCode();
@@ -467,11 +449,6 @@ namespace BuildXL.Pips.Graph
             if (ValidateDistribution)
             {
                 fingerprinter.Add(nameof(ValidateDistribution), 1);
-            }
-
-            if (!string.IsNullOrEmpty(RequiredKextVersionNumber))
-            {
-                fingerprinter.Add(nameof(RequiredKextVersionNumber), RequiredKextVersionNumber);
             }
 
             if (ExplicitlyReportDirectoryProbes)

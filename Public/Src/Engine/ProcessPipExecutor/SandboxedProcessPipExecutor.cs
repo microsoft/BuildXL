@@ -2029,7 +2029,6 @@ namespace BuildXL.ProcessPipExecutor
                 retryInfo = RetryInfo.GetDefault(RetryReason.AzureWatsonExitCode);
             }
             else if (MonitorFileAccesses
-                && m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind != SandboxKind.MacOsKextIgnoreFileAccesses
                 && status == SandboxedProcessPipExecutionStatus.Succeeded
                 && m_pip.PipType == PipType.Process
                 && unobservedOutputs != null)

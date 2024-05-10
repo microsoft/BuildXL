@@ -16,7 +16,7 @@ namespace BuildXL.Processes
     public interface ISandboxConnection : IDisposable
     {
         /// <summary>
-        /// The sandbox kind used by the backing SandboxConnection, e.g. MacOsKext
+        /// The sandbox kind used by the backing SandboxConnection
         /// </summary>
         SandboxKind Kind { get; }
 

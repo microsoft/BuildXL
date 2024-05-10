@@ -706,15 +706,6 @@ namespace NugetPackages {
     // End cache packages
 
     // Currently we deploy tools as self-contained .NET Core binaries for macOS only!
-    const toolsSandBoxExec = pack({
-        id: `${packageNamePrefix}.Tools.SandboxExec.osx-x64`,
-        deployment: Tools.SandboxExec.withQualifier({
-            targetFramework: defaultTargetFramework,
-            targetRuntime: "osx-x64"
-        }).deployment
-    });
-
-    // Currently we deploy tools as self-contained .NET Core binaries for macOS only!
     const toolsAdoBuildRunner = pack({
         id: `${packageNamePrefix}.Tools.AdoBuildRunner.osx-x64`,
         deployment: Tools.AdoBuildRunner.withQualifier({
@@ -746,8 +737,6 @@ namespace NugetPackages {
                 processes,
                 engineCache,
                 sdks,
-                // macOS specific packages
-                toolsSandBoxExec,
                 osxX64,
                 toolsAdoBuildRunner,
             ]),

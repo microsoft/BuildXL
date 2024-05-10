@@ -479,11 +479,6 @@ namespace BuildXL.Scheduler.Tracing
         public bool ValidateDistribution;
 
         /// <summary>
-        /// Extra optional fingerprint salt.
-        /// </summary>
-        public string RequiredKextVersionNumber;
-
-        /// <summary>
         /// Whether /unsafe_explicitlyReportDirectoryProbes flag was passed to BuildXL. (disabled by default)
         /// </summary>
         public bool ExplicitlyReportDirectoryProbes;
@@ -528,7 +523,6 @@ namespace BuildXL.Scheduler.Tracing
             NormalizeReadTimestamps = salts.NormalizeReadTimestamps;
             PipWarningsPromotedToErrors = salts.PipWarningsPromotedToErrors;
             ValidateDistribution = salts.ValidateDistribution;
-            RequiredKextVersionNumber = salts.RequiredKextVersionNumber;
             ExplicitlyReportDirectoryProbes = salts.ExplicitlyReportDirectoryProbes;
             IgnoreDeviceIoControlGetReparsePoint = salts.IgnoreDeviceIoControlGetReparsePoint;
             HonorDirectoryCasingOnDisk = salts.HonorDirectoryCasingOnDisk;
@@ -564,7 +558,6 @@ namespace BuildXL.Scheduler.Tracing
                        normalizeReadTimestamps: NormalizeReadTimestamps,
                        validateDistribution: ValidateDistribution,
                        pipWarningsPromotedToErrors: PipWarningsPromotedToErrors,
-                       requiredKextVersionNumber: RequiredKextVersionNumber,
                        explicitlyReportDirectoryProbes: ExplicitlyReportDirectoryProbes,
                        ignoreDeviceIoControlGetReparsePoint: IgnoreDeviceIoControlGetReparsePoint,
                        honorDirectoryCasingOnDisk: HonorDirectoryCasingOnDisk
@@ -601,7 +594,6 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(MaskUntrackedAccesses);
             writer.Write(NormalizeReadTimestamps);
             writer.Write(PipWarningsPromotedToErrors);
-            writer.Write(RequiredKextVersionNumber);
             writer.Write(IgnoreFullReparsePointResolving);
             writer.Write(ExplicitlyReportDirectoryProbes);
             writer.Write(IgnoreDeviceIoControlGetReparsePoint);
@@ -632,7 +624,6 @@ namespace BuildXL.Scheduler.Tracing
             MaskUntrackedAccesses = reader.ReadBoolean();
             NormalizeReadTimestamps = reader.ReadBoolean();
             PipWarningsPromotedToErrors = reader.ReadBoolean();
-            RequiredKextVersionNumber = reader.ReadString();
             IgnoreFullReparsePointResolving = reader.ReadBoolean();
             ExplicitlyReportDirectoryProbes = reader.ReadBoolean();
             IgnoreDeviceIoControlGetReparsePoint = reader.ReadBoolean();

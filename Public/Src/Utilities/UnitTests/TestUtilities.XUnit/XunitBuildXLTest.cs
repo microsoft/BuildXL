@@ -33,36 +33,11 @@ namespace Test.BuildXL.TestUtilities.Xunit
         Justification = "Test follow different pattern with Initialize and Cleanup.")]
     public abstract class XunitBuildXLTest : BuildXLTestBase, IDisposable
     {
-        private static readonly Lazy<ISandboxConnection> s_macOSSandboxConnection =  new Lazy<ISandboxConnection>(() => CreateSandboxConnection(isInTestMode: true));
-
         /// <summary>
         /// Creates a new sandbox connection.
         /// </summary>
         public static ISandboxConnection CreateSandboxConnection(bool isInTestMode)
         {
-            if (OperatingSystemHelper.IsMacOS)
-            {
-                var kind = ReadSandboxKindFromEnvVars();
-                if (kind == SandboxKind.MacOsKext)
-                {
-                    return new SandboxConnectionKext(
-                        skipDisposingForTests: true,
-                        config: new SandboxConnectionKext.Config
-                        {
-                            MeasureCpuTimes = true,
-                            FailureCallback = FailureCallback,
-                            KextConfig = new KextConfig
-                            {
-                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport
-                            }
-                        });
-                }
-                else
-                {
-                    return new SandboxConnection(kind, isInTestMode: isInTestMode);
-                }
-            }
-
             return null;
         }
 
@@ -71,30 +46,9 @@ namespace Test.BuildXL.TestUtilities.Xunit
             XAssert.Fail($"Sandbox failed.  Status: {status}.  Description: {description}");
         }
 
-        private static SandboxKind ReadSandboxKindFromEnvVars()
-        {
-            var kind = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BUILDXL_MACOS_ES_SANDBOX"))
-                ? SandboxKind.MacOsEndpointSecurity
-                : !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BUILDXL_MACOS_DETOURS_SANDBOX"))
-                    ? SandboxKind.MacOsDetours
-                    : !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BUILDXL_MACOS_HYBRID_SANDBOX"))
-                        ? SandboxKind.MacOsHybrid
-                        : SandboxKind.MacOsKext;
-
-            if (!OperatingSystemHelperExtension.IsMacWithoutKernelExtensionSupport &&
-                (kind == SandboxKind.MacOsEndpointSecurity || kind == SandboxKind.MacOsHybrid))
-            {
-                throw new NotSupportedException("EndpointSecurity and Hybrid sandbox types can't be run on system older than macOS Catalina (10.15+).");
-            }
-
-            return kind;
-        }
-
         /// <summary>
-        /// MacOS: Returns a static kernel connection object on macos. Unit tests would spam the kernel extension if they need sandboxing, so we
-        ///     tunnel all requests through the same object to keep kernel memory and CPU utilization low.
         /// Windows: Always returns null and causes no overhead for testing.
-        /// Linux: Returns a new sandboxed connection on each call for the Linux sandbox because it does not use a kernel extension.
+        /// Linux: Returns a new sandboxed connection on each call for the Linux sandbox
         /// </summary>
         public static ISandboxConnection GetSandboxConnection()
         {
@@ -103,7 +57,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 return new SandboxConnectionLinuxDetours(FailureCallback, isInTestMode: true);
             }
 
-            return s_macOSSandboxConnection.Value;
+            return null;
         }
 
         /// <summary>

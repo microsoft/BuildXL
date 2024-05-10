@@ -886,6 +886,7 @@ namespace BuildXL.Processes
             }
 
             // This assertion doesn't have to hold when using /sandboxKind:macOsKext because some messages may come out of order
+            // TODO [maly]: do we want to assert this on linux too???
             Contract.Assert(OperatingSystemHelper.IsUnixOS || process != null, "Should see a process creation before its accesses (malformed report)");
 
             // If no active ReportedProcess is found (e.g., because it already completed but we are still processing its access reports),

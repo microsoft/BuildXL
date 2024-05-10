@@ -799,7 +799,7 @@ namespace BuildXL.Processes
         {
             m_failureCallback = failureCallback;
             IsInTestMode = isInTestMode;
-            Native.Processes.ProcessUtilities.SetNativeConfiguration(SandboxConnection.IsInDebugMode);
+            Native.Processes.ProcessUtilities.SetNativeConfiguration(UnsandboxedProcess.IsInDebugMode);
         }
 
         /// <inheritdoc />
@@ -807,9 +807,7 @@ namespace BuildXL.Processes
         {
         }
 
-        /// <summary>
-        /// Disposes the sandbox kernel extension connection and release the resources in the interop layer, when running tests this can be skipped
-        /// </summary>
+        /// <inheritdoc />
         public void Dispose()
         {
             ReleaseResources();

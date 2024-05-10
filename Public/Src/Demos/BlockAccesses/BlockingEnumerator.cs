@@ -36,16 +36,8 @@ namespace BuildXL.Demo
             // Enumerates all files and read them
             string pathToProcess;
             string arguments;
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                pathToProcess = "/usr/bin/find";
-                arguments = ". -type f -exec /bin/cat {} \\;";
-            }
-            else
-            {
-                pathToProcess = Environment.GetEnvironmentVariable("COMSPEC");
-                arguments = "/C for /r %f in (*) do type %~ff";
-            }
+            pathToProcess = Environment.GetEnvironmentVariable("COMSPEC");
+            arguments = "/C for /r %f in (*) do type %~ff";
 
             var info = new SandboxedProcessInfo(
                 m_pathTable,
@@ -58,8 +50,7 @@ namespace BuildXL.Demo
                 Arguments = arguments,
                 WorkingDirectory = directoryToEnumerateAsString,
                 PipSemiStableHash = 0,
-                PipDescription = "EnumerateWithBlockedDirectories",
-                SandboxConnection = OperatingSystemHelper.IsUnixOS ? new SandboxConnectionKext() : null
+                PipDescription = "EnumerateWithBlockedDirectories"
             };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();

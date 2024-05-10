@@ -1356,7 +1356,7 @@ namespace Test.BuildXL.Processes
         /// Tests that FileAccessManifest.ReportProcessArgs option controls whether the
         /// command line arguments of all launched processes will be captured and reported
         /// </summary>
-        [TheoryIfSupported(requiresWindowsOrLinuxOperatingSystem: true)] // Sandbox Kext on macOS doesn't capture process cmdline
+        [TheoryIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
         public async Task ReportProcessCommandLineArgs(bool reportProcessArgs)

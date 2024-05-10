@@ -30,8 +30,7 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Implementation of <see cref="ISandboxedProcess"/> that relies on our kernel extension
-    /// for Unix-based systems (including MacOS and Linux).
+    /// Implementation of <see cref="ISandboxedProcess"/> for Unix-based systems (currently: Linux).
     /// </summary>
     public sealed class SandboxedProcessUnix : UnsandboxedProcess
     {
@@ -46,8 +45,6 @@ namespace BuildXL.Processes
         private readonly Dictionary<string, Process.ProcessResourceUsage>? m_processResourceUsage;
 
         private IEnumerable<ReportedProcess>? m_survivingChildProcesses;
-
-        private PipKextStats? m_pipKextStats;
 
         private long m_processKilledFlag;
 
@@ -84,7 +81,7 @@ namespace BuildXL.Processes
         private ulong m_sumOfReportCreationTimesUs;
 
         /// <summary>
-        /// Timeout period for inactivity from the sandbox kernel extension.
+        /// Timeout period for inactivity from the sandbox connection.
         /// </summary>
         internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode
             ? ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100)
@@ -172,7 +169,7 @@ namespace BuildXL.Processes
         public override int GetLastMessageCount() => m_reports.GetLastMessageCount();
 
         /// <nodoc />
-        public SandboxedProcessUnix(SandboxedProcessInfo info, bool ignoreReportedAccesses = false)
+        public SandboxedProcessUnix(SandboxedProcessInfo info)
             : base(info)
         {
             Contract.Requires(info.FileAccessManifest != null);
@@ -184,7 +181,6 @@ namespace BuildXL.Processes
             ChildProcessTimeout = info.NestedProcessTerminationTimeout;
             AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
-            IgnoreReportedAccesses = ignoreReportedAccesses;
             RootJailInfo = info.RootJailInfo;
             m_loggingContext = info.LoggingContext;
             m_ptraceRunners = new List<Task<AsyncProcessExecutor>>();
@@ -200,7 +196,7 @@ namespace BuildXL.Processes
             }
 
             // We cannot create a trace file if we are ignoring file accesses.
-            m_traceBuilder = info.CreateSandboxTraceFile && !ignoreReportedAccesses
+            m_traceBuilder = info.CreateSandboxTraceFile
                ? new SandboxedProcessTraceBuilder(info.FileStorage, info.PathTable)
                : null;
 
@@ -215,11 +211,9 @@ namespace BuildXL.Processes
                 info.FileSystemView,
                 m_traceBuilder);
 
-            var useSingleProducer = !(SandboxConnection.Kind == SandboxKind.MacOsHybrid || SandboxConnection.Kind == SandboxKind.MacOsDetours);
-
             var executionOptions = new ActionBlockSlimConfiguration(
                 DegreeOfParallelism: 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
-                SingleProducerConstrained: useSingleProducer);
+                SingleProducerConstrained: true);
 
             m_pendingReports = ActionBlockSlim.Create<AccessReport>(configuration: executionOptions,
                 (accessReport) =>
@@ -260,8 +254,6 @@ namespace BuildXL.Processes
             }
         }
 
-        private bool NeedsShellWrapping() => OperatingSystemHelper.IsMacOS;
-
         /// <inheritdoc />
         protected override System.Diagnostics.Process CreateProcess(SandboxedProcessInfo info)
         {
@@ -273,13 +265,7 @@ namespace BuildXL.Processes
                 process.StartInfo.WorkingDirectory = "/";
             }
 
-            if (NeedsShellWrapping())
-            {
-                // shell script streamed to stdin
-                process.StartInfo.FileName = ShellExecutable;
-                process.StartInfo.Arguments = string.Empty;
-            }
-            else if (info.RootJailInfo == null)
+            if (info.RootJailInfo == null)
             {
                 foreach (var kvp in AdditionalEnvVars(info))
                 {
@@ -375,18 +361,6 @@ namespace BuildXL.Processes
         /// </summary>
         private async Task OnProcessStartedAsync(SandboxedProcessInfo info)
         {
-            if (NeedsShellWrapping())
-            {
-                // The shell wrapper script started, so generate "Process Created" report before the actual pip process starts
-                // (the rest of the system expects to see it before any other file access reports).
-                //
-                // IMPORTANT (macOS-only):
-                //   do this before notifying sandbox kernel extension, because otherwise it can happen that a report
-                //   from the extension is received before the "process created" report is handled, causing
-                //   a "Should see a process creation before its accesses" assertion exception.
-                ReportProcessCreated();
-            }
-
             if (OperatingSystemHelper.IsLinuxOS)
             {
                 m_perfCollector?.Start();
@@ -420,9 +394,6 @@ namespace BuildXL.Processes
                 info.FileAccessManifest!.Release();
             }
         }
-
-        private string DetoursFile => Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()) ?? string.Empty, "libBuildXLDetours.dylib");
-        private const string DetoursEnvVar = "DYLD_INSERT_LIBRARIES";
 
         /// <inheritdoc />
         protected override IEnumerable<ReportedProcess>? GetSurvivingChildProcesses()
@@ -492,7 +463,7 @@ namespace BuildXL.Processes
 
             LogDebug("GetReportsAsync: Returning reports.");
 
-            return IgnoreReportedAccesses ? null : m_reports;
+            return m_reports;
         }
 
         /// <inheritdoc />
@@ -519,12 +490,6 @@ namespace BuildXL.Processes
                 // Try to kill all processes once the parent gets disposed, so we clean up all used
                 // system resources appropriately
                 KillAllChildProcesses();
-            }
-
-            if (m_pipKextStats != null)
-            {
-                var statsJson = JsonSerializer.Serialize(m_pipKextStats.Value);
-                LogDebug($"Process Kext Stats: {statsJson}");
             }
 
             // If ptrace runners have not finished yet, then do that now
@@ -634,73 +599,24 @@ namespace BuildXL.Processes
 
         private async Task FeedStdInAsync(SandboxedProcessInfo info, string? processStdinFileName, bool forceAddExecutionPermission = true)
         {
-            Contract.Requires(info.RootJailInfo == null || !NeedsShellWrapping(), "Cannot run root jail on this OS");
-
-            // if no shell wrapping is needed, only feed processStdinFileName (if specified)
-            if (!NeedsShellWrapping())
+            if (processStdinFileName != null)
             {
-                if (processStdinFileName != null)
-                {
-                    string stdinContent =
+                string stdinContent =
 #if NETCOREAPP
-                        await File.ReadAllTextAsync(processStdinFileName);
+                    await File.ReadAllTextAsync(processStdinFileName);
 #else
-                        File.ReadAllText(processStdinFileName);
+                    File.ReadAllText(processStdinFileName);
 #endif
-                    await Process.StandardInput.WriteAsync(stdinContent);
-                }
-
-                Process.StandardInput.Close();
-                return;
+                await Process.StandardInput.WriteAsync(stdinContent);
             }
 
-            // TODO: instead of generating a bash script (and be exposed to all kinds of injection attacks) we should write a wrapper runner program
-            string redirectedStdin = processStdinFileName != null ? $" < {ToPathInsideRootJail(processStdinFileName)}" : string.Empty;
-
-            // this additional round of escaping is needed because we are flushing the arguments to a shell script
-            string escapedArguments = (EnsureQuoted(info.Arguments) ?? string.Empty)
-                .Replace("$", "\\$")
-                .Replace("`", "\\`");
-            string cmdLine = $"{CommandLineEscaping.EscapeAsCommandLineWord(info.FileName)} {escapedArguments} {redirectedStdin}";
-
-            LogDebug("Feeding stdin");
-
-            var lines = new List<string>();
-
-            lines.Add("set -e");
-
-            if (info.SandboxConnection!.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours)
-            {
-                lines.Add($"export {DetoursEnvVar}={DetoursFile}");
-            }
-
-            foreach (var envKvp in info.SandboxConnection.AdditionalEnvVarsToSet(info, UniqueName))
-            {
-                lines.Add($"export {envKvp.Item1}={envKvp.Item2}");
-            }
-
-            lines.Add($"exec {cmdLine}");
-
-            if (info.ForceAddExecutionPermission)
-            {
-                SetExecutePermissionIfNeeded(info.FileName, throwIfNotFound: false);
-            }
-            foreach (string line in lines)
-            {
-                await Process.StandardInput.WriteLineAsync(line);
-            }
-
-            LogDebug("Done feeding stdin:" + Environment.NewLine + string.Join(Environment.NewLine, lines));
             Process.StandardInput.Close();
+            return;
         }
 
         private IEnumerable<(string, string?)> AdditionalEnvVars(SandboxedProcessInfo info)
         {
-            return info.SandboxConnection!
-                .AdditionalEnvVarsToSet(info, UniqueName)
-                .Concat(info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours
-                    ? new (string, string?)[] { (DetoursEnvVar, DetoursFile) }
-                    : Array.Empty<(string, string?)>());
+            return info.SandboxConnection!.AdditionalEnvVarsToSet(info, UniqueName);
         }
 
         internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, string line)
@@ -1009,10 +925,6 @@ namespace BuildXL.Processes
 
                 if (report.Operation == FileOperation.OpProcessTreeCompleted)
                 {
-                    if (SandboxConnection is SandboxConnectionKext)
-                    {
-                        m_pipKextStats = report.DecodePipKextStats();
-                    }
                     m_pendingReports.Complete();
                 }
                 else
@@ -1036,13 +948,6 @@ namespace BuildXL.Processes
         private void ReportFileAccess(ref AccessReport report)
         {
             if (ReportsCompleted())
-            {
-                return;
-            }
-
-            if (IgnoreReportedAccesses &&
-                report.Operation != FileOperation.OpProcessStart &&
-                report.Operation != FileOperation.OpProcessExit)
             {
                 return;
             }

@@ -58,8 +58,8 @@ namespace BuildXL.Engine.Distribution
         private CancellationTokenRegistration m_cancellationTokenRegistration;
         private bool m_isInitialized;
         private volatile bool m_isConnectionLost;
-        private bool m_materializeOutputFailed;
         private bool m_isEarlyReleaseInitiated;
+        private string m_infraFailure;
 
         /// <inheritdoc />
         public override bool IsEarlyReleaseInitiated => Volatile.Read(ref m_isEarlyReleaseInitiated);
@@ -333,6 +333,7 @@ namespace BuildXL.Engine.Distribution
 
             CountConnectionFailure(e.Type);
             m_isConnectionLost = true;
+            m_infraFailure = $"The connection got lost with the worker. Is ever connected: {EverConnected}. Is early-release initiated: {IsEarlyReleaseInitiated}";
 
             // Connection is lost. As the worker might have pending tasks, 
             // Scheduler might decide to release the worker due to insufficient amount of remaining work, which is not related to the connection issue.
@@ -551,7 +552,7 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
-        public override async Task FinishAsync(string buildFailure = null, [CallerMemberName] string callerName = null)
+        public override async Task FinishAsync([CallerMemberName] string callerName = null)
         {
             if (await TryInitiateStop())
             {
@@ -565,7 +566,7 @@ namespace BuildXL.Engine.Distribution
                     Name,
                     callerName);
 
-                await DisconnectAsync(buildFailure, callerName);
+                await DisconnectAsync(callerName);
             }
         }
 
@@ -608,7 +609,7 @@ namespace BuildXL.Engine.Distribution
             Scheduler.Tracing.Logger.Log.WorkerReleasedEarly(m_appLoggingContext, Name);
         }
 
-        private async Task DisconnectAsync(string buildFailure = null, [CallerMemberName] string callerName = null)
+        private async Task DisconnectAsync([CallerMemberName] string callerName = null)
         {
             Contract.Requires(AttachCompletionTask.IsCompleted, "AttachCompletionTask needs to be completed before we disconnect the worker");
             Contract.Requires(Status == WorkerNodeStatus.Stopping, $"Disconnect cannot be called for {Status} status");
@@ -628,18 +629,9 @@ namespace BuildXL.Engine.Distribution
                 Logger.Log.DistributionStreamingNetworkFailure(m_appLoggingContext, Name);
             }
 
-            string infraFailure = string.Empty;
             if (!EverAvailable && !IsEarlyReleaseInitiated)
             {
-                infraFailure = $"{Name} failed to connect to the orchestrator within the timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} minutes), typically due to a delay between orchestrator startup and worker bxl process initiation. Such delays can be expected in certain multi-stage distributed builds.";
-            }
-            else if (m_materializeOutputFailed)
-            {
-                infraFailure = "Some materialize output requests could not be sent.";
-            }
-            else if (m_isConnectionLost)
-            {
-                infraFailure = $"The connection got lost with the worker. Is ever connected: {EverConnected}. Is early-release initiated: {IsEarlyReleaseInitiated}";
+                m_infraFailure = $"{Name} failed to connect to the orchestrator within the timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} minutes), typically due to a delay between orchestrator startup and worker bxl process initiation. Such delays can be expected in certain multi-stage distributed builds.";
             }
 
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
@@ -647,15 +639,16 @@ namespace BuildXL.Engine.Distribution
             {
                 var buildEndData = new BuildEndData();
 
-                buildEndData.Failure = buildFailure ?? infraFailure;
+                // The infrastructure failures should be given higher priority when forwarding them to workers.
+                buildEndData.Failure = m_infraFailure ?? (Environment.HasFailed ? "Distributed build failed. See errors on orchestrator." : string.Empty);
                 var exitCallResult = await m_workerClient.ExitAsync(buildEndData);
                 if (!exitCallResult.Succeeded)
                 {
-                    infraFailure += $" Exit call failed with {exitCallResult.LastFailure?.DescribeIncludingInnerFailures() ?? "gRPC call failed"}.";
+                    m_infraFailure += $" Exit call failed with {exitCallResult.LastFailure?.DescribeIncludingInnerFailures() ?? "gRPC call failed"}.";
                 }
             }
 
-            if (!string.IsNullOrEmpty(infraFailure))
+            if (!string.IsNullOrEmpty(m_infraFailure))
             {
                 // We log the following message for each worker if any of these occurs:
                 // (i) The worker has not been ever attached to the orchestrator at any part of the build and the early release has not been initiated for this worker.
@@ -663,7 +656,7 @@ namespace BuildXL.Engine.Distribution
                 // (iii) The worker failed to materialize all outputs.
                 // (iv) The exit call fails to be sent.
 
-                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, infraFailure);
+                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, m_infraFailure);
                 m_orchestratorService.Counters.IncrementCounter(DistributionCounter.NumProblematicWorkers);
                 Environment.ReportProblematicWorker();
             }
@@ -991,7 +984,7 @@ namespace BuildXL.Engine.Distribution
             {
                 // Output replication failures on workers due to connection issues do not fail the distributed build. 
                 // Setting the exit failure above ensures that the worker will fail its build and not proceed.
-                m_materializeOutputFailed = true;
+                m_infraFailure = "Some materialize output requests could not be sent.";
 
                 result = new ExecutionResult();
                 result.SetResult(operationContext, PipResultStatus.NotMaterialized);
@@ -1294,7 +1287,8 @@ namespace BuildXL.Engine.Distribution
 
             if (isInfraError)
             {
-                await FinishAsync(forwardedEvent.Text);
+                m_infraFailure = forwardedEvent.Text;
+                await FinishAsync();
                 return true;
             }
 

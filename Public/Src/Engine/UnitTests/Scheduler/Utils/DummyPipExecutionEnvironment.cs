@@ -657,6 +657,8 @@ namespace Test.BuildXL.Scheduler.Utils
         /// <inheritdoc />
         public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; set; }
 
+        public bool HasFailed => throw new NotImplementedException();
+
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {
             if (m_knownSealedSourceDirectoriesAllDirectories.Contains(directory.Path))

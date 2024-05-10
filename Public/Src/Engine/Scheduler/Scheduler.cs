@@ -1582,12 +1582,6 @@ namespace BuildXL.Scheduler
         #region Execution
 
         /// <summary>
-        /// Returns a Boolean indicating if the scheduler has so far been successful in executing pips.
-        /// If the pip queue is empty and the scheduler has failed, then the final value of this flag is known.
-        /// </summary>
-        public bool HasFailed => m_hasFailures;
-
-        /// <summary>
         /// Returns a Boolean indicating if the scheduler has received a request for cancellation.
         /// </summary>
         public bool IsTerminating => m_scheduleTerminating;
@@ -1747,7 +1741,7 @@ namespace BuildXL.Scheduler
 
                 using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.WhenDoneWorkerFinishDuration))
                 {
-                    await m_workers.ParallelForEachAsync((worker) => worker.FinishAsync(HasFailed ? "Distributed build failed. See errors on orchestrator." : null));
+                    await m_workers.ParallelForEachAsync((worker) => worker.FinishAsync());
 
                     // Wait for all workers to confirm that they have stopped.
                     while (m_workers.Any(w => w.Status != WorkerNodeStatus.Stopped))
@@ -5348,6 +5342,9 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         public PipExecutionContext Context { get; }
+
+        /// <inheritdoc />
+        public bool HasFailed => m_hasFailures;
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

@@ -686,6 +686,8 @@ namespace Test.BuildXL.Scheduler
             public IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes => CollectionUtilities.EmptySet<AbsolutePath>();
 
             public SchedulerTestHooks SchedulerTestHooks { get; }
+
+            public bool HasFailed => throw new NotImplementedException();
         }
     }
 

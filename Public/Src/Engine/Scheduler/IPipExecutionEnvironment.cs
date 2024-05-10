@@ -260,6 +260,12 @@ namespace BuildXL.Scheduler
         /// Report a problematic worker
         /// </summary>
         void ReportProblematicWorker();
+
+        /// <summary>
+        /// Returns a Boolean indicating if the scheduler has so far been successful in executing pips.
+        /// If the pip queue is empty and the scheduler has failed, then the final value of this flag is known.
+        /// </summary>
+        public bool HasFailed { get; }
     }
 
     /// <summary>

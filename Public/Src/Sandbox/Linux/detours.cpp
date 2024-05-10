@@ -170,7 +170,7 @@ static void report_child_process(const char *syscall, BxlObserver *bxl, pid_t ch
 {
     string exePath(bxl->GetProgramPath());
     auto event = buildxl::linux::SandboxEvent::ForkSandboxEvent(parentPid, childPid, exePath);
-    bxl->CreateAndReportAccess(syscall, event);
+    bxl->CreateAndReportAccess(syscall, event, /* check_cache */ false);
 }
 
 static void HandleForkOrCloneReporting(const char *syscall, BxlObserver *bxl, pid_t forkOrCloneChildPidResult)
@@ -1883,7 +1883,7 @@ void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
         /* error */         0,
         /* src_path */      BxlObserver::GetInstance()->GetProgramPath());
     
-    BxlObserver::GetInstance()->CreateAndReportAccess("__init__", event);
+    BxlObserver::GetInstance()->CreateAndReportAccess("__init__", event, /* check_cache */ false);
     BxlObserver::GetInstance()->report_exec_args(getpid());
 }
 

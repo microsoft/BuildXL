@@ -1193,7 +1193,7 @@ namespace BuildXL.Processes
                 // We will kill these manually if the pip is exiting
                 Timeout.InfiniteTimeSpan,
                 // The runner will only log to stderr if there's a problem, other logs go to the main log using the fifo
-                errorBuilder: line => { if (line != null) { Logger.Log.PTraceRunnerError(m_loggingContext, line); } },
+                errorBuilder: line => { if (line != null) { Logger.Log.PTraceRunnerError(m_loggingContext, m_reports.PipDescription, line); } },
                 forceAddExecutionPermission: forceAddExecutionPermission
            );
 

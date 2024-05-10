@@ -284,7 +284,7 @@ private:
         return str.str();
     }
 
-    void relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullPath);
+    void relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullPath, const char *systemcall = "");
     void resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid);
     
     /**
@@ -409,7 +409,7 @@ public:
     // table properly for the case of pipes when we miss a close.
     std::string fd_to_path(int fd, pid_t associatedPid = 0);
     
-    std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0, pid_t associatedPid = 0);
+    std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0, pid_t associatedPid = 0, const char *systemcall = "");
 
     // Whether the given descriptor is a non-file (e.g., a pipe, or socket, etc.)
     static bool is_non_file(const mode_t mode);

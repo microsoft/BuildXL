@@ -1073,7 +1073,7 @@ void BxlObserver::report_intermediate_symlinks(const char *pathname, pid_t assoc
     resolve_path(fullPath, /* followFinalSymlink */ true, associatedPid);
 }
 
-std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags, pid_t associatedPid)
+std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags, pid_t associatedPid, const char *systemcall)
 {
     // Observe that dirfd is assumed to point to a directory file descriptor. Under that assumption, it is safe to call fd_to_path for it.
     // TODO: If we wanted to be very defensive, we could also consider the case of some tool invoking any of the *at(... dirfd ...) family with a 
@@ -1087,7 +1087,7 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
     }
 
     char fullPath[PATH_MAX] = {0};
-    relative_to_absolute(pathname, dirfd, associatedPid, fullPath);    
+    relative_to_absolute(pathname, dirfd, associatedPid, fullPath, systemcall);    
 
     bool followFinalSymlink = (oflags & O_NOFOLLOW) == 0;
     resolve_path(fullPath, followFinalSymlink, associatedPid);
@@ -1095,7 +1095,7 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
     return fullPath;
 }
 
-void BxlObserver::relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullpath)
+void BxlObserver::relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullpath, const char *systemcall)
 {
     size_t len = 0;
 
@@ -1119,7 +1119,7 @@ void BxlObserver::relative_to_absolute(const char *pathname, int dirfd, int asso
 
         if (len <= 0)
         {
-            _fatal("Could not get path for fd %d; errno: %d", dirfd, errno);
+            _fatal("['%s'] Could not get path for fd %d with path '%s'; errno: %d", systemcall, dirfd, pathname, errno);
         }
 
         fullpath[len] = '/';

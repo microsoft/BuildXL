@@ -551,7 +551,7 @@ void PTraceSandbox::ReportCreate(std::string syscallName, int dirfd, const char 
         /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
         /* pid */           m_traceePid,
         /* error */         returnValue,
-        /* src_path */      m_bxl->normalize_path_at(dirfd, pathname, /* oflags */ 0, m_traceePid).c_str());
+        /* src_path */      m_bxl->normalize_path_at(dirfd, pathname, /* oflags */ 0, m_traceePid, syscallName.c_str()).c_str());
     event.SetMode(mode);
     
     m_bxl->CreateAndReportAccess(syscallName.c_str(), event, /* check_cache */ false);
@@ -606,7 +606,7 @@ HANDLER_FUNCTION(execveat)
     int flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
-    std::string exePath = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid);
+    std::string exePath = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid, SYSCALL_NAME_STRING(execveat));
 
     UpdateTraceeTableForExec(exePath);
 
@@ -735,7 +735,7 @@ HANDLER_FUNCTION(openat)
 {
     auto dirfd = ReadArgumentLong(1);
     auto pathName = ReadArgumentString(SYSCALL_NAME_STRING(openat), 2, /* nullTerminated */ true);
-    auto path = m_bxl->normalize_path_at(dirfd, pathName.c_str(), /* oflags */ 0, m_traceePid);
+    auto path = m_bxl->normalize_path_at(dirfd, pathName.c_str(), /* oflags */ 0, m_traceePid, SYSCALL_NAME_STRING(openat));
     auto flags = ReadArgumentLong(3);
     ReportOpen(path, flags, SYSCALL_NAME_STRING(openat));
 }
@@ -854,8 +854,8 @@ HANDLER_FUNCTION(renameat2)
 
 void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const char *oldpath, int newdirfd, const char *newpath)
 {
-    string oldStr = m_bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW, m_traceePid);
-    string newStr = m_bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW, m_traceePid);
+    string oldStr = m_bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW, m_traceePid, syscall);
+    string newStr = m_bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW, m_traceePid, syscall);
 
     mode_t mode = m_bxl->get_mode(oldStr.c_str());    
     std::vector<std::string> filesAndDirectories;
@@ -925,8 +925,8 @@ HANDLER_FUNCTION(linkat)
         /* event_type */    ES_EVENT_TYPE_NOTIFY_LINK,
         /* pid */           m_traceePid,
         /* error */         0,
-        /* src_path */      m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
-        /* dest_path */     m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid).c_str());
+        /* src_path */      m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid, SYSCALL_NAME_STRING(linkat)).c_str(),
+        /* dest_path */     m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid, SYSCALL_NAME_STRING(linkat)).c_str());
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(linkat), event);
 }
@@ -1237,7 +1237,7 @@ HANDLER_FUNCTION(name_to_handle_at)
     auto flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_FOLLOW) ? 0 : O_NOFOLLOW;
-    string pathStr = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid);
+    string pathStr = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid, SYSCALL_NAME_STRING(name_to_handle_at));
     ReportOpen(pathStr, oflags, SYSCALL_NAME_STRING(name_to_handle_at));
 }
 

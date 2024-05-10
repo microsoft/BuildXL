@@ -1265,8 +1265,8 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "PTraceRunner logged the following error: {content}")]
-        internal abstract void PTraceRunnerError(LoggingContext loggingContext, string content);
+            Message = "[{pipDescription}] PTraceRunner logged the following error: {content}")]
+        internal abstract void PTraceRunnerError(LoggingContext loggingContext, string pipDescription, string content);
 
         [GeneratedEvent(
             (ushort)LogEventId.ReportArgsMismatch,

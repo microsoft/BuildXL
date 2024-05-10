@@ -822,25 +822,20 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName)
         {
-            var detoursLibPath = info.RootJailInfo.CopyToRootJailIfNeeded(DetoursLibFile);
-            (_, _, string famPath) = GetPaths(info.RootJailInfo, uniqueName);
+            (_, _, string famPath) = GetPaths(uniqueName);
 
             yield return ("__BUILDXL_ROOT_PID", "1"); // CODESYNC: Public/Src/Sandbox/Linux/common.h (temp solution for breakaway processes)
-            yield return (BuildXLFamPathEnvVarName, info.RootJailInfo.ToPathInsideRootJail(famPath));
-            yield return ("__BUILDXL_DETOURS_PATH", detoursLibPath);
-
-            if (info.RootJailInfo?.DisableSandboxing != true)
-            {
-                yield return ("LD_PRELOAD", detoursLibPath + ":" + info.EnvironmentVariables.TryGetValue("LD_PRELOAD", string.Empty));
-            }
+            yield return (BuildXLFamPathEnvVarName, famPath);
+            yield return ("__BUILDXL_DETOURS_PATH", DetoursLibFile);
+            yield return ("LD_PRELOAD", DetoursLibFile + ":" + info.EnvironmentVariables.TryGetValue("LD_PRELOAD", string.Empty));
         }
 
         /// <summary>
         /// Returns the paths for the FIFO and FAM based on the unique name for a pip.
         /// </summary>
-        public static (string fifo, string secondaryFifo, string fam) GetPaths(RootJailInfo? rootJailInfo, string uniqueName)
+        public static (string fifo, string secondaryFifo, string fam) GetPaths(string uniqueName)
         {
-            string rootDir = rootJailInfo?.RootJail ?? Path.GetTempPath();
+            string rootDir = Path.GetTempPath();
             string fifoPath = Path.Combine(rootDir, $"bxl_{uniqueName}.fifo");
             // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.cpp
             string secondaryFifoPath = Path.Combine(rootDir, $"bxl_{uniqueName}.fifo2");
@@ -858,7 +853,7 @@ namespace BuildXL.Processes
             Contract.Requires(!process.Started);
             Contract.Requires(process.PipId != 0);
 
-            (string fifoPath, string secondaryFifoPath, string famPath) = GetPaths(process.RootJailInfo, process.UniqueName);
+            (string fifoPath, string secondaryFifoPath, string famPath) = GetPaths(process.UniqueName);
             
             if (IsInTestMode)
             {
@@ -871,7 +866,7 @@ namespace BuildXL.Processes
                 var debugFlags = true;
                 ArraySegment<byte> manifestBytes = fam.GetPayloadBytes(
                     loggingContext,
-                    new FileAccessSetup { DllNameX64 = string.Empty, DllNameX86 = string.Empty, ReportPath = process.ToPathInsideRootJail(fifoPath) },
+                    new FileAccessSetup { DllNameX64 = string.Empty, DllNameX86 = string.Empty, ReportPath = fifoPath },
                     wrapper.Instance,
                     timeoutMins: 10, // don't care
                     debugFlagsMatch: ref debugFlags);

@@ -94,8 +94,6 @@ namespace BuildXL.Processes
         /// </summary>
         private string[]? AllowedSurvivingChildProcessNames { get; }
 
-        private bool IgnoreReportedAccesses { get; }
-
         /// <summary>
         /// Absolute path to the executable file.
         /// </summary>
@@ -151,19 +149,7 @@ namespace BuildXL.Processes
             return fullPath;
         }
 
-        /// <summary>
-        /// Optional configuration for running this process in a root jail.
-        /// </summary>
-        internal RootJailInfo? RootJailInfo { get; }
-
-        /// <summary>
-        /// Optional directory where root jail should be established.
-        /// </summary>
-        internal string? RootJail => RootJailInfo?.RootJail;
-
         private const double NanosecondsToMillisecondsFactor = 1000000d;
-
-        internal string ToPathInsideRootJail(string path) => RootJailInfo.ToPathInsideRootJail(path);
 
         /// <inheritdoc />
         public override int GetLastMessageCount() => m_reports.GetLastMessageCount();
@@ -181,7 +167,6 @@ namespace BuildXL.Processes
             ChildProcessTimeout = info.NestedProcessTerminationTimeout;
             AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
-            RootJailInfo = info.RootJailInfo;
             m_loggingContext = info.LoggingContext;
             m_ptraceRunners = new List<Task<AsyncProcessExecutor>>();
             m_pathCache = new Dictionary<string, PathCacheRecord>();
@@ -259,81 +244,27 @@ namespace BuildXL.Processes
         {
             var process = base.CreateProcess(info);
             process.StartInfo.RedirectStandardInput = true;
-            if (info.RootJailInfo?.RootJail != null)
+
+            foreach (var kvp in AdditionalEnvVars(info))
             {
-                // the 'chroot' program will change the directory to what it's supposed to be
-                process.StartInfo.WorkingDirectory = "/";
+                process.StartInfo.EnvironmentVariables[kvp.Item1] = kvp.Item2;
             }
 
-            if (info.RootJailInfo == null)
+            // If the ptrace sandbox is used and the top level process requires ptrace or the ptrace sandbox is unconditionally enabled, then it needs to be updated to use bash
+            // This allows the interposed sandbox to start up (because bash is known to not be statically linked) and wrap the exec of the real binary with ptrace.
+            var ptraceChecker = PtraceSandboxProcessChecker.Instance;
+            if (info.FileAccessManifest.EnableLinuxPTraceSandbox && 
+                (info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox || ptraceChecker.BinaryRequiresPTraceSandbox(info.FileName)))
             {
-                foreach (var kvp in AdditionalEnvVars(info))
+                // This is a workaround for an issue that appears on Linux where some executables in the BuildXL
+                // nuget/npm package may not have the execute bit set causing a permission denied error
+                if (info.ForceAddExecutionPermission)
                 {
-                    process.StartInfo.EnvironmentVariables[kvp.Item1] = kvp.Item2;
+                    _ = FileUtilities.SetExecutePermissionIfNeeded(process.StartInfo.FileName);
                 }
 
-                // If the ptrace sandbox is used and the top level process requires ptrace or the ptrace sandbox is unconditionally enabled, then it needs to be updated to use bash
-                // This allows the interposed sandbox to start up (because bash is known to not be statically linked) and wrap the exec of the real binary with ptrace.
-                var ptraceChecker = PtraceSandboxProcessChecker.Instance;
-                if (info.FileAccessManifest.EnableLinuxPTraceSandbox && 
-                    (info.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox || ptraceChecker.BinaryRequiresPTraceSandbox(info.FileName)))
-                {
-                    // This is a workaround for an issue that appears on Linux where some executables in the BuildXL
-                    // nuget/npm package may not have the execute bit set causing a permission denied error
-                    if (info.ForceAddExecutionPermission)
-                    {
-                        _ = FileUtilities.SetExecutePermissionIfNeeded(process.StartInfo.FileName);
-                    }
-
-                    process.StartInfo.Arguments = $"{process.StartInfo.FileName} {process.StartInfo.Arguments}";
-                    process.StartInfo.FileName = EnvExecutable;
-                }
-            }
-            else
-            {
-#if NETCOREAPP
-                var rootJailInfo = info.RootJailInfo.Value;
-                // top-level process is the root jail program
-                process.StartInfo.FileName = rootJailInfo.RootJailProgram.program;
-                process.StartInfo.Arguments = string.Empty;
-                process.StartInfo.ArgumentList.Clear();
-                // root jail arguments
-                foreach (string rootJailArg in rootJailInfo.RootJailProgram.args)
-                {
-                    process.StartInfo.ArgumentList.Add(rootJailArg);
-                }
-                if (rootJailInfo.UserId != null && rootJailInfo.GroupId != null)
-                {
-                    process.StartInfo.ArgumentList.Add($"--userspec={rootJailInfo.UserId}:{rootJailInfo.GroupId}");
-                }
-                // root jail directory
-                process.StartInfo.ArgumentList.Add(rootJailInfo.RootJail);
-                // inside the jail, run "bxl-env" to change into user-specified directory as well as to set environment variables before running user-specified program
-                // NOTE: -C <dir> must be the first two arguments, see bxl-env.c
-                process.StartInfo.ArgumentList.Add(info.RootJailInfo.CopyToRootJailIfNeeded(EnvExecutable));
-
-                if (info.WorkingDirectory != null)
-                {
-                    // change directory into what the user specified
-                    process.StartInfo.ArgumentList.Add("-C");
-                    process.StartInfo.ArgumentList.Add(info.WorkingDirectory);
-                }
-
-                // propagate environment variables (because root jail program won't do it)
-                process.StartInfo.ArgumentList.Add("-i");
-                foreach (var kvp in process.StartInfo.Environment.Select(kvp => (kvp.Key, kvp.Value)).Concat(AdditionalEnvVars(info)))
-                {
-                    process.StartInfo.ArgumentList.Add($"{kvp.Item1}={kvp.Item2}");
-                }
-                // finally add the original executable and its arguments
-                process.StartInfo.ArgumentList.Add(info.FileName);
-                foreach (var arg in CommandLineEscaping.SplitArguments(info.Arguments!))
-                {
-                    process.StartInfo.ArgumentList.Add(arg.Value.ToString());
-                }
-#else
-                throw new ArgumentException($"Running {nameof(SandboxedProcessUnix)} in a non .NET Core environment should not be possible");
-#endif
+                process.StartInfo.Arguments = $"{process.StartInfo.FileName} {process.StartInfo.Arguments}";
+                process.StartInfo.FileName = EnvExecutable;
             }
 
             // In any case, allow read access to the process file.
@@ -596,7 +527,6 @@ namespace BuildXL.Processes
             throw new ArgumentException($"Running {nameof(SandboxedProcessUnix)} in a non .NET Core environment should not be possible");
 #endif
         }
-
         private async Task FeedStdInAsync(SandboxedProcessInfo info, string? processStdinFileName, bool forceAddExecutionPermission = true)
         {
             if (processStdinFileName != null)
@@ -1073,7 +1003,7 @@ namespace BuildXL.Processes
 
         private void StartPTraceRunner(int pid, string path, bool forceAddExecutionPermission)
         {
-            var paths = SandboxConnectionLinuxDetours.GetPaths(RootJailInfo, UniqueName);
+            var paths = SandboxConnectionLinuxDetours.GetPaths(UniqueName);
             var args = $"-c {pid} -x {path}";
             var process = new System.Diagnostics.Process
             {

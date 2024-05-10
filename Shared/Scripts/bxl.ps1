@@ -42,9 +42,9 @@ Uses the LKG deployment to update the Dev deployment with Debug binaries
 .EXAMPLE
 
 
-.\bxl -DeployDev -DeployConfig "release" -DeployRuntime "net7.0"
+.\bxl -DeployDev -DeployConfig "release" -DeployRuntime "net8.0"
 
-Uses the LKG deployment to update the Dev deployment with net7.0 release binaries 
+Uses the LKG deployment to update the Dev deployment with net8.0 release binaries 
 
 .EXAMPLE
 
@@ -322,7 +322,7 @@ if ($Vs -or $VsAll) {
     }
     else {
         # by default (-vs) we build only .NET Core and only projects targeting one of the .NET Core frameworks
-        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net7.0 /vsTargetFramework:net8.0";
+        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net8.0";
     }
 }
 

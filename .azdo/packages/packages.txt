@@ -1,4 +1,5 @@
 BuildXL.win-x64
+BuildXL.win-x64-net7
 BuildXL.Cache.Hashing
 BuildXL.Cache.Interfaces
 BuildXL.Cache.Tools

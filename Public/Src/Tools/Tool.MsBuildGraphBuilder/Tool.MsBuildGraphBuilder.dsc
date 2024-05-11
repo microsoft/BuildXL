@@ -11,7 +11,7 @@ import * as Shared from "Sdk.Managed.Shared";
 
 namespace MsBuildGraphBuilder {
 
-    export declare const qualifier: BuildXLSdk.Net8QualifierWithNet472;
+    export declare const qualifier: BuildXLSdk.Net7QualifierWithNet472;
 
     @@public
     export const exe = BuildXLSdk.executable({

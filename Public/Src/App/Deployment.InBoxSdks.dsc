@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
-import {isDotNetCore} from "Sdk.Managed.Shared";
 
 const sdkRoot = Context.getMount("SdkRoot").path;
 
@@ -60,9 +59,9 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                         ...addIf(!minimalDeployment, 
                             {
                                 subfolder: "Sdk.Drop",
-                                contents: [
+                                contents: [ 
                                     importFrom("BuildXL.Tools.DropDaemon").withQualifier({
-                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetFramework: "net7.0",
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(evaluationOnly)
                                 ]
@@ -70,17 +69,17 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                             {
                                 subfolder: "Sdk.Symbols",
                                 contents: [
-                                    importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
-                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
-                                        targetRuntime: "win-x64"
-                                    }).selectDeployment(evaluationOnly)
+                                        importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
+                                            targetFramework: "net7.0",
+                                            targetRuntime: "win-x64"
+                                        }).selectDeployment(evaluationOnly)
                                 ]
                             },
                             {
                                 subfolder: "Sdk.Materialization",
                                 contents: [
                                     importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
-                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetFramework: "net7.0",
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(evaluationOnly)
                                 ]

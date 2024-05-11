@@ -48,16 +48,16 @@ namespace MsBuild {
             {
                 subfolder: r`tools/vbcslogger/dotnetcore`,
                 // CODESYNC: qualifier in Public\Src\Tools\VBCSCompilerLogger\VBCSCompilerLogger.dsc
-                // TODO: Remove qualifier override once Net8QualifierWithNet472 is dealt with.
+                // TODO: Remove qualifier override once Net7QualifierWithNet472 is dealt with.
                 contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger
-                    .withQualifier({ targetFramework: "net8.0" }).dll]
+                    .withQualifier({ targetFramework: "net7.0" }).dll]
             },
             {
                 subfolder: r`tools`,
-                // For the dotnet case, we are only deploying the tool for net8
+                // For the dotnet case, we are only deploying the tool for net7
                 // TODO: Remove condition when we stop building for net6.0
-                contents: [qualifier.targetFramework === "net6.0"
-                    ? importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier({targetFramework: "net8.0"}).deployment
+                contents: [qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net8.0"
+                    ? importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier({targetFramework: "net7.0"}).deployment
                     : importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment],
             }
         ]

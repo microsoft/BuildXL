@@ -8,6 +8,9 @@ const aspVersion = "8.0.0";
 const asp6RefVersion = "6.0.28";
 const asp6RuntimeVersion = "6.0.28";
 
+const asp7RefVersion = "7.0.17";
+const asp7RuntimeVersion = "7.0.17";
+
 const asp8RefVersion = "8.0.3";
 const asp8RuntimeVersion = "8.0.3";
 
@@ -39,6 +42,14 @@ export const pkgs = [
         filesToExclude: [r`runtimes/linux-x64/lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/linux-x64/lib/net6.0/Microsoft.Extensions.Logging.dll`] },
     { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.6.0.0", 
         filesToExclude: [r`runtimes/osx-x64/lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/osx-x64/lib/net6.0/Microsoft.Extensions.Logging.dll`] },
+
+    { id: "Microsoft.AspNetCore.App.Ref", version: asp7RefVersion, alias: "Microsoft.AspNetCore.App.Ref.7.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp7RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.7.0.0", 
+        filesToExclude: [r`runtimes/win-x64/lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/win-x64/lib/net7.0/Microsoft.Extensions.Logging.dll`] },
+    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp7RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.7.0.0", 
+        filesToExclude: [r`runtimes/linux-x64/lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/linux-x64/lib/net7.0/Microsoft.Extensions.Logging.dll`] },
+    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp7RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.7.0.0", 
+        filesToExclude: [r`runtimes/osx-x64/lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/osx-x64/lib/net7.0/Microsoft.Extensions.Logging.dll`] },
 
     { id: "Microsoft.AspNetCore.App.Ref", version: asp8RefVersion, alias: "Microsoft.AspNetCore.App.Ref.8.0.0" },
     { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp8RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.8.0.0", 

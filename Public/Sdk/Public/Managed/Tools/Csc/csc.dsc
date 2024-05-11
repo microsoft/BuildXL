@@ -274,6 +274,11 @@ export function getDotNetCoreVersion(cscArguments: Arguments): Shared.DotNetCore
         return "net8.0";
     }
 
+    // Now we can check whether net7 symbol is present.
+    if (cscArguments.defines.some(e => e === "NET7_0")) {
+        return "net7.0";
+    }
+
     return "net8.0";
 }
 

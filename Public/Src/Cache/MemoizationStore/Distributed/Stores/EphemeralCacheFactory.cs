@@ -662,8 +662,14 @@ public static class EphemeralCacheFactory
                 // We use gRPC.Core for the server because we have observed issues with gRPC.NET in practice.
                 GrpcConfiguration = new GrpcCoreServerHostConfiguration(GrpcPort: grpcPort, EncryptedGrpcPort: encryptedGrpcPort, GrpcCoreServerOptions: new GrpcCoreServerOptions()
                 {
-                    // We have connection pools that we self-manage, so no need for the server to do it.
+
+                    Http2MinTimeBetweenPingsMs = (int)Math.Ceiling(TimeSpan.FromSeconds(1).TotalMilliseconds),
+                    Http2MaxPingsWithoutData = 120,
+                    Http2MaxPingStrikes = 2,
+                    KeepaliveTimeMs = (int)Math.Ceiling(TimeSpan.FromMinutes(1).TotalMilliseconds),
+                    KeepaliveTimeoutMs = (int)Math.Ceiling(TimeSpan.FromSeconds(30).TotalMilliseconds),
                     MaxConcurrentStreams = int.MaxValue,
+                    MaxConnectionIdleMs = (int)Math.Ceiling(TimeSpan.FromMinutes(1).TotalMilliseconds),
                 }),
                 Workspace = configuration.RootPath / "workspace",
             },

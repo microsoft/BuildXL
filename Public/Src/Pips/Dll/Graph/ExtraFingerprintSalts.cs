@@ -302,6 +302,12 @@ namespace BuildXL.Pips.Graph
         public bool PipWarningsPromotedToErrors { get; }
 
         /// <summary>
+        /// This value was meant to change for different kernel extensions for macOS. 
+        /// We removed support for the kext macOS sandbox but we are keeping this value in the fingerprint to not perturb it unnecessarily.
+        /// </summary>
+        private readonly string RequiredKextVersionNumber => "0";
+
+        /// <summary>
         /// Whether /unsafe_explicitlyReportDirectoryProbes flag was passed to BuildXL. (disabled by default)
         /// </summary>
         public bool ExplicitlyReportDirectoryProbes { get; set; }
@@ -450,6 +456,8 @@ namespace BuildXL.Pips.Graph
             {
                 fingerprinter.Add(nameof(ValidateDistribution), 1);
             }
+
+            fingerprinter.Add(nameof(RequiredKextVersionNumber), RequiredKextVersionNumber);
 
             if (ExplicitlyReportDirectoryProbes)
             {

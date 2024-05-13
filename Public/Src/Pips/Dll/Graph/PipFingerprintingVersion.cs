@@ -88,7 +88,8 @@ namespace BuildXL.Pips.Graph
          * 1) Remove UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs from the list of unsafe options that participate in the fingerprint.
          *    Approximate location: UnsafeOptions.cs -> Line 168. 
          * 2) Remove the 2 lines around TODO in PipFingerprinter.cs ~line 318.
-         * 3) 
+         * 3) Remove RequiredKextVersionNumber from ExtraFingerprintSalts
+         * 4) 
          */
     }
 }

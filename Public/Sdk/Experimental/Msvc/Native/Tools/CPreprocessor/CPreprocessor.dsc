@@ -106,7 +106,7 @@ export function evaluate(args: Arguments): File {
         dependencies: includes,
         arguments: cmdArgs,
         unsafe: {
-            childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").clToolBreakawayProcesses,
+            childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").msvcBreakawayProcesses,
         }
     });
 

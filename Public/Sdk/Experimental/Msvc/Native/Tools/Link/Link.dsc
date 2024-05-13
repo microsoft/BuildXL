@@ -184,7 +184,7 @@ export function evaluate(args: Arguments): Result {
             "mspdbsrv.exe",
             "conhost.exe",
         ],
-        unsafe: { childProcessesToBreakawayFromSandbox: [a`vctip.exe`] }
+        unsafe: { childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").msvcBreakawayProcesses }
     });
 
     let midlOutput = <Midl.Result>{

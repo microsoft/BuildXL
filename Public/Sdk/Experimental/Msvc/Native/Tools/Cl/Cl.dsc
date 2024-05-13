@@ -267,7 +267,7 @@ function evaluateOneSourceFile(
             ...(args.tags || [])
         ],
         unsafe: {
-            childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").clToolBreakawayProcesses,
+            childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").msvcBreakawayProcesses,
         },
         environmentVariables: [
             ...addIf(analysisOutFile !== undefined,

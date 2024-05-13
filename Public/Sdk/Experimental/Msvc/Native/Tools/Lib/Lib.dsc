@@ -225,7 +225,8 @@ export function evaluate(args: Arguments): Result {
         arguments: cmdArgs,
         dependencies: [],
         implicitOutputs: expOutFile ? [ expOutFile ] : [],
-        environmentVariables: []
+        environmentVariables: [],
+        unsafe: { childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").msvcBreakawayProcesses }
     });
 
     return <Result>{

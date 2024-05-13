@@ -156,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 if (string.IsNullOrEmpty(channelEncryptionOptions.IdentityTokenPath))
                 {
-                    Tracer.Error(context, $"Identity token path hasn't been set by host system. Establishing encrypted connections is unsupported.");
+                    Tracer.Info(context, $"Identity token path hasn't been set by host system. Establishing encrypted connections is unsupported.");
                 }
                 else
                 {
@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                     if (token == null)
                     {
-                        Tracer.Error(context, $"Can't obtain build identity token from identity token path '{channelEncryptionOptions.IdentityTokenPath}'.");
+                        Tracer.Info(context, $"Can't obtain build identity token from identity token path '{channelEncryptionOptions.IdentityTokenPath}'.");
                     }
                     else
                     {
@@ -211,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
                 catch (Exception ex)
                 {
-                    Tracer.Error(context, ex, $"Creating Encrypted Grpc Channel Failed.");
+                    Tracer.Info(context, ex, $"Creating encrypted gRPC channel failed. This will not fail the build, we are simply falling back to unencrypted channels.");
                 }
             }
 

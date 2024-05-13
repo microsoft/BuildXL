@@ -527,6 +527,12 @@ namespace BuildXL
                     m_writer.Write(overwritableLine);
                 });
             }
+
+            /// <inheritdoc/>
+            public void SetRecoverableErrorAction(Action<Exception> errorAction)
+            {
+                // noop
+            }
         }
 
         #endregion

@@ -132,5 +132,11 @@ namespace Test.BuildXL
             XAssert.AreEqual(expectedBuildStatusMessage, containsMessage);
             Messages.Clear();
         }
+
+        /// <inheritdoc/>
+        public void SetRecoverableErrorAction(Action<Exception> errorAction)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

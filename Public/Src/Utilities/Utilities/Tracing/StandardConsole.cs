@@ -26,6 +26,7 @@ namespace BuildXL.Utilities.Tracing
         private string m_lastOverwriteableLine;
         private readonly PathTranslator m_pathTranslator;
         private readonly bool m_debugConsole;
+        private Action<Exception> m_recoverableErrorAction = null;
         /// <inheritdoc />
         public bool UpdatingConsole { get; private set; }
 
@@ -192,154 +193,173 @@ namespace BuildXL.Utilities.Tracing
                     }
                 }
 
-                try
+                if (color != m_defaultForegroundColor)
                 {
-                    if (color != m_defaultForegroundColor)
+                    Console.ForegroundColor = color;
+                }
+
+                // Attempt complicated console blanking and overwriting if supported
+                if (UpdatingConsole)
+                {
+                    try
                     {
-                        Console.ForegroundColor = color;
-                    }
-
-                    // Details on handling overwriteable lines:
-                    // Let's let X represent the cursor's position and - represent blank characters.
-                    //
-                    // The general principle is that overwriteable lines reset the position of the cursor to where it
-                    // was before that line was written.
-                    // This is the state after writing a string with a newline in it. Notice the first line has
-                    // already wrapped because it was wider than the console
-                    // _______________________________
-                    // |X ThisLineIsPrettyLongAndMayWr|
-                    // |apAroundToTheNextLine---------|
-                    // |MoreText----------------------|
-                    // _______________________________
-                    //
-                    // Then before a subsequent message is written, we compute a blank string long enough to overwrite all of
-                    // the text that needs to be overwritten. That string is written to the console, and the cursor is reset
-                    // a second time to be ready for a new message.
-                    //
-                    // The state of the console is now this, which is perfect for writing the next line.
-                    //
-                    // |X-----------------------------|
-                    // |------------------------------|
-                    // |------------------------------|
-                    // _______________________________
-                    //
-                    // But...
-                    // The big complication is the window can be resized before the blanking message is written.
-                    // When the window starts resizing, the cursor is moved to the end of the line is currently on. All
-                    // text after the cursor is truncated. All text before the cursor is wrapped as the window is resized.
-                    // Take the first example from above again. When the window starts to resize, the cursor gets moved
-                    // to the 'r' in Wrap. After resizing, the state of the console could now be this
-                    //
-                    // __________________
-                    // |ThisLineIsPretty|
-                    // |LongAndMayWX----|
-                    // _________________
-                    //
-                    // Notice the cursor is no longer at the beginning of the text we want to overwrite. In order to
-                    // account for this, we must track the width of the first line and move the cursor back again if
-                    // the window size is smaller than it was when the first line was written.
-                    if (m_lastOverwriteableLine != null)
-                    {
-                        int bufferWidth = GetConsoleWidth();
-
-                        // An overwriteable line was previously written. 3 operations must be performed:
-
-                        // 1. Check to see if the cursor's position needs to be adjusted in case the window was resized
-                        int linesToMoveCursorUp = 0;
-                        while (m_firstLineLength > bufferWidth)
-                        {
-                            linesToMoveCursorUp++;
-                            m_firstLineLength -= bufferWidth;
-                        }
-
-                        if (linesToMoveCursorUp > 0)
-                        {
-                            Console.SetCursorPosition(0, Math.Max(0, Console.CursorTop - linesToMoveCursorUp));
-                        }
-
-                        // 2. Write enough blank text to completely overwrite the previous text
-                        int backtrackLines = ComputeLinesUsedByString(m_lastOverwriteableLine, bufferWidth);
-                        Console.Write(new string(' ', backtrackLines * bufferWidth));
-
-                        // The console behavior is subtly different in newer Redstone builds. Previously, if the buffer
-                        // was 120 characters and 120 characters were written, the cursor would move itself down to the
-                        // next line. Now the cursor may actually stay at column position 120 on the original line and
-                        // not move down to the next until the 121st character is written. We expect the CursorLeft to be
-                        // at the 0 position after writing out the blanking text. So if we detect it isn't, this must be
-                        // an OS that has the different behavior. So we manually move the cursor down by writing an extra
-                        // character. This ensures the SetCursorPosition call below resets the cursor to the correct place
+                        // Details on handling overwriteable lines:
+                        // Let's let X represent the cursor's position and - represent blank characters.
                         //
-                        // This would all be much easier if we could just directly measure how many lines the cursor moved
-                        // after writing the blanking line. But if we are at the end of the console buffer, the CursorTop
-                        // will just remain constant.
-                        if (Console.CursorLeft != 0)
+                        // The general principle is that overwriteable lines reset the position of the cursor to where it
+                        // was before that line was written.
+                        // This is the state after writing a string with a newline in it. Notice the first line has
+                        // already wrapped because it was wider than the console
+                        // _______________________________
+                        // |X ThisLineIsPrettyLongAndMayWr|
+                        // |apAroundToTheNextLine---------|
+                        // |MoreText----------------------|
+                        // _______________________________
+                        //
+                        // Then before a subsequent message is written, we compute a blank string long enough to overwrite all of
+                        // the text that needs to be overwritten. That string is written to the console, and the cursor is reset
+                        // a second time to be ready for a new message.
+                        //
+                        // The state of the console is now this, which is perfect for writing the next line.
+                        //
+                        // |X-----------------------------|
+                        // |------------------------------|
+                        // |------------------------------|
+                        // _______________________________
+                        //
+                        // But...
+                        // The big complication is the window can be resized before the blanking message is written.
+                        // When the window starts resizing, the cursor is moved to the end of the line is currently on. All
+                        // text after the cursor is truncated. All text before the cursor is wrapped as the window is resized.
+                        // Take the first example from above again. When the window starts to resize, the cursor gets moved
+                        // to the 'r' in Wrap. After resizing, the state of the console could now be this
+                        //
+                        // __________________
+                        // |ThisLineIsPretty|
+                        // |LongAndMayWX----|
+                        // _________________
+                        //
+                        // Notice the cursor is no longer at the beginning of the text we want to overwrite. In order to
+                        // account for this, we must track the width of the first line and move the cursor back again if
+                        // the window size is smaller than it was when the first line was written.
+                        if (m_lastOverwriteableLine != null)
                         {
-                            Console.Write(' ');
+                            int bufferWidth = GetConsoleWidth();
+
+                            // An overwriteable line was previously written. 3 operations must be performed:
+
+                            // 1. Check to see if the cursor's position needs to be adjusted in case the window was resized
+                            int linesToMoveCursorUp = 0;
+                            while (m_firstLineLength > bufferWidth)
+                            {
+                                linesToMoveCursorUp++;
+                                m_firstLineLength -= bufferWidth;
+                            }
+
+                            if (linesToMoveCursorUp > 0)
+                            {
+                                Console.SetCursorPosition(0, Math.Max(0, Console.CursorTop - linesToMoveCursorUp));
+                            }
+
+                            // 2. Write enough blank text to completely overwrite the previous text
+                            int backtrackLines = ComputeLinesUsedByString(m_lastOverwriteableLine, bufferWidth);
+                            Console.Write(new string(' ', backtrackLines * bufferWidth));
+
+                            // The console behavior is subtly different in newer Redstone builds. Previously, if the buffer
+                            // was 120 characters and 120 characters were written, the cursor would move itself down to the
+                            // next line. Now the cursor may actually stay at column position 120 on the original line and
+                            // not move down to the next until the 121st character is written. We expect the CursorLeft to be
+                            // at the 0 position after writing out the blanking text. So if we detect it isn't, this must be
+                            // an OS that has the different behavior. So we manually move the cursor down by writing an extra
+                            // character. This ensures the SetCursorPosition call below resets the cursor to the correct place
+                            //
+                            // This would all be much easier if we could just directly measure how many lines the cursor moved
+                            // after writing the blanking line. But if we are at the end of the console buffer, the CursorTop
+                            // will just remain constant.
+                            if (Console.CursorLeft != 0)
+                            {
+                                Console.Write(' ');
+                            }
+
+                            // 3. Reset the cursor back to its place before #2 so we can write new text in the same place.
+                            Console.SetCursorPosition(0, Math.Max(0, Console.CursorTop - backtrackLines));
+                            m_lastOverwriteableLine = null;
+                            m_firstLineLength = 0;
                         }
 
-                        // 3. Reset the cursor back to its place before #2 so we can write new text in the same place.
-                        Console.SetCursorPosition(0, Math.Max(0, Console.CursorTop - backtrackLines));
-                        m_lastOverwriteableLine = null;
-                        m_firstLineLength = 0;
+                        if (overwritable)
+                        {
+                            int original = 0;
+                            int current = 0;
+                            if (m_debugConsole)
+                            {
+                                original = Console.CursorTop;
+                            }
+
+                            writer.WriteLine(line);
+
+                            if (m_debugConsole)
+                            {
+                                current = Console.CursorTop;
+                            }
+
+                            // After writing an overwriteable line, we must capture some information so the next message can
+                            // overwrite it
+                            m_lastOverwriteableLine = line;
+
+                            int bufferWidth = GetConsoleWidth();
+
+                            m_firstLineLength = Math.Min(GetFirstLineLength(line), bufferWidth);
+
+                            // Now reset the cursor position to the beginning of the overwriteable line
+                            int computed = ComputeLinesUsedByString(line, bufferWidth);
+                            Console.SetCursorPosition(0, Math.Max(0, Console.CursorTop - computed));
+
+                            if (m_debugConsole)
+                            {
+                                /*
+                                 * The code to compute the number of lines written is fickle and can break if Windows changes
+                                 * how the console behaves. Uncommenting the block to print these internal calculations vs. the
+                                 * actual is helpful for debugging issues. */
+                                int actual = current - original;
+                                Console.Write(computed + ":" + actual + "   ");
+                                Console.SetCursorPosition(0, Console.CursorTop);
+                            }
+                        }
+                        else
+                        {
+                            writer.WriteLine(line);
+                        }
                     }
-
-                    if (overwritable)
+                    catch (IOException ex)
                     {
-                        int original = 0;
-                        int current = 0;
-                        if (m_debugConsole)
-                        {
-                            original = Console.CursorTop;
-                        }
-
-                        writer.WriteLine(line);
-
-                        if (m_debugConsole)
-                        {
-                            current = Console.CursorTop;
-                        }
-
-                        // After writing an overwriteable line, we must capture some information so the next message can
-                        // overwrite it
-                        m_lastOverwriteableLine = line;
-
-                        int bufferWidth = GetConsoleWidth();
-
-                        m_firstLineLength = Math.Min(GetFirstLineLength(line), bufferWidth);
-
-                        // Now reset the cursor position to the beginning of the overwriteable line
-                        int computed = ComputeLinesUsedByString(line, bufferWidth);
-                        Console.SetCursorPosition(0, Math.Max(0, Console.CursorTop - computed));
-
-                        if (m_debugConsole)
-                        {
-                            /*
-                             * The code to compute the number of lines written is fickle and can break if Windows changes
-                             * how the console behaves. Uncommenting the block to print these internal calculations vs. the
-                             * actual is helpful for debugging issues. */
-                            int actual = current - original;
-                            Console.Write(computed + ":" + actual + "   ");
-                            Console.SetCursorPosition(0, Console.CursorTop);
-                        }
-                    }
-                    else
-                    {
-                        writer.WriteLine(line);
-                    }
-
-                    if (color != m_defaultForegroundColor)
-                    {
-                        Console.ForegroundColor = m_defaultForegroundColor;
+                        // Something went wrong. Fall back on straightforward console writing which uses fewer Console APIs
+                        UpdatingConsole = false;
+                        m_recoverableErrorAction?.Invoke(ex);
                     }
                 }
-                catch (IOException ex)
+
+                // The console does not support updating. Write normally
+                // This is not an else because if the above fails, it will fall into this backup method
+                if (!UpdatingConsole)
                 {
-                    // We know that the problem is in the console. No need to guess by calling AnalyzeExceptionRootCause
-                    throw new BuildXLException("IOException caught in " + nameof(WriteOutputLine), ex, ExceptionRootCause.ConsoleNotConnected);
+                    try
+                    {
+                        writer.WriteLine(line);
+                    }
+                    catch (IOException ex)
+                    {
+                        // We know that the problem is in the console. No need to guess by calling AnalyzeExceptionRootCause
+                        throw new BuildXLException("IOException caught in " + nameof(WriteOutputLine), ex, ExceptionRootCause.ConsoleNotConnected);
+                    }
+                }
+
+                if (color != m_defaultForegroundColor)
+                {
+                    Console.ForegroundColor = m_defaultForegroundColor;
                 }
             }
         }
-
         internal static int GetFirstLineLength(string line)
         {
             int newlinePosition = line.IndexOf(Environment.NewLine, StringComparison.OrdinalIgnoreCase);
@@ -385,6 +405,12 @@ namespace BuildXL.Utilities.Tracing
 
                 m_taskbar.SetProgressValue(done, total);
             }
+        }
+
+        /// <inheritDoc/>
+        public void SetRecoverableErrorAction(Action<Exception> errorAction)
+        {
+            m_recoverableErrorAction = errorAction;
         }
     }
 }

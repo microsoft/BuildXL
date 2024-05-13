@@ -577,6 +577,14 @@ namespace BuildXL.App.Tracing
             Message = "{errorMessage}",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void FailedToObtainLinuxDistroInfo(LoggingContext context, string errorMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.RecoverableConsoleError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Message = "Console writer encountered recoverable error. Overwriting console will be disabled. Error: {errorMessage}",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void RecoverableConsoleError(LoggingContext context, string errorMessage);
     }
 
     /// <summary>

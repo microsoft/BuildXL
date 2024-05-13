@@ -67,5 +67,11 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="done">The number done items</param>
         /// <param name="total">The total number of items</param>
         void ReportProgress(ulong done, ulong total);
+
+        /// <summary>
+        /// Sets a handler for when the console encounters an error but is still able to operate (potentially without all functionality).
+        /// This is intended for logging
+        /// </summary>
+        void SetRecoverableErrorAction(Action<Exception> errorAction);
     }
 }

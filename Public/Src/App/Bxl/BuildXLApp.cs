@@ -983,6 +983,7 @@ namespace BuildXL
                     m_loggingContextForCrashHandler = loggingContext;
                     Events.StaticContext = loggingContext;
                     FileUtilitiesStaticLoggingContext.LoggingContext = loggingContext;
+                    m_console.SetRecoverableErrorAction((Exception ex) => Logger.Log.RecoverableConsoleError(loggingContext, ex.ToString()));
 
                     // As the most of filesystem operations are defined as static, we need to reset counters not to add values between server-mode builds.
                     // We should do so after we have set the proper logging context.

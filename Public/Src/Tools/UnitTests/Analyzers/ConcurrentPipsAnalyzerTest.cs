@@ -62,13 +62,16 @@ namespace Test.Tool.Analyzers
 
             var perfInfo = schedulerResult.RunData.RunnablePipPerformanceInfos[pip.PipId];
 
+            // Let's pick a time that points to the middle of the execution of this pip
+            var pointTime = perfInfo.CompletedTime - (perfInfo.TotalDuration / 2);
+
             // Let's pick a time which matches the execution time of this single pip
             var options = new List<Option>
             {
                 new Option()
                 {
                     Name= "t",
-                    Value= perfInfo.CompletedTime.ToString("dddd, dd MMMM, yyyy HH:mm:ss.fff")
+                    Value= pointTime.ToString("dddd, dd MMMM, yyyy HH:mm:ss.fff")
                 },
             };
 
@@ -76,7 +79,7 @@ namespace Test.Tool.Analyzers
 
             // The output file should be produced using the default location
             var outputFile = schedulerResult.Config.Logging.LogsDirectory.Combine(Context.PathTable, 
-                $"Time{perfInfo.CompletedTime.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture)}.txt").ToString(Context.PathTable);
+                $"Time{pointTime.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture)}.txt").ToString(Context.PathTable);
 
             Assert.True(File.Exists(outputFile));
 

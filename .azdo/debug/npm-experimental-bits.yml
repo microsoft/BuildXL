@@ -29,8 +29,9 @@ jobs:
   displayName: Build linux NPM package (${{ parameters.Flavor }})
   pool:
     name: BuildXL-DevOpsAgents-Selfhost
-    image: linux-PME-GPT
     os: linux
+    demands:     
+    - ImageOverride -equals linux-PME-GPT
 
   steps:
   - checkout: BuildXL.Internal

@@ -90,19 +90,6 @@ namespace Helpers {
                     Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
             }
         }
-        else if (version === 'net7.0')
-        {
-            switch (host.os) {
-                case "win":
-                    return importFrom("DotNet-Runtime-7.win-x64").extracted;
-                case "macOS":
-                    return importFrom("DotNet-Runtime-7.osx-x64").extracted;
-                case "unix":
-                    return importFrom("DotNet-Runtime-7.linux-x64").extracted;
-                default:
-                    Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
-            }
-        }
         else if (version === 'net8.0')
         {
             switch (host.os) {
@@ -126,13 +113,11 @@ namespace Helpers {
     }
 
     const tool6Template = getDotNetCoreToolTemplate("net6.0");
-    const tool7Template = getDotNetCoreToolTemplate("net7.0");
     const tool8Template = getDotNetCoreToolTemplate("net8.0");
 
     function getCachedDotNetCoreToolTemplate(dotNetCoreVersion: DotNetCoreVersion) {
         switch (dotNetCoreVersion) {
             case "net6.0": return tool6Template;
-            case "net7.0": return tool7Template;
             case "net8.0": return tool8Template;
             default: Contract.fail(`Unknown .NET Core version '${dotNetCoreVersion}'.`);
         }

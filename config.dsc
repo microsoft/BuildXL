@@ -149,12 +149,12 @@ config({
                 { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
                 { id: "Newtonsoft.Json", version: "13.0.3" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
-                { id: "System.Reflection.Metadata", version: "7.0.0" },
+                { id: "System.Reflection.Metadata", version: "8.0.0" },
                 // The VBCS logger is used by QuickBuild and runs in the context of old VS installations, so it cannot use a higher version
                 // Please do not upgrade this dll (or if you do, make sure this happens in coordination with the QuickBuild team)
                 { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS" },
 
-                { id: "System.Threading.Tasks.Dataflow", version: "7.0.0" },
+                { id: "System.Threading.Tasks.Dataflow", version: "8.0.0" },
 
                 // Nuget
                 { id: "NuGet.Packaging", version: "6.9.1" },
@@ -236,7 +236,7 @@ config({
                 { id: "DeduplicationSigned", version: "1.0.14" },
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "7.0.0" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "8.0.0" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0" },
@@ -267,7 +267,7 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
                 { id: "System.Security.Cryptography.Xml", version: "4.7.1" },
-                { id: "System.Text.Encodings.Web", version: "7.0.0" },
+                { id: "System.Text.Encodings.Web", version: "8.0.0" },
                 { id: "System.Security.Permissions", version: "7.0.0" },
                 { id: "System.Windows.Extensions", version: "7.0.0" },
                 { id: "System.Drawing.Common", version: "7.0.0" },
@@ -289,14 +289,14 @@ config({
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.170.0"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build", version: "17.7.2" },
-                { id: "Microsoft.Build.Runtime", version: "17.7.2" },
-                { id: "Microsoft.Build.Tasks.Core", version: "17.7.2" },
-                { id: "Microsoft.Build.Utilities.Core", version: "17.0.0" },
-                { id: "Microsoft.Build.Framework", version: "17.7.2" },
-                { id: "Microsoft.NET.StringTools", version: "1.0.0" },
+                { id: "Microsoft.Build", version: "17.9.5" },
+                { id: "Microsoft.Build.Runtime", version: "17.9.5" },
+                { id: "Microsoft.Build.Tasks.Core", version: "17.9.5" },
+                { id: "Microsoft.Build.Utilities.Core", version: "17.9.5" },
+                { id: "Microsoft.Build.Framework", version: "17.9.5" },
+                { id: "Microsoft.NET.StringTools", version: "17.9.5" },
                 { id: "Microsoft.Build.Locator", version: "1.5.5" },
-                { id: "System.Reflection.MetadataLoadContext", version: "7.0.0"},    
+                { id: "System.Reflection.MetadataLoadContext", version: "8.0.0"},
 
                 { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4",
                     dependentPackageIdsToSkip: ["System.Memory"]},
@@ -503,11 +503,6 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "win-x64",
             },
-            DebugNet7: {
-                configuration: "debug",
-                targetFramework: "net7.0",
-                targetRuntime: "win-x64",
-            },
             DebugDotNet6: {
                 configuration: "debug",
                 targetFramework: "net6.0",
@@ -547,11 +542,6 @@ config({
             ReleaseNet8: {
                 configuration: "release",
                 targetFramework: "net8.0",
-                targetRuntime: "win-x64",
-            },
-            ReleaseNet7: {
-                configuration: "release",
-                targetFramework: "net7.0",
                 targetRuntime: "win-x64",
             },
             ReleaseDotNet6: {

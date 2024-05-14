@@ -59,7 +59,7 @@ namespace LanguageService.Server {
                 // The list of excluded items should match the qualifier declared in Public\Src\Tools\VBCSCompilerLogger\VBCSCompilerLogger.dsc.
                 excludedDeployableItems: [
                     importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "net472" }).dll,
-                    importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "net7.0" }).dll,
+                    importFrom("BuildXL.Tools").VBCSCompilerLogger.withQualifier({ targetFramework: "net8.0" }).dll,
                 ]
             }),
         });

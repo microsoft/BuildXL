@@ -119,7 +119,7 @@ public class GrpcCoreServerHost : IGrpcServerHost<GrpcCoreServerHostConfiguratio
         try
         {
             var encryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
-            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionOptions.CertificateSubjectName, encryptionOptions.StoreLocation, out _);
+            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionOptions.CertificateSubjectName, out _);
 
             if (keyCertPairResult.Succeeded)
             {

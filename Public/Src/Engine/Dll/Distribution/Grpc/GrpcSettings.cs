@@ -43,11 +43,6 @@ namespace BuildXL.Engine.Distribution.Grpc
         public static bool AuthenticationEnabled => EncryptionEnabled && EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value != null;
 
         /// <summary>
-        /// Certificate store location 
-        /// </summary>
-        public static StoreLocation CertificateStore => EngineEnvironmentSettings.GrpcCertificateStoreLocation.Value ?? StoreLocation.LocalMachine;
-
-        /// <summary>
         /// Whether we should enable heartbeat messages.
         /// </summary>
         public static bool HeartbeatEnabled => EngineEnvironmentSettings.GrpcHeartbeatEnabled;

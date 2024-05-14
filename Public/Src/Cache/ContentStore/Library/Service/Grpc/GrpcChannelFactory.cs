@@ -95,11 +95,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     Tracer,
                     () =>
                     {
-                        var (certificateSubjectName, certificateChainsPath, identityTokenPath, storeLocation) = GrpcEncryptionUtils.GetChannelEncryptionOptions();
+                        var (certificateSubjectName, certificateChainsPath, identityTokenPath) = GrpcEncryptionUtils.GetChannelEncryptionOptions();
                         X509Certificate2? certificate = null;
                         string error = string.Empty;
 
-                        certificate = GrpcEncryptionUtils.TryGetEncryptionCertificate(certificateSubjectName, storeLocation, out error);
+                        certificate = GrpcEncryptionUtils.TryGetEncryptionCertificate(certificateSubjectName, out error);
                         if (certificate == null)
                         {
                             return new BoolResult($"No certificate found that matches subject name: '{certificateSubjectName}'. Error={error}");
@@ -203,7 +203,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var encryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
                 try
                 {
-                    channelCreds = TryGetSecureChannelCredentials(context, encryptionOptions.CertificateSubjectName, encryptionOptions.StoreLocation, out var hostName) ?? ChannelCredentials.Insecure;
+                    channelCreds = TryGetSecureChannelCredentials(context, encryptionOptions.CertificateSubjectName, out var hostName) ?? ChannelCredentials.Insecure;
                     if (channelCreds != ChannelCredentials.Insecure)
                     {
                         options.Add(new ChannelOption(ChannelOptions.SslTargetNameOverride, hostName));
@@ -222,9 +222,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Create and return SSL credentials from user certificate, else null.
         /// </summary>
-        private static ChannelCredentials? TryGetSecureChannelCredentials(OperationContext context, string certificateName, StoreLocation storeLocation, out string? hostName)
+        private static ChannelCredentials? TryGetSecureChannelCredentials(OperationContext context, string certificateName, out string? hostName)
         {
-            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(certificateName, storeLocation, out hostName);
+            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(certificateName, out hostName);
 
             if (keyCertPairResult.Succeeded)
             {

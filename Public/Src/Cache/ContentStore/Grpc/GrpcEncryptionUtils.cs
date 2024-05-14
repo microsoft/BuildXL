@@ -9,6 +9,7 @@ using System.Security.Cryptography;
 using Grpc.Core;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Newtonsoft.Json;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 #nullable enable
 
@@ -17,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
     /// <summary>
     /// Encryption options used when creating gRPC channels.
     /// </summary>
-    public record ChannelEncryptionOptions(string CertificateSubjectName, string? CertificateChainsPath, string? IdentityTokenPath, StoreLocation StoreLocation);
+    public record ChannelEncryptionOptions(string CertificateSubjectName, string? CertificateChainsPath, string? IdentityTokenPath);
 
     /// <summary>
     /// Utility methods needed to enable encryption and authentication for gRPC-using services in CloudBuild
@@ -33,19 +34,35 @@ namespace BuildXL.Cache.ContentStore.Grpc
             var encryptionCertificateName = Environment.GetEnvironmentVariable(CertSubjectEnvironmentVariable);
             var certificateChainsPath = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_CHAINS_PATH__");
             var identityTokenPath = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_IDENTITY_TOKEN_PATH__");
-            StoreLocation storeLocation = ParseCertificateStoreLocation(Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_STORE_LOCATION__"))
-                ?? StoreLocation.LocalMachine;
 
             if (encryptionCertificateName is null)
             {
                 throw new InvalidOperationException($"EncryptionCertificateName is null. The environment variable '{CertSubjectEnvironmentVariable}' is not set.");
             }
 
-            return new ChannelEncryptionOptions(encryptionCertificateName, certificateChainsPath, identityTokenPath, storeLocation);
+            return new ChannelEncryptionOptions(encryptionCertificateName, certificateChainsPath, identityTokenPath);
         }
 
         /// <summary>
-        /// Look up the given certificate subject name in the Windows certificate store and return the actual certificate.
+        /// Look up the given certificate subject name in the Windows certificate stores and return the actual certificate.
+        /// </summary>
+        public static X509Certificate2? TryGetEncryptionCertificate(string certSubjectName, out string error)
+        {
+            var cert = TryGetEncryptionCertificate(certSubjectName, StoreLocation.CurrentUser, out error);
+            if (cert != null || OperatingSystemHelper.IsLinuxOS)
+            {
+                // For linux, LocalMachine X509Store is limited to the Root and CertificateAuthority stores.
+                // We do not need to do the second lookup.
+                return cert;
+            }
+
+            cert = TryGetEncryptionCertificate(certSubjectName, StoreLocation.LocalMachine, out var secondError);
+            error += Environment.NewLine + secondError;
+            return cert;
+        }
+
+        /// <summary>
+        /// Look up the given certificate subject name in the given Windows certificate store and return the actual certificate.
         /// </summary>
         public static X509Certificate2? TryGetEncryptionCertificate(string certSubjectName, StoreLocation storeLocation, out string error)
         {
@@ -57,13 +74,24 @@ namespace BuildXL.Cache.ContentStore.Grpc
             }
 
             using X509Store? store = new X509Store(StoreName.My, storeLocation);
-            store.Open(OpenFlags.ReadOnly);
+
+            try
+            {
+                store.Open(OpenFlags.ReadOnly);
+            }
+            catch (CryptographicException e)
+            {
+                // LocalMachine store cannot be opened in some platforms.
+                // For example, Unix LocalMachine X509Store is limited to the Root and CertificateAuthority stores.
+                error += $"Exception occurred by finding {certSubjectName} in {storeLocation}: {e}. ";
+                return null;
+            }
 
             X509Certificate2Collection certificates = store.Certificates.Find(X509FindType.FindBySubjectDistinguishedName, certSubjectName, false);
 
             if (certificates.Count < 1)
             {
-                error += $"Found Zero certificates by Certificate Name: {certSubjectName}. ";
+                error += $"Found zero certificates by {certSubjectName} in {storeLocation}. ";
                 return null;
             }
 
@@ -84,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
                 return certificate;
             }
 
-            error += "Certificate not in valid timespan. ";
+            error += $"{certSubjectName} found in {storeLocation}, but not in valid timespan. ";
             return null;
         }
 
@@ -93,7 +121,6 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// </summary>
         public static bool TryGetPublicAndPrivateKeys(
             string certificateSubject,
-            StoreLocation storeLocation,
             out string? publicCertificate,
             out string? privateKey,
             out string? hostName,
@@ -104,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
             hostName = null;
             errorMessage = null;
 
-            X509Certificate2? serverCert = TryGetEncryptionCertificate(certificateSubject, storeLocation, out errorMessage);
+            X509Certificate2? serverCert = TryGetEncryptionCertificate(certificateSubject, out errorMessage);
 
             if (serverCert == null)
             {
@@ -177,13 +204,12 @@ namespace BuildXL.Cache.ContentStore.Grpc
             return null;
         }
 
-        public static Result<KeyCertificatePair> TryGetSecureChannelCredentials(string? encryptionCertificateName, StoreLocation storeLocation, out string? hostName)
+        public static Result<KeyCertificatePair> TryGetSecureChannelCredentials(string? encryptionCertificateName, out string? hostName)
         {
             hostName = "localhost";
             try
             {
                 if (TryGetPublicAndPrivateKeys(encryptionCertificateName!,
-                    storeLocation,
                     out var publicCertificate,
                     out var privateKey,
                     out hostName,

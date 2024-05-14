@@ -249,16 +249,16 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             try
             {
-                certificate = GrpcEncryptionUtils.TryGetEncryptionCertificate(certSubjectName, GrpcSettings.CertificateStore, out string error);
+                certificate = GrpcEncryptionUtils.TryGetEncryptionCertificate(certSubjectName, out string error);
+                if (certificate == null)
+                {
+                    Logger.Log.GrpcTraceWarning(m_loggingContext, m_ipAddress, error);
+                    return;
+                }
             }
             catch (Exception e)
             {
                 Logger.Log.GrpcTraceWarning(m_loggingContext, m_ipAddress, $"An exception occurred when finding a certificate: '{e}'.");
-            }
-
-            if (certificate == null)
-            {
-                Logger.Log.GrpcTraceWarning(m_loggingContext, m_ipAddress, $"No certificate found that matches subject name: '{certSubjectName}'.");
                 return;
             }
 

@@ -157,7 +157,7 @@ namespace BuildXL.AdoBuildRunner.Build
             // Enable gRPC encryption
             if (!(Environment.GetEnvironmentVariable(Constants.DisableEncryptionVariableName) == "1"))
             {
-                defaultArguments.Add("/p:GrpcCertificateSubjectName=CN=1es-hostedpools.default.microsoft.com /p:GrpcCertificateStoreLocation=CurrentUser");
+                defaultArguments.Add("/p:GrpcCertificateSubjectName=CN=1es-hostedpools.default.microsoft.com");
             }
 
             // add specified arguments

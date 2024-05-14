@@ -68,7 +68,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             if (GrpcSettings.EncryptionEnabled)
             {
                 string certSubjectName = GrpcSettings.CertificateSubjectName;
-                if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, GrpcSettings.CertificateStore, out string publicCertificate, out string privateKey, out var _, out string errorMessage) &&
+                if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out var _, out string errorMessage) &&
                     publicCertificate != null &&
                     privateKey != null)
                 {

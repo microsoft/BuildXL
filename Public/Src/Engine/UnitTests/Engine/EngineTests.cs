@@ -604,6 +604,7 @@ const y = Debug.writeLine(T.testValue); ";
         /// On windows, a value contains path is case insensitive.
         /// On Linux, a value is always case sensitive.
         /// </summary>
+        [Fact]
         public void TestEnvValueCaseInGraphCache()
         {
             const string MountName = "MyMountTest";
@@ -635,26 +636,33 @@ const y = Debug.writeLine(T.testValue); ";
 
             Configuration.Startup.Properties[EnvVarName2] = "B:\\testpath";
 
+            // Tracks the number of times we expect to see the graph cache environment variable mismatch even logged
+            int allowedMismatchInputInGraphCounter = 0;
+            // Message gets logged once for each cached graph provider (CompatibleGet, ExactGet, Store)
+            const int CachedGraphProviderCount = 3;
+
             RunEngine("Second Build");
             if (OperatingSystemHelper.IsWindowsOS)
             {
                 // path value is case insensitive on Windows. Cache graph didn't get rebuild
                 AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues, 0);
-                AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor, 0, false);
+                AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor, allowedMismatchInputInGraphCounter, false);
             }
             else
             {
+                allowedMismatchInputInGraphCounter += CachedGraphProviderCount;
                 AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
                 AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
-                AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor);
+                AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor, allowedMismatchInputInGraphCounter);
             }
             
-            Configuration.Startup.Properties[EnvVarName1] = "env1"; 
+            Configuration.Startup.Properties[EnvVarName1] = "env1";
+            allowedMismatchInputInGraphCounter += CachedGraphProviderCount;
 
             RunEngine("Third Build");
             AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
             AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
-            AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor);
+            AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor, count: allowedMismatchInputInGraphCounter);
         }
 
         private void SetupPipsWithEnvironmentAccess(string moduleName, string[] environmentVarName)

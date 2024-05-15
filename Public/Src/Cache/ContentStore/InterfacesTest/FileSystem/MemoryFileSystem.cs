@@ -645,7 +645,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 var mode = replaceExisting ? FileMode.OpenOrCreate : FileMode.CreateNew;
                 using (var writeStream = this.TryOpen(destinationPath, FileAccess.Write, mode, FileShare.Delete))
                 {
-                    await readStream.CopyToWithFullBufferAsync(writeStream, FileSystemConstants.FileIOBufferSize);
+                    await readStream.CopyToWithFullBufferAsync(writeStream);
                 }
             }
         }

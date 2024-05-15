@@ -1,10 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.Serialization.Json;
+using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
 {
@@ -33,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         {
             Contract.Requires(stream != null);
 
-            var settings = new DataContractJsonSerializerSettings {UseSimpleDictionaryFormat = true};
+            var settings = new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true };
             var serializer = new DataContractJsonSerializer(typeof(T), settings);
             stream.Position = 0;
             // TODO: suppressing this for now, but the clients need to respect that the result of this method may be null.
@@ -43,13 +46,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// <summary>
         ///     Read bytes from a stream, issuing multiple reads if necessary.
         /// </summary>
-        /// <param name="stream">Stream to read from.</param>
-        /// <param name="buffer">Buffer to write bytes to.</param>
-        /// <param name="count">Number of bytes to read.</param>
-        public static async Task<int> ReadBytes(this Stream stream, byte[] buffer, int count)
+        public static async Task<int> ReadBytesAsync(
+            this Stream stream,
+            byte[] buffer,
+            int count,
+            CancellationToken cancellationToken = default)
         {
             Contract.Requires(stream != null);
             Contract.Requires(buffer != null);
+            Contract.Requires(count >= 0);
             Contract.Requires(count <= buffer.Length);
 
             int bytesRead;
@@ -62,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
                     break;
                 }
 
-                bytesRead = await stream.ReadAsync(buffer, offset, bytesToRead).ConfigureAwait(false);
+                bytesRead = await stream.ReadAsync(buffer, offset, bytesToRead, cancellationToken).ConfigureAwait(false);
                 offset += bytesRead;
             }
             while (bytesRead > 0);
@@ -73,33 +78,55 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// <summary>
         ///     Copies from one stream to another with writes guaranteed to be called with a full buffer (except the last call)
         /// </summary>
-        /// <param name="stream">Source stream</param>
-        /// <param name="destination">Destination stream</param>
-        /// <param name="bufferSize">Size of the buffer to fill for writes</param>
-        public static Task CopyToWithFullBufferAsync(this Stream stream, Stream destination, int bufferSize)
-        {
-            Contract.Requires(stream != null);
-            Contract.Requires(bufferSize > 0);
-
-            var buffer = new byte[bufferSize];
-            return stream.CopyToWithFullBufferAsync(destination, buffer);
-        }
-
-        /// <summary>
-        ///     Copies from one stream to another with writes guaranteed to be called with a full buffer (except the last call)
-        /// </summary>
-        public static async Task CopyToWithFullBufferAsync(this Stream stream, Stream destination, byte[] buffer)
+        public static async Task CopyToWithFullBufferAsync(
+            this Stream stream,
+            Stream destination,
+            byte[]? buffer = null,
+            CancellationToken cancellationToken = default)
         {
             Contract.Requires(stream != null);
             Contract.Requires(destination != null);
-            Contract.Requires(buffer != null);
             Contract.Requires(stream.CanRead);
             Contract.Requires(destination.CanWrite);
 
-            int bytesRead;
-            while ((bytesRead = await stream.ReadBytes(buffer, buffer.Length).ConfigureAwait(false)) != 0)
+            Pool<byte[]>.PoolHandle? handle = null;
+            if (buffer == null)
             {
-                await destination.WriteAsync(buffer, 0, bytesRead).ConfigureAwait(false);
+                handle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
+                buffer = handle.Value.Value;
+            }
+            Contract.Assert(buffer is not null);
+
+            try
+            {
+                int bytesRead;
+                while ((bytesRead = await stream.ReadBytesAsync(buffer, buffer.Length, cancellationToken).ConfigureAwait(false)) != 0)
+                {
+                    await destination.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+                }
+
+                // Ensure that the data we've just written is flushed. This is actually assumed by all callers of the code,
+                // and it's important because the data is not guaranteed to be written to the underlying storage until this
+                // is called.
+                // There's a number of issues doing this prevents:
+                //  1. If the system fails after the write but before the flush, the data may be lost. This has happened
+                //     before in production and can cause the cache to incorrectly succeed at inserting a file which
+                //     doesn't actually have the data yet.
+                //  2. When the data isn't flushed, the flush will actually happen inside the Dispose statement. Since
+                //     dispose is actually sync, that triggers a sync-over-async issue that can cause deadlocks.
+                try
+                {
+                    await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (NotImplementedException)
+                {
+                    // Ignore the exception if the stream doesn't support flushing. This is a common case for streams that
+                    // are used for testing.
+                }
+            }
+            finally
+            {
+                handle?.Dispose();
             }
         }
     }

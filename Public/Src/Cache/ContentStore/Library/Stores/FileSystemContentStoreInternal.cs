@@ -1340,22 +1340,40 @@ namespace BuildXL.Cache.ContentStore.Stores
         internal async Task<AbsolutePath> WriteToTemporaryFileAsync(Context context, Stream inputStream, long? inputStreamLength)
         {
             AbsolutePath pathToTempContent = GetTemporaryFileName();
-            FileSystem.CreateDirectory(pathToTempContent.GetParent());
 
-            // We want to set an ACL which denies writes before closing the destination stream. This way, there
-            // are no instants in which we have neither an exclusive lock on writing the file nor a protective
-            // ACL. Note that we can still be fooled in the event of external tampering via renames/move, but this
-            // approach makes it very unlikely that our own code would ever write to or truncate the file before we move it.
-
-            using (Stream tempFileStream = FileSystem.OpenForWrite(pathToTempContent, inputStreamLength, FileMode.CreateNew, FileShare.Delete))
+            // We perform an optimistic write to avoid an extra IO in this hot code path. If the directory doesn't
+            // exist, the copy will fail and we'll simply retry it. In most cases, the directory will exist.
+            try
             {
-                using var handle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
-                await inputStream.CopyToWithFullBufferAsync(tempFileStream, handle.Value);
-
-                ApplyPermissions(context, pathToTempContent, FileAccessMode.ReadOnly, setAllowAttributeWrites: false);
+                await tryCopyAsync(context, inputStream, inputStreamLength, pathToTempContent);
+            }
+            catch (Exception ex) when (ex is DirectoryNotFoundException or FileNotFoundException)
+            {
+                FileSystem.CreateDirectory(pathToTempContent.GetParent());
+                await tryCopyAsync(context, inputStream, inputStreamLength, pathToTempContent);
             }
 
             return pathToTempContent;
+
+            async Task tryCopyAsync(Context context, Stream inputStream, long? inputStreamLength, AbsolutePath pathToTempContent)
+            {
+                using (Stream tempFileStream = FileSystem.OpenForWrite(
+                    pathToTempContent,
+                    inputStreamLength,
+                    FileMode.CreateNew,
+                    FileShare.Delete,
+                    FileOptions.SequentialScan | FileOptions.Asynchronous,
+                    AbsFileSystemExtension.DefaultFileStreamBufferSize))
+                {
+                    await inputStream.CopyToWithFullBufferAsync(tempFileStream);
+
+                    // We want to set an ACL which denies writes before closing the destination stream. This way, there
+                    // are no instants in which we have neither an exclusive lock on writing the file nor a protective
+                    // ACL. Note that we can still be fooled in the event of external tampering via renames/move, but this
+                    // approach makes it very unlikely that our own code would ever write to or truncate the file before we move it.
+                    ApplyPermissions(context, pathToTempContent, FileAccessMode.ReadOnly, setAllowAttributeWrites: false);
+                }
+            }
         }
 
         private void TrySetStreamLength(Stream stream, long? length)
@@ -2207,10 +2225,14 @@ namespace BuildXL.Cache.ContentStore.Stores
                             CreateDirectoryIfNeeded(destinationPath.GetParent());
                             var fileMode = replacementMode == FileReplacementMode.ReplaceExisting ? FileMode.Create : FileMode.CreateNew;
 
-                            using (Stream targetFileStream = FileSystem.OpenForWrite(destinationPath, contentStream.Value.Length, fileMode, FileShare.Delete))
+                            using (Stream targetFileStream = FileSystem.OpenForWrite(
+                                destinationPath,
+                                contentStream.Value.Length,
+                                fileMode,
+                                FileShare.Delete,
+                                FileOptions.SequentialScan | FileOptions.Asynchronous))
                             {
-                                using var handle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
-                                await hashingStream.CopyToWithFullBufferAsync(targetFileStream, handle.Value);
+                                await hashingStream.CopyToWithFullBufferAsync(targetFileStream);
 
                                 ApplyPermissions(context, destinationPath, accessMode);
                             }

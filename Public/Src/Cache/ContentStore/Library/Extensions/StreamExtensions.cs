@@ -25,8 +25,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         {
             using (var content = new MemoryStream())
             {
-                using var handle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
-                await stream.CopyToWithFullBufferAsync(content, handle.Value);
+                await stream.CopyToWithFullBufferAsync(content);
 
                 if (dispose)
                 {

@@ -473,7 +473,12 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         public async Task CopyFileWithStreamsAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
         {
             using (StreamWithLength? readStream = TryOpenFile(
-                sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
+                sourcePath,
+                FileAccess.Read,
+                FileMode.Open,
+                FileShare.Read | FileShare.Delete,
+                FileOptions.SequentialScan | FileOptions.Asynchronous,
+                AbsFileSystemExtension.DefaultFileStreamBufferSize))
             {
                 if (readStream == null)
                 {
@@ -499,15 +504,14 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         // If asked to replace the file Create mode must be use to truncate the content of the file
                         // if the target file larger than the source.
                         var mode = replaceExisting ? FileMode.Create : FileMode.CreateNew;
-                        using (Stream writeStream = this.OpenForWrite(destinationPath, readStream.Value.Length, mode, FileShare.Delete))
+                        using (Stream writeStream = this.OpenForWrite(
+                            destinationPath,
+                            readStream.Value.Length,
+                            mode,
+                            FileShare.Delete,
+                            FileOptions.SequentialScan | FileOptions.Asynchronous))
                         {
-                            using var pooledHandle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
-                            await readStream.Value.Stream.CopyToWithFullBufferAsync(writeStream, pooledHandle.Value).ConfigureAwait(false);
-
-                            // Without this *async* flush, this async method issues blocking I/O during Dispose.
-                            // This causes horrible stalls and timeouts. See the below for an example:
-                            // https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal/pullrequest/770634
-                            await writeStream.FlushAsync().ConfigureAwait(false);
+                            await readStream.Value.Stream.CopyToWithFullBufferAsync(writeStream).ConfigureAwait(false);
                         }
                     }
                     // Making sure we're trying to create directory for DirectoryNotFound or FileNotFound exceptions.
@@ -557,7 +561,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             {
                 return new FileStream(path.Path, mode, accessMode, share, bufferSize, options);
             }
-            catch (IOException e) when(e.Message.Contains("The process cannot access the file"))
+            catch (IOException e) when (e.Message.Contains("The process cannot access the file"))
             {
                 // Finding open handles is not supported for Unix.
                 throw CreateUnauthorizedAccessException(e.Message, path.ToString(), tryFindOpenHandles: false);
@@ -834,7 +838,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 FileInfo newFi = default(FileInfo);
 
                 try
-                { 
+                {
                     newFi = new FileInfo { FullPath = new AbsolutePath(fi.FullName), Length = fi.Length };
                     foundValidFile = true;
                 }
@@ -870,14 +874,14 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             var createHardLinkStatus = FileUtilities.TryCreateHardLink(destinationFileName.Path, sourceFileName.Path);
             var createHardLinkResult = createHardLinkStatus switch
             {
-                CreateHardLinkStatus.Success                                   => CreateHardLinkResult.Success,
-                CreateHardLinkStatus.FailedAccessDenied                        => CreateHardLinkResult.FailedAccessDenied,
-                CreateHardLinkStatus.FailedDueToPerFileLinkLimit               => CreateHardLinkResult.FailedMaxHardLinkLimitReached,
-                CreateHardLinkStatus.FailedSinceNotSupportedByFilesystem       => CreateHardLinkResult.FailedNotSupported,
+                CreateHardLinkStatus.Success => CreateHardLinkResult.Success,
+                CreateHardLinkStatus.FailedAccessDenied => CreateHardLinkResult.FailedAccessDenied,
+                CreateHardLinkStatus.FailedDueToPerFileLinkLimit => CreateHardLinkResult.FailedMaxHardLinkLimitReached,
+                CreateHardLinkStatus.FailedSinceNotSupportedByFilesystem => CreateHardLinkResult.FailedNotSupported,
                 CreateHardLinkStatus.FailedSinceDestinationIsOnDifferentVolume => CreateHardLinkResult.FailedSourceAndDestinationOnDifferentVolumes,
-                CreateHardLinkStatus.FailedDestinationExists                   => CreateHardLinkResult.FailedDestinationExists,
-                CreateHardLinkStatus.Failed                                    => CreateHardLinkResult.Unknown,
-                _                                                              => CreateHardLinkResult.Unknown
+                CreateHardLinkStatus.FailedDestinationExists => CreateHardLinkResult.FailedDestinationExists,
+                CreateHardLinkStatus.Failed => CreateHardLinkResult.Unknown,
+                _ => CreateHardLinkResult.Unknown
             };
 
             // If failed because destination exists and we should replace existing, delete it and try again.
@@ -908,20 +912,20 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                     FileFlagsAndAttributes.FileFlagOverlapped,
                     out var sourceFileHandle);
                 using (sourceFileHandle)
-                switch (createOrOpenResult.Status)
-                {
-                    case OpenFileStatus.Success:
-                        break;
-                    case OpenFileStatus.FileNotFound:
-                    case OpenFileStatus.PathNotFound:
-                        createHardLinkResult = CreateHardLinkResult.FailedSourceDoesNotExist;
-                        break;
-                    case OpenFileStatus.Timeout:
-                    case OpenFileStatus.AccessDenied:
-                    case OpenFileStatus.UnknownError:
-                    default:
-                        throw ThrowLastWin32Error(destinationFileName.Path, $"Failed to create or open file {sourceFileName.Path} to create hard link. Status: {createOrOpenResult.Status}");
-                }
+                    switch (createOrOpenResult.Status)
+                    {
+                        case OpenFileStatus.Success:
+                            break;
+                        case OpenFileStatus.FileNotFound:
+                        case OpenFileStatus.PathNotFound:
+                            createHardLinkResult = CreateHardLinkResult.FailedSourceDoesNotExist;
+                            break;
+                        case OpenFileStatus.Timeout:
+                        case OpenFileStatus.AccessDenied:
+                        case OpenFileStatus.UnknownError:
+                        default:
+                            throw ThrowLastWin32Error(destinationFileName.Path, $"Failed to create or open file {sourceFileName.Path} to create hard link. Status: {createOrOpenResult.Status}");
+                    }
             }
 
             return createHardLinkResult;

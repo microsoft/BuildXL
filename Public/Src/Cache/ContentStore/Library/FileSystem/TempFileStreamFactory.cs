@@ -4,10 +4,12 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ContentStore.FileSystem
@@ -41,20 +43,34 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <summary>
         ///     Create a new instance from content in the given input stream.
         /// </summary>
-        public FileStream Create(Context context, Stream stream, long size = -1)
+        public async Task<FileStream> CreateAsync(OperationContext context, Stream stream, long? size = null)
         {
-            const int bufSize = FileSystemConstants.FileIOBufferSize;
+            Contract.RequiresNotNull(stream);
             var path = _directory.CreateRandomFileName();
 
             try
             {
-                using (var fileStream = new FileStream(path.Path, FileMode.Create, FileAccess.Write, FileShare.None, bufSize))
+                using (var fileStream = _fileSystem.TryOpenForWrite(
+                    path,
+                    size,
+                    FileMode.Create,
+                    FileShare.None,
+                    FileOptions.SequentialScan | FileOptions.Asynchronous,
+                    AbsFileSystemExtension.DefaultFileStreamBufferSize))
                 {
-                    stream.CopyTo(fileStream, bufSize, size);
+                    Contract.AssertNotNull(fileStream);
+                    await stream.CopyToAsync(fileStream.Value.Stream, AbsFileSystemExtension.DefaultFileStreamBufferSize, context.Token);
                 }
 
+                // Please note, this temporary file will be deleted once it's closed (i.e., even if the program
+                // crashes!)
                 return new FileStream(
-                    path.Path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, bufSize, FileOptions.DeleteOnClose);
+                    path.Path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read | FileShare.Delete,
+                    AbsFileSystemExtension.DefaultFileStreamBufferSize,
+                    FileOptions.DeleteOnClose);
             }
             catch (Exception exception)
             {

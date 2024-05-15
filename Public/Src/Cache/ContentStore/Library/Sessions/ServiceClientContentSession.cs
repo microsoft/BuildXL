@@ -324,7 +324,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             Stream? disposableStream = null;
             if (!stream.CanSeek)
             {
-                putStream = TempFileStreamFactory.Create(operationContext, stream);
+                putStream = await TempFileStreamFactory.CreateAsync(operationContext, stream);
                 disposableStream = putStream;
             }
 

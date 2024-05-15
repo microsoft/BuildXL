@@ -206,7 +206,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 return null;
             }
 
-            if (expectingLength != null)
+            if (expectingLength != null && expectingLength.Value >= 0)
             {
                 stream.Value.Stream.SetLength(expectingLength.Value);
             }

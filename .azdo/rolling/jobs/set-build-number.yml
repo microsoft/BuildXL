@@ -17,8 +17,13 @@ jobs:
           echo Pre-release tag has been defined externally as: '%Branding_PrereleaseTag%'
           set PrereleaseTag=%Branding_PrereleaseTag%
         ) else (
-          echo Using ADO build number as prerelease tag
-          set PrereleaseTag=$(Build.BuildNumber)
+          if defined InferredPreReleaseTag (
+            echo Pre-release tag has been inferred from the branch name as: '%InferredPreReleaseTag%'
+            set PrereleaseTag=%InferredPreReleaseTag%
+          ) else (
+            echo Using ADO build number as prerelease tag
+            set PrereleaseTag=$(Build.BuildNumber)
+          )
         )
 
         REM Be defensive and remove any semantic version prefix

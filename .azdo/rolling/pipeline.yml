@@ -14,6 +14,11 @@ variables:
   # We only want to run the publishing stage for main and releases/* branch
   # This condition is to avoid publishing binaries from test runs of the pipeline from custom branches
   value: $[ or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), startsWith(variables['Build.SourceBranch'], 'refs/heads/releases')) ]
+- ${{ if startsWith(variables['Build.SourceBranch'], 'refs/heads/releases') }}:
+  # Infer a pre-release tag if the branch is a releases/* branch (patch) and the variable has not been defined.
+  # We assume the branch is named 'releases/0.1.0-*******', as per our patch instructions.
+  - name: InferredPreReleaseTag
+    value: $[ replace(replace(variables['Build.SourceBranch'], 'refs/heads/releases/', ''), '0.1.0-', '') ]
 
 resources:
   repositories:

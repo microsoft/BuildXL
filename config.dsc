@@ -362,7 +362,6 @@ config({
 
         // .NET Runtimes.
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-6-External\module.config.dsc`] },
-        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-7-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-8-External\module.config.dsc`] },
 
         {
@@ -394,26 +393,6 @@ config({
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
                     url: "https://download.visualstudio.microsoft.com/download/pr/a3ca3d31-f45b-4e53-ab4d-0f2f221cbc5b/47382078b4b72a66387d0fd6ed9ff963/dotnet-runtime-8.0.4-linux-x64.tar.gz",
                     hash: "VSO0:C7C738C280B1ED14F06337BB94108201E2AEE115364CA3F465CA19B077B803CC00",
-                    archiveType: "tgz",
-                },
-
-                // DotNet Core Runtime 7.0.18
-                {
-                    moduleName: "DotNet-Runtime.win-x64.7.0", 
-                    url: "https://download.visualstudio.microsoft.com/download/pr/f65d29ce-230a-4079-a440-e1be7241662f/ac56bb1e049bc964d45d5dde191fa393/dotnet-runtime-7.0.18-win-x64.zip",
-                    hash: "VSO0:11D1CE890830CF65AEB77C2CF4288EB72053EE2780448FAD629C28AAFC7BDD9F00",
-                    archiveType: "zip",
-                },
-                {
-                    moduleName: "DotNet-Runtime.osx-x64.7.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/2bbb4960-9fb2-4bd9-a525-80e6260b5979/adecde0cf003ce421b06e76197627533/dotnet-runtime-7.0.18-osx-x64.tar.gz",
-                    hash: "VSO0:79314B5B068D1FB2D063F083DC24A2DF246FF3AD28844C9AB1AAEA8707A9820200",
-                    archiveType: "tgz",
-                },
-                {
-                    moduleName: "DotNet-Runtime.linux-x64.7.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/9f48eeb2-ca25-4828-87d9-1114e751fa6e/df269cfd6b9661bcd776ed979541c0fe/dotnet-runtime-7.0.18-linux-x64.tar.gz",
-                    hash: "VSO0:AE5F1A12C07738418BDAD66D294EF1389D029BB2407D4C446BB448045DACDC5A00",
                     archiveType: "tgz",
                 },
 

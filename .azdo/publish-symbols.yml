@@ -1,0 +1,96 @@
+trigger: none
+
+variables:
+  - name: ProjectName
+    value: BuildXL
+  - name: RequestName
+    value: BuildXL_Symbols_$(Build.BuildNumber)
+
+jobs:
+- job: publish_symbols
+  displayName: Publish Symbols
+  timeoutInMinutes: 120
+  cancelTimeoutInMinutes: 1
+  pool:
+    name: BuildXL-DevOpsAgents-PME
+
+  steps:
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      buildType: 'current'
+      artifactName: 'buildxl-external.pkgs.$(Build.BuildNumber)'
+      itemPattern: 'Microsoft.BuildXL.win-x64*'
+      targetPath: '$(BuildXL.ExternalLKGsPackagePath)\win'
+
+  - task: PowerShell@2
+    inputs:
+        targetType: 'inline'
+        script: |
+            # Expand buildxl windows pkg
+            $directory = "$(BuildXL.ExternalLKGsPackagePath)\Win"
+            $destinationDirectory = "$(BuildXL.ExternalLKGsPackagePath)\WinExpanded"
+
+            $file = Get-ChildItem -Path $directory -Filter *.nupkg
+            $nameWithoutExtension = [System.IO.Path]::GetFileNameWithoutExtension($file.FullName)
+
+            $newName = $nameWithoutExtension+".zip"
+            Rename-Item -Path $file.FullName -NewName $newName
+
+            $zipfile = $file.DirectoryName + "\\" + $newName
+
+            if (!(Test-Path -Path $destinationDirectory)) {
+                New-Item -ItemType Directory -Force -Path $destinationDirectory
+            }
+
+            Expand-Archive -Path $zipfile -DestinationPath $destinationDirectory -Force
+
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: 'BuildXL-ExternalPackagePublishing'
+      scriptType: 'pscore'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        # Note that the resoruce is specified to limit the token to Azure DevOps
+        $apiToken = az account get-access-token --query accessToken --resource api://30471ccf-0966-45b9-a979-065dbedb24c1 -o tsv
+        Write-Host "##vso[task.setvariable variable=PkgPublish-apiToken;issecret=true]$apiToken"
+        $taskToken = az account get-access-token --query accessToken --resource 499b84ac-1321-427f-aa17-267ca6975798 -o tsv
+        Write-Host "##vso[task.setvariable variable=PkgPublish-taskToken;issecret=true]$taskToken"
+  
+  - task: PowerShell@2
+    enabled: true
+    inputs:
+      targetType: 'inline'
+      script: |
+        # Get the current date and time
+        $current_datetime = Get-Date
+
+        # Calculate the date 10 years later
+        $ten_years_later = $current_datetime.AddYears(10)
+
+        # Call symbols team REST api to register request name
+        $requestBody = "{'requestName': '$(RequestName)', 'expirationTime': '$ten_years_later'}";
+        $uri = 'https://symbolrequestprod.trafficmanager.net/projects/$(ProjectName)/requests'
+        Write-Host "$uri"
+        Invoke-RestMethod -Method POST -Uri $uri -Headers @{ Authorization = "Bearer $(PkgPublish-apiToken)" } -ContentType "application/json" -Body $requestBody
+
+  - task: PublishSymbols@2
+    enabled: true
+    inputs:
+      SymbolsFolder: '$(BuildXL.ExternalLKGsPackagePath)\WinExpanded'
+      SearchPattern: '**'
+      IndexSources: false
+      SymbolServerType: 'TeamServices'
+      SymbolsArtifactName: '$(RequestName)'
+    env:
+      ArtifactServices_Symbol_AccountName: microsofttempsymbols
+      ArtifactServices_Symbol_PAT: $(PkgPublish-taskToken)
+
+  - task: PowerShell@2
+    enabled: true
+    inputs:
+      targetType: 'inline'
+      script: |
+        # Call REST API to publish to public server
+        $requestBody = "{'publishToInternalServer': true, 'publishToPublicServer': true}";
+        
+        Invoke-RestMethod -Method POST -Uri 'https://symbolrequestprod.trafficmanager.net/projects/$(ProjectName)/requests/$(RequestName)' -Headers @{ Authorization = "Bearer $(PkgPublish-apiToken)" } -ContentType "application/json" -Body $requestBody

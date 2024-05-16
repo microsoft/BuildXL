@@ -30,14 +30,16 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         /// Maximum number of retries for Azure Storage client.
         /// </summary>
         public int MaxRetries { get; set; } = 20;
+
         /// <summary>
         /// Delay for Azure Storage client.
         /// </summary>
-        public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(0.5);
+        public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(0.25);
+
         /// <summary>
         /// Maximum amount of time we're willing to wait for any operation against storage.
         /// </summary>
-        public TimeSpan NetworkTimeout { get; set; } = TimeSpan.FromSeconds(200);
+        public TimeSpan NetworkTimeout { get; set; } = TimeSpan.FromMinutes(5);
     }
 
     public record Configuration(
@@ -83,7 +85,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             Retry = {
                 MaxRetries = configuration.BlobRetryPolicy.MaxRetries,
                 Delay = configuration.BlobRetryPolicy.RetryDelay,
-                NetworkTimeout = configuration.BlobRetryPolicy.NetworkTimeout
+                NetworkTimeout = configuration.BlobRetryPolicy.NetworkTimeout,
             }
         };
         _scheme = _configuration.ShardingScheme.Create();

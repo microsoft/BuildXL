@@ -575,7 +575,7 @@ INTERPOSE(int, __lxstat, int __ver, const char *pathname, struct stat *buf)({
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
@@ -588,7 +588,7 @@ INTERPOSE(int, __lxstat64, int __ver, const char *pathname, struct stat64 *buf)(
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
@@ -626,7 +626,7 @@ INTERPOSE(int, lstat, const char *pathname, struct stat *statbuf)({
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
@@ -639,7 +639,7 @@ INTERPOSE(int, lstat64, const char *pathname, struct stat64 *statbuf)({
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
@@ -896,7 +896,9 @@ static AccessCheckResult CreateFileOpen(BxlObserver *bxl, string &pathStr, int o
 
     // If O_NOFOLLOW is set and the file exists as a symlink, the call to open will fail,
     // but we should report the attempt of the access on the path to the symlink, without resolving the final component.
-    event.SetNormalizeFlags(oflag); 
+    if (oflag & O_NOFOLLOW != 0) {
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
+    }
 
     return bxl->CreateAccess(__func__, event, report);
 }
@@ -1026,7 +1028,7 @@ INTERPOSE(int, remove, const char *pathname)({
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->check_fwd_and_report_remove(report, check, ERROR_RETURN_VALUE, pathname);
 })
@@ -1101,7 +1103,7 @@ static AccessCheckResult handle_renameat(BxlObserver *bxl, int olddirfd, const c
                     /* pid */           getpid(),
                     /* error */         0,
                     /* src_path */      fileOrDirectory.c_str());
-                event.SetNormalizeFlags(O_NOFOLLOW);
+                event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
                 check = bxl->CreateAccess(__func__, event, sourceReport);
                 accessesToReport.emplace_back(sourceReport);
 
@@ -1140,7 +1142,7 @@ static AccessCheckResult handle_renameat(BxlObserver *bxl, int olddirfd, const c
             /* pid */           getpid(),
             /* error */         0,
             /* src_path */      oldStr.c_str());
-        event.SetNormalizeFlags(O_NOFOLLOW);
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
         check = bxl->CreateAccess(__func__, event, sourceReport);
         accessesToReport.emplace_back(sourceReport);
         AccessReportGroup destReport;
@@ -1239,7 +1241,7 @@ INTERPOSE(int, unlink, const char *path)({
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path);
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->check_fwd_and_report_unlink(report, check, ERROR_RETURN_VALUE, path);
 })
@@ -1258,7 +1260,9 @@ INTERPOSE(int, unlinkat, int dirfd, const char *path, int flags)({
         /* error */         0,
         /* src_path */      path,
         /* src_fd */        dirfd);
-    event.SetNormalizeFlags(oflags);
+    if (oflags & O_NOFOLLOW != 0) {
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
+    }
     auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->check_fwd_and_report_unlinkat(report, check, ERROR_RETURN_VALUE, dirfd, path, flags);
 })
@@ -1311,7 +1315,7 @@ INTERPOSE_SOMETIMES(
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path);
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->check_fwd_and_report_readlink(report, check, (ssize_t)ERROR_RETURN_VALUE, path, buf, bufsize);
 })
@@ -1324,7 +1328,7 @@ INTERPOSE(ssize_t, readlinkat, int fd, const char *path, char *buf, size_t bufsi
         /* error */         0,
         /* src_path */      path,
         /* src_fd */        fd);
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->check_fwd_and_report_readlinkat(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, path, buf, bufsize);
 })
@@ -1360,7 +1364,7 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path);
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     bxl->CreateAndReportAccess(__func__, event);
 
     if (result == nullptr)
@@ -1635,7 +1639,9 @@ INTERPOSE(int, fchmodat, int dirfd, const char *pathname, mode_t mode, int flags
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
-    event.SetNormalizeFlags(oflags);
+    if (oflags & O_NOFOLLOW != 0) {
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
+    }
     auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->check_fwd_and_report_fchmodat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, mode, flags);
 })
@@ -1684,7 +1690,7 @@ INTERPOSE(int, lchown, const char *pathname, uid_t owner, gid_t group)({
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->check_fwd_and_report_lchown(report, check, ERROR_RETURN_VALUE, pathname, owner, group);
 })
@@ -1702,7 +1708,9 @@ INTERPOSE(int, fchownat, int dirfd, const char *pathname, uid_t owner, gid_t gro
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
-    event.SetNormalizeFlags(oflags);
+    if (oflags & O_NOFOLLOW != 0) {
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
+    }
     auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->check_fwd_and_report_fchownat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, owner, group, flags);
 })

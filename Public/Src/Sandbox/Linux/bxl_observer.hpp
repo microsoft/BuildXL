@@ -296,10 +296,10 @@ private:
     bool ResolveEventPaths(buildxl::linux::SandboxEvent& event);
 
     /**
-     * Normalizes the paths in a SandboxEvent if they are not already by following any symlinks if specified on the normalization flags
+     * Resolves the paths in a SandboxEvent if they are not already by following any symlinks if specified on the resolution requirements
      * in the SandboxEvent, and expanding references to /./, /../, and //
      */
-    void NormalizeEventPaths(buildxl::linux::SandboxEvent& event, char *src_path, char *dst_path);
+    void ResolveEventPaths(buildxl::linux::SandboxEvent& event, char *src_path, char *dst_path);
 
     /**
      * Converts a file descriptor associated with the provided PID to a path.

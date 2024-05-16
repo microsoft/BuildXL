@@ -874,7 +874,7 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
                     /* pid */           m_traceePid,
                     /* error */         mode,
                     /* src_path */      fileOrDirectory.c_str());
-                event.SetNormalizeFlags(O_NOFOLLOW);
+                event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
                 m_bxl->CreateAndReportAccess(syscall, event);
 
                 // Destination
@@ -892,7 +892,7 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
             /* pid */           m_traceePid,
             /* error */         mode,
             /* src_path */      oldStr.c_str());
-        event.SetNormalizeFlags(O_NOFOLLOW);
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
         m_bxl->CreateAndReportAccess(syscall, event);
 
         // Destination
@@ -941,7 +941,7 @@ HANDLER_FUNCTION(unlink)
             /* pid */           m_traceePid,
             /* error */         0,
             /* src_path */      path.c_str());
-        event.SetNormalizeFlags(O_NOFOLLOW);
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
 
         m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(unlink), event);
     }
@@ -955,7 +955,6 @@ HANDLER_FUNCTION(unlinkat)
 
     if (dirfd != AT_FDCWD && path[0] != '\0')
     {
-        int oflags = (flags & AT_REMOVEDIR) ? 0 : O_NOFOLLOW;
         // TODO: Figure out how to report the errno
         auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
             /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
@@ -963,7 +962,10 @@ HANDLER_FUNCTION(unlinkat)
             /* error */         0,
             /* src_path */      path.c_str(),
             /* src_fd */        dirfd);
-        event.SetNormalizeFlags(oflags);
+        
+        if ((flags & AT_REMOVEDIR) == 0) {
+            event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
+        }
 
         m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(unlinkat), event);
     }
@@ -1011,7 +1013,7 @@ HANDLER_FUNCTION(readlink)
         /* pid */           m_traceePid,
         /* error */         0,
         /* src_path */      path.c_str());
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(readlink), event);
 }
@@ -1028,7 +1030,7 @@ HANDLER_FUNCTION(readlinkat)
             /* error */         0,
             /* src_path */      path.c_str(),
             /* src_fd */        fd);
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(readlinkat), event);
 }
@@ -1152,7 +1154,6 @@ HANDLER_FUNCTION(fchmodat)
     auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fchmodat), 2, /* nullTerminated */ true);
     auto flags = ReadArgumentLong(4);
 
-    int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
     // TODO: Figure out how to report the errno
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
         /* event_type */    ES_EVENT_TYPE_NOTIFY_SETMODE,
@@ -1160,7 +1161,10 @@ HANDLER_FUNCTION(fchmodat)
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
-    event.SetNormalizeFlags(oflags);
+    
+    if (flags & AT_SYMLINK_NOFOLLOW) {
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
+    }
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(fchmodat), event);
 }
@@ -1191,7 +1195,7 @@ HANDLER_FUNCTION(lchown)
         /* pid */           m_traceePid,
         /* error */         0,
         /* src_path */      pathname.c_str());
-    event.SetNormalizeFlags(O_NOFOLLOW);
+    event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(lchown), event);
 }
@@ -1202,7 +1206,6 @@ HANDLER_FUNCTION(fchownat)
     auto pathname = ReadArgumentString(SYSCALL_NAME_STRING(fchownat), 2, /* nullTerminated */ true);
     auto flags = ReadArgumentLong(5);
 
-    int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
     // TODO: figure out how to report the errno
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
         /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
@@ -1210,7 +1213,10 @@ HANDLER_FUNCTION(fchownat)
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
-    event.SetNormalizeFlags(oflags);
+
+    if (flags & AT_SYMLINK_NOFOLLOW) {
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
+    }
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(fchownat), event);
 }

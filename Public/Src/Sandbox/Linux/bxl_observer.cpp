@@ -290,7 +290,7 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
             if (event.GetDstFd() != -1) {
                 FileDescriptorToPath(event.GetDstFd(), event.GetPid(), resolved_path_dst, PATH_MAX);
             }
-            NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
+            ResolveEventPaths(event, resolved_path_src, resolved_path_dst);
             break;
         }
         case buildxl::linux::SandboxEventPathType::kRelativePaths: {
@@ -305,7 +305,7 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
                 relative_to_absolute(event.GetDstPath().c_str(), event.GetDstFd(), event.GetPid(), resolved_path_dst);
             }
 
-            NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
+            ResolveEventPaths(event, resolved_path_src, resolved_path_dst);
 
             // Update the mode after normalization, so we use an absolute path for it
             if (event.GetMode() == 0) {
@@ -321,7 +321,7 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
             strncpy(resolved_path_src, event.GetSrcPath().c_str(), PATH_MAX);
             strncpy(resolved_path_dst, event.GetDstPath().c_str(), PATH_MAX);
 
-            NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);          
+            ResolveEventPaths(event, resolved_path_src, resolved_path_dst);          
 
             // Update the mode after normalization
             if (event.GetMode() == 0) {
@@ -351,10 +351,11 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
     return true;
 }
 
-void BxlObserver::NormalizeEventPaths(buildxl::linux::SandboxEvent& event, char *src_path, char *dst_path) {
+void BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event, char *src_path, char *dst_path) {
     // Normalization might be disabled for internal events, or if paths have been already resolved
-    if (event.GetNormalizationFlags() != -1) {
-        bool follow_symlink = (event.GetNormalizationFlags() & O_NOFOLLOW) == 0;
+    auto requiredResolution = event.GetRequiredPathResolution();
+    if (requiredResolution != buildxl::linux::RequiredPathResolution::kDoNotResolve) {
+        bool follow_symlink = (requiredResolution == buildxl::linux::RequiredPathResolution::kFullyResolve);
         resolve_path(src_path, follow_symlink, event.GetPid());
 
         if (!event.GetDstPath().empty()) {
@@ -1227,7 +1228,9 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
             /* pid */           associatedPid,
             /* error */         0,
             /* src_path */      fullpath);
-        event.SetNormalizeFlags(-1);    // Don't normalize the paths here! We are exactly doing that right now...
+
+        // Don't normalize the paths here! We are exactly doing that right now...
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kDoNotResolve);    
         CreateAndReportAccess("_readlink", event);
         
         *pFullpath = ch;

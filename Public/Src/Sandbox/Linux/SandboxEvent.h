@@ -17,6 +17,19 @@ typedef enum SandboxEventPathType {
     kFileDescriptors
 } SandboxEventPathType;
 
+// Indicates if this event is constructed with paths that still need resolution
+typedef enum RequiredPathResolution {
+    // Fully resolve the paths
+    kFullyResolve,
+
+    // Resolve intermediate directory symlinks, but not the final component of the path (basically, O_NOFOLLOW)
+    kResolveNoFollow,
+
+    // Do not resolve the paths in this event. 
+    // We set for internally constructed events, or when we know the paths have already been resolved
+    kDoNotResolve
+} RequiredPathResolution;
+
 class SandboxEvent {
 private:
     static inline SandboxEvent Invalid() { return SandboxEvent(); }
@@ -32,8 +45,8 @@ private:
     int dst_fd_;
     pid_t pid_;
     pid_t child_pid_;
-    // If a normalization flag is set, then the paths on this event need to be normalized before performing an access check.
-    int normalization_flags_;
+    // Indicates if this event is constructed with paths that still need resolution
+    RequiredPathResolution required_path_resolution_;
     mode_t mode_;
     uint error_;
     bool is_valid_;
@@ -61,7 +74,7 @@ private:
             mode_(0),
             error_(error),
             path_type_(path_type),
-            normalization_flags_(0),
+            required_path_resolution_(RequiredPathResolution::kFullyResolve),
             is_valid_(true),
             is_sealed_(false) 
             { }
@@ -187,7 +200,7 @@ public:
     int GetDstFd() const { assert(is_valid_); return dst_fd_; }
     uint GetError() const { assert(is_valid_); return error_; }
     SandboxEventPathType GetPathType() const { assert(is_valid_); return path_type_; }
-    int GetNormalizationFlags() const { assert(is_valid_); return normalization_flags_; }
+    RequiredPathResolution GetRequiredPathResolution() const { assert(is_valid_); return required_path_resolution_; }
     bool IsDirectory() const { assert(is_valid_); return S_ISDIR(mode_); }
 
     // Seal the event after constructing a report. This makes the event immutable.
@@ -195,7 +208,7 @@ public:
 
     // Setters
     void SetMode(mode_t mode) { assert(is_valid_); assert(!is_sealed_); mode_ = mode; }
-    void SetNormalizeFlags(int flags) { assert(is_valid_); assert(!is_sealed_); normalization_flags_ = flags; }
+    void SetRequiredPathResolution(RequiredPathResolution r) { assert(is_valid_); assert(!is_sealed_); required_path_resolution_ = r; }
 
     /**
      * Updates the source and destination paths to be absolute paths.
@@ -207,7 +220,7 @@ public:
         dst_path_ = dst_path;
         src_fd_ = -1;
         dst_fd_ = -1;
-        normalization_flags_ = -1;  // Prevent the paths from being normalized again 
+        required_path_resolution_ = RequiredPathResolution::kDoNotResolve;  // Prevent the paths from being normalized again 
         path_type_ = SandboxEventPathType::kAbsolutePaths;
     }
 };

@@ -527,7 +527,6 @@ INTERPOSE(int, __fxstatat, int __ver, int fd, const char *pathname, struct stat 
         /* src_path */      pathname,
         /* src_fd */        fd);
     
-    event.SetNormalizeFlags(0);
     bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
@@ -541,7 +540,6 @@ INTERPOSE(int, __fxstatat64, int __ver, int fd, const char *pathname, struct sta
         /* src_path */      pathname,
         /* src_fd */        fd);
     
-    event.SetNormalizeFlags(0);
     bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
@@ -898,8 +896,9 @@ static AccessCheckResult CreateFileOpen(BxlObserver *bxl, string &pathStr, int o
     
     event.SetMode(pathMode);
 
-    // Don't call event.SetNormalizeFlags(oflag) - O_NOFOLLOW in 'open' calls still makes the OS 
-    // follow intermediate symlinks (https://man7.org/linux/man-pages/man2/open.2.html), so we should normalize.
+    // If O_NOFOLLOW is set and the file exists as a symlink, the call to open will fail,
+    // but we should report the attempt of the access on the path to the symlink, without resolving the final component.
+    event.SetNormalizeFlags(oflag); 
 
     return bxl->CreateAccess(__func__, event, report);
 }
@@ -1071,7 +1070,6 @@ INTERPOSE(int, rmdir, const char *pathname)({
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    event.SetNormalizeFlags(0);
 
     // We need to know all the rmdir attempts so we can identify which failed/succeeded, so don't use the cache
     // This is so we can track directory creation/deletion flow. Using the cache lumps all these operations into one report line
@@ -1315,8 +1313,8 @@ INTERPOSE_SOMETIMES(
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path);
-    auto check = bxl->CreateAccess(__func__, event, report);
     event.SetNormalizeFlags(O_NOFOLLOW);
+    auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->check_fwd_and_report_readlink(report, check, (ssize_t)ERROR_RETURN_VALUE, path, buf, bufsize);
 })
 

@@ -697,7 +697,6 @@ HANDLER_FUNCTION(access)
         /* pid */           m_traceePid,
         /* error */         0,
         /* src_path */      pathname.c_str());
-    event.SetNormalizeFlags(0);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(access), event);
 }
@@ -1063,7 +1062,6 @@ HANDLER_FUNCTION(utimensat)
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
-    event.SetNormalizeFlags(0);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(utimensat), event);
 }
@@ -1080,7 +1078,6 @@ HANDLER_FUNCTION(futimesat)
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
-    event.SetNormalizeFlags(0);
 
     m_bxl->CreateAndReportAccess(SYSCALL_NAME_STRING(futimesat), event);
 }

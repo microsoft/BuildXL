@@ -21,6 +21,10 @@
 #include <unistd.h>
 #include <utime.h>
 
+#define GET_CWD                                                                                     \
+    char cwd[PATH_MAX] = { 0 };                                                                     \
+    char *res = getcwd(cwd, PATH_MAX);                                                              \
+
 #define GEN_TEST_FN(syscall); int Test##syscall()
 
 GEN_TEST_FN(fork);

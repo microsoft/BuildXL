@@ -189,6 +189,10 @@ AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::l
     // Resolve paths and mode
     bool isFileEvent = ResolveEventPaths(event);
 
+    // After resolving the paths we should freeze the event: this is to ensure consistency between the AccessCheckResult that we 
+    // return here and the contents of this event.
+    event.Seal();
+
     // Check if non-file, we don't want to report these.
     if (!isFileEvent) {
         LOG_DEBUG("Won't report an access for syscall %s because the paths for the event couldn't be resolved.", syscall_name); 
@@ -287,7 +291,6 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
                 FileDescriptorToPath(event.GetDstFd(), event.GetPid(), resolved_path_dst, PATH_MAX);
             }
             NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
-            event.UpdatePaths(resolved_path_src, resolved_path_dst);        
             break;
         }
         case buildxl::linux::SandboxEventPathType::kRelativePaths: {
@@ -304,8 +307,6 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
 
             NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
 
-            event.UpdatePaths(resolved_path_src, resolved_path_dst);
-
             // Update the mode after normalization, so we use an absolute path for it
             if (event.GetMode() == 0) {
                 event.SetMode(get_mode(event.GetSrcPath().c_str()));
@@ -313,17 +314,14 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
             break;
         } 
         case buildxl::linux::SandboxEventPathType::kAbsolutePaths: {
-            // Paths already resolved but may need to be normalized
-            if (event.PathNeedsNormalization()) {
-                char resolved_path_src[PATH_MAX] = { 0 };
-                char resolved_path_dst[PATH_MAX] = { 0 };
+            // Paths already resolved but need to be normalized
+            char resolved_path_src[PATH_MAX] = { 0 };
+            char resolved_path_dst[PATH_MAX] = { 0 };
 
-                strncpy(resolved_path_src, event.GetSrcPath().c_str(), PATH_MAX);
-                strncpy(resolved_path_dst, event.GetDstPath().c_str(), PATH_MAX);
+            strncpy(resolved_path_src, event.GetSrcPath().c_str(), PATH_MAX);
+            strncpy(resolved_path_dst, event.GetDstPath().c_str(), PATH_MAX);
 
-                NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);
-                event.UpdatePaths(resolved_path_src, resolved_path_dst);
-            }
+            NormalizeEventPaths(event, resolved_path_src, resolved_path_dst);          
 
             // Update the mode after normalization
             if (event.GetMode() == 0) {
@@ -334,7 +332,7 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
         default:
             break;
     }
-    
+
     // After normalization, we should have valid absolute paths. If not, the file descriptor or paths were not associated to files to begin with, and we shouldn't proceed with the report
     if (event.GetSrcPath().empty()) {
         LOG_DEBUG("[ResolveEventPaths] Empty src path after normalization. Original event had path type %d", pathType);
@@ -354,14 +352,16 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
 }
 
 void BxlObserver::NormalizeEventPaths(buildxl::linux::SandboxEvent& event, char *src_path, char *dst_path) {
-    // Normalize paths if a normalization flag was set
-    if (event.PathNeedsNormalization()) {
+    // Normalization might be disabled for internal events, or if paths have been already resolved
+    if (event.GetNormalizationFlags() != -1) {
         bool follow_symlink = (event.GetNormalizationFlags() & O_NOFOLLOW) == 0;
         resolve_path(src_path, follow_symlink, event.GetPid());
 
         if (!event.GetDstPath().empty()) {
             resolve_path(dst_path, follow_symlink, event.GetPid());
         }
+
+        event.SetResolvedPaths(src_path, dst_path);
     }
 }
 
@@ -670,7 +670,6 @@ void BxlObserver::report_exec(const char *syscallName, const char *procName, con
         /* error */         error,
         /* src_path */      file);
         event.SetMode(mode);
-
         CreateAndReportAccess(syscallName, event);
         report_exec_args(associatedPid);
     }
@@ -1154,6 +1153,7 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
         return;
     }
 
+    auto prevErrno = errno;
     unordered_set<string> visited;
 
     char readlinkBuf[PATH_MAX];
@@ -1227,6 +1227,7 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
             /* pid */           associatedPid,
             /* error */         0,
             /* src_path */      fullpath);
+        event.SetNormalizeFlags(-1);    // Don't normalize the paths here! We are exactly doing that right now...
         CreateAndReportAccess("_readlink", event);
         
         *pFullpath = ch;
@@ -1248,6 +1249,8 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
         pFullpath = find_prev_slash(pFullpath);
         strcpy(++pFullpath, readlinkBuf);
     }
+
+    errno = prevErrno;
 }
 
 char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *envName, char const *envValue)

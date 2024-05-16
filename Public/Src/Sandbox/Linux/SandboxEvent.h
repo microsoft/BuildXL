@@ -37,8 +37,9 @@ private:
     mode_t mode_;
     uint error_;
     bool is_valid_;
+    bool is_sealed_;
     
-    SandboxEvent() : is_valid_(false) { /* Empty constructor for invalid object */ }
+    SandboxEvent() : is_valid_(false), is_sealed_(false) { /* Empty constructor for invalid object */ }
 
     SandboxEvent(
         es_event_type_t event_type,
@@ -60,8 +61,9 @@ private:
             mode_(0),
             error_(error),
             path_type_(path_type),
-            normalization_flags_(-1),
-            is_valid_(true) 
+            normalization_flags_(0),
+            is_valid_(true),
+            is_sealed_(false) 
             { }
 
 public:
@@ -187,22 +189,25 @@ public:
     SandboxEventPathType GetPathType() const { assert(is_valid_); return path_type_; }
     int GetNormalizationFlags() const { assert(is_valid_); return normalization_flags_; }
     bool IsDirectory() const { assert(is_valid_); return S_ISDIR(mode_); }
-    bool PathNeedsNormalization() const { assert(is_valid_); return normalization_flags_ != -1; }
+
+    // Seal the event after constructing a report. This makes the event immutable.
+    void Seal() { is_sealed_ = true; }
 
     // Setters
-    void SetMode(mode_t mode) { assert(is_valid_); mode_ = mode; }
-    void SetNormalizeFlags(int flags) { assert(is_valid_); normalization_flags_ = flags; }
+    void SetMode(mode_t mode) { assert(is_valid_); assert(!is_sealed_); mode_ = mode; }
+    void SetNormalizeFlags(int flags) { assert(is_valid_); assert(!is_sealed_); normalization_flags_ = flags; }
 
     /**
      * Updates the source and destination paths to be absolute paths.
      */
-    void UpdatePaths(const std::string& src_path, const std::string& dst_path) {
+    void SetResolvedPaths(const std::string& src_path, const std::string& dst_path) {
         assert(is_valid_);
+        assert(!is_sealed_);
         src_path_ = src_path;
         dst_path_ = dst_path;
         src_fd_ = -1;
         dst_fd_ = -1;
-        normalization_flags_ = -1;
+        normalization_flags_ = -1;  // Prevent the paths from being normalized again 
         path_type_ = SandboxEventPathType::kAbsolutePaths;
     }
 };

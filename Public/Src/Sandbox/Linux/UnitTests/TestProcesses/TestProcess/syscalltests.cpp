@@ -11,10 +11,6 @@
 #define __NR_clone3 -1
 #endif
 
-#define GET_CWD                                                                                     \
-    char cwd[PATH_MAX] = { 0 };                                                                     \
-    char *res = getcwd(cwd, PATH_MAX);                                                              \
-
 #define TEMPORARY_FILE                                                                              \
     GET_CWD                                                                                         \
     char *fileName = "testfile";                                                                    \

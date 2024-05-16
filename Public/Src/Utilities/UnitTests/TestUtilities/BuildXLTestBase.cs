@@ -475,6 +475,26 @@ namespace Test.BuildXL.TestUtilities
         }
 
         /// <summary>
+        /// Verifies that the test's event trace does not match the given regex.
+        /// </summary>
+        /// <param name="regex">Regex to match to event trace</param>
+        protected void AssertLogNotContains(Regex regex)
+        {
+            Contract.Requires(regex != null);
+            string originalLog = EventListener.GetLog();
+
+            var matches = regex.Matches(originalLog).Count;
+            if (matches != 0)
+            {
+                AssertTrue(
+                            false,
+                            "Found matches for regex '{0}' in the output log:\n\r----------\n\r{1}\n\r----------\n\r",
+                            regex.ToString(),
+                            originalLog);
+            }
+        }
+
+        /// <summary>
         /// Verifies that the test's event trace does not contain the given strings.
         /// </summary>
         /// <param name="caseSensitive">true if a case sensitive search should be done</param>

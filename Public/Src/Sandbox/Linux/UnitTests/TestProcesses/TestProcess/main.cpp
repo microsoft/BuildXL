@@ -32,6 +32,29 @@ int TestAnonymousFile()
     return 0;
 }
 
+// The managed side creates a (directory) symlink symlinkDir -> realDir.
+int FullPathResolutionOnReports()
+{
+    char buf[PATH_MAX] = { 0 };
+    GET_CWD;
+    std::string testFile(cwd);
+    testFile.append("/symlinkDir/nonExistingFile.txt");
+    int result = readlink(testFile.c_str(), buf, PATH_MAX);
+    return EXIT_SUCCESS;
+}
+
+// The managed side creates a file symlink realDir/symlink.txt -> realDir/real.txt.
+int ReadlinkReportDoesNotResolveFinalComponent()
+{
+    char buf[PATH_MAX] = { 0 };
+    GET_CWD;
+    std::string testFile(cwd);
+    testFile.append("/realDir/symlink.txt");
+    int result = readlink(testFile.c_str(), buf, PATH_MAX);
+    return EXIT_SUCCESS;
+}
+
+
 int main(int argc, char **argv)
 {
     int opt;
@@ -54,7 +77,7 @@ int main(int argc, char **argv)
     #define IF_COMMAND_STR(NAME)   { if (testName == STR(Test##NAME)) { exit(Test##NAME()); } }
 
     // Function Definitions
-    IF_COMMAND(TestAnonymousFile);
+    // Basic tests
     IF_COMMAND_STR(fork);
     IF_COMMAND_STR(vfork);
     IF_COMMAND_STR(clone);
@@ -164,6 +187,10 @@ int main(int argc, char **argv)
     IF_COMMAND_STR(readdir64);
     IF_COMMAND_STR(readdir_r);
     IF_COMMAND_STR(readdir64_r);
+    // Special tests
+    IF_COMMAND(TestAnonymousFile);
+    IF_COMMAND(FullPathResolutionOnReports);
+    IF_COMMAND(ReadlinkReportDoesNotResolveFinalComponent);
 
     // Invalid command
     exit(-1);

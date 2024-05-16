@@ -54,6 +54,23 @@ int ReadlinkReportDoesNotResolveFinalComponent()
     return EXIT_SUCCESS;
 }
 
+// The managed side creates:
+// - a directory symlink realDir -> symlinkDir
+// - a file symlink realDir/symlink.txt -> realDir/real.txt.
+int FileDescriptorAccessesFullyResolvesPath()
+{
+    char buf[PATH_MAX] = { 0 };
+    GET_CWD;
+    std::string testFile(cwd);
+    testFile.append("/realDir/symlink.txt");
+    int fd = open("symlinkDir/symlink.txt", O_RDONLY);
+    struct stat sb;
+    
+    // Use __fxtat as representative for a "file descriptor event"
+    __fxstat(1, fd, &sb);
+    return EXIT_SUCCESS;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -191,6 +208,7 @@ int main(int argc, char **argv)
     IF_COMMAND(TestAnonymousFile);
     IF_COMMAND(FullPathResolutionOnReports);
     IF_COMMAND(ReadlinkReportDoesNotResolveFinalComponent);
+    IF_COMMAND(FileDescriptorAccessesFullyResolvesPath);
 
     // Invalid command
     exit(-1);

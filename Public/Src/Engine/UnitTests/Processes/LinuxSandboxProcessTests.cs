@@ -105,5 +105,42 @@ namespace Test.BuildXL.Processes
             AssertLogContains(GetRegex("readlink", "realDir/symlink.txt"));
             AssertLogNotContains(GetRegex("readlink", "symlinkDir/file.txt"));
         }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void FileDescriptorAccessesFullyResolvesPath()
+        {
+            var tempFiles = new TempFileStorage(canGetFileNames : true);
+            var link = tempFiles.GetDirectory("symlinkDir", skipCreate: true);
+            var real = tempFiles.GetDirectory("realDir");
+            var realFile = tempFiles.GetFileName(real, "file.txt");
+
+            File.WriteAllText(realFile, "chelivery");
+            XAssert.IsTrue(File.Exists(realFile));           
+
+            var createSymlink = FileUtilities.TryCreateSymbolicLink(link, real, isTargetFile: false); 
+            if (!createSymlink.Succeeded)
+            {
+                XAssert.IsTrue(false, createSymlink.Failure.Describe());                
+            }
+
+            var fileLink = tempFiles.GetFileName(real, "symlink.txt");
+            createSymlink = FileUtilities.TryCreateSymbolicLink(fileLink, realFile, isTargetFile: true); 
+            if (!createSymlink.Succeeded)
+            {
+                XAssert.IsTrue(false, createSymlink.Failure.Describe());                
+            }
+
+            RunNativeTest("FileDescriptorAccessesFullyResolvesPath", workingDirectory: tempFiles);
+
+            // The native side does:
+            // fd = open(symlinkDir/symlink.txt);
+            // __fxstat(fd)
+            // For the __fxstat report, we should associate the file descriptor to the real path, with the symlinks resolved
+            AssertLogContains(GetRegex("__fxstat", realFile));
+
+            // At some point (namely, on open) we also should get reports for the intermediate symlinks that got us to the file 
+            AssertLogContains(GetRegex("_readlink", link));
+            AssertLogContains(GetRegex("_readlink", fileLink));
+        }
     }
 }

@@ -290,7 +290,10 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
             if (event.GetDstFd() != -1) {
                 FileDescriptorToPath(event.GetDstFd(), event.GetPid(), resolved_path_dst, PATH_MAX);
             }
-            ResolveEventPaths(event, resolved_path_src, resolved_path_dst);
+
+            // FileDescriptorToPath returns a fully resolved path (by virtue of resolving /proc/self/fd/{fd})
+            // so no need to call ResolveEventPaths here, we can just set them directly
+            event.SetResolvedPaths(resolved_path_src, resolved_path_dst);
             break;
         }
         case buildxl::linux::SandboxEventPathType::kRelativePaths: {

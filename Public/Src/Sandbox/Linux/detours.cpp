@@ -602,7 +602,6 @@ INTERPOSE(int, stat, const char *pathname, struct stat *statbuf)({
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
-    event.SetNormalizeFlags(O_NOFOLLOW);
     bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
@@ -615,7 +614,6 @@ INTERPOSE(int, stat64, const char *pathname, struct stat64 *statbuf)({
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
-    event.SetNormalizeFlags(O_NOFOLLOW);
     bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })

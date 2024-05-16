@@ -118,6 +118,9 @@ resource eventhublogsnamespace 'Microsoft.EventHub/namespaces@2022-10-01-preview
     type: 'SystemAssigned'
   }
   properties: {
+    // This disables SAS tokens as an auth mechanism.
+    // Managed identities is the recommended path
+    disableLocalAuth: true
   }
 }
 
@@ -160,6 +163,43 @@ resource logeventgrid 'Microsoft.EventGrid/systemTopics@2023-12-15-preview' = {
     source: managementStorageAccount.id
     topicType: 'Microsoft.Storage.StorageAccounts'
   }
+  // It is important to turn on identities for the 
+  // log event grid so it can auth with it against the event hub
+  identity: {
+    type: 'SystemAssigned'
+  }
+}
+
+// See https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/analytics#azure-event-hubs-data-sender
+resource cacheLogsDataSender 'Microsoft.Authorization/roleDefinitions@2018-01-01-preview' existing = {
+  scope: bxlCacheLogsHubsInstance
+  name: '2b629674-e913-4c01-ae53-ef4638d8f975'
+}
+
+// See https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/analytics#azure-event-hubs-data-sender
+resource mainLogsDataSender 'Microsoft.Authorization/roleDefinitions@2018-01-01-preview' existing = {
+  scope: bxlLogsHubsInstance
+  name: '2b629674-e913-4c01-ae53-ef4638d8f975'
+}
+
+// Allow the event grid to send main log messages to the main log hub
+resource mainLogsSenderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, cluster.id, bxlMainLogsConnections.id, 'sender')
+  scope: bxlLogsHubsInstance
+  properties: {
+    roleDefinitionId: mainLogsDataSender.id
+    principalId: logeventgrid.identity.principalId
+  }
+}
+
+// Allow the event grid to send cache log messages to the cache log hub
+resource cacheLogsSenderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, cluster.id, bxlCacheLogsConnections.id, 'sender')
+  scope: bxlCacheLogsHubsInstance
+  properties: {
+    roleDefinitionId: cacheLogsDataSender.id
+    principalId: logeventgrid.identity.principalId
+  }
 }
 
 // Grid subscription for the main logs
@@ -167,10 +207,15 @@ resource logEventMainLogSubscription 'Microsoft.EventGrid/systemTopics/eventSubs
   parent: logeventgrid
   name: 'LogEventSubscription${guid(resourceGroup().id, bxldatabase.id, bxlLogsHubsInstance.id)}'
   properties: {
-    destination: {
-      endpointType: 'EventHub'
-      properties: {
-        resourceId: bxlLogsHubsInstance.id
+    deliveryWithResourceIdentity:{
+      destination: {
+        endpointType: 'EventHub'
+        properties: {
+          resourceId: bxlLogsHubsInstance.id
+        }
+      }
+      identity: {
+        type: 'SystemAssigned'
       }
     }
     filter: {
@@ -193,10 +238,15 @@ resource logEventCacheLogSubscription 'Microsoft.EventGrid/systemTopics/eventSub
   parent: logeventgrid
   name: 'LogCacheEventSubscription${guid(resourceGroup().id, bxldatabase.id, bxlLogsHubsInstance.id)}'
   properties: {
-    destination: {
-      endpointType: 'EventHub'
-      properties: {
-        resourceId: bxlLogsHubsInstance.id
+    deliveryWithResourceIdentity:{
+      destination: {
+        endpointType: 'EventHub'
+        properties: {
+          resourceId: bxlLogsHubsInstance.id
+        }
+      }
+      identity: {
+        type: 'SystemAssigned'
       }
     }
     filter: {

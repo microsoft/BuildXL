@@ -23,7 +23,6 @@ jobs:
       --minimal
       --use-dev 
       ${{ parameters.BxlCommonArgs }}
-      /cacheMiss:"[Bxl.Selfhost.Linux.PTrace]" 
       /forceEnableLinuxPTraceSandbox+
       /injectCacheMisses:0.3
     preBuildSteps:

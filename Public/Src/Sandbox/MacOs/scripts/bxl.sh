@@ -56,6 +56,7 @@ function setBxlCmdArgs {
     # the cache config autogen functionality of the runner, so let that kick in
     if [[ -z "$arg_useAdoBuildRunner" ]]; then
         g_bxlCmdArgs+=(
+            "/cacheMiss+"
             "/cacheConfigFilePath:$arg_CacheConfigFile"
         )
     else

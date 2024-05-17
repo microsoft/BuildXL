@@ -25,7 +25,7 @@ jobs:
       /q:ReleaseDotNetCoreMac
       /logOutput:FullOutputOnWarningOrError
       /scrubDirectory:Out\objects
-      /cachemiss:[BxlMacOSPRValidation]
+      /cachemiss:BxlMacOSPRValidation
     displayName: 'Build MacOS Test Binaries'
     env:
       1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)

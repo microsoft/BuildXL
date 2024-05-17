@@ -48,7 +48,7 @@ jobs:
       /traceInfo:prvalidation=Public
       /scrubDirectory:Out\objects
       /logsDirectory:$(BuildXL.LogsDirectory.LKG)
-      /cachemiss:[BxlPublicValidation]
+      /cachemiss:BxlPublicValidation
     displayName: BuildXL -Deploy Dev
     env:
       1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)

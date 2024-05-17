@@ -42,7 +42,7 @@ jobs:
         set -eu
 
         bash bxl.sh --internal --minimal --deploy-dev --release --shared-comp
-        /cacheMiss:"[Bxl.Selfhost.Linux]"
+        /cacheMiss:Bxl.Selfhost.Linux
         /cacheConfigFilePath:Out/CacheConfig.json
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
@@ -65,7 +65,7 @@ jobs:
         set -eu
 
         bash bxl.sh --use-dev --shared-comp --internal
-        /cacheMiss:"[Bxl.Selfhost.Linux]"
+        /cacheMiss:Bxl.Selfhost.Linux
         /cacheConfigFilePath:Out/CacheConfig.json
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"

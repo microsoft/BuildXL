@@ -195,7 +195,7 @@ jobs:
         set -eu
 
         bash bxl.sh --shared-comp --minimal --deploy-dev --release
-        /cacheMiss:"[Bxl.Selfhost.Linux.External]"
+        /cacheMiss:Bxl.Selfhost.Linux.External
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
       workingDirectory: /home/subst
@@ -208,7 +208,7 @@ jobs:
         set -eu
 
         bash bxl.sh --use-dev --shared-comp
-        /cacheMiss:"[Bxl.Linux.External.Rolling]"
+        /cacheMiss:Bxl.Linux.External.Rolling
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
         /p:Build.BuildId=$(Build.BuildNumber)

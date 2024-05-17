@@ -184,8 +184,12 @@ $NormalizationDriveLetter = "B";
 # that the $NormalizationDrive is in use by a build and shouldn't be remapped.
 $NormalizationLockRelativePath = "Out\.NormalizationLock"
 
+# TF_BUILD is an environment variable which is always present when running on ADO
+$tfBuild = [Environment]::GetEnvironmentVariable("TF_BUILD")
+[bool] $isRunningOnADO = If ($tfBuild -eq $null) { $false } Else { $tfBuild }
+
 # These are the options added unless -Vanilla is specified.
-$NonVanillaOptions = @("/IncrementalScheduling", "/nowarn:909 /nowarn:11318 /nowarn:11319 /unsafe_IgnorePreloadedDlls- /historicMetadataCache+ /cachemiss");
+$NonVanillaOptions = @("/IncrementalScheduling", "/nowarn:909 /nowarn:11318 /nowarn:11319 /unsafe_IgnorePreloadedDlls- /historicMetadataCache+");
 # Add the new-cache options including a unique build session name
 $NonVanillaOptions += @(
     '/cacheSessionName:{0:yyyyMMdd_HHmmssff}-{1}@{2}' -f ((Get-Date), [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.Replace(' ', '-').Replace('\', '-'), [System.Net.Dns]::GetHostName())
@@ -225,10 +229,6 @@ if ($DominoArguments -eq $null) {
 
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
-
-# TF_BUILD is an environment variable which is always present when running on ADO
-$tfBuild = [Environment]::GetEnvironmentVariable("TF_BUILD")
-[bool] $isRunningOnADO = If ($tfBuild -eq $null) { $false } Else { $tfBuild }
 
 # Even if managed shared compilation was requested to be on, we turn it off when:
 # - /ado option is present, so AzDevOps scenarios are kept unchanged. 
@@ -642,7 +642,11 @@ $AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironme
 
 $GenerateCgManifestFilePath = "$enlistmentRoot\cg\nuget\cgmanifest.json";
 $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifestFilePath";
-$AdditionalBuildXLArguments += "/cacheMiss+";
+
+if (! $UseAdoBuildRunner) # AdoBuildRunner itself enables cache miss with a specific key
+{
+    $AdditionalBuildXLArguments += "/cacheMiss+";
+}
 
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 

@@ -35,7 +35,6 @@ extends:
       os: windows
     featureFlags:
       autoBaseline: false
-      incrementalSDLBinaryAnalysis: true
     sdl:
       sourceAnalysisPool:
         name: Windows-SDL-Agents

@@ -103,12 +103,14 @@ namespace BuildXL.AdoBuildRunner.Build
             Logger.Info($@"Launching distributed build as orchestrator");
             return ExecuteBuild(
                 buildContext,
-                buildArguments.Concat(new[]
-                {
+                GetDefaultArguments().
+                Concat(buildArguments)
+                .Concat(
+                [
                     $"/distributedBuildRole:orchestrator",
                     $"/distributedBuildServicePort:{Constants.MachineGrpcPort}",
                     $"/relatedActivityId:{relatedSessionId}"
-                }),
+                ]),
                 buildContext.SourcesDirectory
             );
         }
@@ -117,25 +119,33 @@ namespace BuildXL.AdoBuildRunner.Build
         public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments)
         {
             Logger.Info($@"Launching distributed build as worker");
-
             return ExecuteBuild(
                 buildContext,
-                // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
                 // (defaults are placed in front of user-provided arguments).
-                new[]
-                {
-                    "/p:BuildXLWorkerAttachTimeoutMin=20"
-                }
+                GetDefaultArguments()
                 .Concat(buildArguments)
-                .Concat(new[]
-                {
+                .Concat(
+                [
                     $"/distributedBuildRole:worker",
                     $"/distributedBuildServicePort:{Constants.MachineGrpcPort}",
                     $"/distributedBuildOrchestratorLocation:{buildInfo.OrchestratorLocation}:{Constants.MachineGrpcPort}",
                     $"/relatedActivityId:{buildInfo.RelatedSessionId}"
-                }),
+                ]),
                 buildContext.SourcesDirectory
             );
+        }
+
+        private string[] GetDefaultArguments()
+        {
+            var invocationKey = Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerInvocationKey);
+            var cacheMissOption = string.IsNullOrEmpty(invocationKey) ? "/cacheMiss+" : $"/cacheMiss:{invocationKey}";
+
+            return [
+                // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
+                "/p:BuildXLWorkerAttachTimeoutMin=20",
+                // By default, enable cache miss analysis and pass the invocation key as a prefix
+                cacheMissOption
+                ];
         }
 
         /// <inheritdoc />

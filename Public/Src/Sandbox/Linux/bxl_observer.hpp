@@ -50,6 +50,28 @@ static const char GLIBC_23[] = "GLIBC_2.3";
 #define ARRAYSIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 
 /*
+*  real_{fn} provides a way to call the real libc function fn that we interpose.
+*  Note that calling these functions might modify the global variable errno
+*  in a meaningful way, so we should proceed with caution when using them
+*  as part of the operations of the sandbox in the middle of an interposing,
+*  because the callers of interposed functions might interpret the value of errno
+*  after the call we are interposing returns.
+*  To call these functions and automatically preserve errno, use the internal_{fn} variants.
+*/
+#define GEN_FN_DEF_REAL(ret, name, ...)                                         \
+    typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
+    const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name);
+
+#define GEN_FN_DEF_INTERNAL(ret, name, ...)                                     \
+    template<typename ...TArgs> ret internal_##name(TArgs&& ...args)            \
+    {                                                                           \
+        int prevErrno = errno;                                                  \
+        ret result = real_##name(std::forward<TArgs>(args)...);                 \
+        errno = prevErrno;                                                      \
+        return result;                                                          \
+    }
+
+/*
  * When interposing versioned symbols from glibc, dlsym will always pick up the oldest version by default.
  * This is done for compatibility, but can cause issues if a binary is expecting a newer version of the function.
  * To get around this, GEN_FN_DEF_REAL_VERSIONED can be used with the glibc version in the format GLIBC_<major>.<minor>.
@@ -57,10 +79,6 @@ static const char GLIBC_23[] = "GLIBC_2.3";
  * 
  * To check what version of a libc function a binary is using, dump it with the following command: objdump -t </path/to/binary> | grep <function_name>
  */
-#define GEN_FN_DEF_REAL(ret, name, ...)                                         \
-    typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
-    const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name);
-
 #define GEN_FN_DEF_REAL_VERSIONED(version, ret, name, ...)                      \
     typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
     const fn_real_##name real_##name = (fn_real_##name)dlvsym(RTLD_NEXT, #name, version);
@@ -91,10 +109,12 @@ static const char GLIBC_23[] = "GLIBC_2.3";
 // to retrieve the details in case of the failure.
 #define GEN_FN_DEF(ret, name, ...)                                              \
     GEN_FN_DEF_REAL(ret, name, __VA_ARGS__)                                     \
+    GEN_FN_DEF_INTERNAL(ret, name, __VA_ARGS__)                                 \
     GEN_FN_FWD(ret, name, __VA_ARGS__)
 
 #define GEN_FN_DEF_VERSIONED(version, ret, name, ...)                           \
     GEN_FN_DEF_REAL_VERSIONED(version, ret, name, __VA_ARGS__)                  \
+    GEN_FN_DEF_INTERNAL(ret, name, __VA_ARGS__)                                 \
     GEN_FN_FWD(ret, name, __VA_ARGS__)
 
 #define GEN_FN_FWD(ret, name, ...)                                              \
@@ -435,31 +455,27 @@ public:
     
     mode_t get_mode(const char *path)
     {
-        int old = errno;
         struct stat buf;
 #if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
-        mode_t result = real___lxstat(1, path, &buf) == 0
+        mode_t result = internal___lxstat(1, path, &buf) == 0
 #else
-        mode_t result = real_lstat(path, &buf) == 0
+        mode_t result = internal_lstat(path, &buf) == 0
 #endif
             ? buf.st_mode
             : 0;
-        errno = old;
         return result;
     }
 
     mode_t get_mode(int fd)
     {
-        int old = errno;
         struct stat buf;
 #if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
-        mode_t result = real___fxstat(1, fd, &buf) == 0
+        mode_t result = internal___fxstat(1, fd, &buf) == 0
 #else
-        mode_t result = real_fstat(fd, &buf) == 0
+        mode_t result = internal_fstat(fd, &buf) == 0
 #endif
             ? buf.st_mode
             : 0;
-        errno = old;
         return result;
     }
 
@@ -473,7 +489,7 @@ public:
         {
             char linkPath[100] = {0};
             sprintf(linkPath, "/proc/%d/cwd", associatedPid);
-            if (real_readlink(linkPath, fullpath, size) == -1)
+            if (internal_readlink(linkPath, fullpath, size) == -1)
             {
                 return NULL;
             }

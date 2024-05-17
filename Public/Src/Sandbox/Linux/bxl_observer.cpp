@@ -35,7 +35,7 @@ BxlObserver::BxlObserver()
     }
     else
     {
-        real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
+        internal_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
     }
 
     disposed_ = false;
@@ -89,7 +89,7 @@ BxlObserver::~BxlObserver()
     {
         // best effort, no need to observe the return value here
         // if this does fail for whatever reason, the managed side should still unlink this semaphore
-        real_sem_close(messageCountingSemaphore_);
+        internal_sem_close(messageCountingSemaphore_);
         messageCountingSemaphore_ = nullptr;
     }
 
@@ -124,7 +124,7 @@ void BxlObserver::InitFam(pid_t pid)
     strlcpy(famPath_, famPath, PATH_MAX);
 
     // read FAM
-    FILE *famFile = real_fopen(famPath_, "rb");
+    FILE *famFile = internal_fopen(famPath_, "rb");
     if (!famFile)
     {
         _fatal("Could not open file '%s'; errno: %d", famPath_, errno);
@@ -135,8 +135,8 @@ void BxlObserver::InitFam(pid_t pid)
     rewind(famFile);
 
     auto famPayload = new char [famLength];
-    real_fread(famPayload, famLength, 1, famFile);
-    real_fclose(famFile);
+    internal_fread(famPayload, famLength, 1, famFile);
+    internal_fclose(famFile);
 
     // create SandboxedPip (which parses FAM and throws on error)
     pip_ = shared_ptr<SandboxedPip>(new SandboxedPip(pid, famPayload, famLength));
@@ -164,12 +164,12 @@ void BxlObserver::Init()
     {
         // Setting initializingSemaphore_ will communicate to the interpose layer to not interpose any libc functions called inside sem_open
         initializingSemaphore_ = true;
-        messageCountingSemaphore_ = real_sem_open(pip_->GetInternalDetoursErrorNotificationFile(), O_CREAT, 0644, 0);
+        messageCountingSemaphore_ = internal_sem_open(pip_->GetInternalDetoursErrorNotificationFile(), O_CREAT, 0644, 0);
 
         if (messageCountingSemaphore_ == SEM_FAILED)
         {
             // we'll log a message here, but this won't fail the pip until this feature is tested more thorougly
-            real_fprintf(stdout, "BuildXL injected message: File access monitoring failed to open message counting semaphore '%s' with errno: '%d'. You should rerun this build, or contact the BuildXL team if the issue persists across multiple builds.", pip_->GetInternalDetoursErrorNotificationFile(), errno);
+            internal_fprintf(stdout, "BuildXL injected message: File access monitoring failed to open message counting semaphore '%s' with errno: '%d'. You should rerun this build, or contact the BuildXL team if the issue persists across multiple builds.", pip_->GetInternalDetoursErrorNotificationFile(), errno);
         }
 
         initializingSemaphore_ = false;
@@ -833,9 +833,9 @@ bool BxlObserver::check_and_report_process_requires_ptrace(const char *path)
     // If it was changed (has a different modified time), then we should run the check on it once more
     struct stat statbuf;
 #if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
-        real___lxstat(1, path, &statbuf);
+        internal___lxstat(1, path, &statbuf);
 #else
-        real_lstat(path, &statbuf);
+        internal_lstat(path, &statbuf);
 #endif
 
     std::string key = std::to_string(statbuf.st_mtim.tv_sec);
@@ -905,7 +905,7 @@ void BxlObserver::set_ptrace_permissions()
 bool BxlObserver::is_statically_linked(const char *path)
 {
     // Before running objdump, lets check if the path exists
-    if (real_access(path, F_OK) != 0) {
+    if (internal_access(path, F_OK) != 0) {
         return false;
     }
 
@@ -1002,7 +1002,7 @@ ssize_t BxlObserver::read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t as
         sprintf(procPath, "/proc/%d/fd/%d", associatedPid, fd);
     }
     
-    return real_readlink(procPath, buf, bufsiz);
+    return internal_readlink(procPath, buf, bufsiz);
 }
 
 void BxlObserver::reset_fd_table_entry(int fd)
@@ -1157,7 +1157,6 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
         return;
     }
 
-    auto prevErrno = errno;
     unordered_set<string> visited;
 
     char readlinkBuf[PATH_MAX];
@@ -1200,7 +1199,7 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
         if (*pFullpath == '/' || (*pFullpath == '\0' && followFinalSymlink))
         {
             *pFullpath = '\0';
-            nReadlinkBuf = real_readlink(fullpath, readlinkBuf, PATH_MAX);
+            nReadlinkBuf = internal_readlink(fullpath, readlinkBuf, PATH_MAX);
             *pFullpath = ch;
         }
 
@@ -1255,8 +1254,6 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
         pFullpath = find_prev_slash(pFullpath);
         strcpy(++pFullpath, readlinkBuf);
     }
-
-    errno = prevErrno;
 }
 
 char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *envName, char const *envValue)
@@ -1314,11 +1311,11 @@ bool BxlObserver::EnumerateDirectory(std::string rootDirectory, bool recursive, 
         auto currentDirectory = directoriesToEnumerate.top();
         directoriesToEnumerate.pop();
 
-        dir = real_opendir(currentDirectory.c_str());
+        dir = internal_opendir(currentDirectory.c_str());
 
         if (dir != NULL)
         {
-            while ((ent = real_readdir(dir)) != NULL)
+            while ((ent = internal_readdir(dir)) != NULL)
             {
                 std::string fileOrDirectory(ent->d_name);
                 if (fileOrDirectory == "." || fileOrDirectory == "..")
@@ -1338,7 +1335,7 @@ bool BxlObserver::EnumerateDirectory(std::string rootDirectory, bool recursive, 
                 filesAndDirectories.push_back(fullPath);
             }
 
-            real_closedir(dir);
+            internal_closedir(dir);
         }
         else
         {

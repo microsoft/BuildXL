@@ -4,7 +4,7 @@ variables:
   - name: ProjectName
     value: BuildXL
   - name: RequestName
-    value: BuildXL_Symbols_$(Build.BuildNumber)
+    value: BuildXL_Symbols_$(RollingBuild.BuildNumber)
 
 jobs:
 - job: publish_symbols
@@ -17,9 +17,13 @@ jobs:
   steps:
   - task: DownloadPipelineArtifact@2
     inputs:
-      buildType: 'current'
-      artifactName: 'buildxl-external.pkgs.$(Build.BuildNumber)'
-      itemPattern: 'Microsoft.BuildXL.win-x64*'
+      buildType: 'specific'
+      project: '9ed2c125-1cd5-4a17-886b-9d267f3a5fab'
+      definition: '15756'
+      buildVersionToDownload: 'specific'
+      pipelineId: '$(RollingBuild.BuildId)'
+      artifactName: 'buildxl-external.pkgs.$(RollingBuild.BuildNumber)'
+      itemPattern: 'Microsoft.BuildXL.win-x64.0.1.0*'
       targetPath: '$(BuildXL.ExternalLKGsPackagePath)\win'
 
   - task: PowerShell@2

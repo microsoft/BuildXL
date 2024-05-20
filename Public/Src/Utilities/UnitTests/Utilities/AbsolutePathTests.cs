@@ -104,6 +104,9 @@ namespace Test.BuildXL.Utilities
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C:\foo\bar\filename:stream", out AbsolutePath _));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C:\foo\bar\filename:stream:$DATA", out AbsolutePath _));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C:\foo\bar\filename::$DATA", out AbsolutePath _));
+
+            // Try create an empty path.
+            XAssert.IsFalse(AbsolutePath.TryCreate(pt, string.Empty, out AbsolutePath _));
         }
 
         [Fact]

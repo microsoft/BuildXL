@@ -837,7 +837,7 @@ namespace BuildXL.Engine
         }
 
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "ms")]
-        private static MatchResult? MatchesReader(
+        internal static MatchResult? MatchesReader(
             LoggingContext loggingContext,
             BinaryReader reader,
             FileContentTable fileContentTable,
@@ -921,7 +921,7 @@ namespace BuildXL.Engine
                 {
                     if (previousValue != UnsetVariableMarker)
                     {
-                        // The previously consumed environment variable is not known and was not previously unset.
+                        // The previously consumed environment variable is set with a value.
                         result.MissType = GraphCacheMissReason.EnvironmentVariableChanged;
                         result.FirstMissIdentifier = string.Format(CultureInfo.InvariantCulture, Strings.InputTracker_EnvironmentVariableRemoved, key);
                         Logger.Log.InputTrackerDetectedEnvironmentVariableChanged(loggingContext, key, previousValue, UnsetVariableMarker);
@@ -958,11 +958,14 @@ namespace BuildXL.Engine
                 }
                 else
                 {
-                    // The previously used mount is not known
-                    result.MissType = GraphCacheMissReason.MountChanged;
-                    result.FirstMissIdentifier = string.Format(CultureInfo.InvariantCulture, Strings.InputTracker_MountRemoved, mountName, previousPath);
-                    Logger.Log.InputTrackerDetectedMountChanged(loggingContext, mountName, previousPath, string.Empty);
-                    return result;
+                    if (!string.IsNullOrEmpty(previousPath))
+                    {
+                        // The previously used mount is known to have a path.
+                        result.MissType = GraphCacheMissReason.MountChanged;
+                        result.FirstMissIdentifier = string.Format(CultureInfo.InvariantCulture, Strings.InputTracker_MountRemoved, mountName, previousPath);
+                        Logger.Log.InputTrackerDetectedMountChanged(loggingContext, mountName, previousPath, string.Empty);
+                        return result;
+                    }
                 }
             }
 

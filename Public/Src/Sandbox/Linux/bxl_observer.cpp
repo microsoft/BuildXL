@@ -336,6 +336,10 @@ bool BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event) {
             break;
     }
 
+    if (is_non_file(event.GetMode())) {
+        return false;
+    }
+
     // After normalization, we should have valid absolute paths. If not, the file descriptor or paths were not associated to files to begin with, and we shouldn't proceed with the report
     if (event.GetSrcPath().empty()) {
         LOG_DEBUG("[ResolveEventPaths] Empty src path after normalization. Original event had path type %d", pathType);

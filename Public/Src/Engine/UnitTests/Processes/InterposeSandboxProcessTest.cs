@@ -101,6 +101,26 @@ namespace Test.BuildXL.Processes
         }
 
         [Fact]
+        public void CallBoostReadlinkAbsentPathTests()
+        {
+            var fileStorage = new TempFileStorage(canGetFileNames: true);
+            var absentFilePath = Path.Combine(fileStorage.RootDirectory, "absentFile.o");
+
+            // This test calls readlink(absentFilePath)
+            var result = RunTest("readlink_absent_path", fileStorage);
+            XAssert.IsNotNull(result.FileAccesses);
+
+            // There should be only one absent file access
+            var absentPathAccesses = result.FileAccesses!.Where(a => a.IsNonexistent);
+            XAssert.AreEqual(1, absentPathAccesses.Count());
+
+            // readlink on absent path is reported backed as probe
+            var absentFileAccess = absentPathAccesses.Single();
+            XAssert.AreEqual(absentFilePath, absentFileAccess.GetPath(Context.PathTable));
+            XAssert.AreEqual(RequestedAccess.Probe, absentFileAccess.RequestedAccess);
+        }
+
+        [Fact]
         public void CallBoostObserverUtilitiesTests()
         {
             RunTest("observer_utilities_test");

@@ -32,6 +32,10 @@ namespace UnitTests
             exeName: a`observer_utilities_test`,
             sourceFiles: [ f`observer_utilities_test.cpp`, f`${sandboxSrcDirectory.path}/observer_utilities.cpp` ],
             includeDirectories: [ sandboxSrcDirectory ]
+        },
+        {
+            exeName: a`readlink_absent_path`,
+            sourceFiles:[f`readlink_absent_path.cpp`]
         }
     ];
 

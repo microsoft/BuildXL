@@ -121,6 +121,8 @@ namespace BuildXL.Pips.Graph
                         UnixPaths.LibLinuxGnu,
                         UnixPaths.Lib64,
                         UnixPaths.Run,
+                        UnixPaths.UsrLocalInclude,
+                        UnixPaths.UsrLinuxGnu,
                     }
                     .Concat(IfMacOs(
                         MacPaths.AppleInternal,

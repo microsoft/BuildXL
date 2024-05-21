@@ -1129,8 +1129,11 @@ void BxlObserver::relative_to_absolute(const char *pathname, int dirfd, int asso
             _fatal("['%s'] Could not get path for fd %d with path '%s'; errno: %d", systemcall, dirfd, pathname, errno);
         }
 
-        fullpath[len] = '/';
-        strcpy(fullpath + len + 1, pathname);
+        if (pathname[0] != '\0')
+        {
+            fullpath[len] = '/';
+            strcpy(fullpath + len + 1, pathname);
+        }
     }
     else
     {

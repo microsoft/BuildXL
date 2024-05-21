@@ -127,7 +127,15 @@ AccessCheckResult IOHandler::HandleUnlink(const IOEvent &event, AccessReport &ac
 
 AccessCheckResult IOHandler::HandleReadlink(const IOEvent &event, AccessReport &accessToReport)
 {
-    return CheckAndCreateReport(kOpMacReadlink, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), false, event.GetError(), accessToReport);
+    bool isDir = S_ISDIR(event.GetMode());
+    if (!event.EventPathExists())
+    {
+        return CheckAndCreateReport(kOpMacLookup, event.GetEventPath(SRC_PATH), Checkers::CheckLookup, event.GetPid(), isDir, event.GetError(), accessToReport);
+    }
+    else
+    {
+        return CheckAndCreateReport(kOpMacReadlink, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir, event.GetError(), accessToReport);
+    }
 }
 
 AccessCheckResult IOHandler::HandleRename(const IOEvent &event, AccessReport &sourceAccessToReport, AccessReport &destinationAccessToReport)

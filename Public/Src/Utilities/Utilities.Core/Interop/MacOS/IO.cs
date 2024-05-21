@@ -492,6 +492,8 @@ namespace BuildXL.Interop.Unix
         public const string UsrStandalone   = "/usr/standalone";
         public const string UsrSbin         = "/usr/sbin";
         public const string Var             = "/var";
+        public const string UsrLocalInclude = "/usr/local/include";
+        public const string UsrLinuxGnu     = "/usr/x86_64-linux-gnu";
     }
 
     public static class MacPaths

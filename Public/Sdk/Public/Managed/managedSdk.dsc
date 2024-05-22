@@ -80,6 +80,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net472" && qualifier.configuration === "debug", "CompileDebugNet472", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "netstandard2.0" && qualifier.configuration === "debug", "CompileNetStandard20", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net6.0" && qualifier.configuration === "debug", "CompileDebugNet6Win", "CompileWin"),
+        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net7.0" && qualifier.configuration === "debug", "CompileDebugNet7Win", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileDebugNet8Win", "CompileWin"),
         
         ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net6.0" && qualifier.configuration === "debug", "CompileNet6Osx", "CompileOsx"),

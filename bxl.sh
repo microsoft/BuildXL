@@ -167,7 +167,7 @@ function parseArgs() {
                 "/vs"
                 "/vsNew"
                 "/vsTargetFramework:net6.0"
-                "/vsTargetFramework:net8.0"
+                "/vsTargetFramework:net7.0"
                 "/vsTargetFramework:netstandard2.0"
                 "/vsTargetFramework:netstandard2.1")
             shift

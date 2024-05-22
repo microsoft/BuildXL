@@ -149,12 +149,12 @@ config({
                 { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
                 { id: "Newtonsoft.Json", version: "13.0.3" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
-                { id: "System.Reflection.Metadata", version: "8.0.0" },
+                { id: "System.Reflection.Metadata", version: "7.0.0" },
                 // The VBCS logger is used by QuickBuild and runs in the context of old VS installations, so it cannot use a higher version
                 // Please do not upgrade this dll (or if you do, make sure this happens in coordination with the QuickBuild team)
                 { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS" },
 
-                { id: "System.Threading.Tasks.Dataflow", version: "8.0.0" },
+                { id: "System.Threading.Tasks.Dataflow", version: "7.0.0" },
 
                 // Nuget
                 { id: "NuGet.Packaging", version: "6.9.1" },
@@ -236,7 +236,7 @@ config({
                 { id: "DeduplicationSigned", version: "1.0.14" },
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "8.0.0" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "7.0.0" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0" },
@@ -267,7 +267,7 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
                 { id: "System.Security.Cryptography.Xml", version: "4.7.1" },
-                { id: "System.Text.Encodings.Web", version: "8.0.0" },
+                { id: "System.Text.Encodings.Web", version: "7.0.0" },
                 { id: "System.Security.Permissions", version: "7.0.0" },
                 { id: "System.Windows.Extensions", version: "7.0.0" },
                 { id: "System.Drawing.Common", version: "7.0.0" },
@@ -289,14 +289,14 @@ config({
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.170.0"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build", version: "17.9.5" },
-                { id: "Microsoft.Build.Runtime", version: "17.9.5" },
-                { id: "Microsoft.Build.Tasks.Core", version: "17.9.5" },
-                { id: "Microsoft.Build.Utilities.Core", version: "17.9.5" },
-                { id: "Microsoft.Build.Framework", version: "17.9.5" },
-                { id: "Microsoft.NET.StringTools", version: "17.9.5" },
+                { id: "Microsoft.Build", version: "17.7.2" },
+                { id: "Microsoft.Build.Runtime", version: "17.7.2" },
+                { id: "Microsoft.Build.Tasks.Core", version: "17.7.2" },
+                { id: "Microsoft.Build.Utilities.Core", version: "17.0.0" },
+                { id: "Microsoft.Build.Framework", version: "17.7.2" },
+                { id: "Microsoft.NET.StringTools", version: "1.0.0" },
                 { id: "Microsoft.Build.Locator", version: "1.5.5" },
-                { id: "System.Reflection.MetadataLoadContext", version: "8.0.0"},
+                { id: "System.Reflection.MetadataLoadContext", version: "7.0.0"},    
 
                 { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4",
                     dependentPackageIdsToSkip: ["System.Memory"]},
@@ -362,6 +362,7 @@ config({
 
         // .NET Runtimes.
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-6-External\module.config.dsc`] },
+        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-7-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-8-External\module.config.dsc`] },
 
         {
@@ -393,6 +394,26 @@ config({
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
                     url: "https://download.visualstudio.microsoft.com/download/pr/baeb5da3-4b77-465b-8816-b29f0bc3e1a9/b04b17a2aae79e5f5635a3ceffbd4645/dotnet-runtime-8.0.5-linux-x64.tar.gz",
                     hash: "VSO0:D4C467B54EE3BE77932D350B9A7A3BCABA3D8B95DCFA5D6ABE7E825589D5330E00",
+                    archiveType: "tgz",
+                },
+
+                // DotNet Core Runtime 7.0.19
+                {
+                    moduleName: "DotNet-Runtime.win-x64.7.0", 
+                    url: "https://download.visualstudio.microsoft.com/download/pr/32f909df-fc73-439b-a8e1-55f18bfac3fb/e071d418324b9083629379f3ac6fd07a/dotnet-runtime-7.0.19-win-x64.zip",
+                    hash: "VSO0:E4EC76FCB875EAA156A7A81EB59BE3AC06D7A766B079707C40A29EF75A4563E100",
+                    archiveType: "zip",
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.7.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/92c2b6d8-783f-4a48-8575-e001296d4a54/c11d13f994d5016fc13d5c9a81e394f0/dotnet-runtime-7.0.19-osx-x64.tar.gz",
+                    hash: "VSO0:62021BDB718C0C82F0F4361142EA0B43F0B2D9ACCE20A9B7DB9C8651C155A18F00",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.7.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/09ab2389-5bab-4d45-9a91-a56ff322e83c/2f8192a98b6887c7f12b0d2dc4a06247/dotnet-runtime-7.0.19-linux-x64.tar.gz",
+                    hash: "VSO0:F9268D23C35BE8DC97B4603CFF405EAE84D421817FADA72D5ACB1E9BAC4EC2AC00",
                     archiveType: "tgz",
                 },
 
@@ -482,6 +503,11 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "win-x64",
             },
+            DebugNet7: {
+                configuration: "debug",
+                targetFramework: "net7.0",
+                targetRuntime: "win-x64",
+            },
             DebugDotNet6: {
                 configuration: "debug",
                 targetFramework: "net6.0",
@@ -521,6 +547,11 @@ config({
             ReleaseNet8: {
                 configuration: "release",
                 targetFramework: "net8.0",
+                targetRuntime: "win-x64",
+            },
+            ReleaseNet7: {
+                configuration: "release",
+                targetFramework: "net7.0",
                 targetRuntime: "win-x64",
             },
             ReleaseDotNet6: {

@@ -19,7 +19,7 @@ export function addCredScanCalls(rootDirectory : Directory, guardianToolRoot : S
 
     // Since "latest" is used as the version for the credscan tool, we will not know which directory to untrack ahead of time
     const credScanToolDirectories = globFolders(d`${packageDirectory.path}/nuget`, "Microsoft.Security.CredScan.Client*");
-    const credScanTfms = ["netcoreapp2.1", "netcoreapp3.1", "net6.0", "net8.0"];
+    const credScanTfms = ["netcoreapp2.1", "netcoreapp3.1", "net6.0", "net7.0", "net8.0"];
     const srmDirectories = credScanToolDirectories.mapMany(d => credScanTfms.map(tfm => Directory.fromPath(d.path.combine(r`lib/${tfm}/SRM`))));
 
     for (let i = 0; i < numCredScanCalls; i++) {

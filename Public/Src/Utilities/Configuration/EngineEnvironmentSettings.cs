@@ -287,6 +287,14 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         public static readonly Setting<bool> LimitProblematicWorkerCount = CreateSetting("BuildXLLimitProblematicWorkerCount", value => string.IsNullOrWhiteSpace(value) || value == "1");
 
+        /// <summary>
+        /// It defines the fraction of remote workers that must be problematic before considering a build failure. 
+        /// </summary>
+        /// <remarks>
+        /// For example, a threshold of 0.9 means that if 90% or more of the workers are problematic, the build will be terminated due to excessive errors.
+        /// </remarks>
+        public static readonly Setting<double> LimitProblematicWorkerThreshold = CreateSetting("BuildXLLimitProblematicWorkerCount", value => ParseDouble(value) ?? 0.9);
+
         #endregion
 
         #region Grpc related settings

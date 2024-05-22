@@ -8137,8 +8137,9 @@ namespace BuildXL.Scheduler
 
             if (EngineEnvironmentSettings.LimitProblematicWorkerCount &&
                 m_remoteWorkers.Length >= 4 &&
-                numProblematicWorkers > m_remoteWorkers.Length / 2)
+                numProblematicWorkers >= (m_remoteWorkers.Length * EngineEnvironmentSettings.LimitProblematicWorkerThreshold))
             {
+                // Because LimitProblematicWorkerThreshold is 0.9 by default, we will fail the build only when all workers fail until 10 workers.
                 Logger.Log.HighCountProblematicWorkers(m_loggingContext, numProblematicWorkers, m_remoteWorkers.Length);
                 TerminateForInternalError();
             }

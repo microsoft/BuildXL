@@ -65,9 +65,13 @@ int FileDescriptorAccessesFullyResolvesPath()
     testFile.append("/realDir/symlink.txt");
     int fd = open("symlinkDir/symlink.txt", O_RDONLY);
     struct stat sb;
-    
+
+#if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
     // Use __fxtat as representative for a "file descriptor event"
     __fxstat(1, fd, &sb);
+#else
+    fstat(fd, &sb);
+#endif
     return EXIT_SUCCESS;
 }
 

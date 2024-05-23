@@ -2163,6 +2163,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                                         // For opaque directories that have preserved outputs enabled, we want to leave all contents alone unless
                                         // a parent of an output to potentially be materialized is in the wrong state (reparse point instead of a directory)
+                                        // See BUG 1946137 for details.
                                         if (isPreservedOutputsDirectory)
                                         {
                                             // Delete the path if it is supposed to be a directory leading up to an output but is instead a reparse point

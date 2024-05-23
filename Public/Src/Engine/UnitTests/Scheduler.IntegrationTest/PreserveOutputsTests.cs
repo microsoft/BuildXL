@@ -579,13 +579,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipA = ScheduleAndGetPip(out var input, out var output, opaque: false, pipPreserveOutputsFlag: true);
 
             // No cache hit
-            string outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
+            RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
 
             // Change the input 
             ModifyFile(input);
 
             // No cache hit
-            outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
+            string outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
             XAssert.AreEqual(CONTENT_TWICE, outputContents);
 
             // ... RESET PRESERVE OUTPUTS ...
@@ -622,19 +622,18 @@ namespace IntegrationTest.BuildXL.Scheduler
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public void BuildAndPipFlagTest(bool buildPreserve, bool pipPreserve)
         {
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs =
-                buildPreserve
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = buildPreserve
                 ? PreserveOutputsMode.Enabled
                 : PreserveOutputsMode.Disabled;
 
             var pipA = ScheduleAndGetPip(out var input, out var output, false, pipPreserve);
 
             // No cache hit
-            string outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
+            RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
 
             // Change the input
             ModifyFile(input);
-
+            string outputContents;
             if (!buildPreserve || !pipPreserve)
             {
                 // No cache hit
@@ -657,8 +656,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void PreserveOutputsTest2(bool preserveOutputs)
         {
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs =
-                preserveOutputs
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = preserveOutputs
                 ? PreserveOutputsMode.Enabled
                 : PreserveOutputsMode.Disabled;
 
@@ -765,8 +763,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RelativePath.Create(Context.StringTable, TestProcessToolName)
             };
 
-            AbsolutePath readonlyRootPath;
-            AbsolutePath.TryCreate(Context.PathTable, ReadonlyRoot, out readonlyRootPath);
+            AbsolutePath.TryCreate(Context.PathTable, ReadonlyRoot, out AbsolutePath readonlyRootPath);
 
             // Create /readonly/a.txt
             FileArtifact aTxtFile = CreateFileArtifactWithName("a.txt", ReadonlyRoot);
@@ -917,12 +914,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
 
-            FileArtifact preservedOutput;
-            FileArtifact input;
-            Process preservingProcess;
-            Process consumingProcess;
 
-            ScheduleProcessConsumingPreservedOutput(out preservedOutput, out input, out preservingProcess, out consumingProcess);
+            ScheduleProcessConsumingPreservedOutput(out FileArtifact preservedOutput, out FileArtifact input, out Process preservingProcess, out Process consumingProcess);
             RunScheduler().AssertCacheMiss(preservingProcess.PipId, consumingProcess.PipId);
 
             // Preserved output is not in the cache.
@@ -947,18 +940,12 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
 
-            FileArtifact input;
-            FileArtifact preservedOutput;
-            DirectoryArtifact outputDirectory;
-            Process dynamicOutputProducer;
-            Process preservingProcess;
-
             ScheduleProcessConsumingDynamicOutput(
-                out input,
-                out outputDirectory,
-                out preservedOutput,
-                out dynamicOutputProducer,
-                out preservingProcess);
+                out FileArtifact input,
+                out DirectoryArtifact outputDirectory,
+                out FileArtifact preservedOutput,
+                out Process dynamicOutputProducer,
+                out Process preservingProcess);
 
             RunScheduler().AssertCacheMiss(preservingProcess.PipId, dynamicOutputProducer.PipId);
 
@@ -1036,8 +1023,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         public void PreserveOutputsOnlyAppliesToSpecificPips()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
-
-            var pipA = ScheduleAndGetPip(out var input, out var output, opaque: false, pipPreserveOutputsFlag: false);
+            var pipA = ScheduleAndGetPip(out _, out var output, opaque: false, pipPreserveOutputsFlag: false);
 
             // No cache hit.
             string outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
@@ -1061,11 +1047,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
 
-            FileArtifact rewrittenOutput;
-            Process preservingProcessA;
-            Process preservingProcessB;
-
-            ScheduleRewriteProcess(out rewrittenOutput, out preservingProcessA, out preservingProcessB);
+            ScheduleRewriteProcess(out FileArtifact rewrittenOutput, out Process preservingProcessA, out Process preservingProcessB);
 
             // No cache hit
             RunScheduler().AssertCacheMiss(preservingProcessA.PipId, preservingProcessB.PipId);
@@ -1098,16 +1080,16 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var pip1 = CreatePipBuilder(new Operation[]
             {
-                        Operation.CreateDir(opaqueDir),
-                        Operation.CreateDir(dirA),
-                        Operation.CreateDir(dirAA),
-                        Operation.CreateSymlink(fileB, @"c:\anotherDummy", symLinkFlag: Operation.SymbolicLinkFlag.DIRECTORY, doNotInfer:true),
+                Operation.CreateDir(opaqueDir),
+                Operation.CreateDir(dirA),
+                Operation.CreateDir(dirAA),
+                Operation.CreateSymlink(fileB, @"c:\anotherDummy", symLinkFlag: Operation.SymbolicLinkFlag.DIRECTORY, doNotInfer:true),
             });
             pip1.AddOutputDirectory(opaqueDir.Path);
             pip1.Options |= Process.Options.AllowPreserveOutputs;
 
             var process = SchedulePipBuilder(pip1);
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = global::BuildXL.Utilities.Configuration.PreserveOutputsMode.Enabled;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
 
             // The first build will pass without any problems
@@ -1134,6 +1116,74 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Other entries should be left as-is
             XAssert.IsTrue(File.Exists(extraFile));
             Assert.Throws<DirectoryNotFoundException>(() => Directory.EnumerateFileSystemEntries(extraDirSymlink));
+        }
+
+        [Feature(Features.OpaqueDirectory)]
+        [Feature(Features.PreserveOutputs)]
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void OpaqueDirectoryNotCleanUpWithPreserveOutputs(bool enablePreserveOutputs)
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = enablePreserveOutputs
+                ? PreserveOutputsMode.Enabled
+                : PreserveOutputsMode.Disabled;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
+
+            // Producer creates an opaque directory:
+            //   opaqueDir
+            //   +- fileUnderOpaqueDir.txt
+            var opaqueDir = CreateUniqueDirectoryArtifact(prefix: "opaqueDir", root: ObjectRoot);
+            var fileUnderOpaqueDir = CreateFileArtifactWithName("fileUnderOpaqueDir.txt", opaqueDir.Path.ToString(Context.PathTable));
+
+            var producerBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(fileUnderOpaqueDir, doNotInfer: true)
+            });
+            producerBuilder.AddOutputDirectory(opaqueDir.Path);
+            producerBuilder.Options |= Process.Options.AllowPreserveOutputs;
+
+            var producer = SchedulePipBuilder(producerBuilder).Process;
+
+            // Consumer reads non-existing symlink under opaque directory produced by producer.
+            var symlinkUnderOpaqueDir = CreateFileArtifactWithName("symlinkUnderOpaqueDir.lnk", opaqueDir.Path.ToString(Context.PathTable));
+            var consumerInput = CreateSourceFile();
+
+            var consumerBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(consumerInput),
+                Operation.ReadFile(symlinkUnderOpaqueDir, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            consumerBuilder.AddInputDirectory(opaqueDir);
+
+            var consumer = SchedulePipBuilder(consumerBuilder).Process;
+
+            RunScheduler(runNameOrDescription: "First run").AssertCacheMiss(producer.PipId, consumer.PipId);
+
+            // Create a dangling symlink under opaque directory.
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(symlinkUnderOpaqueDir.Path.ToString(Context.PathTable), @"c:\dummyPath", isTargetFile: true).Succeeded);
+
+            // Modify consumer input so that consumer needs to rerun.
+            ModifyFile(consumerInput);
+            ScheduleRunResult result = RunScheduler(runNameOrDescription: "Second run");
+
+            if (enablePreserveOutputs)
+            {
+                result.AssertFailure();
+
+                // DFA on reading the dangling symlink that is not cleaned up because preserve outputs is enabled.
+                AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringError);
+                AssertWarningEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            }
+            else
+            {
+                result
+                    .AssertCacheHit(producer.PipId)
+                    .AssertCacheMiss(consumer.PipId);
+
+                // The dangling symlink should be removed.
+                XAssert.IsFalse(File.Exists(symlinkUnderOpaqueDir.Path.ToString(Context.PathTable)));
+            }
         }
 
         private void ModifyFile(FileArtifact file, string content = null)

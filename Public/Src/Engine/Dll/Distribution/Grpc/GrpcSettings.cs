@@ -32,7 +32,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Certificate subject name
         /// </summary>
-        public static string CertificateSubjectName => EngineEnvironmentSettings.CBBuildUserCertificateName.Value ?? EngineEnvironmentSettings.GrpcCertificateSubjectName.Value;
+        public static string CertificateSubjectName => EngineEnvironmentSettings.GrpcCertificateSubjectName.Value ?? EngineEnvironmentSettings.CBBuildUserCertificateName.Value;
 
         /// <summary>
         /// Whether we should use authentication in the grpc calls.

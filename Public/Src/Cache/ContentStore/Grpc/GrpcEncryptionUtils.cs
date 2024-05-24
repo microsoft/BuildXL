@@ -64,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// <summary>
         /// Look up the given certificate subject name in the given Windows certificate store and return the actual certificate.
         /// </summary>
-        public static X509Certificate2? TryGetEncryptionCertificate(string certSubjectName, StoreLocation storeLocation, out string error)
+        private static X509Certificate2? TryGetEncryptionCertificate(string certSubjectName, StoreLocation storeLocation, out string error)
         {
             error = $"{nameof(TryGetEncryptionCertificate)}: ";
             if (string.IsNullOrWhiteSpace(certSubjectName))

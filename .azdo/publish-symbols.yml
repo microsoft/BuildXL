@@ -24,15 +24,15 @@ jobs:
       pipelineId: '$(RollingBuild.BuildId)'
       artifactName: 'buildxl-external.pkgs.$(RollingBuild.BuildNumber)'
       itemPattern: 'Microsoft.BuildXL.win-x64.0.1.0*'
-      targetPath: '$(BuildXL.ExternalLKGsPackagePath)\win'
+      targetPath: '$(System.DefaultWorkingDirectory)\win'
 
   - task: PowerShell@2
     inputs:
         targetType: 'inline'
         script: |
             # Expand buildxl windows pkg
-            $directory = "$(BuildXL.ExternalLKGsPackagePath)\Win"
-            $destinationDirectory = "$(BuildXL.ExternalLKGsPackagePath)\WinExpanded"
+            $directory = "$(System.DefaultWorkingDirectory)\Win"
+            $destinationDirectory = "$(System.DefaultWorkingDirectory)\WinExpanded"
 
             $file = Get-ChildItem -Path $directory -Filter *.nupkg
             $nameWithoutExtension = [System.IO.Path]::GetFileNameWithoutExtension($file.FullName)
@@ -80,7 +80,7 @@ jobs:
   - task: PublishSymbols@2
     enabled: true
     inputs:
-      SymbolsFolder: '$(BuildXL.ExternalLKGsPackagePath)\WinExpanded'
+      SymbolsFolder: '$(System.DefaultWorkingDirectory)\WinExpanded'
       SearchPattern: '**'
       IndexSources: false
       SymbolServerType: 'TeamServices'

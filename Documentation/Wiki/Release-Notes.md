@@ -3,6 +3,31 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 ---
 ---
 
+# 0.1.0-20240517.7.3 (Release [384894](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=384894))
+- Linux sandbox improvements
+- Update the threshold for LimitProblematicWorkerCount
+- Allowlist rules should not be affected by '\\?\' path prefix
+- Lookup the grpc cert in the multiple stores
+- Allow VCTIP to survive when it is launched by lib.exe
+- Use the ADO invocation key as part of the fingerprint store key for cache miss analysis
+
+# 0.1.0-20240510.14.1 (Release [382804](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=382804))
+- Fail the build when the problematic workers exceed the half remote workers
+- Enable QTest for .net core projects
+- Move selfhost builds to a common pool
+- Allow users to pass generated symbol meta data for sending symbol request
+- Refactor linux sandbox
+- Clean macOS sandbox code and logic
+- Linux sandboxing - remove root jail support
+- Some bug fixes
+
+# 0.1.0-20240502.2.1 (Release [381485](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=381485))
+- Handle non-existent paths with getcap
+- Refine logging ReceivedReportFromUnknownPid to avoid synthetic accesses
+- Do not check accesses when the provided paths can't be normalized
+- Disallow the use of phase:Evaluate for the users.
+- Reverted the change related to Catch consolenotconnected exception and exit buildxl.
+
 # 0.1.0-20240426.5.1 (Release [379849](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=379849))
 -	Improved debuggability for “Problematic Workers” with multi-build synchronization issues in CloudBuild
 -	Update msvc version used for compiling RocksDB

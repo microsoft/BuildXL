@@ -53,12 +53,8 @@ debugprint "Installing required packages"
 sudo apt update -y
 sudo apt install -y git build-essential mono-devel mono-complete libc6-dev openssh-server curl
 
-# When using [DllImport("libdl")] in C#, the C# runtime can't find the libdl library
-# if there is only libdl.so.2 file there on disk. So we help it out by creating this symlink.
 . /etc/lsb-release
 if [[ "$DISTRIB_RELEASE" == "22.04" ]]; then
-    debugprint "Attempting to symlink libdl.so"
-    sudo ln -vs /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
     sudo apt install -y dotnet8
 fi
 

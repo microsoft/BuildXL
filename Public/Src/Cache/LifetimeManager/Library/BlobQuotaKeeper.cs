@@ -4,7 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
@@ -20,6 +22,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -327,11 +330,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             // It's possible that a fingerprint is currently being created that references this piece of content. This means there's a race condition that we need to account for.
             // Because of this, the current design is that clients will update the last access time of a blob when they get a content cache hit when ulpoading the contents of a new strong fingerprint.
             // On the GC side of things, what this means is that we have to check that the content has not been accessed recently.
-            var lastAccessTime = await GetLastAccessTimeAsync(context, client);
-            if (lastAccessTime > GetLastAccesstimeDeletionThreshold(startTime))
+            var blobVersion = await GetBlobVersionAsync(context, client);
+            if (blobVersion.Value.LastAccessTimeUtc > GetDeletionThreshold(startTime))
             {
                 Tracer.Debug(context,
-                    $"Skipping deletion of {contentHash.ToShortString()} because it has been accessed too recently to be deleted. LastAccessTime=[{lastAccessTime}]");
+                    $"Skipping deletion of {contentHash.ToShortString()} because it has been accessed too recently to be deleted. LastAccessTime=[{blobVersion}]");
 
                 return false;
             }
@@ -344,7 +347,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
             else
             {
-                var result = await DeleteBlobFromStorageAsync(context, client, contentSize, lastAccessTime);
+                var result = await DeleteBlobFromStorageAsync(context, client, contentSize, blobVersion);
                 if (!result.Succeeded)
                 {
                     return false;
@@ -367,32 +370,32 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             // that API doesn't exist. This leaves a race condition open where we might access the strong fingerprint in between the
             // last access time check and the deletion. However the timing is very precise and this wouldn't break the cache; we would
             // only be prematurely evicting a fingerprint.
-            var currentLastAccessTime = await GetLastAccessTimeAsync(context, client);
-            if (currentLastAccessTime is null)
+            var currentVersion = await GetBlobVersionAsync(context, client);
+            if (currentVersion is null)
             {
                 // A null value means the blob does not exist. This must mean that the blob has already been deleted so it's safe to proceed as if we had
                 // deleted it.
                 return true;
             }
 
-            if (currentLastAccessTime > contentHashList.LastAccessTime)
+            if (currentVersion.Value.LastAccessTimeUtc > contentHashList.LastAccessTime)
             {
                 Tracer.Debug(context,
                     $"Current last access time for CHL '{contentHashList.BlobName}' is greater than the stored last access time. " +
                     $"Updating database and skipping deletion. " +
-                    $"Current=[{currentLastAccessTime}], Stored=[{contentHashList.LastAccessTime}]");
+                    $"Current=[{currentVersion}], Stored=[{contentHashList.LastAccessTime}]");
 
-                var updatedHashList = contentHashList with { LastAccessTime = currentLastAccessTime.Value };
+                var updatedHashList = contentHashList with { LastAccessTime = currentVersion.Value.LastAccessTimeUtc };
 
                 _database.UpdateContentHashListLastAccessTime(updatedHashList);
 
                 return false;
             }
 
-            if (currentLastAccessTime > GetLastAccesstimeDeletionThreshold(startTime))
+            if (currentVersion.Value.LastAccessTimeUtc > GetDeletionThreshold(startTime))
             {
                 Tracer.Debug(context,
-                    $"Skipping deletion of {contentHashList.BlobName} because it has been accessed too recently to be deleted. LastAccessTime=[{currentLastAccessTime}]");
+                    $"Skipping deletion of {contentHashList.BlobName} because it has been accessed too recently to be deleted. LastAccessTime=[{currentVersion}]");
 
                 return false;
             }
@@ -405,14 +408,14 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
             else
             {
-                var result = await DeleteBlobFromStorageAsync(context, client, contentHashList.BlobSize, currentLastAccessTime);
+                var result = await DeleteBlobFromStorageAsync(context, client, contentHashList.BlobSize, currentVersion);
                 return result.Succeeded;
             }
 
             return true;
         }
 
-        internal static Task<Result<bool>> DeleteBlobFromStorageAsync(OperationContext context, BlobClient client, long size, DateTime? lastAccessTime)
+        internal static Task<Result<bool>> DeleteBlobFromStorageAsync(OperationContext context, BlobClient client, long size, BlobVersion? blobVersion)
         {
             return context.PerformOperationAsync<Result<bool>>(
                 Tracer,
@@ -420,12 +423,28 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 {
                     try
                     {
-                        var response = await client.DeleteAsync();
+                        BlobRequestConditions? conditions = null;
+                        if (blobVersion is not null)
+                        {
+                            // We prefer ETag if we have it, but sometimes we don't. In that case, we use the last access time.
+                            if (blobVersion.Value.ETag is not null)
+                            {
+                                conditions ??= new BlobRequestConditions();
+                                conditions.IfMatch = blobVersion.Value.ETag;
+                            }
+                            else if (blobVersion.Value.LastAccessTimeUtc > DateTime.MinValue)
+                            {
+                                conditions ??= new BlobRequestConditions();
+                                conditions.IfUnmodifiedSince = blobVersion.Value.LastAccessTimeUtc;
+                            }
+                        }
+
+                        var response = await client.DeleteAsync(conditions: conditions, cancellationToken: context.Token);
                         return response.IsError
                             ? new Result<bool>($"Failed to delete blob {client.Name}. Error ({response.Status}): {response.ReasonPhrase}")
                             : true;
                     }
-                    catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
+                    catch (RequestFailedException e) when (e.Status == (int)HttpStatusCode.NotFound || e.Status == (int)HttpStatusCode.PreconditionFailed)
                     {
                         // Consider this a success, but trace for diagnostic purposes.
                         return false;
@@ -433,15 +452,64 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 },
                 traceOperationStarted: false,
                 extraEndMessage: result =>
-                    $"BlobName=[{client.Name}], Size=[{size}], Shard=[{client.AccountName}], LastAccessTime=[{lastAccessTime}], BlobExisted=[{(result.Succeeded ? result.Value : null)}]");
+                    $"BlobName=[{client.Name}], Size=[{size}], Shard=[{client.AccountName}], LastAccessTime=[{blobVersion}], BlobExisted=[{(result.Succeeded ? result.Value : null)}]");
         }
 
-        private static async Task<DateTime?> GetLastAccessTimeAsync(OperationContext context, BlobClient client)
+        internal readonly record struct BlobVersion(DateTime LastAccessTimeUtc, ETag? ETag)
+        {
+            public static BlobVersion FromLastAccessTime(DateTime lastAccessTimeUtc)
+            {
+                return new(lastAccessTimeUtc, ETag: null);
+            }
+
+            public static BlobVersion FromBlobResponse(Response response)
+            {
+                DateTime lastAccessTime = DateTime.MinValue;
+                if (response.Headers.TryGetValue("Last-Modified", out var lastModifiedString) &&
+                                       DateTime.TryParse(lastModifiedString, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var lastModified) &&
+                                       lastModified > lastAccessTime)
+                {
+                    lastAccessTime = lastModified;
+                }
+
+                if (response.Headers.TryGetValue("x-ms-last-access-time", out var lastAccessTimeString) &&
+                                       DateTime.TryParse(lastAccessTimeString, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var lastAccess) &&
+                                       lastAccess > lastAccessTime)
+                {
+                    lastAccessTime = lastAccess;
+                }
+
+                if (response.Headers.TryGetValue("x-ms-creation-time", out var creationTimeString) &&
+                    DateTime.TryParse(creationTimeString, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var creationTime) &&
+                    creationTime > lastAccessTime)
+                {
+                    lastAccessTime = creationTime;
+                }
+
+                return new BlobVersion(LastAccessTimeUtc: lastAccessTime, ETag: response.Headers.ETag);
+            }
+
+            public static BlobVersion FromBlobProperties(BlobProperties properties)
+            {
+                var creationTime = properties.CreatedOn.UtcDateTime;
+                var lastAccessTime = properties.LastAccessed.UtcDateTime;
+                var lastModificationTime = properties.LastModified.UtcDateTime;
+
+                return new BlobVersion(
+                    LastAccessTimeUtc:
+                        creationTime
+                            .Max(lastAccessTime)
+                            .Max(lastModificationTime),
+                    ETag: properties.ETag);
+            }
+        }
+
+        private static async Task<BlobVersion?> GetBlobVersionAsync(OperationContext context, BlobClient client)
         {
             try
             {
                 var response = await client.GetPropertiesAsync(cancellationToken: context.Token);
-                return response.Value.LastAccessed.UtcDateTime;
+                return BlobVersion.FromBlobProperties(response.Value!);
             }
             catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
             {
@@ -449,7 +517,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
         }
 
-        private DateTime GetLastAccesstimeDeletionThreshold(DateTime startTime)
+        private DateTime GetDeletionThreshold(DateTime startTime)
         {
             var configuredThreshold = _clock.UtcNow.Add(-_lastAccessTimeDeletionThreshold);
 

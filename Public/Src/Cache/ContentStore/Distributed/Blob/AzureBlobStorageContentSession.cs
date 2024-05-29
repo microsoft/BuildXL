@@ -88,7 +88,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             {
                 (var client, blobPath) = await GetBlobClientAsync(context, contentHash);
                 // Let's make sure that we bump the last access time
-                var touchResult = await _clientAdapter.TouchAsync(context, client);
+                var touchResult = await _clientAdapter.TouchAsync(context, client, isWriteAllowed: !_configuration.IsReadOnly);
 
                 if (!touchResult.Succeeded)
                 {
@@ -543,7 +543,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             // it knows that the new CHL exists. By touching the content, the last access time for this blob will
             // now be above the deletion threshold (GC will not delete blobs touched more recently than 24 hours ago)
             // and the race condition is eliminated.
-            var touchResult = await _clientAdapter.TouchAsync(context, client);
+            var touchResult = await _clientAdapter.TouchAsync(context, client, isWriteAllowed: true);
 
             if (!touchResult.Succeeded)
             {

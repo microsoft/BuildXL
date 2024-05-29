@@ -189,10 +189,8 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// </summary>
         public async Task<T> WithOperationContext<T>(Context context, CancellationToken token, Func<OperationContext, Task<T>> func)
         {
-            using (var operationContext = TrackShutdown(context, token))
-            {
-                return await func(operationContext);
-            }
+            using var operationContext = TrackShutdown(context, token);
+            return await func(operationContext);
         }
 
         /// <nodoc />

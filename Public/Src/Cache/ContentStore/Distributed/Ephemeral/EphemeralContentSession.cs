@@ -539,7 +539,13 @@ public class EphemeralContentSession : ContentSessionBase
         return false;
     }
 
-    private readonly record struct ElisionResult(bool Allow, long Size, DateTime? LatestPersistentTouchTime);
+    private readonly record struct ElisionResult(bool Allow, long Size, DateTime? LatestPersistentTouchTime)
+    {
+        public static ElisionResult Disallow()
+        {
+            return new ElisionResult(Allow: false, Size: -1, LatestPersistentTouchTime: null);
+        }
+    }
 
     /// <summary>
     /// This checks for file existence in the persistent cache. This method is used to decide whether we can avoid
@@ -565,7 +571,7 @@ public class EphemeralContentSession : ContentSessionBase
 
                 if (localOnly)
                 {
-                    return Result.Success(new ElisionResult(Allow: false, Size: -1, LatestPersistentTouchTime: null));
+                    return ElisionResult.Disallow();
                 }
 
                 var remote = await _ephemeralHost.ContentResolver.GetSingleLocationAsync(context, contentHash).ThrowIfFailureAsync();
@@ -574,7 +580,7 @@ public class EphemeralContentSession : ContentSessionBase
                     return Result.Success(new ElisionResult(Allow: true, Size: remote.Size, LatestPersistentTouchTime: latestPersistentTouchTime));
                 }
 
-                return Result.Success(new ElisionResult(Allow: false, Size: -1, LatestPersistentTouchTime: null));
+                return ElisionResult.Disallow();
             },
             traceOperationStarted: false,
             traceErrorsOnly: true,
@@ -582,10 +588,10 @@ public class EphemeralContentSession : ContentSessionBase
                              {
                                  if (result.Succeeded)
                                  {
-                                     return $"ContentHash=[{contentHash}] LocalOnly=[{localOnly}] Allow=[{result.Value.Allow}] Size=[{result.Value.Size}]";
+                                     return $"ContentHash=[{contentHash}] LocalOnly=[{localOnly}] Allow=[{result.Value.Allow}] Size=[{result.Value.Size}] LastPersistentTouchTime=[{result.Value.LatestPersistentTouchTime?.ToString() ?? "null"}]";
                                  }
                                  return $"ContentHash=[{contentHash}] LocalOnly=[{localOnly}] Allow=[false] Size=[-1]";
-                             })).GetValueOrDefault(defaultValue: new ElisionResult(Allow: false, Size: -1, LatestPersistentTouchTime: null));
+                             })).GetValueOrDefault(defaultValue: ElisionResult.Disallow());
 
         bool shouldElide(ContentEntry contentEntry, DateTime nowUtc, out DateTime? latestPersistentTouchTime)
         {

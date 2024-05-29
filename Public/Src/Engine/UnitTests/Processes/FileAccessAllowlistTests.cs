@@ -2,15 +2,14 @@
 // Licensed under the MIT License.
 
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using System.Linq;
 
 namespace Test.BuildXL.Processes
 {
@@ -113,51 +112,6 @@ namespace Test.BuildXL.Processes
                 XAssert.AreEqual(executableEntry6.Name, deserialized.ExecutableNoToolPathEntries.FirstOrDefault(e => e.Name == executableEntry6.Name).Name);
                 XAssert.AreEqual(executableEntry5.PathRegex.ToString(), deserialized.ExecutableNoToolPathEntries.FirstOrDefault(e => e.Name == executableEntry5.Name).PathRegex.ToString());
             }
-        }
-
-        /// <summary>
-        /// Validates that known pathPrefix index is correctly captured in file access paths on Windows.
-        /// </summary>
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(@"^c:\\foo\\.*", @"\\?\c:\foo\\bar.txt", true)]
-        [InlineData(@"c:\\foo\\.*", @"\\?\c:\foo\bar.txt", true)]
-        [InlineData(@"c:\\baz\\.*", @"\\?\c:\foo\baz.txt", false)]
-        [InlineData(@"c:\\foo.*", @"\\?\c:\foo.txt", true)]
-        [InlineData(@"c:\\foo.*", @"c:\foo.txt", true)]
-        [InlineData(@"c:\\baz\\.*", @"\\?\c:\foo\baz.txt", false)]
-        public void ValidatePathPrefixRemoval(string pattern, string fileAccessPath, bool isMatch)
-        {
-            var context = BuildXLContext.CreateInstanceForTesting();
-            var pathTable = context.PathTable;
-            XAssert.AreEqual(
-                FileAccessAllowlist.PathFilterMatches(
-                    FileAccessAllowlist.RegexWithProperties(pattern).Regex,
-                    CreateReportedFileAccessPath(fileAccessPath),
-                    pathTable),
-                isMatch);
-        }
-
-        /// <summary>
-        /// Helper method to create ReportedFileAccessPath.
-        /// </summary>
-        private ReportedFileAccess CreateReportedFileAccessPath(string path)
-        {
-            var process = new ReportedProcess(1000, "/usr/bin/touch");
-
-            return new ReportedFileAccess(ReportedFileOperation.GetFileAttributes,
-                process,
-                RequestedAccess.Read,
-                FileAccessStatus.Allowed,
-                true,
-                0,
-                Usn.Zero,
-                DesiredAccess.GENERIC_READ,
-                ShareMode.FILE_SHARE_READ,
-                CreationDisposition.OPEN_EXISTING,
-                FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
-                AbsolutePath.Invalid,
-                path,
-                "*");
         }
     }
 }

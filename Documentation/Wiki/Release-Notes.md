@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240525.1.1 (Release [386412](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=386412))
+- Preserve errno on internal system calls from the Linux Sandbox.
+- Fix checks for non-files on Linux Sandbox.
+- Fix for probe on unset mount causing a graph (engine) cache miss.
+- Fixes for Ubuntu 22.04 support with ptrace sandbox.
+- Update the threshold for LimitProblematicWorkerCount to 0.9.
+- Temporarily re-add dotnet7 BuildXL binaries.
 
 # 0.1.0-20240517.7.3 (Release [384894](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=384894))
 - Linux sandbox improvements

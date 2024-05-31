@@ -22,7 +22,7 @@ namespace BuildXL.Interop.Linux
         /// <summary>
         /// Whether to use LibC for semaphore related operations.
         /// </summary>
-        public static bool UseLibC => UseLibC();
+        public static bool IsGLibC234OrGreater => IsGLibC234OrGreater();
 
         /// <summary>
         /// Create or open an existing semaphore.
@@ -36,7 +36,7 @@ namespace BuildXL.Interop.Linux
 
             // O_CREAT will create a new semaphore if one doesn't exist
             // O_EXCL will return an error if the specified semaphore name already exists
-            semaphore = UseLibC
+            semaphore = IsGLibC234OrGreater
                 ? sem_open_libc(name, (int)(O_Flags.O_CREAT | O_Flags.O_EXCL), mode: /*0644*/ 0x1a4, value: initialCount)
                 : sem_open_libpthread(name, (int)(O_Flags.O_CREAT | O_Flags.O_EXCL), mode: /*0644*/ 0x1a4, value: initialCount);
             if (semaphore == IntPtr.Zero)
@@ -57,7 +57,7 @@ namespace BuildXL.Interop.Linux
                 throw new NotImplementedException();
             }
 
-            int error = UseLibC ? sem_trywait_libc(semaphore) : sem_trywait_libpthread(semaphore);
+            int error = IsGLibC234OrGreater ? sem_trywait_libc(semaphore) : sem_trywait_libpthread(semaphore);
             if (error != 0)
             {
                 error = Marshal.GetLastWin32Error();
@@ -76,7 +76,7 @@ namespace BuildXL.Interop.Linux
                 throw new NotImplementedException();
             }
 
-            int error = UseLibC ? sem_wait_libc(semaphore) : sem_wait_libpthread(semaphore);
+            int error = IsGLibC234OrGreater ? sem_wait_libc(semaphore) : sem_wait_libpthread(semaphore);
             if (error != 0)
             {
                 error = Marshal.GetLastWin32Error();
@@ -95,7 +95,7 @@ namespace BuildXL.Interop.Linux
                 throw new NotImplementedException();
             }
 
-            var error = UseLibC ? sem_post_libc(semaphore) : sem_post_libpthread(semaphore);
+            var error = IsGLibC234OrGreater ? sem_post_libc(semaphore) : sem_post_libpthread(semaphore);
             if (error != 0)
             {
                 error = Marshal.GetLastWin32Error();
@@ -114,7 +114,7 @@ namespace BuildXL.Interop.Linux
                 throw new NotImplementedException();
             }
 
-            var error = UseLibC ? sem_getvalue_libc(semaphore, out value) : sem_getvalue_libpthread(semaphore, out value);
+            var error = IsGLibC234OrGreater ? sem_getvalue_libc(semaphore, out value) : sem_getvalue_libpthread(semaphore, out value);
             if (error != 0)
             {
                 error = Marshal.GetLastWin32Error();
@@ -133,7 +133,7 @@ namespace BuildXL.Interop.Linux
                 throw new NotImplementedException();
             }
 
-            var error = UseLibC ? sem_close_libc(semaphore) : sem_close_libpthread(semaphore);
+            var error = IsGLibC234OrGreater ? sem_close_libc(semaphore) : sem_close_libpthread(semaphore);
             if (error != 0)
             {
                 error = Marshal.GetLastWin32Error();
@@ -152,7 +152,7 @@ namespace BuildXL.Interop.Linux
                 throw new NotImplementedException();
             }
 
-            var error = UseLibC ? sem_unlink_libc(name) : sem_unlink_libpthread(name);
+            var error = IsGLibC234OrGreater ? sem_unlink_libc(name) : sem_unlink_libpthread(name);
             if (error != 0)
             {
                 error = Marshal.GetLastWin32Error();

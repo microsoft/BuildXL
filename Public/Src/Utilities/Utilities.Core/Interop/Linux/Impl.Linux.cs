@@ -44,14 +44,14 @@ namespace BuildXL.Interop.Unix
         /// glibc 2.34 consolidated libpthread into the libc shared object.
         /// Use LibC for 2.34 and higher version.
         /// </summary>
-        public static bool UseLibC()
+        public static bool IsGLibC234OrGreater()
         {
             string libcVersionString = Marshal.PtrToStringAnsi(gnu_get_libc_version());
             var components = libcVersionString.Split('.');
             int majorVersion = Convert.ToInt32(components[0]);
             int minorVersion = Convert.ToInt32(components[1]);
 
-            return majorVersion >= 2 && minorVersion >= 34;
+            return majorVersion > 2 || (majorVersion == 2 && minorVersion >= 34);
         }
 
         /// <summary>

@@ -1431,7 +1431,7 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoProbe()
         {
-            File.Exists(PathAsString);
+            FileUtilities.Exists(PathAsString);
         }
 
         private void DoDirProbe()

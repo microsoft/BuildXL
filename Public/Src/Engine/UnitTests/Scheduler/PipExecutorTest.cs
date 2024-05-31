@@ -27,6 +27,7 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -1349,7 +1350,10 @@ namespace Test.BuildXL.Scheduler
 
                     // Expecting 3 events, of which 2 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, count: 2);
+                    // In Ubuntu 22.04, it will only be logged once. cp command reports back FILEOP_CREATE_FILE (read) before VNODE_PROBE (probe).
+                    // LinuxSandbox cached the FILEOP_CREATE_FILE as read access, and read access implies probe.
+                    // So VNODE_PROBE access will be skipped because it is found in cache.
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, count: 1, allowMore: true);
 
                     await testRunChecker.VerifyUpToDate(env, pip, Contents);
                     AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, count: 0);

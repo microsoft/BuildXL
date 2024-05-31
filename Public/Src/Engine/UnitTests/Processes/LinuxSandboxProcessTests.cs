@@ -20,6 +20,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Interop.Linux;
 
 namespace Test.BuildXL.Processes
 {
@@ -136,7 +137,14 @@ namespace Test.BuildXL.Processes
             // fd = open(symlinkDir/symlink.txt);
             // __fxstat(fd)
             // For the __fxstat report, we should associate the file descriptor to the real path, with the symlinks resolved
-            AssertLogContains(GetRegex("__fxstat", realFile));
+            if (Ipc.IsGLibC234OrGreater)
+            {
+                AssertLogContains(GetRegex("fstat", realFile));
+            }
+            else
+            {
+                AssertLogContains(GetRegex("__fxstat", realFile));
+            }
 
             // At some point (namely, on open) we also should get reports for the intermediate symlinks that got us to the file 
             AssertLogContains(GetRegex("_readlink", link));

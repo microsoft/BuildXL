@@ -224,11 +224,9 @@ namespace BuildXL.Engine
 
                 try
                 {
-#pragma warning disable CA5351 // Disable CA5351 Do not use insecure cryptographic algorithm MD5
-                    using (MD5 md5Hash = MD5.Create())
-#pragma warning restore CA5351 // Restore CA5351 Do not use insecure cryptographic algorithm MD5
+                    using (SHA256 sha256Hash = SHA256.Create())
                     {
-                        byte[] data = md5Hash.ComputeHash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(BaseDirectory, path))));
+                        byte[] data = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(BaseDirectory, path))));
                         foreach (var b in data)
                         {
                             sb.Append(b.ToString("x2"));

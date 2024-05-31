@@ -77,6 +77,7 @@ namespace ContentStoreTest.Exceptions
 
                 using (var stream2 = new MemoryStream(stream.ToArray()))
                 {
+                    // CodeQL [SM04191] It is fine not to use Binder here. This is a test, we serialize our own class, and we control its content.
                     var dex = (CacheException)formatter.Deserialize(stream2);
                     dex.Should().NotBeNull();
                 }

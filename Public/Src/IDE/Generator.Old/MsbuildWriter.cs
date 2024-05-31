@@ -604,6 +604,7 @@ namespace BuildXL.Ide.Generator.Old
         private static string GetGuidFromString(string value)
         {
 #pragma warning disable CA5351 // Do not use insecure cryptographic algorithm MD5.
+            // CodeQL [SM02196] The hash is not used for a cryptographic purpose
             using (var hash = MD5.Create())
 #pragma warning restore CA5351 // Do not use insecure cryptographic algorithm MD5.
             {

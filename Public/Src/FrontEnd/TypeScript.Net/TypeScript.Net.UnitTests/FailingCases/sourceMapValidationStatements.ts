@@ -74,6 +74,7 @@ function f() {
     (x == 1) ? x + 1 : x - 1;
     x === 1;
     x = z = 40;
+    // CodeQL [SM04509] Intentional usage of eval in a test. The executed code is static.
     eval("y");
     return;
 }

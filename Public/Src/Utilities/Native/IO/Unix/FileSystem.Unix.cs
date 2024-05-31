@@ -956,6 +956,7 @@ namespace BuildXL.Native.IO.Unix
 
             if (followSymlink)
             {
+                // CodeQL [SM00414] Path is controlled in FrontEnd (marked by code ql due to a code path from FrontEndHostController.Nuget.cs).
                 return Directory.Exists(path)
                     ? PathExistence.ExistsAsDirectory
                     : PathExistence.ExistsAsFile;

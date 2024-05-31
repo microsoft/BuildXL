@@ -453,6 +453,7 @@ namespace BuildXL.Native.IO.Unix
 
                         if (onCompletion != null)
                         {
+                            // CodeQL [SM00414] Path is controlled in FrontEnd (marked by code ql due to a code path from FrontEndHostController.Nuget.cs).
                             using (var dest = File.Open(destination, FileMode.Open, FileAccess.Read, FileShare.Delete))
                             {
                                 onCompletion(sourceStream.SafeFileHandle, dest.SafeFileHandle);

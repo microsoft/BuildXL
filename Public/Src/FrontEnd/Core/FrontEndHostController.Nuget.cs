@@ -747,6 +747,7 @@ namespace BuildXL.FrontEnd.Core
                         var response = await client.GetAsync(sourceUri);
                         var stream = await response.Content.ReadAsStreamAsync();
 
+                        // CodeQL [SM00414] The path is prepared by the caller and is controlled elsewhere in FrontEnd.
                         using (var targetStream = new FileStream(targetFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
                         {
                             await stream.CopyToAsync(targetStream);

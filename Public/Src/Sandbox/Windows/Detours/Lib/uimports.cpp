@@ -18,7 +18,7 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
                               HMODULE hModule,
                               __in_ecount(nDlls) LPCSTR *plpDlls,
                               DWORD nDlls,
-							  PBYTE* pbClr)
+                              PBYTE* pbClr)
 {
     BOOL fSucceeded = FALSE;
     BYTE * pbNew = NULL;
@@ -59,16 +59,16 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
     }
 
     // Zero out the bound table so loader doesn't use it instead of our new table.
-	// When the Windows loader loads a PE file into memory, it examines the list of
-	// import descriptors and their associated import address table (IAT) to load 
-	// the required DLLs into the process address space. More precisely, the loader
-	// overwrites entries of IAT, IMAGE_THUNK_DATA, with the addresses of imported
-	// functions. As this step takes time, one can use bind.exe to calculate and
-	// bound these addresses apriori. The information that the loader uses to determine
-	// if the bound addresses are valid is kept in IMAGE_BOUND_IMPORT_DESCRIPTOR
-	// structure, and the address to the first element of array of 
-	// IMAGE_BOUND_IMPORT_DESCRIPTOR sturctures is recoreded in 
-	// OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].
+    // When the Windows loader loads a PE file into memory, it examines the list of
+    // import descriptors and their associated import address table (IAT) to load 
+    // the required DLLs into the process address space. More precisely, the loader
+    // overwrites entries of IAT, IMAGE_THUNK_DATA, with the addresses of imported
+    // functions. As this step takes time, one can use bind.exe to calculate and
+    // bound these addresses apriori. The information that the loader uses to determine
+    // if the bound addresses are valid is kept in IMAGE_BOUND_IMPORT_DESCRIPTOR
+    // structure, and the address to the first element of array of 
+    // IMAGE_BOUND_IMPORT_DESCRIPTOR sturctures is recoreded in 
+    // OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].
     inh.BOUND_DIRECTORY.VirtualAddress = 0;
     inh.BOUND_DIRECTORY.Size = 0;
 
@@ -94,10 +94,10 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
         DETOUR_TRACE(("ish[%d] : va=%08x sr=%d\n", i, ish.VirtualAddress, ish.SizeOfRawData));
 
         // If the file didn't have an IAT_DIRECTORY, we assign it...
-		// It is known that some linkers do not set this directory entry and the application
-		// will run nevertheless. The loader only uses this to temporarily mark the IATs
-		// as read-write during import resolution, but can resolve the imports without it.
-		// It is still unknown why we have to assign IAT_DIRECTORY if we don't have one.
+        // It is known that some linkers do not set this directory entry and the application
+        // will run nevertheless. The loader only uses this to temporarily mark the IATs
+        // as read-write during import resolution, but can resolve the imports without it.
+        // It is still unknown why we have to assign IAT_DIRECTORY if we don't have one.
         if (inh.IAT_DIRECTORY.VirtualAddress == 0 &&
             inh.IMPORT_DIRECTORY.VirtualAddress >= ish.VirtualAddress &&
             inh.IMPORT_DIRECTORY.VirtualAddress < ish.VirtualAddress + ish.SizeOfRawData) {
@@ -124,30 +124,30 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
                   (DWORD_PTR)pbModule + inh.IMPORT_DIRECTORY.VirtualAddress +
                   inh.IMPORT_DIRECTORY.Size));
 
-	// We need to move all the IMAGE_IMPORT_DESCRIPTORs (IIDs) to a location where
-	// there is a plenty of space. We first have to calculate the amount of space
-	// that we need.
+    // We need to move all the IMAGE_IMPORT_DESCRIPTORs (IIDs) to a location where
+    // there is a plenty of space. We first have to calculate the amount of space
+    // that we need.
 
-	// Space for IIDs of DLLs to be injected.
+    // Space for IIDs of DLLs to be injected.
     DWORD obRem = sizeof(IMAGE_IMPORT_DESCRIPTOR) * nDlls;
 
-	// Space for IIDs of all DLLs (existing and to-be injected ones).
+    // Space for IIDs of all DLLs (existing and to-be injected ones).
     DWORD obTab = PadToDwordPtr(obRem +
                                 inh.IMPORT_DIRECTORY.Size +
                                 sizeof(IMAGE_IMPORT_DESCRIPTOR));
 
-	// For XX-bit process, we need 2 * XX-bit space for each to-be injected DLL
-	// for storing IMAGE_ORDINAL_FLAG_XX for the IMAGE_THUNK_DATA_XX.
+    // For XX-bit process, we need 2 * XX-bit space for each to-be injected DLL
+    // for storing IMAGE_ORDINAL_FLAG_XX for the IMAGE_THUNK_DATA_XX.
     DWORD obDll = obTab + sizeof(DWORD_XX) * 4 * nDlls;
     DWORD obStr = obDll;
     DWORD cbNew = obStr;
 
-	// Space for the name of the DLLs that are going to be injected (see Name1 field of IID).
+    // Space for the name of the DLLs that are going to be injected (see Name1 field of IID).
     for (DWORD n = 0; n < nDlls; n++) {
         cbNew += PadToDword((DWORD)strlen(plpDlls[n]) + 1);
     }
 
-	// Allocate in-memory buffer.
+    // Allocate in-memory buffer.
     pbNew = new BYTE [cbNew];
     if (pbNew == NULL) {
         DETOUR_TRACE(("new BYTE [cbNew] failed.\n"));
@@ -166,8 +166,8 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
     }
     DETOUR_TRACE(("pbBase = %p\n", pbBase));
 
-	// Allocate space in the PE file for moving the IIDs.
-	PBYTE pbNewIid = FindAndAllocateNearBase(hProcess, pbBase, cbNew);
+    // Allocate space in the PE file for moving the IIDs.
+    PBYTE pbNewIid = FindAndAllocateNearBase(hProcess, pbBase, cbNew);
     if (pbNewIid == NULL) {
         DETOUR_TRACE(("FindAndAllocateNearBase failed.\n"));
         goto finish;
@@ -187,8 +187,8 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
 #endif
         DETOUR_TRACE(("IMPORT_DIRECTORY perms=%x\n", dwProtect));
 
-		// Read existing IIDs into the in-memory buffer, but place them past
-		// the space for the IIDs of the to-be injected DLLs.
+        // Read existing IIDs into the in-memory buffer, but place them past
+        // the space for the IIDs of the to-be injected DLLs.
         if (!ReadProcessMemory(hProcess,
                                pbModule + inh.IMPORT_DIRECTORY.VirtualAddress,
                                pbNew + obRem,
@@ -201,7 +201,7 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
     PIMAGE_IMPORT_DESCRIPTOR piid = (PIMAGE_IMPORT_DESCRIPTOR)pbNew;
     DWORD_XX *pt;
 
-	// Create an IID for each DLL to be injected.
+    // Create an IID for each DLL to be injected.
     for (DWORD n = 0; n < nDlls; n++) {
 
         if (cbNew < obStr) {
@@ -209,7 +209,7 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
             goto finish;
         }
 
-		// Copy the string name of the DLL to the in-memory buffer.
+        // Copy the string name of the DLL to the in-memory buffer.
         HRESULT hrRet = StringCchCopyA((char*)pbNew + obStr, cbNew - obStr, plpDlls[n]);
         if (FAILED(hrRet))
         {
@@ -217,7 +217,7 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
             goto finish;
         }
 
-		// Set values for the IID.
+        // Set values for the IID.
         DWORD nOffset = obTab + (sizeof(DWORD_XX) * (4 * n));
         piid[n].OriginalFirstThunk = obBase + nOffset;
         pt = ((DWORD_XX*)(pbNew + nOffset));
@@ -233,12 +233,13 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
         piid[n].ForwarderChain = 0;
         piid[n].Name = obBase + obStr;
 
-		// Update available buffer for copying string name of next DLL.
+        // Update available buffer for copying string name of next DLL.
         obStr += PadToDword((DWORD)strlen(plpDlls[n]) + 1);
     }
 
-	// Print the IIDs in the in-memory buffer.
-    for (DWORD i = 0; i < nDlls + (inh.IMPORT_DIRECTORY.Size / sizeof(*piid)); i++) {
+    // Print the IIDs in the in-memory buffer.
+    DWORD nOldDlls = inh.IMPORT_DIRECTORY.Size / sizeof(*piid);
+    for (DWORD i = 0; i < nDlls + nOldDlls; i++) {
         DETOUR_TRACE(("%8d. Look=%08x Time=%08x Fore=%08x Name=%08x Addr=%08x\n",
                       i,
                       piid[i].OriginalFirstThunk,
@@ -251,7 +252,7 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
         }
     }
 
-	// Write the IIDs in the in-memory buffer to the allocated space in the PE file.
+    // Write the IIDs in the in-memory buffer to the allocated space in the PE file.
     if (!WriteProcessMemory(hProcess, pbNewIid, pbNew, obStr, NULL)) {
         DETOUR_TRACE_ERROR(L"WriteProcessMemory(iid) failed: %d\n", GetLastError());
         goto finish;
@@ -268,22 +269,22 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
         inh.IAT_DIRECTORY.Size = cbNew;
     }
 
-	// Update the import directory in the PE header.
+    // Update the import directory in the PE header.
     inh.IMPORT_DIRECTORY.VirtualAddress = obBase;
     inh.IMPORT_DIRECTORY.Size = cbNew;
 
-	//////////////////////// Get the CLR header.
+    //////////////////////// Get the CLR header.
 #if BUILDXL_DETOURS
 
-	*pbClr = NULL;
+    *pbClr = NULL;
 
-	if (inh.CLR_DIRECTORY.VirtualAddress != 0 && inh.CLR_DIRECTORY.Size != 0) {
-		DETOUR_TRACE(("CLR.VirtAddr=%x, CLR.Size=%x\n", inh.CLR_DIRECTORY.VirtualAddress, inh.CLR_DIRECTORY.Size));
-		*pbClr = ((PBYTE)hModule) + inh.CLR_DIRECTORY.VirtualAddress;
-	}
+    if (inh.CLR_DIRECTORY.VirtualAddress != 0 && inh.CLR_DIRECTORY.Size != 0) {
+        DETOUR_TRACE(("CLR.VirtAddr=%x, CLR.Size=%x\n", inh.CLR_DIRECTORY.VirtualAddress, inh.CLR_DIRECTORY.Size));
+        *pbClr = ((PBYTE)hModule) + inh.CLR_DIRECTORY.VirtualAddress;
+    }
 
 #else
-	*pbClr += 0;
+    *pbClr += 0;
 #endif // BUILDXL_DETOURS
 
     /////////////////////// Update the NT header for the new import directory.
@@ -301,14 +302,14 @@ static BOOL UPDATE_IMPORTS_XX(HANDLE hProcess,
     inh.OptionalHeader.CheckSum = 0;
 #endif // IGNORE_CHECKSUMS
 
-	// Overwrite DOS header with the updated one.
+    // Overwrite DOS header with the updated one.
     if (!WriteProcessMemory(hProcess, pbModule, &idh, sizeof(idh), NULL)) {
         DETOUR_TRACE_ERROR(L"WriteProcessMemory(idh) failed: %d\n", GetLastError());
         goto finish;
     }
     DETOUR_TRACE(("WriteProcessMemory(idh:%p..%p)\n", pbModule, pbModule + sizeof(idh)));
 
-	// Overwrite PE header with the updated one.
+    // Overwrite PE header with the updated one.
     if (!WriteProcessMemory(hProcess, pbModule + idh.e_lfanew, &inh, sizeof(inh), NULL)) {
         DETOUR_TRACE_ERROR(L"WriteProcessMemory(inh) failed: %d\n", GetLastError());
         goto finish;

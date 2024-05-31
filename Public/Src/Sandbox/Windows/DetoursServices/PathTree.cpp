@@ -51,7 +51,7 @@ bool PathTree::TryInsert(const std::wstring& path)
 
     TreeNode* currentNode = m_root;
 
-    for (unsigned int i = 0; i < elements.size(); i++)
+    for (std::vector<std::wstring>::size_type i = 0; i < elements.size(); i++)
     {
         // Only the last element is a final node
         const bool isIntermediate = (i != (elements.size() - 1));
@@ -199,7 +199,7 @@ bool PathTree::TryFind(const std::wstring& path, std::vector<std::pair<std::wstr
 
     nodeTrace.push_back(std::make_pair(L"", m_root));
 
-    for (unsigned int i = 0; i < elements.size(); i++)
+    for (std::vector<std::wstring>::size_type i = 0; i < elements.size(); i++)
     {
         std::pair<std::wstring, TreeNode*> search;
         if (!currentNode->children.find(elements[i], search))

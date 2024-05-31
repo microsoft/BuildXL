@@ -100,6 +100,7 @@ namespace TypeScript.Net.Incrementality
         private static string ComputeFingerprint(byte[] data, int size)
         {
 #pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
+            // CodeQL [SM02196] The hash is not used for a cryptographic purpose
             using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
 #pragma warning restore SYSLIB0021 // Type or member is obsolete
             {

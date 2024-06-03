@@ -1147,6 +1147,11 @@ namespace BuildXL.Scheduler
         /// Whether a low commit memory perf smell was reached
         /// </summary>
         private volatile bool m_hitLowCommitMemoryPerfSmell;
+       
+        /// <summary>
+        /// Whether a high file descriptor usage perf smell was reached
+        /// </summary>
+        private volatile bool m_hitHighFileDescriptorUsagePerfSmell;
 
         private int m_historicPerfDataMisses;
         private int m_historicPerfDataZeroMemoryHits;
@@ -3166,6 +3171,17 @@ namespace BuildXL.Scheduler
                     PipExecutionCounters.IncrementCounter(PipExecutorCounter.CancelSuspendedPipDueToNoRunningProcess);
                     resourceManager.TryManageResources(1, ManageMemoryMode.CancellationRam);
                 }
+            }
+
+            // Log an internal warning if the number of open file descriptors (by the BuildXL process) is greater than 10k
+            // The threshold is arbitrary but:
+            // - conservative: based on telemetry, BuildXL having more than 1000 file descriptors open is an anomaly
+            // - low enough that we have a chance to measure and log this warning (if we're going overboard with file descriptors, all sorts of operations start failing)
+            const int FileDescriptorCountThreshold = 10_000;
+            if (!m_hitHighFileDescriptorUsagePerfSmell && m_perfInfo.MachineOpenFileDescriptors > FileDescriptorCountThreshold)
+            {
+                m_hitHighFileDescriptorUsagePerfSmell = true;
+                Logger.Log.HighFileDescriptorCount(m_executePhaseLoggingContext, perfInfo.MachineOpenFileDescriptors, FileDescriptorCountThreshold);
             }
         }
 

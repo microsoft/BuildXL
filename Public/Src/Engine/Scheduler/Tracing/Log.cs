@@ -3598,6 +3598,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void HitLowMemorySmell(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)LogEventId.HighFileDescriptorCount,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            EventTask = (ushort)Tasks.HostApplication,
+            Message = "BuildXL has opened a high amount of file descriptors, exceeding the warning theshold ({fileDescriptorCount} > {threshold}). The build can fail if the file descriptors limit for the system is reached.",
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue))]
+        public abstract void HighFileDescriptorCount(LoggingContext context, int fileDescriptorCount, int threshold);
+
+        [GeneratedEvent(
             (ushort)SharedLogEventId.CacheMissAnalysis,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,

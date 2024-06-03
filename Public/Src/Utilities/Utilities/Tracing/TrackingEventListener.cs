@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -222,13 +223,7 @@ namespace BuildXL.Utilities.Tracing
         {
             Contract.Assume(eventData.Level == EventLevel.Warning);
             Interlocked.Increment(ref m_numWarnings);
-
-            long keywords = (long)eventData.Keywords;
-            if ((keywords & (long)Keywords.InfrastructureIssue) > 0 &&
-                m_internalWarnings.Count < MaxInternalWarningCount)
-            {
-                m_internalWarnings.Add(eventData.EventName);
-            }
+            CollectInternalWarning(eventData);
         }
 
         /// <inheritdoc />
@@ -268,7 +263,7 @@ namespace BuildXL.Utilities.Tracing
                     // it's not a big deal, we'll just fall back to using the full error message.
                     try
                     {
-                        var regex = new Regex(@" Reason: (?<reason>\w+)\. ", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                        var regex = new Regex(@" Reason: (?<reason>\w+)\. ", RegexOptions.IgnoreCase);
                         var match = regex.Match(eventMessage);
                         if (match.Success)
                         {
@@ -361,6 +356,7 @@ namespace BuildXL.Utilities.Tracing
         {
             Contract.Assume(eventData.Level == EventLevel.Informational);
             Interlocked.Increment(ref m_numInformationals);
+            CollectInternalWarning(eventData);
         }
 
         /// <inheritdoc />
@@ -368,6 +364,7 @@ namespace BuildXL.Utilities.Tracing
         {
             Contract.Assume(eventData.Level == EventLevel.Verbose);
             Interlocked.Increment(ref m_numVerbose);
+            CollectInternalWarning(eventData);
         }
 
         /// <inheritdoc />
@@ -375,6 +372,22 @@ namespace BuildXL.Utilities.Tracing
         {
             Contract.Assume(eventData.Level == EventLevel.LogAlways);
             Interlocked.Increment(ref m_numAlways);
+        }
+
+        /// <summary>
+        /// We want to log some infrastructure issues as less-than-warning to not
+        /// surface them to the users, but at the same time keep track
+        /// of them: we include them in the internal warnings that we monitor.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CollectInternalWarning(EventWrittenEventArgs eventData)
+        {
+            long keywords = (long)eventData.Keywords;
+            if ((keywords & (long)Keywords.InfrastructureIssue) > 0 &&
+                m_internalWarnings.Count < MaxInternalWarningCount)
+            {
+                m_internalWarnings.Add(eventData.EventName);
+            }
         }
 
         /// <summary>

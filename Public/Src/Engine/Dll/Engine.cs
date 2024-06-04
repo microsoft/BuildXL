@@ -1839,6 +1839,8 @@ namespace BuildXL.Engine
 
                             try
                             {
+                                string orchestratorIpAddress = null;
+
                                 if (Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
                                 {
                                     if (Configuration.Distribution.OrchestratorLocation != null)
@@ -1862,6 +1864,8 @@ namespace BuildXL.Engine
                                             "An error should have been logged during waiting for attaching to the orchestrator.");
                                         return BuildXLEngineResult.Failed(engineState);
                                     }
+
+                                    orchestratorIpAddress = m_workerService.OrchestratorIpAddress;
                                 }
 
                                 cacheInitializationTask = CacheInitializer.GetCacheInitializationTask(
@@ -1870,6 +1874,7 @@ namespace BuildXL.Engine
                                     Configuration.Layout.CacheDirectory.ToString(Context.PathTable),
                                     Configuration.Logging.LogsDirectory.ToString(Context.PathTable),
                                     Configuration,
+                                    orchestratorIpAddress: orchestratorIpAddress,
                                     rootTranslator: m_rootTranslator,
                                     recoveryStatus: recoveryStatus,
                                     cancellationToken: Context.CancellationToken,

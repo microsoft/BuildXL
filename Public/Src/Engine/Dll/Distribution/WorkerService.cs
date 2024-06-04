@@ -90,6 +90,9 @@ namespace BuildXL.Engine.Distribution
 
         private readonly ConcurrentBigSet<int> m_handledBuildRequests = new ConcurrentBigSet<int>();
 
+        /// <nodoc/>
+        public string OrchestratorIpAddress { get; private set; }
+
         /// <summary>
         /// Identifies the worker
         /// </summary>
@@ -215,6 +218,7 @@ namespace BuildXL.Engine.Distribution
 
         internal bool SayHello(IDistributionServiceLocation orchestratorLocation)
         {
+            OrchestratorIpAddress = orchestratorLocation.IpAddress;
             var timeout = GrpcSettings.WorkerAttachTimeout;
             Logger.Log.DistributionSayingHelloToOrchestrator(m_appLoggingContext);
             var helloTask = ((IWorkerService)this).SayHelloAsync(orchestratorLocation);
@@ -397,6 +401,7 @@ namespace BuildXL.Engine.Distribution
                 m_orchestratorClient.Initialize(buildStartData.OrchestratorLocation.IpAddress, buildStartData.OrchestratorLocation.Port, OnConnectionFailureAsync);
             }
 
+            OrchestratorIpAddress = buildStartData.OrchestratorLocation.IpAddress;
             WorkerId = BuildStartData.WorkerId;
             m_attachCallCompletion.TrySetResult(true);
         }

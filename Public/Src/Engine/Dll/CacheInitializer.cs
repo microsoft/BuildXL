@@ -78,7 +78,7 @@ namespace BuildXL.Engine
             RootTranslator rootTranslator,
             bool? recoveryStatus,
             CancellationToken cancellationToken,
-
+            string orchestratorIpAddress = null,
             // Only used for testing purposes to inject cache.
             Func<EngineCache> testHookCacheFactory = null)
         {
@@ -110,7 +110,8 @@ namespace BuildXL.Engine
                                 cacheDirectory,
                                 config,
                                 enableFingerprintLookup: config.Cache.Incremental,
-                                rootTranslator);
+                                rootTranslator,
+                                orchestratorIpAddress);
 
                         if (!maybeCacheCoreEngineCache.Succeeded)
                         {
@@ -269,8 +270,8 @@ namespace BuildXL.Engine
             PathTable pathTable,
             string cacheDirectory,
             ICacheConfiguration config,
-            RootTranslator rootTranslator = null,
-            IDistributionConfiguration distributionConfiguration = null)
+            string orchestratorIpAddress,
+            RootTranslator rootTranslator)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(pathTable.IsValid);
@@ -301,12 +302,12 @@ namespace BuildXL.Engine
             cacheConfigContent = cacheConfigContent.Replace("[BuildXLCacheUniverse]", EngineEnvironmentSettings.CacheUniverse.Value ?? string.Empty);
             cacheConfigContent = cacheConfigContent.Replace("[BuildXLCacheNamespace]", EngineEnvironmentSettings.CacheNamespace.Value ?? string.Empty);
 
-            var orchestratorLocation = distributionConfiguration?.OrchestratorLocation?.IpAddress;
-            if (string.IsNullOrEmpty(orchestratorLocation))
+            if (string.IsNullOrEmpty(orchestratorIpAddress))
             {
-                orchestratorLocation = Environment.MachineName;
+                orchestratorIpAddress = Environment.MachineName;
             }
-            cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedLeader]", orchestratorLocation);
+
+            cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedLeader]", orchestratorIpAddress);
 
             var vfsCasRoot = config.VfsCasRoot.IsValid
                 ? config.VfsCasRoot.ToString(pathTable)
@@ -346,7 +347,8 @@ namespace BuildXL.Engine
             string cacheDirectory,
             IConfiguration config,
             bool enableFingerprintLookup,
-            RootTranslator rootTranslator)
+            RootTranslator rootTranslator,
+            string orchestratorIpAddress)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(pathTable.IsValid);
@@ -360,7 +362,7 @@ namespace BuildXL.Engine
             ICacheCoreSession session = null;
             try
             {
-                Possible<ICacheConfigData> cacheConfigData = TryGetCacheConfigData(pathTable, cacheDirectory, config.Cache, rootTranslator, config.Distribution);
+                Possible<ICacheConfigData> cacheConfigData = TryGetCacheConfigData(pathTable, cacheDirectory, config.Cache, orchestratorIpAddress, rootTranslator);
                 if (!cacheConfigData.Succeeded)
                 {
                     return cacheConfigData.Failure;

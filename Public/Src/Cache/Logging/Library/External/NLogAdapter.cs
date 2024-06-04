@@ -289,6 +289,23 @@ namespace BuildXL.Cache.Logging.External
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
                 try
                 {
+                    Flush();
+                    LogManager.Shutdown();
+                }
+                catch (Exception exception)
+                {
+                    try
+                    {
+                        _host.Error(exception, "Failed to dispose NLog instance");
+                    }
+                    catch (Exception)
+                    {
+                        // We just don't want to interrupt the Dispose sequence
+                    }
+                }
+
+                try
+                {
                     _log.ShutdownAsync().GetAwaiter().GetResult().ThrowIfFailure();
                 }
                 catch (Exception exception)
@@ -302,23 +319,6 @@ namespace BuildXL.Cache.Logging.External
                 }
                 catch (Exception)
                 {
-                }
-
-                try
-                {
-                    Flush();
-                    NLog.LogManager.Shutdown();
-                }
-                catch (Exception exception)
-                {
-                    try
-                    {
-                        _host.Error(exception, "Failed to dispose NLog instance");
-                    }
-                    catch (Exception)
-                    {
-                        // We just don't want to interrupt the Dispose sequence
-                    }
                 }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
 #pragma warning restore CA1031 // Do not catch general exception types

@@ -2,9 +2,9 @@
 
 echo Preparing to build.
 
-call %~dp0\Init.cmd %*
+call %~dp0Init.cmd %*
 if %ERRORLEVEL% NEQ 0 (
-	echo %~dp0\Init.cmd FAILED: %ERRORLEVEL%
+	echo %~dp0Init.cmd FAILED: %ERRORLEVEL%
 	exit /b %ERRORLEVEL%
 )
 

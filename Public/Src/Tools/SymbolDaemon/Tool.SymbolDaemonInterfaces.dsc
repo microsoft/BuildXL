@@ -165,12 +165,12 @@ export interface SymbolRunner {
     /** 
      * Indexes and publishes files.
      */
-    addFilesToSymbol: (createResult: SymbolCreateResult, args: OperationArguments, fileInfos: File[], clientKeys?: string[]) => Result;
+    addFilesToSymbol: (createResult: SymbolCreateResult, args: OperationArguments, fileInfos: File[], clientKeys?: string[], customClientKeyPrefixEnvVariable?: string) => Result;
 
     /**
      * Indexes and publishes files withing the specified directories.
      */
-    addDirectoriesToSymbol: (createResult: SymbolCreateResult, args: OperationArguments, directories: OpaqueDirectory[]) => Result;
+    addDirectoriesToSymbol: (createResult: SymbolCreateResult, args: OperationArguments, directories: StaticDirectory[], directoryContentFilter?: string[], directoryPathToClientKeys?: string[], customClientKeyPrefixEnvVariable?: string) => Result;
    
     // ------------------------------- for testing only ------------------------------------
     

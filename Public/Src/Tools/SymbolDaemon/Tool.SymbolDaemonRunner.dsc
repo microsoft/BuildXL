@@ -156,7 +156,7 @@ function createSymbol(args: SymbolCreateArguments): SymbolCreateResult {
     return <SymbolCreateResult>{serviceStartInfo: symbolStartResult, outputs: result.outputs};
 }
 
-function addFiles(createResult: SymbolCreateResult, args: OperationArguments, files: File[], clientKeys?: string[]): Result {
+function addFiles(createResult: SymbolCreateResult, args: OperationArguments, files: File[], clientKeys?: string[], customClientKeyPrefixEnvVariable?: string): Result {
     Contract.requires(
         files !== undefined,
         "files to add to a symbol request must be defined"
@@ -170,7 +170,7 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
         return undefined;
     }
 
-    const symbolMetadataFile = indexSymbolFiles(files, args, clientKeys);
+    const symbolMetadataFile = indexSymbolFiles(args, files, clientKeys);
 
     const fileMessageBody = files.length !== 0
         ? [
@@ -178,6 +178,7 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
             Cmd.options("--hash ", files.map(fi => Artifact.vsoHash(fi))),
             Cmd.options("--fileId ", files.map(fi => Artifact.fileId(fi))),
             Cmd.option("--symbolMetadata ", Artifact.input(symbolMetadataFile)),
+            Cmd.option("--customClientKeyPrefixEnvVariable ", customClientKeyPrefixEnvVariable)
             ]
         : [];
 
@@ -202,19 +203,28 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
     );
 }
 
-function addDirectories(createResult: SymbolCreateResult, args: OperationArguments, directories: OpaqueDirectory[]): Result {
+function addDirectories(createResult: SymbolCreateResult, args: OperationArguments, directories: StaticDirectory[], directoryContentFilters?: string[], directoryReplacementForClientKeys?: string[], customClientKeyPrefixEnvVariable?: string): Result {
     Contract.requires(
         createResult !== undefined,
         "result of the 'symbol create' operation must be provided"
     );
 
-    const symbolMetadataFile = indexSymbolFilesInDirectories(directories, createResult, args);
+    Contract.requires(
+        directoryContentFilters === undefined || directoryContentFilters.length === directories.length,
+        "The length of directoryContentFilters doesn't match directories length"
+    );
+    
+    const filters = directoryContentFilters === undefined? directories.map(dir => ".*") : directoryContentFilters;
+
+    const symbolMetadataFile = indexSymbolFilesInDirectories(directories, createResult, args, filters, directoryReplacementForClientKeys);
 
     const directoryMessageBody = directories.length !== 0
         ? [
             Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),
             Cmd.options("--directoryId ", directories.map(dir => Artifact.directoryId(dir))),
             Cmd.option("--symbolMetadata ", Artifact.input(symbolMetadataFile)),
+            Cmd.options("--directoryContentFilter ", filters),
+            Cmd.option("--customClientKeyPrefixEnvVariable ", customClientKeyPrefixEnvVariable)
             ]
         : [];
 
@@ -238,7 +248,7 @@ function addDirectories(createResult: SymbolCreateResult, args: OperationArgumen
     );
 }
 
-function indexSymbolFiles(files: File[], args: OperationArguments, clientKeys?: string[]) : DerivedFile {
+function indexSymbolFiles(args: OperationArguments, files?: File[], clientKeys?: string[], fileMetadata?: File) : DerivedFile {
     const symbolDataFileName = "symbol_data.txt";
 
     Contract.requires(
@@ -285,7 +295,7 @@ function indexSymbolFiles(files: File[], args: OperationArguments, clientKeys?: 
     return outputResult;
 }
 
-function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createResult: SymbolCreateResult, args: OperationArguments) : DerivedFile {
+function indexSymbolFilesInDirectories(directories: StaticDirectory[], createResult: SymbolCreateResult, args: OperationArguments, directoryContentFilters: string[], directoryReplacementForClientKeys?: string[]) : DerivedFile {
     Contract.requires(
         directories !== undefined,
         "directories to index must be identified"
@@ -296,10 +306,21 @@ function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createRes
         "The list of directories cannot be empty"
     );
 
+    Contract.requires(
+        directoryContentFilters !== undefined && directoryContentFilters.length === directories.length,
+        "The length of directoryContentFilters doesn't match directories length"
+    );
+
+    Contract.requires(
+        directoryReplacementForClientKeys === undefined || (directoryReplacementForClientKeys !== undefined && directoryReplacementForClientKeys.length === directories.length),
+        "The length of directoryReplacementForClientKeys doesn't match directories length"
+    );
+
     const directoryMessageBody = directories.length !== 0
         ? [
             Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),
             Cmd.options("--directoryId ", directories.map(dir => Artifact.directoryId(dir))),
+            Cmd.options("--directoryContentFilter ", directoryContentFilters)
             ]
         : [];
 
@@ -337,6 +358,7 @@ function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createRes
             Cmd.startUsingResponseFile(false),
             Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),
             Cmd.option("--inputDirectoriesContent ", Artifact.input(dirContentResult.outputs[0])),
+            Cmd.options("--directoryReplacementForClientKey ", directoryReplacementForClientKeys),
             Cmd.option("--symbolMetadata ", Artifact.output(outputPath)),
         ],
         // SymStoreUtil opens some files (namely .pdb) with ReadWrite access, this causes DFAs and other issues.

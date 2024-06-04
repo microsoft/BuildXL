@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
@@ -39,6 +40,8 @@ namespace Tool.SymbolDaemon
         private const string LogFileName = "SymbolDaemon";
         private const int s_servicePointParallelism = 200;
         private const char s_debugEntryDataFieldSeparator = '|';
+        private const char s_clientKeySeparator = '/';
+        private const string s_getDirectoriesContentSeparationForDirectory = "------";
 
         /// <nodoc/>
         public const string SymbolDLogPrefix = "(SymbolD) ";
@@ -119,7 +122,32 @@ namespace Tool.SymbolDaemon
         internal static readonly StrOption ClientKeyForSymbol = new StrOption("customClientKey")
         {
             ShortName = "ck",
-            HelpText = "Custom client key for indexFiles. When this is provided, the logic for generate clientkey to files should be bypassed. This option only works for IndexFilesCmd",
+            HelpText = "Custom client key for indexFiles. When this is provided, the logic for generate clientkey to files should be bypassed. This option only works for IndexFilesCmd.",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
+        internal static readonly StrOption CustomClientKeyPrefixEnvVariable = new StrOption("customClientKeyPrefixEnvVariable")
+        {
+            ShortName = "cke",
+            HelpText = "The environment variable name used as the custom client key prefix. The prefix key is constantly changing and it's better to prepend to the client key in SymbolDaemon to reduce cache misses.",
+            IsRequired = false,
+            IsMultiValue = false,
+        };
+
+        internal static readonly StrOption DirectoryReplacementForClientKey = new StrOption("directoryReplacementForClientKey")
+        {
+            ShortName = "dptc",
+            HelpText = "Replace the directory path with the provided value for generating the client keys for each path under directory.",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
+        internal static readonly StrOption DirectoryContentFilter = new StrOption("directoryContentFilter")
+        {
+            ShortName = "dcfilter",
+            HelpText = "Directory content filter (only files that match the filter will be added to symbol).",
+            DefaultValue = null,
             IsRequired = false,
             IsMultiValue = true,
         };
@@ -317,7 +345,7 @@ namespace Tool.SymbolDaemon
         internal static readonly Command AddSymbolFilesCmd = RegisterCommand(
             name: "addsymbolfiles",
             description: "[RPC] invokes the 'addsymbolfiles' operation.",
-            options: new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, SymbolMetadataFile },
+            options: new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, SymbolMetadataFile, CustomClientKeyPrefixEnvVariable },
             clientAction: SyncRPCSend,
             serverAction: async (conf, daemon) =>
             {
@@ -328,8 +356,9 @@ namespace Tool.SymbolDaemon
                 var fileIds = FileId.GetValues(conf.Config).ToArray();
                 var hashes = HashOptional.GetValues(conf.Config).ToArray();
                 var symbolMetadataFile = SymbolMetadataFile.GetValue(conf.Config);
+                var customClientKeyPrefixEnvVariable = CustomClientKeyPrefixEnvVariable.GetValue(conf.Config);
 
-                var result = await AddSymbolFilesInternalAsync(files, fileIds, hashes, symbolMetadataFile, symbolDaemon);
+                var result = await AddSymbolFilesInternalAsync(files, fileIds, hashes, symbolMetadataFile, customClientKeyPrefixEnvVariable, symbolDaemon);
                 LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[ADDSYMBOLS] ", result);
                 // Trim the payload before sending the result.
                 return SuccessOrFirstError(result);
@@ -348,7 +377,6 @@ namespace Tool.SymbolDaemon
                 var hashesWithLength = HashOptional.GetValues(conf.Config);
                 var hashesOnly = hashesWithLength.Select(h => FileContentInfo.Parse(h).Hash).ToArray();
                 var customClientKeys = ClientKeyForSymbol.GetValues(conf.Config).ToArray();
-
                 var outputFile = SymbolMetadataFile.GetValue(conf.Config);
 
                 IndexFilesAndStoreMetadataToFile(files, hashesOnly, outputFile, customClientKeys);
@@ -359,7 +387,7 @@ namespace Tool.SymbolDaemon
         internal static readonly Command GetDirectoriesContentCmd = RegisterCommand(
             name: "getDirectoriesContent",
             description: "[RPC] invokes the 'GetDirectoriesContentAsync' operation.",
-            options: new Option[] { IpcServerMonikerRequired, Directory, DirectoryId },
+            options: new Option[] { IpcServerMonikerRequired, Directory, DirectoryId, DirectoryContentFilter },
             clientAction: SyncRPCSend,
             serverAction: async (conf, daemon) =>
             {
@@ -378,26 +406,58 @@ namespace Tool.SymbolDaemon
         internal static readonly Command IndexDirectoriesCmd = RegisterCommand(
             name: "indexDirectories",
             description: "Indexes files in the specified directories and saves SymbolData into a file.",
-            options: new Option[] { Directory, InputDirectoriesContent, SymbolMetadataFile },
+            options: new Option[] { Directory, InputDirectoriesContent, SymbolMetadataFile, DirectoryReplacementForClientKey },
             needsIpcClient: false,
             clientAction: (ConfiguredCommand conf, IClient rpc) =>
             {
                 var dirContentFile = InputDirectoriesContent.GetValue(conf.Config);
+                var directoryReplacementForClientKeys = DirectoryReplacementForClientKey.GetValues(conf.Config).ToArray();
+                var directoryRoots = Directory.GetValues(conf.Config).ToArray();
                 var dirContent = System.IO.File.ReadLines(dirContentFile);
                 var files = new List<string>();
                 var hashes = new List<ContentHash>();
+                var customClientKeys = new List<string>();
+
+                Contract.Assert(directoryRoots != null, "directoryRoots can't be null");
+
+                if (directoryReplacementForClientKeys.Length > 0)
+                { 
+                    Contract.Assert(directoryReplacementForClientKeys.Length == directoryRoots.Length, "length of directoryReplacementForClientKeys should match directoryRoots");
+                }
+
+                int directoryIndex = 0;
                 foreach (var line in dirContent.Where(line => line.Length > 0))
                 {
+                    if (line.Equals(s_getDirectoriesContentSeparationForDirectory))
+                    {
+                        directoryIndex++;
+                        Contract.Assert(directoryIndex <= directoryRoots.Length, "directory index should be within the range of directroy roots");
+
+                        continue;
+                    }
+
                     var pathAndHash = line.Split(s_debugEntryDataFieldSeparator);
                     Contract.Assert(pathAndHash.Length == 2, "Input directories content file has a wrong format");
 
                     files.Add(pathAndHash[0]);
                     hashes.Add(FileContentInfo.Parse(pathAndHash[1]).Hash);
+
+                    if (directoryIndex <= directoryReplacementForClientKeys.Length - 1 && !string.IsNullOrEmpty(directoryReplacementForClientKeys[directoryIndex]))
+                    {
+                        using (var poolSb = Pools.GetStringBuilder())
+                        {
+                            var sb = poolSb.Instance;
+                            sb.Append($"{directoryReplacementForClientKeys[directoryIndex]}{s_clientKeySeparator}{Path.GetRelativePath(directoryRoots[directoryIndex], pathAndHash[0])}");
+                            int startReplaceAt = directoryReplacementForClientKeys[directoryIndex].Length + 1;
+                            sb.Replace(Path.DirectorySeparatorChar, s_clientKeySeparator, startReplaceAt, sb.Length - startReplaceAt);
+                            customClientKeys.Add(sb.ToString());
+                        }
+                    }
                 }
 
                 var outputFile = SymbolMetadataFile.GetValue(conf.Config);
 
-                IndexFilesAndStoreMetadataToFile(files.ToArray(), hashes.ToArray(), outputFile, customClientKeys: null);
+                IndexFilesAndStoreMetadataToFile(files.ToArray(), hashes.ToArray(), outputFile, customClientKeys: customClientKeys.Count == 0 ? null : customClientKeys.ToArray());
 
                 return 0;
             });
@@ -405,7 +465,7 @@ namespace Tool.SymbolDaemon
         internal static readonly Command AddSymbolFilesFromDirectoriesCmd = RegisterCommand(
             name: "addSymbolFilesFromDirectories",
             description: "[RPC] invokes the 'addSymbolFilesFromDirectories' operation.",
-            options: new Option[] { IpcServerMonikerRequired, Directory, DirectoryId, SymbolMetadataFile },
+            options: new Option[] { IpcServerMonikerRequired, Directory, DirectoryId, SymbolMetadataFile, CustomClientKeyPrefixEnvVariable, DirectoryContentFilter },
             clientAction: SyncRPCSend,
             serverAction: async (conf, daemon) =>
             {
@@ -422,7 +482,7 @@ namespace Tool.SymbolDaemon
             Contract.Assert(files.Length == hashes.Length, "Array lengths must match.");
             Contract.Assert(!string.IsNullOrEmpty(outputFile), "Output file path must be provided.");
 
-            if(customClientKeys?.Length > 0)
+            if (customClientKeys?.Length > 0)
             {
                 Contract.Assert(files.Length == customClientKeys.Length, "customClientKeys length must equal files length.");
             }
@@ -569,6 +629,7 @@ namespace Tool.SymbolDaemon
         {
             var directoryPaths = Directory.GetValues(conf.Config).ToArray();
             var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
+            var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
 
             if (directoryPaths.Length != directoryIds.Length)
             {
@@ -577,12 +638,25 @@ namespace Tool.SymbolDaemon
                     I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}"));
             }
 
+            if (directoryPaths.Length != directoryFilters.Length)
+            {
+                return new IpcResult(
+                    IpcResultStatus.GenericError,
+                    I($"DirectoryContentFilter counts don't match: #directories = {directoryPaths.Length}, #directoryFilters = {directoryFilters.Length}"));
+            }
+
             if (daemon.ApiClient == null)
             {
                 return new IpcResult(IpcResultStatus.GenericError, "ApiClient is not initialized");
             }
 
-            var maybeResult = await GetDedupedDirectoriesContentAsync(directoryIds, directoryPaths, daemon.ApiClient);
+            var possibleFilters = InitializeFilters(directoryFilters);
+            if (!possibleFilters.Succeeded)
+            {
+                return new IpcResult(IpcResultStatus.InvalidInput, possibleFilters.Failure.Describe());
+            }
+
+            var maybeResult = await GetDedupedDirectoriesContentAsync(directoryIds, directoryPaths, daemon.ApiClient, possibleFilters.Result);
             if (!maybeResult.Succeeded)
             {
                 return new IpcResult(
@@ -591,19 +665,25 @@ namespace Tool.SymbolDaemon
             }
 
             var files = maybeResult.Result
-                .Select(file => $"{file.FileName.ToCanonicalizedPath()}{s_debugEntryDataFieldSeparator}{file.ContentInfo.Render()}")
+                .SelectMany(l =>
+                {
+                    var lines = l.Select(file => $"{file.FileName.ToCanonicalizedPath()}{s_debugEntryDataFieldSeparator}{file.ContentInfo.Render()}").OrderBy(s => s);
+                    
+                    // add a line as directory separation
+                    return lines.Concat(new[] { s_getDirectoriesContentSeparationForDirectory });
+                })
                 .ToList();
-            files.Sort();
 
             return new IpcResult(IpcResultStatus.Success, string.Join(Environment.NewLine, files));
         }
 
-        private static async Task<Possible<HashSet<SealedDirectoryFile>>> GetDedupedDirectoriesContentAsync(string[] directoryIds, string[] directoryPaths, Client apiClient)
+        private static async Task<Possible<List<List<SealedDirectoryFile>>>> GetDedupedDirectoriesContentAsync(string[] directoryIds, string[] directoryPaths, Client apiClient, Regex[] filters)
         {
             Contract.Requires(apiClient != null);
             Contract.Requires(directoryIds.Length == directoryIds.Length);
 
-            var files = new HashSet<SealedDirectoryFile>();
+            var results = new List<List<SealedDirectoryFile>>(directoryIds.Length);
+            var visitedFiles = new HashSet<SealedDirectoryFile>();
             for (int i = 0; i < directoryIds.Length; i++)
             {
                 DirectoryArtifact directoryArtifact = BuildXL.Ipc.ExternalApi.DirectoryId.Parse(directoryIds[i]);
@@ -613,10 +693,21 @@ namespace Tool.SymbolDaemon
                     return maybeResult.Failure;
                 }
 
-                files.UnionWith(maybeResult.Result);
+                var files = maybeResult.Result.Where(f =>
+                {
+                    if (filters[i] == null || filters[i].IsMatch(f.FileName))
+                    {
+                        return visitedFiles.Add(f);
+                    }
+
+                    return false;
+
+                }).ToList();
+
+                results.Add(files);
             }
 
-            return files;
+            return results;
         }
 
         private static async Task<IIpcResult> AddSymbolFilesInternalAsync(
@@ -624,6 +715,7 @@ namespace Tool.SymbolDaemon
             string[] fileIds,
             string[] hashes,
             string symbolMetadataFile,
+            string customClientKeyPrefixEnvVariable,
             SymbolDaemon daemon)
         {
             if (files.Length != fileIds.Length || files.Length != hashes.Length)
@@ -653,6 +745,15 @@ namespace Tool.SymbolDaemon
             }
 
             List<SymbolFile> symbolFiles = new List<SymbolFile>(files.Length);
+
+            // customClientKeyPrefixEnvVariable is the env name that used to specify the prefix key to be prepended to the key from symbol metadata file
+            // Its value is changing over builds and it will cause unwanted cachmiss if it is passed to a non-ipc pip.
+            string customClientKeyPrefix = string.Empty;
+            if (!string.IsNullOrEmpty(customClientKeyPrefixEnvVariable))
+            {
+                customClientKeyPrefix = Environment.GetEnvironmentVariable(customClientKeyPrefixEnvVariable) ?? string.Empty;
+            }
+
             for (int i = 0; i < files.Length; i++)
             {
                 try
@@ -675,7 +776,19 @@ namespace Tool.SymbolDaemon
                     Possible<FileContentInfo> parsedResult = await ParseFileContentAsync(daemon, hashes[i], fileIds[i], files[i]);
                     var fileContentInfo = parsedResult.Result;
                     var blobIdentifier = new BlobIdentifier(fileContentInfo.Hash.ToHashByteArray());
-                    debugEntries = new HashSet<DebugEntryData>(debugEntries.Select(e => { e.BlobIdentifier = blobIdentifier; return e; }));
+                    debugEntries = new HashSet<DebugEntryData>(debugEntries.Select(e =>
+                    {
+                        // same hash may return debugEntries that have been prepended with 'customClientKeyPrefix' before. 
+                        // To prevent prepend 'customClientKeyPrefix' more than one times, create new entry instead of modifying the key on existing entry directly.
+                        return new DebugEntryData()
+                        {
+                            BlobIdentifier = blobIdentifier,
+                            //The client key from the metadata file is modified here by adding a specified suffix. Such a change is only valid for debug entries with custom client keys (i.e., not the binary files).
+                            //A caller is responsible for not mixing these two types of files in a single indexing request
+                            ClientKey = $"{customClientKeyPrefix}{e.ClientKey}",
+                            InformationLevel = e.InformationLevel
+                        };
+                    }));
 
                     symbolFiles.Add(new SymbolFile(
                         daemon.ApiClient,
@@ -703,6 +816,8 @@ namespace Tool.SymbolDaemon
             var directoryPaths = Directory.GetValues(conf.Config).ToArray();
             var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
             var symbolMetadataFile = SymbolMetadataFile.GetValue(conf.Config);
+            var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
+            var customClientKeyPrefixEnvVariable = CustomClientKeyPrefixEnvVariable.GetValue(conf.Config);
 
             if (directoryPaths.Length != directoryIds.Length)
             {
@@ -711,12 +826,25 @@ namespace Tool.SymbolDaemon
                     I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}"));
             }
 
+            if (directoryPaths.Length != directoryFilters.Length)
+            {
+                return new IpcResult(
+                    IpcResultStatus.GenericError,
+                    I($"DirectoryContentFilter counts don't match: #directories = {directoryPaths.Length}, #directoryFilters = {directoryFilters.Length}"));
+            }
+
             if (daemon.ApiClient == null)
             {
                 return new IpcResult(IpcResultStatus.GenericError, "ApiClient is not initialized");
             }
 
-            var maybeResult = await GetDedupedDirectoriesContentAsync(directoryIds, directoryPaths, daemon.ApiClient);
+            var possibleFilters = InitializeFilters(directoryFilters);
+            if (!possibleFilters.Succeeded)
+            {
+                return new IpcResult(IpcResultStatus.InvalidInput, possibleFilters.Failure.Describe());
+            }
+
+            var maybeResult = await GetDedupedDirectoriesContentAsync(directoryIds, directoryPaths, daemon.ApiClient, possibleFilters.Result);
             if (!maybeResult.Succeeded)
             {
                 return new IpcResult(
@@ -724,7 +852,7 @@ namespace Tool.SymbolDaemon
                     "could not get the directory content from BuildXL server: " + maybeResult.Failure.Describe());
             }
 
-            if (maybeResult.Result.Count == 0)
+            if (maybeResult.Result.All(l => l.Count == 0))
             {
                 return IpcResult.Success($"Directories ({string.Join(",", directoryIds)}) have no content.");
             }
@@ -732,14 +860,14 @@ namespace Tool.SymbolDaemon
             var filesPaths = new List<string>();
             var filesIds = new List<string>();
             var hashes = new List<string>();
-            foreach (var file in maybeResult.Result)
+            foreach (var file in maybeResult.Result.SelectMany(l => l))
             {
                 filesPaths.Add(file.FileName);
                 filesIds.Add(BuildXL.Ipc.ExternalApi.FileId.ToString(file.Artifact));
                 hashes.Add(file.ContentInfo.Render());
             }
 
-            return await AddSymbolFilesInternalAsync(filesPaths.ToArray(), filesIds.ToArray(), hashes.ToArray(), symbolMetadataFile, daemon);
+            return await AddSymbolFilesInternalAsync(filesPaths.ToArray(), filesIds.ToArray(), hashes.ToArray(), symbolMetadataFile, customClientKeyPrefixEnvVariable, daemon);
         }
 
         #endregion
@@ -836,7 +964,7 @@ namespace Tool.SymbolDaemon
                 // we might end up with IpcResultStatus.GenericError when we merge results for a single pip. This might happen if
                 // pip's files were processed in different batches and batches failed for different reasons. This will throw off
                 // our classification, but this should be a rather rare event.
-                e.Handle(x => 
+                e.Handle(x =>
                 {
                     if (x is DaemonException daemonException)
                     {

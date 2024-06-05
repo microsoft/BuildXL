@@ -327,7 +327,10 @@ namespace BuildXL.Scheduler
             if ((PipType == PipType.Process || PipType == PipType.Ipc) && ExecutionResult == null)
             {
                 Contract.Assert(Environment.IsTerminating, "Attempted to cancel a pip prior its execution but the scheduler is not terminating.");
-                SetExecutionResult(ExecutionResult.GetCancelResult(LoggingContext));
+                SetExecutionResult(IsDistributedWorker 
+                    // If a pip being cancelled on a worker, set RetryInfo.
+                    ? ExecutionResult.GetRetryableNotRunResult(LoggingContext, RetryInfo.GetDefault(RetryReason.RemoteWorkerFailure))
+                    : ExecutionResult.GetCancelResult(LoggingContext));
             }
 
             return PipExecutionStep.Cancel;

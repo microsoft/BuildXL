@@ -174,7 +174,6 @@ public static class AzureBlobStorageCacheFactory
                 Topology = topology,
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,
                 Announcer = announcer,
-                IsReadOnly = configuration.IsReadOnly,
             });
     }
 

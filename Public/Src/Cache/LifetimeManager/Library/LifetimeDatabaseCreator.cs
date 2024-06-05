@@ -18,7 +18,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities;
@@ -286,7 +285,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     // TODO: consider using pooled memory streams.
                     using var stream = new MemoryStream();
 
-                    BlobQuotaKeeper.BlobVersion? version = null;
                     try
                     {
                         var response = await blobClient.DownloadToAsync(stream, context.Token);
@@ -295,8 +293,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         {
                             return new Result<ProcessContentHashListResult>($"Download of the content hash list failed with status code: {response.Status}");
                         }
-
-                        version = BlobQuotaKeeper.BlobVersion.FromBlobResponse(response);
                     }
                     catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
                     {
@@ -312,14 +308,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     // We use "now" as last access time because we just downloaded the blob, and thus we just affected the CHL's blob last access time.
                     // Adding a minute to account for clocks not being in sync. In the grand scheme of things, an error of one minute shouldn't make a difference.
                     var lastAccessTime = clock.UtcNow.AddMinutes(1);
-                    if (version is not null)
-                    {
-                        version = version.Value with { LastAccessTimeUtc = version.Value.LastAccessTimeUtc.Max(lastAccessTime) };
-                    }
-                    else
-                    {
-                        version = BlobQuotaKeeper.BlobVersion.FromLastAccessTime(lastAccessTime);
-                    }
 
                     var processResult = await ProcessContentHashListAsync(context, blobName, blobLength, contentHashList, lastAccessTime, database, topology);
 
@@ -331,7 +319,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     if (!processResult.Value)
                     {
                         // This signals that one of the referenced blobs does not exist. The CHL is invalid and should be deleted.
-                        var deleteResult = await BlobQuotaKeeper.DeleteBlobFromStorageAsync(context, blobClient, blobLength, version);
+                        var deleteResult = await BlobQuotaKeeper.DeleteBlobFromStorageAsync(context, blobClient, blobLength, lastAccessTime);
                         if (!deleteResult.Succeeded)
                         {
                             return new Result<ProcessContentHashListResult>(deleteResult, "Failed to delete invalid content hash list.");
@@ -414,6 +402,15 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 hashes);
 
             return true;
+        }
+
+        private static DateTime GetLastAccessTime(
+            BlobItem blob)
+        {
+            var offset = blob.Properties.LastAccessedOn ?? blob.Properties.CreatedOn;
+            Contract.Assert(offset is not null);
+
+            return offset.Value.UtcDateTime;
         }
     }
 }

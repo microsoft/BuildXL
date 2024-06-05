@@ -58,11 +58,6 @@ public sealed record AzureBlobStorageContentStoreConfiguration
         // This is a catch-all for all cases that go over the sizes above.
         new UploadOperationTimeout(long.MaxValue, TimeSpan.FromHours(24)),
     };
-
-    /// <summary>
-    /// Whether this session is supposed to be read-only or read-write.
-    /// </summary>
-    public bool IsReadOnly { get; internal set; }
 }
 
 /// <summary>

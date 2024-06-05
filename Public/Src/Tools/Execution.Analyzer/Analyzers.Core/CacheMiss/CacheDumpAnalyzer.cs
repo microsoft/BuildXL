@@ -243,7 +243,7 @@ namespace BuildXL.Execution.Analyzer
 
             if (!info.StrongFingerprintComputation.Succeeded)
             {
-                var dxCodesOfInterest = I($"DX{LogEventId.DisallowedFileAccessInTopOnlySourceSealedDirectory:D4}, DX{LogEventId.DisallowedFileAccessInSealedDirectory:D4}, DX{LogEventId.PathSetValidationTargetFailedAccessCheck:D4}");
+                var dxCodesOfInterest = I($"DX{(int)LogEventId.DisallowedFileAccessInTopOnlySourceSealedDirectory:D4}, DX{(int)LogEventId.DisallowedFileAccessInSealedDirectory:D4}, DX{(int)LogEventId.PathSetValidationTargetFailedAccessCheck:D4}");
                 writer.WriteLine("Strong fingerprint computation failed.");
                 writer.WriteLine($"  This occurs if graph/policy was changed such that pip is no longer allowed to access");
                 writer.WriteLine($"  a path contained in the prior observed inputs (e.g., dependent seal directory contents");

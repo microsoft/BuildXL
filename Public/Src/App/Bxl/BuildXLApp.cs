@@ -969,10 +969,23 @@ namespace BuildXL
 
             var sessionId = ComputeSessionId(relatedActivityId, m_configuration);
             var currentDirectory = Directory.GetCurrentDirectory();
+
+            // Collect the remote repo URL and log it with DominoInvocationEvent for all the dev builds.
+            var gitRemoteRepoStopWatch = new StopwatchVar();
+            string gitRemoteRepoUrl = null;
+            Possible<(string gitRemoteRepoUrl, string gitConfigFileName)> gitRemoteRepoInfo;
+
+            using (gitRemoteRepoStopWatch.Start())
+            {
+                var captureGitInfo = GitInfoManager.Create(startDirectory: currentDirectory);
+                gitRemoteRepoInfo = captureGitInfo.GetRemoteRepoUrl();
+                gitRemoteRepoUrl = gitRemoteRepoInfo.Succeeded ? gitRemoteRepoInfo.Result.gitRemoteRepoUrl : null;
+            }
+
             LoggingContext topLevelContext = new LoggingContext(
                 relatedActivityId,
                 Branding.ProductExecutableName,
-                new LoggingContext.SessionInfo(sessionId, ComputeEnvironment(m_configuration), relatedActivityId));
+                new LoggingContext.SessionInfo(sessionId, ComputeEnvironment(m_configuration, gitRemoteRepoUrl: gitRemoteRepoUrl), relatedActivityId));
 
             using (PerformanceMeasurement pm = PerformanceMeasurement.StartWithoutStatistic(
                 topLevelContext,
@@ -1005,22 +1018,23 @@ namespace BuildXL
                         translatedLogDirectory = pathTranslator != null ? pathTranslator.Translate(logDirectory) : logDirectory;
                     }
 
-                    var gitRemoteRepoStopWatch = new StopwatchVar();
-                    string gitRemoteRepoUrl = null;
-                    // Collect the remote repo URL and log it with DominoInvocationEvent for all the dev builds.
-                    using (gitRemoteRepoStopWatch.Start())
+                    // Log the GitConfigFileName information or related failure to telemetry.
+                    if (gitRemoteRepoInfo.Succeeded)
                     {
-                        var captureGitInfo = new GitInfoManager(loggingContext, startDirectory: currentDirectory);
-                        gitRemoteRepoUrl = captureGitInfo.GetRemoteRepoUrl();
+                        Logger.Log.FoundGitConfigFile(loggingContext, gitRemoteRepoInfo.Result.gitConfigFileName);
+                    }
+                    else
+                    {
+                        Logger.Log.FailedToCaptureGitRemoteRepoInfo(loggingContext, gitRemoteRepoInfo.Failure.Describe());
                     }
 
                     Tracing.Logger.Log.Statistic(
-                        loggingContext,
-                        new Statistic()
-                        {
-                            Name = Statistics.GetGitRepoInfoTime,
-                            Value = (long)gitRemoteRepoStopWatch.TotalElapsed.TotalMilliseconds
-                        });
+                      loggingContext,
+                      new Statistic()
+                      {
+                          Name = Statistics.GetGitRepoInfoTime,
+                          Value = (long)gitRemoteRepoStopWatch.TotalElapsed.TotalMilliseconds
+                      });
 
                     // Check if the current Linux distro version is supported by BuildXL or not.
                     if (OperatingSystemHelper.IsLinuxOS)
@@ -2054,7 +2068,7 @@ namespace BuildXL
 
         #endregion
 
-        public static string ComputeEnvironment(IConfiguration configuration)
+        public static string ComputeEnvironment(IConfiguration configuration, string gitRemoteRepoUrl = null)
         {
             using (var builderPool = Pools.StringBuilderPool.GetInstance())
             {
@@ -2065,6 +2079,13 @@ namespace BuildXL
                 // Using a map to capture all the traceInfoProperties, which can be later used for removal of duplicates.
                 // If the user has passed a buildProperty through traceInfo flag,then that value is used to override the value to be set by the build properties methods.
                 Dictionary<string, string> traceInfoProperties = CaptureBuildInfo.CaptureTelemetryEnvProperties(configuration);
+
+                // Codebase represents the code or product being built.
+                // We use GitRemoteRepoUrl as codebase property value when we fail to obtain it from ADO predefined env variable or if not set by the user.
+                if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.CodeBaseKey) && !string.IsNullOrEmpty(gitRemoteRepoUrl))
+                {
+                    traceInfoProperties.Add(CaptureBuildProperties.CodeBaseKey, gitRemoteRepoUrl);
+                }
 
                 foreach (KeyValuePair<string, string> traceInfo in traceInfoProperties.OrderBy(kvp => kvp.Key, StringComparer.InvariantCultureIgnoreCase))
                 {

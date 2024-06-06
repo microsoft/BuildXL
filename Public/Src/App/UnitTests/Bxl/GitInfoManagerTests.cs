@@ -3,7 +3,7 @@
 
 using System.IO;
 using BuildXL;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -28,18 +28,19 @@ namespace Test.BuildXL
 
             // Search from A/B/C
             var gitInfoManager = CreateGitInfoManager(gitRoot);
-            string url = gitInfoManager.GetRemoteRepoUrl();
-            XAssert.AreEqual(CaptureGitInfoTestsProperties.ExpectedGitRepoUrlWithOrigin, url);
+            Possible<(string gitRemoteRepoUrl, string gitConfigFileName)> gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.AreEqual(CaptureGitInfoTestsProperties.ExpectedGitRepoUrlWithOrigin, gitRemoteRepoInfo.Result.gitRemoteRepoUrl);
 
             // Search from A/B/C/D/E
             gitInfoManager = CreateGitInfoManager(Path.Combine(gitRoot, "D", "E"));
-            url = gitInfoManager.GetRemoteRepoUrl();
-            XAssert.AreEqual(CaptureGitInfoTestsProperties.ExpectedGitRepoUrlWithOrigin, url);
+            gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.AreEqual(CaptureGitInfoTestsProperties.ExpectedGitRepoUrlWithOrigin, gitRemoteRepoInfo.Result.gitRemoteRepoUrl);
 
             // Search from A/B (missing .git folder)
             gitInfoManager = CreateGitInfoManager(Path.GetDirectoryName(gitRoot));
-            url = gitInfoManager.GetRemoteRepoUrl();
-            XAssert.AreEqual(null, url);
+            gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.IsFalse(gitRemoteRepoInfo.Succeeded);
+            XAssert.IsTrue(gitRemoteRepoInfo.Failure.Describe().Contains(".git folder is not found after searching from"));
         }
 
         [Fact]
@@ -50,18 +51,21 @@ namespace Test.BuildXL
 
             // Search from A/B/C
             var gitInfoManager = CreateGitInfoManager(gitRoot);
-            string url = gitInfoManager.GetRemoteRepoUrl();
-            XAssert.AreEqual(null, url);
+            Possible<(string gitRemoteRepoUrl, string gitConfigFileName)> gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.IsFalse(gitRemoteRepoInfo.Succeeded);
+            XAssert.IsTrue(gitRemoteRepoInfo.Failure.Describe().Contains("Git config file is not found in"));
 
             // Search from A/B/C/D/E
             gitInfoManager = CreateGitInfoManager(Path.Combine(gitRoot, "D", "E"));
-            url = gitInfoManager.GetRemoteRepoUrl();
-            XAssert.AreEqual(null, url);
+            gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.IsFalse(gitRemoteRepoInfo.Succeeded);
+            XAssert.IsTrue(gitRemoteRepoInfo.Failure.Describe().Contains("Git config file is not found in"));
 
             // Search from A/B (missing .git folder)
             gitInfoManager = CreateGitInfoManager(Path.GetDirectoryName(gitRoot));
-            url = gitInfoManager.GetRemoteRepoUrl();
-            XAssert.AreEqual(null, url);
+            gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.IsFalse(gitRemoteRepoInfo.Succeeded);
+            XAssert.IsTrue(gitRemoteRepoInfo.Failure.Describe().Contains("git folder is not found after searching from"));
         }
 
         [Fact]
@@ -72,8 +76,9 @@ namespace Test.BuildXL
 
             // Search from A/B/C
             var gitInfoManager = CreateGitInfoManager(gitRoot);
-            string url = gitInfoManager.GetRemoteRepoUrl();
-            XAssert.AreEqual(null, url);
+            Possible<(string gitRemoteRepoUrl, string gitConfigFileName)> gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.IsFalse(gitRemoteRepoInfo.Succeeded);
+            XAssert.IsTrue(gitRemoteRepoInfo.Failure.Describe().Contains("did not find remote repo URL"));
         }
 
         private string WriteGitConfigFile(string relativeDir, string gitConfigContent)
@@ -95,7 +100,7 @@ namespace Test.BuildXL
             return Path.Combine(TemporaryDirectory, relativePath);
         }
 
-        private GitInfoManager CreateGitInfoManager(string startDirectory) => GitInfoManager.CreateForTesting(new LoggingContext("Test"), startDirectory, TemporaryDirectory);
+        private GitInfoManager CreateGitInfoManager(string startDirectory) => GitInfoManager.Create(startDirectory, TemporaryDirectory);
 
         [Theory]
         [InlineData(CaptureGitInfoTestsProperties.GitConfigWithSpacesForOrigin, CaptureGitInfoTestsProperties.ExpectedGitRepoUrlWithOrigin)]

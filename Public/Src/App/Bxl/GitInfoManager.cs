@@ -42,97 +42,68 @@ namespace BuildXL
         private static readonly Regex s_remoteSectionRegex = new(@"^\[\s*(?i)remote(?-i)\s*""\s*(.*?)""\s*\]");
         private static readonly Regex s_remoteUrlRegex = new(@"^\s*(?i)url(?-i)\s*=\s*(.*)$");
 
-        private readonly LoggingContext m_loggingContext;
         private readonly string m_startDirectory;
         private readonly string? m_endDirectory;
+
+        private GitInfoManager(string startDirectory, string? endDirectory)
+        {
+            m_startDirectory = startDirectory;
+            m_endDirectory = endDirectory;
+        }
 
         /// <summary>
         /// Creates an instance of <see cref="GitInfoManager"/>.
         /// </summary>
-        /// <param name="loggingContext">Logging context.</param>
         /// <param name="startDirectory">Starting directory for finding Git config file.</param>
-        public GitInfoManager(LoggingContext loggingContext, string startDirectory)
-            : this(loggingContext, startDirectory, null)
+        /// <param name="endDirectory">End directory for finding Git config file.</param>
+        public static GitInfoManager Create(string startDirectory, string? endDirectory = default)
         {
-        }
+            startDirectory = normalizePath(startDirectory);
+            endDirectory = endDirectory == null ? endDirectory : normalizePath(endDirectory);
 
-        private GitInfoManager(LoggingContext loggingContext, string startDirectory, string? endDirectory)
-        {
-            m_loggingContext = loggingContext;
-            m_startDirectory = Path.GetFullPath(startDirectory);
-            m_endDirectory = endDirectory != null ? Path.GetFullPath(endDirectory) : null;
-            Validate(m_startDirectory, m_endDirectory);
-        }
-
-        internal static GitInfoManager CreateForTesting(LoggingContext loggingContext, string startDirectory, string? endDirectory) =>
-            new(loggingContext, startDirectory, endDirectory);
-
-        private static void Validate(string startDirectory, string? endDirectory)
-        {
-            if (string.IsNullOrEmpty(endDirectory))
-            {
-                // Production code.
-                return;
-            }
-
-            // Run during testing.
-            startDirectory = EnsureDirectory(startDirectory);
-            endDirectory = EnsureDirectory(endDirectory);
-
-            if (!startDirectory.StartsWith(endDirectory, OperatingSystemHelper.PathComparison))
+            if (endDirectory != null && !startDirectory.StartsWith(endDirectory + Path.DirectorySeparatorChar, OperatingSystemHelper.PathComparison))
             {
                 throw new ArgumentException($"Start directory '{startDirectory}' is not a prefix path of end directory '{endDirectory}'.");
             }
 
-            static string EnsureDirectory(string directory) => !directory.EndsWith(Path.DirectorySeparatorChar) ? directory + Path.DirectorySeparatorChar : directory;
+            return new GitInfoManager(startDirectory, endDirectory);
+
+            static string normalizePath(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar);
+
         }
 
         /// <summary>
         /// Gets the remote repo URL.
         /// </summary>
-        public string? GetRemoteRepoUrl()
+        public Possible<(string gitRemoteRepoUrl, string gitConfigFileName)> GetRemoteRepoUrl()
         {
             const string FailurePrefix = "Failed to get Git remote repo URL because";
             DirectoryInfo? gitDirectory = GetLocalRepoRoot();
             if (gitDirectory == null)
             {
-                Logger.Log.FailedToCaptureGitRemoteRepoInfo(
-                    m_loggingContext,
-                    $"{FailurePrefix} .git folder is not found after searching from '{m_startDirectory}'");
-                return null;
+                return new Failure<string>($"{FailurePrefix} .git folder is not found after searching from '{m_startDirectory}'");
             }
 
             FileInfo? gitConfigFile = gitDirectory.GetFiles("config").FirstOrDefault();
             if (gitConfigFile == null)
             {
-                Logger.Log.FailedToCaptureGitRemoteRepoInfo(
-                    m_loggingContext,
-                    $"{FailurePrefix} Git config file is not found in '{gitDirectory.FullName}'");
-                return null;
+                return new Failure<string>($"{FailurePrefix} Git config file is not found in '{gitDirectory.FullName}'");
             }
-
-            Logger.Log.FoundGitConfigFile(m_loggingContext, gitConfigFile.FullName);
 
             Possible<string?> maybeRemoteUrl = ParseGitConfigContent(gitConfigFile);
 
             if (!maybeRemoteUrl.Succeeded)
             {
-                Logger.Log.FailedToCaptureGitRemoteRepoInfo(
-                    m_loggingContext,
-                    $"{FailurePrefix} parsing '{gitConfigFile.FullName}' resulted in failure: {maybeRemoteUrl.Failure.DescribeIncludingInnerFailures()}");
-                return null;
+                return new Failure<string>($"{FailurePrefix} parsing '{gitConfigFile.FullName}' resulted in failure: {maybeRemoteUrl.Failure.DescribeIncludingInnerFailures()}");
             }
 
             string? remoteUrl = maybeRemoteUrl.Result;
             if (remoteUrl == null)
             {
-                Logger.Log.FailedToCaptureGitRemoteRepoInfo(
-                    m_loggingContext,
-                    $"{FailurePrefix} parsing '{gitConfigFile.FullName}' did not find remote repo URL");
-                return null;
+                return new Failure<string>($"{FailurePrefix} parsing '{gitConfigFile.FullName}' did not find remote repo URL");
             }
 
-            return remoteUrl;
+            return (gitRemoteRepoUrl: remoteUrl, gitConfigFileName: gitConfigFile.FullName);
         }
 
         internal static string? ParseGitConfigContent(string gitConfigFileContent)

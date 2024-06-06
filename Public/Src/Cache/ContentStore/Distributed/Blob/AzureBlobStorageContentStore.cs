@@ -58,6 +58,34 @@ public sealed record AzureBlobStorageContentStoreConfiguration
         // This is a catch-all for all cases that go over the sizes above.
         new UploadOperationTimeout(long.MaxValue, TimeSpan.FromHours(24)),
     };
+
+    /// <summary>
+    /// Whether this session is supposed to be read-only or read-write.
+    /// </summary>
+    public bool IsReadOnly { get; internal set; }
+
+    /// <summary>
+    /// The amount of time since the last touch before we allow issuing a write-touch which will cause the content's
+    /// ETag to change.
+    /// </summary>
+    /// <remarks>
+    /// This number was picked to ensure we don't do any hard touches on content that was recently used, as a way to
+    /// prevent having too many ETag changes, which put a bit of extra stress on downloaders.
+    /// </remarks>
+    public TimeSpan AllowHardTouchThreshold { get; set; } = TimeSpan.FromHours(12);
+
+    /// <summary>
+    /// The amount of time since the last touch before we force issue a write-touch which will cause the content's
+    /// ETag to change.
+    /// </summary>
+    /// <remarks>
+    /// This number was picked to ensure we keep the content with access times below 24h, which is when content might
+    /// become eligible for deletion.
+    ///
+    /// Please note that between 12h and 22h, we'll touch with a probability that increases quadratically with the time
+    /// that passed since 12h.
+    /// </remarks>
+    public TimeSpan ForceHardTouchThreshold { get; set; } = TimeSpan.FromHours(22);
 }
 
 /// <summary>

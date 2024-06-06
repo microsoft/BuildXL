@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
@@ -17,14 +18,20 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tracing;
+using Polly;
+using Polly.Retry;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using Context = BuildXL.Cache.ContentStore.Interfaces.Tracing.Context;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -56,12 +63,15 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
 
     private readonly List<Func<Context, ContentHash, Task>> _contentNotFoundListeners = new();
 
+    private readonly IClock _clock;
+
     /// <nodoc />
-    public AzureBlobStorageContentSession(Configuration sessionConfiguration, AzureBlobStorageContentStore store)
+    public AzureBlobStorageContentSession(Configuration sessionConfiguration, AzureBlobStorageContentStore store, IClock? clock = null)
         : base(sessionConfiguration.Name)
     {
         _sessionConfiguration = sessionConfiguration;
         _configuration = _sessionConfiguration.StoreConfiguration;
+        _clock = clock ?? SystemClock.Instance;
 
         _store = store;
         _clientAdapter = new BlobStorageClientAdapter(
@@ -88,7 +98,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             {
                 (var client, blobPath) = await GetBlobClientAsync(context, contentHash);
                 // Let's make sure that we bump the last access time
-                var touchResult = await _clientAdapter.TouchAsync(context, client);
+                var touchResult = await TouchAsync(context, client);
 
                 if (!touchResult.Succeeded)
                 {
@@ -144,7 +154,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         // 3. People often want to seek in the stream, so we can't just return a network-backed stream to a file
         //    being downloaded at the current time.
         var temporaryPath = _fileSystem.GetTempPath() / Guid.NewGuid().ToString();
-        var result = await PlaceRemoteFileAsync(context, contentHash, temporaryPath, FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists).ThrowIfFailureAsync();
+        var result = await DownloadToFileAsync(context, contentHash, temporaryPath, FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists).ThrowIfFailureAsync();
         switch (result.ResultCode)
         {
             case PlaceFileResult.ResultCode.PlacedWithHardLink:
@@ -176,7 +186,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
-        var remoteDownloadResult = await PlaceRemoteFileAsync(context, contentHash, path, accessMode, replacementMode).ThrowIfFailureAsync();
+        var remoteDownloadResult = await DownloadToFileAsync(context, contentHash, path, accessMode, replacementMode).ThrowIfFailureAsync();
         var result = new PlaceFileResult(
             code: remoteDownloadResult.ResultCode,
             fileSize: remoteDownloadResult.FileSize ?? 0,
@@ -229,117 +239,43 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         return (FileStream)stream;
     }
 
-    private async Task<Result<RemoteDownloadResult>> PlaceRemoteFileAsync(
+    private readonly AsyncRetryPolicy _conflictRetryPolicy = Policy
+        // This exception will be thrown when:
+        // 1. An upload happens in parallel with a download
+        // 2. The file already exists, so the upload decides to touch it
+        // 3. The download downloads the first block of the file and then the upload touches it.
+        // 4. Because the download will fetch subsequent blocks using an If-Match condition with the ETag of the
+        //    first block, the download will fail with a PreconditionFailed error.
+        // In these cases, we'll just immediately retry the operation, as the touch has already happened.
+        .Handle<RequestFailedException>(e => e.Status == (int)HttpStatusCode.PreconditionFailed)
+        .WaitAndRetryAsync(
+            retryCount: 5,
+            sleepDurationProvider: attempt => TimeSpan.FromMilliseconds(Math.Pow(2, attempt)));
+
+    private async Task<Result<RemoteDownloadResult>> DownloadToFileAsync(
         OperationContext context,
         ContentHash contentHash,
         AbsolutePath path,
         FileAccessMode accessMode,
         FileReplacementMode replacementMode)
     {
-        AbsoluteBlobPath? blobPath = null;
+        (var client, var blobPath) = await GetBlobClientAsync(context, contentHash);
+
         var result = await context.PerformOperationWithTimeoutAsync(
             Tracer,
             async context =>
             {
-                var statistics = new DownloadStatistics();
-                long fileSize;
-                ContentHash observedContentHash;
-
-                var stopwatch = StopwatchSlim.Start();
-                BlobClient client;
-                try
+                return await _conflictRetryPolicy.ExecuteAsync((pollyContext) =>
                 {
-                    (client, blobPath) = await GetBlobClientAsync(context, contentHash);
-                    stopwatch.ElapsedAndReset();
-
-                    using var fileStream = OpenFileStream(path);
-                    statistics.OpenFileStreamDuration = stopwatch.ElapsedAndReset();
-
-                    await using (var hashingStream = HashInfoLookup
-                                     .GetContentHasher(contentHash.HashType)
-                                     .CreateWriteHashingStream(
-                                         fileStream,
-                                         parallelHashingFileSizeBoundary: _configuration.ParallelHashingFileSizeBoundary))
-                    {
-                        var blobDownloadToOptions = new BlobDownloadToOptions()
-                        {
-                            TransferOptions = new StorageTransferOptions()
-                            {
-                                InitialTransferSize = _configuration.InitialTransferSize,
-                                MaximumTransferSize = _configuration.MaximumTransferSize,
-                                MaximumConcurrency = _configuration.MaximumConcurrency,
-                            },
-                        };
-
-                        // The following download is done in parallel onto the hashing stream. The hashing stream will
-                        // itself run the hashing of the input in parallel as well.
-                        await client.DownloadToAsync(
-                            hashingStream,
-                            blobDownloadToOptions,
-                            cancellationToken: context.Token);
-                        statistics.DownloadDuration = stopwatch.ElapsedAndReset();
-
-                        observedContentHash = await hashingStream.GetContentHashAsync();
-                        statistics.HashingDuration = hashingStream.TimeSpentHashing;
-                    }
-
-                    statistics.WriteDuration = fileStream.GetWriteDurationIfAvailable() ?? TimeSpan.MinValue;
-                    fileSize = fileStream.Length;
-                }
-                // This exception will be thrown whenever storage tries to do the first operation on the blob, which
-                // should be in the DownloadToAsync.
-                catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
-                {
-                    statistics.DownloadDuration ??= stopwatch.ElapsedAndReset();
-
-                    await TryNotify(context, new DeleteEvent(blobPath!.Value, contentHash));
-                    return Result.Success(new RemoteDownloadResult
-                    {
-                        ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                        FileSize = null,
-                        DownloadResult = statistics
-                    });
-                }
-
-                if (observedContentHash != contentHash)
-                {
-                    // TODO: there should be some way to either notify or delete the file in storage
-                    Tracer.Error(context, $"Expected to download file with hash {contentHash} into file {path}, but found {observedContentHash} instead");
-
-                    // The file we downloaded on to disk has the wrong file. Delete it so it can't be used incorrectly.
-                    try
-                    {
-                        _fileSystem.DeleteFile(path);
-                    }
-                    catch (Exception exception)
-                    {
-                        return new Result<RemoteDownloadResult>(exception, $"Failed to delete {path} containing partial download results for content {contentHash}");
-                    }
-
-                    return Result.Success(
-                        new RemoteDownloadResult()
-                        {
-                            ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                            FileSize = fileSize,
-                            DownloadResult = statistics,
-                        });
-                }
-
-                await TryNotify(context, new AddEvent(blobPath!.Value, contentHash, fileSize));
-                return Result.Success(
-                    new RemoteDownloadResult
-                    {
-                        ResultCode = PlaceFileResult.ResultCode.PlacedWithCopy,
-                        FileSize = fileSize,
-                        DownloadResult = statistics,
-                    });
+                    return TryDownloadToFileAsync(context, contentHash, path, blobPath, client);
+                }, context.Token);
             },
             traceOperationStarted: false,
             timeout: _configuration.StorageInteractionTimeout,
             extraEndMessage: r =>
                              {
                                  var baseline =
-                                     $"ContentHash=[{contentHash.ToShortString()}] Path=[{path}] AccessMode=[{accessMode}] ReplacementMode=[{replacementMode}] BlobPath=[{blobPath.ToString() ?? "UNKNOWN"}]";
+                                     $"ContentHash=[{contentHash.ToShortString()}] Path=[{path}] AccessMode=[{accessMode}] ReplacementMode=[{replacementMode}] BlobPath=[{blobPath}]";
                                  if (!r.Succeeded)
                                  {
                                      return baseline;
@@ -365,6 +301,100 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         }
 
         return result;
+    }
+
+    private async Task<Result<RemoteDownloadResult>> TryDownloadToFileAsync(OperationContext context, ContentHash contentHash, AbsolutePath path, AbsoluteBlobPath blobPath, BlobClient client)
+    {
+        var statistics = new DownloadStatistics();
+        long fileSize;
+        ContentHash observedContentHash;
+
+        var stopwatch = StopwatchSlim.Start();
+        try
+        {
+            stopwatch.ElapsedAndReset();
+
+            using var fileStream = OpenFileStream(path);
+            statistics.OpenFileStreamDuration = stopwatch.ElapsedAndReset();
+
+            await using (var hashingStream = HashInfoLookup
+                             .GetContentHasher(contentHash.HashType)
+                             .CreateWriteHashingStream(
+                                 fileStream,
+                                 parallelHashingFileSizeBoundary: _configuration.ParallelHashingFileSizeBoundary))
+            {
+                var blobDownloadToOptions = new BlobDownloadToOptions()
+                {
+                    TransferOptions = new StorageTransferOptions()
+                    {
+                        InitialTransferSize = _configuration.InitialTransferSize,
+                        MaximumTransferSize = _configuration.MaximumTransferSize,
+                        MaximumConcurrency = _configuration.MaximumConcurrency,
+                    },
+                };
+
+                // The following download is done in parallel onto the hashing stream. The hashing stream will
+                // itself run the hashing of the input in parallel as well.
+                await client.DownloadToAsync(
+                    hashingStream,
+                    blobDownloadToOptions,
+                    cancellationToken: context.Token);
+                statistics.DownloadDuration = stopwatch.ElapsedAndReset();
+
+                observedContentHash = await hashingStream.GetContentHashAsync();
+                statistics.HashingDuration = hashingStream.TimeSpentHashing;
+            }
+
+            statistics.WriteDuration = fileStream.GetWriteDurationIfAvailable() ?? TimeSpan.MinValue;
+            fileSize = fileStream.Length;
+        }
+        // This exception will be thrown whenever storage tries to do the first operation on the blob, which
+        // should be in the DownloadToAsync.
+        catch (RequestFailedException e) when (e.ErrorCode == BlobErrorCode.BlobNotFound)
+        {
+            statistics.DownloadDuration ??= stopwatch.ElapsedAndReset();
+
+            await TryNotify(context, new DeleteEvent(blobPath, contentHash));
+            return Result.Success(new RemoteDownloadResult
+            {
+                ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
+                FileSize = null,
+                DownloadResult = statistics
+            });
+        }
+
+        if (observedContentHash != contentHash)
+        {
+            // TODO: there should be some way to either notify or delete the file in storage
+            Tracer.Error(context, $"Expected to download file with hash {contentHash} into file {path}, but found {observedContentHash} instead");
+
+            // The file we downloaded on to disk has the wrong file. Delete it so it can't be used incorrectly.
+            try
+            {
+                _fileSystem.DeleteFile(path);
+            }
+            catch (Exception exception)
+            {
+                return new Result<RemoteDownloadResult>(exception, $"Failed to delete {path} containing partial download results for content {contentHash}");
+            }
+
+            return Result.Success(
+                new RemoteDownloadResult()
+                {
+                    ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
+                    FileSize = fileSize,
+                    DownloadResult = statistics,
+                });
+        }
+
+        await TryNotify(context, new AddEvent(blobPath, contentHash, fileSize));
+        return Result.Success(
+            new RemoteDownloadResult
+            {
+                ResultCode = PlaceFileResult.ResultCode.PlacedWithCopy,
+                FileSize = fileSize,
+                DownloadResult = statistics,
+            });
     }
 
     /// <inheritdoc />
@@ -543,7 +573,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             // it knows that the new CHL exists. By touching the content, the last access time for this blob will
             // now be above the deletion threshold (GC will not delete blobs touched more recently than 24 hours ago)
             // and the race condition is eliminated.
-            var touchResult = await _clientAdapter.TouchAsync(context, client);
+            var touchResult = await TouchAsync(context, client);
 
             if (!touchResult.Succeeded)
             {
@@ -571,6 +601,53 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         }
 
         return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache);
+    }
+
+    private async Task<Result<(DateTimeOffset? dateTimeOffset, long? contentLength)>> TouchAsync(OperationContext context, BlobClient client)
+    {
+        // There's two kinds of touch: write and read-only. The write touch forces an update of the blob's
+        // metadata, which changes the ETag. The read-only touch does a 1 byte download. The write touch is a
+        // "forceful" method, which works but interacts with chunked downloads of files in a not-so-nice way.
+        //
+        // We really want to avoid the write touch because it'll fail any downloads that may be happening in parallel,
+        // which is a problem for large files. if we can, so we try to do a read-only touch first. If that tells
+        // us that the last access time was too long ago, we'll also perform a write-only touch.
+        var result = await _clientAdapter.TouchAsync(context, client, hard: false);
+        if (_configuration.IsReadOnly || !result.Succeeded)
+        {
+            return result;
+        }
+
+        var now = _clock.UtcNow;
+        var lastAccessTime = result.Value.dateTimeOffset ?? now;
+        if (lastAccessTime > now)
+        {
+            lastAccessTime = now;
+        }
+
+        var timeSinceLastAccess = now - lastAccessTime;
+
+        // When we're below the minimum threshold, we explicitly disallow write-touches. This prevents spurious updates
+        // from happening.
+        if (timeSinceLastAccess < _configuration.AllowHardTouchThreshold)
+        {
+            return result;
+        }
+
+        // When we're over the force threshold, we'll force a write-touch. When we're below the threshold, we'll do
+        // this probabilistically to prevent too many write-touches from happening. The intention is that the number of
+        // these touches will be low, but that they will happen when the blob is accessed for the first time after a
+        // while.
+        //
+        // Because a single touch is enough to force a reset, this should mostly be good enough because it's quite
+        // unlikely that a lot of these happen.
+        double lastAccessFraction = Math.Min((timeSinceLastAccess - _configuration.AllowHardTouchThreshold).TotalHours / (_configuration.ForceHardTouchThreshold - _configuration.AllowHardTouchThreshold).TotalHours, 1.0);
+        if (timeSinceLastAccess < _configuration.ForceHardTouchThreshold && ThreadSafeRandom.ContinuousUniform(0.0, 1.0) > Math.Pow(lastAccessFraction, 2))
+        {
+            return result;
+        }
+
+        return await _clientAdapter.TouchAsync(context, client, hard: true);
     }
 
     private Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)

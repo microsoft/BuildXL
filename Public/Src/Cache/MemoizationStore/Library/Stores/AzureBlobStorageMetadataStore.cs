@@ -248,7 +248,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                             async strongFingerprintTask =>
                             {
                                 var strongFingerprint = await strongFingerprintTask;
-                                return await _storageClientAdapter.TouchAsync(context, await GetStrongFingerprintClientAsync(context, strongFingerprint));
+                                return await _storageClientAdapter.TouchAsync(context, await GetStrongFingerprintClientAsync(context, strongFingerprint), hard: false);
                             });
 
                     return (await TaskUtilities.SafeWhenAll(tasks)).And();

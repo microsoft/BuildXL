@@ -2,6 +2,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240531.3.1 (Release [387989](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=387989))
+- Small tweaks for Ubuntu 22.04 support
+- Update .NET runtime versions
+- Update SBOM dependencies
+
 # 0.1.0-20240525.1.1 (Release [386412](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=386412))
 - Preserve errno on internal system calls from the Linux Sandbox.
 - Fix checks for non-files on Linux Sandbox.

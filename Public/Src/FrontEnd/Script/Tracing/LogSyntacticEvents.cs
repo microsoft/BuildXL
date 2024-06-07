@@ -29,7 +29,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Function applications without const/let bindings are not allowed as top level statements. The exceptions are '" + Names.ConfigurationFunctionCall +
             "' and '" + Names.ModuleConfigurationFunctionCall + "' in configuration and module files.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportFunctionApplicationsWithoutConstLetBindingAreNotAllowedTopLevel(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -38,7 +38,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Top level declarations are constant. Use const binding to express this behavior.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportOnlyConstBindingOnNamespaceLevel(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -47,7 +47,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Top level declarations should not be of mutable types. Mutable data structures are allowed only as an implementation detail for pure functions.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNoMutableDeclarationsAtTopLevel(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -56,7 +56,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Public functions should not return mutable types.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNoMutableDeclarationsAtExposedFunctions(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -65,7 +65,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Only type, function declarations and const binding are allowed as top level statements, but expression of type '{type}' was found.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportOnlyTypeAndFunctionDeclarationsAndConstBindingsAreAllowedTopLevel(LoggingContext context, Location location, string type);
 
         [GeneratedEvent(
@@ -74,7 +74,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Labels are not allowed in DScript.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportLabelsAreNotAllowed(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -83,7 +83,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'var' declarations are not allowed in DScript. Use 'const' or 'let' instead.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportVarDeclarationNotAllowed(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -92,7 +92,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'throw' is not allowed in DScript.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportThrowNotAllowed(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -101,7 +101,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'null' is not allowed in DScript.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNullNotAllowed(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -110,7 +110,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "The function 'eval' is not available in DScript.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportEvalIsNotAllowed(LoggingContext context, Location location);
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "{message}",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportTypeScriptSyntaxError(LoggingContext context, Location location, string message);
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "{message}",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportTypeScriptBindingError(LoggingContext context, Location location, string message);
 
         /// <summary>
@@ -146,7 +146,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "{message}",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportTypeScriptFeatureIsNotSupported(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
@@ -173,7 +173,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Syntax is obsolete. Use 'import * as ...' instead.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportImportStarIsObsolete(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -182,7 +182,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Member '{member}' is obsolete.{message}",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportMemberIsObsolete(LoggingContext context, Location location, string member, string message);
 
         [GeneratedEvent(
@@ -191,7 +191,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'import * as' syntax is not supported in DScript V2.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportImportStarIsNotSupportedWithSemanticResolution(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -200,7 +200,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Declarations are implicitly readonly in DScript. Please remove 'readonly' modifier from the declaration.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedReadonlyModifier(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -209,16 +209,16 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier type value must be a string literal.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportQualifierSpaceValueMustBeStringLiteral(LoggingContext context, Location location);
-        
+
         [GeneratedEvent(
             (ushort)LogEventId.QualifierSpaceValueMustBeValidValue,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier type  must have a valid value. '{value}' is not. ';' and '=' are not allowed.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportQualifierSpaceValueMustBeValidValue(LoggingContext context, Location location, string value);
 
         [GeneratedEvent(
@@ -227,7 +227,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier type must have a valid qualifier key. '{key}' is not. ';' and '=' are not allowed.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportQualifierSpaceValueMustBeValidKey(LoggingContext context, Location location, string key);
 
         [GeneratedEvent(
@@ -236,7 +236,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier type property cannot be a shorthand property assignment.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportQualifierSpacePropertyCannotBeInShorthand(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -245,7 +245,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier type must be a non-empty array literal.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportQualifierSpacePossibleValuesMustBeNonEmptyArrayLiteral(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -254,7 +254,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Interpolation function '{interpolationFunction} is not allowed.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedInterpolation(LoggingContext context, Location location, string interpolationFunction);
 
         [GeneratedEvent(
@@ -263,7 +263,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Symbol type is not allowed in DScript.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedSymbolKeyword(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -272,7 +272,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Default arguments are not allowed in DScript.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedDefaultArguments(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -281,7 +281,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Method declaration '{member}' is not allowed in object literals.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedMethodDeclarationInEnumMember(LoggingContext context, Location location, string member);
 
         [GeneratedEvent(
@@ -290,7 +290,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "class declarations are not allowed in DScript.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError | Keywords.Diagnostics))]
         public abstract void ReportNotSupportedClassDeclaration(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -299,7 +299,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "class expressions are not allowed in DScript.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError | Keywords.Diagnostics))]
         public abstract void ReportNotSupportedClassExpression(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -308,7 +308,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'new' expressions are not allowed in DScript.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError | Keywords.Diagnostics))]
         public abstract void ReportNotSupportedNewExpression(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -317,7 +317,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "The 'from' clause of an import statement can only be a string literal, but '{moduleSpecifier}' was found.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportImportModuleSpecifierIsNotAStringLiteral(LoggingContext context, Location location, string moduleSpecifier);
 
         [GeneratedEvent(
@@ -326,7 +326,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Method 'importFrom' can only be passed a string literal, but '{moduleSpecifier}' was found.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportImportFromNotPassedAStringLiteral(LoggingContext context, Location location, string moduleSpecifier);
 
         [GeneratedEvent(
@@ -335,7 +335,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Method 'importFile' can only be passed a file literal, but '{moduleSpecifier}' was found.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportImportFileNotPassedAFileLiteral(LoggingContext context, Location location, string moduleSpecifier);
 
         [GeneratedEvent(
@@ -344,7 +344,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "For-incrementor expression must be an assignment expression of the form 'identifier = expression', 'identifier += expression', 'identifier -= expression', or a postfix increment 'identifer++' or postfix decrement 'identifier--'.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportForIncrementorMustBeAssignmentOrPostfixIncrementOrDecrement(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -353,7 +353,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Variable declaration '{name}' must have an initializer.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportVariableMustBeInitialized(LoggingContext context, Location location, string name);
 
         [GeneratedEvent(
@@ -362,7 +362,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Variable declaration for for-intializer must be of the form 'let identifier = expression'.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInvalidForVarDeclarationInitializer(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -371,7 +371,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Variable declaration for for-of-initializer must be of the form 'let identifier'.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInvalidForOfVarDeclarationInitializer(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -380,7 +380,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "for-in loops are not allowed in DScript. Use for-of loops instead.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportForInLoopsNotSupported(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -389,7 +389,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Non-constant enums are not allowed. Add 'const' modifier to enum declaration.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedNonConstEnums(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -398,7 +398,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Floating point numbers are not allowed in DScript.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError | Keywords.Diagnostics))]
         public abstract void ReportNotSupportedFloatingPoints(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -407,7 +407,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Literal '{literal}' is outside the range of 'number'. DScript does not support the numeric value 'Infinity'.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError | Keywords.Diagnostics))]
         public abstract void ReportLiteralOverflows(LoggingContext context, Location location, string literal);
 
         [GeneratedEvent(
@@ -416,7 +416,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Keyword 'extends' is expected.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportOnlyExtendsClauseIsAllowedInHeritageClause(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -425,7 +425,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Unexpected expression '{expression}'. An interface can only be extended by an identifier with optional type parameters.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInterfacesOnlyExtendedByIdentifiers(LoggingContext context, Location location, string expression);
 
         [GeneratedEvent(
@@ -434,7 +434,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Non-strict equality ('==') is not allowed. Use strict equality ('===') instead.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedNonStrictEquality(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -443,7 +443,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Modifier '{modifier}' is not allowed on an import declaration.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedModifiersOnImport(LoggingContext context, Location location, string modifier);
 
         [GeneratedEvent(
@@ -452,7 +452,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'export import' is obsolete. Please convert this into two separate statements: an import and an export declaration.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedExportImport(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -461,7 +461,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "A declaration is being exported, but its containing namespace is not. Maybe you forgot to export the namespace?",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportExportedDeclarationInsideANonExportedNamespace(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -470,7 +470,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Export declarations are not allowed in a namespace.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportExportsAreNotAllowedInsideNamespaces(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -479,7 +479,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Default import/export is not allowed in DScript. Use `import {{name}} from spec` syntax instead.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportDefaultImportsNotAllowed(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -488,7 +488,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Custom ambient declarations are not allowed in DScript.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNotSupportedCustomAmbientFunctions(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -497,7 +497,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Division operator is not allowed. Maybe you tried to create a path? Use an explicit path operator in that case. E.g. p`a/b/c`.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportDivisionOperatorIsNotSupported(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -506,7 +506,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier declaration should be the only one in the statement. " + QualifierDeclarationExample,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void QualifierDeclarationShouldBeAloneInTheStatement(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -515,7 +515,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Template declaration should be the only one in the statement. " + TemplateDeclarationExample,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void TemplateDeclarationShouldBeAloneInTheStatement(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -524,7 +524,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier declaration does not contain all required modifiers. " + QualifierDeclarationExample,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void QualifierDeclarationShouldBeConstExportAmbient(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -533,7 +533,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Template declaration does not contain all required modifiers. " + TemplateDeclarationExample,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void TemplateDeclarationShouldBeConstExportAmbient(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -542,7 +542,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Template declaration should be the first statement in the block.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void TemplateDeclarationShouldBeTheFirstStatement(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -551,7 +551,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier declaration should include a type declaration. " + QualifierDeclarationExample,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void QualifierTypeShouldBePresent(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -560,7 +560,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier key should be an identifier. " + QualifierDeclarationExample,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void QualifierLiteralMemberShouldBeAnIdentifier(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -569,7 +569,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier type member should be a string literal, or a union of string literals. " + QualifierDeclarationExample,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void QualifierLiteralTypeMemberShouldHaveStringLiteralType(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -578,7 +578,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier type should reference an interface or be an inline type literal. " + QualifierDeclarationExample,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void QualifierTypeShouldBeAnInterfaceOrTypeLiteral(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -587,7 +587,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier type should reference '{wellKnownQualifierType}' type or reference an interface that directly inherits from it.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void QualifierInterfaceTypeShouldBeOrInheritFromQualifier(LoggingContext context, Location location, string wellKnownQualifierType);
 
         [GeneratedEvent(
@@ -596,7 +596,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier type members should not be optional.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void QualifierOptionalMembersAreNotAllowed(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -605,7 +605,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "The type name '{wellKnownQualifierType}' is reserved.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportQualifierTypeNameIsReserved(LoggingContext context, Location location, string wellKnownQualifierType);
 
         [GeneratedEvent(
@@ -614,7 +614,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "The current qualifier can only be referenced as '{currentQualifier}'. Namespace qualifications are not allowed.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportCurrentQualifierCannotBeAccessedWithQualifications(LoggingContext context, Location location, string currentQualifier);
 
         [GeneratedEvent(
@@ -623,7 +623,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Expression expected.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportExpressionExpected(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -632,7 +632,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'{currentQualifier}' is a reserved keyword that can only be used in variable declarations.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportQualifierNameCanOnlyBeUsedInVariableDeclarations(LoggingContext context, Location location, string currentQualifier);
 
         [GeneratedEvent(
@@ -641,7 +641,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'{template}' is a reserved keyword that can only be used in variable declarations.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportTemplateNameCanOnlyBeUsedInVariableDeclarations(LoggingContext context, Location location, string template);
 
         [GeneratedEvent(
@@ -650,7 +650,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Qualifier declarations can only occur directly under a namespace or at the top level of a file.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void QualifierDeclarationShouldBeTopLevel(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -659,7 +659,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Template declarations can only occur directly under a namespace or at the top level of a file.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void TemplateDeclarationShouldBeTopLevel(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -668,7 +668,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Path-based specifier '{specifier}' is not allowed in a spec that belongs to a module with implicit reference semantics. Make sure the value you want to reference is exported and reference it directly.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportProjectLikeImportOrExportNotAllowedInModuleWithImplicitSemantics(LoggingContext context, Location location, string specifier);
 
         [GeneratedEvent(
@@ -677,7 +677,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "An initializer must be present in template declarations.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void TemplateDeclarationShouldHaveInitializer(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -686,7 +686,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Template declaration should include a type declaration.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void TemplateDeclarationShouldHaveAType(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -695,7 +695,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Template type cannot be 'any'.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void TemplateDeclarationShouldNotHaveAnyType(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -704,7 +704,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'{rootNamespaceName}' is a reserved keyword.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportRootNamespaceIsAKeyword(LoggingContext context, Location location, string rootNamespaceName);
 
         [GeneratedEvent(
@@ -713,7 +713,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Found package name '{packageName}' in '{functionName}' call. Only relative paths (e.g. './Foo.dsc' or '/Bar.dsc') are allowed in '{functionName}' calls.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNamedImportInConfigOrPackage(LoggingContext context, Location location, string functionName, string packageName);
 
         [GeneratedEvent(
@@ -722,7 +722,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Found package name '{packageName}' in '{functionName}' call, which resembles a file path. Only relative and rooted paths are allowed, which must start with './', '/', or a drive.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNamedImportInConfigOrPackageLikePath(LoggingContext context, Location location, string functionName, string packageName);
 
         [GeneratedEvent(
@@ -731,7 +731,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Found config, package, or module file '{packageName}' in '{functionName}' call. These file types cannot expose anything.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNamedImportOfConfigPackageModule(LoggingContext context, Location location, string functionName, string packageName);
 
         [GeneratedEvent(
@@ -740,7 +740,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Found 'importFile' call in a spec file. Use 'importFrom' instead.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportImportFileInSpec(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -749,7 +749,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Found non-module name '{packageName}' in 'importFrom' call in a spec file. 'importFrom' may only be passed module names (e.g. 'MyModule', not './path/to/spec') in projects within implicit semantics modules.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportImportFromV2Package(LoggingContext context, Location location, string packageName);
 
         [GeneratedEvent(
@@ -758,7 +758,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Ambient '{lhsName}.{rhsName}' cannot be used in a config file.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportAmbientAccessInConfig(LoggingContext context, Location location, string lhsName, string rhsName);
 
         [GeneratedEvent(
@@ -767,7 +767,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Module '{moduleName}' should not import itself.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportModuleShouldNotImportItself(LoggingContext context, Location location, string moduleName);
 
         [GeneratedEvent(
@@ -776,7 +776,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Binding pattern in variable declarations '{bindingPattern}' is not allowed in DScript.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportBindingPatternInVariableDeclarationIsNowAllowed(LoggingContext context, Location location, string bindingPattern);
     }
 }

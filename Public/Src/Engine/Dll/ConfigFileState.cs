@@ -34,11 +34,6 @@ namespace BuildXL.Engine
         public readonly FileAccessAllowlist FileAccessAllowlist;
 
         /// <summary>
-        /// An optional string to add to pip fingerprints; thus creating a separate cache universe.
-        /// </summary>
-        public readonly string CacheSalt;
-
-        /// <summary>
         /// Directory enumeration fingerprinter exceptions from the config
         /// </summary>
         public readonly DirectoryMembershipFingerprinterRuleSet DirectoryMembershipFingerprinterRules;
@@ -54,13 +49,11 @@ namespace BuildXL.Engine
         public ConfigFileState(
             FileAccessAllowlist fileAccessAllowlist,
             string defaultPipFilter,
-            string cacheSalt,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules,
             IList<IModuleConfiguration> moduleConfigurations)
         {
             FileAccessAllowlist = fileAccessAllowlist;
             DefaultPipFilter = defaultPipFilter ?? string.Empty;
-            CacheSalt = cacheSalt ?? string.Empty;
             DirectoryMembershipFingerprinterRules = directoryMembershipFingerprinterRules;
             ModuleConfigurations = moduleConfigurations;
         }
@@ -74,7 +67,6 @@ namespace BuildXL.Engine
 
             FileAccessAllowlist.Serialize(writer);
             writer.Write(DefaultPipFilter);
-            writer.Write(CacheSalt);
             DirectoryMembershipFingerprinterRules.Serialize(writer);
 
             writer.WriteCompact(ModuleConfigurations.Count);
@@ -100,7 +92,6 @@ namespace BuildXL.Engine
 
             FileAccessAllowlist allowlist = await FileAccessAllowlist.DeserializeAsync(reader, contextTask);
             string defaultFilter = reader.ReadString();
-            string cacheSalt = reader.ReadString();
             DirectoryMembershipFingerprinterRuleSet ruleSet = DirectoryMembershipFingerprinterRuleSet.Deserialize(reader);
 
             int moduleConfigurationsCount = reader.ReadInt32Compact();
@@ -117,7 +108,7 @@ namespace BuildXL.Engine
             }
 
             // TODO: Read everything else instead of doing it in many different places?
-            return new ConfigFileState(allowlist, defaultFilter, cacheSalt, ruleSet, moduleConfigurations);
+            return new ConfigFileState(allowlist, defaultFilter, ruleSet, moduleConfigurations);
         }
 
         /// <summary>
@@ -128,11 +119,6 @@ namespace BuildXL.Engine
             if (!string.IsNullOrEmpty(DefaultPipFilter))
             {
                 mutableConfig.Engine.DefaultFilter = DefaultPipFilter;
-            }
-
-            if (!string.IsNullOrEmpty(CacheSalt))
-            {
-                mutableConfig.Cache.CacheSalt = CacheSalt;
             }
 
             // This codepath is for a cached build, so we are not setting the allowlists on the configuration object.

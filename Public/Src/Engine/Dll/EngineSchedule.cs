@@ -256,7 +256,6 @@ namespace BuildXL.Engine
             ConfigFileState configFileState = new ConfigFileState(
                                                     allowList,
                                                     configuration.Engine.DefaultFilter,
-                                                    configuration.Cache.CacheSalt,
                                                     directoryMembershipFingerprinterRules,
                                                     moduleConfigurations);
 
@@ -292,7 +291,7 @@ namespace BuildXL.Engine
                     directoryMembershipFingerprinterRules: directoryMembershipFingerprinterRules,
                     journalState: journalState,
                     performanceCollector: performanceCollector,
-                    fingerprintSalt: configFileState.CacheSalt,
+                    fingerprintSalt: configuration.Cache.CacheSalt,
                     previousInputsSalt: previousOutputsSalt.Value,
                     directoryTranslator: directoryTranslator,
                     pipTwoPhaseCache: twoPhaseCache,
@@ -1706,7 +1705,7 @@ namespace BuildXL.Engine
                         tempCleaner: tempCleaner,
                         performanceCollector: performanceCollector,
                         previousInputsSalt: previousOutputsSalt.Value,
-                        fingerprintSalt: configFileState.CacheSalt,
+                        fingerprintSalt: newConfiguration.Cache.CacheSalt,
                         directoryTranslator: directoryTranslator,
                         pipTwoPhaseCache: pipTwoPhaseCache,
                         buildEngineFingerprint: buildEngineFingerprint,

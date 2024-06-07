@@ -17,6 +17,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using FrontEndEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
+using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace Test.BuildXL.EngineTests
 {
@@ -162,6 +163,27 @@ namespace Test.BuildXL.EngineTests
             RunEngine("Fourth Build");
             AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
             AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+        }
+
+        [Fact]
+        public void MiniBuildFingerprintSalt()
+        {
+            SetupMiniBuild();
+            Configuration.Cache.CacheSalt = "initial";
+            RunEngine("initial build");
+            AssertInformationalEventLogged(SchedulerEventId.ProcessPipCacheMiss);
+            AssertNotLogged(SchedulerEventId.ProcessPipCacheHit);
+
+            RunEngine("rerun after initial build");
+            AssertInformationalEventLogged(LogEventId.EndDeserializingEngineState);
+            AssertNotLogged(SchedulerEventId.ProcessPipCacheMiss);
+            AssertInformationalEventLogged(SchedulerEventId.ProcessPipCacheHit);
+
+            Configuration.Cache.CacheSalt = "NewSalt";
+            RunEngine("rerun after salt");
+            AssertInformationalEventLogged(LogEventId.EndDeserializingEngineState);
+            AssertInformationalEventLogged(SchedulerEventId.ProcessPipCacheMiss);
+            AssertNotLogged(SchedulerEventId.ProcessPipCacheHit);
         }
 
         [Fact]

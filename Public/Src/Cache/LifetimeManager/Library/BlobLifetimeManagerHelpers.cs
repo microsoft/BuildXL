@@ -64,7 +64,7 @@ internal static class BlobLifetimeManagerHelpers
                         Tracer.Warning(context, $"Container {container.Name} in account {client.AccountName} has " +
                             $"(Universe=[{name.Universe}], Namespace=[{name.Namespace}]), which is not listed in the configuration.");
 
-                        await deleteUntrackedContainerIfNeeded(context, db, client, deletionThreshold, container, name, namespaceId);
+                        await deleteUntrackedContainerIfNeeded(context, db, client, deletionThreshold, container, name, namespaceId, clock);
 
                         continue;
                     }
@@ -75,7 +75,7 @@ internal static class BlobLifetimeManagerHelpers
                             Tracer.Warning(context, $"Container {container.Name} in account {client.AccountName} has Matrix=[{name.Matrix}], which does" +
                                 $"not match current matrix=[{metadataMatrix}]. Resharding is likely to have occurred.");
 
-                            await deleteUntrackedContainerIfNeeded(context, db, client, deletionThreshold, container, name, namespaceId);
+                            await deleteUntrackedContainerIfNeeded(context, db, client, deletionThreshold, container, name, namespaceId, clock);
 
                             continue;
                         }
@@ -87,7 +87,7 @@ internal static class BlobLifetimeManagerHelpers
                             Tracer.Warning(context, $"Container {container.Name} in account {client.AccountName} has Matrix=[{name.Matrix}], which does" +
                                 $"not match current matrix=[{contentMatrix}]. Resharding is likely to have occurred.");
 
-                            await deleteUntrackedContainerIfNeeded(context, db, client, deletionThreshold, container, name, namespaceId);
+                            await deleteUntrackedContainerIfNeeded(context, db, client, deletionThreshold, container, name, namespaceId, clock);
 
                             continue;
                         }
@@ -119,7 +119,8 @@ internal static class BlobLifetimeManagerHelpers
             DateTime? deletionThreshold,
             BlobContainerItem container,
             BlobCacheContainerName name,
-            BlobNamespaceId namespaceId)
+            BlobNamespaceId namespaceId,
+            IClock clock)
         {
             if (deletionThreshold is null)
             {
@@ -127,7 +128,18 @@ internal static class BlobLifetimeManagerHelpers
             }
 
             var lastAccessTime = db.GetNamespaceLastAccessTime(namespaceId, name.Matrix);
-            if (lastAccessTime is null || lastAccessTime < deletionThreshold)
+            if (lastAccessTime is null)
+            {
+                // When this happens, we have no information about the container. This means it currently exists, but
+                // there were no events processed during GC. Such cases can only happen when the container was created
+                // after the threshold at which we no longer process events for GC.
+                //
+                // In these cases, we'll set the access time to now, which means that if the next GC run doesn't see
+                // any events for this container, it will consider it for deletion.
+                Tracer.Debug(context, $"Marking untracked container. Account=[{client.AccountName}], Container=[{container.Name}]");
+                db.SetNamespaceLastAccessTime(namespaceId, name.Matrix, clock.UtcNow);
+            }
+            else if (lastAccessTime < deletionThreshold)
             {
                 Tracer.Debug(context, $"Deleting old untracked container. Account=[{client.AccountName}], Container=[{container.Name}], LastAccessTime=[{lastAccessTime}]");
 

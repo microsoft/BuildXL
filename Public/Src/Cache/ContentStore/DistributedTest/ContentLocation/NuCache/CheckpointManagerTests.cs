@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
@@ -95,7 +96,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         [Fact]
         public void CanJsonSerializeMachineLocation()
         {
-            TestJsonRoundtrip(MachineLocation.Parse("grpc://machine:12334/"));
+            TestJsonRoundtrip(MachineLocation.Parse($"grpc://machine:{GrpcConstants.DefaultGrpcPort}/"));
+            TestJsonRoundtrip(MachineLocation.Parse($"grpcs://machine:{GrpcConstants.DefaultEncryptedGrpcPort}/"));
             TestJsonRoundtrip(MachineLocation.Parse(@"\\DS4PNPF000066FA\D$\DBS\CACHE\CONTENTADDRESSABLESTORE\SHARED"));
             TestJsonRoundtrip(MachineLocation.Parse("node1:1234"));
             TestJsonRoundtrip(MachineLocation.Parse("node1"));

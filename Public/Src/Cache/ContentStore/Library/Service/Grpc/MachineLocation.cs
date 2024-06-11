@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Service;
 
 namespace BuildXL.Cache.ContentStore.Distributed;
 
@@ -148,6 +149,11 @@ public readonly record struct MachineLocation
             return Invalid;
         }
 
+        if (HasEncryptedPort(port))
+        {
+            return new MachineLocation(new Uri($"grpcs://{machineName}:{port}/"));
+        }
+
         return new MachineLocation(new Uri($"grpc://{machineName}:{port}/"));
     }
 
@@ -180,6 +186,11 @@ public readonly record struct MachineLocation
             var match = _hostRegex.Match(uri);
             if (match.Success)
             {
+                if (int.TryParse(match.Groups["port"].Value, out int port) && HasEncryptedPort(port))
+                {
+                    url = new Uri($"grpcs://{uri}/");
+                }
+
                 url = new Uri($"grpc://{uri}/");
             }
             else
@@ -214,7 +225,7 @@ public readonly record struct MachineLocation
         public static HostInfo Create(string host, int? port, bool? encrypted = null)
         {
             port ??= GrpcConstants.DefaultGrpcPort;
-            encrypted ??= port == GrpcConstants.DefaultEncryptedGrpcPort || port == GrpcConstants.DefaultEphemeralEncryptedGrpcPort || port == GrpcConstants.DefaultEphemeralLeaderEncryptedGrpcPort;
+            encrypted ??= HasEncryptedPort(port);
             return new HostInfo(host, port.Value, encrypted!.Value);
         }
 
@@ -294,4 +305,6 @@ public readonly record struct MachineLocation
         var info = ToGrpcHost();
         return (info.Host, info.Port);
     }
+
+    private static bool HasEncryptedPort(int? port) => port == GrpcConstants.DefaultEncryptedGrpcPort || port == GrpcConstants.DefaultEphemeralEncryptedGrpcPort || port == GrpcConstants.DefaultEphemeralLeaderEncryptedGrpcPort;
 }

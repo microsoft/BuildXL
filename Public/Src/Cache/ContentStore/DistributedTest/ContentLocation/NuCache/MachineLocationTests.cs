@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using FluentAssertions;
@@ -58,7 +59,8 @@ public class MachineLocationTests
     [Theory]
     [InlineData(null, null)]
     [InlineData(@"\\DS4PNPF000066FA\D$\DBS\CACHE\CONTENTADDRESSABLESTORE\SHARED", @"\\DS4PNPF000066FA\D$\dbs\CACHE\CONTENTADDRESSABLESTORE\SHARED")]
-    [InlineData("grpc://a.com:123", "grpc://A.CoM:123")]
+    [InlineData("grpcs://a.com:7090", "grpcs://A.CoM:7090")]
+    [InlineData("grpc://localhost:7089", "grpc://lOcAlHoST:7089")]
     public void EqualityTests(string lhs, string rhs)
     {
         var left = MachineLocation.Parse(lhs);
@@ -81,7 +83,8 @@ public class MachineLocationTests
     }
 
     [Theory]
-    [InlineData("grpc://a.com:123", "a.com", 123)]
+    [InlineData("grpcs://a.com:7090", "a.com", 7090)]
+    [InlineData("grpc://localhost:7089", "localhost", 7089)]
     [InlineData(@"\\DS4PNPF000066FA\D$\DBS\CACHE\CONTENTADDRESSABLESTORE\SHARED", "DS4PNPF000066FA", 7089)]
     [InlineData(@"node1:1234", "node1", 1234)]
     [InlineData(@"node1", "node1", 7089)]

@@ -69,7 +69,7 @@ namespace BuildXL.Utilities.Core
             // Protocol errors from gRPC operations look differently in net8
             "An HTTP/2 connection could not be established because the server did not complete the HTTP/2 handshake.",
             // Unobserved timeouts during cache operations (see work item #2162565)
-            "BuildXL.Cache.ContentStore.Service.Grpc.GrpcConnectionTimeoutException: Failed to connect to grpc://"
+            "BuildXL.Cache.ContentStore.Service.Grpc.GrpcConnectionTimeoutException: Failed to connect to grpcs://"
         };
 
         private static bool ContainsAllowedException(Exception exception)

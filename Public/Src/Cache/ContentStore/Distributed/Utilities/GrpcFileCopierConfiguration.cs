@@ -54,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         public IReadOnlyDictionary<string, string> JunctionsByDirectory { get; set; }
 
         /// <summary>
-        /// Indicates whether machine locations should use universal format (i.e. uri of form 'grpc://{machineName}:{port}/') which
+        /// Indicates whether machine locations should use universal format (i.e. uri of form 'grpcs://{machineName}:{port}/' or 'grpc://{machineName}:{port}/') which
         /// allows communication across machines of different platforms
         /// </summary>
         public bool UseUniversalLocations { get; set; }

@@ -42,7 +42,12 @@ namespace BuildXL.Utilities
             /// Enables fingerprint salting for specific pips.
             /// Ex: /pipProperty:Pip00000[PipFingerprintSalt=tooSalty]
             /// </summary>
-            PipFingerprintSalt = 3
+            PipFingerprintSalt = 3,
+
+            /// <summary>
+            /// Enable verbose tracing for ObservedInputProcessor. Debugging / investigation purposes. 
+            /// </summary>
+            ObservedInputProcessorTracing = 4,
         }
 
         /// <summary>

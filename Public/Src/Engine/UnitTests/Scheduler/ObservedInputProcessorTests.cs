@@ -32,6 +32,9 @@ using Xunit.Abstractions;
 using DirectoryMembershipFingerprinterRule = BuildXL.Scheduler.DirectoryMembershipFingerprinterRule;
 using SortedFileArtifacts =
     BuildXL.Utilities.Collections.SortedReadOnlyArray<BuildXL.Utilities.Core.FileArtifact, BuildXL.Utilities.Core.OrdinalFileArtifactComparer>;
+using System.Text;
+using BuildXL.Utilities.Debugging;
+using BuildXL.Utilities;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -764,6 +767,8 @@ namespace Test.BuildXL.Scheduler
 
                 public SemanticPathExpander PathExpander { get; }
 
+                public PipSpecificPropertiesConfig PipProperties => new(new List<PipSpecificPropertyAndValue>());
+
                 public DirectoryFingerprint? TryQueryDirectoryFingerprint(
                     AbsolutePath directoryPath,
                     CacheablePipInfo process,
@@ -835,7 +840,7 @@ namespace Test.BuildXL.Scheduler
                     return m_harness.m_sealedSourceDirectories.TryGetValue(directoryArtifact, out allDirectories);
                 }
 
-                public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence = false)
+                public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence = false, DebugTrace trace = default)
                 {
                     return m_harness.m_virtualFileSystem.TryProbeForExistence(path);
                 }

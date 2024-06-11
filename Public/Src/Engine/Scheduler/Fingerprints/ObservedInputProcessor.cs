@@ -24,6 +24,8 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.Debugging;
+using BuildXL.Utilities;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -123,7 +125,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     trackFileChanges: trackFileChanges);
             }
         }
-        
+
         /// <summary>
         /// Actual processing logic for any <see cref="IObservedInputProcessingEnvironment"/> and any <see cref="IObservedInputProcessingTarget{TObservation}"/>.
         /// This method is left internal only for testing (tests may provide a fully mocked environment, preventing observation of the real filesystem).
@@ -146,7 +148,9 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Requires(!isCacheLookup ^ observedAccessedFileNames.IsValid);
 
             var envAdapter = environment as ObservedInputProcessingEnvironmentAdapter;
-
+            var traceEnabled = EngineEnvironmentSettings.ObservedInputProcessorTracingEnabled 
+                               || environment.PipProperties?.PipHasProperty(PipSpecificPropertiesConfig.PipSpecificProperty.ObservedInputProcessorTracing, pip.SemiStableHash) == true;
+            using var debugTraces = new DebugTraceArray(enabled: traceEnabled, count: observations.Length);
             using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorProcessInternalDuration))
             using (var processingState = ObservedInputProcessingState.GetInstance())
             {
@@ -184,10 +188,10 @@ namespace BuildXL.Scheduler.Fingerprints
                     // existed before the build begun) so we could exclude them from the just-produced outputs we pass to the 
                     // fingerprint enumeration computation, but on the other hand we need to know about them for the creation time
                     // check
-                    sharedOpaqueOutputs.AddRange(unPopulatedSharedOpaqueOutputs.Values.SelectMany(fileArtifacts => 
+                    sharedOpaqueOutputs.AddRange(unPopulatedSharedOpaqueOutputs.Values.SelectMany(fileArtifacts =>
                         fileArtifacts.Select(fa => new KeyValuePair<AbsolutePath, bool>(fa.Path, fa.IsUndeclaredFileRewrite))));
                 }
-                
+
                 using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorPreProcessDuration))
                 {
                     using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorPreProcessListDirectoriesDuration))
@@ -277,7 +281,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                     observationsUnderSourceSealDirectories.Add(i);
                                 }
                             }
-                            
+
                             if (!underSealedSource)
                             {
                                 observationArtifacts.Add(path);
@@ -332,6 +336,9 @@ namespace BuildXL.Scheduler.Fingerprints
                         FileArtifact fakeArtifact = FileArtifact.CreateSourceFile(path);
                         FileMaterializationInfo? fileMaterializationInfo;
                         FileContentInfo? pathContentInfo;
+                        var debugTrace = debugTraces[i];
+
+                        debugTrace.AppendLine($"Starting second pass for {path.ToString(pathTable)}. ObservationFlags = {observationFlags}");
 
                         using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorTryQuerySealedInputContentDuration, fakeArtifact))
                         {
@@ -359,6 +366,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         }
 
                         bool wasPossiblyBad = possiblyBadAccesses.Contains(FileArtifact.CreateSourceFile(path));
+                        debugTrace.AppendLine($"Was possibly bad: {wasPossiblyBad}");
 
                         if (!allowUndeclaredSourceReads)
                         {
@@ -369,6 +377,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                     false,
                                     "Observation is either a file or a directory found to be under a seal directory, although the file may not exist physically, " +
                                     "or possibly bad access (probing or reading a file that is not specified as a dependency), or possibly directory enumeration. " +
+                                    (debugTrace.Enabled ? ("[DebugTrace: " + debugTrace.ToString() + "]") : "") +
                                     GetDiagnosticsInfo(path, pip, pathTable, directoryDependencyContentsFilePaths, sourceDirectoriesTopDirectoryOnly, sourceDirectoriesAllDirectories, observationFlags));
                             }
                         }
@@ -388,6 +397,8 @@ namespace BuildXL.Scheduler.Fingerprints
                             type = pathContentInfo.Value.Hash == WellKnownContentHashes.AbsentFile
                                 ? ObservedInputType.AbsentPathProbe
                                 : ObservedInputType.FileContentRead;
+
+                            debugTrace.AppendLine($"pathContentInfo.HasValue && pathContentInfo.Value.Existence != PathExistence.ExistsAsDirectory. Type: {type}");
                         }
                         else
                         {
@@ -405,7 +416,8 @@ namespace BuildXL.Scheduler.Fingerprints
                                     pip,
                                     observationFlags,
                                     isReadOnly: observationsUnderSourceSealDirectories.Contains(i),
-                                    trackPathExistence: trackFileChanges);
+                                    trackPathExistence: trackFileChanges,
+                                    debugTrace);
                             }
 
                             if (!maybeType.Succeeded)
@@ -433,9 +445,11 @@ namespace BuildXL.Scheduler.Fingerprints
                                         ? fileMaterializationInfo
                                         : GetObservationInfo(environment, target, observation, allowUndeclaredSourceReads, alwaysGetInputContent: true)
                                             .FileMaterializationInfoTask.GetAwaiter().GetResult());
+                                debugTrace.AppendLine($"Tried to find FileContentInfo for the accessed path, but failed. Tracked file existence: {trackFileChanges}. Observation flags {observationFlags}. Mapped path existence {maybeType.Result} to type: {type}");
                             }
                         }
 
+                        debugTrace.AppendLine($"Resolved type before reclassification: {type}");
                         observationTypes[i] = type;
 
                         if (wasPossiblyBad)
@@ -448,7 +462,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                 {
                                     undeclaredAccessCheckResult = target.OnAllowingUndeclaredAccessCheck(observation);
                                 }
-                                
+
                                 if (undeclaredAccessCheckResult == ObservedInputAccessCheckFailureAction.Fail)
                                 {
                                     // Undeclared access doesn't match any entry in the allow list.
@@ -480,12 +494,16 @@ namespace BuildXL.Scheduler.Fingerprints
                                 //   - however, if that path is under an opaque directory and lazy deletion is disabled,
                                 //     the file will always be scrubbed before the build so to this pip it will always be absent.
 
+                                debugTrace.AppendLine($"Reclassify ExistingFileProbe as AbsentPathProbe");
+
                                 environment.Counters.IncrementCounter(PipExecutorCounter.ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput);
                                 observationTypes[i] = ObservedInputType.AbsentPathProbe;
                                 continue;
                             }
                             else if (type == ObservedInputType.FileContentRead || type == ObservedInputType.ExistingFileProbe)
                             {
+                                debugTrace.AppendLine($"type == ObservedInputType.FileContentRead || type == ObservedInputType.ExistingFileProbe");
+
                                 ObservedInputAccessCheckFailureAction accessCheckFailureResult;
                                 using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorOnAccessCheckFailureDuration, fakeArtifact))
                                 {
@@ -493,7 +511,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                         observation,
                                         fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnlyOverride: false)));
                                 }
-                                
+
                                 HandleFailureResult(accessCheckFailureResult, ref status, ref invalid);
                                 continue;
                             }
@@ -536,6 +554,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         }
 
                         isUnsuppressedObservation[i] = true;
+
                     }
                 }
 
@@ -554,14 +573,16 @@ namespace BuildXL.Scheduler.Fingerprints
                 }
 
                 using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorPass3ProcessObservationInfosDuration))
-                { 
+                {
                     AbsolutePath lastAbsentPath = AbsolutePath.Invalid;
 
                     // Third and final pass
                     for (int i = 0; i < observations.Length; i++)
                     {
+                        var debugTrace = debugTraces[i];
                         if (!isUnsuppressedObservation[i])
                         {
+                            debugTrace.AppendLine($"!isUnsuppressedObservation --> continue");
                             continue;
                         }
 
@@ -575,7 +596,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
                         if (type == ObservedInputType.FileContentRead && !pathContentInfo.HasValue)
                         {
-                            Contract.Assert(false, "If the access is a file content read, then the FileContentInfo cannot be null." +
+                            var debugInfo = debugTrace.Enabled ? debugTrace.ToString() : string.Empty;
+                            Contract.Assert(false, "If the access is a file content read, then the FileContentInfo cannot be null. Diagnostics:" + debugInfo +
                                 GetDiagnosticsInfo(path, pip, pathTable, directoryDependencyContentsFilePaths, sourceDirectoriesTopDirectoryOnly, sourceDirectoriesAllDirectories, flags));
                         }
 
@@ -596,7 +618,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             case ObservedInputType.AbsentPathProbe:
                                 maybeProposed = ObservedInput.CreateAbsentPathProbe(path, flags);
 
-                                if (environment.IsPathUnderOutputDirectory(path) 
+                                if (environment.IsPathUnderOutputDirectory(path)
                                     && !directoryDependencyContentsFilePaths.Contains(path))
                                 {
                                     // Record that an absent file probe occurred under the root of a known output directory
@@ -788,10 +810,11 @@ namespace BuildXL.Scheduler.Fingerprints
                     environment.Counters.IncrementCounter(PipExecutorCounter.NumPipsUsingMinimalGraphFileSystem);
                 }
 
-                foreach (var path in enumeratedDirectories.Keys) {
+                foreach (var path in enumeratedDirectories.Keys)
+                {
                     dynamicObservations.Add((path, DynamicObservationKind.Enumeration));
                 }
-                
+
                 environment.Counters.AddToCounter(PipExecutorCounter.NumAbsentPathsEliminated, numAbsentPathsEliminated);
                 environment.Counters.AddToCounter(PipExecutorCounter.AbsentPathProbes, numAbsentPathProbes);
                 environment.Counters.AddToCounter(PipExecutorCounter.DirectoryEnumerations, numDirectoryEnumerations);
@@ -821,7 +844,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet());
                 }
                 else
-                { 
+                {
                     if (valid != observedInputs.Length)
                     {
                         Array.Resize(ref observedInputs, valid);
@@ -1309,9 +1332,14 @@ namespace BuildXL.Scheduler.Fingerprints
         ICacheConfiguration Configuration { get; }
 
         /// <summary>
+        /// Pip specific properties
+        /// </summary>
+        PipSpecificPropertiesConfig PipProperties { get;  }
+
+        /// <summary>
         /// Probes a path for existence
         /// </summary>
-        Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence);
+        Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence, DebugTrace trace = default);
 
         /// <summary>
         /// Gets the fingerprint of a directory
@@ -1676,6 +1704,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
         public SemanticPathExpander PathExpander => m_state.PathExpander;
 
+        public PipSpecificPropertiesConfig PipProperties => m_env.PipSpecificPropertiesConfig;
+
         public ObservedInputProcessingEnvironmentAdapter(
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state)
@@ -1691,7 +1721,7 @@ namespace BuildXL.Scheduler.Fingerprints
             m_pooledPipFileSystem?.Dispose();
         }
 
-        public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence = true)
+        public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence = true, DebugTrace trace = default)
         {
             // ****************** CAUTION *********************
             // The logic below is replicated conservatively in IncrementalSchedulingState.ProcessNewlyPresentPath.
@@ -1700,6 +1730,7 @@ namespace BuildXL.Scheduler.Fingerprints
             var mountInfo = PathExpander.GetSemanticPathInfo(path);
             if (mountInfo.IsValid && !mountInfo.AllowHashing)
             {
+                trace.AppendLine("mountInfo.IsValid && !mountInfo.AllowHashing => PathExistence.Nonexistent");
                 return PathExistence.Nonexistent;
             }
 
@@ -1724,6 +1755,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 //
                 // Because path existence is recorded at cache-lookup time, we will decide that the file is present
                 // when it actually wasn't, and we will crash (see bug #1838467).
+                trace.AppendLine("IsRecordedDynamicOutputForPip => PathExistence.Nonexistent");
                 return PathExistence.Nonexistent;
             }
 
@@ -1750,6 +1782,7 @@ namespace BuildXL.Scheduler.Fingerprints
             if (existence.Result != PathExistence.Nonexistent)
             {
                 // Produced file system shows the path as existent, so use that result
+                trace.AppendLine($"Produced file system shows the path as existent, so use that result. Existence {existence.Result}");
                 return existence;
             }
 
@@ -1763,6 +1796,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 var fullGraphExistExistence = FileSystemView.GetExistence(path, FileSystemViewMode.FullGraph);
                 if (fullGraphExistExistence.Result == PathExistence.ExistsAsDirectory)
                 {
+                    trace.AppendLine($"fullGraphExistExistence.Result == PathExistence.ExistsAsDirectory => PathExistence.ExistsAsDirectory");
                     return PathExistence.ExistsAsDirectory;
                 }
                 else if (fullGraphExistExistence.Result == PathExistence.ExistsAsFile)
@@ -1770,6 +1804,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     // The file is a source file so we return non-existent. This is to match legacy behavior where non-existence is returned in this case
                     // which returns NonExistent even though the real file system existence could also be ExistsAsDirectory
                     // TODO: Consider whether we should use the real file system existence which could be Nonexistent OR ExistsAsDirectory
+                    trace.AppendLine($"fullGraphExistExistence.Result == PathExistence.ExistsAsFile => The file is a source file so we return PathExistence.Nonexistent");
                     return PathExistence.Nonexistent;
                 }
                 else
@@ -1791,6 +1826,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         // so it will get a miss because the parent directories of outputs are added to Output/Graph file system after Pip2 is executed.
                         // To avoid such cache misses, we treat absent directories as existent only for probing without enumeration.
                         Counters.IncrementCounter(PipExecutorCounter.NonexistentDirectoryProbesReclassifiedAsExistingDirectoryProbe);
+                        trace.AppendLine($"NonexistentDirectoryProbesReclassifiedAsExistingDirectoryProbe => PathExistence.ExistsAsDirectory");
                         return PathExistence.ExistsAsDirectory;
                     }
 
@@ -1801,12 +1837,16 @@ namespace BuildXL.Scheduler.Fingerprints
                     // source files can't be underneath
                     // Observe this behavior is in sync wrt incremental scheduling: in case of undeclared reads, we are only returning that the directory exists when
                     // it actually exists in the real filesystem
-                    return pipInfo.UnderlyingPip.ProcessAllowsUndeclaredSourceReads && !FileSystemView.ExistCreatedDirectoryInOutputFileSystem(path) 
+                    var ret =  pipInfo.UnderlyingPip.ProcessAllowsUndeclaredSourceReads && !FileSystemView.ExistCreatedDirectoryInOutputFileSystem(path) 
                         ? existence : PathExistence.Nonexistent;
+                    trace.AppendLine($"The full graph file system doesn't know about a given directory: returning {(ret.Succeeded ? ret.Result.ToString() : ret.Failure.Describe())}");
+
+                    return ret;
                 }
             }
 
             // Return the real file system existence
+            trace.AppendLine($"Return the real file system existence {(existence.Succeeded ? existence.Result.ToString() : existence.Failure.Describe())}");
             return existence;
         }
         

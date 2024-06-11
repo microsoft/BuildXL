@@ -174,7 +174,6 @@ namespace Test.BuildXL.TestUtilities
             
             // For tests, allow writes outside of mounts unles defined otherwise
             configuration.Engine.UnsafeAllowOutOfMountWrites ??= true;
-
             customizeConfig?.Invoke(configuration);
 
             BuildXLEngine.PopulateFileSystemCapabilities(configuration, configuration, Context.PathTable, LoggingContext);

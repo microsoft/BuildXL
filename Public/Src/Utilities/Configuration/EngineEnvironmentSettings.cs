@@ -94,6 +94,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> DebugHistoricMetadataCacheFingerprintSalt = CreateSetting("BUILDXL_HISTORIC_METADATA_CACHE_FINGERPRINT_SALT", value => ProcessFingerprintSalt(value));
 
         /// <summary>
+        /// Enables verbose tracing in Observed Input Processor
+        /// </summary>
+        public static readonly Setting<bool> ObservedInputProcessorTracingEnabled = CreateSetting("BuildXLObservedInputProcessorTracingEnabled", value => value == "1");
+
+        /// <summary>
         /// Path pointing to VM command proxy needed for build in VM feature.
         /// </summary>
         public static readonly Setting<string> VmCommandProxyPath = CreateSetting("BUILDXL_VMCOMMANDPROXY_PATH", value => value);

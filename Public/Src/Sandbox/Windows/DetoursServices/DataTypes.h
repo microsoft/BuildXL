@@ -201,19 +201,6 @@ enum class ProcessDetouringStatus
     ProcessDetouringStatus_Max = 9,
 };
 
-// Keep this in sync with the C# version declared in ReportType.cs
-enum class ReportType
-{
-    ReportType_None = 0,
-    ReportType_FileAccess = 1,
-    ReportType_WindowsCall = 2,
-    ReportType_DebugMessage = 3,
-    ReportType_ProcessData = 4,
-    ReportType_ProcessDetouringStatus = 5,
-    ReportType_AugmentedFileAccess = 6,
-    ReportType_Max = 7,
-};
-
 // Keep this in sync with the C# version declared in FileAccessManifest.cs
 enum FileAccessBucketOffsetFlag
 {

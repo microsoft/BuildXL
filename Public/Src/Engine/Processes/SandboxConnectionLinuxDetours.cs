@@ -386,10 +386,10 @@ namespace BuildXL.Processes
                 Task.WhenAll(m_reportProcessor.Completion, secondaryCompletion).ContinueWith(t =>
                 {
                     LogDebug("Posting OpProcessTreeCompleted message");
-                    Process.PostAccessReport(new AccessReport
+                    Process.PostAccessReport(new SandboxReportLinux
                     {
-                        Operation = FileOperation.OpProcessTreeCompleted,
-                        PathOrPipStats = AccessReport.EncodePath("")
+                        ReportType = ReportType.FileAccess,
+                        FileOperation = ReportedFileOperation.ProcessTreeCompletedAck,
                     });
                 });
             }
@@ -642,63 +642,102 @@ namespace BuildXL.Processes
                     var messageStr = s_encoding.GetString(item.wrapper.Instance, index: 0, count: item.length);
                     var message = messageStr.AsSpan().TrimEnd('\n');
 
-                    // parse the message, consuming the span field by field. The format is:
-                    //  "%s|%d|%d|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, isDirectory, unexpectedReport, reportPath
-                    var restOfMessage = message;
-                    _ = nextField(restOfMessage, out restOfMessage);  // ignore progname
-                    var pid = AssertInt(nextField(restOfMessage, out restOfMessage));
-                    var access = (RequestedAccess)AssertInt(nextField(restOfMessage, out restOfMessage));
-                    var status = AssertInt(nextField(restOfMessage, out restOfMessage));
-                    var explicitlogging = AssertInt(nextField(restOfMessage, out restOfMessage));
-                    var err = AssertInt(nextField(restOfMessage, out restOfMessage));
-                    var opCode = AssertInt(nextField(restOfMessage, out restOfMessage));
-                    var isDirectory = AssertInt(nextField(restOfMessage, out restOfMessage));
-                    var unexpectedReport = AssertInt(nextField(restOfMessage, out restOfMessage));
-                    var path = nextField(restOfMessage, out restOfMessage);
-                    Contract.Assert(restOfMessage.IsEmpty);  // We should have reached the end of the message
+                    // Report format should be in sync with native code on Linux sandbox.
+                    // CODESYNC: Public/Src/Sandbox/Linux/ReportBuilder.cpp
 
-                    var report = new AccessReport
+                    // 1. Report Type.
+                    var restOfMessage = message;
+                    var reportType = (ReportType)AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var report = new SandboxReportLinux()
                     {
-                        Pid = (int)pid,
-                        PipId = Process.PipId,
-                        RequestedAccess = (uint)access,
-                        Status = status,
-                        ExplicitLogging = explicitlogging,
-                        Error = err,
-                        Operation = (FileOperation)opCode,
-                        PathOrPipStats = s_encoding.GetBytes(path.ToArray()),
-                        IsDirectory = isDirectory,
-                        UnexpectedReport = unexpectedReport,
+                        ReportType = reportType
                     };
+                    
+                    switch (reportType)
+                    {
+                        case ReportType.FileAccess:
+                        {
+                            /*
+                             * File Access Report Format: %d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%s\n
+                             * 
+                             * 1. Report Type
+                             * 2. System call name
+                             * 3. File Operation
+                             * 4. Process ID
+                             * 5. Parent Process ID
+                             * 6. Error
+                             * 7. Requested Access
+                             * 8. File Access Status
+                             * 9. Report Explicitly
+                             * 10. Is Directory
+                             * 11. Path
+                            */
+                            report.SystemCall = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
+                            report.FileOperation = FileOperationLinux.ToReportedFileOperation((FileOperationLinux.Operations)AssertInt(nextField(restOfMessage, out restOfMessage)));
+                            report.ProcessId = AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.ParentProcessId = AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.Error = AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.RequestedAccess = (RequestedAccess)AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.FileAccessStatus = AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.ExplicitlyReport = AssertInt(nextField(restOfMessage, out restOfMessage)); // explicitLogging?
+                            report.IsDirectory = AssertInt(nextField(restOfMessage, out restOfMessage)) != 0;
+                            report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
+
+                            if (report.FileOperation == ReportedFileOperation.ProcessExec) {
+                                // Process exec may contain a command line as well
+                                report.CommandLineArguments = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
+                            }
+
+                            break;
+                        }
+                        case ReportType.DebugMessage:
+                        {
+                            /*
+                             * Debug report format: %d|%d|%s\n
+                             * 
+                             * 1. Report Type
+                             * 2. Process ID
+                             * 3. Message
+                            */
+                            report.ProcessId = AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
+
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+
+                    Contract.Assert(restOfMessage.IsEmpty);  // We should have reached the end of the message
 
                     // Flag that a ptrace runner was requested for this pip at least once.
                     // Observe the first time this is set to true, it is guaranteed that ptrace is not tracing any part
                     // of the process tree since this just-created report has yet to be posted in order for the ptrace runner to start.
-                    if (report.Operation == FileOperation.OpProcessRequiresPtrace)
+                    if (report.FileOperation == ReportedFileOperation.ProcessRequiresPTrace)
                     {
                         m_ptraceRunnerWasRequestedForPip = true;
                     }
 
                     // update active processes
-                    if (report.Operation == FileOperation.OpProcessStart)
+                    if (report.FileOperation == ReportedFileOperation.Process)
                     {
                         // We should never get process start messages in the secondary FIFO. We run the risk of having exited the primary FIFO already,
                         // and never sending the sentinel to the secondary one.
                         Contract.Assert(item.processor.IsPrimaryFifoProcessor, "Process start messages can only arrive to the primary FIFO");
 
-                        LogDebug($"Received FileOperation.OpProcessStart for pid {report.Pid})");
-                        AddPid(report.Pid);
+                        LogDebug($"Received FileOperation.OpProcessStart for pid {report.ProcessId})");
+                        AddPid((int)report.ProcessId);
                     }
-                    else if (report.Operation == FileOperation.OpProcessExit)
+                    else if (report.FileOperation == ReportedFileOperation.ProcessExit)
                     {
-                        LogDebug($"Received FileOperation.OpProcessExit for pid {report.Pid})");
-                        RemovePid(report.Pid);
+                        LogDebug($"Received FileOperation.OpProcessExit for pid {report.ProcessId})");
+                        RemovePid((int)report.ProcessId);
                     }
 
                     // Let's check for linux-specific reports that we want to ignore
-                    if (IgnoreLinuxSpecificReports(item.processor, path, report))
+                    if (report.ReportType == ReportType.FileAccess && IgnoreLinuxSpecificReports(item.processor, report.Data))
                     {
-                        LogDebug($"Ignored access for pid {report.Pid} on '{path.ToString()}'");
+                        LogDebug($"Ignored access for pid {report.ProcessId} on '{report.Data.ToString()}'");
                         return;
                     }
 
@@ -723,7 +762,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            private bool IgnoreLinuxSpecificReports(ReportProcessor reportProcessor, ReadOnlySpan<char> path, AccessReport report)
+            private bool IgnoreLinuxSpecificReports(ReportProcessor reportProcessor, string path)
             {
                 // We have an inherent race when we the ptrace sandbox starts tracing a process and we are still interposing that same process.
                 // The code under PTraceSandbox::ExecuteWithPTraceSandbox (Public/Src/Sandbox/Linux/PTraceSandbox.cpp) is executed while the ptrace runner
@@ -734,16 +773,15 @@ namespace BuildXL.Processes
                 // but also because those are not real files (so hashing those will make bxl crash).
                 // Here we are checking first whether ptrace was requested at least once for this pip just as a minor optimization to avoid path comparisons if ptrace is not even present. 
                 // Something finer-grained could be done as well, but these path comparison operations are probably very cheap to begin with, so it is probably not worth it.
-                if (m_ptraceRunnerWasRequestedForPip &&
-                    (System.MemoryExtensions.Equals(path, reportProcessor.Info.ReportsFifoPath.AsSpan(), StringComparison.Ordinal)
-                    || System.MemoryExtensions.Equals(path, reportProcessor.Info.SecondaryFifoPath.AsSpan(), StringComparison.Ordinal)))
+                if (m_ptraceRunnerWasRequestedForPip
+                    && (path.Equals(reportProcessor.Info.ReportsFifoPath, OperatingSystemHelper.PathComparison) || path.Equals(reportProcessor.Info.SecondaryFifoPath, OperatingSystemHelper.PathComparison)))
                 {
                     return true;
                 }
 
                 // Check whether a given path is an anonymous file (a file that lives in RAM and only exists until all references to that file are dropped)
                 // The path to an anonymous file reported by stat will always be '/memfd:<fileName> (deleted)'
-                if (System.MemoryExtensions.StartsWith(path, "/memfd:".AsSpan(), StringComparison.Ordinal))
+                if (path.StartsWith("/memfd:", StringComparison.Ordinal))
                 {                     
                     return true;
                 }

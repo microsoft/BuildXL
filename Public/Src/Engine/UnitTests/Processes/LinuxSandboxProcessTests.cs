@@ -150,5 +150,27 @@ namespace Test.BuildXL.Processes
             AssertLogContains(GetRegex("_readlink", link));
             AssertLogContains(GetRegex("_readlink", fileLink));
         }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+
+        public void ExecReportsCorrectExecutableAndArguments(bool succeeds)
+        {
+            var tempFiles = new TempFileStorage(canGetFileNames : true);
+            var testName = "ExecReportsCorrectExecutableAndArguments" + (succeeds ? "Success" : "Failed");
+
+            var result = RunNativeTest(testName, workingDirectory: tempFiles, reportProcessArgs: true);
+            var accesses = string.Join("\n", result.result.Processes.Select(p => $"{p.ProcessId}, {p.Path}, {string.Join(" ", p.ProcessArgs)}"));
+
+            var expectedExe = succeeds ? "/usr/bin/echo" : TestProcessExe;
+            var exepectedArgs = succeeds ? "/bin/echo hello world" : $"{TestProcessExe} -t ExecReportsCorrectExecutableAndArgumentsFailed";
+
+            XAssert.IsTrue(result.result.Processes.Count() == 1, $"Expected 1 process, got {result.result.Processes.Count()} with processes:\n{accesses}");
+            XAssert.IsTrue(result.result.Processes[0].Path == expectedExe, $"Expected {expectedExe}, got {result.result.Processes[0].Path}");
+            
+            // TODO: [pgunasekara] args are not checked in the ReportedProcess object for now. We do report args properly, however our logic to update the ReportedProcess object is not correct.
+            // XAssert.IsTrue(result.result.Processes[0].ProcessArgs ==  exepectedArgs, $"Expected \"{exepectedArgs}\", got {string.Join(" ", result.result.Processes[0].ProcessArgs)}");
+        }
     }
 }

@@ -69,15 +69,15 @@ namespace Test.BuildXL.Processes
 
             var expectedAccesses = new List<(string, ReportedFileOperation)>()
             {
-                (unlinkedPath, ReportedFileOperation.KAuthDeleteFile),
-                (writePath, ReportedFileOperation.KAuthVNodeProbe), // stat
-                (writePath, ReportedFileOperation.KAuthReadFile), // Open
-                (writePath, ReportedFileOperation.KAuthVNodeWrite), // Write to opened fd
-                (rmdirPath, ReportedFileOperation.KAuthDeleteDir),
-                (renamedDirectoryOld, ReportedFileOperation.KAuthDeleteDir),
-                (renamedDirectoryNew, ReportedFileOperation.MacVNodeCreate),
-                (renamePathOld, ReportedFileOperation.KAuthDeleteFile),
-                (renamePathNew, ReportedFileOperation.MacVNodeCreate),
+                (unlinkedPath, ReportedFileOperation.DeleteFile),
+                (writePath, ReportedFileOperation.Probe), // stat
+                (writePath, ReportedFileOperation.ReadFile), // Open
+                (writePath, ReportedFileOperation.WriteFile), // Write to opened fd
+                (rmdirPath, ReportedFileOperation.RemoveDirectory),
+                (renamedDirectoryOld, ReportedFileOperation.RemoveDirectory),
+                (renamedDirectoryNew, ReportedFileOperation.CreateFile),
+                (renamePathOld, ReportedFileOperation.DeleteFile),
+                (renamePathNew, ReportedFileOperation.CreateFile),
                 (staticProcessArtifact.Path.ToString(Context.PathTable), ReportedFileOperation.Process),
                 (staticProcessArtifact.Path.ToString(Context.PathTable), ReportedFileOperation.ProcessExit),
             };
@@ -92,10 +92,8 @@ namespace Test.BuildXL.Processes
                 .Select(i => $"{i.Operation}: '{i.GetPath(Context.PathTable)}'")
                 .ToList();
 
-            // 5 fork and 5 exit calls are expected here
-            // 1 fork + 1 exit for the main process
             // 4 fork calls inside the statically linked process, and 4 matching exits
-            var expectedForkAndExitCount = 10;
+            var expectedForkAndExitCount = 8;
 
             XAssert.IsTrue(forksAndExits.Count() == expectedForkAndExitCount, $"Mismatch in the number of process creations and exits. Expected {expectedForkAndExitCount}, got {forksAndExits.Count()}. Process creations and exits:\n{string.Join("\n", forksAndExits)}");
             XAssert.IsTrue(intersection.Count == expectedAccesses.Count, $"Ptrace sandbox did not report the following accesses: {string.Join("\n", expectedAccesses.Except(intersection).ToList())}");
@@ -179,7 +177,7 @@ namespace Test.BuildXL.Processes
 
             // We should get a report where we see the creation attempt that results in a file exists error
             result.AllUnexpectedFileAccesses.Single(fa =>
-                fa.Operation == ReportedFileOperation.KAuthCreateDir &&
+                fa.Operation == ReportedFileOperation.CreateDirectory &&
                 fa.ManifestPath == existentFile &&
                 fa.Error != 0);
 
@@ -195,7 +193,7 @@ namespace Test.BuildXL.Processes
 
             // We should get a report where we see the creation attempt with a successful error code
             result.AllUnexpectedFileAccesses.Single(fa =>
-                fa.Operation == ReportedFileOperation.KAuthCreateDir &&
+                fa.Operation == ReportedFileOperation.CreateDirectory &&
                 fa.Error == 0);
 
             AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 2);
@@ -331,7 +329,7 @@ namespace Test.BuildXL.Processes
            
             // We should get a report where we see the deletion attempt that results in an absent dir error
             result.FileAccesses.Single(fa =>
-                fa.Operation == ReportedFileOperation.KAuthDeleteDir &&
+                fa.Operation == ReportedFileOperation.RemoveDirectory &&
                 fa.ManifestPath == directory &&
                 fa.Error != 0);
 
@@ -348,7 +346,7 @@ namespace Test.BuildXL.Processes
 
             // We should get a report where we see the deletion attempt with a successful error code
             result.FileAccesses.Single(fa =>
-                fa.Operation == ReportedFileOperation.KAuthDeleteDir &&
+                fa.Operation == ReportedFileOperation.RemoveDirectory &&
                 fa.ManifestPath == directory &&
                 fa.Error == 0);
 
@@ -389,7 +387,7 @@ namespace Test.BuildXL.Processes
 
             // We should get a report where we see the write attempt
             result.FileAccesses.Single(fa =>
-                fa.Operation == ReportedFileOperation.KAuthVNodeWrite &&
+                fa.Operation == ReportedFileOperation.WriteFile &&
                 fa.GetPath(Context.PathTable).Equals(dummyFile.Path.ToString(Context.PathTable), StringComparison.Ordinal));
 
             AssertVerboseEventLogged(ProcessesLogEventId.PTraceSandboxLaunchedForPip, 1);

@@ -30,13 +30,85 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 namespace BuildXL.Processes
 {
     /// <summary>
+    /// Represents a parsed report from the Linux Sandbox.
+    /// </summary>
+    public struct SandboxReportLinux
+    {
+        /// <summary>
+        /// The type of report sent back that will specify how the report should be interpreted.
+        /// </summary>
+        public ReportType ReportType;
+
+        /// <summary>
+        /// The name of the system call that generated this report.
+        /// </summary>
+        public string SystemCall;
+
+        /// <summary>
+        /// The reported file operation.
+        /// </summary>
+        public ReportedFileOperation FileOperation;
+
+        /// <summary>
+        /// The process id of the process that generated this report.
+        /// </summary>
+        /// <remarks>
+        /// On a fork/clone event, this will be the child process id.
+        /// </remarks>
+        public uint ProcessId;
+
+        /// <summary>
+        /// The parent process id of the process that generated this report.
+        /// </summary>
+        /// /// <remarks>
+        /// On a fork/clone event, this will be the process id of the caller of fork/clone.
+        /// </remarks>
+        public uint ParentProcessId;
+
+        /// <summary>
+        /// If the report was an exec operation, then the command line arguments will be stored here.
+        /// </summary>
+        public string CommandLineArguments;
+
+        /// <summary>
+        /// If the system call failed and set errno, this will be the errno value.
+        /// </summary>
+        public uint Error;
+        
+        /// <summary>
+        /// Represents a path if this is a file access report, or a message if this is a debug report.
+        /// </summary>
+        public string Data;
+
+        /// <summary>
+        /// Represents whether the reported path was a directory.
+        /// </summary>
+        public bool IsDirectory;
+
+        /// <summary>
+        /// The requested access for this report.
+        /// </summary>
+        public RequestedAccess RequestedAccess;
+
+        /// <summary>
+        /// The file access status for this report.
+        /// </summary>
+        public uint FileAccessStatus;
+
+        /// <summary>
+        /// Whether the sandbox indicated that this report should be explicitly reported.
+        /// </summary>
+        public uint ExplicitlyReport;
+    }
+
+    /// <summary>
     /// Implementation of <see cref="ISandboxedProcess"/> for Unix-based systems (currently: Linux).
     /// </summary>
     public sealed class SandboxedProcessUnix : UnsandboxedProcess
     {
         private readonly SandboxedProcessReports m_reports;
 
-        private readonly ActionBlockSlim<AccessReport> m_pendingReports;
+        private readonly ActionBlockSlim<SandboxReportLinux> m_pendingReports;
         private readonly SandboxedProcessTraceBuilder? m_traceBuilder;
 
         private readonly CancellableTimedAction? m_perfCollector;
@@ -178,7 +250,7 @@ namespace BuildXL.Processes
                 DegreeOfParallelism: 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
                 SingleProducerConstrained: true);
 
-            m_pendingReports = ActionBlockSlim.Create<AccessReport>(configuration: executionOptions,
+            m_pendingReports = ActionBlockSlim.Create<SandboxReportLinux>(configuration: executionOptions,
                 (accessReport) =>
                 {
                     HandleAccessReport(accessReport, info.ForceAddExecutionPermission);
@@ -463,9 +535,17 @@ namespace BuildXL.Processes
         /// <summary>
         /// Must not be blocking and should return as soon as possible
         /// </summary>
-        internal void PostAccessReport(AccessReport report)
+        internal void PostAccessReport(SandboxReportLinux report)
         {
             m_pendingReports.Post(report, throwOnFullOrComplete: true);
+        }
+
+        /// <summary>
+        /// TODO: Remove this placeholder function when cleaning up macos code.
+        /// </summary>
+        internal void PostAccessReport(AccessReport report)
+        {
+            throw new NotSupportedException();
         }
 
         private static string? EnsureQuoted(string? cmdLineArgs)
@@ -601,29 +681,19 @@ namespace BuildXL.Processes
 
         private void ReportProcessCreated()
         {
-            var report = new Sandbox.AccessReport
+            var report = new SandboxReportLinux
             {
-                Operation = FileOperation.OpProcessStart,
-                Pid = Process.Id,
-                PipId = PipId,
-                PathOrPipStats = Sandbox.AccessReport.EncodePath(Process.StartInfo.FileName),
-                Status = (uint)FileAccessStatus.Allowed
+                FileOperation = ReportedFileOperation.Process,
+                ProcessId = (uint)Process.Id,
+                Data = Process.StartInfo.FileName,
+                FileAccessStatus = (uint)FileAccessStatus.Allowed
             };
 
             ReportFileAccess(ref report);
         }
 
         /// <summary>
-        /// This function checks for timeout conditions and once met, times out a process tree. On normal process execution the sandbox kernel extension
-        /// sends a process tree completion event, which we use to cleanup and flag an execution as successful. It also indicates that the root process and all
-        /// of its children have exited and are no longer running. There are several edge-cases to consider if this is not the case though:
-        /// 1) The sandbox kernel extension report queue stops receiving events in user-space while processes are still executing in the build engine, thus the
-        ///    process tree complete event nor any other signal is ever received. This case is handled by comparing the time since the last event was received on any queue
-        ///    to m_reportQueueProcessTimeout and timing out a process complete tree if that timeout threshold has been reached.
-        /// 2) If a root processes has exited and its process exit event has been dequeued from the report queue, a child timeout has to be scheduled. This makes sure that
-        ///    all children have enough time to execute as they could potentially outlive their parent prior to terminating them. To prevent indefinite waiting,
-        ///    there is a NestedProcessTerminationTimeout defined which defaults to 30s or a value passed in by the frontend and setup by a user. Once we know the root process
-        ///    has exited and other access reports in the queues are older than that event, we can safely schedule a process tree timeout with the aforementioned value.
+        /// This function checks for timeout conditions and once met, times out a process tree.
         /// </summary>
         /// <returns>Task that signals if a process tree should be timed out</returns>
         private Task ProcessTreeTimeoutTask()
@@ -660,157 +730,121 @@ namespace BuildXL.Processes
             return processTreeTimeoutSource.Task.IgnoreErrorsAndReturnCompletion();
         }
 
-        private void HandleAccessReport(AccessReport report, bool forceAddExecutionPermission)
+        private void HandleAccessReport(SandboxReportLinux report, bool forceAddExecutionPermission)
         {
-            if (report.Operation != FileOperation.OpDebugMessage)
+            switch (report.ReportType)
             {
-                LogDebug($"Access report received: {AccessReportToString(report)}");
-            }
-
-            Counters.IncrementCounter(SandboxedProcessCounters.AccessReportCount);
-            using (Counters.StartStopwatch(SandboxedProcessCounters.HandleAccessReportDuration))
-            {
-                // caching path existence checks would speed things up, but it would not be semantically sound w.r.t. our unit tests
-                // TODO: check if the tests are over specified because in practice BuildXL doesn't really rely much on the outcome of this check
-                var reportPath = report.DecodePath();
-
-                if (m_reports.GetMessageCountSemaphore() != null && ShouldCountReportType(report.Operation) && report.UnexpectedReport == 0)
+                case ReportType.DebugMessage:
                 {
-                    try
-                    {
-                        m_reports.GetMessageCountSemaphore().WaitOne(0);
-                    }
-                    catch (Exception e)
-                    {
-                        // Semaphore was zero.
-                        // We should not have to wait to be unblocked because the native side should have incremented
-                        // the semaphore as soon as it sent a message.
-                        // For now we don't consider this a failure, but in the future this should become a failure
-                        LogDebug($"[Pip{PipId}] Message counting semaphore mismatch for pid '{report.Pid}' with reported path '{reportPath}' with exception {e}");
-                    }
-                }
+                    LogDebug(report.Data);
 
-                // ignore accesses to libDetours.so, because we injected that library
-                if (reportPath == SandboxConnectionLinuxDetours.DetoursLibFile)
-                {
+                    // Debug messages don't need additional processing, so we can return here without posting it.
                     return;
                 }
-
-                // Path cache checks are in here instead of SandboxConnectionLinuxDetours because we need to check the semaphore before discarding reports.
-                // We don't want to check the path cache for processes requiring ptrace
-                // because we rely on this report to start the ptrace sandbox.
-                // OpProcessCommandLine can also be skipped because its not a path, and shouldn't be cached.
-                if (report.Operation != FileOperation.OpProcessStart
-                    && report.Operation != FileOperation.OpProcessExit
-                    && report.Operation != FileOperation.OpProcessTreeCompleted
-                    && report.Operation != FileOperation.OpProcessRequiresPtrace
-                    && report.Operation != FileOperation.OpProcessCommandLine)
+                case ReportType.FileAccess:
                 {
-                    // check the path cache (only when the message is not about process tree)                        
-                    if (GetOrCreateCacheRecord(reportPath).CheckCacheHitAndUpdate((RequestedAccess)report.RequestedAccess))
+                    LogDebug($"Access report received: {AccessReportToString(report)}");
+
+                    Counters.IncrementCounter(SandboxedProcessCounters.AccessReportCount);
+                    using (Counters.StartStopwatch(SandboxedProcessCounters.HandleAccessReportDuration))
                     {
-                        LogDebug($"Cache hit for access report: ({reportPath}, {(RequestedAccess)report.RequestedAccess})");
-                        return;
-                    }
-                }
+                        // caching path existence checks would speed things up, but it would not be semantically sound w.r.t. our unit tests
+                        // TODO: check if the tests are over specified because in practice BuildXL doesn't really rely much on the outcome of this check
+                        var reportPath = report.Data;
 
-                if (report.Operation == FileOperation.OpDebugMessage)
-                {
-                    // The debug message uses the path to carry the actual message
-                    // We don't want this reported anywhere downstream, just log and return
-                    LogDebug(reportPath);
-                    return;
-                }
-
-                if (report.UnexpectedReport > 0)
-                {
-                    // The message counting semaphore was not incremented on the native side because this report happened before
-                    // we were able to open the semaphore
-                    Logger.Log.ReceivedFileAccessReportBeforeSemaphoreInit(m_loggingContext, reportPath);
-                }
-
-                // Set the process exit time once we receive it from the native side
-                if (report.Operation == FileOperation.OpProcessExit && report.Pid == Process.Id)
-                {
-                    m_processExitReceived = true;
-                }
-
-                // The process requires ptrace, a ptrace runner needs to be started up
-                if (report.Operation == FileOperation.OpProcessRequiresPtrace)
-                {
-                    StartPTraceRunner(report.Pid, reportPath, forceAddExecutionPermission);
-                }
-
-                var pathExists = true;
-
-                // special handling for MAC_LOOKUP:
-                //   - don't report for existent paths (because for those paths other reports will follow)
-                //   - otherwise, set report.RequestAccess to Probe (because the Sandbox reports 'Lookup', but hat BXL expects 'Probe'),
-                if (report.Operation == FileOperation.OpMacLookup)
-                {
-                    pathExists = FileUtilities.Exists(reportPath);
-                    if (pathExists)
-                    {
-                        return;
-                    }
-                    else
-                    {
-                        report.RequestedAccess = (uint)RequestedAccess.Probe;
-                    }
-                }
-                // special handling for directory rename:
-                //   - scenario: a pip writes a bunch of files into a directory (e.g., 'out.tmp') and then renames that directory (e.g., to 'out')
-                //   - up to this point we know about the writes into the 'out.tmp' directory
-                //   - once 'out.tmp' is renamed to 'out', we need to explicitly update all previously reported paths under 'out.tmp'
-                //       - since we cannot rewrite the past and directly mutate previously reported paths, we simply enumerate
-                //         the content of the renamed directory and report all the files in there as writes
-                //       - (this is exactly how this is done on Windows, except that it's implemented in the Detours layer)
-                else if (report.Operation == FileOperation.OpKAuthMoveDest &&
-                         report.Status == (uint)FileAccessStatus.Allowed &&
-                         FileUtilities.DirectoryExistsNoFollow(reportPath))
-                {
-                    FileUtilities.EnumerateFiles(
-                        directoryPath: reportPath,
-                        recursive: true,
-                        pattern: "*",
-                        (dir, fileName, attrs, length) =>
+                        if (m_reports.GetMessageCountSemaphore() != null && ShouldCountReportType(report.FileOperation))
                         {
-                            AccessReport reportClone = report;
-                            reportClone.Operation = FileOperation.OpKAuthWriteFile;
-                            reportClone.PathOrPipStats = AccessReport.EncodePath(Path.Combine(dir, fileName));
-                            ReportFileAccess(ref reportClone);
-                        });
-                }
+                            try
+                            {
+                                m_reports.GetMessageCountSemaphore().WaitOne(0);
+                            }
+                            catch (Exception e)
+                            {
+                                // Semaphore was zero.
+                                // We should not have to wait to be unblocked because the native side should have incremented
+                                // the semaphore as soon as it sent a message.
+                                // For now we don't consider this a failure, but in the future this should become a failure
+                                LogDebug($"[Pip{PipId}] Message counting semaphore mismatch for pid '{report.ProcessId}' with reported path '{reportPath}' with exception {e}");
+                            }
+                        }
 
-                // our sandbox kernel extension currently doesn't detect file existence, so do it here instead
-                if (report.Error == 0 && !pathExists)
-                {
-                    report.Error = ReportedFileAccess.ERROR_PATH_NOT_FOUND;
-                }
+                        // ignore accesses to libDetours.so, because we injected that library
+                        if (reportPath == SandboxConnectionLinuxDetours.DetoursLibFile)
+                        {
+                            return;
+                        }
 
-                if (report.Operation == FileOperation.OpProcessTreeCompleted)
-                {
-                    m_pendingReports.Complete();
-                }
-                else
-                {
-                    ReportFileAccess(ref report);
+                        // Path cache checks are in here instead of SandboxConnectionLinuxDetours because we need to check the semaphore before discarding reports.
+                        // We don't want to check the path cache for processes requiring ptrace
+                        // because we rely on this report to start the ptrace sandbox.
+                        // OpProcessCommandLine can also be skipped because its not a path, and shouldn't be cached.
+                        if (report.FileOperation != ReportedFileOperation.Process
+                            && report.FileOperation != ReportedFileOperation.ProcessExec
+                            && report.FileOperation != ReportedFileOperation.ProcessExit
+                            && report.FileOperation != ReportedFileOperation.ProcessTreeCompletedAck
+                            && report.FileOperation != ReportedFileOperation.ProcessRequiresPTrace)
+                        {
+                            // check the path cache (only when the message is not about process tree)
+                            if (GetOrCreateCacheRecord(reportPath).CheckCacheHitAndUpdate(report.RequestedAccess))
+                            {
+                                LogDebug($"Cache hit for access report: ({reportPath}, {report.RequestedAccess})");
+                                return;
+                            }
+                        }
+
+                        // The process requires ptrace, a ptrace runner needs to be started up
+                        if (report.FileOperation == ReportedFileOperation.ProcessRequiresPTrace)
+                        {
+                            StartPTraceRunner((int)report.ProcessId, reportPath, forceAddExecutionPermission);
+                        }
+
+                        // Set the process exit time once we receive it from the native side
+                        if (report.FileOperation == ReportedFileOperation.ProcessExit && report.ProcessId == Process.Id)
+                        {
+                            m_processExitReceived = true;
+                        }
+
+                        // special handling for UnixAbsentProbe:
+                        //   - don't report for existent paths (because for those paths other reports will follow)
+                        //   - otherwise, set report.RequestAccess to Probe (because the Sandbox reports 'AbsentProbe', but BXL expects 'Probe'),
+                        if (report.FileOperation == ReportedFileOperation.UnixAbsentProbe)
+                        {
+                            if (FileUtilities.Exists(reportPath))
+                            {
+                                return;
+                            }
+                            else
+                            {
+                                report.RequestedAccess = RequestedAccess.Probe;
+                            }
+                        }
+
+                        if (report.FileOperation == ReportedFileOperation.ProcessTreeCompletedAck)
+                        {
+                            m_pendingReports.Complete();
+                        }
+                        else
+                        {
+                            ReportFileAccess(ref report);
+                        }
+                    }
+                    break;
                 }
             }
         }
 
-        private bool ShouldCountReportType(FileOperation op)
+        private bool ShouldCountReportType(ReportedFileOperation op)
         {
             // CODESYNC: Public/Src/Sandbox/Linux/bxl_observer.cpp
             // We explicitly ignore start/exit/processtreecompleted here because during
             // exit signalling a semaphore doesn't seem to work.
-            return op != FileOperation.OpProcessStart
-                && op != FileOperation.OpProcessExit
-                && op != FileOperation.OpProcessTreeCompleted
-                && op != FileOperation.OpDebugMessage;
+            return op != ReportedFileOperation.Process
+                && op != ReportedFileOperation.ProcessExec
+                && op != ReportedFileOperation.ProcessExit
+                && op != ReportedFileOperation.ProcessTreeCompletedAck;
         }
 
-        private void ReportFileAccess(ref AccessReport report)
+        private void ReportFileAccess(ref SandboxReportLinux report)
         {
             if (ReportsCompleted())
             {
@@ -867,47 +901,43 @@ namespace BuildXL.Processes
         private static readonly int s_maxRequestedAccess = Enum.GetValues(typeof(RequestedAccess)).Cast<RequestedAccess>().Max(e => (int)e);
 
         private bool ReportProvider(
-            ref AccessReport report, out uint processId, out uint id, out uint correlationId, out ReportedFileOperation operation, out RequestedAccess requestedAccess, out FileAccessStatus status,
+            ref SandboxReportLinux report, out uint processId, out uint id, out uint correlationId, out ReportedFileOperation operation, out RequestedAccess requestedAccess, out FileAccessStatus status,
             out bool explicitlyReported, out uint error, out Usn usn, out DesiredAccess desiredAccess, out ShareMode shareMode, out CreationDisposition creationDisposition,
             out FlagsAndAttributes flagsAndAttributes, out FlagsAndAttributes openedFileOrDirectoryAttributes, out AbsolutePath manifestPath, out string path, out string enumeratePattern, out string processArgs, out string errorMessage)
         {
             var errorMessages = new List<string>();
             checked
             {
-                processId = (uint)report.Pid;
+                processId = report.ProcessId;
                 id = SandboxedProcessReports.FileAccessNoId;
                 correlationId = SandboxedProcessReports.FileAccessNoId;
+                operation = report.FileOperation;
 
-                if (!FileAccessReportLine.TryGetOperation(report.DecodeOperation(), out operation))
-                {
-                    errorMessages.Add($"Unknown operation '{report.DecodeOperation()}'");
-                }
-
-                requestedAccess = (RequestedAccess)report.RequestedAccess;
-                if (report.RequestedAccess > s_maxRequestedAccess)
+                requestedAccess = report.RequestedAccess;
+                if ((int)report.RequestedAccess > s_maxRequestedAccess)
                 {
                     errorMessages.Add($"Illegal value for 'RequestedAccess': {requestedAccess}; maximum allowed: {(int)RequestedAccess.All}");
                 }
 
-                status = (FileAccessStatus)report.Status;
-                if (report.Status > s_maxFileAccessStatus)
+                status = (FileAccessStatus)report.FileAccessStatus;
+                if (report.FileAccessStatus > s_maxFileAccessStatus)
                 {
                     errorMessages.Add($"Illegal value for 'Status': {status}");
                 }
 
-                bool isWrite = (report.RequestedAccess & (byte)RequestedAccess.Write) != 0;
+                bool isWrite = report.RequestedAccess.HasFlag(RequestedAccess.Write);
 
-                explicitlyReported = report.ExplicitLogging > 0;
+                explicitlyReported = report.ExplicitlyReport > 0;
                 error = report.Error;
                 usn = ReportedFileAccess.NoUsn;
                 desiredAccess = isWrite ? DesiredAccess.GENERIC_WRITE : DesiredAccess.GENERIC_READ;
                 shareMode = ShareMode.FILE_SHARE_READ;
                 creationDisposition = CreationDisposition.OPEN_ALWAYS;
                 flagsAndAttributes = 0;
-                openedFileOrDirectoryAttributes = report.IsDirectory == 0 ? FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL : FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY;
-                path = report.DecodePath();
+                openedFileOrDirectoryAttributes = report.IsDirectory ? FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY : FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL;
+                path = report.Data;
                 enumeratePattern = string.Empty;
-                processArgs = string.Empty;
+                processArgs = report.FileOperation == ReportedFileOperation.ProcessExec ? report.CommandLineArguments : string.Empty;
 
                 AbsolutePath.TryCreate(PathTable, path, out manifestPath);
 
@@ -919,18 +949,22 @@ namespace BuildXL.Processes
             }
         }
 
-        internal static string AccessReportToString(AccessReport report)
+        internal static string AccessReportToString(SandboxReportLinux report)
         {
-            var operation = report.DecodeOperation();
-            var pid = report.Pid;
+            var operation = report.FileOperation;
+            var pid = report.ProcessId;
+            var ppid = report.ParentProcessId;
             var requestedAccess = report.RequestedAccess;
-            var status = report.Status;
-            var explicitLogging = report.ExplicitLogging != 0 ? 1 : 0;
+            var status = report.FileAccessStatus;
+            var explicitLogging = report.ExplicitlyReport != 0 ? 1 : 0;
             var error = report.Error;
-            var path = report.DecodePath();
+            var path = report.Data;
             var isDirectory = report.IsDirectory;
+            var commandLine = operation == ReportedFileOperation.ProcessExec
+                ? $"|{report.CommandLineArguments}"
+                : "";
 
-            return I($"{operation}:{pid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{path}|{isDirectory}");
+            return I($"{operation}:{pid}:{ppid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{isDirectory}|{path}{commandLine}"); 
         }
 
         private void StartPTraceRunner(int pid, string path, bool forceAddExecutionPermission)

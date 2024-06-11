@@ -131,12 +131,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// Updates the arguments of a process that was already reported.
         /// </summary>
-        public void UpdateProcessArgs(ReportedProcess process, string args)
+        public void UpdateProcessArgs(ReportedProcess process, string path, string args)
         {
             var matchingProcess = m_reportedProcesses.FirstOrDefault(p => p.ProcessId == process.ProcessId);
             if (matchingProcess != default)
             {
-                matchingProcess.AppendArgs(args);
+                matchingProcess.UpdateOnPathAndArgsOnExec(path, args);
             }
         }
 
@@ -147,7 +147,6 @@ namespace BuildXL.Processes
                 case ReportedFileOperation.ChangedReadWriteToReadAccess:
                 case ReportedFileOperation.FirstAllowWriteCheckInProcess:
                 case ReportedFileOperation.ProcessRequiresPTrace:
-                case ReportedFileOperation.ProcessCommandLine:
                     return true;
                 default:
                     return false;

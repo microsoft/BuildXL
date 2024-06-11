@@ -2,17 +2,12 @@
 // Licensed under the MIT License.
 
 #include <algorithm>
-#include "bxl_observer.hpp"
-#include "IOHandler.hpp"
-#include "observer_utilities.hpp"
 #include <stack>
 #include <sys/prctl.h>
 #include <sys/wait.h>
 
-static void HandleAccessReport(AccessReport report, int _)
-{
-    BxlObserver::GetInstance()->SendReport(report);
-}
+#include "AccessChecker.h"
+#include "bxl_observer.hpp"
 
 AccessCheckResult BxlObserver::sNotChecked = AccessCheckResult::Invalid();
 
@@ -72,7 +67,7 @@ BxlObserver::BxlObserver()
     }
 
     // FAM must be initialized before the report path can be obtained
-    if (CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
+    if (CheckEnableLinuxPTraceSandbox(fam_->GetExtraFlags()))
     {
         strlcpy(secondaryReportPath_, GetReportsPath(), PATH_MAX);
         auto reportLength = strnlen(secondaryReportPath_, PATH_MAX);
@@ -131,45 +126,32 @@ void BxlObserver::InitFam(pid_t pid)
     }
 
     fseek(famFile, 0, SEEK_END);
-    long famLength = ftell(famFile);
+    long fam_length = ftell(famFile);
     rewind(famFile);
 
-    auto famPayload = new char [famLength];
-    internal_fread(famPayload, famLength, 1, famFile);
+    // The FileAccessManifest object takes ownership of this payload and will handle deleting it
+    auto fam_payload = new char [fam_length];
+    internal_fread(fam_payload, fam_length, 1, famFile);
     internal_fclose(famFile);
 
-    // create SandboxedPip (which parses FAM and throws on error)
-    pip_ = shared_ptr<SandboxedPip>(new SandboxedPip(pid, famPayload, famLength));
+    fam_ = std::make_unique<buildxl::common::FileAccessManifest>(fam_payload, fam_length);
 
-    // create sandbox
-    sandbox_ = new Sandbox(0, Configuration::DetoursLinuxSandboxType);
-
-    // initialize sandbox
-    if (!sandbox_->TrackRootProcess(pip_))
-    {
-        _fatal("Could not track root process %s:%d", __progname, pid);
-    }
-
-    process_ = sandbox_->FindTrackedProcess(pid);
-    process_->SetPath(progFullPath_);
-    sandbox_->SetAccessReportCallback(HandleAccessReport);
-
-    sandboxLoggingEnabled_ = CheckEnableLinuxSandboxLogging(pip_->GetFamExtraFlags());
+    sandboxLoggingEnabled_ = CheckEnableLinuxSandboxLogging(fam_->GetExtraFlags());
 }
 
 void BxlObserver::Init()
 {
     // If message counting is enabled, open the associated semaphore (this should already be created by the managed side)
-    if (CheckCheckDetoursMessageCount(pip_->GetFamFlags()))
+    if (CheckCheckDetoursMessageCount(fam_->GetFlags()))
     {
         // Setting initializingSemaphore_ will communicate to the interpose layer to not interpose any libc functions called inside sem_open
         initializingSemaphore_ = true;
-        messageCountingSemaphore_ = internal_sem_open(pip_->GetInternalDetoursErrorNotificationFile(), O_CREAT, 0644, 0);
+        messageCountingSemaphore_ = internal_sem_open(fam_->GetInternalErrorDumpLocation(), O_CREAT, 0644, 0);
 
         if (messageCountingSemaphore_ == SEM_FAILED)
         {
             // we'll log a message here, but this won't fail the pip until this feature is tested more thorougly
-            internal_fprintf(stdout, "BuildXL injected message: File access monitoring failed to open message counting semaphore '%s' with errno: '%d'. You should rerun this build, or contact the BuildXL team if the issue persists across multiple builds.", pip_->GetInternalDetoursErrorNotificationFile(), errno);
+            internal_fprintf(stdout, "BuildXL injected message: File access monitoring failed to open message counting semaphore '%s' with errno: '%d'. You should rerun this build, or contact the BuildXL team if the issue persists across multiple builds.", fam_->GetInternalErrorDumpLocation(), errno);
         }
 
         initializingSemaphore_ = false;
@@ -179,9 +161,9 @@ void BxlObserver::Init()
 }
 
 // Access Reporting
-AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, AccessReportGroup& report_group, bool check_cache) {
+AccessCheckResult BxlObserver::CreateAccess(buildxl::linux::SandboxEvent& event, bool check_cache) {
     if (!event.IsValid()) {
-        LOG_DEBUG("Won't report an access for syscall %s because the event is invalid.", syscall_name); 
+        LOG_DEBUG("Won't report an access for syscall %s because the event is invalid.", event.GetSystemCall()); 
         return sNotChecked;
     }
 
@@ -189,13 +171,9 @@ AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::l
     // Resolve paths and mode
     bool isFileEvent = ResolveEventPaths(event);
 
-    // After resolving the paths we should freeze the event: this is to ensure consistency between the AccessCheckResult that we 
-    // return here and the contents of this event.
-    event.Seal();
-
     // Check if non-file, we don't want to report these.
     if (!isFileEvent) {
-        LOG_DEBUG("Won't report an access for syscall %s because the paths for the event couldn't be resolved.", syscall_name); 
+        LOG_DEBUG("Won't report an access for syscall %s because the paths for the event couldn't be resolved.", event.GetSystemCall()); 
         return sNotChecked;
     }
     
@@ -209,27 +187,8 @@ AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::l
     auto access_should_be_blocked = false;
 
     if (IsEnabled(event.GetPid())) {
-        IOHandler handler(sandbox_);
-        handler.SetProcess(process_);
-
-        // We convert this to an IOEvent here because the macos handler expects an IOEvent. This can be removed once that dependency is removed
-        // TODO [pgunasekara]: Remove this once we remove IOEvent
-        IOEvent io_event(
-            /* pid */       event.GetPid(),
-            /* cpid */      event.GetEventType() == ES_EVENT_TYPE_NOTIFY_FORK ? event.GetChildPid() : 0,
-            /* ppid */      0,
-            /* type */      event.GetEventType(),
-            /* action */    ES_ACTION_TYPE_NOTIFY,
-            /* src */       event.GetSrcPath(),
-            /* dst */       event.GetDstPath(),
-            /* exec */      event.GetEventType() == ES_EVENT_TYPE_NOTIFY_FORK ? event.GetSrcPath() : progFullPath_,
-            /* mode */      event.GetMode(),
-            /* modified */  false,
-            /* error */     event.GetError());
-
-        result = handler.CheckAccessAndBuildReport(io_event, report_group);
+        result = buildxl::linux::AccessChecker::CheckAccessAndGetReport(fam_.get(), event);
         access_should_be_blocked = result.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
-        report_group.SetErrno(event.GetError());
 
         if (!access_should_be_blocked) {
             // This access won't be blocked, so let's cache it.
@@ -237,23 +196,32 @@ AccessCheckResult BxlObserver::CreateAccess(const char *syscall_name, buildxl::l
             CheckCache(event.GetEventType(), event.GetSrcPath(), /* addEntryIfMissing */ true);
         }
     }
+    else {
+        // The caller of this function may have already set an access check result
+        // However, this process is a breakaway process, therefore we don't want to report these accesses, so we'll update the access check here.
+        event.SetSourceAccessCheck(result);
+        event.SetDestinationAccessCheck(result);
+    }
+
+    // After resolving the paths and completing the access check we should freeze the event: this is to ensure consistency between the AccessCheckResult that we 
+    // return here and the contents of this event.
+    event.Seal();
 
     // Log path
-    LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscall_name, event.GetEventType(), event.GetSrcPath().c_str(),
+    LOG_DEBUG("(( %10s:%2d )) %s %s%s", event.GetSystemCall(), event.GetEventType(), event.GetSrcPath().c_str(),
         !result.ShouldReport() ? "[Ignored]" : result.ShouldDenyAccess() ? "[Denied]" : "[Allowed]",
         access_should_be_blocked ? "[Blocked]" : "");
 
     return result;
 }
 
-void BxlObserver::ReportAccess(const AccessReportGroup& report_group) {
-    SendReport(report_group);
+void BxlObserver::ReportAccess(buildxl::linux::SandboxEvent& event) {
+    SendReport(event);
 }
 
-void BxlObserver::CreateAndReportAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, bool check_cache) {
-    auto report_group = AccessReportGroup();
-    CreateAccess(syscall_name, event, report_group, check_cache);
-    ReportAccess(report_group);
+void BxlObserver::CreateAndReportAccess(buildxl::linux::SandboxEvent& event, bool check_cache) {
+    CreateAccess(event, check_cache);
+    ReportAccess(event);
 }
 
 // This method:
@@ -402,88 +370,78 @@ void BxlObserver::FileDescriptorToPath(int fd, pid_t pid, char *out_path_buffer,
     }
 }
 
+bool BxlObserver::SendReport(buildxl::linux::SandboxEvent &event, bool use_secondary_pipe) {
+    return SendReport(event, event.GetSourceAccessReport(), use_secondary_pipe)
+        && SendReport(event, event.GetDestinationAccessReport(), use_secondary_pipe);
+}
+
+bool BxlObserver::SendReport(buildxl::linux::SandboxEvent &event, buildxl::linux::AccessReport report, bool use_secondary_pipe) {
+    if (report.access_check_result.ShouldReport()) {
+        char buffer[PIPE_BUF] = {0};
+        unsigned int report_size = 0;
+
+        bool success = buildxl::linux::ReportBuilder::SandboxEventReportString(
+            event,
+            report,
+            buffer,
+            PIPE_BUF,
+            report_size);
+
+        if (!success) {
+            // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that
+            _fatal("Message truncated to fit PIPE_BUF (%d): %s", PIPE_BUF, buffer);
+        }
+
+        // CODESYNC: Public/Src/Engine/Processes/SandboxedProcessUnix.cs
+        bool shouldCountReportType = event.GetEventType() != buildxl::linux::EventType::kProcess
+            && event.GetEventType() != buildxl::linux::EventType::kExec
+            && event.GetEventType() != buildxl::linux::EventType::kExit;
+
+        return Send(buffer, report_size, /* useSecondaryPipe */ false, /* countReport */ shouldCountReportType);
+    }
+
+    return true;
+}
+
 void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...)
 {
     if (LogDebugEnabled())
     {
-        // Build an access report that represents the debug message
-        AccessReport debugReport = 
-        {
-            .operation          = kOpDebugMessage,
-            .pid                = pid,
-            .rootPid            = pip_->GetProcessId(),
-            .requestedAccess    = (int)RequestedAccess::Read,
-            .status             = FileAccessStatus::FileAccessStatus_Allowed,
-            .reportExplicitly   = 0,
-            .error              = 0,
-            .pipId              = pip_->GetPipId(),
-            .path               = {0},
-            .stats              = {0},
-            .isDirectory        = 0,
-            .shouldReport       = true,
-        };
+        char message[PIPE_BUF] = { 0 };
+        char report[PIPE_BUF] = { 0 };
 
         va_list args;
         va_start(args, fmt);
-        // We (re)use the path for the debug message in order to not change the report format just for debugging
-        // So we limit the message to MAXPATHLEN (~4k chars, which should be enough)
-        int numWritten = vsnprintf(debugReport.path, MAXPATHLEN, fmt, args);
+        int numWritten = vsnprintf(message, PIPE_BUF, fmt, args);
         va_end(args);
 
         // Sanitize the debug message so we don't confuse the parser on managed code:
         // Pipes (|) are used to delimit the message parts and we expect one line (\n) per report, so
         // replace those occurrences with something else.
-        for (int i = 0 ; i < MAXPATHLEN; i++)
+        for (int i = 0 ; i < PIPE_BUF; i++)
         {
-            if (debugReport.path[i] == '|')
+            if (message[i] == '|')
             {
-                debugReport.path[i] = '!';
+                message[i] = '!';
             }
             
-            if (debugReport.path[i] == '\n' || debugReport.path[i] == '\r')
+            if (message[i] == '\n' || message[i] == '\r')
             {
-                debugReport.path[i] = '.';
+                message[i] = '.';
             }
         }
 
-        SendReport(debugReport, /* isDebugMessage */ true);
+        // Get report string
+        int size = buildxl::linux::ReportBuilder::DebugReportReportString(pid, message, report, PIPE_BUF);
+
+        Send(report, size, /* useSecondaryPipe */ false, /* countReport */ false);
     }
 }
 
 // Checks whether cache contains (event, path) pair and returns the result of this check.
 // If the pair is not in cache and addEntryIfMissing is true, attempts to add the pair to cache.
-bool BxlObserver::CheckCache(es_event_type_t event, const string &path, bool addEntryIfMissing)
+bool BxlObserver::CheckCache(buildxl::linux::EventType event, const string &path, bool addEntryIfMissing)
 {
-    // coalesce some similar events
-    es_event_type_t key;
-    switch (event)
-    {
-        case ES_EVENT_TYPE_NOTIFY_TRUNCATE:
-        case ES_EVENT_TYPE_NOTIFY_SETATTRLIST:
-        case ES_EVENT_TYPE_NOTIFY_SETEXTATTR:
-        case ES_EVENT_TYPE_NOTIFY_DELETEEXTATTR:
-        case ES_EVENT_TYPE_NOTIFY_SETFLAGS:
-        case ES_EVENT_TYPE_NOTIFY_SETOWNER:
-        case ES_EVENT_TYPE_NOTIFY_SETMODE:
-        case ES_EVENT_TYPE_NOTIFY_WRITE:
-        case ES_EVENT_TYPE_NOTIFY_UTIMES:
-        case ES_EVENT_TYPE_NOTIFY_SETTIME:
-        case ES_EVENT_TYPE_NOTIFY_SETACL:
-            key = ES_EVENT_TYPE_NOTIFY_WRITE;
-            break;
-
-        case ES_EVENT_TYPE_NOTIFY_GETATTRLIST:
-        case ES_EVENT_TYPE_NOTIFY_GETEXTATTR:
-        case ES_EVENT_TYPE_NOTIFY_LISTEXTATTR:
-        case ES_EVENT_TYPE_NOTIFY_ACCESS:
-        case ES_EVENT_TYPE_NOTIFY_STAT:
-            key = ES_EVENT_TYPE_NOTIFY_STAT;
-
-        default:
-            key = event;
-            break;
-    }
-
     // This code could possibly be executing from an interrupt routine or from who knows where,
     // so to avoid deadlocks it's essential to never block here indefinitely.
     if (!cacheMtx_.try_lock_for(chrono::milliseconds(1)))
@@ -496,14 +454,14 @@ bool BxlObserver::CheckCache(es_event_type_t event, const string &path, bool add
     // make sure the mutex is released by the end
     shared_ptr<timed_mutex> sp(&cacheMtx_, [](timed_mutex *mtx) { mtx->unlock(); });
 
-    unordered_map<es_event_type_t, unordered_set<string>>::iterator it = cache_.find(key);
+    auto it = cache_.find(event);
     if (it == cache_.end())
     {
         if (addEntryIfMissing) 
         {
             unordered_set<string> set;
             set.insert(path);
-            cache_.insert(make_pair(key, set));
+            cache_.insert(make_pair(event, set));
         }
 
         return false;
@@ -519,7 +477,7 @@ bool BxlObserver::CheckCache(es_event_type_t event, const string &path, bool add
     }
 }
 
-bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const string &secondPath)
+bool BxlObserver::IsCacheHit(buildxl::linux::EventType event, const string &path, const string &secondPath)
 {
     // (1) IMPORTANT           : never do any of this stuff after this object has been disposed!
     //     WHY                 : because the cache date structure is invalid at that point.
@@ -528,9 +486,9 @@ bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const st
     // (2) never cache FORK, EXEC, EXIT and events that take 2 paths
     if (disposed_ ||
         secondPath.length() > 0 ||
-        event == ES_EVENT_TYPE_NOTIFY_FORK ||
-        event == ES_EVENT_TYPE_NOTIFY_EXEC ||
-        event == ES_EVENT_TYPE_NOTIFY_EXIT)
+        event == buildxl::linux::EventType::kProcess ||
+        event == buildxl::linux::EventType::kExec ||
+        event == buildxl::linux::EventType::kExit)
     {
         return false;
     }
@@ -593,157 +551,73 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe, bo
 
 bool BxlObserver::SendExitReport(pid_t pid)
 {
-    IOHandler handler(sandbox_);
-    handler.SetProcess(process_);
-    AccessReport report;
-    handler.CreateReportProcessExited(pid == 0 ? getpid() : pid, report);
-    return SendReport(report);
-}
-
-bool BxlObserver::SendReport(const AccessReportGroup &report)
-{
-    bool result = report.firstReport.shouldReport 
-        ? SendReport(report.firstReport)
-        : true;
-
-    result &= report.secondReport.shouldReport
-        ? SendReport(report.secondReport)
-        : true;
-
-    return result;
-}
-
-bool BxlObserver::SendReport(const AccessReport &report, bool isDebugMessage, bool useSecondaryPipe)
-{
-    // there is no central sendbox process here (i.e., there is an instance of this
-    // guy in every child process), so counting process tree size is not feasible
-    if (report.operation == FileOperation::kOpProcessTreeCompleted)
+    if (!IsEnabled(pid))
     {
+        // This process is a breakaway process, we don't need to report an exit for it because we never sent a process start report.
         return true;
     }
 
-    // The BxlObserver isn't ready to send reports yet (usually because the message counting semaphore isn't yet initialized)
-    bool unexpectedReport = !bxlObserverInitialized_ && report.operation != FileOperation::kOpDebugMessage;
-    const int PrefixLength = sizeof(uint);
-    char buffer[PIPE_BUF] = {0};
-    int maxMessageLength = PIPE_BUF - PrefixLength;
-    int reportSize = BuildReport(&buffer[PrefixLength], maxMessageLength, report, report.path, unexpectedReport);
-    // CODESYNC: Public/Src/Engine/Processes/SandboxedProcessUnix.cs
-    bool shouldCountReportType = 
-        report.operation != FileOperation::kOpProcessStart
-        && report.operation != FileOperation::kOpProcessExit
-        && report.operation != FileOperation::kOpProcessTreeCompleted
-        && report.operation != FileOperation::kOpDebugMessage;
+    auto event = buildxl::linux::SandboxEvent::ExitSandboxEvent("exit", GetProgramPath(), pid == 0 ? getpid() : pid);
+    event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::Read, ResultAction::Allow, ReportLevel::Report));
 
-    if (reportSize >= maxMessageLength)
-    {
-        // For debug messages it is fine to truncate the message, otherwise, this is a problem and we must fail
-        if (!isDebugMessage)
-        {
-            // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that
-            _fatal("Message truncated to fit PIPE_BUF (%d): %s", PIPE_BUF, buffer);
-        }
-        else
-        {
-            // The report couldn't be fully built for a debug message. Let's crop the message (report.path) so it fits.
-            // We calculate the maximum size allowed, considering that 'path' is the last component of the
-            // message (plus the \n that ends any report, hence the -1), so it's the last thing 
-            // we tried to write when hitting the size limit.
-            int truncatedSize = strlen(report.path) - (reportSize - maxMessageLength) - 1;
-            char truncatedMessage[truncatedSize] = {0};
-
-            // Let's leave an ending \0
-            strncpy(truncatedMessage, report.path, truncatedSize - 1);
-
-            reportSize = BuildReport(&buffer[PrefixLength], maxMessageLength, report, truncatedMessage, unexpectedReport);
-        }
-    }
-
-    *(uint*)(buffer) = reportSize;
-    return Send(buffer, std::min(reportSize + PrefixLength, PIPE_BUF), useSecondaryPipe, shouldCountReportType);
+    return SendReport(event);
 }
 
-void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode, pid_t associatedPid)
-{
-    if (IsMonitoringChildProcesses())
-    {
-        if (associatedPid == 0)
-        {
-            associatedPid = getpid();
+std::string BxlObserver::GetProcessCommandLine(char **argv) {
+    if (!IsReportingProcessArgs()) {
+        return "";
+    }
+
+    std::string cmd_line;
+    int arg_counter = 0;
+
+    while(argv[arg_counter] != nullptr) {
+        if (arg_counter > 0) {
+            cmd_line.append(" ");
         }
 
-        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* event_type */    ES_EVENT_TYPE_NOTIFY_EXEC,
-        /* pid */           associatedPid,
-        /* error */         error,
-        /* src_path */      file);
-        event.SetMode(mode);
-        CreateAndReportAccess(syscallName, event);
-        report_exec_args(associatedPid);
+        cmd_line.append(argv[arg_counter]);
+        arg_counter++;
     }
+
+    return cmd_line;
 }
 
-void BxlObserver::report_exec_args(pid_t pid)
-{
-    if (IsReportingProcessArgs())
-    {
-        char path[PATH_MAX] = { 0 };
-        int maxSize = PIPE_BUF + sizeof(uint) - 1;
-        char cmdLineBuffer[maxSize] = { 0 };
-        std::string cmdLine;
-        bool firstArg = true;
+std::string BxlObserver::GetProcessCommandLine(pid_t pid) {
+    if (!IsReportingProcessArgs()) {
+        return "";
+    }
 
-        // /proc/<pid>/cmdline has a set of arguments separated by the null terminator
-        snprintf(path, PATH_MAX, "/proc/%d/cmdline", pid);
+    char path[PATH_MAX] = { 0 };
+    int max_size = PIPE_BUF + sizeof(uint) - 1;
+    char cmd_line_buffer[max_size] = { 0 };
+    std::string cmd_line;
+    bool first_arg = true;
 
-        int fd = open(path, O_RDONLY);
-        int bytesRead = read(fd, cmdLineBuffer, maxSize);
-        char *end = cmdLineBuffer + bytesRead;
+    // /proc/<pid>/cmdline has a set of arguments separated by the null terminator
+    snprintf(path, PATH_MAX, "/proc/%d/cmdline", pid);
 
-        for (char *currentArg = cmdLineBuffer; currentArg < end; )
-        {
-            if (firstArg)
-            {
-                firstArg = false;
-            }
-            else
-            {
-                cmdLine.append(" ");
-            }
-            cmdLine.append(currentArg);
+    int fd = open(path, O_RDONLY);
+    int bytes_read = read(fd, cmd_line_buffer, max_size);
+    char *end = cmd_line_buffer + bytes_read;
 
-            // Increment currentArg until the next null character is reached
-            while(*currentArg++);
+    for (char *current_arg = cmd_line_buffer; current_arg < end; ) {
+        if (first_arg) {
+            first_arg = false;
         }
-        close(fd);
+        else {
+            cmd_line.append(" ");
+        }
 
-        report_exec_args(pid, cmdLine.c_str());
+        cmd_line.append(current_arg);
+
+        // Increment current_arg until the next null character is reached
+        while(*current_arg++);
     }
-}
 
-void BxlObserver::report_exec_args(pid_t pid, const char *args) {
-    if (IsReportingProcessArgs())
-    {
-        AccessReport report =
-        {
-            .operation        = kOpProcessCommandLine,
-            .pid              = pid,
-            .rootPid          = pip_->GetProcessId(),
-            .requestedAccess  = (int) RequestedAccess::Read,
-            .status           = FileAccessStatus::FileAccessStatus_Allowed,
-            .reportExplicitly = (int) ReportLevel::Report,
-            .error            = 0,
-            .pipId            = pip_->GetPipId(),
-            .path             = {0},
-            .stats            = {0},
-            .isDirectory      = 0,
-            .shouldReport     = true,
-        };
+    close(fd);
 
-        // This may truncate the path but that's okay because it's the process command line.
-        strlcpy(report.path, args, sizeof(report.path));
-        SendReport(report, /* isDebugMessage */ false, /* useSecondaryPipe */ false);
-    }
+    return cmd_line;
 }
 
 bool BxlObserver::is_non_file(const mode_t mode)
@@ -752,32 +626,22 @@ bool BxlObserver::is_non_file(const mode_t mode)
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
 }
 
-void BxlObserver::report_firstAllowWriteCheck(const char *fullPath)
+void BxlObserver::report_firstAllowWriteCheck(const char *full_path)
 {
-    mode_t mode = get_mode(fullPath);
-    bool fileExists = mode != 0 && !S_ISDIR(mode);
-     
-    AccessReport report =
-        {
-            .operation        = kOpFirstAllowWriteCheckInProcess,
-            .pid              = getpid(),
-            .rootPid          = pip_->GetProcessId(),
-            .requestedAccess  = (int) RequestedAccess::Write,
-            .status           = fileExists ? FileAccessStatus::FileAccessStatus_Denied : FileAccessStatus::FileAccessStatus_Allowed,
-            .reportExplicitly = (int) ReportLevel::Report,
-            .error            = 0,
-            .pipId            = pip_->GetPipId(),
-            .path             = {0},
-            .stats            = {0},
-            .isDirectory      = (uint)S_ISDIR(mode),
-            .shouldReport     = true
-        };
+    mode_t mode = get_mode(full_path);
+    bool file_exists = mode != 0 && !S_ISDIR(mode);
+    AccessCheckResult access_check(RequestedAccess::Write, file_exists ? ResultAction::Deny : ResultAction::Allow, ReportLevel::Report);
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* system_call */   "firstAllowWriteCheckInProcess",
+        /* event_type */    buildxl::linux::EventType::kFirstAllowWriteCheckInProcess,
+        /* pid */           getpid(),
+        /* error */         0,
+        /* src_path */      full_path);
 
-    strlcpy(report.path, fullPath, sizeof(report.path));
+    event.SetMode(mode);
+    event.SetSourceAccessCheck(access_check);
 
-    SendReport(report);
-
-    AccessCheckResult result(RequestedAccess::Write, fileExists ? ResultAction::Deny : ResultAction::Allow, ReportLevel::Report);
+    SendReport(event);
 }
 
 bool BxlObserver::check_and_report_process_requires_ptrace(int fd)
@@ -799,36 +663,27 @@ bool BxlObserver::IsPTraceForced(const char *path)
 
 bool BxlObserver::check_and_report_process_requires_ptrace(const char *path)
 {
-    if (!CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
+    if (!CheckEnableLinuxPTraceSandbox(fam_->GetExtraFlags()))
     {
         return false;
     }
 
-    if (IsPTraceForced(path) || CheckUnconditionallyEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()))
+    if (IsPTraceForced(path) || CheckUnconditionallyEnableLinuxPTraceSandbox(fam_->GetExtraFlags()))
     {
         // Allow this process to be traced by the tracer process.
         set_ptrace_permissions();
 
         // We force ptrace for this process. 
         // Send a "process requires ptrace" report so that the managed side can track it.
-        AccessReport report =
-        {
-            .operation        = kOpProcessRequiresPtrace,
-            .pid              = getpid(),
-            .rootPid          = pip_->GetProcessId(),
-            .requestedAccess  = (int) RequestedAccess::Read,
-            .status           = FileAccessStatus::FileAccessStatus_Allowed,
-            .reportExplicitly = (int) ReportLevel::Report,
-            .error            = 0,
-            .pipId            = pip_->GetPipId(),
-            .path             = {0},
-            .stats            = {0},
-            .isDirectory      = 0,
-            .shouldReport     = true,
-        };
+        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+            /* system_call */   "ptrace",
+            /* event_type */    buildxl::linux::EventType::kPTrace,
+            /* pid */           getpid(),
+            /* error */         0,
+            /* src_path */      path);
+        event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Report));
+        SendReport(event, /* use_secondary_pipe */ true);
 
-        strlcpy(report.path, path, sizeof(report.path));
-        SendReport(report, /* isDebugMessage */ false, /* useSecondaryPipe */ true);
         return true;
     }
 
@@ -869,25 +724,14 @@ bool BxlObserver::check_and_report_process_requires_ptrace(const char *path)
         // Allow this process to be traced by the daemon process
         set_ptrace_permissions();
 
-        AccessReport report =
-        {
-            .operation        = kOpProcessRequiresPtrace,
-            .pid              = getpid(),
-            .rootPid          = pip_->GetProcessId(),
-            .requestedAccess  = (int) RequestedAccess::Read,
-            .status           = FileAccessStatus::FileAccessStatus_Allowed,
-            .reportExplicitly = (int) ReportLevel::Report,
-            .error            = 0,
-            .pipId            = pip_->GetPipId(),
-            .path             = {0},
-            .stats            = {0},
-            .isDirectory      = 0,
-            .shouldReport     = true,
-        };
-
-        strlcpy(report.path, path, sizeof(report.path));
-
-        SendReport(report, /* isDebugMessage */ false, /* useSecondaryPipe */ true);
+        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+            /* system_call */   "ptrace",
+            /* event_type */    buildxl::linux::EventType::kPTrace,
+            /* pid */           getpid(),
+            /* error */         0,
+            /* src_path */      path);
+        event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Report));
+        SendReport(event, /* use_secondary_pipe */ true);
     }
 
     return requiresPtrace;
@@ -1164,6 +1008,11 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
         return;
     }
 
+    if (associatedPid == 0)
+    {
+        associatedPid = getpid();
+    }
+
     unordered_set<string> visited;
 
     char readlinkBuf[PATH_MAX];
@@ -1233,14 +1082,15 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
         if (!visited.insert(fullpath).second) break;
         
         auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-            /* event_type */    ES_EVENT_TYPE_NOTIFY_READLINK,
+            /* system_call */   "_readlink",
+            /* event_type */    buildxl::linux::EventType::kReadLink,
             /* pid */           associatedPid,
             /* error */         0,
             /* src_path */      fullpath);
 
         // Don't normalize the paths here! We are exactly doing that right now...
         event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kDoNotResolve);    
-        CreateAndReportAccess("_readlink", event);
+        CreateAndReportAccess(event);
         
         *pFullpath = ch;
 
@@ -1347,6 +1197,7 @@ bool BxlObserver::EnumerateDirectory(std::string rootDirectory, bool recursive, 
         else
         {
             // Something went wrong with opendir
+            // TODO [pgunasekara]: change this to _fatal
             LOG_DEBUG("[BxlObserver::EnumerateDirectory] opendir failed on '%s' with errno %d\n", currentDirectory, errno);
             return false;
         }

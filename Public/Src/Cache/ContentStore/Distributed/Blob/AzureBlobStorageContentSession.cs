@@ -119,7 +119,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
 
                 return new PinResult(
                     code: PinResult.ResultCode.Success,
-                    lastAccessTime: touchResult.Value.dateTimeOffset?.UtcDateTime,
+                    lastAccessTime: touchResult.Value.dateTimeOffset.UtcDateTime,
                     contentSize: touchResult.Value.contentLength ?? -1);
             },
             traceOperationStarted: false,
@@ -603,7 +603,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache);
     }
 
-    private async Task<Result<(DateTimeOffset? dateTimeOffset, long? contentLength)>> TouchAsync(OperationContext context, BlobClient client)
+    private async Task<Result<(DateTimeOffset dateTimeOffset, long? contentLength, ETag ETag)>> TouchAsync(OperationContext context, BlobClient client)
     {
         // There's two kinds of touch: write and read-only. The write touch forces an update of the blob's
         // metadata, which changes the ETag. The read-only touch does a 1 byte download. The write touch is a
@@ -612,14 +612,14 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         // We really want to avoid the write touch because it'll fail any downloads that may be happening in parallel,
         // which is a problem for large files. if we can, so we try to do a read-only touch first. If that tells
         // us that the last access time was too long ago, we'll also perform a write-only touch.
-        var result = await _clientAdapter.TouchAsync(context, client, hard: false);
-        if (_configuration.IsReadOnly || !result.Succeeded)
+        var softResult = await _clientAdapter.TouchAsync(context, client, hard: false);
+        if (_configuration.IsReadOnly || !softResult.Succeeded)
         {
-            return result;
+            return softResult;
         }
 
         var now = _clock.UtcNow;
-        var lastAccessTime = result.Value.dateTimeOffset ?? now;
+        var lastAccessTime = softResult.Value.dateTimeOffset.UtcDateTime;
         if (lastAccessTime > now)
         {
             lastAccessTime = now;
@@ -631,7 +631,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         // from happening.
         if (timeSinceLastAccess < _configuration.AllowHardTouchThreshold)
         {
-            return result;
+            return softResult;
         }
 
         // When we're over the force threshold, we'll force a write-touch. When we're below the threshold, we'll do
@@ -644,10 +644,18 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         double lastAccessFraction = Math.Min((timeSinceLastAccess - _configuration.AllowHardTouchThreshold).TotalHours / (_configuration.ForceHardTouchThreshold - _configuration.AllowHardTouchThreshold).TotalHours, 1.0);
         if (timeSinceLastAccess < _configuration.ForceHardTouchThreshold && ThreadSafeRandom.ContinuousUniform(0.0, 1.0) > Math.Pow(lastAccessFraction, 2))
         {
-            return result;
+            return softResult;
         }
 
-        return await _clientAdapter.TouchAsync(context, client, hard: true);
+        // We will only perform a hard touch if the file hasn't changed since we last checked. If it did, then the
+        // touch will fail. This is a good thing, because it means that we're touching the file at most once.
+        var hardTouch = await _clientAdapter.TouchAsync(context, client, hard: true, etag: softResult.Value.ETag);
+        if (hardTouch.Succeeded)
+        {
+            return hardTouch;
+        }
+
+        return softResult;
     }
 
     private Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)

@@ -398,7 +398,7 @@ public class BlobStorageClientAdapter
             caller: caller);
     }
 
-    public Task<Result<(DateTimeOffset? dateTimeOffset, long? contentLength)>> TouchAsync(OperationContext context, BlobClient blob, bool hard = false)
+    public Task<Result<(DateTimeOffset dateTimeOffset, long? contentLength, ETag ETag)>> TouchAsync(OperationContext context, BlobClient blob, bool hard = false, ETag? etag = null)
     {
         return context.PerformOperationWithTimeoutAsync(
             Tracer,
@@ -424,6 +424,15 @@ public class BlobStorageClientAdapter
                     //
                     // The same thing happens with the properties, but since we don't actually use the properties it's
                     // not a big deal.
+                    BlobRequestConditions? conditions = null;
+                    if (etag is not null)
+                    {
+                        conditions = new BlobRequestConditions()
+                        {
+                            IfMatch = etag.Value,
+                        };
+                    }
+
                     var response = await blob.SetHttpHeadersAsync(
                         httpHeaders: new BlobHttpHeaders()
                         {
@@ -433,12 +442,13 @@ public class BlobStorageClientAdapter
                             // we'll have to pick another one.
                             ContentLanguage = Guid.NewGuid().ToString(),
                         },
+                        conditions,
                         cancellationToken: context.Token);
 
                     // The last modified time in this case is also the last access time. Unfortunately, the blob size
                     // is unavailable with this method.
-                    return Result.Success<(DateTimeOffset?, long?)>(
-                        (response.Value.LastModified, null),
+                    return Result.Success<(DateTimeOffset, long?, ETag)>(
+                        (response.Value.LastModified, null, response.Value.ETag),
                         isNullAllowed: true);
                 }
                 else
@@ -454,20 +464,20 @@ public class BlobStorageClientAdapter
                             new BlobDownloadOptions()
                             {
                                 Range = new HttpRange(0, 1),
-                                Conditions = new BlobRequestConditions() { IfMatch = ETag.All, }
+                                Conditions = new BlobRequestConditions() { IfMatch = etag ?? ETag.All, }
                             },
                             cancellationToken: context.Token);
 
-                        return Result.Success<(DateTimeOffset?, long?)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength), isNullAllowed: true);
+                        return Result.Success<(DateTimeOffset, long?, ETag)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength, response.Value.Details.ETag), isNullAllowed: true);
                     }
                     catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.InvalidRange)
                     {
                         // We are dealing with a zero-size piece of content. Use unbounded download API to touch the file.
                         var response = await blob.DownloadContentAsync(
-                            conditions: new BlobRequestConditions() { IfMatch = ETag.All, },
+                            conditions: new BlobRequestConditions() { IfMatch = etag ?? ETag.All, },
                             cancellationToken: context.Token);
 
-                        return Result.Success<(DateTimeOffset?, long?)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength), isNullAllowed: true);
+                        return Result.Success<(DateTimeOffset, long?, ETag)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength, response.Value.Details.ETag), isNullAllowed: true);
                     }
                 }
             },

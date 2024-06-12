@@ -629,6 +629,14 @@ config({
             isWritable: false,
             isReadable: true
         },
+        {
+            name: a`NodeJsForUnitTests`,
+            path: p`Out/NodeJsForUnitTests`,
+            trackSourceFileChanges: true,
+            isWritable: true,
+            isReadable: true,
+            isScrubbable: true,
+        },
         ...(Environment.getStringValue("BUILDXL_DROP_CONFIG") !== undefined ? 
         [
             {

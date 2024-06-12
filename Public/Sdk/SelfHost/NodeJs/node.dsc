@@ -90,7 +90,7 @@ namespace Node {
                 Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embedded.`);
         }
 
-        const outDir = Context.getNewOutputDirectory("executable-npm");
+        const outDir = d`${Context.getMount("NodeJsForUnitTests").path}`;
 
         const pkgRoot = d`${pkgContents.root}/${getNodePackageRoot()}`;
 

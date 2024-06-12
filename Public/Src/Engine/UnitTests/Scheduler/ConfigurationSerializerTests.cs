@@ -149,6 +149,43 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreEqual("foo.bar", node["Ide"]!["SolutionName"]!.GetValue<string>());
         }
 
+        [Fact]
+        public async Task TestFileAccessAllowListSerialization()
+        {
+            var config = new ConfigurationImpl();
+            var pathTable = new PathTable();
+            var path = X("/X/abc/foo.bar");
+            var absolutePath = AbsolutePath.Create(pathTable, path);
+            var fileName = absolutePath.GetName(pathTable);
+            LocationData ld = new LocationData(absolutePath, 1, 2);
+
+            config.FileAccessAllowList = [new FileAccessAllowlistEntry() { Name = "Test", Location = LocationData.Invalid, ToolPath = new DiscriminatingUnion<FileArtifact, PathAtom>(FileArtifact.CreateSourceFile(absolutePath)) }];
+            var node = await SerializeToJsonNodeAsync(config, pathTable, indent: false, includePaths: true, ignoreNulls: true);
+            var array = node["FileAccessAllowList"]!.AsArray()!;
+            XAssert.AreEqual(1, array.Count);
+            XAssert.AreEqual("Test", array[0]!["Name"]!.GetValue<string>());
+#if NET7_0_OR_GREATER
+            XAssert.AreEqual("{Invalid}", array[0]!["Location"]!.GetValue<string>());
+#elif NET6_0
+
+            // System.Text.Json only supports serialization of polymorphic type hierarchies starting with .Net7
+            // Location is a part of the base interface, i.e., config.FileAccessAllowList <- IFileAccessAllowlistEntry <- ITrackedValue.Location,
+            // so it won't be serialized under Net6.
+            XAssert.IsNull(array[0]!["Location"]);
+#endif
+            XAssert.AreEqual(path, array[0]!["ToolPath"]!.GetValue<string>());
+
+            config.FileAccessAllowList = [new FileAccessAllowlistEntry() { Name = "Test2", Location = LocationData.Create(absolutePath, 1, 2), ToolPath = new DiscriminatingUnion<FileArtifact, PathAtom>(fileName) }];
+            node = await SerializeToJsonNodeAsync(config, pathTable, indent: false, includePaths: true, ignoreNulls: true);
+            array = node["FileAccessAllowList"]!.AsArray()!;
+            XAssert.AreEqual(1, array.Count);
+            XAssert.AreEqual("Test2", array[0]!["Name"]!.GetValue<string>());
+#if NET7_0_OR_GREATER
+            XAssert.AreEqual($"{path} (1, 2)", array[0]!["Location"]!.GetValue<string>());
+#endif
+            XAssert.AreEqual("foo.bar", array[0]!["ToolPath"]!.GetValue<string>());
+        }
+
         private async Task<string> SerializeToJsonStringAsync(IConfiguration config, PathTable pathTable, bool indent, bool includePaths, bool ignoreNulls)
         {
             using var ms = new MemoryStream();
@@ -169,7 +206,6 @@ namespace Test.BuildXL.Scheduler
             ms.Seek(0, SeekOrigin.Begin);
             return JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonNode>(ms)!;
         }
-
 
         /// <summary>
         /// This is essentially <see cref="ConfigurationImpl"/> with an extra field and all its original members marked with JsonIgnore.
@@ -295,4 +331,4 @@ namespace Test.BuildXL.Scheduler
         }
     }
 #endif
-}
+        }

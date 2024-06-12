@@ -31,16 +31,23 @@ namespace BuildXL.Scheduler
 
         private static JsonSerializerOptions GetSerializerOptions(PathTable pathTable, PathTranslator? pathTranslator, bool indent, bool includePaths, bool ignoreNulls)
         {
+            var pathConverter = new PathJsonConverter<AbsolutePath>(pathTable, pathTranslator, replacePaths: !includePaths);
+            var pathAtomConverter = new PathAtomJsonConverter(pathTable);
+
             return new JsonSerializerOptions
             {
                 WriteIndented = indent,
                 IncludeFields = true,
                 DefaultIgnoreCondition = ignoreNulls ? JsonIgnoreCondition.WhenWritingNull : JsonIgnoreCondition.Never,
+                // When serializing a type T, the serializer will use the first converter that supports T.
+                // If there is an overlap of supported types, make sure that the converters are listed in a desired order.
                 Converters = {
                     new JsonStringEnumConverter(allowIntegerValues: true),
-                    new PathAtomJsonConverter(pathTable),
+                    pathAtomConverter,
                     new CustomLogValueJsonConverter(),
-                    new PathConverterFactory(pathTable, pathTranslator, !includePaths)
+                    new PathConverterFactory(pathTable, pathTranslator, replacePaths: !includePaths),
+                    new LocationDataJsonConverter(pathConverter),
+                    new DiscriminatingUnionJsonConverter<FileArtifact, PathAtom>(new FileArtifactJsonConverter(pathConverter), pathAtomConverter)
                 }
             };
         }
@@ -48,6 +55,13 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Serializes a configuration and writes it as a UTF-8 encoded string into the stream.
         /// </summary>
+        /// <param name="configuration">A configuration to serialize.</param>
+        /// <param name="utf8Json">The UTF-8 stream to write to.</param>
+        /// <param name="pathTable">PathTable to use for converting paths to their string form.</param>
+        /// <param name="pathTranslator">If provided, it will be used to translate all <see cref="AbsolutePath"/> values in the configuration.</param>
+        /// <param name="indent">Whether to use pretty printing.</param>
+        /// <param name="includePaths">Whether to serialize paths values or replace them with a placeholder (to reduced the output size).</param>
+        /// <param name="ignoreNulls">Whether to include config settings that have null values.</param>
         public static async Task<Possible<Unit>> SerializeToStreamAsync(this IConfiguration configuration, Stream utf8Json, PathTable pathTable, PathTranslator? pathTranslator, bool indent, bool includePaths, bool ignoreNulls)
         {
             try
@@ -63,8 +77,14 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Serializes a configuration and writes it into a file.
+        /// Serializes a configuration and writes it as a UTF-8 encoded string into the stream.
         /// </summary>
+        /// <param name="configuration">A configuration to serialize.</param>
+        /// <param name="pathTable">PathTable to use for converting paths to their string form.</param>
+        /// <param name="pathTranslator">If provided, it will be used to translate all <see cref="AbsolutePath"/> values in the configuration.</param>
+        /// <param name="indent">Whether to use pretty printing.</param>
+        /// <param name="includePaths">Whether to serialize paths values or replace them with a placeholder (to reduced the output size).</param>
+        /// <param name="ignoreNulls">Whether to include config settings that have null values.</param>
         public static async Task<Possible<Unit>> SerialzieToFileAsync(this IConfiguration configuration, PathTable pathTable, PathTranslator? pathTranslator, bool indent, bool includePaths, bool ignoreNulls)
         {
             Contract.Requires(configuration != null);
@@ -138,44 +158,30 @@ namespace BuildXL.Scheduler
                 throw new NotSupportedException();
             }
 
-            public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
-            {
-                if (m_replacePaths)
-                {
-                    writer.WriteStringValue(ReplacePathsWith);
-                }
-                else
-                {
-                    if (value is AbsolutePath absolutePath)
-                    {
-                        var origianalPath = m_pathTranslator != null 
-                            ? m_pathTranslator.Translate(absolutePath.ToString(m_pathTable)) 
-                            : absolutePath.ToString(m_pathTable);
-                        writer.WriteStringValue(origianalPath);
-                    }
-                    else if (value is RelativePath relativePath)
-                    {
-                        writer.WriteStringValue(relativePath.ToString(m_pathTable.StringTable));
-                    }
-                }
-            }
+            public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options) => writer.WriteStringValue(PrepareValueForSerialization(value));
 
-            public override void WriteAsPropertyName(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+            public override void WriteAsPropertyName(Utf8JsonWriter writer, T value, JsonSerializerOptions options) => writer.WritePropertyName(PrepareValueForSerialization(value));
+
+            public string PrepareValueForSerialization(T value)
             {
                 if (m_replacePaths)
                 {
-                    writer.WritePropertyName(ReplacePathsWith);
+                    return ReplacePathsWith;
                 }
                 else
                 {
                     if (value is AbsolutePath absolutePath)
                     {
-                        writer.WritePropertyName(absolutePath.ToString(m_pathTable));
+                        return m_pathTranslator != null
+                            ? m_pathTranslator.Translate(absolutePath.ToString(m_pathTable))
+                            : absolutePath.ToString(m_pathTable);
                     }
                     else if (value is RelativePath relativePath)
                     {
-                        writer.WritePropertyName(relativePath.ToString(m_pathTable.StringTable));
+                        return relativePath.ToString(m_pathTable.StringTable);
                     }
+
+                    throw new NotSupportedException($"Values of a type '{typeof(T)}' are not supported.");
                 }
             }
         }
@@ -225,6 +231,70 @@ namespace BuildXL.Scheduler
                 writer.WriteString("EventLevel", value.Item2?.ToString());
                 writer.WriteEndObject();
             }
+        }
+
+        private class LocationDataJsonConverter : JsonConverter<LocationData>
+        {
+            private readonly PathJsonConverter<AbsolutePath> m_pathConverter;
+
+            public LocationDataJsonConverter(PathJsonConverter<AbsolutePath> pathConverter)
+            {
+                m_pathConverter = pathConverter;
+            }
+
+            public override LocationData Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotSupportedException();
+
+            public override void Write(Utf8JsonWriter writer, LocationData value, JsonSerializerOptions options)
+                => writer.WriteStringValue($"{m_pathConverter.PrepareValueForSerialization(value.Path)}{(value.IsValid ? $" ({value.Line}, {value.Position})" : string.Empty)}");
+        }
+
+        private class DiscriminatingUnionJsonConverter<T, U> : JsonConverter<DiscriminatingUnion<T, U>>
+        {
+            private readonly JsonConverter<T> m_tConverter;
+            private readonly JsonConverter<U> m_uConverter;
+
+            public DiscriminatingUnionJsonConverter(JsonConverter<T> tConverter, JsonConverter<U> uConverter)
+            {
+                m_tConverter = tConverter;
+                m_uConverter = uConverter;
+            }
+
+            public override DiscriminatingUnion<T, U>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotSupportedException();
+
+            public override void Write(Utf8JsonWriter writer, DiscriminatingUnion<T, U> value, JsonSerializerOptions options)
+            {
+                object duValue = value.GetValue();
+
+                if (duValue == null)
+                {
+                    writer.WriteNullValue();
+                }
+                else if (duValue is T tValue)
+                {
+                    m_tConverter.Write(writer, tValue, options);
+                }
+                else if (duValue is U uValue)
+                {
+                    m_uConverter.Write(writer, uValue, options);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Serializes a FileArtifact as a file path value (i.e., rewrite count is ignored).
+        /// </summary>
+        private class FileArtifactJsonConverter : JsonConverter<FileArtifact>
+        {
+            private readonly PathJsonConverter<AbsolutePath> m_pathConverter;
+
+            public FileArtifactJsonConverter(PathJsonConverter<AbsolutePath> pathConverter)
+            {
+                m_pathConverter = pathConverter;
+            }
+
+            public override FileArtifact Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotSupportedException();
+
+            public override void Write(Utf8JsonWriter writer, FileArtifact value, JsonSerializerOptions options) => m_pathConverter.Write(writer, value.Path, options);
         }
     }
 #endif

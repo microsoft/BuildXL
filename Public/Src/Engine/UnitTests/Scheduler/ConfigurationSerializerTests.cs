@@ -164,13 +164,13 @@ namespace Test.BuildXL.Scheduler
             var array = node["FileAccessAllowList"]!.AsArray()!;
             XAssert.AreEqual(1, array.Count);
             XAssert.AreEqual("Test", array[0]!["Name"]!.GetValue<string>());
-#if NET7_0_OR_GREATER
+#if NET8_0_OR_GREATER
             XAssert.AreEqual("{Invalid}", array[0]!["Location"]!.GetValue<string>());
-#elif NET6_0
-
-            // System.Text.Json only supports serialization of polymorphic type hierarchies starting with .Net7
+#else
+            // System.Text.Json only supports serialization of properties in interface hierarchies starting with .Net8
+            // (see: https://github.com/dotnet/runtime/issues/41749)
             // Location is a part of the base interface, i.e., config.FileAccessAllowList <- IFileAccessAllowlistEntry <- ITrackedValue.Location,
-            // so it won't be serialized under Net6.
+            // so it won't be serialized when BuildXL was built under Net6 or Net7.
             XAssert.IsNull(array[0]!["Location"]);
 #endif
             XAssert.AreEqual(path, array[0]!["ToolPath"]!.GetValue<string>());
@@ -180,7 +180,7 @@ namespace Test.BuildXL.Scheduler
             array = node["FileAccessAllowList"]!.AsArray()!;
             XAssert.AreEqual(1, array.Count);
             XAssert.AreEqual("Test2", array[0]!["Name"]!.GetValue<string>());
-#if NET7_0_OR_GREATER
+#if NET8_0_OR_GREATER
             XAssert.AreEqual($"{path} (1, 2)", array[0]!["Location"]!.GetValue<string>());
 #endif
             XAssert.AreEqual("foo.bar", array[0]!["ToolPath"]!.GetValue<string>());

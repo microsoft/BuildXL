@@ -19,7 +19,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// The path of the executable file of the process.
         /// </summary>
-        public string Path { get; private set; }
+        public readonly string Path;
 
         /// <summary>
         /// The (not necessarily unique) process id
@@ -92,18 +92,14 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// When an exec call occurs on a Process, its process image and process args must be updated.
+        /// Set process args only if it wasn't set to a non-empty string in the constructor.
         /// </summary>
-        /// <remarks>
-        /// Only applicable on Linux platforms.
-        /// </remarks>
-        public void UpdateOnPathAndArgsOnExec(string path, string args)
+        public void AppendArgs(string args)
         {
-            Contract.Requires(!string.IsNullOrEmpty(path));
-            // Process args could potentially be empty if the reported process was called without any args, so we won't do an empty check here for that
-            Contract.Requires(args != null);
-            Path = path;
-            ProcessArgs = args;
+            if (string.IsNullOrEmpty(ProcessArgs))
+            {
+                ProcessArgs = args;
+            }
         }
 
         /// <nodoc />

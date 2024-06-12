@@ -13,7 +13,6 @@
 #include "SendReport.h"
 #include "PolicyResult.h"
 #include "buildXL_mem.h"
-#include "ReportType.h"
 
 #include <TraceLoggingProvider.h>
 
@@ -178,7 +177,7 @@ void ReportFileAccess(
     size_t reportBufferSize = fileNameLength + filterLength + fileProcessCommandLineLength + operationLen + 116; // in characters
 
     // Adding 116 should be enough for now since the max values for the members of the message are:
-    // buildxl::common::ReportType::kFileAccess � 1 char
+    // ReportType_FileAccess � 1 char
     // g_currentProcessId � 8 chars
     // FileOperationContext.Id � 8 chars
     // FileOperationContext.CorrelationId � 8 chars
@@ -221,7 +220,7 @@ void ReportFileAccess(
         std::replace(commandLine.begin(), commandLine.end(), L'\n', L' ');
 
         constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%lx|%s|%s|%s\r\n",
-            buildxl::common::ReportType::kFileAccess,
+            ReportType::ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
             fileOperationContext.Id,
@@ -244,7 +243,7 @@ void ReportFileAccess(
     else
     {
         constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%lx|%s|%s\r\n",
-            buildxl::common::ReportType::kFileAccess,
+            ReportType::ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
             fileOperationContext.Id,
@@ -350,7 +349,7 @@ void ReportProcessDetouringStatus(
 
 #pragma warning(suppress: 4826)
     int const constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%u,%lu|%u|%s|%s|%u|%u|%u|%u|%u|%llu|%u|%u|%u|%u|%u|%s\r\n",
-        buildxl::common::ReportType::kProcessDetouringStatus,
+        ReportType::ReportType_ProcessDetouringStatus,
         GetCurrentProcessId(),
         status,
         processName.get() != nullptr ? processName.get() : nullStringPtr,
@@ -399,7 +398,7 @@ void ReportProcessData(
         return;
     }
 
-    // There is 1 32-bit report type (buildxl::common::ReportType::kProcessData), which has a max character length of 10 characters.
+    // There is 1 32-bit report type (ReportType_ProcessData), which has a max character length of 10 characters.
     // There is 1 32-bit process ID, which has a max character length of 10 characters.
     // There are 6 64-bit values, each value has a max length of 20 characters each. These represent the IO counters,
     // There are 7 32-bit values, each value has a max length of 10 characters each. These represent the creation time, 
@@ -426,7 +425,7 @@ void ReportProcessData(
     wchar_t report[reportBufferSize];
 
     int const constructReportResult = swprintf_s(report, reportBufferSize, L"%u,%lu|%I64u|%I64u|%I64u|%I64u|%I64u|%I64u|%lu|%lu|%lu|%lu|%lu|%lu|%lu|%lu|%s|%lu|%lu|%I64u|%lu|%I64u|%lu|%I64u|%I64u\r\n",
-        buildxl::common::ReportType::kProcessData,
+        ReportType::ReportType_ProcessData,
         GetCurrentProcessId(),
         ioCounters.ReadOperationCount,
         ioCounters.WriteOperationCount,

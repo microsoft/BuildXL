@@ -4,7 +4,6 @@
 #ifndef BUILDXL_SANDBOX_LINUX_BXL_OBSERVER_H
 #define BUILDXL_SANDBOX_LINUX_BXL_OBSERVER_H
 
-// Linux headers
 #include "dirent.h"
 #include <sched.h>
 #include <stdarg.h>
@@ -26,7 +25,6 @@
 #include <sys/vfs.h>
 #include <utime.h>
 
-// C++ headers
 #include <ostream>
 #include <sstream>
 #include <chrono>
@@ -35,12 +33,11 @@
 #include <unordered_map>
 #include <vector>
 
-// Project Headers
-#include "common.h"
-#include "FileAccessManifest.h"
-#include "ReportBuilder.h"
-#include "SandboxEvent.h"
+#include "Sandbox.hpp"
+#include "SandboxedPip.hpp"
 #include "utils.h"
+#include "common.h"
+#include "SandboxEvent.h"
 
 using namespace std;
 
@@ -131,30 +128,30 @@ static const char GLIBC_23[] = "GLIBC_2.3";
         return return_value;                                                    \
     }                                                                           \
     template<typename ...TArgs> ret check_fwd_and_report_##name(                \
-        buildxl::linux::SandboxEvent& event,                                    \
+        AccessReportGroup& report,                                              \
+        AccessCheckResult &check,                                               \
         ret error_val,                                                          \
         TArgs&& ...args)                                                        \
     {                                                                           \
-        AccessCheckResult check_result = event.GetEventAccessCheckResult();     \
-        result_t<ret> return_value = should_deny(check_result)                  \
+        result_t<ret> return_value = should_deny(check)                         \
             ? result_t<ret>(error_val, EPERM)                                   \
             : fwd_##name(args...);                                              \
-        event.SetErrno(return_value.get() == error_val                          \
+        report.SetErrno(return_value.get() == error_val                         \
             ? return_value.get_errno()                                          \
             : 0);                                                               \
-        BxlObserver::GetInstance()->SendReport(event);                          \
+        BxlObserver::GetInstance()->SendReport(report);                         \
         return return_value.restore();                                          \
     }                                                                           \
     template<typename ...TArgs> result_t<ret> fwd_and_report_##name(            \
-        buildxl::linux::SandboxEvent& event,                                    \
+        AccessReportGroup& report,                                              \
         ret error_val,                                                          \
         TArgs&& ...args)                                                        \
     {                                                                           \
         result_t<ret> return_value = fwd_##name(args...);                       \
-        event.SetErrno(return_value.get() == error_val                          \
+        report.SetErrno(return_value.get() == error_val                         \
             ? return_value.get_errno()                                          \
             : 0);                                                               \
-        BxlObserver::GetInstance()->SendReport(event);                          \
+        BxlObserver::GetInstance()->SendReport(report);                         \
         return return_value;                                                    \
     }                                                                           \
 
@@ -235,7 +232,7 @@ private:
     char secondaryReportPath_[PATH_MAX];
 
     std::timed_mutex cacheMtx_;
-    std::unordered_map<buildxl::linux::EventType, std::unordered_set<std::string>> cache_;
+    std::unordered_map<es_event_type_t, std::unordered_set<std::string>> cache_;
 
     // In a typical case, a process will not have more than 1024 open file descriptors at a time.
     // File descriptors start at 3 (1 and 2 are reserved for stdout and stderr).
@@ -249,10 +246,9 @@ private:
     bool useFdTable_ = true;
     bool sandboxLoggingEnabled_ = false;
 
-    /** File access manifest payload bytes */
-    char *fam_payload_;
-    /** File access manifest (contains pointers into the 'payload_' byte array */
-    std::unique_ptr<buildxl::common::FileAccessManifest> fam_;
+    std::shared_ptr<SandboxedPip> pip_;
+    std::shared_ptr<SandboxedProcess> process_;
+    Sandbox *sandbox_;
 
     // Cache for processes requiring ptrace in the form <timestamp>:<path>
     std::vector<std::pair<std::string, bool>> ptraceRequiredProcessCache_;
@@ -267,23 +263,23 @@ private:
     void InitFam(pid_t pid);
     void InitDetoursLibPath();
     bool Send(const char *buf, size_t bufsiz, bool useSecondaryPipe, bool countReport);
-    bool IsCacheHit(buildxl::linux::EventType event, const string &path, const string &secondPath);
-    bool CheckCache(buildxl::linux::EventType event, const string &path, bool addEntryIfMissing);
+    bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
+    bool CheckCache(es_event_type_t event, const string &path, bool addEntryIfMissing);
     char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
     ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t associatedPid = 0);
 
-    bool IsMonitoringChildProcesses() const { return !fam_ || CheckMonitorChildProcesses(fam_->GetFlags()); }
-    bool IsPTraceEnabled() const { return fam_ && (CheckEnableLinuxPTraceSandbox(fam_->GetExtraFlags()) || CheckUnconditionallyEnableLinuxPTraceSandbox(fam_->GetExtraFlags())); }
+    bool IsMonitoringChildProcesses() const { return !pip_ || CheckMonitorChildProcesses(pip_->GetFamFlags()); }
+    bool IsPTraceEnabled() const { return pip_ && (CheckEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags()) || CheckUnconditionallyEnableLinuxPTraceSandbox(pip_->GetFamExtraFlags())); }
     bool IsPTraceForced(const char *path);
 
-    inline bool IsValid() const             { return fam_ != NULL; }
+    inline bool IsValid() const             { return sandbox_ != NULL; }
     inline bool IsEnabled(pid_t pid) const
     {
         return
             // successfully initialized
             IsValid() &&
             // NOT (child processes should break away AND this is a child process)
-            !(fam_->AllowChildProcessesToBreakAway() && pid != rootPid_);
+            !(pip_->AllowChildProcessesToBreakAway() && pid != rootPid_);
     }
 
     void PrintArgs(std::stringstream& str, bool isFirst)
@@ -330,6 +326,16 @@ private:
      */
     void FileDescriptorToPath(int fd, pid_t pid, char *out_path_buffer, size_t buffer_size);
 
+    // Builds the report to be sent over the FIFO in the given buffer
+    inline int BuildReport(char* buffer, int maxMessageLength, const AccessReport &report, const char *path, bool unexpectedReport = false)
+    {
+        // Note: when adding new fields, always leave 'path' as the last component of this message
+        // This is for the sake of the arithmetic when truncating debug messages, where this assumption is made (see SendReport). 
+        return snprintf(
+            buffer, maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%d|%d|%s\n",
+            __progname, report.pid <= 0 ? getpid() : report.pid, report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.isDirectory, unexpectedReport, path);
+    }
+
     static BxlObserver *sInstance;
     static AccessCheckResult sNotChecked;
 
@@ -347,9 +353,8 @@ public:
         return initializingSemaphore_;
     }
 
-    bool SendReport(buildxl::linux::SandboxEvent &event, bool use_secondary_pipe = false);
-    bool SendReport(buildxl::linux::SandboxEvent &event, buildxl::linux::AccessReport report, bool use_secondary_pipe);
-
+    bool SendReport(const AccessReport &report, bool isDebugMessage = false, bool useSecondaryPipe = false);
+    bool SendReport(const AccessReportGroup &report);
     // Specialization for the exit report event. 
     // We may need to send an exit report on exit handlers after destructors
     // have been called. This method avoids accessing shared structures.
@@ -357,12 +362,15 @@ public:
     char** ensureEnvs(char *const envp[]);
 
     const char* GetProgramPath() { return progFullPath_; }
-    const char* GetReportsPath() { int len; return IsValid() ? fam_->GetReportsPath(&len) : NULL; }
+    const char* GetReportsPath() { int len; return IsValid() ? pip_->GetReportsPath(&len) : NULL; }
     const char* GetSecondaryReportsPath() { return secondaryReportPath_; }
     const char* GetDetoursLibPath() { return detoursLibFullPath_; }
 
-    bool IsReportingProcessArgs() const { return !fam_ || CheckReportProcessArgs(fam_->GetFlags()); }
+    bool IsReportingProcessArgs() const { return !pip_ || CheckReportProcessArgs(pip_->GetFamFlags()); }
 
+    void report_exec(const char *syscallName, const char *procName, const char *file, int error, mode_t mode = 0, pid_t associatedPid = 0);
+    void report_exec_args(pid_t pid);
+    void report_exec_args(pid_t pid, const char *args);
     void report_intermediate_symlinks(const char *pathname, pid_t associatedPid);
 
     // Removes detours path from LD_PRELOAD from the given environment and returns the modified environment
@@ -372,17 +380,6 @@ public:
     }
 
     /**
-     * Reads and returns the command line for the provided process ID.
-    */
-    std::string GetProcessCommandLine(pid_t pid);
-
-    /**
-     * Converts an argument vector containing the command line into a single string.
-     * If an argc is not provided, it will be calculated based on the provided argv.
-    */
-    std::string GetProcessCommandLine(char **argv);
-
-    /**
      * Performs an access check on the provided SandboxEvent and produces an access report.
      * If a file descriptor or relative paths are provided in the event, this function will also resolve those to full paths.
      * @param syscall_name The name of the syscall that triggered the access check.
@@ -390,22 +387,22 @@ public:
      * @param report The AccessReportGroup to populate with the access report.
      * @param check_cache Whether to cache events. Events are cached based on event type and path.
      */
-    AccessCheckResult CreateAccess(buildxl::linux::SandboxEvent& event, bool check_cache = true);
+    AccessCheckResult CreateAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, AccessReportGroup& report_group, bool check_cache = true);
 
     /**
      * Sends a file access report to the managed side of the sandbox using the provided access report. 
      */
-    void ReportAccess(buildxl::linux::SandboxEvent& event);
+    void ReportAccess(const AccessReportGroup& report_group);
 
     /**
      * Creates and sends a file access report to the managed side based on a sandbox event, ignoring the result of the access check.
      * Used for interposings that we don't need to block (like stats) or where we can't block (like the PTrace sandbox) 
      */
-    void CreateAndReportAccess(buildxl::linux::SandboxEvent& event, bool check_cache = true);
+    void CreateAndReportAccess(const char *syscall_name, buildxl::linux::SandboxEvent& event, bool check_cache = true);
 
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy
-    void report_firstAllowWriteCheck(const char *full_path);
+    void report_firstAllowWriteCheck(const char *fullPath);
 
     // Checks and reports when a process that requires ptrace is about to be executed
     // Observe that as soon as this method determines ptrace is required and sends the corresponding report
@@ -444,7 +441,7 @@ public:
 
     inline bool LogDebugEnabled()
     {
-        if (fam_ == NULL)
+        if (pip_ == NULL)
         {
             // The observer isn't initialized yet. We're being defensive here,
             // in case someone adds a LOG_DEBUG in a place where it would cause a segfault. 
@@ -513,7 +510,7 @@ public:
 
     bool IsFailingUnexpectedAccesses()
     {
-        return CheckFailUnexpectedFileAccesses(fam_->GetFlags());
+        return CheckFailUnexpectedFileAccesses(pip_->GetFamFlags());
     }
 
     /**

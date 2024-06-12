@@ -11,6 +11,11 @@ namespace Sandbox {
     };
 
     const commonSrc = [
+        ...glob(d`../MacOs/Interop/Sandbox/Data`, "*.cpp"),
+        ...glob(d`../MacOs/Interop/Sandbox/Handlers`, "*.cpp"),
+        f`../MacOs/Interop/Sandbox/Sandbox.cpp`,
+        f`../MacOs/Sandbox/Src/Kauth/Checkers.cpp`,
+        f`../MacOs/Sandbox/Src/Kauth/OpNames.cpp`,
         f`../Windows/DetoursServices/PolicyResult_common.cpp`,
         f`../Windows/DetoursServices/PolicySearch.cpp`,
         f`../Windows/DetoursServices/StringOperations.cpp`,
@@ -19,26 +24,16 @@ namespace Sandbox {
     ];
     const utilsSrc   = [ f`utils.c` ];
     const bxlEnvSrc  = [ f`bxl-env.c` ];
-    const detoursSrc = [
-        f`bxl_observer.cpp`,
-        f`detours.cpp`,
-        f`PTraceSandbox.cpp`,
-        f`observer_utilities.cpp`,
-        f`ReportBuilder.cpp`,
-        f`SandboxEvent.cpp`,
-        f`AccessChecker.cpp`
-    ];
-    const ptraceRunnerSrc = [
-        f`ptracerunner.cpp`,
-        f`bxl_observer.cpp`,
-        f`PTraceSandbox.cpp`,
-        f`observer_utilities.cpp`,
-        f`ReportBuilder.cpp`,
-        f`SandboxEvent.cpp`,
-        f`AccessChecker.cpp`
-    ];
+    const detoursSrc = [ f`bxl_observer.cpp`, f`detours.cpp`, f`PTraceSandbox.cpp`, f`observer_utilities.cpp` ];
+    const ptraceRunnerSrc = [ f`ptracerunner.cpp`, f`bxl_observer.cpp`, f`PTraceSandbox.cpp`, f`observer_utilities.cpp` ];
     const incDirs    = [
         d`./`,
+        d`../MacOs/Interop/Sandbox`,
+        d`../MacOs/Interop/Sandbox/Data`,
+        d`../MacOs/Interop/Sandbox/Handlers`,
+        d`../MacOs/Sandbox/Src`,
+        d`../MacOs/Sandbox/Src/FileAccessManifest`,
+        d`../MacOs/Sandbox/Src/Kauth`,
         d`../Windows/DetoursServices`,
         d`../Common`
     ];

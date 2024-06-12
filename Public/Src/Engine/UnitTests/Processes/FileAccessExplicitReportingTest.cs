@@ -290,8 +290,8 @@ namespace Test.BuildXL.Processes
                 var allowedOperations = !OperatingSystemHelper.IsUnixOS
                     ? new[] { ReportedFileOperation.CreateFile }
                     : expected.Exists
-                        ? new[] { ReportedFileOperation.ReadFile }
-                        : new[] { ReportedFileOperation.UnixAbsentProbe };
+                        ? new[] { ReportedFileOperation.KAuthVNodeRead, ReportedFileOperation.KAuthReadFile }
+                        : new[] { ReportedFileOperation.MacLookup };
 
                 XAssert.Contains(allowedOperations, actualReport.Operation);
             }

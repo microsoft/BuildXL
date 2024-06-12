@@ -35,15 +35,15 @@ static int get_errno_from_result(result_t<int> result) {
 }
 
 INTERPOSE(int, statx, int dirfd, const char * pathname, int flags, unsigned int mask, struct statx * statxbuf)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_statx(event, ERROR_RETURN_VALUE, dirfd, pathname, flags, mask, statxbuf);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_statx(report, check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mask, statxbuf);
 })
 
 INTERPOSE(int, scandir, const char * dirp,
@@ -51,14 +51,14 @@ INTERPOSE(int, scandir, const char * dirp,
                    int (*filter)(const struct dirent *),
                    int (*compar)(const struct dirent **, const struct dirent **))
 ({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericRead,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READDIR,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      dirp);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_scandir(event, ERROR_RETURN_VALUE, dirp, namelist, filter, compar);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_scandir(report, check, ERROR_RETURN_VALUE, dirp, namelist, filter, compar);
 })
 
 INTERPOSE(int, scandir64, const char * dirp,
@@ -66,14 +66,14 @@ INTERPOSE(int, scandir64, const char * dirp,
                    int (*filter)(const struct dirent64  *),
                    int (*compar)(const dirent64 **, const dirent64 **))
 ({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericRead,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READDIR,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      dirp);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_scandir64(event, ERROR_RETURN_VALUE, dirp, namelist, filter, compar);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_scandir64(report, check, ERROR_RETURN_VALUE, dirp, namelist, filter, compar);
 })
 
 INTERPOSE(int, scandirat, int dirfd, const char * dirp,
@@ -81,15 +81,15 @@ INTERPOSE(int, scandirat, int dirfd, const char * dirp,
                    int (*filter)(const struct dirent *),
                    int (*compar)(const struct dirent **, const struct dirent **))
 ({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericRead,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READDIR,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      dirp,
         /* src_fd */        dirfd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_scandirat(event, ERROR_RETURN_VALUE, dirfd, dirp, namelist, filter, compar);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_scandirat(report, check, ERROR_RETURN_VALUE, dirfd, dirp, namelist, filter, compar);
 })
 
 INTERPOSE(int, scandirat64, int dirfd, const char * dirp,
@@ -97,74 +97,80 @@ INTERPOSE(int, scandirat64, int dirfd, const char * dirp,
                    int (*filter)(const struct dirent64  *),
                    int (*compar)(const dirent64 **, const dirent64 **))
 ({
-    auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericRead,
+    AccessReportGroup report;
+        auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READDIR,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      dirp,
         /* src_fd */        dirfd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_scandirat64(event, ERROR_RETURN_VALUE, dirfd, dirp, namelist, filter, compar);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_scandirat64(report, check, ERROR_RETURN_VALUE, dirfd, dirp, namelist, filter, compar);
 })
 
 INTERPOSE(struct dirent *, readdir, DIR *dirp)
 ({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericRead,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READDIR,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        dirfd(dirp));
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_readdir(event, (struct dirent *)NULL, dirp);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_readdir(report, check, (struct dirent *)NULL, dirp);
 })
 
 INTERPOSE(struct dirent64 *, readdir64, DIR *dirp)
 ({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericRead,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READDIR,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        dirfd(dirp));
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_readdir64(event, (struct dirent64 *)NULL, dirp);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_readdir64(report, check, (struct dirent64 *)NULL, dirp);
 })
 
 INTERPOSE(int, readdir_r, DIR *dirp, struct dirent *entry, struct dirent **result)
 ({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericRead,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READDIR,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        dirfd(dirp));
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_readdir_r(event, ERROR_RETURN_VALUE, dirp, entry, result);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_readdir_r(report, check, ERROR_RETURN_VALUE, dirp, entry, result);
 })
 
 INTERPOSE(int, readdir64_r, DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
 ({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericRead,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READDIR,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        dirfd(dirp));
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_readdir64_r(event, ERROR_RETURN_VALUE, dirp, entry, result);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_readdir64_r(report, check, ERROR_RETURN_VALUE, dirp, entry, result);
 })
 
 INTERPOSE(void, _exit, int status)({
-    bxl->SendExitReport();
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_EXIT,
+        /* pid */           getpid(),
+        /* error */         0,
+        /* src_path */      bxl->GetProgramPath());
+    bxl->CreateAndReportAccess("_exit", event, /*check_cache*/ false);
     bxl->real__exit(status);
 })
 
 static void report_child_process(const char *syscall, BxlObserver *bxl, pid_t childPid, pid_t parentPid)
 {
-    auto event = buildxl::linux::SandboxEvent::ForkSandboxEvent(syscall, childPid, parentPid, bxl->GetProgramPath());
-    bxl->CreateAndReportAccess(event, /* check_cache */ false);
+    string exePath(bxl->GetProgramPath());
+    auto event = buildxl::linux::SandboxEvent::ForkSandboxEvent(parentPid, childPid, exePath);
+    bxl->CreateAndReportAccess(syscall, event, /* check_cache */ false);
 }
 
 static void HandleForkOrCloneReporting(const char *syscall, BxlObserver *bxl, pid_t forkOrCloneChildPidResult)
@@ -253,15 +259,7 @@ static int handle_exec_with_ptrace(const char *file, char *const argv[], char *c
 
     PTraceSandbox ptraceSandbox(bxl);
     auto result = ptraceSandbox.ExecuteWithPTraceSandbox(file, argv, envp, bxl->getFamPath());
-
-    // This would only be reported if the execve inside the ptrace sandbox failed.
-    auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-        /* system_call */   "execve",
-        /* pid */           getpid(),
-        /* src_path */      file,
-        /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-    event.SetErrno(errno);
-    BxlObserver::GetInstance()->CreateAndReportAccess(event);
+    bxl->report_exec("execve", argv[0], file, /* error */ errno);
 
     return result;
 }
@@ -284,14 +282,12 @@ INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
     result_t<int> result = bxl->fwd_fexecve(fd, argv, bxl->ensureEnvs(envp));
 
     // This will only execute if exec failed
-    auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-        /* system_call */   __func__,
+    auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_EXEC,
         /* pid */           getpid(),
-        /* src_path */      bxl->fd_to_path(fd).c_str(),
-        /* command_line */  bxl->GetProcessCommandLine((char **)argv));
-    event.SetErrno(result.get_errno());
-    BxlObserver::GetInstance()->CreateAndReportAccess(event);
-
+        /* error */         result.get_errno(),
+        /* src_fd */        fd);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
@@ -307,13 +303,7 @@ INTERPOSE(int, execv, const char *file, char *const argv[])({
     result_t<int> result =  bxl->fwd_execve(file, argv, bxl->ensureEnvs(environ));
 
     // This will only execute if exec failed
-    auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-        /* system_call */   __func__,
-        /* pid */           getpid(),
-        /* src_path */      file,
-        /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-    event.SetErrno(result.get_errno());
-    BxlObserver::GetInstance()->CreateAndReportAccess(event);
+    bxl->report_exec(__func__, argv[0], file,  result.get_errno());
 
     return result.restore();
 })
@@ -330,13 +320,7 @@ INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])
     result_t<int> result =  bxl->fwd_execve(file, argv, bxl->ensureEnvs(envp));
 
     // This will only execute if exec failed
-    auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-        /* system_call */   __func__,
-        /* pid */           getpid(),
-        /* src_path */      file,
-        /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-    event.SetErrno(result.get_errno());
-    BxlObserver::GetInstance()->CreateAndReportAccess(event);
+    bxl->report_exec(__func__, argv[0], file,  result.get_errno());
 
     return result.restore();
 })
@@ -357,17 +341,7 @@ INTERPOSE(int, execvp, const char *file, char *const argv[])({
         }
 
         result_t<int> result = bxl->fwd_execve(pathname.c_str(), argv, bxl->ensureEnvs(environ));
-
-        // This will only execute if exec failed
-        auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-            /* system_call */   __func__,
-            /* pid */           getpid(),
-            /* src_path */      pathname.c_str(),
-            /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-        event.SetErrno(result.get_errno());
-        event.SetMode(mode);
-        BxlObserver::GetInstance()->CreateAndReportAccess(event);
-        
+        bxl->report_exec(__func__, argv[0], pathname.c_str(), /*error*/ result.get_errno(), mode);
         return result.restore();
     }
     else
@@ -375,16 +349,7 @@ INTERPOSE(int, execvp, const char *file, char *const argv[])({
         // exec* functions don't return unless they fail (the executing image gets replaced
         // by the specified one). So we cannot actually report back the errno
         result_t<int> result = bxl->fwd_execvpe(file, argv, bxl->ensureEnvs(environ));
-
-        auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-            /* system_call */   __func__,
-            /* pid */           getpid(),
-            /* src_path */      file,
-            /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-        event.SetErrno(result.get_errno());
-        event.SetMode(mode);
-        BxlObserver::GetInstance()->CreateAndReportAccess(event);
-
+        bxl->report_exec(__func__, argv[0], file,  /* error */ result.get_errno(), mode);
         return result.restore();
     }
 })
@@ -406,33 +371,15 @@ INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[]
         }
 
         result_t<int> result = bxl->fwd_execve(pathname.c_str(), argv, bxl->ensureEnvs(envp));
-
         // This will only execute if exec failed
-        auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-            /* system_call */   __func__,
-            /* pid */           getpid(),
-            /* src_path */      pathname.c_str(),
-            /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-        event.SetErrno(result.get_errno());
-        event.SetMode(mode);
-        BxlObserver::GetInstance()->CreateAndReportAccess(event);
-
+        bxl->report_exec(__func__, argv[0], pathname.c_str(), /*error*/ result.get_errno(), mode);
         return result.restore();
     }
     else
     {
         result_t<int> result = bxl->fwd_execve(file, argv, bxl->ensureEnvs(envp));
-
         // This will only execute if exec failed
-        auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-            /* system_call */   __func__,
-            /* pid */           getpid(),
-            /* src_path */      file,
-            /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-        event.SetErrno(result.get_errno());
-        event.SetMode(mode);
-        BxlObserver::GetInstance()->CreateAndReportAccess(event);
-
+        bxl->report_exec(__func__, argv[0], file, /* error */ result.get_errno(), mode);
         return result.restore();
     }
 })
@@ -459,16 +406,7 @@ INTERPOSE(int, execl, const char *pathname, const char *arg, ...)({
     }
     
     result_t<int> result = bxl->fwd_execve(pathname, (char **)argv, bxl->ensureEnvs(environ));
-
-    // This will only execute if exec failed
-    auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-        /* system_call */   __func__,
-        /* pid */           getpid(),
-        /* src_path */      pathname,
-        /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-    event.SetErrno(result.get_errno());
-    BxlObserver::GetInstance()->CreateAndReportAccess(event);
-
+    bxl->report_exec(__func__, argv[0], pathname, /*error*/ result.get_errno(), /*mode*/ 0);
     return result.restore();
 })
 
@@ -500,33 +438,13 @@ INTERPOSE(int, execlp, const char *file, const char *arg, ...)({
         }
 
         result_t<int> result = bxl->fwd_execve(pathname.c_str(), (char **)argv, bxl->ensureEnvs(environ));
-
-        // This will only execute if exec failed
-        auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-            /* system_call */   __func__,
-            /* pid */           getpid(),
-            /* src_path */      pathname.c_str(),
-            /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-        event.SetErrno(result.get_errno());
-        event.SetMode(mode);
-        BxlObserver::GetInstance()->CreateAndReportAccess(event);
-
+        bxl->report_exec(__func__, argv[0], pathname.c_str(), /*error*/ result.get_errno(), mode);
         return result.restore();
     }
     else
     {
         result_t<int> result = bxl->fwd_execvp(file, (char **)argv);
-
-        // This will only execute if exec failed
-        auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-            /* system_call */   __func__,
-            /* pid */           getpid(),
-            /* src_path */      file,
-            /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-        event.SetErrno(result.get_errno());
-        event.SetMode(mode);
-        BxlObserver::GetInstance()->CreateAndReportAccess(event);
-
+        bxl->report_exec(__func__, argv[0], file, /*error*/ result.get_errno(), mode);
         return result.restore();
     }
 })
@@ -557,13 +475,7 @@ INTERPOSE(int, execle, const char *pathname, const char *arg, ...)({
     result_t<int> result = bxl->fwd_execve(pathname, (char **)argv, bxl->ensureEnvs(envp));
 
     // This will only execute if exec failed
-    auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-        /* system_call */   __func__,
-        /* pid */           getpid(),
-        /* src_path */      pathname,
-        /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
-    event.SetErrno(result.get_errno());
-    BxlObserver::GetInstance()->CreateAndReportAccess(event);
+    bxl->report_exec(__func__, argv[0], pathname, result.get_errno(), /* mode */ 0);
 
     return result.restore();
 })
@@ -571,14 +483,12 @@ INTERPOSE(int, execle, const char *pathname, const char *arg, ...)({
 #if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
 INTERPOSE(int, __fxstat, int __ver, int fd, struct stat *__stat_buf)({
     result_t<int> result = bxl->fwd___fxstat(__ver, fd, __stat_buf);
-
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_fd */        fd);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
@@ -600,41 +510,37 @@ if (BxlObserver::GetInstance()->IsPerformingInit())
 int __ver, int fd, struct stat64 *buf)({
     result_t<int> result(bxl->fwd___fxstat64(__ver, fd, buf));
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_fd */        fd);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, __fxstatat, int __ver, int fd, const char *pathname, struct stat *__stat_buf, int flag)({
     result_t<int> result = bxl->fwd___fxstatat(__ver, fd, pathname, __stat_buf, flag);
-
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname,
         /* src_fd */        fd);
     
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, __fxstatat64, int __ver, int fd, const char *pathname, struct stat64 *buf, int flag)({
     result_t<int> result = bxl->fwd___fxstatat64(__ver, fd, pathname, buf, flag);
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname,
         /* src_fd */        fd);
     
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
@@ -642,52 +548,48 @@ INTERPOSE(int, __xstat, int __ver, const char *pathname, struct stat *buf)({
     result_t<int> result = bxl->fwd___xstat(__ver, pathname, buf);
 
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, __xstat64, int __ver, const char *pathname, struct stat64 *buf)({
     result_t<int> result(bxl->fwd___xstat64(__ver, pathname, buf));
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, __lxstat, int __ver, const char *pathname, struct stat *buf)({
     result_t<int> result = bxl->fwd___lxstat(__ver, pathname, buf);
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, __lxstat64, int __ver, const char *pathname, struct stat64 *buf)({
     result_t<int> result(bxl->fwd___lxstat64(__ver, pathname, buf));
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
@@ -695,157 +597,152 @@ INTERPOSE(int, __lxstat64, int __ver, const char *pathname, struct stat64 *buf)(
 INTERPOSE(int, stat, const char *pathname, struct stat *statbuf)({
     result_t<int> result = bxl->fwd_stat(pathname, statbuf);
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, stat64, const char *pathname, struct stat64 *statbuf)({
     result_t<int> result = bxl->fwd_stat64(pathname, statbuf);
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, lstat, const char *pathname, struct stat *statbuf)({
     result_t<int> result = bxl->fwd_lstat(pathname, statbuf);
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, lstat64, const char *pathname, struct stat64 *statbuf)({
     result_t<int> result = bxl->fwd_lstat64(pathname, statbuf);
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, fstat, int fd, struct stat *statbuf)({
     result_t<int> result = bxl->fwd_fstat(fd, statbuf);
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_fd */        fd);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 
 INTERPOSE(int, fstat64, int fd, struct stat64 *statbuf)({
     result_t<int> result = bxl->fwd_fstat64(fd, statbuf);
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         get_errno_from_result(result),
         /* src_fd */        fd);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
     return result.restore();
 })
 #endif
 
-static buildxl::linux::EventType get_event_from_open_mode(const char *mode) {
+static es_event_type_t get_event_from_open_mode(const char *mode) {
     const char *pMode = mode;
     while (pMode && *pMode) {
         if (*pMode == 'a' || *pMode == 'w' || *pMode == '+') {
-            return buildxl::linux::EventType::kGenericWrite;
+            return ES_EVENT_TYPE_NOTIFY_WRITE;
         }
         ++pMode;
     }
-    return buildxl::linux::EventType::kOpen;
+    return ES_EVENT_TYPE_NOTIFY_OPEN;
 }
 
 INTERPOSE(FILE*, fdopen, int fd, const char *mode)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fdopen(event, (FILE*)NULL, fd, mode);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fdopen(report, check, (FILE*)NULL, fd, mode);
 })
 
 INTERPOSE(FILE*, fopen, const char *pathname, const char *mode)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    bxl->CreateAccess(event);
-    FILE *f = bxl->check_fwd_and_report_fopen(event, (FILE*)NULL, pathname, mode);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    FILE *f = bxl->check_fwd_and_report_fopen(report, check, (FILE*)NULL, pathname, mode);
     if (f) { bxl->reset_fd_table_entry(fileno(f)); }
     return f;
 })
 
 INTERPOSE(FILE*, fopen64, const char *pathname, const char *mode)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    bxl->CreateAccess(event);
-    FILE *f = bxl->check_fwd_and_report_fopen64(event, (FILE*)NULL, pathname, mode);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    FILE *f = bxl->check_fwd_and_report_fopen64(report, check, (FILE*)NULL, pathname, mode);
     if (f) { bxl->reset_fd_table_entry(fileno(f)); }
     return f;
 })
 
 INTERPOSE(FILE*, freopen, const char *pathname, const char *mode, FILE *stream)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    bxl->CreateAccess(event);
-    FILE *f = bxl->check_fwd_and_report_freopen(event, (FILE*)NULL, pathname, mode, stream);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    FILE *f = bxl->check_fwd_and_report_freopen(report, check, (FILE*)NULL, pathname, mode, stream);
     if (f) { bxl->reset_fd_table_entry(fileno(f)); }
     return f;
 })
 
 INTERPOSE(FILE*, freopen64, const char *pathname, const char *mode, FILE *stream)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    bxl->CreateAccess(event);
-    FILE *f = bxl->check_fwd_and_report_freopen64(event, (FILE*)NULL, pathname, mode, stream);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    FILE *f = bxl->check_fwd_and_report_freopen64(report, check, (FILE*)NULL, pathname, mode, stream);
     if (f) { bxl->reset_fd_table_entry(fileno(f)); }
     return f;
 })
 
 INTERPOSE(size_t, fread, void *ptr, size_t size, size_t nmemb, FILE *stream)({
+    AccessReportGroup report;
     auto stream_fd = fileno(stream);
     if (stream_fd == -1) {
         // fileno failed: the stream is not associated with a file
@@ -854,16 +751,16 @@ INTERPOSE(size_t, fread, void *ptr, size_t size, size_t nmemb, FILE *stream)({
     }
     
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kOpen,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_OPEN,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        stream_fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fread(event, (size_t)0, ptr, size, nmemb, stream);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fread(report, check, (size_t)0, ptr, size, nmemb, stream);
 })
 
 INTERPOSE(size_t, fwrite, const void *ptr, size_t size, size_t nmemb, FILE *stream)({
+    AccessReportGroup report;
     auto stream_fd = fileno(stream);
     if (stream_fd == -1) {
         // fileno failed: the stream is not associated with a file
@@ -872,16 +769,16 @@ INTERPOSE(size_t, fwrite, const void *ptr, size_t size, size_t nmemb, FILE *stre
     }
 
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        stream_fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fwrite(event, (size_t)0, ptr, size, nmemb, stream);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fwrite(report, check, (size_t)0, ptr, size, nmemb, stream);
 })
 
 INTERPOSE(int, fputc, int c, FILE *stream)({
+    AccessReportGroup report;
     auto stream_fd = fileno(stream);
     if (stream_fd == -1) {
         // fileno failed: the stream is not associated with a file
@@ -890,16 +787,16 @@ INTERPOSE(int, fputc, int c, FILE *stream)({
     }
 
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        stream_fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fputc(event, ERROR_RETURN_VALUE, c, stream);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fputc(report, check, ERROR_RETURN_VALUE, c, stream);
 })
 
 INTERPOSE(int, fputs, const char *s, FILE *stream)({
+    AccessReportGroup report;
     auto stream_fd = fileno(stream);
     if (stream_fd == -1) {
         // fileno failed: the stream is not associated with a file
@@ -908,16 +805,16 @@ INTERPOSE(int, fputs, const char *s, FILE *stream)({
     }
 
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        stream_fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fputs(event, ERROR_RETURN_VALUE, s, stream);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fputs(report, check, ERROR_RETURN_VALUE, s, stream);
 })
 
 INTERPOSE(int, putc, int c, FILE *stream)({
+    AccessReportGroup report;
     auto stream_fd = fileno(stream);
     if (stream_fd == -1) {
         // fileno failed: the stream is not associated with a file
@@ -926,74 +823,71 @@ INTERPOSE(int, putc, int c, FILE *stream)({
     }
 
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        stream_fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_putc(event, ERROR_RETURN_VALUE, c, stream);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_putc(report, check, ERROR_RETURN_VALUE, c, stream);
 })
 
 INTERPOSE(int, putchar, int c)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fileno(stdout));
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_putchar(event, ERROR_RETURN_VALUE, c);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_putchar(report, check, ERROR_RETURN_VALUE, c);
 })
 
 INTERPOSE(int, puts, const char *s)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fileno(stdout));
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_puts(event, ERROR_RETURN_VALUE, s);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_puts(report, check, ERROR_RETURN_VALUE, s);
 })
 
 INTERPOSE(int, access, const char *pathname, int mode)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_ACCESS,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_access(event, ERROR_RETURN_VALUE, pathname, mode);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_access(report, check, ERROR_RETURN_VALUE, pathname, mode);
 })
 
 INTERPOSE(int, faccessat, int dirfd, const char *pathname, int mode, int flags)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_ACCESS,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_faccessat(event, ERROR_RETURN_VALUE, dirfd, pathname, mode, flags);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_faccessat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, mode, flags);
 })
 
 // report "Create" if path does not exist and O_CREAT or O_TRUNC is specified
 // report "Write" if path exists and O_CREAT or O_TRUNC is specified (because this truncates the file regardless of its content)
 // otherwise, report "Read"
-static buildxl::linux::SandboxEvent CreateFileOpen(BxlObserver *bxl, string &pathStr, int oflag)
+static AccessCheckResult CreateFileOpen(BxlObserver *bxl, string &pathStr, int oflag, AccessReportGroup &report)
 {
     mode_t pathMode = bxl->get_mode(pathStr.c_str());
     bool pathExists = pathMode != 0;
     bool isCreate = !pathExists && (oflag & (O_CREAT|O_TRUNC));
     bool hasWriteAccess = ((oflag & O_ACCMODE) == O_WRONLY) || ((oflag & O_ACCMODE) == O_RDWR);
     bool isWrite = pathExists && (oflag & (O_CREAT|O_TRUNC) && hasWriteAccess);
-
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    isCreate ? buildxl::linux::EventType::kCreate : isWrite ? buildxl::linux::EventType::kGenericWrite : buildxl::linux::EventType::kOpen,
+        /* event_type */    isCreate ? ES_EVENT_TYPE_NOTIFY_CREATE : isWrite ? ES_EVENT_TYPE_NOTIFY_WRITE : ES_EVENT_TYPE_NOTIFY_OPEN,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathStr.c_str());
@@ -1006,9 +900,7 @@ static buildxl::linux::SandboxEvent CreateFileOpen(BxlObserver *bxl, string &pat
         event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     }
 
-    bxl->CreateAccess(event);
-
-    return event;
+    return bxl->CreateAccess(__func__, event, report);
 }
 
 INTERPOSE(int, open, const char *path, int oflag, ...)({
@@ -1018,8 +910,9 @@ INTERPOSE(int, open, const char *path, int oflag, ...)({
     va_end(args);
 
     std::string pathStr = bxl->normalize_path(path);
-    auto event = CreateFileOpen(bxl, pathStr, oflag);
-    return ret_fd(bxl->check_fwd_and_report_open(event, ERROR_RETURN_VALUE, path, oflag, mode), bxl);
+    AccessReportGroup report;
+    AccessCheckResult check = CreateFileOpen(bxl, pathStr, oflag, report);
+    return ret_fd(bxl->check_fwd_and_report_open(report, check, ERROR_RETURN_VALUE, path, oflag, mode), bxl);
 })
 
 INTERPOSE(int, open64, const char *path, int oflag, ...)({
@@ -1029,8 +922,9 @@ INTERPOSE(int, open64, const char *path, int oflag, ...)({
     va_end(args);
 
     std::string pathStr = bxl->normalize_path(path);
-    auto event = CreateFileOpen(bxl, pathStr, oflag);
-    return ret_fd(bxl->check_fwd_and_report_open64(event, ERROR_RETURN_VALUE, path, oflag, mode), bxl);
+    AccessReportGroup report;
+    AccessCheckResult check = CreateFileOpen(bxl, pathStr, oflag, report);
+    return ret_fd(bxl->check_fwd_and_report_open64(report, check, ERROR_RETURN_VALUE, path, oflag, mode), bxl);
 })
 
 INTERPOSE(int, openat, int dirfd, const char *pathname, int flags, ...)({
@@ -1040,8 +934,9 @@ INTERPOSE(int, openat, int dirfd, const char *pathname, int flags, ...)({
     va_end(args);
 
     std::string pathStr = bxl->normalize_path_at(dirfd, pathname);
-    auto event = CreateFileOpen(bxl, pathStr, flags);
-    return ret_fd(bxl->check_fwd_and_report_openat(event, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode), bxl);
+    AccessReportGroup report;
+    AccessCheckResult check = CreateFileOpen(bxl, pathStr, flags, report);
+    return ret_fd(bxl->check_fwd_and_report_openat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode), bxl);
 })
 
 INTERPOSE(int, openat64, int dirfd, const char *pathname, int flags, ...)({
@@ -1051,8 +946,9 @@ INTERPOSE(int, openat64, int dirfd, const char *pathname, int flags, ...)({
     va_end(args);
 
     std::string pathStr = bxl->normalize_path_at(dirfd, pathname);
-    auto event = CreateFileOpen(bxl, pathStr, flags);
-    return ret_fd(bxl->check_fwd_and_report_openat(event, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode), bxl);
+    AccessReportGroup report;
+    AccessCheckResult check = CreateFileOpen(bxl, pathStr, flags, report);
+    return ret_fd(bxl->check_fwd_and_report_openat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode), bxl);
 })
 
 INTERPOSE(int, creat, const char *pathname, mode_t mode)({
@@ -1060,103 +956,103 @@ INTERPOSE(int, creat, const char *pathname, mode_t mode)({
 })
 
 INTERPOSE(ssize_t, write, int fd, const void *buf, size_t bufsiz)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_write(event, (ssize_t)ERROR_RETURN_VALUE, fd, buf, bufsiz);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_write(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, buf, bufsiz);
 })
 
 INTERPOSE(ssize_t, pwrite, int fd, const void *buf, size_t count, off_t offset)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_pwrite(event, (ssize_t)ERROR_RETURN_VALUE, fd, buf, count, offset);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_pwrite(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, buf, count, offset);
 })
 
 INTERPOSE(ssize_t, writev, int fd, const struct iovec *iov, int iovcnt)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_writev(event, (ssize_t)ERROR_RETURN_VALUE, fd, iov, iovcnt);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_writev(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, iov, iovcnt);
 })
 
 INTERPOSE(ssize_t, pwritev, int fd, const struct iovec *iov, int iovcnt, off_t offset)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_pwritev(event, (ssize_t)ERROR_RETURN_VALUE, fd, iov, iovcnt, offset);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_pwritev(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, iov, iovcnt, offset);
 })
 
 INTERPOSE(ssize_t, pwritev2, int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_pwritev2(event, (ssize_t)ERROR_RETURN_VALUE, fd, iov, iovcnt, offset, flags);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_pwritev2(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, iov, iovcnt, offset, flags);
 })
 
 INTERPOSE(ssize_t, pwrite64, int fd, const void *buf, size_t count, off_t offset)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_pwrite64(event, (ssize_t)ERROR_RETURN_VALUE, fd, buf, count, offset);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_pwrite64(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, buf, count, offset);
 })
 
 INTERPOSE(int, remove, const char *pathname)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kUnlink,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_remove(event, ERROR_RETURN_VALUE, pathname);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_remove(report, check, ERROR_RETURN_VALUE, pathname);
 })
 
 INTERPOSE(int, truncate, const char *path, off_t length)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_truncate(event, (ssize_t)ERROR_RETURN_VALUE, path, length);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_truncate(report, check, (ssize_t)ERROR_RETURN_VALUE, path, length);
 })
 
 INTERPOSE(int, ftruncate, int fd, off_t length)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_ftruncate(event, (ssize_t)ERROR_RETURN_VALUE, fd, length);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_ftruncate(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, length);
 })
 
 INTERPOSE(int, truncate64, const char *path, off_t length)({
@@ -1168,96 +1064,110 @@ INTERPOSE(int, ftruncate64, int fd, off_t length)({
 })
 
 INTERPOSE(int, rmdir, const char *pathname)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kUnlink,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
 
     // We need to know all the rmdir attempts so we can identify which failed/succeeded, so don't use the cache
     // This is so we can track directory creation/deletion flow. Using the cache lumps all these operations into one report line
-    bxl->CreateAccess(event, /*check_cache*/ false);
-    return bxl->check_fwd_and_report_rmdir(event, ERROR_RETURN_VALUE, pathname);
+    auto check = bxl->CreateAccess(__func__, event, report, /*check_cache*/ false);
+    return bxl->check_fwd_and_report_rmdir(report, check, ERROR_RETURN_VALUE, pathname);
 })
 
-static AccessCheckResult handle_renameat(BxlObserver *bxl, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, std::vector<buildxl::linux::SandboxEvent> &events_to_report) {
-    string old_path_normalized = bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW);
-    string new_path_normalized = bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW);
+static AccessCheckResult handle_renameat(BxlObserver *bxl, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, std::vector<AccessReportGroup> &accessesToReport)
+{
+    string oldStr = bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW);
+    string newStr = bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW);
 
-    mode_t mode = bxl->get_mode(old_path_normalized.c_str());    
+    mode_t mode = bxl->get_mode(oldStr.c_str());    
     AccessCheckResult check = AccessCheckResult::Invalid();
-    std::vector<std::string> files_and_directories;
+    std::vector<std::string> filesAndDirectories;
 
-    if (S_ISDIR(mode)) {
-        bool enumerate_result = bxl->EnumerateDirectory(old_path_normalized, /*recursive*/true, files_and_directories);
-
-        if (enumerate_result) {
+    if (S_ISDIR(mode))
+    {
+        bool enumerateResult = bxl->EnumerateDirectory(oldStr, /*recursive*/true, filesAndDirectories);
+        if (enumerateResult)
+        {
             // reserve all the content for both source and destination
-            events_to_report.reserve(files_and_directories.size() * 2);
+            accessesToReport.reserve(filesAndDirectories.size() * 2);
 
-            for (auto file_or_directory : files_and_directories) {
+            for (auto fileOrDirectory : filesAndDirectories)
+            {
                 // Access check for the source file
-                auto source_event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-                    /* system_call */   __func__,
-                    /* event_type */    buildxl::linux::EventType::kUnlink,
+                AccessReportGroup sourceReport;
+                auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+                    /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
                     /* pid */           getpid(),
                     /* error */         0,
-                    /* src_path */      file_or_directory.c_str());
-                source_event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-                check = bxl->CreateAccess(source_event);
-                events_to_report.emplace_back(source_event);
+                    /* src_path */      fileOrDirectory.c_str());
+                event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
+                check = bxl->CreateAccess(__func__, event, sourceReport);
+                accessesToReport.emplace_back(sourceReport);
 
                 // Access check for the destination file
-                file_or_directory.replace(0, old_path_normalized.length(), new_path_normalized);
-                auto target_event = CreateFileOpen(bxl, file_or_directory, O_CREAT | O_WRONLY);
-
-                check = AccessCheckResult::Combine(check, target_event.GetSourceAccessCheckResult());
-                events_to_report.emplace_back(target_event);
+                fileOrDirectory.replace(0, oldStr.length(), newStr);
+                AccessReportGroup targetReport;
+                check = AccessCheckResult::Combine(check, CreateFileOpen(bxl, fileOrDirectory, O_CREAT | O_WRONLY, targetReport));
+                accessesToReport.emplace_back(targetReport);
 
                 // If access is denied to any of the files in the enumeration, we can break the loop right away here because check_and_fwd_renameat will also fail
-                if (bxl->should_deny(check)) {
+                if (bxl->should_deny(check))
+                {
                     break;
                 }
             }
         }
+        else
+        {
+            // TODO: [pgunasekara] Remove this case when we're certain the enumeration logic above is solid
+            AccessReportGroup report;
+            auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+                /* event_type */    ES_EVENT_TYPE_NOTIFY_RENAME,
+                /* pid */           getpid(),
+                /* error */         0,
+                /* src_path */      oldStr.c_str(),
+                /* dst_path */      newStr.c_str());
+            check = bxl->CreateAccess(__func__, event, report);
+            accessesToReport.emplace_back(report);
+        }
     }
-    else {
-        auto source_event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-            /* system_call */   __func__,
-            /* event_type */    buildxl::linux::EventType::kUnlink,
+    else
+    {
+        AccessReportGroup sourceReport;
+        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+            /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
             /* pid */           getpid(),
             /* error */         0,
-            /* src_path */      old_path_normalized.c_str());
-        source_event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-        check = bxl->CreateAccess(source_event);
-
-        events_to_report.emplace_back(source_event);
-
-        auto target_event = CreateFileOpen(bxl, new_path_normalized, O_CREAT | O_WRONLY);
-        check = AccessCheckResult::Combine(check, target_event.GetSourceAccessCheckResult());
-
-        events_to_report.emplace_back(target_event);
+            /* src_path */      oldStr.c_str());
+        event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
+        check = bxl->CreateAccess(__func__, event, sourceReport);
+        accessesToReport.emplace_back(sourceReport);
+        AccessReportGroup destReport;
+        check = AccessCheckResult::Combine(check, CreateFileOpen(bxl, newStr, O_CREAT | O_WRONLY, destReport));
+        accessesToReport.emplace_back(destReport);
     }
 
     return check;
 }
 
 INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const char *newpath)({
-    std::vector<buildxl::linux::SandboxEvent> accesses_to_report;
-    AccessCheckResult check = handle_renameat(bxl, olddirfd, oldpath, newdirfd, newpath, accesses_to_report);
-    result_t<int> result(ERROR_RETURN_VALUE, EPERM);
+    std::vector<AccessReportGroup> accessesToReport;
+    AccessCheckResult check = handle_renameat(bxl, olddirfd, oldpath, newdirfd, newpath, accessesToReport);
+    result_t<int> result(ERROR_RETURN_VALUE, EPERM);;
     
     if (bxl->should_deny(check))
     {
         // It is enough that we send a single report as a witness for the denial
-        // The last one in the array, in particular, is what should have triggered the denial
-        bxl->SendReport(accesses_to_report.back());
+        // The last one in the array, in particular, is what should have triggere the denial
+        bxl->SendReport(accessesToReport.back());
     }
     else 
     {
         result = bxl->fwd_renameat(olddirfd, oldpath, newdirfd, newpath);
-        for (auto access : accesses_to_report)
+        for (auto access : accessesToReport)
         {
             access.SetErrno(get_errno_from_result(result));
             bxl->SendReport(access);
@@ -1268,20 +1178,20 @@ INTERPOSE(int, renameat, int olddirfd, const char *oldpath, int newdirfd, const 
 })
 
 INTERPOSE(int, renameat2, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags)({
-    std::vector<buildxl::linux::SandboxEvent> accesses_to_report;
-    AccessCheckResult check = handle_renameat(bxl, olddirfd, oldpath, newdirfd, newpath, accesses_to_report);
-    result_t<int> result(ERROR_RETURN_VALUE, EPERM);
+    std::vector<AccessReportGroup> accessesToReport;
+    AccessCheckResult check = handle_renameat(bxl, olddirfd, oldpath, newdirfd, newpath, accessesToReport);
+    result_t<int> result(ERROR_RETURN_VALUE, EPERM);;
     
     if (bxl->should_deny(check))
     {
         // It is enough that we send a single report as a witness for the denial
-        // The last one in the array, in particular, is what should have triggered the denial
-        bxl->SendReport(accesses_to_report.back());
+        // The last one in the array, in particular, is what should have triggere the denial
+        bxl->SendReport(accessesToReport.back());
     }
     else 
     {
         result = bxl->fwd_renameat2(olddirfd, oldpath, newdirfd, newpath, flags);
-        for (auto access : accesses_to_report)
+        for (auto access : accessesToReport)
         {
             access.SetErrno(get_errno_from_result(result));
             bxl->SendReport(access);
@@ -1296,27 +1206,27 @@ INTERPOSE(int, rename, const char *oldpath, const char *newpath)({
 })
 
 INTERPOSE(int, link, const char *path1, const char *path2)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kLink,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_LINK,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      bxl->normalize_path(path1, O_NOFOLLOW).c_str(),
         /* dst_path */      bxl->normalize_path(path2, O_NOFOLLOW).c_str());
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_link(event, ERROR_RETURN_VALUE, path1, path2);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_link(report, check, ERROR_RETURN_VALUE, path1, path2);
 })
 
 INTERPOSE(int, linkat, int fd1, const char *name1, int fd2, const char *name2, int flag)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kLink,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_LINK,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      bxl->normalize_path_at(fd1, name1, O_NOFOLLOW).c_str(),
         /* dst_path */      bxl->normalize_path_at(fd2, name2, O_NOFOLLOW).c_str());
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_linkat(event, ERROR_RETURN_VALUE, fd1, name1, fd2, name2, flag);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_linkat(report, check, ERROR_RETURN_VALUE, fd1, name1, fd2, name2, flag);
 })
 
 INTERPOSE(int, unlink, const char *path)({
@@ -1325,15 +1235,15 @@ INTERPOSE(int, unlink, const char *path)({
         return bxl->fwd_unlink(path).restore();
     }
     
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kUnlink,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_unlink(event, ERROR_RETURN_VALUE, path);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_unlink(report, check, ERROR_RETURN_VALUE, path);
 })
 
 INTERPOSE(int, unlinkat, int dirfd, const char *path, int flags)({
@@ -1342,45 +1252,43 @@ INTERPOSE(int, unlinkat, int dirfd, const char *path, int flags)({
         return bxl->fwd_unlinkat(dirfd, path, flags).restore();
     }
 
+    AccessReportGroup report;
     int oflags = (flags & AT_REMOVEDIR) ? 0 : O_NOFOLLOW;
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kUnlink,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_UNLINK,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path,
         /* src_fd */        dirfd);
-
     if (oflags & O_NOFOLLOW != 0) {
         event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     }
-
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_unlinkat(event, ERROR_RETURN_VALUE, dirfd, path, flags);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_unlinkat(report, check, ERROR_RETURN_VALUE, dirfd, path, flags);
 })
 
 INTERPOSE(int, symlink, const char *target, const char *linkPath)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kCreate,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      bxl->normalize_path(linkPath, O_NOFOLLOW).c_str());
     event.SetMode(S_IFLNK);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_symlink(event, ERROR_RETURN_VALUE, target, linkPath);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_symlink(report, check, ERROR_RETURN_VALUE, target, linkPath);
 })
 
 INTERPOSE(int, symlinkat, const char *target, int dirfd, const char *linkPath)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kCreate,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      bxl->normalize_path_at(dirfd, linkPath, O_NOFOLLOW).c_str());
     event.SetMode(S_IFLNK);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_symlinkat(event, ERROR_RETURN_VALUE, target, dirfd, linkPath);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_symlinkat(report, check, ERROR_RETURN_VALUE, target, dirfd, linkPath);
 })
 
 INTERPOSE_SOMETIMES(
@@ -1401,28 +1309,28 @@ INTERPOSE_SOMETIMES(
     }, 
     const char *path, char *buf, size_t bufsize)(
 {
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kReadLink,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READLINK,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_readlink(event, (ssize_t)ERROR_RETURN_VALUE, path, buf, bufsize);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_readlink(report, check, (ssize_t)ERROR_RETURN_VALUE, path, buf, bufsize);
 })
 
 INTERPOSE(ssize_t, readlinkat, int fd, const char *path, char *buf, size_t bufsize)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kReadLink,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_READLINK,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path,
         /* src_fd */        fd);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_readlinkat(event, (ssize_t)ERROR_RETURN_VALUE, fd, path, buf, bufsize);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_readlinkat(report, check, (ssize_t)ERROR_RETURN_VALUE, fd, path, buf, bufsize);
 })
 
 INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
@@ -1452,13 +1360,12 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
     // but when it's not, we must count this as a probe because realpath will
     // indicate to the caller if this path was absent or not. 
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      path);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAndReportAccess(event);
+    bxl->CreateAndReportAccess(__func__, event);
 
     if (result == nullptr)
     {
@@ -1479,12 +1386,11 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
         // Report a probe on the returned path, as the success of this function
         // indicates to the caller that the path exists. 
         auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-            /* system_call */   __func__,
-            /* event_type */    buildxl::linux::EventType::kGenericProbe,
+            /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
             /* pid */           getpid(),
             /* error */         0,
             /* src_path */      result);
-        bxl->CreateAndReportAccess(event);
+        bxl->CreateAndReportAccess(__func__, event);
     }
     else
     {
@@ -1495,128 +1401,130 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
 })
 
 INTERPOSE(DIR*, opendir, const char *name)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      name);
-    bxl->CreateAccess(event);
-    DIR *d = bxl->check_fwd_and_report_opendir(event, (DIR*)NULL, name);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    DIR *d = bxl->check_fwd_and_report_opendir(report, check, (DIR*)NULL, name);
     if (d) { bxl->reset_fd_table_entry(dirfd(d)); }
     return d;
 })
 
 INTERPOSE(DIR*, fdopendir, int fd)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericProbe,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_STAT,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fdopendir(event, (DIR*)NULL, fd);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fdopendir(report, check, (DIR*)NULL, fd);
 })
 
 INTERPOSE(int, utime, const char *filename, const struct utimbuf *times)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      filename);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_utime(event, ERROR_RETURN_VALUE, filename, times);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_utime(report, check, ERROR_RETURN_VALUE, filename, times);
 })
 
 INTERPOSE(int, utimes, const char *filename, const struct timeval times[2])({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      filename);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_utimes(event, ERROR_RETURN_VALUE, filename, times);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_utimes(report, check, ERROR_RETURN_VALUE, filename, times);
 })
 
 INTERPOSE(int, utimensat, int dirfd, const char *pathname, const struct timespec times[2], int flags)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_utimensat(event, ERROR_RETURN_VALUE, dirfd, pathname, times, flags);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_utimensat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, times, flags);
 })
 
 INTERPOSE(int, futimens, int fd, const struct timespec times[2])({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_futimens(event, ERROR_RETURN_VALUE, fd, times);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_futimens(report, check, ERROR_RETURN_VALUE, fd, times);
 })
 
 INTERPOSE(int, futimesat, int dirfd, const char *pathname, const struct timeval times[2])({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETTIME,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_futimesat(event, ERROR_RETURN_VALUE, dirfd, pathname, times);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_futimesat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, times);
 })
 
-static buildxl::linux::SandboxEvent ReportCreate(const char *syscall, BxlObserver *bxl, int dirfd, const char *pathname, mode_t mode, bool checkCache = true)
+static AccessCheckResult ReportCreate(const char *syscall, BxlObserver *bxl, int dirfd, const char *pathname, mode_t mode, AccessReportGroup &report, bool checkCache = true)
 {
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kCreate,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_CREATE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      bxl->normalize_path_at(dirfd, pathname).c_str());
     event.SetMode(mode);
-    bxl->CreateAccess(event, checkCache);
-
-    return event;
+    return bxl->CreateAccess(__func__, event, report, checkCache);
 }
 
 INTERPOSE(int, mkdir, const char *pathname, mode_t mode)({
+    AccessReportGroup report;
     // We don't want to use the cache. Check comment in rmdir interposing for details.
-    auto event = ReportCreate(__func__, bxl, AT_FDCWD, pathname, S_IFDIR, /* checkCache */ false);
-    return bxl->check_fwd_and_report_mkdir(event, ERROR_RETURN_VALUE, pathname, mode);
+    auto check = ReportCreate(__func__, bxl, AT_FDCWD, pathname, S_IFDIR, report, /* checkCache */ false);
+    return bxl->check_fwd_and_report_mkdir(report, check, ERROR_RETURN_VALUE, pathname, mode);
 })
 
 INTERPOSE(int, mkdirat, int dirfd, const char *pathname, mode_t mode)({
+    AccessReportGroup report;
     // We don't want to use the cache. Check comment in rmdir interposing for details.
-    auto event = ReportCreate(__func__, bxl, dirfd, pathname, S_IFDIR, /* checkCache */ false);
-    return bxl->check_fwd_and_report_mkdirat(event, ERROR_RETURN_VALUE, dirfd, pathname, mode);
+    auto check = ReportCreate(__func__, bxl, dirfd, pathname, S_IFDIR, report, /* checkCache */ false);
+    return bxl->check_fwd_and_report_mkdirat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, mode);
 })
 
 INTERPOSE(int, mknod, const char *pathname, mode_t mode, dev_t dev)({
-    auto event = ReportCreate(__func__, bxl, AT_FDCWD, pathname, S_IFREG);
-    return bxl->check_fwd_and_report_mknod(event, ERROR_RETURN_VALUE, pathname, mode, dev);
+    AccessReportGroup report;
+    auto check = ReportCreate(__func__, bxl, AT_FDCWD, pathname, S_IFREG, report);
+    return bxl->check_fwd_and_report_mknod(report, check, ERROR_RETURN_VALUE, pathname, mode, dev);
 })
 
 INTERPOSE(int, mknodat, int dirfd, const char *pathname, mode_t mode, dev_t dev)({
-    auto event = ReportCreate(__func__, bxl, dirfd, pathname, S_IFREG);
-    return bxl->check_fwd_and_report_mknodat(event, ERROR_RETURN_VALUE, dirfd, pathname, mode, dev);
+    AccessReportGroup report;
+    auto check = ReportCreate(__func__, bxl, dirfd, pathname, S_IFREG, report);
+    return bxl->check_fwd_and_report_mknodat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, mode, dev);
 })
 
 #if (__GLIBC__ == 2 && __GLIBC_MINOR__ < 33)
 INTERPOSE(int, __xmknod, int ver, const char * path, mode_t mode, dev_t * dev)({
     if (mode == 0 || mode & S_IFREG)
     {
-        auto event = ReportCreate(__func__, bxl, AT_FDCWD, path, S_IFREG);
-        return bxl->check_fwd_and_report___xmknod(event, ERROR_RETURN_VALUE, ver, path, mode, dev);
+        AccessReportGroup report;
+        auto check = ReportCreate(__func__, bxl, AT_FDCWD, path, S_IFREG, report);
+        return bxl->check_fwd_and_report___xmknod(report, check, ERROR_RETURN_VALUE, ver, path, mode, dev);
     }
     
     // the type of block being created is a non-file (eg: fifo, socket, etc.), we don't have to report it
@@ -1626,8 +1534,9 @@ INTERPOSE(int, __xmknod, int ver, const char * path, mode_t mode, dev_t * dev)({
 INTERPOSE(int, __xmknodat, int ver, int dirfd, const char * path, mode_t mode, dev_t * dev)({
     if (mode == 0 || mode & S_IFREG)
     {
-        auto event = ReportCreate(__func__, bxl, dirfd, path, S_IFREG);
-        return bxl->check_fwd_and_report___xmknodat(event, ERROR_RETURN_VALUE, ver, dirfd, path, mode, dev);
+        AccessReportGroup report;
+        auto check = ReportCreate(__func__, bxl, dirfd, path, S_IFREG, report);
+        return bxl->check_fwd_and_report___xmknodat(report, check, ERROR_RETURN_VALUE, ver, dirfd, path, mode, dev);
     }
 
     // the type of block being created is a non-file (eg: fifo, socket, etc.), we don't have to report it
@@ -1636,17 +1545,18 @@ INTERPOSE(int, __xmknodat, int ver, int dirfd, const char * path, mode_t mode, d
 #endif
 
 INTERPOSE(int, vprintf, const char *fmt, va_list args)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        1);
-    bxl->CreateAccess(event);
+    auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->fwd_vprintf(fmt, args).restore();
 })
 
 INTERPOSE(int, vfprintf, FILE *f, const char *fmt, va_list args)({
+    AccessReportGroup report;
     auto stream_fd = fileno(f);
     if (stream_fd == -1) {
         // fileno failed: the stream is not associated with a file
@@ -1655,24 +1565,23 @@ INTERPOSE(int, vfprintf, FILE *f, const char *fmt, va_list args)({
     }
 
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        stream_fd);
-    bxl->CreateAccess(event);
+    auto check = bxl->CreateAccess(__func__, event, report);
     return bxl->fwd_vfprintf(f, fmt, args).restore();
 })
 
 INTERPOSE(int, vdprintf, int fd, const char *fmt, va_list args)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->fwd_and_report_vdprintf(event, -1, fd, fmt, args).restore();
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->fwd_and_report_vdprintf(report, -1, fd, fmt, args).restore();
 })
 
 INTERPOSE(int, printf, const char *fmt, ...)({
@@ -1700,42 +1609,41 @@ INTERPOSE(int, dprintf, int fd, const char *fmt, ...)({
 })
 
 INTERPOSE(int, chmod, const char *pathname, mode_t mode)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETMODE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_chmod(event, ERROR_RETURN_VALUE, pathname, mode);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_chmod(report, check, ERROR_RETURN_VALUE, pathname, mode);
 })
 
 INTERPOSE(int, fchmod, int fd, mode_t mode)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETMODE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fchmod(event, ERROR_RETURN_VALUE, fd, mode);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fchmod(report, check, ERROR_RETURN_VALUE, fd, mode);
 })
 
 INTERPOSE(int, fchmodat, int dirfd, const char *pathname, mode_t mode, int flags)({
+    AccessReportGroup report;
+    int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_SETMODE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
-
-    if ((flags & AT_SYMLINK_NOFOLLOW) != 0) {
+    if (oflags & O_NOFOLLOW != 0) {
         event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     }
-
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fchmodat(event, ERROR_RETURN_VALUE, dirfd, pathname, mode, flags);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fchmodat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, mode, flags);
 })
 
 INTERPOSE(void*, dlopen, const char *filename, int flags)({
@@ -1754,37 +1662,37 @@ INTERPOSE(void*, dlopen, const char *filename, int flags)({
 })
 
 INTERPOSE(int, chown, const char *pathname, uid_t owner, gid_t group)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_chown(event, ERROR_RETURN_VALUE, pathname, owner, group);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_chown(report, check, ERROR_RETURN_VALUE, pathname, owner, group);
 })
 
 INTERPOSE(int, fchown, int fd, uid_t owner, gid_t group)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fchown(event, ERROR_RETURN_VALUE, fd, owner, group);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fchown(report, check, ERROR_RETURN_VALUE, fd, owner, group);
 })
 
 INTERPOSE(int, lchown, const char *pathname, uid_t owner, gid_t group)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_lchown(event, ERROR_RETURN_VALUE, pathname, owner, group);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_lchown(report, check, ERROR_RETURN_VALUE, pathname, owner, group);
 })
 
 INTERPOSE(int, chown32, const char *pathname, uid_t owner, gid_t group)({ return chown(pathname, owner, group); })
@@ -1792,30 +1700,30 @@ INTERPOSE(int, fchown32, int fd, uid_t owner, gid_t group)({ return fchown(fd, o
 INTERPOSE(int, lchown32, const char *pathname, uid_t owner, gid_t group)({ return lchown(pathname, owner, group); })
 
 INTERPOSE(int, fchownat, int dirfd, const char *pathname, uid_t owner, gid_t group, int flags)({
+    AccessReportGroup report;
+    int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
     auto event = buildxl::linux::SandboxEvent::RelativePathSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_AUTH_SETOWNER,
         /* pid */           getpid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
-
-    if ((flags & AT_SYMLINK_NOFOLLOW) != 0) {
+    if (oflags & O_NOFOLLOW != 0) {
         event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
     }
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_fchownat(event, ERROR_RETURN_VALUE, dirfd, pathname, owner, group, flags);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_fchownat(report, check, ERROR_RETURN_VALUE, dirfd, pathname, owner, group, flags);
 })
 
 INTERPOSE(ssize_t, sendfile, int out_fd, int in_fd, off_t *offset, size_t count)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        out_fd);
-    bxl->CreateAccess(event);
-    return bxl->check_fwd_and_report_sendfile(event, (ssize_t)ERROR_RETURN_VALUE, out_fd, in_fd, offset, count);
+    auto check = bxl->CreateAccess(__func__, event, report);
+    return bxl->check_fwd_and_report_sendfile(report, check, (ssize_t)ERROR_RETURN_VALUE, out_fd, in_fd, offset, count);
 })
 
 INTERPOSE(ssize_t, sendfile64, int out_fd, int in_fd, off_t *offset, size_t count)({
@@ -1823,16 +1731,13 @@ INTERPOSE(ssize_t, sendfile64, int out_fd, int in_fd, off_t *offset, size_t coun
 })
 
 INTERPOSE(ssize_t, copy_file_range, int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags)({
+    AccessReportGroup report;
     auto event = buildxl::linux::SandboxEvent::FileDescriptorSandboxEvent(
-        /* system_call */   __func__,
-        /* event_type */    buildxl::linux::EventType::kGenericWrite,
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_WRITE,
         /* pid */           getpid(),
         /* error */         0,
         /* src_fd */        fd_out);
-    bxl->CreateAccess(event);
-
-    AccessCheckResult check = event.GetEventAccessCheckResult();
-
+    auto check = bxl->CreateAccess(__func__, event, report);
     ssize_t result;
     if (bxl->should_deny(check)) {
         errno = EPERM;
@@ -1907,9 +1812,8 @@ INTERPOSE(ssize_t, copy_file_range, int fd_in, loff_t *off_in, int fd_out, loff_
 exit:
     close(pipefd[0]);
     close(pipefd[1]);
-
-    event.SetErrno(result == -1? errno : 0);
-    bxl->ReportAccess(event);
+    report.SetErrno(result == -1? errno : 0);
+    bxl->SendReport(report);
     
     return result;
 })
@@ -1917,9 +1821,9 @@ exit:
 INTERPOSE(int, name_to_handle_at, int dirfd, const char *pathname, struct file_handle *handle, int *mount_id, int flags)({
     int oflags = (flags & AT_SYMLINK_FOLLOW) ? 0 : O_NOFOLLOW;
     string pathStr = bxl->normalize_path_at(dirfd, pathname, oflags);
-    auto event = CreateFileOpen(bxl, pathStr, oflags);
-
-    return ret_fd(bxl->check_fwd_and_report_name_to_handle_at(event, ERROR_RETURN_VALUE, dirfd, pathname, handle, mount_id, flags), bxl);
+    AccessReportGroup report;
+    auto check = CreateFileOpen(bxl, pathStr, oflags, report);
+    return ret_fd(bxl->check_fwd_and_report_name_to_handle_at(report, check, ERROR_RETURN_VALUE, dirfd, pathname, handle, mount_id, flags), bxl);
 })
 
 INTERPOSE(int, close, int fd) ({ 
@@ -1976,22 +1880,15 @@ void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
 
     BxlObserver::GetInstance()->Init();
 
-    // Report that a new process has been created
-    auto fork_event = buildxl::linux::SandboxEvent::ForkSandboxEvent(
-        /* system_call */   "__init__fork",
+    // report that a new process has been created 
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* event_type */    ES_EVENT_TYPE_NOTIFY_EXEC,
         /* pid */           getpid(),
-        /* ppid */          getppid(),
+        /* error */         0,
         /* src_path */      BxlObserver::GetInstance()->GetProgramPath());
-    BxlObserver::GetInstance()->CreateAndReportAccess(fork_event);
-
-    // Report the command line args
-    auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
-        /* system_call */   "__init__exec",
-        /* pid */           getpid(),
-        /* src_path */      BxlObserver::GetInstance()->GetProgramPath(),
-        /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine(getpid()));
-
-    BxlObserver::GetInstance()->CreateAndReportAccess(event);
+    
+    BxlObserver::GetInstance()->CreateAndReportAccess("__init__", event, /* check_cache */ false);
+    BxlObserver::GetInstance()->report_exec_args(getpid());
 }
 
 // ==========================
@@ -2007,25 +1904,25 @@ int main(int argc, char **argv)
 
 INTERPOSE(int, statfs, const char *pathname, struct statfs *buf)({
     result_t<int> result = bxl->fwd_statfs(pathname, buf);
-    // ... report buildxl::linux::EventType::kGenericProbe
+    // ... report ES_EVENT_TYPE_NOTIFY_STAT
     return result.restore();
 })
 
 INTERPOSE(int, statfs64, const char *pathname, struct statfs64 *buf)({
     result_t<int> result = bxl->fwd_statfs64(pathname, buf);
-    // ... report buildxl::linux::EventType::kGenericProbe
+    // ... report ES_EVENT_TYPE_NOTIFY_STAT
     return result.restore();
 })
 
 INTERPOSE(int, fstatfs, int fd, struct statfs *buf)({
     result_t<int> result = bxl->fwd_fstatfs(fd, buf);
-    // ... report buildxl::linux::EventType::kGenericProbe
+    // ... report ES_EVENT_TYPE_NOTIFY_STAT
     return result.restore();
 })
 
 INTERPOSE(int, fstatfs64, int fd, struct statfs64 *buf)({
     result_t<int> result = bxl->fwd_fstatfs64(fd, buf);
-    // ... report buildxl::linux::EventType::kGenericProbe
+    // ... report ES_EVENT_TYPE_NOTIFY_STAT
     return result.restore();
 })
 
@@ -2041,12 +1938,12 @@ INTERPOSE(int, execveat, int dirfd, const char *pathname, char *const argv[], ch
 })
 
 INTERPOSE(int, getdents, unsigned int fd, struct linux_dirent *dirp, unsigned int count)({
-    // ... report buildxl::linux::EventType::kGenericRead
+    // ... report ES_EVENT_TYPE_NOTIFY_READDIR
     return bxl->check_and_fwd_getdents(check, ERROR_RETURN_VALUE, fd, dirp, count);
 })
 
 INTERPOSE(int, getdents64, unsigned int fd, struct linux_dirent64 *dirp, unsigned int count)({
-    // ... report buildxl::linux::EventType::kGenericRead
+    // ... report ES_EVENT_TYPE_NOTIFY_READDIR
     return bxl->check_and_fwd_getdents64(check, ERROR_RETURN_VALUE, fd, dirp, count);
 })
 

@@ -9,7 +9,6 @@
 #include "DetoursServices.h"
 #include "DetoursHelpers.h"
 #include "buildXL_mem.h"
-#include "ReportType.h"
 
 using std::unique_ptr;
 
@@ -141,7 +140,7 @@ void Dbg(PCWSTR format, ...)
         return;
     }
 
-    std::wstring report = DebugStringFormat(L"%d,", buildxl::common::ReportType::kDebugMessage);
+    std::wstring report = DebugStringFormat(L"%d,", ReportType::ReportType_DebugMessage);
     report.append(resultArgs);
     report.append(L"\r\n");
 

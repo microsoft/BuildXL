@@ -510,7 +510,8 @@ namespace BuildXL.Processes
         /// Whether this access represents a directory creation
         /// </summary>
         public bool IsDirectoryCreation() => 
-            Operation == ReportedFileOperation.CreateDirectory;
+            Operation == ReportedFileOperation.CreateDirectory || 
+            Operation == ReportedFileOperation.KAuthCreateDir;
 
         /// <summary>
         /// Whether this access represents a directory creation, and the directory was effectively created
@@ -526,7 +527,8 @@ namespace BuildXL.Processes
         /// Whether this access represents a directory removal
         /// </summary>
         public bool IsDirectoryRemoval() => 
-            Operation == ReportedFileOperation.RemoveDirectory;
+            Operation == ReportedFileOperation.RemoveDirectory || 
+            Operation == ReportedFileOperation.KAuthDeleteDir;
 
         /// <summary>
         /// Whether this access represents a directory creation or removal

@@ -4052,11 +4052,11 @@ namespace BuildXL.ProcessPipExecutor
                 // the same for all of them. We only need to query one of them.
                 ReportedFileAccess firstAccess = entry.Value.First();
 
-                // Discard entries that have a single UnixAbsentProbe report on a path that contains an intermediate directory symlink.
+                // Discard entries that have a single MacLookup report on a path that contains an intermediate directory symlink.
                 // Reason: observed accesses computed here should only contain fully expanded paths to avoid ambiguity;
-                //         on Mac, all access reports except for UnixAbsentProbe report fully expanded paths, so only UnixAbsentProbe paths need to be curated.
+                //         on Mac, all access reports except for MacLookup report fully expanded paths, so only MacLookup paths need to be curated
                 if (entry.Value.Count == 1
-                    && firstAccess.Operation == ReportedFileOperation.UnixAbsentProbe
+                    && firstAccess.Operation == ReportedFileOperation.MacLookup
                     && firstAccess.ManifestPath.IsValid
                     && CheckIfPathContainsSymlinks(firstAccess.ManifestPath.GetParent(m_context.PathTable)))
                 {
@@ -4065,7 +4065,6 @@ namespace BuildXL.ProcessPipExecutor
                 }
 
                 bool isPathCandidateToBeOwnedByASharedOpaque = false;
-
                 foreach (var access in entry.Value)
                 {
                     // If isDirectoryLocation was not already set, try one of the methods below

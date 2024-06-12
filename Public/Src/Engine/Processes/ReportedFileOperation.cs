@@ -230,66 +230,39 @@ namespace BuildXL.Processes
         /// </summary>
         ProcessExit,
 
-        /**
-         * The system calls below are specific to the Linux Sandbox.
-        */
-
         /// <summary>
-        /// Represents an exec* call from the Linux Sandbox.
+        /// Command line of a process reported by the Linux Sandbox
         /// </summary>
-        ProcessExec,
+        ProcessCommandLine,
 
-        /// <summary>
-        /// Pseudo operation that is issued by the managed sandbox to indicate that the traced process has completed execution.
-        /// </summary>
-        ProcessTreeCompletedAck,
-
-        /// <summary>
-        /// Generic readlink system call.
-        /// </summary>
-        Readlink,
-
-        /// <summary>
-        /// Generic read file system call.
-        /// </summary>
-        ReadFile,
-
-        /// <summary>
-        /// Generic write file system call.
-        /// </summary>
-        WriteFile,
-
-        /// <summary>
-        /// Source of a hard link operation.
-        /// </summary>
-        CreateHardlinkSource,
-
-        /// <summary>
-        /// Destination of a hard link operation.
-        /// </summary>
-        CreateHardlinkDest,
-
-        /// <summary>
-        /// Open directory system call.
-        /// </summary>
-        OpenDirectory,
-
-        /// <summary>
-        /// Close system call.
-        /// </summary>
-        Close,
-
-        /// <summary>
-        /// Generic probe file system call.
-        /// </summary>
-        Probe,
-
-        /// <summary>
-        /// Represents a read operation for a file that does not exist.
-        /// </summary>
-        /// <remarks>
-        /// Previously named MacLookup.
-        /// </remarks>
-        UnixAbsentProbe,
+        #region Operation Names Reported by BuildXLSandbox (macOS sandbox implementation)
+#pragma warning disable CS1591 // disabling warning about missing API documentation"
+        MacLookup,
+        MacReadlink,
+        MacVNodeCreate,
+        KAuthMoveSource,
+        KAuthMoveDest,
+        KAuthCreateHardlinkSource,
+        KAuthCreateHardlinkDest,
+        KAuthCopySource,
+        KAuthCopyDest,
+        KAuthDeleteDir,
+        KAuthDeleteFile,
+        KAuthOpenDir,
+        KAuthReadFile,
+        KAuthCreateDir,
+        KAuthWriteFile,
+        KAuthClose,
+        KAuthCloseModified,
+        KAuthGetAttributes,
+        KAuthVNodeExecute,
+        KAuthVNodeWrite,
+        KAuthVNodeRead,
+        KAuthVNodeProbe,
+        MacVNodeWrite,
+        MacVNodeCloneSource,
+        MacVNodeCloneDest,
+#pragma warning restore CS1591
+        #endregion
     }
 }

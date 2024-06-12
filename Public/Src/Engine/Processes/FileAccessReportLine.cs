@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 using BuildXL.Utilities.Core;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
@@ -93,17 +94,31 @@ namespace BuildXL.Processes
                 { "MoveFileWithProgress_Dest", ReportedFileOperation.MoveFileWithProgressDest },
                 { "MultipleOperations", ReportedFileOperation.MultipleOperations },
                 { "CreateProcess", ReportedFileOperation.CreateProcess },
-                { "ProcessTreeCompletedAck", ReportedFileOperation.ProcessTreeCompletedAck },
-                { FileOperationLinux.Operations.ProcessExec.ToString(), ReportedFileOperation.ProcessExec },
-                { FileOperationLinux.Operations.Readlink.ToString(), ReportedFileOperation.Readlink },
-                { FileOperationLinux.Operations.ReadFile.ToString(), ReportedFileOperation.ReadFile },
-                { FileOperationLinux.Operations.WriteFile.ToString(), ReportedFileOperation.WriteFile },
-                { FileOperationLinux.Operations.CreateHardlinkSource.ToString(), ReportedFileOperation.CreateHardlinkSource },
-                { FileOperationLinux.Operations.CreateHardlinkDest.ToString(), ReportedFileOperation.CreateHardlinkDest },
-                { FileOperationLinux.Operations.OpenDirectory.ToString(), ReportedFileOperation.OpenDirectory },
-                { FileOperationLinux.Operations.Close.ToString(), ReportedFileOperation.Close },
-                { FileOperationLinux.Operations.Probe.ToString(), ReportedFileOperation.Probe },
-                { FileOperationLinux.Operations.UnixAbsentProbe.ToString(), ReportedFileOperation.UnixAbsentProbe }
+                { "ProcessCommandLine", ReportedFileOperation.ProcessCommandLine },
+                { FileOperation.OpMacLookup.GetName(), ReportedFileOperation.MacLookup },
+                { FileOperation.OpMacReadlink.GetName(), ReportedFileOperation.MacReadlink },
+                { FileOperation.OpMacVNodeCreate.GetName(), ReportedFileOperation.MacVNodeCreate },
+                { FileOperation.OpMacVNodeWrite.GetName(), ReportedFileOperation.MacVNodeWrite },
+                { FileOperation.OpMacVNodeCloneSource.GetName(), ReportedFileOperation.MacVNodeCloneSource },
+                { FileOperation.OpMacVNodeCloneDest.GetName(), ReportedFileOperation.MacVNodeCloneDest },
+                { FileOperation.OpKAuthMoveSource.GetName(), ReportedFileOperation.KAuthMoveSource },
+                { FileOperation.OpKAuthMoveDest.GetName(), ReportedFileOperation.KAuthMoveDest },
+                { FileOperation.OpKAuthCreateHardlinkSource.GetName(), ReportedFileOperation.KAuthCreateHardlinkSource },
+                { FileOperation.OpKAuthCreateHardlinkDest.GetName(), ReportedFileOperation.KAuthCreateHardlinkDest },
+                { FileOperation.OpKAuthCopySource.GetName(), ReportedFileOperation.KAuthCopySource },
+                { FileOperation.OpKAuthCopyDest.GetName(), ReportedFileOperation.KAuthCopyDest },
+                { FileOperation.OpKAuthDeleteDir.GetName(), ReportedFileOperation.KAuthDeleteDir },
+                { FileOperation.OpKAuthDeleteFile.GetName(), ReportedFileOperation.KAuthDeleteFile },
+                { FileOperation.OpKAuthOpenDir.GetName(), ReportedFileOperation.KAuthOpenDir },
+                { FileOperation.OpKAuthReadFile.GetName(), ReportedFileOperation.KAuthReadFile },
+                { FileOperation.OpKAuthCreateDir.GetName(), ReportedFileOperation.KAuthCreateDir },
+                { FileOperation.OpKAuthWriteFile.GetName(), ReportedFileOperation.KAuthWriteFile },
+                { FileOperation.OpKAuthClose.GetName(), ReportedFileOperation.KAuthClose },
+                { FileOperation.OpKAuthCloseModified.GetName(), ReportedFileOperation.KAuthCloseModified },
+                { FileOperation.OpKAuthVNodeExecute.GetName(), ReportedFileOperation.KAuthVNodeExecute },
+                { FileOperation.OpKAuthVNodeWrite.GetName(), ReportedFileOperation.KAuthVNodeWrite },
+                { FileOperation.OpKAuthVNodeRead.GetName(), ReportedFileOperation.KAuthVNodeRead },
+                { FileOperation.OpKAuthVNodeProbe.GetName(), ReportedFileOperation.KAuthVNodeProbe },
             };
 
         private static readonly Dictionary<MemoryString, ReportedFileOperation> s_memoryStringBasedOperations = 

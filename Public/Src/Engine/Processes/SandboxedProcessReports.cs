@@ -814,22 +814,22 @@ namespace BuildXL.Processes
                 });
             }
 
-            // This is a special Linux-specific report, it contains a path and the command line arguments passed to an exec call on a process ID that already exists in our table.
-            // If the error value was not 0, that means the exec failed and therefore we should not update the path/args
-            if (operation == ReportedFileOperation.ProcessExec && error == 0)
+            // This is a special Linux-specific report, the path value contains the commandline for a process that was already reported.
+            if (operation == ReportedFileOperation.ProcessCommandLine)
             {
-                // This should always return something valid because the Process report comes in before the ProcessExec report
+                // This should always return something valid because the Process report comes in before the commandline report
                 var matchingProcess = Processes.FirstOrDefault(p => p.ProcessId == processId);
                 if (matchingProcess == default)
                 {
                     // This should not happen unless a report came out of order for some reason, we will log, but we don't need to fail the build.
                     Tracing.Logger.Log.ReportArgsMismatch(m_loggingContext, PipDescription, $"{processId}");
+                    return true;
                 }
-                else
-                {
-                    matchingProcess.UpdateOnPathAndArgsOnExec(path, processArgs);
-                    m_traceBuilder?.UpdateProcessArgs(matchingProcess, path, processArgs);
-                }
+
+                matchingProcess.AppendArgs(path);
+                m_traceBuilder?.UpdateProcessArgs(matchingProcess, path);
+
+                return true;
             }
 
             // If there is a listener registered that disables the collection of data in the collections, just exit.

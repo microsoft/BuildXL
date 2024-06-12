@@ -44,18 +44,13 @@ namespace Core {
         f`TreeNode.h`
     ];
 
-    @@public
-    export const includes = [
-        Transformer.sealPartialDirectory(d`.`, headers),
-        importFrom("BuildXL.Sandbox.Common").Include.includes,
-    ];
+    @@public export const includes = Transformer.sealPartialDirectory(d`.`, headers);
 
     export const pathToDeviceMapLib: PathAtom = a`${qualifier.platform.replace("x", qualifier.configuration)}`;
 
     const sharedSettings = Runtime.isHostOsWindows && Detours.Lib.nativeDllBuilderDefaultValue.merge<Native.Dll.Arguments>({
             includes: [
                 ...headers,
-                importFrom("BuildXL.Sandbox.Common").Include.includes,
                 importFrom("BuildXL.DeviceMap").Contents.all,
                 Detours.Include.includes,
                 importFrom("WindowsSdk").UM.include,

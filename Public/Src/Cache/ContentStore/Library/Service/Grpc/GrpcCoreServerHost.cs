@@ -50,12 +50,12 @@ public class GrpcCoreServerHost : IGrpcServerHost<GrpcCoreServerHostConfiguratio
                 };
 
                 Contract.Assert(configuration.GrpcPort != configuration.EncryptedGrpcPort, "GrpcPort and EncryptedGrpcPort cannot be the same");
-                if (configuration.GrpcPort is not null)
+                if (configuration.GrpcPort is not null && configuration.GrpcPort > 0)
                 {
                     _grpcServer.Ports.Add(new ServerPort(IPAddress.Any.ToString(), configuration.GrpcPort!.Value, ServerCredentials.Insecure));
                 }
 
-                if (configuration.EncryptedGrpcPort is not null)
+                if (configuration.EncryptedGrpcPort is not null && configuration.EncryptedGrpcPort > 0)
                 {
                     try
                     {
@@ -82,6 +82,11 @@ public class GrpcCoreServerHost : IGrpcServerHost<GrpcCoreServerHostConfiguratio
                             throw;
                         }
                     }
+                }
+
+                if ((configuration.GrpcPort is null || configuration.GrpcPort <= 0) && (configuration.EncryptedGrpcPort is null || configuration.EncryptedGrpcPort <= 0))
+                {
+                    throw new InvalidOperationException("No gRPC ports were configured for the server.");
                 }
 
                 foreach (var endpoint in endpoints)

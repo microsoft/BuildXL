@@ -645,8 +645,8 @@ public static class EphemeralCacheFactory
             context.TracingContext.Logger);
 
         var localHostInfo = configuration.Location.ToGrpcHost();
-        var grpcPort = -1;
-        var encryptedGrpcPort = -1;
+        int? grpcPort = null;
+        int? encryptedGrpcPort = null;
         if (localHostInfo.Encrypted)
         {
             encryptedGrpcPort = localHostInfo.Port;

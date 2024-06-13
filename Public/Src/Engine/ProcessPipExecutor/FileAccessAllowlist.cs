@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BuildXL.Native.IO.Windows;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
@@ -452,7 +453,7 @@ namespace BuildXL.ProcessPipExecutor
         /// Match a given access-rule fragment against a ReportedFileAccess.
         /// </summary>
         /// <remarks>
-        /// Case insensitive since our first target is Windows, which has case-insensitive filesystem semantics.  That decision
+        /// Case insensitive since our first target is Windows, which has case-insensitive filesystem semantics. That decision
         /// might need to be revisited in the future.
         /// </remarks>
         internal static bool PathFilterMatches(
@@ -464,7 +465,41 @@ namespace BuildXL.ProcessPipExecutor
             Contract.Requires((pathRegex.Options & RegexOptions.IgnoreCase) != 0);
             Contract.Requires((pathRegex.Options & RegexOptions.CultureInvariant) != 0);
 
-            return pathRegex.IsMatch(reportedFileAccess.GetPath(pathTable));
+            // A file access might start with a known prefix. Such prefixes are not common, so some users might not be aware of them.
+            // We first check if there is a match with the prefix if not we "normalize" the path (by setting the proper start index) here to avoid erroneous regex mismatch.
+            var reportedFileAccessPath = reportedFileAccess.GetPath(pathTable);
+
+            if (pathRegex.IsMatch(reportedFileAccessPath))
+            {
+                return true;
+            }
+
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                int prefixLength = 0;
+
+                if (reportedFileAccessPath.StartsWith(FileSystemWin.LongPathPrefix))
+                {
+                    prefixLength = FileSystemWin.LongPathPrefix.Length;
+                }
+                else if (reportedFileAccessPath.StartsWith(FileSystemWin.NtPathPrefix))
+                {
+                    prefixLength = FileSystemWin.NtPathPrefix.Length;
+                }
+
+                if (prefixLength == 0)
+                {
+                    return false;
+                }
+
+#if NET8_0_OR_GREATER
+                return pathRegex.IsMatch(reportedFileAccessPath.AsSpan(prefixLength));
+#else
+                return pathRegex.IsMatch(reportedFileAccessPath.Substring(prefixLength));
+#endif
+            }
+
+            return false;
         }
 
         internal static MatchType Match(bool matches, bool entryAllowsCaching)

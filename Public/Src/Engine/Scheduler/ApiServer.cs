@@ -397,7 +397,7 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// Executes <see cref="MaterializeFileCommand"/>.  First check that <see cref="MaterializeFileCommand.File"/>
-        /// and <see cref="MaterializeFileCommand.FullFilePath"/> match, then delegates to <see cref="FileContentManager.TryMaterializeFileAsync(FileArtifact)"/>.
+        /// and <see cref="MaterializeFileCommand.FullFilePath"/> match, then delegates to <see cref="FileContentManager.TryMaterializeFileAsync(FileArtifact, bool)"/>.
         /// If provided <see cref="MaterializeFileCommand.File"/> is not valid, no checks are done, and the call is delegated
         /// to <see cref="FileContentManager.TryMaterializeSealedFileAsync(AbsolutePath)"/>
         /// </summary>

@@ -3788,13 +3788,31 @@ namespace BuildXL.Scheduler
             if (cacheHitData.StandardOutput != null)
             {
                 var file = GetCachedSandboxedProcessOutputArtifact(cacheHitData, pip, SandboxedProcessFile.StandardOutput);
-                failedFiles = await TryMaterializeStandardOutputFileHelperAsync(operationContext, pip, fileContentManager, failedFiles, file, cacheHitData.StandardOutput.Item2);
+                failedFiles = await TryMaterializeStandardOutputFileHelperAsync(
+                    operationContext, 
+                    pip, 
+                    fileContentManager, 
+                    failedFiles, 
+                    file, 
+                    cacheHitData.StandardOutput.Item2,
+                    // Replaying warnings from cache is a blocking step. We don't want this materialization request to get throttled
+                    // together with regular input/output materialization. We just need to materialize standard output and error (below),
+                    // so materializing 2 files per pip without throttling shouldn't be an issue.
+                    throttleMaterialization: false);
             }
 
             if (cacheHitData.StandardError != null)
             {
                 var file = GetCachedSandboxedProcessOutputArtifact(cacheHitData, pip, SandboxedProcessFile.StandardError);
-                failedFiles = await TryMaterializeStandardOutputFileHelperAsync(operationContext, pip, fileContentManager, failedFiles, file, cacheHitData.StandardError.Item2);
+                failedFiles = await TryMaterializeStandardOutputFileHelperAsync(
+                    operationContext, 
+                    pip, 
+                    fileContentManager, 
+                    failedFiles, 
+                    file, 
+                    cacheHitData.StandardError.Item2,
+                    // See throttling considerations on the materialization request for standard output above
+                    throttleMaterialization: false);
             }
 
             if (failedFiles.Any())
@@ -3865,7 +3883,8 @@ namespace BuildXL.Scheduler
             FileContentManager fileContentManager,
             IEnumerable<(FileArtifact, ContentHash)> failedFiles,
             FileArtifact file,
-            ContentHash contentHash)
+            ContentHash contentHash,
+            bool throttleMaterialization)
         {
             var filesToMaterialize = new[] { file };
             var result = await fileContentManager.TryMaterializeFilesAsync(
@@ -3874,7 +3893,8 @@ namespace BuildXL.Scheduler
                     filesToMaterialize: filesToMaterialize,
                     materializatingOutputs: true,
                     isDeclaredProducer: pip.GetOutputs().Contains(file),
-                    isApiServerRequest: false);
+                    isApiServerRequest: false,
+                    throttleMaterialization);
 
             if (result != ArtifactMaterializationResult.Succeeded)
             {

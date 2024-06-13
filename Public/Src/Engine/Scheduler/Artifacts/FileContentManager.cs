@@ -564,7 +564,15 @@ namespace BuildXL.Scheduler.Artifacts
                 PopulateDependencies(pip, state.PipArtifacts, registerDirectories: true);
 
                 // Materialize inputs
-                var result = await TryMaterializeArtifactsCore(new PipInfo(pip, Context), operationContext, state, materializatingOutputs: false, isDeclaredProducer: false, isApiServerRequest: false);
+                var result = await TryMaterializeArtifactsCore(
+                    new PipInfo(pip, Context), 
+                    operationContext, 
+                    state, 
+                    materializatingOutputs: false, 
+                    isDeclaredProducer: false, 
+                    isApiServerRequest: false, 
+                    throttleMaterialization: true);
+
                 Contract.Assert(result != ArtifactMaterializationResult.None);
 
                 switch (result)
@@ -657,7 +665,7 @@ namespace BuildXL.Scheduler.Artifacts
                 RegisterDirectoryContents(state.PipArtifacts);
 
                 // Materialize outputs
-                var result = await TryMaterializeArtifactsCore(new PipInfo(pip, Context), operationContext, state, materializatingOutputs: true, isDeclaredProducer: true, isApiServerRequest: false);
+                var result = await TryMaterializeArtifactsCore(new PipInfo(pip, Context), operationContext, state, materializatingOutputs: true, isDeclaredProducer: true, isApiServerRequest: false, throttleMaterialization: true);
                 if (result != ArtifactMaterializationResult.Succeeded)
                 {
                     return state.GetFailure();
@@ -735,7 +743,7 @@ namespace BuildXL.Scheduler.Artifacts
                             materializationCompletion: TaskSourceSlim.Create<PipOutputOrigin>());
                     }
 
-                    var placeResult = await PlaceFilesAsync(operationContext, pipInfo, state);
+                    var placeResult = await PlaceFilesAsync(operationContext, pipInfo, state, throttleMaterialization: true);
                     return placeResult == PlaceFile.Success;
                 }
             }
@@ -1194,12 +1202,19 @@ namespace BuildXL.Scheduler.Artifacts
         /// <remarks>
         /// Note: this method is only used by the API Server.
         /// </remarks>
-        public async Task<ArtifactMaterializationResult> TryMaterializeFileAsync(FileArtifact outputFile)
+        public async Task<ArtifactMaterializationResult> TryMaterializeFileAsync(FileArtifact outputFile, bool throttleMaterialization = true)
         {
             var producer = GetDeclaredProducer(outputFile);
             using (var operationContext = OperationTracker.StartOperation(PipExecutorCounter.FileContentManagerTryMaterializeFileDuration, m_host.LoggingContext))
             {
-                return await TryMaterializeFilesAsync(producer, operationContext, new[] { outputFile }, materializatingOutputs: true, isDeclaredProducer: true, isApiServerRequest: true);
+                return await TryMaterializeFilesAsync(
+                    producer, 
+                    operationContext, 
+                    new[] { outputFile }, 
+                    materializatingOutputs: true, 
+                    isDeclaredProducer: true, 
+                    isApiServerRequest: true, 
+                    throttleMaterialization);
             }
         }
 
@@ -1232,7 +1247,8 @@ namespace BuildXL.Scheduler.Artifacts
             IEnumerable<FileArtifact> filesToMaterialize,
             bool materializatingOutputs,
             bool isDeclaredProducer,
-            bool isApiServerRequest)
+            bool isApiServerRequest,
+            bool throttleMaterialization)
         {
             Contract.Requires(requestingPip != null);
 
@@ -1251,7 +1267,8 @@ namespace BuildXL.Scheduler.Artifacts
                                     state,
                                     materializatingOutputs: materializatingOutputs,
                                     isDeclaredProducer: isDeclaredProducer,
-                                    isApiServerRequest: isApiServerRequest);
+                                    isApiServerRequest: isApiServerRequest,
+                                    throttleMaterialization);
             }
         }
 
@@ -1695,7 +1712,8 @@ namespace BuildXL.Scheduler.Artifacts
             PipArtifactsState state,
             bool materializatingOutputs,
             bool isDeclaredProducer,
-            bool isApiServerRequest)
+            bool isApiServerRequest,
+            bool throttleMaterialization)
         {
             // If materializing outputs, all files come from the same pip and therefore have the same
             // policy for whether they are readonly
@@ -1783,7 +1801,7 @@ namespace BuildXL.Scheduler.Artifacts
             }
 
             // Place Files:
-            var possiblyPlaced = await PlaceFilesAsync(operationContext, pipInfo, state);
+            var possiblyPlaced = await PlaceFilesAsync(operationContext, pipInfo, state, throttleMaterialization);
             if (possiblyPlaced != PlaceFile.Success)
             {
                 firstFailure ??= (possiblyPlaced == PlaceFile.UserError
@@ -2227,7 +2245,8 @@ namespace BuildXL.Scheduler.Artifacts
         private async Task<PlaceFile> PlaceFilesAsync(
             OperationContext operationContext,
             PipInfo pipInfo,
-            PipArtifactsState state)
+            PipArtifactsState state,
+            bool throttleMaterialization)
         {
             bool success = true;
             bool userError = false;
@@ -2286,7 +2305,7 @@ namespace BuildXL.Scheduler.Artifacts
                                     return;
                                 }
 
-                                Possible<ContentMaterializationResult> possiblyPlaced = await PlaceSingleFileAsync(operationContext, state, materializationFileIndex, materializationFile);
+                                Possible<ContentMaterializationResult> possiblyPlaced = await PlaceSingleFileAsync(operationContext, state, materializationFileIndex, materializationFile, throttleMaterialization);
 
                                 Possible<Unit> finalResult = possiblyPlaced
                                                                 .Then(_ => m_host.ReportFileArtifactPlaced(file, materializationInfo))
@@ -2419,7 +2438,8 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             PipArtifactsState state,
             int fileIndex,
-            MaterializationFile materializationFile)
+            MaterializationFile materializationFile,
+            bool throttleMaterialization)
         {
             FileArtifact file = materializationFile.Artifact;
             FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
@@ -2432,7 +2452,7 @@ namespace BuildXL.Scheduler.Artifacts
             bool allowReadOnly = materializationFile.AllowReadOnly && !materializationFile.MaterializationInfo.IsUndeclaredFileRewrite;
 
             using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
-            using (await m_materializationSemaphore.AcquireAsync())
+            using (throttleMaterialization ? await m_materializationSemaphore.AcquireAsync() : (TaskUtilities.SemaphoreReleaser?) null)
             {
                 // Quickly fail pending placements when cancellation is requested
                 if (Context.CancellationToken.IsCancellationRequested)
@@ -3117,7 +3137,8 @@ namespace BuildXL.Scheduler.Artifacts
                         operationContext,
                         state,
                         fileAndIndex.index,
-                        fileAndIndex.materializationFile);
+                        fileAndIndex.materializationFile,
+                        throttleMaterialization: true);
 
                     if (result.Succeeded)
                     {

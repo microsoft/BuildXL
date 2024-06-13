@@ -5,7 +5,7 @@ namespace BuildXL.Scheduler.Artifacts
 {
     /// <summary>
     /// Possible results of materializing files through 
-    /// <see cref="FileContentManager.TryMaterializeArtifactsCore(PipInfo, OperationContext, FileContentManager.PipArtifactsState, bool, bool, bool)"/>.
+    /// <see cref="FileContentManager.TryMaterializeArtifactsCore(PipInfo, OperationContext, FileContentManager.PipArtifactsState, bool, bool, bool, bool)"/>.
     /// </summary>
     public enum ArtifactMaterializationResult
     {

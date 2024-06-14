@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240606.3 (Release [388286](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=388286))
+- Don't save fingerprint salt as part of cached graph
+- Fix CacheDump Analyzer Crashes when Trying to Dump a Failed Strong Fingerprint
+- Log internal warning on open file descriptor spike
+- Minor tweaks and fixes
+
 # 0.1.0-20240531.3.1 (Release [387989](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=387989))
 - Small tweaks for Ubuntu 22.04 support
 - Update .NET runtime versions

@@ -6,6 +6,9 @@ variables:
     value: $(Build.SourcesDirectory)\Out\Logs
   - name: Codeql.Enabled
     value: true
+    # YarnTool is an external tool
+  - name: Codeql.ExcludePathPatterns
+    value: "Out/frontend/Download/YarnTool"
 
 jobs:
 - job: Codeql

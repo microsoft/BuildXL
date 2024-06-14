@@ -13,6 +13,13 @@ resources:
       type: git
       name: CloudBuild
 
+variables:
+  # CodeQL scans for Cloudbuild repo should be performed elsewhere.
+  # CB repo is checked out into $(Build.SourcesDirectory)/CloudBuild. CodeQL is using $(Build.SourcesDirectory) as a source root.
+  # Add the top-level directory to the exclude list to exclude the whole CloudBuild repo.
+  - name: Codeql.ExcludePathPatterns
+    value: "CloudBuild"
+
 stages:
 - stage:
   jobs:
